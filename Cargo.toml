@@ -1,0 +1,10 @@
+[package]
+name = "bigneon-api"
+version = "0.1.0"
+authors = ["CjS77"]
+license = "BSD-3"
+repository = "https://github.com/big-neon/bn-api/"
+description = "Big Neon unified API server"
+documentation = "https://github.com/big-neon/docs"
+
+[dependencies]
