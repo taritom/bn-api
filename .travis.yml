@@ -1,0 +1,26 @@
+language: rust
+rust:
+  - stable
+#  - beta
+#  - nightly
+cache: cargo
+services:
+  - postgresql
+addons:
+  postgresql: "9.6"
+
+#matrix:
+#  allow_failures:
+#    - rust: nightly
+#  fast_finish: true
+env:
+  BIGNEON_DB: bigneon
+  DATABASE_URL: postgres://postgres@localhost/bigneon
+
+before_script:
+  - export PATH="$PATH:$HOME/.cargo/bin"
+  - rustup component add rustfmt-preview
+  - ./scripts/init.sh
+
+script:
+  - cargo fmt --all -- --write-mode=diff
