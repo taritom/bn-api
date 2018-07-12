@@ -16,11 +16,15 @@ addons:
 env:
   BIGNEON_DB: bigneon
   DATABASE_URL: postgres://postgres@localhost/bigneon
+  TEST_DATABASE_URL: postgres://postgres:password123@localhost/bigneon_test
+  TEST_DATABASE_ADMIN_URL: postgres://postgres:password123@localhost/bigneon_test
 
 before_script:
   - export PATH="$PATH:$HOME/.cargo/bin"
   - rustup component add rustfmt-preview
-  - ./scripts/init.sh
-
+  - cargo install --git https://github.com/big-neon/bn-db.git --force
+  - bndb_cli migrate -c postgres://postgres:password123@localhost/bigneon_test
+ 
 script:
   - cargo fmt --all -- --write-mode=diff
+  - cargo test
