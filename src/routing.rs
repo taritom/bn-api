@@ -4,7 +4,7 @@ use server::AppState;
 
 pub fn route(app: App<AppState>) -> App<AppState> {
     app.resource("/", |r| r.method(Method::GET).f(artists::index))
-        .resource("/artists", |r| r.method(Method::GET).f(artists::index))
+        .resource("/artists", |r| r.method(Method::GET).with(artists::index))
         .resource("/artists/{id}", |r| {
             r.method(Method::GET).with(artists::show)
         })
