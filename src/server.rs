@@ -14,6 +14,8 @@ pub struct Server {
 
 impl Server {
     pub fn start(config: Config) {
+        let bind_addr = format!("{}:{}", config.api_url, config.api_port);
+        println!("Listening on {}", bind_addr);
         server::new({
             move || {
                 routing::route(App::with_state(AppState {
@@ -23,8 +25,8 @@ impl Server {
                         .secure(false),
                 ))
             }
-        }).bind("127.0.0.1:8088")
-            .expect("Can not bind to 127.0.0.1:8088")
+        }).bind(&bind_addr)
+            .expect(&format!("Can not bind to {}", bind_addr))
             .run();
     }
 }
