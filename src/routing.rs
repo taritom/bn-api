@@ -3,8 +3,7 @@ use controllers::*;
 use server::AppState;
 
 pub fn route(app: App<AppState>) -> App<AppState> {
-    app.resource("/", |r| r.method(Method::GET).f(artists::index))
-        .resource("/artists", |r| r.method(Method::GET).with(artists::index))
+    app.resource("/artists", |r| r.method(Method::GET).with(artists::index))
         .resource("/artists/{id}", |r| {
             r.method(Method::GET).with(artists::show)
         })
@@ -16,5 +15,9 @@ pub fn route(app: App<AppState>) -> App<AppState> {
         })
         .resource("/artists/{id}", |r| {
             r.method(Method::DELETE).with(artists::destroy)
+        })
+        .resource("/login", |r| r.method(Method::POST).with(sessions::create))
+        .resource("/logout", |r| {
+            r.method(Method::DELETE).with(sessions::destroy)
         })
 }

@@ -18,13 +18,14 @@ env:
   DATABASE_URL: postgres://postgres@localhost/bigneon
   TEST_DATABASE_URL: postgres://postgres:password123@localhost/bigneon_test
   TEST_DATABASE_ADMIN_URL: postgres://postgres:password123@localhost/bigneon_test
+  COOKIE_SECRET_KEY: 8373b8987dab284b39c93bcda294bc294b284b72b29cd9028bca
 
 before_script:
   - export PATH="$PATH:$HOME/.cargo/bin"
   - rustup component add rustfmt-preview
   - cargo install --git https://github.com/big-neon/bn-db.git --force
   - bndb_cli migrate -c postgres://postgres:password123@localhost/bigneon_test
- 
+
 script:
   - cargo fmt --all -- --write-mode=diff
   - cargo test
