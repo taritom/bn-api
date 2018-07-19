@@ -8,4 +8,4 @@ ADD src src/
 RUN cargo build --release
 RUN cargo install
 
-CMD ["bigneon-api"]
+CMD ["server"]
