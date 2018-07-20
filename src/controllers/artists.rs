@@ -1,5 +1,6 @@
 use actix_web::{Json, Path, Result, State};
 use bigneon_db::models::{Artist, NewArtist};
+use models::user::User;
 use serde_json;
 use server::AppState;
 use uuid::Uuid;

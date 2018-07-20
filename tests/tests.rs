@@ -6,6 +6,7 @@ extern crate dotenv;
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
+extern crate jwt;
 extern crate tokio_core;
 extern crate uuid;
 

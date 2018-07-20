@@ -19,6 +19,8 @@ impl TestRequest {
     pub fn create_with_route(database: TestDatabase, route: &str, path: &str) -> TestRequest {
         let mut request = test::TestRequest::with_state(AppState {
             database: Box::new(database),
+            token_secret: "test_secret".into(),
+            token_issuer: "bn-api-test".into(),
         }).uri(&path)
             .finish();
 

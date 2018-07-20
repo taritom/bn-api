@@ -46,7 +46,8 @@ impl Database {
 
 fn create_connection_pool(config: &Config) -> R2D2Pool {
     let thread_pool = Arc::new(ScheduledThreadPool::new(3));
-    let r2d2_config = r2d2::Pool::builder().max_size(10).thread_pool(thread_pool);
+    // TODO: This should be shared between threads
+    let r2d2_config = r2d2::Pool::builder().max_size(2).thread_pool(thread_pool);
 
     let connection_manager = ConnectionManager::new(config.database_url.clone());
 
