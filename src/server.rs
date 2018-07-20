@@ -19,7 +19,7 @@ pub struct Server {
 impl Server {
     pub fn start(config: Config) {
         let bind_addr = format!("{}:{}", config.api_url, config.api_port);
-        println!("Listening on {}", bind_addr);
+        info!("Listening on {}", bind_addr);
         server::new({
             move || {
                 routing::routes(

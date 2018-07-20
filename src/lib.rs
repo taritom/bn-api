@@ -12,6 +12,9 @@ extern crate uuid;
 #[macro_use]
 extern crate crypto;
 extern crate jwt;
+#[macro_use]
+extern crate log;
+extern crate log4rs;
 
 pub mod config;
 pub mod controllers;
