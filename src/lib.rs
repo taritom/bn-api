@@ -8,10 +8,9 @@ extern crate serde;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
-extern crate uuid;
-#[macro_use]
 extern crate crypto;
 extern crate jwt;
+extern crate uuid;
 #[macro_use]
 extern crate log;
 extern crate log4rs;
