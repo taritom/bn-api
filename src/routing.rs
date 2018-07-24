@@ -1,12 +1,10 @@
-use actix_web::{http::Method, App, HttpResponse};
+use actix_web::{http::header, http::Method, App, HttpResponse};
 use config::Config;
 use controllers::*;
 use middleware::auth::AuthMiddleware;
 use server::AppState;
 
 pub fn routes(config: &Config, app: App<AppState>) -> App<AppState> {
-    let auth_middleware = AuthMiddleware::new(&config.token_secret);
-
     let mw = AuthMiddleware::new(&config.token_secret);
     let mw2 = mw.clone();
     let mw3 = mw.clone();
@@ -21,7 +19,6 @@ pub fn routes(config: &Config, app: App<AppState>) -> App<AppState> {
         .resource("/artists/{id}", |r| {
             r.middleware(mw);
             r.method(Method::GET).with(artists::show);
-            r.method(Method::POST).with(artists::create);
             r.method(Method::PUT).with(artists::update);
             r.method(Method::DELETE).with(artists::destroy);
         })
@@ -67,4 +64,15 @@ pub fn routes(config: &Config, app: App<AppState>) -> App<AppState> {
         .route("/auth/token", Method::POST, auth::token)
         .route("/login", Method::POST, sessions::create)
         .route("/logout", Method::DELETE, sessions::destroy)
+        .resource("/password_reset", |r| {
+            r.method(Method::POST).with(password_resets::create);
+            r.method(Method::PUT).with(password_resets::update);
+        })
+        .default_resource(|r| {
+            r.method(Method::GET).f(|_req| {
+                HttpResponse::NotFound()
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(json!({"error": "Not found"}).to_string())
+            });
+        })
 }

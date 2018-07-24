@@ -21,13 +21,15 @@ env:
   TOKEN_SECRET: travis_secret
   TOKEN_ISSUER: bg-on-travis
   COOKIE_SECRET_KEY: 8373b8987dab284b39c93bcda294bc294b284b72b29cd9028bca
+  MAIL_FROM_NAME: "Big Neon Support"
+  MAIL_FROM_EMAIL: support@bigneon.com
 
 before_script:
   - export PATH="$PATH:$HOME/.cargo/bin"
   - rustup component add rustfmt-preview
-  - cargo install --git https://github.com/big-neon/bn-db.git --force
+  - cargo install --git https://github.com/Timo614/bn-db.git --rev ff75fb3210501d2348fd004dbb86585e268198ef --force
   - bndb_cli migrate -c postgres://postgres:password123@localhost/bigneon_test
- 
+
 script:
   - cargo fmt --all -- --write-mode=diff
   - cargo test

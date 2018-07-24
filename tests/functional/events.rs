@@ -1,13 +1,12 @@
-extern crate chrono;
-use actix_web::{http, FromRequest, HttpRequest, Json, Path, State};
+use actix_web::{http::StatusCode, FromRequest, Json, Path};
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_api::server::AppState;
 use bigneon_db::models::{Event, NewEvent, Organization, User, Venue};
+use chrono::prelude::*;
 use serde_json;
+use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
-use unit::events::chrono::prelude::*;
 
 #[test]
 fn index() {
@@ -18,7 +17,7 @@ fn index() {
     let organization = Organization::create(user.id, "Organization")
         .commit(&*database.get_connection())
         .unwrap();
-    let mut venue = Venue::create(&"Venue")
+    let venue = Venue::create(&"Venue")
         .commit(&*database.get_connection())
         .unwrap();
     let event = Event::create(
@@ -42,12 +41,10 @@ fn index() {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let response = events::index(state);
-    match response {
-        Ok(body) => {
-            assert_eq!(body, events_expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, events_expected_json);
 }
 
 #[test]
@@ -59,7 +56,7 @@ fn show() {
     let organization = Organization::create(user.id, "Organization")
         .commit(&*database.get_connection())
         .unwrap();
-    let mut venue = Venue::create(&"Venue")
+    let venue = Venue::create(&"Venue")
         .commit(&*database.get_connection())
         .unwrap();
     let event = Event::create(
@@ -80,13 +77,9 @@ fn show() {
     let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
 
     let response = events::show((state, path));
-
-    match response {
-        Ok(body) => {
-            assert_eq!(body, event_expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, event_expected_json);
 }
 
 #[test]
@@ -99,7 +92,7 @@ fn create() {
     let organization = Organization::create(user.id, "Organization")
         .commit(&*database.get_connection())
         .unwrap();
-    let mut venue = Venue::create(&"Venue")
+    let venue = Venue::create(&"Venue")
         .commit(&*database.get_connection())
         .unwrap();
     //create event
@@ -112,15 +105,12 @@ fn create() {
         venue_id: venue.id,
         event_start: NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
     });
-    let response = events::create((state, json));
-    match response {
-        Ok(body) => {
-            let event: Event = serde_json::from_str(&body).unwrap();
 
-            assert_eq!(event.name, name);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    let response = events::create((state, json));
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let event: Event = serde_json::from_str(&body).unwrap();
+    assert_eq!(event.name, name);
 }
 
 #[test]
@@ -133,10 +123,10 @@ fn update() {
     let organization = Organization::create(user.id, "Organization")
         .commit(&*database.get_connection())
         .unwrap();
-    let mut venue = Venue::create(&"Venue")
+    let venue = Venue::create(&"Venue")
         .commit(&*database.get_connection())
         .unwrap();
-    let mut event = Event::create(
+    let event = Event::create(
         "NewEvent",
         organization.id,
         venue.id,
@@ -164,17 +154,14 @@ fn update() {
 
     let response = events::update((state, path, json));
 
-    match response {
-        Ok(body) => {
-            let updated_event: Event = serde_json::from_str(&body).unwrap();
-            assert_eq!(updated_event.name, new_name);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let updated_event: Event = serde_json::from_str(&body).unwrap();
+    assert_eq!(updated_event.name, new_name);
 }
 
 #[test]
-fn show_via_organizations() {
+fn show_from_organizations() {
     let database = TestDatabase::new();
     //create prerequisites
     let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
@@ -183,17 +170,17 @@ fn show_via_organizations() {
     let organization = Organization::create(user.id, "Organization")
         .commit(&*database.get_connection())
         .unwrap();
-    let mut venue = Venue::create(&"Venue")
+    let venue = Venue::create(&"Venue")
         .commit(&*database.get_connection())
         .unwrap();
-    let mut event = Event::create(
+    let event = Event::create(
         "NewEvent",
         organization.id,
         venue.id,
         NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
     ).commit(&*database.get_connection())
         .unwrap();
-    let mut event2 = Event::create(
+    let event2 = Event::create(
         "NewEvent2",
         organization.id,
         venue.id,
@@ -209,15 +196,14 @@ fn show_via_organizations() {
 
     let json = Json(organization.id);
     let response = events::show_from_organizations((state, json));
-    match response {
-        Ok(body) => {
-            assert_eq!(event_expected_json, body);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, event_expected_json);
 }
+
 #[test]
-fn show_via_venues() {
+fn show_from_venues() {
     let database = TestDatabase::new();
     //create prerequisites
     let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
@@ -253,11 +239,7 @@ fn show_via_venues() {
 
     let json = Json(venue.id);
     let response = events::show_from_venues((state, json));
-
-    match response {
-        Ok(body) => {
-            assert_eq!(event_expected_json, body);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, event_expected_json);
 }

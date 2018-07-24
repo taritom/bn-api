@@ -1,8 +1,10 @@
-use actix_web::{FromRequest, Json, Path};
+use actix_web::{http::StatusCode, FromRequest, Json, Path};
 use bigneon_api::controllers::artists::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{Artist, NewArtist};
+use bigneon_db::models::artists::{NewArtist, UserEditableAttributes};
+use bigneon_db::models::Artist;
 use serde_json;
+use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
@@ -23,12 +25,9 @@ fn index() {
     let state = test_request.extract_state();
     let response = artists::index(state);
 
-    match response {
-        Ok(body) => {
-            assert_eq!(body, artist_expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, artist_expected_json);
 }
 
 #[test]
@@ -49,12 +48,9 @@ fn show() {
 
     let response = artists::show((state, path));
 
-    match response {
-        Ok(body) => {
-            assert_eq!(body, artist_expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, artist_expected_json);
 }
 
 #[test]
@@ -71,14 +67,10 @@ fn create() {
 
     let response = artists::create((state, json));
 
-    match response {
-        Ok(body) => {
-            let artist: Artist = serde_json::from_str(&body).unwrap();
-
-            assert_eq!(artist.name, name);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let artist: Artist = serde_json::from_str(&body).unwrap();
+    assert_eq!(artist.name, name);
 }
 
 #[test]
@@ -96,19 +88,16 @@ fn update() {
     );
     let state = test_request.extract_state();
     let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    let json = Json(NewArtist {
+    let json = Json(UserEditableAttributes {
         name: new_name.clone().to_string(),
     });
 
     let response = artists::update((state, path, json));
 
-    match response {
-        Ok(body) => {
-            let updated_artist: Artist = serde_json::from_str(&body).unwrap();
-            assert_eq!(updated_artist.name, new_name);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let updated_artist: Artist = serde_json::from_str(&body).unwrap();
+    assert_eq!(updated_artist.name, new_name);
 }
 
 #[test]
@@ -128,12 +117,9 @@ fn destroy() {
     let response = artists::destroy((state, path));
     let expected_json = "{}";
 
-    match response {
-        Ok(body) => {
-            assert_eq!(body, expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, expected_json);
 
     let artist = Artist::find(&artist.id, connection);
     match artist {

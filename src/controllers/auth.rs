@@ -5,7 +5,6 @@ use crypto::sha2::Sha256;
 use jwt::{Header, Registered, Token};
 use serde_json;
 use server::AppState;
-use std::time;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Serialize, Deserialize)]
@@ -63,7 +62,7 @@ pub fn token(data: (State<AppState>, Json<LoginRequest>)) -> Result<AccessToken,
 
     let header: Header = Default::default();
 
-    let mut timer = time::SystemTime::now();
+    let mut timer = SystemTime::now();
     timer += Duration::from_secs(86400);
     let exp = timer.duration_since(UNIX_EPOCH).unwrap().as_secs();
 

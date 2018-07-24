@@ -3,10 +3,10 @@ use bigneon_api::database::ConnectionGranting;
 use bigneon_db::db::connections::Connectable;
 use diesel::prelude::*;
 use diesel::Connection;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct TestDatabase {
-    connection: Rc<PgConnection>,
+    connection: Arc<PgConnection>,
 }
 
 impl ConnectionGranting for TestDatabase {
@@ -18,7 +18,7 @@ impl ConnectionGranting for TestDatabase {
 }
 
 pub struct TestConnection {
-    connection: Rc<PgConnection>,
+    connection: Arc<PgConnection>,
 }
 
 impl Connectable for TestConnection {
@@ -39,7 +39,7 @@ impl TestDatabase {
         connection.begin_test_transaction().unwrap();
 
         TestDatabase {
-            connection: Rc::new(connection),
+            connection: Arc::new(connection),
         }
     }
 }

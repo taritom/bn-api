@@ -1,8 +1,9 @@
-use actix_web::Json;
+use actix_web::{http::StatusCode, Json};
 use bigneon_api::controllers::sessions::{self, AuthenticationCredentials};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::User;
 use serde_json;
+use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 use uuid::Uuid;
@@ -43,12 +44,9 @@ fn create() {
         "Expected login timestamp value"
     );
 
-    match response {
-        Ok(body) => {
-            assert_eq!(body, user_expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, user_expected_json);
 }
 
 #[test]
@@ -83,14 +81,11 @@ fn create_fails_invalid_email() {
         "Login timestamp should not be set on the session"
     );
 
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = support::unwrap_body_to_string(&response).unwrap();
     let expected_body = json!({"error": "Unable to login, please check your credentials and try again."})
         .to_string();
-    match response {
-        Ok(body) => {
-            assert_eq!(body, expected_body);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(body, expected_body);
 }
 
 #[test]
@@ -118,14 +113,11 @@ fn create_fails_invalid_password() {
         None => (),
     };
 
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = support::unwrap_body_to_string(&response).unwrap();
     let expected_body = json!({"error": "Unable to login, please check your credentials and try again."})
         .to_string();
-    match response {
-        Ok(body) => {
-            assert_eq!(body, expected_body);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(body, expected_body);
 }
 
 #[test]
@@ -148,12 +140,9 @@ fn destroy() {
     let session = test_request.extract_session();
     assert!(session.get::<Uuid>("user_id").unwrap().is_none());
 
-    match response {
-        Ok(body) => {
-            assert_eq!(body, "{}");
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, "{}");
 }
 
 #[test]
@@ -166,10 +155,7 @@ fn destroy_already_logged_out() {
     let session = test_request.extract_session();
     assert!(session.get::<Uuid>("user_id").unwrap().is_none());
 
-    match response {
-        Ok(body) => {
-            assert_eq!(body, "{}");
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, "{}");
 }

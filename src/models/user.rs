@@ -2,11 +2,13 @@ use actix_web::error;
 use actix_web::error::Error;
 use actix_web::HttpRequest;
 
+#[allow(dead_code)]
 pub struct User {
     username: String,
     roles: String,
 }
 
+#[allow(dead_code, unused_variables)]
 impl User {
     pub fn new(username: &str, roles: &str) -> User {
         User {

@@ -1,12 +1,9 @@
-use actix_web::{http, FromRequest, HttpRequest, Json, Path, State};
+use actix_web::{http::StatusCode, FromRequest, Json, Path};
 use bigneon_api::controllers::organizations::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_api::server::AppState;
 use bigneon_db::models::{NewOrganization, Organization, User};
-use jwt::Header;
-use jwt::Registered;
-use jwt::Token;
 use serde_json;
+use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
@@ -43,12 +40,10 @@ fn index() {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let response = organizations::index(state);
-    match response {
-        Ok(body) => {
-            assert_eq!(body, organization_expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, organization_expected_json);
 }
 
 #[test]
@@ -79,12 +74,9 @@ fn show() {
 
     let response = organizations::show((state, path));
 
-    match response {
-        Ok(body) => {
-            assert_eq!(body, organization_expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, organization_expected_json);
 }
 
 #[test]
@@ -102,14 +94,11 @@ fn create() {
         name: name.clone().to_string(),
     });
     let response = organizations::create((state, json));
-    match response {
-        Ok(body) => {
-            let org: Organization = serde_json::from_str(&body).unwrap();
 
-            assert_eq!(org.name, name);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let org: Organization = serde_json::from_str(&body).unwrap();
+    assert_eq!(org.name, name);
 }
 
 #[test]
@@ -144,11 +133,8 @@ fn update() {
 
     let response = organizations::update((state, path, json));
 
-    match response {
-        Ok(body) => {
-            let updated_organization: Organization = serde_json::from_str(&body).unwrap();
-            assert_eq!(updated_organization.name, new_name);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let updated_organization: Organization = serde_json::from_str(&body).unwrap();
+    assert_eq!(updated_organization.name, new_name);
 }

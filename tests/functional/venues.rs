@@ -1,9 +1,9 @@
-use actix_web::{http, FromRequest, HttpRequest, Json, Path, State};
+use actix_web::{http::StatusCode, FromRequest, Json, Path};
 use bigneon_api::controllers::venues::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_api::server::AppState;
-use bigneon_db::models::{NewVenue, Organization, User, Venue};
+use bigneon_db::models::{NewVenue, Organization, OrganizationVenue, User, Venue};
 use serde_json;
+use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
@@ -37,12 +37,10 @@ fn index() {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let response = venues::index(state);
-    match response {
-        Ok(body) => {
-            assert_eq!(body, venue_expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, venue_expected_json);
 }
 
 #[test]
@@ -70,12 +68,9 @@ fn show() {
 
     let response = venues::show((state, path));
 
-    match response {
-        Ok(body) => {
-            assert_eq!(body, venue_expected_json);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, venue_expected_json);
 }
 
 #[test]
@@ -89,14 +84,11 @@ fn create() {
         name: name.clone().to_string(),
     });
     let response = venues::create((state, json));
-    match response {
-        Ok(body) => {
-            let venue: Venue = serde_json::from_str(&body).unwrap();
 
-            assert_eq!(venue.name, name);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let venue: Venue = serde_json::from_str(&body).unwrap();
+    assert_eq!(venue.name, name);
 }
 
 #[test]
@@ -134,17 +126,14 @@ fn update() {
 
     let response = venues::update((state, path, json));
 
-    match response {
-        Ok(body) => {
-            let updated_venue: Venue = serde_json::from_str(&body).unwrap();
-            assert_eq!(updated_venue.name, new_name);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let updated_venue: Venue = serde_json::from_str(&body).unwrap();
+    assert_eq!(updated_venue.name, new_name);
 }
 
 #[test]
-fn show_via_organizations() {
+fn show_from_organizations() {
     let database = TestDatabase::new();
     //create user
     let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
@@ -197,15 +186,13 @@ fn show_via_organizations() {
 
     let json = Json(organization.id);
     let response = venues::show_from_organizations((state, json));
-    match response {
-        Ok(body) => {
-            assert_eq!(venue_expected_json, body);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(venue_expected_json, body);
 }
 #[test]
-fn create_link_to_organization() {
+fn add_to_organization() {
     let database = TestDatabase::new();
     //create user
     let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
@@ -233,7 +220,7 @@ fn create_link_to_organization() {
     venue.country = Some(<String>::from("Test country"));
     venue.zip = Some(<String>::from("0124"));
     venue.phone = Some(<String>::from("+27123456789"));
-    let _updated_venue = Venue::update(&venue, &*database.get_connection()).unwrap();
+    Venue::update(&venue, &*database.get_connection()).unwrap();
 
     //link venues to organization
     let test_request = TestRequest::create_with_route(
@@ -246,10 +233,9 @@ fn create_link_to_organization() {
     let json = Json(organization.id);
     let response = venues::add_to_organization((state, path, json));
 
-    match response {
-        Ok(body) => {
-            assert_eq!(true, true);
-        }
-        _ => panic!("Unexpected response body"),
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let organization_venue: OrganizationVenue = serde_json::from_str(&body).unwrap();
+    assert_eq!(organization_venue.organization_id, organization.id);
+    assert_eq!(organization_venue.venue_id, venue.id);
 }

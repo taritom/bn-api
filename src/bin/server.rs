@@ -1,6 +1,5 @@
 extern crate bigneon_api;
 extern crate dotenv;
-#[macro_use]
 extern crate log;
 extern crate log4rs;
 
