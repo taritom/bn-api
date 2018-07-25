@@ -1,11 +1,11 @@
 use actix_web::error;
 use actix_web::middleware::{Middleware, Started};
 use actix_web::{HttpRequest, Result};
+use auth::big_neon_claims::BigNeonClaims;
+use auth::user::User;
 use crypto::sha2::Sha256;
 use jwt::Header;
-use jwt::Registered;
 use jwt::Token;
-use models::user::User;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct AuthMiddleware {
@@ -42,13 +42,10 @@ impl<S> Middleware<S> for AuthMiddleware {
         }
 
         let token = parts.next().unwrap();
-        let token = Token::<Header, Registered>::parse(token).unwrap();
+        let token = Token::<Header, BigNeonClaims>::parse(token).unwrap();
         if token.verify(self.token_secret.as_bytes(), Sha256::new()) {
             let expires = token.claims.exp;
-            let expires = match expires {
-                Some(e) => e,
-                None => return Err(error::ErrorUnauthorized("Token is missing exp claim")),
-            };
+
             let timer = SystemTime::now();
             let exp = timer.duration_since(UNIX_EPOCH).unwrap().as_secs();
 
@@ -56,9 +53,10 @@ impl<S> Middleware<S> for AuthMiddleware {
                 return Err(error::ErrorUnauthorized("Token has expired"));
             }
 
-            let username = token.claims.sub.unwrap();
+            let roles = token.claims.get_roles();
 
-            req.extensions_mut().insert(User::new(&username, "guest"));
+            req.extensions_mut()
+                .insert(User::new(token.claims.get_id(), roles));
         } else {
             return Err(error::ErrorUnauthorized("Invalid token"));
         }

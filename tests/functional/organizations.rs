@@ -1,11 +1,13 @@
 use actix_web::{http::StatusCode, FromRequest, Json, Path};
+use bigneon_api::auth::user::User as AuthUser;
 use bigneon_api::controllers::organizations::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{NewOrganization, Organization, User};
+use bigneon_db::models::{NewOrganization, Organization, Roles, User};
 use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 #[test]
 fn index() {
@@ -39,7 +41,8 @@ fn index() {
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let response = organizations::index(state);
+    let user = AuthUser::new(user.id, vec![Roles::OrgMember]);
+    let response = organizations::index((state, user));
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -71,8 +74,8 @@ fn show() {
     );
     let state = test_request.extract_state();
     let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-
-    let response = organizations::show((state, path));
+    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::OrgMember]);
+    let response = organizations::show((state, path, user));
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -93,7 +96,8 @@ fn create() {
         owner_user_id: user.id,
         name: name.clone().to_string(),
     });
-    let response = organizations::create((state, json));
+    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::Admin]);
+    let response = organizations::create((state, json, user));
 
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -131,7 +135,8 @@ fn update() {
         phone: organization.phone.clone(),
     });
 
-    let response = organizations::update((state, path, json));
+    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::OrgOwner]);
+    let response = organizations::update((state, path, json, user));
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

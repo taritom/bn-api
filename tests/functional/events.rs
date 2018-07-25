@@ -1,12 +1,14 @@
 use actix_web::{http::StatusCode, FromRequest, Json, Path};
+use bigneon_api::auth::user::User as AuthUser;
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{Event, NewEvent, Organization, User, Venue};
+use bigneon_db::models::{Event, NewEvent, Organization, Roles, User, Venue};
 use chrono::prelude::*;
 use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 #[test]
 fn index() {
@@ -105,11 +107,12 @@ fn create() {
         venue_id: venue.id,
         event_start: NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
     });
-
-    let response = events::create((state, json));
+    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::Admin]);
+    let response = events::create((state, json, user));
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let event: Event = serde_json::from_str(&body).unwrap();
+
     assert_eq!(event.name, name);
 }
 
@@ -152,7 +155,8 @@ fn update() {
         ticket_sell_date: event.ticket_sell_date.clone(),
     });
 
-    let response = events::update((state, path, json));
+    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::Admin]);
+    let response = events::update((state, path, json, user));
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

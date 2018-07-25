@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, Json, Path, State};
-use bigneon_db::models::{NewVenue, Venue};
+use auth::user::User;
+use bigneon_db::models::{NewVenue, Roles, Venue};
 use helpers::application;
-use models::user::User;
 use server::AppState;
 use uuid::Uuid;
 
@@ -21,8 +21,9 @@ pub fn index(state: State<AppState>) -> HttpResponse {
     }
 }
 
-pub fn show(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
-    let (state, parameters) = data;
+pub fn show((state, parameters): (State<AppState>, Path<PathParameters>)) -> HttpResponse {
+    //    let user = User::new("username", "roles");
+    //    user.requires_role("Guest")?;
     let connection = state.database.get_connection();
     let venue_response = Venue::find(&parameters.id, &*connection);
 
@@ -34,6 +35,8 @@ pub fn show(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
 
 pub fn show_from_organizations(data: (State<AppState>, Json<Uuid>)) -> HttpResponse {
     let (state, organization_id) = data;
+    //    let user = User::new("username", "roles");
+    //    user.requires_role("Guest")?;
     let connection = state.database.get_connection();
     let venue_response =
         Venue::find_all_for_organization(&organization_id.into_inner(), &*connection);
@@ -45,28 +48,25 @@ pub fn show_from_organizations(data: (State<AppState>, Json<Uuid>)) -> HttpRespo
     }
 }
 
-pub fn create(data: (State<AppState>, Json<NewVenue>)) -> HttpResponse {
-    let (state, new_venue) = data;
+pub fn create((state, new_venue, user): (State<AppState>, Json<NewVenue>, User)) -> HttpResponse {
+    if !user.is_in_role(Roles::Admin) {
+        return application::unauthorized();
+    }
     let connection = state.database.get_connection();
     let venue_response = new_venue.commit(&*connection);
 
-    let user = User::new("username", "roles");
-    if user.requires_role("Admin").is_err() {
-        return application::unauthorized();
-    }
     match venue_response {
         Ok(venue) => HttpResponse::Created().json(&venue),
         Err(_e) => HttpResponse::BadRequest().json(json!({"error": "An error has occurred"})),
     }
 }
 
-pub fn update(data: (State<AppState>, Path<PathParameters>, Json<Venue>)) -> HttpResponse {
-    let (state, parameters, venue_parameters) = data;
-    let connection = state.database.get_connection();
-    let user = User::new("username", "roles");
-    if user.requires_role("Admin").is_err() {
+pub fn update(data: (State<AppState>, Path<PathParameters>, Json<Venue>, User)) -> HttpResponse {
+    let (state, parameters, venue_parameters, user) = data;
+    if !user.is_in_role(Roles::Admin) {
         return application::unauthorized();
     }
+    let connection = state.database.get_connection();
 
     let updated_venue: Venue = venue_parameters.into_inner();
     let venue_response = Venue::find(&parameters.id, &*connection);
@@ -85,15 +85,13 @@ pub fn update(data: (State<AppState>, Path<PathParameters>, Json<Venue>)) -> Htt
 }
 
 pub fn add_to_organization(
-    data: (State<AppState>, Path<PathParameters>, Json<Uuid>),
+    data: (State<AppState>, Path<PathParameters>, Json<Uuid>, User),
 ) -> HttpResponse {
-    let (state, parameters, organization_id) = data;
+    let (state, parameters, organization_id, user) = data;
     let connection = state.database.get_connection();
-    let user = User::new("username", "roles");
-    if user.requires_role("Admin").is_err() {
+    if !user.is_in_role(Roles::Admin) {
         return application::unauthorized();
     }
-
     let venue_response = Venue::find(&parameters.id, &*connection);
     match venue_response {
         Ok(venue) => {

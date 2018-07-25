@@ -1,11 +1,13 @@
 use actix_web::{http::StatusCode, FromRequest, Json, Path};
+use bigneon_api::auth::user::User as AuthUser;
 use bigneon_api::controllers::venues::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{NewVenue, Organization, OrganizationVenue, User, Venue};
+use bigneon_db::models::{NewVenue, Organization, OrganizationVenue, Roles, User, Venue};
 use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 #[test]
 fn index() {
@@ -83,7 +85,9 @@ fn create() {
     let json = Json(NewVenue {
         name: name.clone().to_string(),
     });
-    let response = venues::create((state, json));
+    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::Admin]);
+
+    let response = venues::create((state, json, user));
 
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -124,7 +128,9 @@ fn update() {
         name: new_name.clone().to_string(),
     });
 
-    let response = venues::update((state, path, json));
+    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::Admin]);
+
+    let response = venues::update((state, path, json, user));
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -231,7 +237,9 @@ fn add_to_organization() {
     let state = test_request.extract_state();
     let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     let json = Json(organization.id);
-    let response = venues::add_to_organization((state, path, json));
+    let user = AuthUser::new(user.id, vec![Roles::Admin]);
+
+    let response = venues::add_to_organization((state, path, json, user));
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

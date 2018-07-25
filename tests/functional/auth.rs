@@ -1,10 +1,10 @@
 use actix_web::Json;
+use bigneon_api::auth::big_neon_claims::BigNeonClaims;
 use bigneon_api::controllers::auth;
 use bigneon_api::controllers::auth::LoginRequest;
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::User;
+use bigneon_db::models::{Roles, User};
 use jwt::Header;
-use jwt::Registered;
 use jwt::Token;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -26,9 +26,9 @@ fn get_token_valid_data() {
 
     match response {
         Ok(body) => {
-            let jwt_token = Token::<Header, Registered>::parse(&body.token).unwrap();
+            let jwt_token = Token::<Header, BigNeonClaims>::parse(&body.token).unwrap();
 
-            assert_eq!(jwt_token.claims.sub.unwrap(), "fake@localhost");
+            assert_eq!(jwt_token.claims.get_roles(), vec![Roles::Guest]);
         }
         _ => panic!("Unexpected response body"),
     }

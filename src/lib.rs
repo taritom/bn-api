@@ -17,6 +17,7 @@ extern crate uuid;
 #[macro_use]
 extern crate log;
 extern crate log4rs;
+extern crate rustc_serialize;
 
 pub mod config;
 pub mod controllers;
@@ -27,6 +28,6 @@ pub mod mail;
 pub mod server;
 pub mod utils;
 
+pub mod auth;
 pub mod middleware;
-mod models;
 mod routing;

@@ -1,11 +1,11 @@
 use actix_web::error;
 use actix_web::{Error, HttpRequest, HttpResponse, Json, Responder, State};
+use auth::big_neon_claims::BigNeonClaims;
 use bigneon_db::models::User;
 use crypto::sha2::Sha256;
-use jwt::{Header, Registered, Token};
+use jwt::{Header, Token};
 use serde_json;
 use server::AppState;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Serialize, Deserialize)]
 pub struct AccessToken {
@@ -62,16 +62,7 @@ pub fn token(data: (State<AppState>, Json<LoginRequest>)) -> Result<AccessToken,
 
     let header: Header = Default::default();
 
-    let mut timer = SystemTime::now();
-    timer += Duration::from_secs(86400);
-    let exp = timer.duration_since(UNIX_EPOCH).unwrap().as_secs();
-
-    let claims = Registered {
-        iss: Some(state.token_issuer.clone()),
-        sub: Some(user.email.into()),
-        exp: Some(exp),
-        ..Default::default()
-    };
+    let claims = BigNeonClaims::new(&user, state.token_issuer.clone());
     let token = Token::new(header, claims);
 
     Ok(AccessToken {

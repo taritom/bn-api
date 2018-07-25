@@ -1,5 +1,8 @@
 use actix_web::{HttpResponse, Json, Path, State};
-use bigneon_db::models::{NewOrganization, Organization};
+use bigneon_db::models::{NewOrganization, Organization, Roles};
+
+use auth::user::User;
+use helpers::application;
 use server::AppState;
 use uuid::Uuid;
 
@@ -8,9 +11,12 @@ pub struct PathParameters {
     pub id: Uuid,
 }
 
-pub fn index(state: State<AppState>) -> HttpResponse {
+pub fn index((state, user): (State<AppState>, User)) -> HttpResponse {
+    if !user.is_in_role(Roles::OrgMember) {
+        return application::unauthorized();
+    }
     let connection = state.database.get_connection();
-    let organization_response = Organization::all(&*connection);
+    let organization_response = Organization::all(user.id, &*connection);
     match organization_response {
         Ok(organizations) => HttpResponse::Ok().json(&organizations),
         Err(_e) => {
@@ -19,8 +25,12 @@ pub fn index(state: State<AppState>) -> HttpResponse {
     }
 }
 
-pub fn show(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
-    let (state, parameters) = data;
+pub fn show(
+    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+) -> HttpResponse {
+    if !user.is_in_role(Roles::OrgMember) {
+        return application::unauthorized();
+    }
     let connection = state.database.get_connection();
     let organization_response = Organization::find(&parameters.id, &*connection);
 
@@ -30,8 +40,12 @@ pub fn show(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
     }
 }
 
-pub fn create(data: (State<AppState>, Json<NewOrganization>)) -> HttpResponse {
-    let (state, new_organization) = data;
+pub fn create(
+    (state, new_organization, user): (State<AppState>, Json<NewOrganization>, User),
+) -> HttpResponse {
+    if !user.is_in_role(Roles::Admin) {
+        return application::unauthorized();
+    }
     let connection = state.database.get_connection();
     let organization_response = new_organization.commit(&*connection);
     match organization_response {
@@ -40,8 +54,17 @@ pub fn create(data: (State<AppState>, Json<NewOrganization>)) -> HttpResponse {
     }
 }
 
-pub fn update(data: (State<AppState>, Path<PathParameters>, Json<Organization>)) -> HttpResponse {
-    let (state, parameters, organization_parameters) = data;
+pub fn update(
+    (state, parameters, organization_parameters, user): (
+        State<AppState>,
+        Path<PathParameters>,
+        Json<Organization>,
+        User,
+    ),
+) -> HttpResponse {
+    if !user.is_in_role(Roles::OrgOwner) {
+        return application::unauthorized();
+    }
     let connection = state.database.get_connection();
     let organization_response = Organization::find(&parameters.id, &*connection);
     let updated_organization: Organization = organization_parameters.into_inner();

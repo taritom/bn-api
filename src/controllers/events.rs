@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, Json, Path, State};
-use bigneon_db::models::{Event, NewEvent};
+use auth::user::User;
+use bigneon_db::models::{Event, NewEvent, Roles};
 use helpers::application;
-use models::user::User;
 use server::AppState;
 use uuid::Uuid;
 
@@ -23,6 +23,7 @@ pub fn index(state: State<AppState>) -> HttpResponse {
 
 pub fn show(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
     let (state, parameters) = data;
+
     let connection = state.database.get_connection();
     let event_response = Event::find(&parameters.id, &*connection);
 
@@ -34,6 +35,7 @@ pub fn show(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
 
 pub fn show_from_organizations(data: (State<AppState>, Json<Uuid>)) -> HttpResponse {
     let (state, organization_id) = data;
+
     let connection = state.database.get_connection();
     let event_response =
         Event::find_all_events_from_organization(&organization_id.into_inner(), &*connection);
@@ -47,6 +49,7 @@ pub fn show_from_organizations(data: (State<AppState>, Json<Uuid>)) -> HttpRespo
 
 pub fn show_from_venues(data: (State<AppState>, Json<Uuid>)) -> HttpResponse {
     let (state, venue_id) = data;
+
     let connection = state.database.get_connection();
     let event_response = Event::find_all_events_from_venue(&venue_id.into_inner(), &*connection);
     match event_response {
@@ -57,27 +60,29 @@ pub fn show_from_venues(data: (State<AppState>, Json<Uuid>)) -> HttpResponse {
     }
 }
 
-pub fn create(data: (State<AppState>, Json<NewEvent>)) -> HttpResponse {
-    let (state, new_event) = data;
+pub fn create((state, new_event, user): (State<AppState>, Json<NewEvent>, User)) -> HttpResponse {
     let connection = state.database.get_connection();
     let event_response = new_event.commit(&*connection);
 
-    let user = User::new("username", "roles");
-    if user.requires_role("Admin").is_err() {
+    if user.requires_role(Roles::Admin).is_err() {
         return application::unauthorized();
     }
-
     match event_response {
         Ok(event) => HttpResponse::Created().json(&event),
         Err(_e) => HttpResponse::BadRequest().json(json!({"error": "An error has occurred"})),
     }
 }
 
-pub fn update(data: (State<AppState>, Path<PathParameters>, Json<Event>)) -> HttpResponse {
-    let (state, parameters, event_parameters) = data;
+pub fn update(
+    (state, parameters, event_parameters, user): (
+        State<AppState>,
+        Path<PathParameters>,
+        Json<Event>,
+        User,
+    ),
+) -> HttpResponse {
     let connection = state.database.get_connection();
-    let user = User::new("username", "roles");
-    if user.requires_role("Admin").is_err() {
+    if user.requires_role(Roles::Admin).is_err() {
         return application::unauthorized();
     }
 
