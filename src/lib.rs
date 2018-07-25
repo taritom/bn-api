@@ -27,6 +27,7 @@ pub mod helpers;
 pub mod mail;
 pub mod server;
 pub mod utils;
+pub mod errors;
 
 pub mod auth;
 pub mod middleware;

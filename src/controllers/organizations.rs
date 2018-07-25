@@ -1,5 +1,6 @@
 use actix_web::{HttpResponse, Json, Path, State};
 use bigneon_db::models::{NewOrganization, Organization, Roles};
+use errors::database_error::ConvertToWebError;
 
 use auth::user::User;
 use helpers::application;
@@ -19,9 +20,7 @@ pub fn index((state, user): (State<AppState>, User)) -> HttpResponse {
     let organization_response = Organization::all(user.id, &*connection);
     match organization_response {
         Ok(organizations) => HttpResponse::Ok().json(&organizations),
-        Err(_e) => {
-            HttpResponse::InternalServerError().json(json!({"error": "An error has occurred"}))
-        }
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }
 
