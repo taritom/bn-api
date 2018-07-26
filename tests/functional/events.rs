@@ -1,249 +1,152 @@
-use actix_web::{http::StatusCode, FromRequest, Json, Path};
-use bigneon_api::auth::user::User as AuthUser;
-use bigneon_api::controllers::events::{self, PathParameters};
-use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{Event, NewEvent, Organization, Roles, User, Venue};
-use chrono::prelude::*;
-use serde_json;
-use support;
-use support::database::TestDatabase;
-use support::test_request::TestRequest;
-use uuid::Uuid;
+use bigneon_db::models::Roles;
+use functional::base::events;
 
-#[test]
-fn index() {
-    let database = TestDatabase::new();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let venue = Venue::create(&"Venue")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-    let event2 = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2015, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-
-    let expected_events = vec![event, event2];
-    let events_expected_json = serde_json::to_string(&expected_events).unwrap();
-
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-    let response = events::index(state);
-
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, events_expected_json);
+#[cfg(test)]
+mod index_tests {
+    use super::*;
+    #[test]
+    fn index_org_member() {
+        events::index(Roles::OrgMember);
+    }
+    #[test]
+    fn index_guest() {
+        events::index(Roles::Guest);
+    }
+    #[test]
+    fn index_admin() {
+        events::index(Roles::Admin);
+    }
+    #[test]
+    fn index_user() {
+        events::index(Roles::User);
+    }
+    #[test]
+    fn index_org_owner() {
+        events::index(Roles::OrgOwner);
+    }
 }
 
-#[test]
-fn show() {
-    let database = TestDatabase::new();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let venue = Venue::create(&"Venue")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-    let event_expected_json = serde_json::to_string(&event).unwrap();
-
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/events/{id}",
-        &format!("/events/{}", event.id.to_string()),
-    );
-    let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-
-    let response = events::show((state, path));
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, event_expected_json);
+#[cfg(test)]
+mod show_tests {
+    use super::*;
+    #[test]
+    fn show_org_member() {
+        events::show(Roles::OrgMember);
+    }
+    #[test]
+    fn show_guest() {
+        events::show(Roles::Guest);
+    }
+    #[test]
+    fn show_admin() {
+        events::show(Roles::Admin);
+    }
+    #[test]
+    fn show_user() {
+        events::show(Roles::User);
+    }
+    #[test]
+    fn show_org_owner() {
+        events::show(Roles::OrgOwner);
+    }
 }
 
-#[test]
-fn create() {
-    let database = TestDatabase::new();
-    //create prerequisites
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let venue = Venue::create(&"Venue")
-        .commit(&*database.get_connection())
-        .unwrap();
-    //create event
-    let name = "event Example";
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-    let json = Json(NewEvent {
-        name: name.clone().to_string(),
-        organization_id: organization.id,
-        venue_id: venue.id,
-        event_start: NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    });
-    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::Admin]);
-    let response = events::create((state, json, user));
-    assert_eq!(response.status(), StatusCode::CREATED);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    let event: Event = serde_json::from_str(&body).unwrap();
-
-    assert_eq!(event.name, name);
+#[cfg(test)]
+mod create_tests {
+    use super::*;
+    #[test]
+    fn create_org_member() {
+        events::create(Roles::OrgMember);
+    }
+    #[test]
+    fn create_guest() {
+        events::create(Roles::Guest);
+    }
+    #[test]
+    fn create_admin() {
+        events::create(Roles::Admin);
+    }
+    #[test]
+    fn create_user() {
+        events::create(Roles::User);
+    }
+    #[test]
+    fn create_org_owner() {
+        events::create(Roles::OrgOwner);
+    }
 }
 
-#[test]
-fn update() {
-    let database = TestDatabase::new();
-    //create prerequisites
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let venue = Venue::create(&"Venue")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-
-    let new_name = "New Event Name";
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/events/{id}",
-        &format!("/events/{}", event.id.to_string()),
-    );
-    let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    let json = Json(Event {
-        id: event.id.clone(),
-        name: new_name.clone().to_string(),
-        organization_id: event.organization_id.clone(),
-        venue_id: event.venue_id.clone(),
-        event_start: event.event_start.clone(),
-        created_at: event.created_at.clone(),
-        ticket_sell_date: event.ticket_sell_date.clone(),
-    });
-
-    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::Admin]);
-    let response = events::update((state, path, json, user));
-
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    let updated_event: Event = serde_json::from_str(&body).unwrap();
-    assert_eq!(updated_event.name, new_name);
+#[cfg(test)]
+mod update_tests {
+    use super::*;
+    #[test]
+    fn update_org_member() {
+        events::update(Roles::OrgMember);
+    }
+    #[test]
+    fn update_guest() {
+        events::update(Roles::Guest);
+    }
+    #[test]
+    fn update_admin() {
+        events::update(Roles::Admin);
+    }
+    #[test]
+    fn update_user() {
+        events::update(Roles::User);
+    }
+    #[test]
+    fn update_org_owner() {
+        events::update(Roles::OrgOwner);
+    }
 }
 
-#[test]
-fn show_from_organizations() {
-    let database = TestDatabase::new();
-    //create prerequisites
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let venue = Venue::create(&"Venue")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-    let event2 = Event::create(
-        "NewEvent2",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-
-    let all_events = vec![event, event2];
-    let event_expected_json = serde_json::to_string(&all_events).unwrap();
-    //find venue from organization
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-
-    let json = Json(organization.id);
-    let response = events::show_from_organizations((state, json));
-
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, event_expected_json);
+#[cfg(test)]
+mod show_from_organizations_tests {
+    use super::*;
+    #[test]
+    fn show_from_organizations_org_member() {
+        events::show_from_organizations(Roles::OrgMember);
+    }
+    #[test]
+    fn show_from_organizations_guest() {
+        events::show_from_organizations(Roles::Guest);
+    }
+    #[test]
+    fn show_from_organizations_admin() {
+        events::show_from_organizations(Roles::Admin);
+    }
+    #[test]
+    fn show_from_organizations_user() {
+        events::show_from_organizations(Roles::User);
+    }
+    #[test]
+    fn show_from_organizations_org_owner() {
+        events::show_from_organizations(Roles::OrgOwner);
+    }
 }
 
-#[test]
-fn show_from_venues() {
-    let database = TestDatabase::new();
-    //create prerequisites
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let venue = Venue::create(&"Venue")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-    let event2 = Event::create(
-        "NewEvent2",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-    //find venue from organization
-
-    let all_events = vec![event, event2];
-    let event_expected_json = serde_json::to_string(&all_events).unwrap();
-    //find venue from organization
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-
-    let json = Json(venue.id);
-    let response = events::show_from_venues((state, json));
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, event_expected_json);
+#[cfg(test)]
+mod show_from_venues_tests {
+    use super::*;
+    #[test]
+    fn show_from_venues_org_member() {
+        events::show_from_venues(Roles::OrgMember);
+    }
+    #[test]
+    fn show_from_venues_guest() {
+        events::show_from_venues(Roles::Guest);
+    }
+    #[test]
+    fn show_from_venues_admin() {
+        events::show_from_venues(Roles::Admin);
+    }
+    #[test]
+    fn show_from_venues_user() {
+        events::show_from_venues(Roles::User);
+    }
+    #[test]
+    fn show_from_venues_org_owner() {
+        events::show_from_venues(Roles::OrgOwner);
+    }
 }

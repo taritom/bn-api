@@ -49,7 +49,7 @@ pub fn create(
     let organization_response = new_organization.commit(&*connection);
     match organization_response {
         Ok(organization) => HttpResponse::Created().json(&organization),
-        Err(_e) => HttpResponse::BadRequest().json(json!({"error": "An error has occurred"})),
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }
 
