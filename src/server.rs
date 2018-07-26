@@ -1,6 +1,5 @@
 use actix_web::http;
 use actix_web::middleware::cors::Cors;
-use actix_web::middleware::session::{CookieSessionBackend, SessionStorage};
 use actix_web::middleware::Logger;
 use actix_web::{server, App};
 use config::Config;
@@ -30,10 +29,6 @@ impl Server {
                     token_secret: config.token_secret.clone(),
                     token_issuer: config.token_issuer.clone(),
                 }).middleware(Logger::default())
-                    .middleware(SessionStorage::new(
-                        CookieSessionBackend::private(config.cookie_secret_key.as_bytes())
-                            .secure(false),
-                    ))
                     .configure(|a| {
                         routing::routes(
                             &config,

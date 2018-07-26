@@ -17,7 +17,6 @@ pub struct Config {
     pub api_url: String,
     pub api_port: String,
     pub app_name: String,
-    pub cookie_secret_key: String,
     pub database_url: String,
     pub domain: String,
     pub environment: Environment,
@@ -33,7 +32,6 @@ const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
 const APP_NAME: &str = "APP_NAME";
 const API_URL: &str = "API_URL";
 const API_PORT: &str = "API_PORT";
-const COOKIE_SECRET_KEY: &str = "COOKIE_SECRET_KEY";
 const DATABASE_URL: &str = "DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
@@ -54,9 +52,6 @@ impl Config {
         dotenv().ok();
 
         let app_name = env::var(&APP_NAME).unwrap_or("Big Neon".to_string());
-
-        let cookie_secret_key =
-            env::var(&COOKIE_SECRET_KEY).expect(&format!("{} must be defined.", COOKIE_SECRET_KEY));
 
         let database_url = match environment {
             Environment::Test => {
@@ -107,7 +102,6 @@ impl Config {
             app_name,
             api_url,
             api_port,
-            cookie_secret_key,
             database_url,
             domain,
             environment,

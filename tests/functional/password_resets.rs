@@ -145,17 +145,9 @@ fn update() {
         password_reset_token: user.password_reset_token.unwrap().clone(),
         password: new_password.to_string(),
     });
-    let session = test_request.extract_session();
-    let response = password_resets::update((state, json, session));
+    let response = password_resets::update((state, json));
 
-    let session = test_request.extract_session();
-    let session_user_id = match session.get::<Uuid>("user_id").unwrap() {
-        Some(user_id) => user_id,
-        None => panic!("User id failed to save in session"),
-    };
-    assert_eq!(session_user_id, user.id);
-
-    let user = User::find(&session_user_id, connection).unwrap();
+    let user = User::find(&user.id, connection).unwrap();
     assert!(user.password_reset_token.is_none());
     assert!(user.password_reset_requested_at.is_none());
     assert!(user.check_password(&new_password));
@@ -193,18 +185,7 @@ fn update_expired_token() {
         password_reset_token: token.clone(),
         password: new_password.to_string(),
     });
-    let session = test_request.extract_session();
-    let response = password_resets::update((state, json, session));
-
-    let session = test_request.extract_session();
-
-    assert!(
-        match session.get::<Uuid>("user_id").unwrap() {
-            Some(_user_id) => false,
-            None => true,
-        },
-        "User id should not be present in session"
-    );
+    let response = password_resets::update((state, json));
 
     let user = User::find(&user.id, connection).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);
@@ -238,18 +219,7 @@ fn update_incorrect_token() {
         password_reset_token: Uuid::new_v4(),
         password: new_password.to_string(),
     });
-    let session = test_request.extract_session();
-    let response = password_resets::update((state, json, session));
-
-    let session = test_request.extract_session();
-
-    assert!(
-        match session.get::<Uuid>("user_id").unwrap() {
-            Some(_user_id) => false,
-            None => true,
-        },
-        "User id should not be present in session"
-    );
+    let response = password_resets::update((state, json));
 
     let user = User::find(&user.id, connection).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);

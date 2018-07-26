@@ -33,7 +33,6 @@ rustc-serialize = "0.3"
 
 [dev-dependencies]
 chrono = { version = "0.4.3", features = ["serde"] }
-tokio-core = "0.1"
 
 [[test]]
 name = "tests"

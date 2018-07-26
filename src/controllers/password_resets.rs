@@ -1,9 +1,7 @@
-use actix_web::middleware::session::Session;
 use actix_web::{HttpResponse, Json, State};
 use bigneon_db::models::concerns::users::password_resetable::*;
 use bigneon_db::models::User;
 use config::Config;
-use helpers::sessions;
 use mail::mailers;
 use server::AppState;
 use url::Url;
@@ -21,9 +19,9 @@ pub struct UpdatePasswordResetParameters {
     pub password: String,
 }
 
-pub fn create(data: (State<AppState>, Json<CreatePasswordResetParameters>)) -> HttpResponse {
-    let (state, parameters) = data;
-
+pub fn create(
+    (state, parameters): (State<AppState>, Json<CreatePasswordResetParameters>),
+) -> HttpResponse {
     if !valid_reset_url(&state.config, &parameters.reset_url) {
         return HttpResponse::BadRequest().json(json!({
             "error":
@@ -63,13 +61,8 @@ pub fn create(data: (State<AppState>, Json<CreatePasswordResetParameters>)) -> H
 }
 
 pub fn update(
-    data: (
-        State<AppState>,
-        Json<UpdatePasswordResetParameters>,
-        Session,
-    ),
+    (state, parameters): (State<AppState>, Json<UpdatePasswordResetParameters>),
 ) -> HttpResponse {
-    let (state, parameters, session) = data;
     let connection = state.database.get_connection();
 
     match User::consume_password_reset_token(
@@ -77,10 +70,7 @@ pub fn update(
         &parameters.password,
         &*connection,
     ) {
-        Ok(user) => {
-            sessions::login_user(&session, &user);
-            HttpResponse::Ok().json(&user.for_display())
-        }
+        Ok(user) => HttpResponse::Ok().json(&user.for_display()),
         Err(e) => HttpResponse::BadRequest().json(json!({ "error": format!("{}", e) })),
     }
 }

@@ -4,5 +4,4 @@ pub mod base;
 pub mod events;
 pub mod organizations;
 pub mod password_resets;
-pub mod sessions;
 pub mod venues;

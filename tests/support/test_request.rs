@@ -1,13 +1,9 @@
 use actix_web::dev::{Resource, ResourceHandler, Router};
-use actix_web::middleware::session::{CookieSessionBackend, Session, SessionStorage};
-use actix_web::middleware::Middleware;
-use actix_web::middleware::Started::Future;
 use actix_web::{test, FromRequest, HttpRequest, State};
 use bigneon_api::config::{Config, Environment};
 use bigneon_api::mail::transports::TestTransport;
 use bigneon_api::server::AppState;
 use support::database::TestDatabase;
-use tokio_core::reactor::Core;
 
 pub struct TestRequest {
     pub request: HttpRequest<AppState>,
@@ -54,28 +50,10 @@ impl TestRequest {
         );
         assert!(router.recognize(&mut request).is_some());
 
-        // Create session storage
-        let session_storage =
-            SessionStorage::new(CookieSessionBackend::private(&[0; 32]).secure(false));
-
-        // Process returned future associating session with request
-        let session_middleware = session_storage.start(&mut request).unwrap();
-        match session_middleware {
-            Future(session_start_future) => {
-                let mut reactor = Core::new().unwrap();
-                reactor.run(session_start_future).unwrap();
-            }
-            _ => (),
-        }
-
         TestRequest { request, config }
     }
 
     pub fn extract_state(&self) -> State<AppState> {
         State::<AppState>::extract(&self.request)
-    }
-
-    pub fn extract_session(&self) -> Session {
-        Session::extract(&self.request)
     }
 }

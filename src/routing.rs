@@ -62,10 +62,6 @@ pub fn routes(config: &Config, app: &mut CorsBuilder<AppState>) -> App<AppState>
             r.method(Method::GET).with(events::show);
             r.method(Method::PUT).with(events::update);
         })
-        .resource("/login", |r| r.method(Method::POST).with(sessions::create))
-        .resource("/logout", |r| {
-            r.method(Method::DELETE).with(sessions::destroy)
-        })
         .resource("/password_reset", |r| {
             r.method(Method::POST).with(password_resets::create);
             r.method(Method::PUT).with(password_resets::update);

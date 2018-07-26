@@ -20,7 +20,6 @@ env:
   TEST_DATABASE_ADMIN_URL: postgres://postgres:password123@localhost/bigneon_test
   TOKEN_SECRET: travis_secret
   TOKEN_ISSUER: bg-on-travis
-  COOKIE_SECRET_KEY: 8373b8987dab284b39c93bcda294bc294b284b72b29cd9028bca
   MAIL_FROM_NAME: "Big Neon Support"
   MAIL_FROM_EMAIL: support@bigneon.com
 

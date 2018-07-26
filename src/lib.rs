@@ -22,12 +22,11 @@ extern crate rustc_serialize;
 pub mod config;
 pub mod controllers;
 pub mod database;
-pub mod extractors;
+pub mod errors;
 pub mod helpers;
 pub mod mail;
 pub mod server;
 pub mod utils;
-pub mod errors;
 
 pub mod auth;
 pub mod middleware;
