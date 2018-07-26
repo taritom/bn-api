@@ -1,3 +1,5 @@
+use actix_web::http;
+use actix_web::middleware::cors::Cors;
 use actix_web::middleware::session::{CookieSessionBackend, SessionStorage};
 use actix_web::middleware::Logger;
 use actix_web::{server, App};
@@ -22,19 +24,30 @@ impl Server {
         info!("Listening on {}", bind_addr);
         server::new({
             move || {
-                routing::routes(
-                    &config,
-                    App::with_state(AppState {
-                        config: config.clone(),
-                        database: Box::new(Database::from_config(&config)),
-                        token_secret: config.token_secret.clone(),
-                        token_issuer: config.token_issuer.clone(),
-                    }).middleware(Logger::default())
-                        .middleware(SessionStorage::new(
-                            CookieSessionBackend::private(config.cookie_secret_key.as_bytes())
-                                .secure(false),
-                        )),
-                )
+                App::with_state(AppState {
+                    config: config.clone(),
+                    database: Box::new(Database::from_config(&config)),
+                    token_secret: config.token_secret.clone(),
+                    token_issuer: config.token_issuer.clone(),
+                }).middleware(Logger::default())
+                    .middleware(SessionStorage::new(
+                        CookieSessionBackend::private(config.cookie_secret_key.as_bytes())
+                            .secure(false),
+                    ))
+                    .configure(|a| {
+                        routing::routes(
+                            &config,
+                            Cors::for_app(a)
+                                .allowed_origin(&config.allowed_origins)
+                                .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+                                .allowed_headers(vec![
+                                    http::header::AUTHORIZATION,
+                                    http::header::ACCEPT,
+                                ])
+                                .allowed_header(http::header::CONTENT_TYPE)
+                                .max_age(3600),
+                        )
+                    })
             }
         }).bind(&bind_addr)
             .expect(&format!("Can not bind to {}", bind_addr))

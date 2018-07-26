@@ -1,6 +1,6 @@
 use actix_web::error;
 use actix_web::middleware::{Middleware, Started};
-use actix_web::{HttpRequest, Result};
+use actix_web::{http::Method, HttpRequest, Result};
 use auth::big_neon_claims::BigNeonClaims;
 use auth::user::User;
 use crypto::sha2::Sha256;
@@ -28,6 +28,10 @@ impl Clone for AuthMiddleware {
 
 impl<S> Middleware<S> for AuthMiddleware {
     fn start(&self, req: &mut HttpRequest<S>) -> Result<Started> {
+        // ignore CORS pre-flights
+        if *req.method() == Method::OPTIONS {
+            return Ok(Started::Done);
+        }
         let mut headers = req.clone();
         let auth_header = headers.headers_mut().get("Authorization");
         if auth_header.is_none() {

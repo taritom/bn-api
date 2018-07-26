@@ -28,7 +28,7 @@ before_script:
   - export PATH="$PATH:$HOME/.cargo/bin"
   - rustup component add rustfmt-preview
   - cargo install --git https://github.com/big-neon/bn-db.git --force
-  - bndb_cli migrate -c postgres://postgres:password123@localhost/bigneon_test
+  - bndb_cli create -c postgres://postgres:password123@localhost/bigneon_test -e superuser@bigneon.com -p password1 -m 55555555
 
 script:
   - cargo fmt --all -- --write-mode=diff

@@ -1,10 +1,11 @@
+use actix_web::middleware::cors::CorsBuilder;
 use actix_web::{http::header, http::Method, App, HttpResponse};
 use config::Config;
 use controllers::*;
 use middleware::auth::AuthMiddleware;
 use server::AppState;
 
-pub fn routes(config: &Config, app: App<AppState>) -> App<AppState> {
+pub fn routes(config: &Config, app: &mut CorsBuilder<AppState>) -> App<AppState> {
     let mw = AuthMiddleware::new(&config.token_secret);
     let mw2 = mw.clone();
     let mw3 = mw.clone();
@@ -61,13 +62,16 @@ pub fn routes(config: &Config, app: App<AppState>) -> App<AppState> {
             r.method(Method::GET).with(events::show);
             r.method(Method::PUT).with(events::update);
         })
-        .route("/auth/token", Method::POST, auth::token)
-        .route("/login", Method::POST, sessions::create)
-        .route("/logout", Method::DELETE, sessions::destroy)
+        .resource("/login", |r| r.method(Method::POST).with(sessions::create))
+        .resource("/logout", |r| {
+            r.method(Method::DELETE).with(sessions::destroy)
+        })
         .resource("/password_reset", |r| {
             r.method(Method::POST).with(password_resets::create);
             r.method(Method::PUT).with(password_resets::update);
         })
+        .resource("/auth/token", |r| r.method(Method::POST).with(auth::token))
+        .register()
         .default_resource(|r| {
             r.method(Method::GET).f(|_req| {
                 HttpResponse::NotFound()

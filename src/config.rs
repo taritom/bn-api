@@ -13,6 +13,7 @@ pub enum Environment {
 
 #[derive(Clone)]
 pub struct Config {
+    pub allowed_origins: String,
     pub api_url: String,
     pub api_port: String,
     pub app_name: String,
@@ -28,6 +29,7 @@ pub struct Config {
     pub whitelisted_domains: HashSet<String>,
 }
 
+const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
 const APP_NAME: &str = "APP_NAME";
 const API_URL: &str = "API_URL";
 const API_PORT: &str = "API_PORT";
@@ -90,6 +92,7 @@ impl Config {
                 .map(String::from),
         );
 
+        let allowed_origins = env::var(&ALLOWED_ORIGINS).unwrap_or("*".to_string());
         let api_url = env::var(&API_URL).unwrap_or("127.0.0.1".to_string());
         let api_port = env::var(&API_PORT).unwrap_or("8088".to_string());
 
@@ -100,19 +103,20 @@ impl Config {
             env::var(&TOKEN_ISSUER).expect(&format!("{} must be defined.", TOKEN_ISSUER));
 
         Config {
-            app_name: app_name,
+            allowed_origins,
+            app_name,
             api_url,
             api_port,
-            cookie_secret_key: cookie_secret_key,
-            database_url: database_url,
-            domain: domain,
-            environment: environment,
-            mail_from_name: mail_from_name,
-            mail_from_email: mail_from_email,
-            mail_transport: mail_transport,
-            token_secret: token_secret,
-            token_issuer: token_issuer,
-            whitelisted_domains: whitelisted_domains,
+            cookie_secret_key,
+            database_url,
+            domain,
+            environment,
+            mail_from_name,
+            mail_from_email,
+            mail_transport,
+            token_secret,
+            token_issuer,
+            whitelisted_domains,
         }
     }
 }
