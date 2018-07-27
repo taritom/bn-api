@@ -50,3 +50,28 @@ mod create_tests {
         organizations::create(Roles::OrgOwner);
     }
 }
+
+#[cfg(test)]
+mod remove_user_tests {
+    use super::*;
+    #[test]
+    fn remove_user_org_member() {
+        organizations::remove_user(Roles::OrgMember, false);
+    }
+    #[test]
+    fn remove_user_guest() {
+        organizations::remove_user(Roles::Guest, false);
+    }
+    #[test]
+    fn remove_user_admin() {
+        organizations::remove_user(Roles::Admin, false);
+    }
+    #[test]
+    fn remove_user_user() {
+        organizations::remove_user(Roles::User, false);
+    }
+    #[test]
+    fn remove_user_org_owner() {
+        organizations::remove_user(Roles::OrgOwner, true);
+    }
+}

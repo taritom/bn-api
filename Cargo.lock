@@ -211,7 +211,7 @@ dependencies = [
 [[package]]
 name = "bigneon_db"
 version = "0.1.0"
-source = "git+https://github.com/big-neon/bn-db.git#4d4e679fd14db7d02fc98e3b6be5b17383a063be"
+source = "git+https://github.com/big-neon/bn-db.git#f14fa42ece32d3002cdd7fd3f2d9f32eb7ca0c9a"
 dependencies = [
  "argon2rs 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",

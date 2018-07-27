@@ -2,7 +2,9 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::auth::user::User as AuthUser;
 use bigneon_api::controllers::organizations::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{NewOrganization, Organization, Roles, User};
+use bigneon_db::models::{
+    NewOrganization, NewOrganizationUser, Organization, OrganizationUser, Roles, User,
+};
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -154,4 +156,52 @@ fn update() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let updated_organization: Organization = serde_json::from_str(&body).unwrap();
     assert_eq!(updated_organization.name, new_name);
+}
+
+pub fn remove_user(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
+        .commit(&*database.get_connection())
+        .unwrap();
+    let user2 = User::create("Jeff2", "jeff2@tari.com", "555-555-5555", "examplePassword")
+        .commit(&*database.get_connection())
+        .unwrap();
+    let user3 = User::create("Jeff3", "jeff3@tari.com", "555-555-5555", "examplePassword")
+        .commit(&*database.get_connection())
+        .unwrap();
+    let organization = Organization::create(user.id, &"OrgName")
+        .commit(&*database.get_connection())
+        .unwrap();
+    //create links from org to users
+    let _orguser = OrganizationUser::create(organization.id, user2.id)
+        .commit(&*database.get_connection())
+        .unwrap();
+    let _orguser2 = OrganizationUser::create(organization.id, user3.id)
+        .commit(&*database.get_connection())
+        .unwrap();
+
+    let test_request = TestRequest::create_with_route(
+        database,
+        &"/organizations/{id}",
+        &format!("/organizations/{}", organization.id.to_string()),
+    );
+    let state = test_request.extract_state();
+    let json = Json(user3.id);
+
+    let user = AuthUser::new(Uuid::new_v4(), vec![role]);
+    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let response = organizations::remove_user((state, path, json, user));
+
+    let count = 1;
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    if should_test_true {
+        assert_eq!(response.status(), StatusCode::OK);
+        let removed_entries: usize = serde_json::from_str(&body).unwrap();
+        assert_eq!(removed_entries, count);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, organization_expected_json);
+    }
 }

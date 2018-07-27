@@ -81,3 +81,18 @@ pub fn update(
         Err(_e) => HttpResponse::NotFound().json(json!({"error": "Organization not found"})),
     }
 }
+
+pub fn remove_user(
+    (state, parameters, user_id, user): (State<AppState>, Path<PathParameters>, Json<Uuid>, User),
+) -> HttpResponse {
+    if !user.is_in_role(Roles::OrgOwner) {
+        return application::unauthorized();
+    }
+    let connection = state.database.get_connection();
+    let organization = Organization::find(&parameters.id, &*connection).unwrap();
+    let organization_response = organization.remove_user(&user_id.into_inner(), &*connection);
+    match organization_response {
+        Ok(organization) => HttpResponse::Ok().json(&organization),
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+    }
+}

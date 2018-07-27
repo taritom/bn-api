@@ -45,6 +45,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::GET).with(organizations::show);
             r.method(Method::PUT).with(organizations::update);
         })
+        .resource("/organizations/{id}/users", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::DELETE).with(organizations::remove_user);
+        })
         .resource("/events/venues", |r| {
             r.middleware(AuthMiddleware::new());
             r.method(Method::GET).with(events::show_from_venues);
