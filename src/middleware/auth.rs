@@ -6,28 +6,19 @@ use auth::user::User;
 use crypto::sha2::Sha256;
 use jwt::Header;
 use jwt::Token;
+use server::AppState;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub struct AuthMiddleware {
-    token_secret: String,
-}
+pub struct AuthMiddleware {}
 
 impl AuthMiddleware {
-    pub fn new(token_secret: &str) -> AuthMiddleware {
-        AuthMiddleware {
-            token_secret: token_secret.into(),
-        }
+    pub fn new() -> AuthMiddleware {
+        AuthMiddleware {}
     }
 }
 
-impl Clone for AuthMiddleware {
-    fn clone(&self) -> Self {
-        AuthMiddleware::new(&self.token_secret)
-    }
-}
-
-impl<S> Middleware<S> for AuthMiddleware {
-    fn start(&self, req: &mut HttpRequest<S>) -> Result<Started> {
+impl Middleware<AppState> for AuthMiddleware {
+    fn start(&self, req: &mut HttpRequest<AppState>) -> Result<Started> {
         // ignore CORS pre-flights
         if *req.method() == Method::OPTIONS {
             return Ok(Started::Done);
@@ -47,7 +38,7 @@ impl<S> Middleware<S> for AuthMiddleware {
 
         let token = parts.next().unwrap();
         let token = Token::<Header, BigNeonClaims>::parse(token).unwrap();
-        if token.verify(self.token_secret.as_bytes(), Sha256::new()) {
+        if token.verify((*req.state()).config.token_secret.as_bytes(), Sha256::new()) {
             let expires = token.claims.exp;
 
             let timer = SystemTime::now();

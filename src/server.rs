@@ -31,7 +31,6 @@ impl Server {
                 }).middleware(Logger::default())
                     .configure(|a| {
                         routing::routes(
-                            &config,
                             Cors::for_app(a)
                                 .allowed_origin(&config.allowed_origins)
                                 .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])

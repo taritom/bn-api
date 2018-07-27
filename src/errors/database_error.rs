@@ -17,7 +17,7 @@ impl ConvertToWebError for DatabaseError {
             3200 => error::ErrorInternalServerError("Could not update record"),
             3300 => error::ErrorInternalServerError("Could not delete record"),
             4000 => error::ErrorInternalServerError("Connection error"),
-            5000 => error::ErrorInternalServerError("Internel error"),
+            5000 => error::ErrorInternalServerError("Internal error"),
             _ => error::ErrorInternalServerError("Unknown error"),
         };
         new_web_error
