@@ -17,17 +17,23 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::GET).with(artists::index);
             r.method(Method::POST).with(artists::create);
         })
-        .resource("/venues", |r| {
+        .resource("/venues/{id}/organizations", |r| {
             r.middleware(AuthMiddleware::new());
-            r.method(Method::GET).with(venues::index);
-            r.method(Method::GET).with(venues::show_from_organizations);
-            r.method(Method::POST).with(venues::create);
+            r.method(Method::POST).with(venues::add_to_organization);
         })
         .resource("/venues/{id}", |r| {
             r.middleware(AuthMiddleware::new());
             r.method(Method::GET).with(venues::show);
             r.method(Method::PUT).with(venues::update);
-            r.method(Method::PUT).with(venues::add_to_organization);
+        })
+        .resource("/venues/organizations", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::GET).with(venues::show_from_organizations);
+        })
+        .resource("/venues", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::GET).with(venues::index);
+            r.method(Method::POST).with(venues::create);
         })
         .resource("/organizations", |r| {
             r.middleware(AuthMiddleware::new());
@@ -39,11 +45,17 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::GET).with(organizations::show);
             r.method(Method::PUT).with(organizations::update);
         })
+        .resource("/events/venues", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::GET).with(events::show_from_venues);
+        })
+        .resource("/events/organizations", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::GET).with(events::show_from_organizations);
+        })
         .resource("/events", |r| {
             r.middleware(AuthMiddleware::new());
             r.method(Method::GET).with(events::index);
-            r.method(Method::GET).with(events::show_from_organizations);
-            r.method(Method::GET).with(events::show_from_venues);
             r.method(Method::POST).with(events::create);
         })
         .resource("/events/{id}", |r| {
