@@ -75,6 +75,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.middleware(AuthMiddleware::new());
             r.method(Method::GET).with(users::current_user)
         })
+        .resource("/users/register", |r| {
+            r.method(Method::POST).with(users::register)
+        })
         .resource("/auth/token", |r| r.method(Method::POST).with(auth::token))
         .register()
         .default_resource(|r| {

@@ -47,8 +47,9 @@ impl Responder for AccessToken {
     }
 }
 
-pub fn token(data: (State<AppState>, Json<LoginRequest>)) -> Result<AccessToken, Error> {
-    let (state, login_request) = data;
+pub fn token(
+    (state, login_request): (State<AppState>, Json<LoginRequest>),
+) -> Result<AccessToken, Error> {
     let connection = state.database.get_connection();
 
     let user = match User::find_by_email(&login_request.username, &*connection) {

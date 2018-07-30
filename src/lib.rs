@@ -19,15 +19,15 @@ extern crate log;
 extern crate log4rs;
 extern crate rustc_serialize;
 
+pub mod auth;
 pub mod config;
 pub mod controllers;
 pub mod database;
 pub mod errors;
 pub mod helpers;
 pub mod mail;
+pub mod middleware;
+pub mod models;
+mod routing;
 pub mod server;
 pub mod utils;
-
-pub mod auth;
-pub mod middleware;
-mod routing;
