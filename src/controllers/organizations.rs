@@ -67,6 +67,7 @@ pub fn update(
     let connection = state.database.get_connection();
     let organization_response = Organization::find(&parameters.id, &*connection);
     let updated_organization: Organization = organization_parameters.into_inner();
+
     match organization_response {
         Ok(_organization) => {
             let organization_update_response = updated_organization.update(&*connection);
