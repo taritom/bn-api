@@ -1,5 +1,5 @@
 use actix_web::{HttpResponse, Json, Path, State};
-use bigneon_db::models::{NewOrganization, Organization, Roles};
+use bigneon_db::models::{NewOrganization, Organization, OrganizationEditableAttributes, Roles};
 use errors::database_error::ConvertToWebError;
 
 use auth::user::User;
@@ -35,7 +35,7 @@ pub fn show(
 
     match organization_response {
         Ok(organization) => HttpResponse::Ok().json(&organization),
-        Err(_e) => HttpResponse::NotFound().json(json!({"error": "Organization not found"})),
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }
 
@@ -57,7 +57,7 @@ pub fn update(
     (state, parameters, organization_parameters, user): (
         State<AppState>,
         Path<PathParameters>,
-        Json<Organization>,
+        Json<OrganizationEditableAttributes>,
         User,
     ),
 ) -> HttpResponse {
@@ -65,21 +65,37 @@ pub fn update(
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
-    let organization_response = Organization::find(&parameters.id, &*connection);
-    let updated_organization: Organization = organization_parameters.into_inner();
-
-    match organization_response {
-        Ok(_organization) => {
-            let organization_update_response = updated_organization.update(&*connection);
-
-            match organization_update_response {
+    match Organization::find(&parameters.id, &*connection) {
+        Ok(organization) => {
+            match organization.update(organization_parameters.into_inner(), &*connection) {
                 Ok(updated_organization) => HttpResponse::Ok().json(&updated_organization),
-                Err(_e) => {
-                    HttpResponse::BadRequest().json(json!({"error": "An error has occurred"}))
-                }
+                Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
             }
         }
-        Err(_e) => HttpResponse::NotFound().json(json!({"error": "Organization not found"})),
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+    }
+}
+
+pub fn update_owner(
+    (state, parameters, json, user): (
+        State<AppState>,
+        Path<PathParameters>,
+        Json<UpdateOwnerRequest>,
+        User,
+    ),
+) -> HttpResponse {
+    if !user.is_in_role(Roles::Admin) {
+        return application::unauthorized();
+    }
+    let connection = state.database.get_connection();
+    match Organization::find(&parameters.id, &*connection) {
+        Ok(organization) => {
+            match organization.set_owner(json.into_inner().owner_user_id, &*connection) {
+                Ok(updated_organization) => HttpResponse::Ok().json(&updated_organization),
+                Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+            }
+        }
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }
 
@@ -96,4 +112,9 @@ pub fn remove_user(
         Ok(organization) => HttpResponse::Ok().json(&organization),
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpdateOwnerRequest {
+    pub owner_user_id: Uuid,
 }

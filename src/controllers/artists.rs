@@ -56,7 +56,7 @@ pub fn update(
 
     match artist_response {
         Ok(artist) => {
-            let artist_update_response = artist.update_attributes(&artist_parameters, &*connection);
+            let artist_update_response = artist.update(&artist_parameters, &*connection);
 
             match artist_update_response {
                 Ok(updated_artist) => HttpResponse::Ok().json(&updated_artist),

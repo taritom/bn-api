@@ -35,6 +35,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::GET).with(venues::index);
             r.method(Method::POST).with(venues::create);
         })
+        .resource("/organizations/{id}/owner", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::PUT).with(organizations::update_owner);
+        })
         .resource("/organizations", |r| {
             r.middleware(AuthMiddleware::new());
             r.method(Method::GET).with(organizations::index);
@@ -43,7 +47,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         .resource("/organizations/{id}", |r| {
             r.middleware(AuthMiddleware::new());
             r.method(Method::GET).with(organizations::show);
-            r.method(Method::PUT).with(organizations::update);
+            r.method(Method::PATCH).with(organizations::update);
         })
         .resource("/organizations/{id}/users", |r| {
             r.middleware(AuthMiddleware::new());

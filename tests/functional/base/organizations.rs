@@ -1,9 +1,10 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::auth::user::User as AuthUser;
+use bigneon_api::controllers::organizations::UpdateOwnerRequest;
 use bigneon_api::controllers::organizations::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{
-    NewOrganization, NewOrganizationUser, Organization, OrganizationUser, Roles, User,
+    NewOrganization, Organization, OrganizationEditableAttributes, OrganizationUser, Roles, User,
 };
 use serde_json;
 use support;
@@ -16,26 +17,34 @@ pub fn index(role: Roles) {
     let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
         .commit(&*database.get_connection())
         .unwrap();
-    let mut organization = Organization::create(user.id, &"Organization")
+    let organization = Organization::create(user.id, &"Organization")
         .commit(&*database.get_connection())
         .unwrap();
-    organization.address = Some(<String>::from("Test Address"));
-    organization.city = Some(<String>::from("Test Address"));
-    organization.state = Some(<String>::from("Test state"));
-    organization.country = Some(<String>::from("Test country"));
-    organization.zip = Some(<String>::from("0124"));
-    organization.phone = Some(<String>::from("+27123456789"));
-    organization = Organization::update(&organization, &*database.get_connection()).unwrap();
-    let mut organization2 = Organization::create(user.id, &"Organization 2")
+
+    let mut attrs = OrganizationEditableAttributes::new();
+    attrs.address = Some(<String>::from("Test Address"));
+    attrs.city = Some(<String>::from("Test Address"));
+    attrs.state = Some(<String>::from("Test state"));
+    attrs.country = Some(<String>::from("Test country"));
+    attrs.zip = Some(<String>::from("0124"));
+    attrs.phone = Some(<String>::from("+27123456789"));
+    let organization = organization
+        .update(attrs, &*database.get_connection())
+        .unwrap();
+    let organization2 = Organization::create(user.id, &"Organization 2")
         .commit(&*database.get_connection())
         .unwrap();
-    organization.address = Some(<String>::from("Test Address"));
-    organization2.city = Some(<String>::from("Test Address"));
-    organization2.state = Some(<String>::from("Test state"));
-    organization2.country = Some(<String>::from("Test country"));
-    organization2.zip = Some(<String>::from("0124"));
-    organization2.phone = Some(<String>::from("+27123456789"));
-    organization2 = Organization::update(&organization2, &*database.get_connection()).unwrap();
+
+    let mut attrs = OrganizationEditableAttributes::new();
+    attrs.address = Some(<String>::from("Test Address"));
+    attrs.city = Some(<String>::from("Test Address"));
+    attrs.state = Some(<String>::from("Test state"));
+    attrs.country = Some(<String>::from("Test country"));
+    attrs.zip = Some(<String>::from("0124"));
+    attrs.phone = Some(<String>::from("+27123456789"));
+    let organization2 = organization2
+        .update(attrs, &*database.get_connection())
+        .unwrap();
 
     let expected_organizations = vec![organization, organization2];
     let organization_expected_json = serde_json::to_string(&expected_organizations).unwrap();
@@ -62,16 +71,21 @@ fn show() {
     let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
         .commit(&*database.get_connection())
         .unwrap();
-    let mut organization = Organization::create(user.id, &"testOrganization")
+    let organization = Organization::create(user.id, &"testOrganization")
         .commit(&*database.get_connection())
         .unwrap();
-    organization.address = Some(<String>::from("Test Address"));
-    organization.city = Some(<String>::from("Test Address"));
-    organization.state = Some(<String>::from("Test state"));
-    organization.country = Some(<String>::from("Test country"));
-    organization.zip = Some(<String>::from("0124"));
-    organization.phone = Some(<String>::from("+27123456789"));
-    organization = Organization::update(&organization, &*database.get_connection()).unwrap();
+
+    let mut attrs = OrganizationEditableAttributes::new();
+
+    attrs.address = Some(<String>::from("Test Address"));
+    attrs.city = Some(<String>::from("Test Address"));
+    attrs.state = Some(<String>::from("Test state"));
+    attrs.country = Some(<String>::from("Test country"));
+    attrs.zip = Some(<String>::from("0124"));
+    attrs.phone = Some(<String>::from("+27123456789"));
+    let organization = organization
+        .update(attrs, &*database.get_connection())
+        .unwrap();
     let organization_expected_json = serde_json::to_string(&organization).unwrap();
 
     let test_request = TestRequest::create_with_route(
@@ -119,8 +133,8 @@ pub fn create(role: Roles) {
         assert_eq!(body, organization_expected_json);
     }
 }
-#[test]
-fn update() {
+
+pub fn update(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
         .commit(&*database.get_connection())
@@ -137,21 +151,23 @@ fn update() {
     );
     let state = test_request.extract_state();
     let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    let json = Json(Organization {
-        id: organization.id,
-        owner_user_id: user.id,
-        name: new_name.clone().to_string(),
-        address: organization.address.clone(),
-        city: organization.city.clone(),
-        state: organization.state.clone(),
-        country: organization.country.clone(),
-        zip: organization.zip.clone(),
-        phone: organization.phone.clone(),
+    let json = Json(OrganizationEditableAttributes {
+        name: Some(new_name.clone().to_string()),
+        address: Some("address".to_string()),
+        city: Some("city".to_string()),
+        state: Some("state".to_string()),
+        country: Some("country".to_string()),
+        zip: Some("zip".to_string()),
+        phone: Some("phone".to_string()),
     });
 
-    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::OrgOwner]);
+    let user = AuthUser::new(Uuid::new_v4(), vec![role]);
     let response = organizations::update((state, path, json, user));
 
+    if !should_succeed {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        return;
+    }
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let updated_organization: Organization = serde_json::from_str(&body).unwrap();
@@ -204,4 +220,47 @@ pub fn remove_user(role: Roles, should_test_true: bool) {
         let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
         assert_eq!(body, organization_expected_json);
     }
+}
+
+pub fn update_owner(role: Roles, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
+        .commit(&*database.get_connection())
+        .unwrap();
+    let new_owner = User::create(
+        "New Jeff",
+        "jeff2@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*database.get_connection())
+        .unwrap();
+    let organization = Organization::create(user.id, &"Name")
+        .commit(&*database.get_connection())
+        .unwrap();
+
+    let test_request = TestRequest::create_with_route(
+        database,
+        &"/organizations/{id}/owner",
+        &format!("/organizations/{}/owner", organization.id.to_string()),
+    );
+    let update_owner_request = UpdateOwnerRequest {
+        owner_user_id: new_owner.id,
+    };
+
+    let state = test_request.extract_state();
+    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+
+    let json = Json(update_owner_request);
+
+    let response =
+        organizations::update_owner((state, path, json, AuthUser::new(new_owner.id, vec![role])));
+
+    if !should_succeed {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        return;
+    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let updated_organization: Organization = serde_json::from_str(&body).unwrap();
+    assert_eq!(updated_organization.owner_user_id, new_owner.id);
 }

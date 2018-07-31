@@ -75,3 +75,53 @@ mod remove_user_tests {
         organizations::remove_user(Roles::OrgOwner, true);
     }
 }
+
+#[cfg(test)]
+mod update_tests {
+    use super::*;
+    #[test]
+    fn update_org_member() {
+        organizations::update(Roles::OrgMember, false);
+    }
+    #[test]
+    fn update_guest() {
+        organizations::update(Roles::Guest, false);
+    }
+    #[test]
+    fn update_admin() {
+        organizations::update(Roles::Admin, false);
+    }
+    #[test]
+    fn update_user() {
+        organizations::update(Roles::User, false);
+    }
+    #[test]
+    fn update_org_owner() {
+        organizations::update(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod update_owner_tests {
+    use super::*;
+    #[test]
+    fn update_owner_org_member() {
+        organizations::update_owner(Roles::OrgMember, false);
+    }
+    #[test]
+    fn update_owner_guest() {
+        organizations::update_owner(Roles::Guest, false);
+    }
+    #[test]
+    fn update_owner_admin() {
+        organizations::update_owner(Roles::Admin, true);
+    }
+    #[test]
+    fn update_owner_user() {
+        organizations::update_owner(Roles::User, false);
+    }
+    #[test]
+    fn update_owner_org_owner() {
+        organizations::update_owner(Roles::OrgOwner, false);
+    }
+}

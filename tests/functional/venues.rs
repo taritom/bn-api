@@ -146,17 +146,9 @@ fn show_from_organizations() {
         .commit(&*database.get_connection())
         .unwrap();
     //create organization
-    let mut organization = Organization::create(user.id, &"testOrganization")
+    let organization = Organization::create(user.id, &"testOrganization")
         .commit(&*database.get_connection())
         .unwrap();
-    organization.address = Some(<String>::from("Test Address"));
-    organization.city = Some(<String>::from("Test Address"));
-    organization.state = Some(<String>::from("Test state"));
-    organization.country = Some(<String>::from("Test country"));
-    organization.zip = Some(<String>::from("0124"));
-    organization.phone = Some(<String>::from("+27123456789"));
-    organization = Organization::update(&organization, &*database.get_connection()).unwrap();
-    //create venue
     let mut venue = Venue::create("NewVenue")
         .commit(&*database.get_connection())
         .unwrap();
@@ -205,18 +197,9 @@ fn add_to_organization() {
         .commit(&*database.get_connection())
         .unwrap();
     //create organization
-    let mut organization = Organization::create(user.id, &"testOrganization")
+    let organization = Organization::create(user.id, &"testOrganization")
         .commit(&*database.get_connection())
         .unwrap();
-    organization.address = Some(<String>::from("Test Address"));
-    organization.city = Some(<String>::from("Test Address"));
-    organization.state = Some(<String>::from("Test state"));
-    organization.country = Some(<String>::from("Test country"));
-    organization.zip = Some(<String>::from("0124"));
-    organization.phone = Some(<String>::from("+27123456789"));
-    let _updated_organization =
-        Organization::update(&organization, &*database.get_connection()).unwrap();
-    //create venue
     let mut venue = Venue::create("NewVenue")
         .commit(&*database.get_connection())
         .unwrap();
