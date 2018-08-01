@@ -82,13 +82,10 @@ fn show() {
     let organization = organization.update(attrs, &*connection).unwrap();
     let organization_expected_json = serde_json::to_string(&organization).unwrap();
 
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/organizations/{id}",
-        &format!("/organizations/{}", organization.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
     let user = support::create_auth_user(Roles::OrgMember, &*connection);
     let response = organizations::show((state, path, user));
 
@@ -140,13 +137,10 @@ pub fn update(role: Roles, should_succeed: bool) {
         .unwrap();
     let new_name = "New Name";
 
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/organizations/{id}",
-        &format!("/organizations/{}", organization.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
     let json = Json(OrganizationEditableAttributes {
         name: Some(new_name.clone().to_string()),
         address: Some("address".to_string()),
@@ -193,14 +187,11 @@ pub fn remove_user(role: Roles, should_test_true: bool) {
         .commit(&*connection)
         .unwrap();
 
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/organizations/{id}",
-        &format!("/organizations/{}", organization.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(user3.id);
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
     let user = support::create_auth_user(role, &*connection);
     let response = organizations::remove_user((state, path, json, user));
 
@@ -235,17 +226,14 @@ pub fn update_owner(role: Roles, should_succeed: bool) {
         .commit(&*connection)
         .unwrap();
 
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/organizations/{id}/owner",
-        &format!("/organizations/{}/owner", organization.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let update_owner_request = UpdateOwnerRequest {
         owner_user_id: new_owner.id,
     };
 
     let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
 
     let json = Json(update_owner_request);
 

@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct PathParameters {
-    id: Uuid,
+    pub id: Uuid,
 }
 
 pub fn index(state: State<AppState>) -> HttpResponse {

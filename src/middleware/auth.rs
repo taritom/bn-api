@@ -20,13 +20,12 @@ impl AuthMiddleware {
 }
 
 impl Middleware<AppState> for AuthMiddleware {
-    fn start(&self, req: &mut HttpRequest<AppState>) -> Result<Started> {
+    fn start(&self, req: &HttpRequest<AppState>) -> Result<Started> {
         // ignore CORS pre-flights
         if *req.method() == Method::OPTIONS {
             return Ok(Started::Done);
         }
-        let mut headers = req.clone();
-        let auth_header = headers.headers_mut().get("Authorization");
+        let auth_header = req.headers().get("Authorization");
         if auth_header.is_none() {
             return Err(error::ErrorUnauthorized("Missing auth token"));
         }

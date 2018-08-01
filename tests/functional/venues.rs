@@ -56,13 +56,10 @@ fn show() {
     let venue_expected_json = serde_json::to_string(&venue).unwrap();
 
     let _updated_venue = Venue::update(&venue, &*database.get_connection()).unwrap();
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/venues/{id}",
-        &format!("/venues/{}", venue.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = venue.id;
 
     let response = venues::show((state, path));
 
@@ -106,13 +103,11 @@ fn update() {
     let _updated_venue = Venue::update(&venue, &*connection).unwrap();
     let new_name = "New Name";
 
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/venues/{id}",
-        &format!("/venues/{}", venue.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = venue.id;
+
     let json = Json(Venue {
         id: venue.id,
         address: venue.address.clone(),
@@ -211,13 +206,11 @@ fn add_to_organization() {
     Venue::update(&venue, &*connection).unwrap();
 
     //link venues to organization
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/venues/{id}",
-        &format!("/venues/{}", venue.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = venue.id;
+
     let json = Json(organization.id);
     let user = AuthUser::new(user);
 

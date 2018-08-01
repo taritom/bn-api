@@ -22,8 +22,7 @@ fn token() {
         .commit(&*database.get_connection())
         .unwrap();
 
-    let test_request = TestRequest::create_with_route(database, &"/auth/token", &"/auth/token");
-
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(LoginRequest::new("fake@localhost", "strong_password"));
 
@@ -48,7 +47,7 @@ fn token_invalid_email() {
         .commit(&*database.get_connection())
         .unwrap();
 
-    let test_request = TestRequest::create_with_route(database, &"/auth/token", &"/auth/token");
+    let test_request = TestRequest::create(database);
 
     let state = test_request.extract_state();
     let json = Json(LoginRequest::new("incorrect@localhost", "strong_password"));
@@ -71,7 +70,7 @@ fn token_incorrect_password() {
         .commit(&*database.get_connection())
         .unwrap();
 
-    let test_request = TestRequest::create_with_route(database, &"/auth/token", &"/auth/token");
+    let test_request = TestRequest::create(database);
 
     let state = test_request.extract_state();
     let json = Json(LoginRequest::new("incorrect@localhost", "incorrect"));
@@ -94,8 +93,7 @@ fn token_refresh() {
         .commit(&*database.get_connection())
         .unwrap();
 
-    let test_request =
-        TestRequest::create_with_route(database, &"/auth/token/refresh", &"/auth/token/refresh");
+    let test_request = TestRequest::create(database);
 
     let state = test_request.extract_state();
     let refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
@@ -124,8 +122,7 @@ fn token_refresh_invalid_refresh_token_secret() {
         .commit(&*database.get_connection())
         .unwrap();
 
-    let test_request =
-        TestRequest::create_with_route(database, &"/auth/token/refresh", &"/auth/token/refresh");
+    let test_request = TestRequest::create(database);
 
     let state = test_request.extract_state();
     let refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
@@ -150,8 +147,7 @@ fn token_refresh_invalid_refresh_token() {
         .commit(&*database.get_connection())
         .unwrap();
 
-    let test_request =
-        TestRequest::create_with_route(database, &"/auth/token/refresh", &"/auth/token/refresh");
+    let test_request = TestRequest::create(database);
 
     let state = test_request.extract_state();
     let json = Json(RefreshRequest::new(&"not.a.real.token"));
@@ -171,8 +167,7 @@ fn token_refresh_user_does_not_exist() {
         .commit(&*database.get_connection())
         .unwrap();
 
-    let test_request =
-        TestRequest::create_with_route(database, &"/auth/token/refresh", &"/auth/token/refresh");
+    let test_request = TestRequest::create(database);
 
     let state = test_request.extract_state();
     let mut refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
@@ -198,8 +193,7 @@ fn token_refresh_password_reset_since_issued() {
         .unwrap();
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
 
-    let test_request =
-        TestRequest::create_with_route(database, &"/auth/token/refresh", &"/auth/token/refresh");
+    let test_request = TestRequest::create(database);
 
     let state = test_request.extract_state();
     let mut refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
@@ -228,8 +222,7 @@ fn token_refreshed_after_password_change() {
         .unwrap();
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
 
-    let test_request =
-        TestRequest::create_with_route(database, &"/auth/token/refresh", &"/auth/token/refresh");
+    let test_request = TestRequest::create(database);
 
     let state = test_request.extract_state();
     let mut refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
@@ -261,9 +254,7 @@ fn register_address_exists() {
         .commit(&*database.get_connection())
         .unwrap();
 
-    let test_request =
-        TestRequest::create_with_route(database, &"/auth/register", &"/auth/register");
-
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(RegisterRequest::new(
         &"fake@localhost",
@@ -283,9 +274,7 @@ fn register_address_exists() {
 fn register_succeeds() {
     let database = TestDatabase::new();
 
-    let test_request =
-        TestRequest::create_with_route(database, &"/auth/register", &"/auth/register");
-
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(RegisterRequest::new(
         &"fake@localhost",

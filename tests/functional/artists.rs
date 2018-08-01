@@ -38,13 +38,10 @@ fn show() {
         .unwrap();
     let artist_expected_json = serde_json::to_string(&artist).unwrap();
 
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/artists/{id}",
-        &format!("/artists/{}", artist.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = artist.id;
 
     let response = artists::show((state, path));
 
@@ -81,13 +78,11 @@ fn update() {
         .unwrap();
     let new_name = "New Name";
 
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/artists/{id}",
-        &format!("/artists/{}", artist.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = artist.id;
+
     let json = Json(UserEditableAttributes {
         name: new_name.clone().to_string(),
     });
@@ -106,13 +101,10 @@ fn destroy() {
     let connection = &*database.get_connection();
     let artist = Artist::create(&"Name").commit(connection).unwrap();
 
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/artists/{id}",
-        &format!("/artists/{}", artist.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = artist.id;
 
     let response = artists::destroy((state, path));
     let expected_json = "{}";

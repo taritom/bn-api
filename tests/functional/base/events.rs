@@ -75,13 +75,9 @@ pub fn show(role: Roles) {
         .unwrap();
     let event_expected_json = serde_json::to_string(&event).unwrap();
 
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/events/{id}",
-        &format!("/events/{}", event.id.to_string()),
-    );
-
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let test_request = TestRequest::create(database);
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
     let user = support::create_auth_user(role, &*connection);
     let should_test_true = user.is_in_role(Roles::Guest);
     let state = test_request.extract_state();
@@ -159,11 +155,7 @@ pub fn update(role: Roles) {
         .unwrap();
 
     let new_name = "New Event Name";
-    let test_request = TestRequest::create_with_route(
-        database,
-        &"/events/{id}",
-        &format!("/events/{}", event.id.to_string()),
-    );
+    let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let update_event = Event {
         id: event.id.clone(),
@@ -174,7 +166,8 @@ pub fn update(role: Roles) {
         created_at: event.created_at.clone(),
         ticket_sell_date: event.ticket_sell_date.clone(),
     };
-    let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
 
     let updated_event = serde_json::to_string(&update_event).unwrap();
     let json = Json(update_event);
