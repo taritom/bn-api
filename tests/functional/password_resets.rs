@@ -1,4 +1,5 @@
 use actix_web::{http::StatusCode, Json};
+use bigneon_api::auth::{claims::AccessToken, claims::RefreshToken, TokenResponse};
 use bigneon_api::controllers::password_resets::{
     self, CreatePasswordResetParameters, UpdatePasswordResetParameters,
 };
@@ -6,8 +7,10 @@ use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::concerns::users::password_resetable::*;
 use bigneon_db::models::User;
 use chrono::{Duration, Utc};
+use crypto::sha2::Sha256;
 use diesel;
 use diesel::prelude::*;
+use jwt::{Header, Token};
 use lettre::SendableEmail;
 use serde_json;
 use std::str;
@@ -141,6 +144,7 @@ fn update() {
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
+    let token_secret = state.config.token_secret.clone();
     let json = Json(UpdatePasswordResetParameters {
         password_reset_token: user.password_reset_token.unwrap().clone(),
         password: new_password.to_string(),
@@ -152,11 +156,18 @@ fn update() {
     assert!(user.password_reset_requested_at.is_none());
     assert!(user.check_password(&new_password));
 
-    let expected_json = serde_json::to_string(&user.for_display()).unwrap();
-
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, expected_json);
+    let token_response: TokenResponse = serde_json::from_str(&body).unwrap();
+
+    let access_token = Token::<Header, AccessToken>::parse(&token_response.access_token).unwrap();
+    assert!(access_token.verify(token_secret.as_bytes(), Sha256::new()));
+    assert_eq!(access_token.claims.get_id(), user.id);
+
+    let refresh_token =
+        Token::<Header, RefreshToken>::parse(&token_response.refresh_token).unwrap();
+    assert!(refresh_token.verify(token_secret.as_bytes(), Sha256::new()));
+    assert_eq!(refresh_token.claims.get_id(), user.id);
 }
 
 #[test]
@@ -192,12 +203,7 @@ fn update_expired_token() {
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));
 
-    let expected_json = json!({"error": "[5000] Internal error\nCaused by: Password reset token is expired"})
-        .to_string();
-
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, expected_json);
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 #[test]
@@ -226,10 +232,5 @@ fn update_incorrect_token() {
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));
 
-    let expected_json =
-        json!({"error": "[3000] Query Error\nCaused by: Error loading user, NotFound"}).to_string();
-
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, expected_json);
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }

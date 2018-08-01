@@ -1,41 +1,42 @@
-use actix_web::error;
 use actix_web::{Error, HttpRequest, HttpResponse, Json, Responder, State};
-use auth::big_neon_claims::BigNeonClaims;
+use auth::{claims::RefreshToken, TokenResponse};
 use bigneon_db::models::User;
 use crypto::sha2::Sha256;
+use errors::database_error::ConvertToWebError;
+use helpers::application;
 use jwt::{Header, Token};
 use serde_json;
 use server::AppState;
 
-#[derive(Serialize, Deserialize)]
-pub struct AccessToken {
-    pub token: String,
-}
-
-impl AccessToken {
-    pub fn new(token: &str) -> AccessToken {
-        AccessToken {
-            token: String::from(token),
-        }
-    }
-}
-
 #[derive(Deserialize)]
 pub struct LoginRequest {
-    username: String,
+    email: String,
     password: String,
 }
 
+#[derive(Deserialize)]
+pub struct RefreshRequest {
+    refresh_token: String,
+}
+
 impl LoginRequest {
-    pub fn new(username: &str, password: &str) -> LoginRequest {
+    pub fn new(email: &str, password: &str) -> Self {
         LoginRequest {
-            username: String::from(username),
+            email: String::from(email),
             password: String::from(password),
         }
     }
 }
 
-impl Responder for AccessToken {
+impl RefreshRequest {
+    pub fn new(refresh_token: &str) -> Self {
+        RefreshRequest {
+            refresh_token: String::from(refresh_token),
+        }
+    }
+}
+
+impl Responder for TokenResponse {
     type Item = HttpResponse;
     type Error = Error;
 
@@ -47,28 +48,55 @@ impl Responder for AccessToken {
     }
 }
 
-pub fn token(
-    (state, login_request): (State<AppState>, Json<LoginRequest>),
-) -> Result<AccessToken, Error> {
+pub fn token((state, login_request): (State<AppState>, Json<LoginRequest>)) -> HttpResponse {
     let connection = state.database.get_connection();
 
-    let user = match User::find_by_email(&login_request.username, &*connection) {
+    // Generic messaging to prevent exposing user is member of system
+    let login_failure_messaging = "Email or password incorrect";
+
+    let user = match User::find_by_email(&login_request.email, &*connection) {
         Ok(u) => u,
-        Err(e) => return Err(error::ErrorUnauthorized(e)),
+        Err(_e) => return application::unauthorized_with_message(login_failure_messaging),
     };
 
     if !user.check_password(&login_request.password) {
-        return Err(error::ErrorUnauthorized("Email or password incorrect"));
+        return application::unauthorized_with_message(login_failure_messaging);
     }
 
-    let header: Header = Default::default();
+    let response = TokenResponse::create_from_user(&state.token_secret, &state.token_issuer, &user);
+    HttpResponse::Ok().json(response)
+}
 
-    let claims = BigNeonClaims::new(&user, state.token_issuer.clone());
-    let token = Token::new(header, claims);
+pub fn token_refresh(
+    (state, refresh_request): (State<AppState>, Json<RefreshRequest>),
+) -> HttpResponse {
+    let connection = state.database.get_connection();
 
-    Ok(AccessToken {
-        token: token
-            .signed(state.token_secret.as_bytes(), Sha256::new())
-            .unwrap(),
-    })
+    let token = match Token::<Header, RefreshToken>::parse(&refresh_request.refresh_token) {
+        Ok(token) => token,
+        Err(_e) => return application::unauthorized_with_message("Invalid token"),
+    };
+
+    if token.verify(state.config.token_secret.as_bytes(), Sha256::new()) {
+        match User::find(&token.claims.get_id(), &*connection) {
+            Ok(user) => {
+                // If the user changes their password invalidate all refresh tokens
+                let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
+                if password_modified_timestamp <= token.claims.issued {
+                    let response = TokenResponse::create_from_refresh_token(
+                        &state.token_secret,
+                        &state.token_issuer,
+                        &user.id,
+                        &refresh_request.refresh_token,
+                    );
+                    HttpResponse::Ok().json(response)
+                } else {
+                    return application::unauthorized_with_message("Invalid token");
+                }
+            }
+            Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+        }
+    } else {
+        application::unauthorized_with_message("Invalid token")
+    }
 }

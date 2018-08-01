@@ -25,6 +25,9 @@ impl TestRequest {
 
     pub fn create_with_route(database: TestDatabase, route: &str, path: &str) -> TestRequest {
         let mut config = Config::new(Environment::Test);
+        config.token_secret = "test_secret".into();
+        config.token_issuer = "bn-api-test".into();
+
         config.mail_from_email = "support@bigneon.com".to_string();
         config.mail_from_name = "Big Neon".to_string();
         config.whitelisted_domains.insert("localhost".to_string());
@@ -32,8 +35,8 @@ impl TestRequest {
         let mut request = test::TestRequest::with_state(AppState {
             config: config.clone(),
             database: Box::new(database),
-            token_secret: "test_secret".into(),
-            token_issuer: "bn-api-test".into(),
+            token_secret: config.token_secret.clone(),
+            token_issuer: config.token_issuer.clone(),
         }).uri(&path)
             .finish();
 

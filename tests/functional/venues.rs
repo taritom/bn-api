@@ -7,31 +7,27 @@ use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
-use uuid::Uuid;
 
 #[test]
 fn index() {
     let database = TestDatabase::new();
-    let mut venue = Venue::create(&"Venue")
-        .commit(&*database.get_connection())
-        .unwrap();
+    let connection = database.get_connection();
+    let mut venue = Venue::create(&"Venue").commit(&*connection).unwrap();
     venue.address = Some(<String>::from("Test Address"));
     venue.city = Some(<String>::from("Test Address"));
     venue.state = Some(<String>::from("Test state"));
     venue.country = Some(<String>::from("Test country"));
     venue.zip = Some(<String>::from("0124"));
     venue.phone = Some(<String>::from("+27123456789"));
-    venue = Venue::update(&venue, &*database.get_connection()).unwrap();
-    let mut venue2 = Venue::create(&"Venue 2")
-        .commit(&*database.get_connection())
-        .unwrap();
+    venue = Venue::update(&venue, &*connection).unwrap();
+    let mut venue2 = Venue::create(&"Venue 2").commit(&*connection).unwrap();
     venue2.address = Some(<String>::from("Test Address"));
     venue2.city = Some(<String>::from("Test Address"));
     venue2.state = Some(<String>::from("Test state"));
     venue2.country = Some(<String>::from("Test country"));
     venue2.zip = Some(<String>::from("0124"));
     venue2.phone = Some(<String>::from("+27123456789"));
-    venue2 = Venue::update(&venue2, &*database.get_connection()).unwrap();
+    venue2 = Venue::update(&venue2, &*connection).unwrap();
 
     let expected_venues = vec![venue, venue2];
     let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
@@ -78,6 +74,7 @@ fn show() {
 #[test]
 fn create() {
     let database = TestDatabase::new();
+    let connection = database.get_connection();
     let name = "Venue Example";
 
     let test_request = TestRequest::create(database);
@@ -85,7 +82,7 @@ fn create() {
     let json = Json(NewVenue {
         name: name.clone().to_string(),
     });
-    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::Admin]);
+    let user = support::create_auth_user(Roles::Admin, &*connection);
 
     let response = venues::create((state, json, user));
 
@@ -98,16 +95,15 @@ fn create() {
 #[test]
 fn update() {
     let database = TestDatabase::new();
-    let mut venue = Venue::create("NewVenue")
-        .commit(&*database.get_connection())
-        .unwrap();
+    let connection = database.get_connection();
+    let mut venue = Venue::create("NewVenue").commit(&*connection).unwrap();
     venue.address = Some(<String>::from("Test Address"));
     venue.city = Some(<String>::from("Test Address"));
     venue.state = Some(<String>::from("Test state"));
     venue.country = Some(<String>::from("Test country"));
     venue.zip = Some(<String>::from("0124"));
     venue.phone = Some(<String>::from("+27123456789"));
-    let _updated_venue = Venue::update(&venue, &*database.get_connection()).unwrap();
+    let _updated_venue = Venue::update(&venue, &*connection).unwrap();
     let new_name = "New Name";
 
     let test_request = TestRequest::create_with_route(
@@ -128,7 +124,7 @@ fn update() {
         name: new_name.clone().to_string(),
     });
 
-    let user = AuthUser::new(Uuid::new_v4(), vec![Roles::Admin]);
+    let user = support::create_auth_user(Roles::Admin, &*connection);
 
     let response = venues::update((state, path, json, user));
 
@@ -149,6 +145,7 @@ fn show_from_organizations() {
     let organization = Organization::create(user.id, &"testOrganization")
         .commit(&*database.get_connection())
         .unwrap();
+    //create venue
     let mut venue = Venue::create("NewVenue")
         .commit(&*database.get_connection())
         .unwrap();
@@ -192,24 +189,26 @@ fn show_from_organizations() {
 #[test]
 fn add_to_organization() {
     let database = TestDatabase::new();
+    let connection = database.get_connection();
     //create user
     let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*database.get_connection())
+        .commit(&*connection)
         .unwrap();
+    let user = user.add_role(Roles::Admin, &*connection).unwrap();
+
     //create organization
     let organization = Organization::create(user.id, &"testOrganization")
-        .commit(&*database.get_connection())
+        .commit(&*connection)
         .unwrap();
-    let mut venue = Venue::create("NewVenue")
-        .commit(&*database.get_connection())
-        .unwrap();
+    //create venue
+    let mut venue = Venue::create("NewVenue").commit(&*connection).unwrap();
     venue.address = Some(<String>::from("Test Address"));
     venue.city = Some(<String>::from("Test Address"));
     venue.state = Some(<String>::from("Test state"));
     venue.country = Some(<String>::from("Test country"));
     venue.zip = Some(<String>::from("0124"));
     venue.phone = Some(<String>::from("+27123456789"));
-    Venue::update(&venue, &*database.get_connection()).unwrap();
+    Venue::update(&venue, &*connection).unwrap();
 
     //link venues to organization
     let test_request = TestRequest::create_with_route(
@@ -220,7 +219,7 @@ fn add_to_organization() {
     let state = test_request.extract_state();
     let path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     let json = Json(organization.id);
-    let user = AuthUser::new(user.id, vec![Roles::Admin]);
+    let user = AuthUser::new(user);
 
     let response = venues::add_to_organization((state, path, json, user));
 

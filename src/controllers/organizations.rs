@@ -17,7 +17,7 @@ pub fn index((state, user): (State<AppState>, User)) -> HttpResponse {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
-    let organization_response = Organization::all(user.id, &*connection);
+    let organization_response = Organization::all(user.id(), &*connection);
     match organization_response {
         Ok(organizations) => HttpResponse::Ok().json(&organizations),
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),

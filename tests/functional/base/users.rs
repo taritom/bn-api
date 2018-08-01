@@ -1,5 +1,4 @@
 use actix_web::{http::StatusCode, HttpResponse, Json};
-use bigneon_api::auth::user::User as AuthUser;
 use bigneon_api::controllers::users;
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{DisplayUser, Roles, User};
@@ -11,13 +10,14 @@ use support::test_request::TestRequest;
 #[test]
 fn current_user() {
     let database = TestDatabase::new();
+    let connection = database.get_connection();
     let db_user = User::create("Jeff", "test@test.com", "555-555-5555", "password")
-        .commit(&*database.get_connection())
+        .commit(&*connection)
         .unwrap();
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let user = AuthUser::new(db_user.id, vec![Roles::Guest]);
+    let user = support::create_auth_user_from_user(&db_user, Roles::Guest, &*connection);
 
     let response = users::current_user((state, user));
 
@@ -30,13 +30,14 @@ fn current_user() {
 
 pub fn show_from_email(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
+    let connection = database.get_connection();
     let db_user = User::create("Jeff", "test@test.com", "555-555-5555", "password")
-        .commit(&*database.get_connection())
+        .commit(&*connection)
         .unwrap();
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let user = AuthUser::new(db_user.id, vec![role]);
+    let user = support::create_auth_user_from_user(&db_user, role, &*connection);
     let json = Json("test@test.com");
     let response = users::find_via_email((state, json, user));
     let display_user: DisplayUser = db_user.into();

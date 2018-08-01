@@ -83,6 +83,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::POST).with(users::register)
         })
         .resource("/auth/token", |r| r.method(Method::POST).with(auth::token))
+        .resource("/auth/token/refresh", |r| {
+            r.method(Method::POST).with(auth::token_refresh)
+        })
         .register()
         .default_resource(|r| {
             r.method(Method::GET).f(|_req| {

@@ -1,7 +1,9 @@
 use actix_web::{HttpResponse, Json, State};
+use auth::TokenResponse;
 use bigneon_db::models::concerns::users::password_resetable::*;
 use bigneon_db::models::User;
 use config::Config;
+use errors::database_error::ConvertToWebError;
 use mail::mailers;
 use server::AppState;
 use url::Url;
@@ -54,7 +56,7 @@ pub fn create(
                     Err(_e) => HttpResponse::BadRequest().json(error_message),
                 }
             }
-            Err(_e) => HttpResponse::BadRequest().json(error_message),
+            Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
         },
         Err(_e) => HttpResponse::Created().json(request_pending_message),
     }
@@ -70,8 +72,12 @@ pub fn update(
         &parameters.password,
         &*connection,
     ) {
-        Ok(user) => HttpResponse::Ok().json(&user.for_display()),
-        Err(e) => HttpResponse::BadRequest().json(json!({ "error": format!("{}", e) })),
+        Ok(user) => HttpResponse::Ok().json(&TokenResponse::create_from_user(
+            &state.token_secret,
+            &state.token_issuer,
+            &user,
+        )),
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }
 

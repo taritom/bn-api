@@ -1,9 +1,11 @@
 use actix_web::error;
 use actix_web::middleware::{Middleware, Started};
 use actix_web::{http::Method, HttpRequest, Result};
-use auth::big_neon_claims::BigNeonClaims;
+use auth::claims;
 use auth::user::User;
+use bigneon_db::models::User as DbUser;
 use crypto::sha2::Sha256;
+use errors::database_error::ConvertToWebError;
 use jwt::Header;
 use jwt::Token;
 use server::AppState;
@@ -37,7 +39,8 @@ impl Middleware<AppState> for AuthMiddleware {
         }
 
         let token = parts.next().unwrap();
-        let token = Token::<Header, BigNeonClaims>::parse(token).unwrap();
+        let token = Token::<Header, claims::AccessToken>::parse(token).unwrap();
+
         if token.verify((*req.state()).config.token_secret.as_bytes(), Sha256::new()) {
             let expires = token.claims.exp;
 
@@ -48,10 +51,13 @@ impl Middleware<AppState> for AuthMiddleware {
                 return Err(error::ErrorUnauthorized("Token has expired"));
             }
 
-            let roles = token.claims.get_roles();
+            let connection = req.state().database.get_connection();
+            let user = match DbUser::find(&token.claims.get_id(), &*connection) {
+                Ok(user) => user,
+                Err(e) => return Err(ConvertToWebError::create_http_error(&e)),
+            };
 
-            req.extensions_mut()
-                .insert(User::new(token.claims.get_id(), roles));
+            req.extensions_mut().insert(User::new(user));
         } else {
             return Err(error::ErrorUnauthorized("Invalid token"));
         }
