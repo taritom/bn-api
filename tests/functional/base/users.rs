@@ -1,5 +1,6 @@
-use actix_web::{http::StatusCode, HttpResponse, Json};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Query};
 use bigneon_api::controllers::users;
+use bigneon_api::controllers::users::Info;
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{DisplayUser, Roles, User};
 use serde_json;
@@ -34,12 +35,11 @@ pub fn show_from_email(role: Roles, should_test_true: bool) {
     let db_user = User::create("Jeff", "test@test.com", "555-555-5555", "password")
         .commit(&*connection)
         .unwrap();
-
-    let test_request = TestRequest::create(database);
+    let test_request = TestRequest::create_with_uri(database, "/?email=test@test.com");
     let state = test_request.extract_state();
     let user = support::create_auth_user_from_user(&db_user, role, &*connection);
-    let json = Json("test@test.com");
-    let response = users::find_via_email((state, json, user));
+    let data = Query::<Info>::from_request(&test_request.request, &()).unwrap();
+    let response = users::find_via_email((state, data, user));
     let display_user: DisplayUser = db_user.into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 

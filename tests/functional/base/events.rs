@@ -223,8 +223,9 @@ pub fn show_from_organizations(role: Roles) {
 
     let user = support::create_auth_user(role, &*connection);
     let should_test_true = user.is_in_role(Roles::Guest);
-    let json = Json(organization.id);
-    let response = events::show_from_organizations((state, json, user));
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    let response = events::show_from_organizations((state, path, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_true {
@@ -273,8 +274,9 @@ pub fn show_from_venues(role: Roles) {
 
     let user = support::create_auth_user(role, &*connection);
     let should_test_true = user.is_in_role(Roles::Guest);
-    let json = Json(venue.id);
-    let response = events::show_from_venues((state, json, user));
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = venue.id;
+    let response = events::show_from_venues((state, path, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_true {

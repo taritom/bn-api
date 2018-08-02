@@ -37,7 +37,9 @@ pub fn show(data: (State<AppState>, Path<PathParameters>, User)) -> HttpResponse
     }
 }
 
-pub fn show_from_organizations(data: (State<AppState>, Json<Uuid>, User)) -> HttpResponse {
+pub fn show_from_organizations(
+    data: (State<AppState>, Path<PathParameters>, User),
+) -> HttpResponse {
     let (state, organization_id, user) = data;
 
     let connection = state.database.get_connection();
@@ -45,21 +47,21 @@ pub fn show_from_organizations(data: (State<AppState>, Json<Uuid>, User)) -> Htt
         return application::unauthorized();
     }
     let event_response =
-        Event::find_all_events_from_organization(&organization_id.into_inner(), &*connection);
+        Event::find_all_events_from_organization(&organization_id.id, &*connection);
     match event_response {
         Ok(events) => HttpResponse::Ok().json(&events),
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }
 
-pub fn show_from_venues(data: (State<AppState>, Json<Uuid>, User)) -> HttpResponse {
+pub fn show_from_venues(data: (State<AppState>, Path<PathParameters>, User)) -> HttpResponse {
     let (state, venue_id, user) = data;
 
     let connection = state.database.get_connection();
     if !user.is_in_role(Roles::Guest) {
         return application::unauthorized();
     }
-    let event_response = Event::find_all_events_from_venue(&venue_id.into_inner(), &*connection);
+    let event_response = Event::find_all_events_from_venue(&venue_id.id, &*connection);
     match event_response {
         Ok(events) => HttpResponse::Ok().json(&events),
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),

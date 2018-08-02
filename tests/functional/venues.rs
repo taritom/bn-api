@@ -174,8 +174,9 @@ fn show_from_organizations() {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
 
-    let json = Json(organization.id);
-    let response = venues::show_from_organizations((state, json));
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    let response = venues::show_from_organizations((state, path));
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

@@ -33,13 +33,12 @@ pub fn show((state, parameters): (State<AppState>, Path<PathParameters>)) -> Htt
     }
 }
 
-pub fn show_from_organizations(data: (State<AppState>, Json<Uuid>)) -> HttpResponse {
+pub fn show_from_organizations(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
     let (state, organization_id) = data;
     //    let user = User::new("username", "roles");
     //    user.requires_role("Guest")?;
     let connection = state.database.get_connection();
-    let venue_response =
-        Venue::find_all_for_organization(&organization_id.into_inner(), &*connection);
+    let venue_response = Venue::find_all_for_organization(&organization_id.id, &*connection);
     match venue_response {
         Ok(venues) => HttpResponse::Ok().json(&venues),
         Err(_e) => {
