@@ -1,6 +1,6 @@
 use actix_web::{HttpResponse, Json, Query, State};
 use auth::user::User as AuthUser;
-use bigneon_db::models::{Roles, User};
+use bigneon_db::models::{DisplayUser, Roles, User};
 use errors::database_error::ConvertToWebError;
 use helpers::application;
 use models::register_request::RegisterRequest;
@@ -11,10 +11,22 @@ pub struct Info {
     pub email: String,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct CurrentUser {
+    pub user: DisplayUser,
+    pub roles: Vec<String>,
+}
+
 pub fn current_user((state, user): (State<AppState>, AuthUser)) -> HttpResponse {
     let connection = state.database.get_connection();
     match User::find(&user.id(), &*connection) {
-        Ok(u) => HttpResponse::Ok().json(&u.for_display()),
+        Ok(u) => {
+            let curr_user = CurrentUser {
+                roles: u.role.clone(),
+                user: u.for_display(),
+            };
+            HttpResponse::Ok().json(&curr_user)
+        }
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }
