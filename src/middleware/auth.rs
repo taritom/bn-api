@@ -38,27 +38,28 @@ impl Middleware<AppState> for AuthMiddleware {
         }
 
         let token = parts.next().unwrap();
-        let token = Token::<Header, claims::AccessToken>::parse(token).unwrap();
+        match Token::<Header, claims::AccessToken>::parse(token) {
+            Ok(token) => {
+                if token.verify((*req.state()).config.token_secret.as_bytes(), Sha256::new()) {
+                    let expires = token.claims.exp;
+                    let timer = SystemTime::now();
+                    let exp = timer.duration_since(UNIX_EPOCH).unwrap().as_secs();
 
-        if token.verify((*req.state()).config.token_secret.as_bytes(), Sha256::new()) {
-            let expires = token.claims.exp;
+                    if expires < exp {
+                        return Err(error::ErrorUnauthorized("Token has expired"));
+                    }
+                    let connection = req.state().database.get_connection();
+                    let user = match DbUser::find(&token.claims.get_id(), &*connection) {
+                        Ok(user) => user,
+                        Err(e) => return Err(ConvertToWebError::create_http_error(&e)),
+                    };
 
-            let timer = SystemTime::now();
-            let exp = timer.duration_since(UNIX_EPOCH).unwrap().as_secs();
-
-            if expires < exp {
-                return Err(error::ErrorUnauthorized("Token has expired"));
+                    req.extensions_mut().insert(User::new(user));
+                } else {
+                    return Err(error::ErrorUnauthorized("Invalid token"));
+                }
             }
-
-            let connection = req.state().database.get_connection();
-            let user = match DbUser::find(&token.claims.get_id(), &*connection) {
-                Ok(user) => user,
-                Err(e) => return Err(ConvertToWebError::create_http_error(&e)),
-            };
-
-            req.extensions_mut().insert(User::new(user));
-        } else {
-            return Err(error::ErrorUnauthorized("Invalid token"));
+            _ => return Err(error::ErrorUnauthorized("Invalid token")),
         }
 
         Ok(Started::Done)
