@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Query};
 use bigneon_api::controllers::users;
-use bigneon_api::controllers::users::Info;
 use bigneon_api::controllers::users::CurrentUser;
+use bigneon_api::controllers::users::Info;
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{DisplayUser, Roles, User};
 use serde_json;
@@ -24,7 +24,7 @@ fn current_user() {
     let response = users::current_user((state, user));
 
     assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();    
+    let body = support::unwrap_body_to_string(&response).unwrap();
     let cuser: CurrentUser = serde_json::from_str(&body).unwrap();
     let user = cuser.user;
     assert_eq!(user.name, "Jeff");

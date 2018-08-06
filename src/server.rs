@@ -33,7 +33,7 @@ impl Server {
                         routing::routes(
                             Cors::for_app(a)
                                 .allowed_origin(&config.allowed_origins)
-                                .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+                                .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
                                 .allowed_headers(vec![
                                     http::header::AUTHORIZATION,
                                     http::header::ACCEPT,

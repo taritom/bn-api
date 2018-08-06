@@ -30,5 +30,5 @@ before_script:
   - bndb_cli create -c postgres://postgres:password123@localhost/bigneon_test -e superuser@bigneon.com -p password1 -m 55555555
 
 script:
-  - cargo fmt --all -- --write-mode=diff
+  - cargo fmt --all -- --check
   - cargo test

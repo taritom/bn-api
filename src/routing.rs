@@ -86,6 +86,16 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.middleware(AuthMiddleware::new());
             r.method(Method::GET).with(users::find_via_email);
         })
+        .resource("/external/facebook/login", |r| {
+            r.method(Method::POST).f(external::facebook::login)
+        })
+        .resource("/external/facebook/auth_callback", |r| {
+            r.name("facebook_callback");
+            r.method(Method::GET).f(external::facebook::auth_callback)
+        })
+        .resource("/external/facebook/web_login", |r| {
+            r.method(Method::POST).with(external::facebook::web_login)
+        })
         .resource("/auth/token", |r| r.method(Method::POST).with(auth::token))
         .resource("/auth/token/refresh", |r| {
             r.method(Method::POST).with(auth::token_refresh)

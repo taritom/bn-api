@@ -27,3 +27,9 @@ we've created the [Big Neon repository](https://github.com/big-neon/bigneon) tha
 set up and configure your local development environment.
 
 See the [README](https://github.com/big-neon/bigneon/blob/master/README.md) for that repo for more details.
+
+# Setting up Facebook login
+Facebook login is optional. If you would like to enable it, you will need to get
+an `app id` via the Facebook Developer page.
+
+On the Facebook Developer page, you will also need to set the `Valid  OAuth Redirect URIs`.

@@ -28,7 +28,7 @@ fn password_reset_email() {
 
     assert_eq!(
         password_reset_email.to(),
-        (user.email.to_string(), user.name.to_string())
+        (user.email.unwrap().to_string(), user.name.to_string())
     );
     assert_eq!(
         password_reset_email.from(),

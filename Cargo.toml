@@ -13,9 +13,13 @@ actix-web = "0.7.2"
 diesel = {version = "1.3.2",features = ["r2d2"]}
 dotenv = "0.13.0"
 # use this one for testing with master branch
-bigneon_db = { git="https://github.com/big-neon/bn-db.git" }
+bigneon_db = { git="https://github.com/big-neon/bn-db.git"}
 # use this one when testing locally.
-#bigneon_db = { path = "../bn-db" }
+# bigneon_db = { path = "../bn-db" }
+futures="0.1"
+http="0.1"
+hyper ="0.12"
+hyper-tls = "0.3.0"
 lettre = "0.8"
 lettre_email = "0.8"
 log = "0.4"

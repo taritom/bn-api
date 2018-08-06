@@ -26,6 +26,8 @@ pub struct Config {
     pub token_secret: String,
     pub token_issuer: String,
     pub whitelisted_domains: HashSet<String>,
+    pub facebook_app_id: Option<String>,
+    pub facebook_app_secret: Option<String>,
 }
 
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
@@ -34,6 +36,8 @@ const API_URL: &str = "API_URL";
 const API_PORT: &str = "API_PORT";
 const DATABASE_URL: &str = "DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
+const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
+const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
 const TOKEN_SECRET: &str = "TOKEN_SECRET";
 const TOKEN_ISSUER: &str = "TOKEN_ISSUER";
@@ -97,6 +101,10 @@ impl Config {
         let token_issuer =
             env::var(&TOKEN_ISSUER).expect(&format!("{} must be defined.", TOKEN_ISSUER));
 
+        let facebook_app_id = env::var(&FACEBOOK_APP_ID).ok();
+
+        let facebook_app_secret = env::var(&FACEBOOK_APP_SECRET).ok();
+
         Config {
             allowed_origins,
             app_name,
@@ -105,6 +113,8 @@ impl Config {
             database_url,
             domain,
             environment,
+            facebook_app_id,
+            facebook_app_secret,
             mail_from_name,
             mail_from_email,
             mail_transport,

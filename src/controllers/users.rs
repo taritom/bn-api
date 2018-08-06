@@ -1,4 +1,5 @@
-use actix_web::{HttpResponse, Json, Query, State};
+use actix_web::error;
+use actix_web::{http::StatusCode, HttpResponse, Json, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::{DisplayUser, Roles, User};
 use errors::database_error::ConvertToWebError;
@@ -39,10 +40,14 @@ pub fn find_via_email(data: (State<AppState>, Query<Info>, AuthUser)) -> HttpRes
         return application::unauthorized();
     }
     match User::find_by_email(&email.into_inner().email, &*connection) {
-        Ok(u) => HttpResponse::Ok().json(&u.for_display()),
+        Ok(u) => match u {
+            Some(u) => HttpResponse::Ok().json(&u.for_display()),
+            None => HttpResponse::new(StatusCode::NOT_FOUND),
+        },
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }
+
 pub fn register((state, request): (State<AppState>, Json<RegisterRequest>)) -> HttpResponse {
     let connection = state.database.get_connection();
 

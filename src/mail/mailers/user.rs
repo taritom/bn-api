@@ -10,9 +10,14 @@ pub fn password_reset_email(config: &Config, user: &User, reset_uri: &str) -> Ma
             .expect("Password reset token is not set")
     );
 
+    let email: &str = user
+        .email
+        .as_ref()
+        .expect("Password reset token is not set");
+
     Mailer::new(
         config.clone(),
-        (user.email.clone(), user.name.clone()),
+        (email.to_string(), user.name.clone()),
         (
             config.mail_from_email.clone(),
             config.mail_from_name.clone(),

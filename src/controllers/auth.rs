@@ -1,3 +1,5 @@
+use actix_web::error;
+use actix_web::error::InternalError;
 use actix_web::{Error, HttpRequest, HttpResponse, Json, Responder, State};
 use auth::{claims::RefreshToken, TokenResponse};
 use bigneon_db::models::User;
@@ -57,6 +59,11 @@ pub fn token((state, login_request): (State<AppState>, Json<LoginRequest>)) -> H
     let user = match User::find_by_email(&login_request.email, &*connection) {
         Ok(u) => u,
         Err(_e) => return application::unauthorized_with_message(login_failure_messaging),
+    };
+
+    let user = match user {
+        Some(u) => u,
+        None => return application::unauthorized_with_message("Email or password incorrect"),
     };
 
     if !user.check_password(&login_request.password) {

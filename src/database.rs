@@ -29,7 +29,8 @@ impl Connectable for ConnectionWrapper {
 impl ConnectionGranting for Database {
     fn get_connection(&self) -> Box<Connectable> {
         Box::new(ConnectionWrapper {
-            connection: self.connection_pool
+            connection: self
+                .connection_pool
                 .get()
                 .expect("Failed to get connection from pool"),
         })

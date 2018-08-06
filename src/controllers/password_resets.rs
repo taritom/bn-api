@@ -42,23 +42,26 @@ pub fn create(
         "error": "An error has occurred, please try again later"
     });
 
-    match User::find_by_email(&parameters.email, &*connection) {
-        Ok(user) => match user.create_password_reset_token(&*connection) {
-            Ok(user) => {
-                let result = mailers::user::password_reset_email(
-                    &state.config,
-                    &user,
-                    &parameters.reset_url,
-                ).deliver();
-
-                match result {
-                    Ok(_success) => HttpResponse::Created().json(request_pending_message),
-                    Err(_e) => HttpResponse::BadRequest().json(error_message),
-                }
-            }
-            Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+    let user = match User::find_by_email(&parameters.email, &*connection) {
+        Ok(user) => match user {
+            Some(user) => user,
+            None => return HttpResponse::Created().json(request_pending_message),
         },
-        Err(_e) => HttpResponse::Created().json(request_pending_message),
+        Err(_e) => return HttpResponse::Created().json(request_pending_message),
+    };
+
+    match user.create_password_reset_token(&*connection) {
+        Ok(user) => {
+            let result =
+                mailers::user::password_reset_email(&state.config, &user, &parameters.reset_url)
+                    .deliver();
+
+            match result {
+                Ok(_success) => HttpResponse::Created().json(request_pending_message),
+                Err(_e) => HttpResponse::BadRequest().json(error_message),
+            }
+        }
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }
 
