@@ -38,18 +38,6 @@ impl RefreshRequest {
     }
 }
 
-impl Responder for TokenResponse {
-    type Item = HttpResponse;
-    type Error = Error;
-
-    fn respond_to<S>(self, _req: &HttpRequest<S>) -> Result<HttpResponse, Error> {
-        let body = serde_json::to_string(&self)?;
-        Ok(HttpResponse::Ok()
-            .content_type("application/json")
-            .body(body))
-    }
-}
-
 pub fn token((state, login_request): (State<AppState>, Json<LoginRequest>)) -> HttpResponse {
     let connection = state.database.get_connection();
 
@@ -63,7 +51,7 @@ pub fn token((state, login_request): (State<AppState>, Json<LoginRequest>)) -> H
 
     let user = match user {
         Some(u) => u,
-        None => return application::unauthorized_with_message("Email or password incorrect"),
+        None => return application::unauthorized_with_message(login_failure_messaging),
     };
 
     if !user.check_password(&login_request.password) {

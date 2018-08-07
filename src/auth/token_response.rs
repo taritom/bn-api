@@ -1,13 +1,30 @@
+use actix_web::Error;
+use actix_web::HttpRequest;
+use actix_web::HttpResponse;
+use actix_web::Responder;
 use auth::{claims::AccessToken, claims::RefreshToken};
 use bigneon_db::models::User;
 use crypto::sha2::Sha256;
 use jwt::{Component, Header, Token};
+use serde_json;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: String,
+}
+
+impl Responder for TokenResponse {
+    type Item = HttpResponse;
+    type Error = Error;
+
+    fn respond_to<S>(self, _req: &HttpRequest<S>) -> Result<HttpResponse, Error> {
+        let body = serde_json::to_string(&self)?;
+        Ok(HttpResponse::Ok()
+            .content_type("application/json")
+            .body(body))
+    }
 }
 
 impl TokenResponse {
