@@ -50,7 +50,6 @@ impl Mailer {
             .text(self.body())
             .build()
             .unwrap();
-
         self.config.mail_transport.send(email)
     }
 }

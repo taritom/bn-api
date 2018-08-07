@@ -14,6 +14,7 @@ addons:
 #    - rust: nightly
 #  fast_finish: true
 env:
+  FRONT_END_URL: "http://localhost"
   BIGNEON_DB: bigneon
   DATABASE_URL: postgres://postgres@localhost/bigneon
   TEST_DATABASE_URL: postgres://postgres:password123@localhost/bigneon_test
@@ -21,7 +22,10 @@ env:
   TOKEN_SECRET: travis_secret
   TOKEN_ISSUER: bg-on-travis
   MAIL_FROM_NAME: "Big Neon Support"
-  MAIL_FROM_EMAIL: support@bigneon.com
+  MAIL_FROM_EMAIL: "support@bigneon.com"
+  MAIL_SMTP_HOST: "localhost"
+  MAIL_SMTP_USER_NAME: "user"
+  MAIL_SMTP_PASSWORD: "password"
 
 before_script:
   - export PATH="$PATH:$HOME/.cargo/bin"

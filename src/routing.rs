@@ -100,6 +100,20 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         .resource("/auth/token/refresh", |r| {
             r.method(Method::POST).with(auth::token_refresh)
         })
+        .resource("organizations/invite_user", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::POST).with(organization_invites::create);
+        })
+        .resource("organizations/accept_invite", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::POST)
+                .with(organization_invites::accept_request);
+        })
+        .resource("organizations/decline_invite", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::POST)
+                .with(organization_invites::decline_request);
+        })
         .register()
         .default_resource(|r| {
             r.method(Method::GET).f(|_req| {
