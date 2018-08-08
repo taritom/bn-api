@@ -70,10 +70,10 @@ pub fn show_from_venues(data: (State<AppState>, Path<PathParameters>, User)) -> 
 
 pub fn create((state, new_event, user): (State<AppState>, Json<NewEvent>, User)) -> HttpResponse {
     let connection = state.database.get_connection();
-    let event_response = new_event.commit(&*connection);
     if !user.is_in_role(Roles::OrgOwner) {
         return application::unauthorized();
     }
+    let event_response = new_event.commit(&*connection);
     match event_response {
         Ok(event) => HttpResponse::Created().json(&event),
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
