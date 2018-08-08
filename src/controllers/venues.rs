@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::User;
 use bigneon_db::models::{NewVenue, Roles, Venue};
 use helpers::application;
+use models::AddVenueToOrganizationRequest;
 use server::AppState;
 use uuid::Uuid;
 
@@ -84,10 +85,16 @@ pub fn update(data: (State<AppState>, Path<PathParameters>, Json<Venue>, User)) 
 }
 
 pub fn add_to_organization(
-    data: (State<AppState>, Path<PathParameters>, Json<Uuid>, User),
+    data: (
+        State<AppState>,
+        Path<PathParameters>,
+        Json<AddVenueToOrganizationRequest>,
+        User,
+    ),
 ) -> HttpResponse {
-    let (state, parameters, organization_id, user) = data;
+    let (state, parameters, add_request, user) = data;
     let connection = state.database.get_connection();
+    let add_request = add_request.into_inner();
     if !user.is_in_role(Roles::Admin) {
         return application::unauthorized();
     }
@@ -95,7 +102,7 @@ pub fn add_to_organization(
     match venue_response {
         Ok(venue) => {
             let venue_update_response =
-                venue.add_to_organization(&organization_id.into_inner(), &*connection);
+                venue.add_to_organization(&add_request.organization_id, &*connection);
             match venue_update_response {
                 Ok(organization_venue) => HttpResponse::Ok().json(&organization_venue),
                 Err(_e) => {

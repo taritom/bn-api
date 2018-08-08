@@ -2,6 +2,7 @@ use actix_web::{http::StatusCode, FromRequest, Json, Path};
 use bigneon_api::auth::user::User as AuthUser;
 use bigneon_api::controllers::venues::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
+use bigneon_api::models::AddVenueToOrganizationRequest;
 use bigneon_db::models::{NewVenue, Organization, OrganizationVenue, Roles, User, Venue};
 use serde_json;
 use support;
@@ -197,14 +198,7 @@ fn add_to_organization() {
         .commit(&*connection)
         .unwrap();
     //create venue
-    let mut venue = Venue::create("NewVenue").commit(&*connection).unwrap();
-    venue.address = Some(<String>::from("Test Address"));
-    venue.city = Some(<String>::from("Test Address"));
-    venue.state = Some(<String>::from("Test state"));
-    venue.country = Some(<String>::from("Test country"));
-    venue.zip = Some(<String>::from("0124"));
-    venue.phone = Some(<String>::from("+27123456789"));
-    Venue::update(&venue, &*connection).unwrap();
+    let venue = Venue::create("NewVenue").commit(&*connection).unwrap();
 
     //link venues to organization
     let test_request = TestRequest::create(database);
@@ -212,7 +206,10 @@ fn add_to_organization() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
 
-    let json = Json(organization.id);
+    let json = Json(AddVenueToOrganizationRequest {
+        organization_id: organization.id,
+    });
+
     let user = AuthUser::new(user);
 
     let response = venues::add_to_organization((state, path, json, user));
