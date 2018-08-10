@@ -19,29 +19,7 @@ impl TestRequest {
     }
 
     pub fn create(database: TestDatabase) -> TestRequest {
-        let mut config = Config::new(Environment::Test);
-        config.token_secret = "test_secret".into();
-        config.token_issuer = "bn-api-test".into();
-
-        config.mail_from_email = "support@bigneon.com".to_string();
-        config.mail_from_name = "Big Neon".to_string();
-        config.whitelisted_domains.insert("localhost".to_string());
-
-        let test_request = test::TestRequest::with_state(AppState {
-            config: config.clone(),
-            database: Box::new(database),
-            token_secret: config.token_secret.clone(),
-            token_issuer: config.token_issuer.clone(),
-        });
-        // TODO: actix-web test requests do not allow router customization except
-        // within crate. Forcing an ID here so the extractor can still build the
-        // parameters wrapped in the Path struct. Should refactor when they settle
-        // on a final test request design as the current does not support extractors.
-        let request = test_request
-            .param("id", "0f85443e-9e70-45ba-bf28-0f59c183856f")
-            .finish();
-
-        TestRequest { request, config }
+        TestRequest::create_with_uri(database, "/")
     }
 
     pub fn create_with_uri(database: TestDatabase, path: &str) -> TestRequest {
