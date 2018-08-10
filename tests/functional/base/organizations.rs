@@ -9,7 +9,7 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
-pub fn index(role: Roles) {
+pub fn index(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
@@ -46,7 +46,66 @@ pub fn index(role: Roles) {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let user = support::create_auth_user_from_user(&user, role, &*connection);
-    let should_test_true = user.is_in_role(Roles::OrgMember);
+    let response = organizations::index((state, user));
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    if should_test_true {
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(body, organization_expected_json);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, organization_expected_json);
+    }
+}
+
+pub fn index_for_admin(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let connection = database.get_connection();
+    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
+        .commit(&*connection)
+        .unwrap();
+    let user2 = User::create("Jeff2", "jeff2@tari.com", "555-555-5555", "examplePassword")
+        .commit(&*connection)
+        .unwrap();
+    let organization = Organization::create(user.id, &"Organization")
+        .commit(&*connection)
+        .unwrap();
+
+    let mut attrs: OrganizationEditableAttributes = Default::default();
+    attrs.address = Some(<String>::from("Test Address"));
+    attrs.city = Some(<String>::from("Test Address"));
+    attrs.state = Some(<String>::from("Test state"));
+    attrs.country = Some(<String>::from("Test country"));
+    attrs.zip = Some(<String>::from("0124"));
+    attrs.phone = Some(<String>::from("+27123456789"));
+    let organization = organization.update(attrs, &*connection).unwrap();
+    let organization2 = Organization::create(user2.id, &"Organization 2")
+        .commit(&*connection)
+        .unwrap();
+
+    let mut attrs: OrganizationEditableAttributes = Default::default();
+    attrs.address = Some(<String>::from("Test Address"));
+    attrs.city = Some(<String>::from("Test Address"));
+    attrs.state = Some(<String>::from("Test state"));
+    attrs.country = Some(<String>::from("Test country"));
+    attrs.zip = Some(<String>::from("0124"));
+    attrs.phone = Some(<String>::from("+27123456789"));
+    let organization2 = organization2.update(attrs, &*connection).unwrap();
+
+    let mut expected_organizations = vec![organization, organization2];
+    if role == Roles::OrgMember {
+        let index = expected_organizations
+            .iter()
+            .position(|x| x.owner_user_id == user2.id)
+            .unwrap();
+        expected_organizations.remove(index);
+    }
+    let organization_expected_json = serde_json::to_string(&expected_organizations).unwrap();
+
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let user = support::create_auth_user_from_user(&user, role, &*connection);
     let response = organizations::index((state, user));
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_true {

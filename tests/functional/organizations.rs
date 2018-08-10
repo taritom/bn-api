@@ -6,23 +6,48 @@ mod index_tests {
     use super::*;
     #[test]
     fn index_org_member() {
-        organizations::index(Roles::OrgMember);
+        organizations::index(Roles::OrgMember, true);
     }
     #[test]
     fn index_guest() {
-        organizations::index(Roles::Guest);
+        organizations::index(Roles::Guest, false);
     }
     #[test]
     fn index_admin() {
-        organizations::index(Roles::Admin);
+        organizations::index(Roles::Admin, true);
     }
     #[test]
     fn index_user() {
-        organizations::index(Roles::User);
+        organizations::index(Roles::User, false);
     }
     #[test]
     fn index_org_owner() {
-        organizations::index(Roles::OrgOwner);
+        organizations::index(Roles::OrgOwner, false);
+    }
+}
+
+#[cfg(test)]
+mod index_for_admin_tests {
+    use super::*;
+    #[test]
+    fn index_for_admin_org_member() {
+        organizations::index_for_admin(Roles::OrgMember, true);
+    }
+    #[test]
+    fn index_for_admin_guest() {
+        organizations::index_for_admin(Roles::Guest, false);
+    }
+    #[test]
+    fn index_for_admin_admin() {
+        organizations::index_for_admin(Roles::Admin, true);
+    }
+    #[test]
+    fn index_for_admin_user() {
+        organizations::index_for_admin(Roles::User, false);
+    }
+    #[test]
+    fn index_for_admin_org_owner() {
+        organizations::index_for_admin(Roles::OrgOwner, false);
     }
 }
 

@@ -13,11 +13,26 @@ pub struct PathParameters {
 }
 
 pub fn index((state, user): (State<AppState>, User)) -> HttpResponse {
+    if user.is_in_role(Roles::Admin) {
+        return index_for_all_orgs((state, user));
+    }
     if !user.is_in_role(Roles::OrgMember) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
     let organization_response = Organization::all_linked_to_user(user.id(), &*connection);
+    match organization_response {
+        Ok(organizations) => HttpResponse::Ok().json(&organizations),
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+    }
+}
+
+pub fn index_for_all_orgs((state, user): (State<AppState>, User)) -> HttpResponse {
+    if !user.is_in_role(Roles::Admin) {
+        return application::unauthorized();
+    }
+    let connection = state.database.get_connection();
+    let organization_response = Organization::all(&*connection);
     match organization_response {
         Ok(organizations) => HttpResponse::Ok().json(&organizations),
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
