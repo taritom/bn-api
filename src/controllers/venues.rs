@@ -1,6 +1,7 @@
 use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::User;
 use bigneon_db::models::{NewVenue, Roles, Venue};
+use errors::database_error::ConvertToWebError;
 use helpers::application;
 use models::AddVenueToOrganizationRequest;
 use server::AppState;
@@ -42,9 +43,7 @@ pub fn show_from_organizations(data: (State<AppState>, Path<PathParameters>)) ->
     let venue_response = Venue::find_for_organization(organization_id.id, &*connection);
     match venue_response {
         Ok(venues) => HttpResponse::Ok().json(&venues),
-        Err(_e) => {
-            HttpResponse::InternalServerError().json(json!({"error": "An error has occurred"}))
-        }
+        Err(e) => HttpResponse::from_error(e.create_http_error()),
     }
 }
 

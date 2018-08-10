@@ -16,6 +16,7 @@ impl ConvertToWebError for DatabaseError {
             3100 => error::ErrorInternalServerError("Could not insert record"),
             3200 => error::ErrorInternalServerError("Could not update record"),
             3300 => error::ErrorInternalServerError("Could not delete record"),
+            3400 => error::ErrorConflict("Duplicate record exists"),
             4000 => error::ErrorInternalServerError("Connection error"),
             5000 => error::ErrorInternalServerError("Internal error"),
             _ => error::ErrorInternalServerError("Unknown error"),
