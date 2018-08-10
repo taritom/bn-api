@@ -11,8 +11,13 @@ use support::test_request::TestRequest;
 pub fn create(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user2 = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user2 = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
 
     let organization = Organization::create(user2.id, &"Organization")
@@ -20,6 +25,7 @@ pub fn create(role: Roles, should_test_true: bool) {
         .unwrap();
     let user2 = User::create(
         "Jeff2",
+        "Wilco",
         "jeff2@tari.com",
         "555-555-55556",
         "examplePassword6",
@@ -57,14 +63,24 @@ pub fn create(role: Roles, should_test_true: bool) {
 pub fn accept_invite_status_of_invite(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user1 = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user1 = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user1.id, &"Organization")
         .commit(&*connection)
         .unwrap();
-    let user2 = User::create("Jeff2", "jeff2@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user2 = User::create(
+        "Jeff2",
+        "Roen",
+        "jeff2@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -104,14 +120,24 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_true: bool) {
 pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user1 = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user1 = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user1.id, &"Organization")
         .commit(&*connection)
         .unwrap();
-    let user2 = User::create("Jeff2", "jeff2@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user2 = User::create(
+        "Jeff2",
+        "Roen",
+        "jeff2@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -153,11 +179,21 @@ pub fn test_email(role: Roles, _should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let email = "test@tari.com";
-    let user1 = User::create(&"Name", &email, &"555-555-5555", &"examplePassword")
-        .commit(&*database.get_connection())
+    let user1 = User::create(
+        &"Name",
+        &"Last",
+        &email,
+        &"555-555-5555",
+        &"examplePassword",
+    ).commit(&*database.get_connection())
         .unwrap();
-    let user2 = User::create("Jeff2", "jeff2@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user2 = User::create(
+        "Jeff2",
+        "Roen",
+        "jeff2@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user2.id, &"Organization")
         .commit(&*connection)

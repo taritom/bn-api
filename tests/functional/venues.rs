@@ -79,6 +79,12 @@ fn create() {
     let state = test_request.extract_state();
     let json = Json(NewVenue {
         name: name.clone().to_string(),
+        address: None,
+        city: None,
+        state: None,
+        zip: None,
+        country: None,
+        phone: None,
     });
     let user = support::create_auth_user(Roles::Admin, &*connection);
 
@@ -134,8 +140,13 @@ fn update() {
 fn show_from_organizations() {
     let database = TestDatabase::new();
     //create user
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*database.get_connection())
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*database.get_connection())
         .unwrap();
     //create organization
     let organization = Organization::create(user.id, &"testOrganization")
@@ -188,8 +199,13 @@ fn add_to_organization() {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     //create user
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let user = user.add_role(Roles::Admin, &*connection).unwrap();
 

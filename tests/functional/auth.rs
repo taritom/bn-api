@@ -18,8 +18,13 @@ use uuid::Uuid;
 fn token() {
     let database = TestDatabase::new();
 
-    let user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -43,8 +48,13 @@ fn token() {
 fn token_invalid_email() {
     let database = TestDatabase::new();
 
-    let _user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let _user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -66,8 +76,13 @@ fn token_invalid_email() {
 fn token_incorrect_password() {
     let database = TestDatabase::new();
 
-    let _user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let _user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -89,8 +104,13 @@ fn token_incorrect_password() {
 fn token_refresh() {
     let database = TestDatabase::new();
 
-    let user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -118,8 +138,13 @@ fn token_refresh() {
 fn token_refresh_invalid_refresh_token_secret() {
     let database = TestDatabase::new();
 
-    let user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -143,8 +168,13 @@ fn token_refresh_invalid_refresh_token_secret() {
 fn token_refresh_invalid_refresh_token() {
     let database = TestDatabase::new();
 
-    let _user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let _user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -163,8 +193,13 @@ fn token_refresh_invalid_refresh_token() {
 fn token_refresh_user_does_not_exist() {
     let database = TestDatabase::new();
 
-    let user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -188,8 +223,13 @@ fn token_refresh_user_does_not_exist() {
 fn token_refresh_password_reset_since_issued() {
     let database = TestDatabase::new();
 
-    let user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
 
@@ -217,8 +257,13 @@ fn token_refresh_password_reset_since_issued() {
 fn token_refreshed_after_password_change() {
     let database = TestDatabase::new();
 
-    let user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
 
@@ -250,14 +295,20 @@ fn token_refreshed_after_password_change() {
 fn register_address_exists() {
     let database = TestDatabase::new();
 
-    let _user = User::create("user1", "fake@localhost", "+27112233223", "strong_password")
-        .commit(&*database.get_connection())
+    let _user = User::create(
+        "user",
+        "last",
+        "fake@localhost",
+        "+27112233223",
+        "strong_password",
+    ).commit(&*database.get_connection())
         .unwrap();
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(RegisterRequest::new(
-        &"fake@localhost",
+        &"First",
+        &"Last",
         &"fake@localhost",
         &"555",
         &"not_important",
@@ -277,7 +328,8 @@ fn register_succeeds() {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(RegisterRequest::new(
-        &"fake@localhost",
+        &"First",
+        &"Last",
         &"fake@localhost",
         &"555",
         &"not_important",

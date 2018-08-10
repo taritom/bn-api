@@ -12,8 +12,13 @@ use support::test_request::TestRequest;
 
 pub fn index(role: Roles) {
     let database = TestDatabase::new();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*database.get_connection())
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*database.get_connection())
         .unwrap();
     let organization = Organization::create(user.id, "Organization")
         .commit(&*database.get_connection())
@@ -61,8 +66,13 @@ pub fn index(role: Roles) {
 pub fn show(role: Roles) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, "Organization")
         .commit(&*connection)
@@ -102,8 +112,13 @@ pub fn create(role: Roles) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     //create prerequisites
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, "Organization")
         .commit(&*connection)
@@ -141,8 +156,13 @@ pub fn update(role: Roles) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     //create prerequisites
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, "Organization")
         .commit(&*connection)
@@ -192,8 +212,13 @@ pub fn show_from_organizations(role: Roles) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     //create prerequisites
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, "Organization")
         .commit(&*connection)
@@ -242,8 +267,13 @@ pub fn show_from_venues(role: Roles) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     //create prerequisites
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, "Organization")
         .commit(&*connection)

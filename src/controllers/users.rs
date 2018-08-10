@@ -52,7 +52,8 @@ pub fn register((state, request): (State<AppState>, Json<RegisterRequest>)) -> H
     let connection = state.database.get_connection();
 
     match User::create(
-        &request.name,
+        &request.first_name,
+        &request.last_name,
         &request.email,
         &request.phone,
         &request.password,

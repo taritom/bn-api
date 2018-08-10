@@ -17,7 +17,7 @@ pub fn password_reset_email(config: &Config, user: &User, reset_uri: &str) -> Ma
 
     Mailer::new(
         config.clone(),
-        (email.to_string(), user.name.clone()),
+        (email.to_string(), user.full_name()),
         (
             config.mail_from_email.clone(),
             config.mail_from_name.clone(),

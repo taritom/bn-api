@@ -8,7 +8,7 @@ use support::database::TestDatabase;
 fn is_in_role() {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user = DbUser::create("Jeff", "test@test.com", "555-555-5555", "password")
+    let user = DbUser::create("Jeff", "Last", "test@test.com", "555-555-5555", "password")
         .commit(&*connection)
         .unwrap();
 
@@ -25,7 +25,7 @@ fn is_in_role() {
 fn requires_role() {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user = DbUser::create("Jeff", "test@test.com", "555-555-5555", "password")
+    let user = DbUser::create("Jeff", "Last", "test@test.com", "555-555-5555", "password")
         .commit(&*connection)
         .unwrap();
 

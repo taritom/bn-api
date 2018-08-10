@@ -25,8 +25,13 @@ fn create() {
     let email = "joe@tari.com";
     let connection = &*database.get_connection();
 
-    let user = User::create(&"Name", &email, &"555-555-5555", &"examplePassword")
-        .commit(connection)
+    let user = User::create(
+        &"Name",
+        &"Last",
+        &email,
+        &"555-555-5555",
+        &"examplePassword",
+    ).commit(connection)
         .unwrap();
     let expected_json = json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", email)
@@ -100,8 +105,13 @@ fn create_invalid_reset_uri() {
     let email = "joe@tari.com";
     let reset_url = "http://not_whitelisted/reset_password";
 
-    User::create(&"Name", &email, &"555-555-5555", &"examplePassword")
-        .commit(&*database.get_connection())
+    User::create(
+        &"Name",
+        &"Last",
+        &email,
+        &"555-555-5555",
+        &"examplePassword",
+    ).commit(&*database.get_connection())
         .unwrap();
     let expected_json = json!({
         "error":
@@ -134,7 +144,7 @@ fn create_invalid_reset_uri() {
 fn update() {
     let database = TestDatabase::new();
     let connection = &*database.get_connection();
-    let user = User::create(&"Joe", &"joe@tari.com", &"555-555-5555", &"pass")
+    let user = User::create(&"Joe", &"Last", &"joe@tari.com", &"555-555-5555", &"pass")
         .commit(connection)
         .unwrap();
 
@@ -175,7 +185,7 @@ fn update_expired_token() {
     use bigneon_db::schema::users::dsl::*;
     let database = TestDatabase::new();
     let connection = &*database.get_connection();
-    let user = User::create(&"Joe", &"joe@tari.com", &"555-555-5555", &"pass")
+    let user = User::create(&"Joe", &"Last", &"joe@tari.com", &"555-555-5555", &"pass")
         .commit(connection)
         .unwrap();
 
@@ -210,7 +220,7 @@ fn update_expired_token() {
 fn update_incorrect_token() {
     let database = TestDatabase::new();
     let connection = &*database.get_connection();
-    let user = User::create(&"Joe", &"joe@tari.com", &"555-555-5555", &"pass")
+    let user = User::create(&"Joe", &"Last", &"joe@tari.com", &"555-555-5555", &"pass")
         .commit(connection)
         .unwrap();
 

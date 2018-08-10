@@ -103,7 +103,7 @@ pub fn create_invite_email(
         recipient = "New user".to_string();
     } else {
         recipient = match User::find(&invite.user_id.unwrap(), conn) {
-            Ok(u) => u.name,
+            Ok(u) => u.full_name(),
             Err(_e) => "New user".to_string(),
         };
     }

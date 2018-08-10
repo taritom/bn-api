@@ -15,6 +15,7 @@ fn password_reset_email() {
 
     let user = User::create(
         &"Name",
+        &"Last",
         &"joe@tari.com",
         &"555-555-5555",
         &"examplePassword",
@@ -25,10 +26,10 @@ fn password_reset_email() {
     let reset_uri = "http://localhost/reset";
 
     let password_reset_email = mailers::user::password_reset_email(&config, &user, reset_uri);
-
+    let name = user.full_name();
     assert_eq!(
         password_reset_email.to(),
-        (user.email.unwrap().to_string(), user.name.to_string())
+        (user.email.unwrap().to_string(), name.to_string())
     );
     assert_eq!(
         password_reset_email.from(),

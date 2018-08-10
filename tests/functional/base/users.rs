@@ -13,7 +13,7 @@ use support::test_request::TestRequest;
 fn current_user() {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let db_user = User::create("Jeff", "test@test.com", "555-555-5555", "password")
+    let db_user = User::create("Jeff", "Wilco", "test@test.com", "555-555-5555", "password")
         .commit(&*connection)
         .unwrap();
 
@@ -27,14 +27,15 @@ fn current_user() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let cuser: CurrentUser = serde_json::from_str(&body).unwrap();
     let user = cuser.user;
-    assert_eq!(user.name, "Jeff");
+    assert_eq!(user.first_name, "Jeff");
+    assert_eq!(user.last_name, "Wilco");
     assert_eq!(user.id, db_user.id);
 }
 
 pub fn show_from_email(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let db_user = User::create("Jeff", "test@test.com", "555-555-5555", "password")
+    let db_user = User::create("Jeff", "Last", "test@test.com", "555-555-5555", "password")
         .commit(&*connection)
         .unwrap();
     let test_request = TestRequest::create_with_uri(database, "/?email=test@test.com");

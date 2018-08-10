@@ -12,8 +12,13 @@ use support::test_request::TestRequest;
 pub fn index(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, &"Organization")
         .commit(&*connection)
@@ -62,11 +67,21 @@ pub fn index(role: Roles, should_test_true: bool) {
 pub fn index_for_admin(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Wilco",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
-    let user2 = User::create("Jeff2", "jeff2@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user2 = User::create(
+        "Jeff2",
+        "Wilco",
+        "jeff2@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, &"Organization")
         .commit(&*connection)
@@ -123,8 +138,13 @@ pub fn index_for_admin(role: Roles, should_test_true: bool) {
 fn show() {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, &"testOrganization")
         .commit(&*connection)
@@ -157,8 +177,13 @@ pub fn create(role: Roles) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let name = "Organization Example";
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
 
     let test_request = TestRequest::create(database);
@@ -166,6 +191,12 @@ pub fn create(role: Roles) {
     let json = Json(NewOrganization {
         owner_user_id: user.id,
         name: name.clone().to_string(),
+        address: None,
+        city: None,
+        state: None,
+        zip: None,
+        country: None,
+        phone: None,
     });
 
     let user = support::create_auth_user(role, &*connection);
@@ -188,8 +219,13 @@ pub fn create(role: Roles) {
 pub fn update(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, &"Name")
         .commit(&*connection)
@@ -226,14 +262,29 @@ pub fn update(role: Roles, should_succeed: bool) {
 pub fn remove_user(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
-    let user2 = User::create("Jeff2", "jeff2@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user2 = User::create(
+        "Jeff2",
+        "Roen",
+        "jeff2@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
-    let user3 = User::create("Jeff3", "jeff3@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user3 = User::create(
+        "Jeff3",
+        "Roen",
+        "jeff3@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let organization = Organization::create(user.id, &"OrgName")
         .commit(&*connection)
@@ -271,11 +322,17 @@ pub fn remove_user(role: Roles, should_test_true: bool) {
 pub fn update_owner(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user = User::create("Jeff", "jeff@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     let new_owner = User::create(
         "New Jeff",
+        "Wilco",
         "jeff2@tari.com",
         "555-555-5555",
         "examplePassword",

@@ -16,8 +16,13 @@ pub fn unwrap_body_to_string(response: &HttpResponse) -> Result<&str, &'static s
 }
 
 pub fn create_auth_user(role: Roles, connection: &Connectable) -> AuthUser {
-    let user_for_auth = User::create("Auth", "auth@tari.com", "555-555-5555", "examplePassword")
-        .commit(&*connection)
+    let user_for_auth = User::create(
+        "Auth",
+        "Last",
+        "auth@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
         .unwrap();
     create_auth_user_from_user(&user_for_auth, role, connection)
 }
