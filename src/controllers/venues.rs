@@ -39,7 +39,7 @@ pub fn show_from_organizations(data: (State<AppState>, Path<PathParameters>)) ->
     //    let user = User::new("username", "roles");
     //    user.requires_role("Guest")?;
     let connection = state.database.get_connection();
-    let venue_response = Venue::find_all_for_organization(&organization_id.id, &*connection);
+    let venue_response = Venue::find_for_organization(organization_id.id, &*connection);
     match venue_response {
         Ok(venues) => HttpResponse::Ok().json(&venues),
         Err(_e) => {

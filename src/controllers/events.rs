@@ -1,6 +1,6 @@
 use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::User;
-use bigneon_db::models::{Event, NewEvent, Roles};
+use bigneon_db::models::{Event, EventEditableAttributes, NewEvent, Roles};
 use errors::database_error::ConvertToWebError;
 use helpers::application;
 use server::AppState;
@@ -84,25 +84,20 @@ pub fn update(
     (state, parameters, event_parameters, user): (
         State<AppState>,
         Path<PathParameters>,
-        Json<Event>,
+        Json<EventEditableAttributes>,
         User,
     ),
 ) -> HttpResponse {
-    let connection = state.database.get_connection();
     if !user.is_in_role(Roles::OrgOwner) {
         return application::unauthorized();
     }
 
-    let updated_event: Event = event_parameters.into_inner();
-    let event_response = Event::find(&parameters.id, &*connection);
-    match event_response {
-        Ok(_event) => {
-            let event_update_response = updated_event.update(&*connection);
-            match event_update_response {
-                Ok(updated_event) => HttpResponse::Ok().json(&updated_event),
-                Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-            }
-        }
+    let connection = state.database.get_connection();
+    match Event::find(&parameters.id, &*connection) {
+        Ok(event) => match event.update(event_parameters.into_inner(), &*connection) {
+            Ok(updated_event) => HttpResponse::Ok().json(&updated_event),
+            Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+        },
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }

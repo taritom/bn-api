@@ -19,7 +19,7 @@ pub fn index(role: Roles) {
         .commit(&*connection)
         .unwrap();
 
-    let mut attrs = OrganizationEditableAttributes::new();
+    let mut attrs: OrganizationEditableAttributes = Default::default();
     attrs.address = Some(<String>::from("Test Address"));
     attrs.city = Some(<String>::from("Test Address"));
     attrs.state = Some(<String>::from("Test state"));
@@ -31,7 +31,7 @@ pub fn index(role: Roles) {
         .commit(&*connection)
         .unwrap();
 
-    let mut attrs = OrganizationEditableAttributes::new();
+    let mut attrs: OrganizationEditableAttributes = Default::default();
     attrs.address = Some(<String>::from("Test Address"));
     attrs.city = Some(<String>::from("Test Address"));
     attrs.state = Some(<String>::from("Test state"));
@@ -71,7 +71,7 @@ fn show() {
         .commit(&*connection)
         .unwrap();
 
-    let mut attrs = OrganizationEditableAttributes::new();
+    let mut attrs: OrganizationEditableAttributes = Default::default();
 
     attrs.address = Some(<String>::from("Test Address"));
     attrs.city = Some(<String>::from("Test Address"));

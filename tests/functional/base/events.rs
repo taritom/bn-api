@@ -1,7 +1,9 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{Event, NewEvent, Organization, Roles, User, Venue};
+use bigneon_db::models::{
+    Event, EventEditableAttributes, NewEvent, Organization, Roles, User, Venue,
+};
 use chrono::prelude::*;
 use serde_json;
 use support;
@@ -157,20 +159,16 @@ pub fn update(role: Roles) {
     let new_name = "New Event Name";
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let update_event = Event {
-        id: event.id.clone(),
-        name: new_name.clone().to_string(),
-        organization_id: event.organization_id.clone(),
-        venue_id: event.venue_id.clone(),
-        event_start: event.event_start.clone(),
-        created_at: event.created_at.clone(),
-        ticket_sell_date: event.ticket_sell_date.clone(),
-    };
+
+    let json = Json(EventEditableAttributes {
+        name: Some(new_name.clone().to_string()),
+        organization_id: Some(event.organization_id.clone()),
+        venue_id: Some(event.venue_id.clone()),
+        event_start: Some(event.event_start.clone()),
+        ticket_sell_date: Some(event.ticket_sell_date.clone()),
+    });
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
-
-    let updated_event = serde_json::to_string(&update_event).unwrap();
-    let json = Json(update_event);
 
     let user = support::create_auth_user(role, &*connection);
 
@@ -180,7 +178,8 @@ pub fn update(role: Roles) {
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_true {
         assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(body, updated_event);
+        let updated_event: Event = serde_json::from_str(&body).unwrap();
+        assert_eq!(updated_event.name, new_name);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
