@@ -1,5 +1,6 @@
 use actix_web::error;
 use actix_web::{http::StatusCode, HttpResponse, Json, Query, State};
+use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::models::{DisplayUser, Roles, User};
 use errors::database_error::ConvertToWebError;
@@ -36,7 +37,7 @@ pub fn find_via_email(data: (State<AppState>, Query<Info>, AuthUser)) -> HttpRes
     let (state, email, user) = data;
     let connection = state.database.get_connection();
 
-    if !user.is_in_role(Roles::OrgOwner) {
+    if !user.has_scope(Scopes::UserRead) {
         return application::unauthorized();
     }
     match User::find_by_email(&email.into_inner().email, &*connection) {
@@ -60,6 +61,9 @@ pub fn register((state, request): (State<AppState>, Json<RegisterRequest>)) -> H
     ).commit(&*connection)
     {
         Ok(_u) => HttpResponse::Ok().finish(),
-        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+        Err(e) => match e.code {
+            3400 => HttpResponse::new(StatusCode::CONFLICT),
+            _ => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+        },
     }
 }

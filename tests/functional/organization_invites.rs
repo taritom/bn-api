@@ -14,7 +14,7 @@ mod create_tests {
     }
     #[test]
     fn create_admin() {
-        organization_invites::create(Roles::Admin, false);
+        organization_invites::create(Roles::Admin, true);
     }
     #[test]
     fn create_user() {
@@ -31,15 +31,15 @@ mod accept_tests {
     use super::*;
     #[test]
     fn accept_org_member() {
-        organization_invites::accept_invite_status_of_invite(Roles::OrgMember, false);
+        organization_invites::accept_invite_status_of_invite(Roles::OrgMember, true);
     }
     #[test]
     fn accept_guest() {
-        organization_invites::accept_invite_status_of_invite(Roles::Guest, false);
+        organization_invites::accept_invite_status_of_invite(Roles::Guest, true);
     }
     #[test]
     fn accept_admin() {
-        organization_invites::accept_invite_status_of_invite(Roles::Admin, false);
+        organization_invites::accept_invite_status_of_invite(Roles::Admin, true);
     }
     #[test]
     fn accept_user() {
@@ -47,7 +47,7 @@ mod accept_tests {
     }
     #[test]
     fn accept_org_owner() {
-        organization_invites::accept_invite_status_of_invite(Roles::OrgOwner, false);
+        organization_invites::accept_invite_status_of_invite(Roles::OrgOwner, true);
     }
 }
 
@@ -56,15 +56,15 @@ mod decline_tests {
     use super::*;
     #[test]
     fn decline_org_member() {
-        organization_invites::decline_invite_status_of_invite(Roles::OrgMember, false);
+        organization_invites::decline_invite_status_of_invite(Roles::OrgMember, true);
     }
     #[test]
     fn decline_guest() {
-        organization_invites::decline_invite_status_of_invite(Roles::Guest, false);
+        organization_invites::decline_invite_status_of_invite(Roles::Guest, true);
     }
     #[test]
     fn decline_admin() {
-        organization_invites::decline_invite_status_of_invite(Roles::Admin, false);
+        organization_invites::decline_invite_status_of_invite(Roles::Admin, true);
     }
     #[test]
     fn decline_user() {
@@ -72,7 +72,7 @@ mod decline_tests {
     }
     #[test]
     fn decline_org_owner() {
-        organization_invites::decline_invite_status_of_invite(Roles::OrgOwner, false);
+        organization_invites::decline_invite_status_of_invite(Roles::OrgOwner, true);
     }
 
 }

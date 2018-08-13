@@ -1,4 +1,5 @@
 use actix_web::{HttpResponse, Json, Path, State};
+use auth::user::Scopes;
 use auth::user::User;
 use bigneon_db::models::{NewVenue, Roles, Venue};
 use errors::database_error::ConvertToWebError;
@@ -12,7 +13,10 @@ pub struct PathParameters {
     pub id: Uuid,
 }
 
-pub fn index(state: State<AppState>) -> HttpResponse {
+pub fn index((state, user): (State<AppState>, User)) -> HttpResponse {
+    if !user.has_scope(Scopes::VenueRead) {
+        return application::unauthorized();
+    }
     let connection = state.database.get_connection();
     let venue_response = Venue::all(&*connection);
     match venue_response {
@@ -23,9 +27,12 @@ pub fn index(state: State<AppState>) -> HttpResponse {
     }
 }
 
-pub fn show((state, parameters): (State<AppState>, Path<PathParameters>)) -> HttpResponse {
-    //    let user = User::new("username", "roles");
-    //    user.requires_role("Guest")?;
+pub fn show(
+    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+) -> HttpResponse {
+    if !user.has_scope(Scopes::VenueRead) {
+        return application::unauthorized();
+    }
     let connection = state.database.get_connection();
     let venue_response = Venue::find(&parameters.id, &*connection);
 
@@ -35,10 +42,12 @@ pub fn show((state, parameters): (State<AppState>, Path<PathParameters>)) -> Htt
     }
 }
 
-pub fn show_from_organizations(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
-    let (state, organization_id) = data;
-    //    let user = User::new("username", "roles");
-    //    user.requires_role("Guest")?;
+pub fn show_from_organizations(
+    (state, organization_id, user): (State<AppState>, Path<PathParameters>, User),
+) -> HttpResponse {
+    if !user.has_scope(Scopes::VenueRead) {
+        return application::unauthorized();
+    }
     let connection = state.database.get_connection();
     let venue_response = Venue::find_for_organization(organization_id.id, &*connection);
     match venue_response {
@@ -48,7 +57,7 @@ pub fn show_from_organizations(data: (State<AppState>, Path<PathParameters>)) ->
 }
 
 pub fn create((state, new_venue, user): (State<AppState>, Json<NewVenue>, User)) -> HttpResponse {
-    if !user.is_in_role(Roles::Admin) {
+    if !user.has_scope(Scopes::VenueWrite) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
@@ -62,7 +71,7 @@ pub fn create((state, new_venue, user): (State<AppState>, Json<NewVenue>, User))
 
 pub fn update(data: (State<AppState>, Path<PathParameters>, Json<Venue>, User)) -> HttpResponse {
     let (state, parameters, venue_parameters, user) = data;
-    if !user.is_in_role(Roles::Admin) {
+    if !user.has_scope(Scopes::VenueWrite) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
@@ -94,7 +103,7 @@ pub fn add_to_organization(
     let (state, parameters, add_request, user) = data;
     let connection = state.database.get_connection();
     let add_request = add_request.into_inner();
-    if !user.is_in_role(Roles::Admin) {
+    if !user.has_scope(Scopes::VenueWrite) || !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     }
     let venue_response = Venue::find(&parameters.id, &*connection);

@@ -9,7 +9,7 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
-pub fn index(role: Roles, should_test_true: bool) {
+pub fn index(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let user = User::create(
@@ -53,7 +53,7 @@ pub fn index(role: Roles, should_test_true: bool) {
     let user = support::create_auth_user_from_user(&user, role, &*connection);
     let response = organizations::index((state, user));
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, organization_expected_json);
     } else {
@@ -64,7 +64,7 @@ pub fn index(role: Roles, should_test_true: bool) {
     }
 }
 
-pub fn index_for_admin(role: Roles, should_test_true: bool) {
+pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let user = User::create(
@@ -121,9 +121,9 @@ pub fn index_for_admin(role: Roles, should_test_true: bool) {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let user = support::create_auth_user_from_user(&user, role, &*connection);
-    let response = organizations::index((state, user));
+    let response = organizations::index_for_all_orgs((state, user));
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, organization_expected_json);
     } else {
@@ -173,7 +173,7 @@ fn show() {
     assert_eq!(body, organization_expected_json);
 }
 
-pub fn create(role: Roles) {
+pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let name = "Organization Example";
@@ -200,11 +200,10 @@ pub fn create(role: Roles) {
     });
 
     let user = support::create_auth_user(role, &*connection);
-    let should_test_true = user.is_in_role(Roles::Admin);
     let response = organizations::create((state, json, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
         let org: Organization = serde_json::from_str(&body).unwrap();
         assert_eq!(org.name, name);
@@ -259,7 +258,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     assert_eq!(updated_organization.name, new_name);
 }
 
-pub fn remove_user(role: Roles, should_test_true: bool) {
+pub fn remove_user(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let user = User::create(
@@ -307,7 +306,7 @@ pub fn remove_user(role: Roles, should_test_true: bool) {
 
     let count = 1;
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         let removed_entries: usize = serde_json::from_str(&body).unwrap();
         assert_eq!(removed_entries, count);

@@ -1,6 +1,9 @@
+use actix_web::Query;
 use actix_web::{HttpResponse, Json, Path, State};
+use auth::user::Scopes;
 use auth::user::User;
 use bigneon_db::models::{Event, EventEditableAttributes, NewEvent, Roles};
+use chrono::NaiveDateTime;
 use errors::database_error::ConvertToWebError;
 use helpers::application;
 use server::AppState;
@@ -11,12 +14,31 @@ pub struct PathParameters {
     pub id: Uuid,
 }
 
-pub fn index((state, user): (State<AppState>, User)) -> HttpResponse {
+#[derive(Deserialize)]
+pub struct SearchParameters {
+    name: Option<String>,
+    venue: Option<String>,
+    artist: Option<String>,
+    start_utc: Option<NaiveDateTime>,
+    end_utc: Option<NaiveDateTime>,
+}
+
+pub fn index(
+    (state, query, user): (State<AppState>, Query<SearchParameters>, User),
+) -> HttpResponse {
     let connection = state.database.get_connection();
-    let event_response = Event::all(&*connection);
-    if !user.is_in_role(Roles::Guest) {
+    if !user.has_scope(Scopes::EventRead) {
         return application::unauthorized();
     }
+    let query = query.into_inner();
+    let event_response = Event::search(
+        query.name,
+        query.venue,
+        query.artist,
+        query.start_utc,
+        query.end_utc,
+        &*connection,
+    );
     match event_response {
         Ok(events) => HttpResponse::Ok().json(&events),
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
@@ -28,7 +50,7 @@ pub fn show(data: (State<AppState>, Path<PathParameters>, User)) -> HttpResponse
 
     let connection = state.database.get_connection();
     let event_response = Event::find(&parameters.id, &*connection);
-    if !user.is_in_role(Roles::Guest) {
+    if !user.has_scope(Scopes::EventRead) {
         return application::unauthorized();
     }
     match event_response {
@@ -43,7 +65,7 @@ pub fn show_from_organizations(
     let (state, organization_id, user) = data;
 
     let connection = state.database.get_connection();
-    if !user.is_in_role(Roles::Guest) {
+    if !user.has_scope(Scopes::EventRead) {
         return application::unauthorized();
     }
     let event_response =
@@ -58,7 +80,7 @@ pub fn show_from_venues(data: (State<AppState>, Path<PathParameters>, User)) -> 
     let (state, venue_id, user) = data;
 
     let connection = state.database.get_connection();
-    if !user.is_in_role(Roles::Guest) {
+    if !user.has_scope(Scopes::EventRead) {
         return application::unauthorized();
     }
     let event_response = Event::find_all_events_from_venue(&venue_id.id, &*connection);
@@ -70,7 +92,7 @@ pub fn show_from_venues(data: (State<AppState>, Path<PathParameters>, User)) -> 
 
 pub fn create((state, new_event, user): (State<AppState>, Json<NewEvent>, User)) -> HttpResponse {
     let connection = state.database.get_connection();
-    if !user.is_in_role(Roles::OrgOwner) {
+    if !user.has_scope(Scopes::EventWrite) {
         return application::unauthorized();
     }
     let event_response = new_event.commit(&*connection);
@@ -88,7 +110,7 @@ pub fn update(
         User,
     ),
 ) -> HttpResponse {
-    if !user.is_in_role(Roles::OrgOwner) {
+    if !user.has_scope(Scopes::EventWrite) {
         return application::unauthorized();
     }
 

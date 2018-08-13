@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, Json, Path, State};
 use bigneon_db::models::{NewOrganization, Organization, OrganizationEditableAttributes, Roles};
 use errors::database_error::ConvertToWebError;
 
+use auth::user::Scopes;
 use auth::user::User;
 use helpers::application;
 use server::AppState;
@@ -13,10 +14,10 @@ pub struct PathParameters {
 }
 
 pub fn index((state, user): (State<AppState>, User)) -> HttpResponse {
-    if user.is_in_role(Roles::Admin) {
+    if user.has_scope(Scopes::OrgAdmin) {
         return index_for_all_orgs((state, user));
     }
-    if !user.is_in_role(Roles::OrgMember) {
+    if !user.has_scope(Scopes::OrgRead) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
@@ -28,7 +29,7 @@ pub fn index((state, user): (State<AppState>, User)) -> HttpResponse {
 }
 
 pub fn index_for_all_orgs((state, user): (State<AppState>, User)) -> HttpResponse {
-    if !user.is_in_role(Roles::Admin) {
+    if !user.has_scope(Scopes::OrgAdmin) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
@@ -42,7 +43,7 @@ pub fn index_for_all_orgs((state, user): (State<AppState>, User)) -> HttpRespons
 pub fn show(
     (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
 ) -> HttpResponse {
-    if !user.is_in_role(Roles::OrgMember) {
+    if !user.has_scope(Scopes::OrgRead) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
@@ -57,7 +58,7 @@ pub fn show(
 pub fn create(
     (state, new_organization, user): (State<AppState>, Json<NewOrganization>, User),
 ) -> HttpResponse {
-    if !user.is_in_role(Roles::Admin) {
+    if !user.has_scope(Scopes::OrgAdmin) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
@@ -76,7 +77,7 @@ pub fn update(
         User,
     ),
 ) -> HttpResponse {
-    if !user.is_in_role(Roles::OrgOwner) {
+    if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
@@ -99,7 +100,7 @@ pub fn update_owner(
         User,
     ),
 ) -> HttpResponse {
-    if !user.is_in_role(Roles::Admin) {
+    if !user.has_scope(Scopes::OrgAdmin) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
@@ -117,7 +118,7 @@ pub fn update_owner(
 pub fn remove_user(
     (state, parameters, user_id, user): (State<AppState>, Path<PathParameters>, Json<Uuid>, User),
 ) -> HttpResponse {
-    if !user.is_in_role(Roles::OrgOwner) {
+    if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();

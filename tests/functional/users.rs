@@ -14,7 +14,7 @@ mod index_tests {
     }
     #[test]
     fn index_admin() {
-        users::show_from_email(Roles::Admin, false);
+        users::show_from_email(Roles::Admin, true);
     }
     #[test]
     fn index_user() {

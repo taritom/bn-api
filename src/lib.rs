@@ -21,6 +21,7 @@ extern crate url;
 extern crate uuid;
 #[macro_use]
 extern crate log;
+extern crate chrono;
 extern crate log4rs;
 extern crate rustc_serialize;
 

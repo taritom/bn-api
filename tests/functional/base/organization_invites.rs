@@ -8,7 +8,7 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
-pub fn create(role: Roles, should_test_true: bool) {
+pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let user2 = User::create(
@@ -43,11 +43,10 @@ pub fn create(role: Roles, should_test_true: bool) {
     });
 
     let user = support::create_auth_user(role, &*connection);
-    let should_test_true = user.is_in_role(Roles::OrgOwner);
     let response = organization_invites::create((state, json, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
@@ -60,7 +59,7 @@ pub fn create(role: Roles, should_test_true: bool) {
     }
 }
 
-pub fn accept_invite_status_of_invite(role: Roles, should_test_true: bool) {
+pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let user1 = User::create(
@@ -107,7 +106,7 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_true: bool) {
     let response = organization_invites::accept_request((state, json, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         println!("{:?}", body);
     } else {

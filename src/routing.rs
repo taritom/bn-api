@@ -110,6 +110,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
                 .with(organization_invites::accept_request);
         })
         .resource("organizations/decline_invite", |r| {
+            // TODO: Do you have to sign up to decline the invite?
             r.middleware(AuthMiddleware::new());
             r.method(Method::POST)
                 .with(organization_invites::decline_request);

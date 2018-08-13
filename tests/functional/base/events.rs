@@ -1,4 +1,6 @@
+use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use bigneon_api::controllers::events::SearchParameters;
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{
@@ -10,7 +12,7 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
-pub fn index(role: Roles) {
+pub fn index(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = User::create(
         "Jeff",
@@ -34,25 +36,25 @@ pub fn index(role: Roles) {
     ).commit(&*database.get_connection())
         .unwrap();
     let event2 = Event::create(
-        "NewEvent",
+        "NewEvent2",
         organization.id,
         venue.id,
         NaiveDate::from_ymd(2015, 7, 8).and_hms(9, 10, 11),
     ).commit(&*database.get_connection())
         .unwrap();
 
-    let expected_events = vec![event, event2];
+    let expected_events = vec![event2, event];
     let events_expected_json = serde_json::to_string(&expected_events).unwrap();
 
     let user = support::create_auth_user(role, &*database.get_connection());
 
-    let should_test_true = user.is_in_role(Roles::Guest);
-    let test_request = TestRequest::create(database);
+    let test_request = TestRequest::create_with_uri(database, "/events?name=New");
     let state = test_request.extract_state();
-    let response = events::index((state, user));
+    let query = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let response = events::index((state, query, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, events_expected_json);
     } else {
@@ -63,7 +65,7 @@ pub fn index(role: Roles) {
     }
 }
 
-pub fn show(role: Roles) {
+pub fn show(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let user = User::create(
@@ -91,13 +93,12 @@ pub fn show(role: Roles) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
     let user = support::create_auth_user(role, &*connection);
-    let should_test_true = user.is_in_role(Roles::Guest);
     let state = test_request.extract_state();
 
     let response = events::show((state, path, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, event_expected_json);
     } else {
@@ -108,7 +109,7 @@ pub fn show(role: Roles) {
     }
 }
 
-pub fn create(role: Roles) {
+pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     //create prerequisites
@@ -138,11 +139,10 @@ pub fn create(role: Roles) {
 
     let user = support::create_auth_user(role, &*connection);
 
-    let should_test_true = user.is_in_role(Roles::OrgOwner);
     let response = events::create((state, json, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -152,7 +152,7 @@ pub fn create(role: Roles) {
     }
 }
 
-pub fn update(role: Roles) {
+pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     //create prerequisites
@@ -192,11 +192,10 @@ pub fn update(role: Roles) {
 
     let user = support::create_auth_user(role, &*connection);
 
-    let should_test_true = user.is_in_role(Roles::OrgOwner);
     let response = events::update((state, path, json, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         let updated_event: Event = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_event.name, new_name);
@@ -208,7 +207,7 @@ pub fn update(role: Roles) {
     }
 }
 
-pub fn show_from_organizations(role: Roles) {
+pub fn show_from_organizations(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     //create prerequisites
@@ -246,13 +245,12 @@ pub fn show_from_organizations(role: Roles) {
     let state = test_request.extract_state();
 
     let user = support::create_auth_user(role, &*connection);
-    let should_test_true = user.is_in_role(Roles::Guest);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let response = events::show_from_organizations((state, path, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, event_expected_json);
     } else {
@@ -263,7 +261,7 @@ pub fn show_from_organizations(role: Roles) {
     }
 }
 
-pub fn show_from_venues(role: Roles) {
+pub fn show_from_venues(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     //create prerequisites
@@ -302,13 +300,12 @@ pub fn show_from_venues(role: Roles) {
     let state = test_request.extract_state();
 
     let user = support::create_auth_user(role, &*connection);
-    let should_test_true = user.is_in_role(Roles::Guest);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
     let response = events::show_from_venues((state, path, user));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    if should_test_true {
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, event_expected_json);
     } else {

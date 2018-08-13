@@ -1,4 +1,5 @@
 use actix_web::{HttpResponse, Json, State};
+use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::db::connections::Connectable;
 use bigneon_db::models::{
@@ -20,7 +21,7 @@ pub struct Info {
 pub fn create(data: (State<AppState>, Json<NewOrganizationInvite>, AuthUser)) -> HttpResponse {
     let (state, new_org_invite, user) = data;
     let connection = state.database.get_connection();
-    if !user.is_in_role(Roles::OrgOwner) {
+    if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     };
     let mut actual_new_invite = new_org_invite.into_inner();
@@ -47,9 +48,6 @@ pub fn create(data: (State<AppState>, Json<NewOrganizationInvite>, AuthUser)) ->
 fn do_invite_request(data: (State<AppState>, Json<Info>, AuthUser, i16)) -> HttpResponse {
     let (state, info, user, status) = data;
     let connection = state.database.get_connection();
-    if !user.is_in_role(Roles::User) {
-        return application::unauthorized();
-    };
     let info_struct = info.into_inner();
     let invite_details =
         match OrganizationInvite::get_invite_details(&info_struct.token, &*connection) {

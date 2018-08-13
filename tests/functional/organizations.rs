@@ -22,32 +22,32 @@ mod index_tests {
     }
     #[test]
     fn index_org_owner() {
-        organizations::index(Roles::OrgOwner, false);
+        organizations::index(Roles::OrgOwner, true);
     }
 }
 
 #[cfg(test)]
-mod index_for_admin_tests {
+mod index_for_all_orgs_tests {
     use super::*;
     #[test]
-    fn index_for_admin_org_member() {
-        organizations::index_for_admin(Roles::OrgMember, true);
+    fn index_for_all_orgs_org_member() {
+        organizations::index_for_all_orgs(Roles::OrgMember, false);
     }
     #[test]
-    fn index_for_admin_guest() {
-        organizations::index_for_admin(Roles::Guest, false);
+    fn index_for_all_orgs_guest() {
+        organizations::index_for_all_orgs(Roles::Guest, false);
     }
     #[test]
-    fn index_for_admin_admin() {
-        organizations::index_for_admin(Roles::Admin, true);
+    fn index_for_all_orgs_admin() {
+        organizations::index_for_all_orgs(Roles::Admin, true);
     }
     #[test]
-    fn index_for_admin_user() {
-        organizations::index_for_admin(Roles::User, false);
+    fn index_for_all_orgs_user() {
+        organizations::index_for_all_orgs(Roles::User, false);
     }
     #[test]
-    fn index_for_admin_org_owner() {
-        organizations::index_for_admin(Roles::OrgOwner, false);
+    fn index_for_all_orgs_org_owner() {
+        organizations::index_for_all_orgs(Roles::OrgOwner, false);
     }
 }
 
@@ -56,23 +56,23 @@ mod create_tests {
     use super::*;
     #[test]
     fn create_org_member() {
-        organizations::create(Roles::OrgMember);
+        organizations::create(Roles::OrgMember, false);
     }
     #[test]
     fn create_guest() {
-        organizations::create(Roles::Guest);
+        organizations::create(Roles::Guest, false);
     }
     #[test]
     fn create_admin() {
-        organizations::create(Roles::Admin);
+        organizations::create(Roles::Admin, true);
     }
     #[test]
     fn create_user() {
-        organizations::create(Roles::User);
+        organizations::create(Roles::User, false);
     }
     #[test]
     fn create_org_owner() {
-        organizations::create(Roles::OrgOwner);
+        organizations::create(Roles::OrgOwner, false);
     }
 }
 
@@ -89,7 +89,7 @@ mod remove_user_tests {
     }
     #[test]
     fn remove_user_admin() {
-        organizations::remove_user(Roles::Admin, false);
+        organizations::remove_user(Roles::Admin, true);
     }
     #[test]
     fn remove_user_user() {
@@ -114,7 +114,7 @@ mod update_tests {
     }
     #[test]
     fn update_admin() {
-        organizations::update(Roles::Admin, false);
+        organizations::update(Roles::Admin, true);
     }
     #[test]
     fn update_user() {
