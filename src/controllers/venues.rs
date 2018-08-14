@@ -93,31 +93,36 @@ pub fn update(data: (State<AppState>, Path<PathParameters>, Json<Venue>, User)) 
 }
 
 pub fn add_to_organization(
-    data: (
+    (state, parameters, add_request, user): (
         State<AppState>,
         Path<PathParameters>,
         Json<AddVenueToOrganizationRequest>,
         User,
     ),
 ) -> HttpResponse {
-    let (state, parameters, add_request, user) = data;
-    let connection = state.database.get_connection();
-    let add_request = add_request.into_inner();
     if !user.has_scope(Scopes::VenueWrite) || !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     }
-    let venue_response = Venue::find(&parameters.id, &*connection);
-    match venue_response {
-        Ok(venue) => {
-            let venue_update_response =
-                venue.add_to_organization(&add_request.organization_id, &*connection);
-            match venue_update_response {
-                Ok(organization_venue) => HttpResponse::Ok().json(&organization_venue),
-                Err(_e) => {
-                    HttpResponse::BadRequest().json(json!({"error": "An error has occurred"}))
+    let connection = state.database.get_connection();
+    let add_request = add_request.into_inner();
+    match Venue::find(&parameters.id, &*connection) {
+        Ok(venue) => match venue.has_organization(add_request.organization_id, &*connection) {
+            Ok(has_organization) => {
+                if has_organization {
+                    HttpResponse::Conflict().json(json!({"error": "An error has occurred"}))
+                } else {
+                    let venue_update_response =
+                        venue.add_to_organization(&add_request.organization_id, &*connection);
+                    match venue_update_response {
+                        Ok(organization_venue) => HttpResponse::Ok().json(&organization_venue),
+                        Err(e) => {
+                            HttpResponse::from_error(ConvertToWebError::create_http_error(&e))
+                        }
+                    }
                 }
             }
-        }
+            Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+        },
         Err(_e) => HttpResponse::NotFound().json(json!({"error": "Venue not found"})),
     }
 }

@@ -4,7 +4,7 @@ use bigneon_api::controllers::events::SearchParameters;
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{
-    Event, EventEditableAttributes, NewEvent, Organization, Roles, User, Venue,
+    Artist, Event, EventEditableAttributes, NewEvent, Organization, Roles, User, Venue,
 };
 use chrono::prelude::*;
 use serde_json;
@@ -22,6 +22,9 @@ pub fn index(role: Roles, should_test_succeed: bool) {
         "examplePassword",
     ).commit(&*database.get_connection())
         .unwrap();
+    let artist = Artist::create("Example")
+        .commit(&*database.get_connection())
+        .unwrap();
     let organization = Organization::create(user.id, "Organization")
         .commit(&*database.get_connection())
         .unwrap();
@@ -35,12 +38,18 @@ pub fn index(role: Roles, should_test_succeed: bool) {
         NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
     ).commit(&*database.get_connection())
         .unwrap();
+    event
+        .add_artist(artist.id, &*database.get_connection())
+        .unwrap();
     let event2 = Event::create(
         "NewEvent2",
         organization.id,
         venue.id,
         NaiveDate::from_ymd(2015, 7, 8).and_hms(9, 10, 11),
     ).commit(&*database.get_connection())
+        .unwrap();
+    event2
+        .add_artist(artist.id, &*database.get_connection())
         .unwrap();
 
     let expected_events = vec![event2, event];

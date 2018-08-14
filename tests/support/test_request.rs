@@ -1,4 +1,3 @@
-use actix_web::Query;
 use actix_web::{test, FromRequest, HttpRequest, State};
 use bigneon_api::config::{Config, Environment};
 use bigneon_api::mail::transports::TestTransport;

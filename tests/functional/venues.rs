@@ -52,6 +52,31 @@ mod show_tests {
 }
 
 #[cfg(test)]
+mod show_with_invalid_id_tests {
+    use super::*;
+    #[test]
+    fn show_with_invalid_id_org_member() {
+        venues::show_with_invalid_id(Roles::OrgMember, true);
+    }
+    #[test]
+    fn show_with_invalid_id_guest() {
+        venues::show_with_invalid_id(Roles::Guest, true);
+    }
+    #[test]
+    fn show_with_invalid_id_admin() {
+        venues::show_with_invalid_id(Roles::Admin, true);
+    }
+    #[test]
+    fn show_with_invalid_id_user() {
+        venues::show_with_invalid_id(Roles::User, true);
+    }
+    #[test]
+    fn show_with_invalid_id_org_owner() {
+        venues::show_with_invalid_id(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod create_tests {
     use super::*;
     #[test]
@@ -148,5 +173,30 @@ mod add_to_organization_tests {
     #[test]
     fn add_to_organization_org_owner() {
         venues::add_to_organization(Roles::OrgOwner, false);
+    }
+}
+
+#[cfg(test)]
+mod add_to_organization_where_link_already_exists_tests {
+    use super::*;
+    #[test]
+    fn add_to_organization_where_link_already_exists_org_member() {
+        venues::add_to_organization_where_link_already_exists(Roles::OrgMember, false);
+    }
+    #[test]
+    fn add_to_organization_where_link_already_exists_guest() {
+        venues::add_to_organization_where_link_already_exists(Roles::Guest, false);
+    }
+    #[test]
+    fn add_to_organization_where_link_already_exists_admin() {
+        venues::add_to_organization_where_link_already_exists(Roles::Admin, true);
+    }
+    #[test]
+    fn add_to_organization_where_link_already_exists_user() {
+        venues::add_to_organization_where_link_already_exists(Roles::User, false);
+    }
+    #[test]
+    fn add_to_organization_where_link_already_exists_org_owner() {
+        venues::add_to_organization_where_link_already_exists(Roles::OrgOwner, false);
     }
 }

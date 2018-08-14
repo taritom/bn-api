@@ -1,5 +1,4 @@
 use actix_web::{http::StatusCode, FromRequest, Json, Path};
-use bigneon_api::auth::user::User as AuthUser;
 use bigneon_api::controllers::venues::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_api::models::AddVenueToOrganizationRequest;
@@ -8,6 +7,7 @@ use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 pub fn index(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
@@ -73,6 +73,23 @@ pub fn show(role: Roles, should_succeed: bool) {
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, venue_expected_json);
+}
+
+pub fn show_with_invalid_id(role: Roles, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.get_connection();
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = Uuid::new_v4();
+
+    let response = venues::show((state, path, support::create_auth_user(role, &*connection)));
+    if !should_succeed {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        return;
+    }
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 pub fn create(role: Roles, should_succeed: bool) {
@@ -266,4 +283,48 @@ pub fn add_to_organization(role: Roles, should_succeed: bool) {
     let organization_venue: OrganizationVenue = serde_json::from_str(&body).unwrap();
     assert_eq!(organization_venue.organization_id, organization.id);
     assert_eq!(organization_venue.venue_id, venue.id);
+}
+
+pub fn add_to_organization_where_link_already_exists(role: Roles, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.get_connection();
+    //create user
+    let user = User::create(
+        "Jeff",
+        "Wilco",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
+        .unwrap();
+    let user = user.add_role(Roles::Admin, &*connection).unwrap();
+
+    //create organization
+    let organization = Organization::create(user.id, &"testOrganization")
+        .commit(&*connection)
+        .unwrap();
+    //create venue
+    let venue = Venue::create("NewVenue").commit(&*connection).unwrap();
+    venue
+        .add_to_organization(&organization.id, &*connection)
+        .unwrap();
+
+    //link venues to organization
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = venue.id;
+
+    let json = Json(AddVenueToOrganizationRequest {
+        organization_id: organization.id,
+    });
+
+    let user = support::create_auth_user(role, &*connection);
+    let response = venues::add_to_organization((state, path, json, user));
+    if !should_succeed {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        return;
+    }
+
+    assert_eq!(response.status(), StatusCode::CONFLICT);
 }
