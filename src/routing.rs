@@ -39,19 +39,33 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.middleware(AuthMiddleware::new());
             r.method(Method::PUT).with(organizations::update_owner);
         })
-        .resource("/organizations", |r| {
+        .resource("/organizations/invite_user", |r| {
             r.middleware(AuthMiddleware::new());
-            r.method(Method::GET).with(organizations::index);
-            r.method(Method::POST).with(organizations::create);
+            r.method(Method::POST).with(organization_invites::create);
+        })
+        .resource("/organizations/accept_invite", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::POST)
+                .with(organization_invites::accept_request);
+        })
+        .resource("organizations/decline_invite", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::POST)
+                .with(organization_invites::decline_request);
+        })
+        .resource("/organizations/{id}/users", |r| {
+            r.middleware(AuthMiddleware::new());
+            r.method(Method::DELETE).with(organizations::remove_user);
         })
         .resource("/organizations/{id}", |r| {
             r.middleware(AuthMiddleware::new());
             r.method(Method::GET).with(organizations::show);
             r.method(Method::PATCH).with(organizations::update);
         })
-        .resource("/organizations/{id}/users", |r| {
+        .resource("/organizations", |r| {
             r.middleware(AuthMiddleware::new());
-            r.method(Method::DELETE).with(organizations::remove_user);
+            r.method(Method::GET).with(organizations::index);
+            r.method(Method::POST).with(organizations::create);
         })
         .resource("/events/venues/{id}", |r| {
             r.middleware(AuthMiddleware::new());
@@ -99,21 +113,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         .resource("/auth/token", |r| r.method(Method::POST).with(auth::token))
         .resource("/auth/token/refresh", |r| {
             r.method(Method::POST).with(auth::token_refresh)
-        })
-        .resource("organizations/invite_user", |r| {
-            r.middleware(AuthMiddleware::new());
-            r.method(Method::POST).with(organization_invites::create);
-        })
-        .resource("organizations/accept_invite", |r| {
-            r.middleware(AuthMiddleware::new());
-            r.method(Method::POST)
-                .with(organization_invites::accept_request);
-        })
-        .resource("organizations/decline_invite", |r| {
-            // TODO: Do you have to sign up to decline the invite?
-            r.middleware(AuthMiddleware::new());
-            r.method(Method::POST)
-                .with(organization_invites::decline_request);
         })
         .register()
         .default_resource(|r| {

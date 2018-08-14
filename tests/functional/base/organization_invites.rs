@@ -1,5 +1,5 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
-use bigneon_api::controllers::organization_invites::{self, Info};
+use bigneon_api::controllers::organization_invites::{self, Info, NewOrgInviteRequest};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{NewOrganizationInvite, Organization, OrganizationInvite, Roles, User};
 use lettre::SendableEmail;
@@ -11,7 +11,7 @@ use support::test_request::TestRequest;
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user2 = User::create(
+    let user1 = User::create(
         "Jeff",
         "Roen",
         "jeff@tari.com",
@@ -19,10 +19,10 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         "examplePassword",
     ).commit(&*connection)
         .unwrap();
-
-    let organization = Organization::create(user2.id, &"Organization")
+    let organization = Organization::create(user1.id, &"Organization")
         .commit(&*connection)
         .unwrap();
+
     let user2 = User::create(
         "Jeff2",
         "Wilco",
@@ -34,23 +34,22 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let json = Json(NewOrganizationInvite {
+    let json = Json(NewOrgInviteRequest {
         organization_id: organization.id,
-        invitee_id: user2.id,
         user_email: "jeff2@tari.com".into(),
-        security_token: None,
         user_id: None,
     });
 
-    let user = support::create_auth_user(role, &*connection);
+    let mut user = support::create_auth_user(role, &*connection);
+    user.user.id = user1.id;
     let response = organization_invites::create((state, json, user));
-
     let body = support::unwrap_body_to_string(&response).unwrap();
+
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
-        assert_eq!(org_in.invitee_id, user2.id);
+        assert_eq!(org_in.inviter_id, user1.id);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
@@ -86,7 +85,7 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
     let state = test_request.extract_state();
     let mut new_invite = NewOrganizationInvite {
         organization_id: organization.id,
-        invitee_id: user1.id,
+        inviter_id: user1.id,
         user_email: "jeff2@tari.com".into(),
         security_token: None,
         user_id: None,
@@ -143,7 +142,7 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
     let state = test_request.extract_state();
     let mut new_invite = NewOrganizationInvite {
         organization_id: organization.id,
-        invitee_id: user1.id,
+        inviter_id: user1.id,
         user_email: "jeff2@tari.com".into(),
         security_token: None,
         user_id: None,
@@ -200,7 +199,7 @@ pub fn test_email(role: Roles, _should_test_true: bool) {
 
     let mut new_invite = NewOrganizationInvite {
         organization_id: organization.id,
-        invitee_id: user1.id,
+        inviter_id: user1.id,
         user_email: email.into(),
         security_token: None,
         user_id: None,

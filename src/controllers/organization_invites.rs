@@ -18,24 +18,45 @@ pub struct Info {
     pub user_id: Uuid,
 }
 
-pub fn create(data: (State<AppState>, Json<NewOrganizationInvite>, AuthUser)) -> HttpResponse {
+#[derive(Deserialize)]
+pub struct NewOrgInviteRequest {
+    pub organization_id: Uuid,
+    pub user_email: String,
+    pub user_id: Option<Uuid>,
+}
+
+pub fn create(data: (State<AppState>, Json<NewOrgInviteRequest>, AuthUser)) -> HttpResponse {
     let (state, new_org_invite, user) = data;
     let connection = state.database.get_connection();
     if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     };
-    let mut actual_new_invite = new_org_invite.into_inner();
+    let invite_args = new_org_invite.into_inner();
+    let mut actual_new_invite = NewOrganizationInvite {
+        organization_id: invite_args.organization_id,
+        inviter_id: user.user.id,
+        user_email: invite_args.user_email,
+        security_token: None,
+        user_id: invite_args.user_id,
+    };
     let email = actual_new_invite.user_email.clone();
-    let org_invite = match NewOrganizationInvite::commit(&mut actual_new_invite, &*connection) {
+
+    let mut org_invite = match NewOrganizationInvite::commit(&mut actual_new_invite, &*connection) {
         Ok(u) => u,
         Err(e) => return HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     };
     let mut was_user_found = true;
     //we only care to add the user id if we can find it via the email
     match User::find_by_email(&email, &*connection) {
-        Ok(u) => match org_invite.add_user_id(&u.unwrap().id, &*connection) {
-            Ok(_u) => was_user_found = true,
-            Err(_e2) => was_user_found = false,
+        Ok(u) => match (u) {
+            Some(v) => match org_invite.add_user_id(&v.id, &*connection) {
+                Ok(_u) => {
+                    was_user_found = true;
+                    org_invite.user_id = Some(v.id);
+                }
+                Err(_e2) => was_user_found = false,
+            },
+            None => was_user_found = false,
         },
         Err(_e) => was_user_found = false,
     };
@@ -97,18 +118,23 @@ pub fn create_invite_email(
     new_user: bool,
 ) {
     let mut recipient: String;
-    if !new_user {
+    if new_user {
         recipient = "New user".to_string();
     } else {
-        recipient = match User::find(&invite.user_id.unwrap(), conn) {
-            Ok(u) => u.full_name(),
-            Err(_e) => "New user".to_string(),
-        };
+        println!("{:?}", invite);
+        recipient = match (invite.user_id) {
+            Some(v) => match User::find(&invite.user_id.unwrap(), conn) {
+                Ok(u) => u.full_name(),
+                Err(_e) => "New user".to_string(),
+            },
+            None => "New user".to_string(),
+        }
     }
     let org = match Organization::find(&invite.organization_id, conn) {
         Ok(u) => u,
         Err(_e) => return,
     };
+
     let result = mailers::organization_invites::invite_user_to_organization_email(
         &state.config,
         invite,
