@@ -2,7 +2,7 @@ use actix_web::Query;
 use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::Scopes;
 use auth::user::User;
-use bigneon_db::models::{Event, EventEditableAttributes, NewEvent, Roles};
+use bigneon_db::models::{Event, EventEditableAttributes, NewEvent};
 use chrono::NaiveDateTime;
 use errors::database_error::ConvertToWebError;
 use helpers::application;
@@ -23,13 +23,8 @@ pub struct SearchParameters {
     end_utc: Option<NaiveDateTime>,
 }
 
-pub fn index(
-    (state, query, user): (State<AppState>, Query<SearchParameters>, User),
-) -> HttpResponse {
+pub fn index((state, query): (State<AppState>, Query<SearchParameters>)) -> HttpResponse {
     let connection = state.database.get_connection();
-    if !user.has_scope(Scopes::EventRead) {
-        return application::unauthorized();
-    }
     let query = query.into_inner();
     let event_response = Event::search(
         query.name,
@@ -45,14 +40,11 @@ pub fn index(
     }
 }
 
-pub fn show(data: (State<AppState>, Path<PathParameters>, User)) -> HttpResponse {
-    let (state, parameters, user) = data;
+pub fn show(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
+    let (state, parameters) = data;
 
     let connection = state.database.get_connection();
     let event_response = Event::find(&parameters.id, &*connection);
-    if !user.has_scope(Scopes::EventRead) {
-        return application::unauthorized();
-    }
     match event_response {
         Ok(event) => HttpResponse::Ok().json(&event),
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
@@ -60,14 +52,10 @@ pub fn show(data: (State<AppState>, Path<PathParameters>, User)) -> HttpResponse
 }
 
 pub fn show_from_organizations(
-    data: (State<AppState>, Path<PathParameters>, User),
+    (state, organization_id): (State<AppState>, Path<PathParameters>),
 ) -> HttpResponse {
-    let (state, organization_id, user) = data;
-
     let connection = state.database.get_connection();
-    if !user.has_scope(Scopes::EventRead) {
-        return application::unauthorized();
-    }
+
     let event_response =
         Event::find_all_events_from_organization(&organization_id.id, &*connection);
     match event_response {
@@ -76,13 +64,11 @@ pub fn show_from_organizations(
     }
 }
 
-pub fn show_from_venues(data: (State<AppState>, Path<PathParameters>, User)) -> HttpResponse {
-    let (state, venue_id, user) = data;
-
+pub fn show_from_venues(
+    (state, venue_id): (State<AppState>, Path<PathParameters>),
+) -> HttpResponse {
     let connection = state.database.get_connection();
-    if !user.has_scope(Scopes::EventRead) {
-        return application::unauthorized();
-    }
+
     let event_response = Event::find_all_events_from_venue(&venue_id.id, &*connection);
     match event_response {
         Ok(events) => HttpResponse::Ok().json(&events),

@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::Scopes;
 use auth::user::User;
-use bigneon_db::models::{NewVenue, Roles, Venue};
+use bigneon_db::models::{NewVenue, Venue};
 use errors::database_error::ConvertToWebError;
 use helpers::application;
 use models::AddVenueToOrganizationRequest;

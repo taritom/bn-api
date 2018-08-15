@@ -1,18 +1,19 @@
-use actix_web::error;
-use actix_web::error::Error;
-use actix_web::FromRequest;
-use actix_web::HttpRequest;
-use bigneon_db::models::Roles;
+use actix_web::{error, error::Error, FromRequest, HttpRequest, Result};
+use auth::claims;
 use bigneon_db::models::User as DbUser;
+use crypto::sha2::Sha256;
+use errors::database_error::ConvertToWebError;
+use jwt::Header;
+use jwt::Token;
 use server::AppState;
 use std::fmt;
+use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 #[derive(PartialEq, Debug)]
 pub enum Scopes {
     ArtistRead,
     ArtistWrite,
-    EventRead,
     EventWrite,
     OrgAdmin,
     OrgRead,
@@ -27,7 +28,6 @@ impl fmt::Display for Scopes {
         let s = match self {
             Scopes::ArtistRead => "artist:read",
             Scopes::ArtistWrite => "artist:write",
-            Scopes::EventRead => "event:read",
             Scopes::EventWrite => "event:write",
             Scopes::OrgAdmin => "org:admin",
             Scopes::OrgRead => "org:read",
@@ -52,10 +52,6 @@ impl User {
         User { user, scopes }
     }
 
-    pub fn extract<S>(request: &HttpRequest<S>) -> User {
-        (*request.extensions().get::<User>().unwrap()).clone()
-    }
-
     pub fn id(&self) -> Uuid {
         self.user.id
     }
@@ -76,10 +72,46 @@ impl User {
 
 impl FromRequest<AppState> for User {
     type Config = ();
-    type Result = User;
+    type Result = Result<User, Error>;
 
     fn from_request(req: &HttpRequest<AppState>, _cfg: &Self::Config) -> Self::Result {
-        User::extract(req)
+        match req.headers().get("Authorization") {
+            Some(auth_header) => {
+                let mut parts = auth_header.to_str().unwrap().split_whitespace();
+                if str::ne(parts.next().unwrap(), "Bearer") {
+                    return Err(error::ErrorUnauthorized(
+                        "Authorization scheme not supported",
+                    ));
+                }
+
+                let token = parts.next().unwrap();
+                match Token::<Header, claims::AccessToken>::parse(token) {
+                    Ok(token) => {
+                        if token
+                            .verify((*req.state()).config.token_secret.as_bytes(), Sha256::new())
+                        {
+                            let expires = token.claims.exp;
+                            let timer = SystemTime::now();
+                            let exp = timer.duration_since(UNIX_EPOCH).unwrap().as_secs();
+
+                            if expires < exp {
+                                return Err(error::ErrorUnauthorized("Token has expired"));
+                            }
+
+                            let connection = req.state().database.get_connection();
+                            match DbUser::find(&token.claims.get_id(), &*connection) {
+                                Ok(user) => Ok(User::new(user)),
+                                Err(e) => Err(ConvertToWebError::create_http_error(&e)),
+                            }
+                        } else {
+                            return Err(error::ErrorUnauthorized("Invalid token"));
+                        }
+                    }
+                    _ => return Err(error::ErrorUnauthorized("Invalid token")),
+                }
+            }
+            None => Err(error::ErrorUnauthorized("Missing auth token")),
+        }
     }
 }
 
@@ -93,7 +125,7 @@ fn get_scopes(roles: Vec<String>) -> Vec<String> {
 
 fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
     match role {
-        "Guest" => vec![Scopes::ArtistRead, Scopes::EventRead, Scopes::VenueRead],
+        "Guest" => vec![Scopes::ArtistRead, Scopes::VenueRead],
         // More scopes will be available for users later
         "User" => get_scopes_for_role("Guest"),
         "OrgMember" => {
@@ -118,10 +150,7 @@ fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
 #[test]
 fn get_scopes_for_role_test() {
     let res = get_scopes_for_role("Guest");
-    assert_eq!(
-        vec![Scopes::ArtistRead, Scopes::EventRead, Scopes::VenueRead],
-        res
-    );
+    assert_eq!(vec![Scopes::ArtistRead, Scopes::VenueRead], res);
     let res = get_scopes_for_role("OrgOwner");
     assert_eq!(
         vec![
@@ -130,7 +159,6 @@ fn get_scopes_for_role_test() {
             Scopes::EventWrite,
             Scopes::OrgRead,
             Scopes::ArtistRead,
-            Scopes::EventRead,
             Scopes::VenueRead,
         ],
         res
@@ -146,13 +174,12 @@ fn scopes_to_string() {
 #[test]
 fn get_scopes_test() {
     let res = get_scopes(vec!["Guest".to_string()]);
-    assert_eq!(vec!["artist:read", "event:read", "venue:read"], res);
+    assert_eq!(vec!["artist:read", "venue:read"], res);
     let mut res = get_scopes(vec!["OrgOwner".to_string()]);
     res.sort();
     assert_eq!(
         vec![
             "artist:read",
-            "event:read",
             "event:write",
             "org:read",
             "org:write",
@@ -167,7 +194,6 @@ fn get_scopes_test() {
         vec![
             "artist:read",
             "artist:write",
-            "event:read",
             "event:write",
             "org:admin",
             "org:read",
@@ -188,7 +214,6 @@ fn get_scopes_test() {
         vec![
             "artist:read",
             "artist:write",
-            "event:read",
             "event:write",
             "org:admin",
             "org:read",

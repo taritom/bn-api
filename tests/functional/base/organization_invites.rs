@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use actix_web::{http::StatusCode, HttpResponse, Json, Path};
 use bigneon_api::controllers::organization_invites::{self, Info, NewOrgInviteRequest};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{NewOrganizationInvite, Organization, OrganizationInvite, Roles, User};
@@ -40,8 +40,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         user_id: None,
     });
 
-    let mut user = support::create_auth_user(role, &*connection);
-    user.user.id = user1.id;
+    let user = support::create_auth_user_from_user(&user1, role, &*connection);
     let response = organization_invites::create((state, json, user));
     let body = support::unwrap_body_to_string(&response).unwrap();
 

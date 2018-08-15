@@ -29,5 +29,5 @@ pub fn create_auth_user(role: Roles, connection: &Connectable) -> AuthUser {
 
 pub fn create_auth_user_from_user(user: &User, role: Roles, connection: &Connectable) -> AuthUser {
     let user = user.add_role(role, &*connection).unwrap();
-    AuthUser::new(user.clone())
+    AuthUser::new(user)
 }

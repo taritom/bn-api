@@ -1,8 +1,7 @@
-use actix_web::error;
 use actix_web::{http::StatusCode, HttpResponse, Json, Query, State};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
-use bigneon_db::models::{DisplayUser, Roles, User};
+use bigneon_db::models::{DisplayUser, User};
 use errors::database_error::ConvertToWebError;
 use helpers::application;
 use models::register_request::RegisterRequest;

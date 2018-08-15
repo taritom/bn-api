@@ -9,7 +9,6 @@ use actix_web::State;
 use auth::TokenResponse;
 use bigneon_db::models::{ExternalLogin, User};
 use config::Config;
-use errors::database_error::ConvertToWebError;
 use helpers::application;
 use helpers::facebook_client::FacebookClient;
 use models::FacebookWebLoginToken;

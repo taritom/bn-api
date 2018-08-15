@@ -32,7 +32,6 @@ pub mod database;
 pub mod errors;
 pub mod helpers;
 pub mod mail;
-pub mod middleware;
 pub mod models;
 mod routing;
 pub mod server;

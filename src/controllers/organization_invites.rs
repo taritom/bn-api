@@ -3,9 +3,8 @@ use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::db::connections::Connectable;
 use bigneon_db::models::{
-    NewOrganizationInvite, Organization, OrganizationInvite, OrganizationUser, Roles, User,
+    NewOrganizationInvite, Organization, OrganizationInvite, OrganizationUser, User,
 };
-use config::Config;
 use errors::database_error::ConvertToWebError;
 use helpers::application;
 use mail::mailers;
@@ -25,16 +24,17 @@ pub struct NewOrgInviteRequest {
     pub user_id: Option<Uuid>,
 }
 
-pub fn create(data: (State<AppState>, Json<NewOrgInviteRequest>, AuthUser)) -> HttpResponse {
-    let (state, new_org_invite, user) = data;
-    let connection = state.database.get_connection();
+pub fn create(
+    (state, new_org_invite, user): (State<AppState>, Json<NewOrgInviteRequest>, AuthUser),
+) -> HttpResponse {
     if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     };
+    let connection = state.database.get_connection();
     let invite_args = new_org_invite.into_inner();
     let mut actual_new_invite = NewOrganizationInvite {
         organization_id: invite_args.organization_id,
-        inviter_id: user.user.id,
+        inviter_id: user.id(),
         user_email: invite_args.user_email,
         security_token: None,
         user_id: invite_args.user_id,
@@ -48,7 +48,7 @@ pub fn create(data: (State<AppState>, Json<NewOrgInviteRequest>, AuthUser)) -> H
     let mut was_user_found = true;
     //we only care to add the user id if we can find it via the email
     match User::find_by_email(&email, &*connection) {
-        Ok(u) => match (u) {
+        Ok(u) => match u {
             Some(v) => match org_invite.add_user_id(&v.id, &*connection) {
                 Ok(_u) => {
                     was_user_found = true;
@@ -66,8 +66,9 @@ pub fn create(data: (State<AppState>, Json<NewOrgInviteRequest>, AuthUser)) -> H
     HttpResponse::Created().json(org_invite)
 }
 
-fn do_invite_request(data: (State<AppState>, Json<Info>, AuthUser, i16)) -> HttpResponse {
-    let (state, info, user, status) = data;
+fn do_invite_request(
+    (state, info, _user, status): (State<AppState>, Json<Info>, AuthUser, i16),
+) -> HttpResponse {
     let connection = state.database.get_connection();
     let info_struct = info.into_inner();
     let invite_details =
@@ -122,7 +123,7 @@ pub fn create_invite_email(
         recipient = "New user".to_string();
     } else {
         println!("{:?}", invite);
-        recipient = match (invite.user_id) {
+        recipient = match invite.user_id {
             Some(v) => match User::find(&invite.user_id.unwrap(), conn) {
                 Ok(u) => u.full_name(),
                 Err(_e) => "New user".to_string(),

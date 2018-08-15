@@ -1,13 +1,10 @@
-use actix_web::error;
-use actix_web::error::InternalError;
-use actix_web::{Error, HttpRequest, HttpResponse, Json, Responder, State};
+use actix_web::{HttpResponse, Json, State};
 use auth::{claims::RefreshToken, TokenResponse};
 use bigneon_db::models::User;
 use crypto::sha2::Sha256;
 use errors::database_error::ConvertToWebError;
 use helpers::application;
 use jwt::{Header, Token};
-use serde_json;
 use server::AppState;
 
 #[derive(Deserialize)]

@@ -1,5 +1,5 @@
 use actix_web::{HttpResponse, Json, Path, State};
-use bigneon_db::models::{NewOrganization, Organization, OrganizationEditableAttributes, Roles};
+use bigneon_db::models::{NewOrganization, Organization, OrganizationEditableAttributes};
 use errors::database_error::ConvertToWebError;
 
 use auth::user::Scopes;

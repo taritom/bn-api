@@ -1,5 +1,4 @@
 use actix_web::{http::StatusCode, HttpResponse};
-use std::error::Error;
 
 pub fn unauthorized() -> HttpResponse {
     unauthorized_with_message("Unauthorized")
