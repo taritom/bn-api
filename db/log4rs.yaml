@@ -1,0 +1,29 @@
+# Scan this file for changes every 300 seconds
+refresh_rate: 300 seconds
+
+appenders:
+  # An appender named "stdout" that writes to stdout
+  stdout:
+    kind: console
+    encoder:
+          pattern: "{d(%Y-%m-%d %H:%M:%S%.3f)(utc)} {([{h({l})}]):<8} - {m}{n}"
+  # An appender named "requests" that writes to a file with a custom pattern encoder
+  requests:
+    kind: file
+    path: "log/requests.log"
+    encoder:
+      pattern: "{d}: [{l}][{t}] {m}{n}"
+
+# Set the default logging level to "info" and attach the "stdout" appender to the root
+root:
+  level: info
+  appenders:
+    - stdout
+
+loggers:
+  # Route log events sent to the "app::requests" logger to the "requests" appender, and *not* the root logger
+  db:
+    level: debug
+    appenders:
+      - requests
+    additive: false
