@@ -5,7 +5,7 @@ use unit::events::chrono::prelude::*;
 
 #[test]
 fn create() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let venue = Venue::create("Venue").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -23,7 +23,7 @@ fn create() {
 #[test]
 fn update() {
     //create event
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let venue = Venue::create("Venue").commit(&project).unwrap();
 
     let user = project.create_user().finish();
@@ -48,7 +48,7 @@ fn update() {
 #[test]
 fn find_individuals() {
     //create event
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let venue = Venue::create("Venue").commit(&project).unwrap();
 
     let user = project.create_user().finish();
@@ -84,7 +84,7 @@ fn find_individuals() {
 #[test]
 fn find_list() {
     //create event
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let venue1 = Venue::create("Venue1").commit(&project).unwrap();
     let venue2 = Venue::create("Venue2").commit(&project).unwrap();
     let artist1 = Artist::create("Artist1").commit(&project).unwrap();
@@ -169,7 +169,7 @@ fn find_list() {
 #[test]
 fn find_for_organization_and_venue() {
     //create event
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let venue1 = Venue::create("Venue1").commit(&project).unwrap();
     let venue2 = Venue::create("Venue2").commit(&project).unwrap();
     let user = project.create_user().finish();

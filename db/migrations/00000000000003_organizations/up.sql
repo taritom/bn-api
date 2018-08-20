@@ -13,3 +13,4 @@ CREATE TABLE organizations (
 
 -- Indices
 CREATE INDEX index_organizations_owner_user_id ON organizations (owner_user_id);
+CREATE UNIQUE INDEX index_organizations_name ON organizations (name);

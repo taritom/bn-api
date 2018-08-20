@@ -82,7 +82,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::POST).with(users::register)
         })
         .resource("/users", |r| {
-            r.method(Method::GET).with(users::find_via_email);
+            r.method(Method::GET).with(users::find_by_email);
+        })
+        .resource("/users/{id}", |r| {
+            r.method(Method::GET).with(users::show);
         })
         .resource("/external/facebook/login", |r| {
             r.method(Method::POST).f(external::facebook::login)

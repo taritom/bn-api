@@ -3,7 +3,7 @@ use support::project::TestProject;
 
 #[test]
 fn create() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();

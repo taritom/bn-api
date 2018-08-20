@@ -146,7 +146,9 @@ impl Organization {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Unable to load all organizations",
-            organizations::table.load(conn.get_connection()),
+            organizations::table
+                .order_by(organizations::name)
+                .load(conn.get_connection()),
         )
     }
 

@@ -16,7 +16,7 @@ fn create() {
 
 #[test]
 fn update() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     //Edit Organization
     let mut edited_organization = project.create_organization().with_owner(&user).finish();
@@ -44,7 +44,7 @@ fn update() {
 
 #[test]
 fn update_owner() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     //Edit Organization
     let organization = project.create_organization().with_owner(&user).finish();
@@ -59,7 +59,7 @@ fn update_owner() {
 
 #[test]
 fn find() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     //Edit Organization
     let organization = project
@@ -73,7 +73,7 @@ fn find() {
 
 #[test]
 fn users() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
@@ -122,7 +122,7 @@ fn users() {
 
 #[test]
 fn all_linked_to_user() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let org1 = project.create_organization().with_owner(&user).finish();
@@ -140,7 +140,7 @@ fn all_linked_to_user() {
 
 #[test]
 fn all() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let org1 = project.create_organization().with_owner(&user).finish();
@@ -158,7 +158,7 @@ fn all() {
 
 #[test]
 fn remove_users() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();

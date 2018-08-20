@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 #[test]
 fn create() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     let venue = Venue::create("Name").commit(&project).unwrap();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -20,7 +20,7 @@ fn create() {
 #[test]
 fn find() {
     //create user and organization
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
 
@@ -47,7 +47,7 @@ fn find() {
 #[test]
 fn find_lists() {
     //create user and organization
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let organization2 = project.create_organization().with_owner(&user).finish();

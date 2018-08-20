@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpResponse, Json, Query, State};
+use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query, State};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::models::{DisplayUser, User};
@@ -6,9 +6,15 @@ use errors::database_error::ConvertToWebError;
 use helpers::application;
 use models::register_request::RegisterRequest;
 use server::AppState;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
-pub struct Info {
+pub struct PathParameters {
+    pub id: Uuid,
+}
+
+#[derive(Deserialize)]
+pub struct SearchUserByEmail {
     pub email: String,
 }
 
@@ -32,14 +38,30 @@ pub fn current_user((state, user): (State<AppState>, AuthUser)) -> HttpResponse 
     }
 }
 
-pub fn find_via_email(data: (State<AppState>, Query<Info>, AuthUser)) -> HttpResponse {
-    let (state, email, user) = data;
+pub fn show(
+    (state, parameters, user): (State<AppState>, Path<PathParameters>, AuthUser),
+) -> HttpResponse {
     let connection = state.database.get_connection();
 
     if !user.has_scope(Scopes::UserRead) {
         return application::unauthorized();
     }
-    match User::find_by_email(&email.into_inner().email, &*connection) {
+
+    match User::find(&parameters.id, &*connection) {
+        Ok(u) => HttpResponse::Ok().json(&u.for_display()),
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+    }
+}
+
+pub fn find_by_email(data: (State<AppState>, Query<SearchUserByEmail>, AuthUser)) -> HttpResponse {
+    let (state, query, user) = data;
+    let connection = state.database.get_connection();
+
+    if !user.has_scope(Scopes::UserRead) {
+        return application::unauthorized();
+    }
+
+    match User::find_by_email(&query.into_inner().email, &*connection) {
         Ok(u) => match u {
             Some(u) => HttpResponse::Ok().json(&u.for_display()),
             None => HttpResponse::new(StatusCode::NOT_FOUND),

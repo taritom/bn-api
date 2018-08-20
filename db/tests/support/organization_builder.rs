@@ -1,4 +1,5 @@
 use bigneon_db::models::{Organization, OrganizationEditableAttributes, OrganizationUser, User};
+use rand::prelude::*;
 use support::project::TestProject;
 use uuid::Uuid;
 
@@ -11,12 +12,12 @@ pub struct OrganizationBuilder<'a> {
 }
 
 impl<'a> OrganizationBuilder<'a> {
-    pub fn new(test_project: &TestProject) -> OrganizationBuilder {
+    pub fn new(test_project: &'a mut TestProject) -> OrganizationBuilder {
         OrganizationBuilder {
-            name: "test org".into(),
+            name: format!("test org{}", test_project.next_id()).into(),
             owner_user_id: None,
             member_user_id: None,
-            test_project: &test_project,
+            test_project: &*test_project,
             use_address: false,
         }
     }

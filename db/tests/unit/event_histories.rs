@@ -5,7 +5,7 @@ use unit::event_histories::chrono::prelude::*;
 
 #[test]
 fn create() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let venue = Venue::create("Name").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();

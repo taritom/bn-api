@@ -12,6 +12,7 @@ use support::user_builder::UserBuilder;
 pub struct TestProject {
     pub connection: DatabaseConnection,
     admin: PgConnection,
+    next_unique_id: i8,
 }
 
 #[allow(dead_code)]
@@ -29,7 +30,11 @@ impl TestProject {
             .get_connection()
             .begin_test_transaction()
             .expect("Could not start testing transaction");
-        TestProject { connection, admin }
+        TestProject {
+            connection,
+            admin,
+            next_unique_id: 0,
+        }
     }
 
     pub fn db_exists(&self, name: &str) -> bool {
@@ -55,12 +60,17 @@ impl TestProject {
         UserBuilder::new(&self)
     }
 
-    pub fn create_organization(&self) -> OrganizationBuilder {
-        OrganizationBuilder::new(&self)
+    pub fn create_organization(&mut self) -> OrganizationBuilder {
+        OrganizationBuilder::new(self)
     }
 
     pub fn create_organization_invite(&self) -> OrgInviteBuilder {
         OrgInviteBuilder::new(&self)
+    }
+
+    pub fn next_id(&mut self) -> i8 {
+        self.next_unique_id += 1;
+        self.next_unique_id
     }
 }
 

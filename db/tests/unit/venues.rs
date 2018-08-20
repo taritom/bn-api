@@ -59,7 +59,7 @@ fn find() {
 
 #[test]
 fn has_organization() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     let venue = Venue::create("Name").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -77,7 +77,7 @@ fn has_organization() {
 
 #[test]
 fn create_find_via_org() {
-    let project = TestProject::new();
+    let mut project = TestProject::new();
     //create Venues
     let mut edited_venue = Venue::create("VenueForOrgTest").commit(&project).unwrap();
     edited_venue.address = Some(<String>::from("Test Address"));
