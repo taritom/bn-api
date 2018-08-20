@@ -1,5 +1,5 @@
 extern crate chrono;
-use bigneon_db::models::{Event, EventLike, Venue};
+use bigneon_db::models::{Event, EventInterest, Venue};
 use chrono::NaiveDate;
 use support::project::TestProject;
 
@@ -17,10 +17,10 @@ fn create() {
     ).commit(&project)
         .unwrap();
 
-    let event_like = EventLike::create(event.id, user.id)
+    let event_interest = EventInterest::create(event.id, user.id)
         .commit(&project)
         .unwrap();
 
-    assert_eq!(event_like.user_id, user.id);
-    assert_eq!(event_like.event_id, event.id);
+    assert_eq!(event_interest.user_id, user.id);
+    assert_eq!(event_interest.event_id, event.id);
 }

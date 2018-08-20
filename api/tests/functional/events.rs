@@ -153,6 +153,58 @@ mod update_tests {
     }
 }
 
+#[cfg(test)]
+mod add_interest_tests {
+    use super::*;
+
+    #[test]
+    fn add_interest_org_member() {
+        base::events::add_interest(Roles::OrgMember, true);
+    }
+    #[test]
+    fn add_interest_guest() {
+        base::events::add_interest(Roles::Guest, false);
+    }
+    #[test]
+    fn add_interest_admin() {
+        base::events::add_interest(Roles::Admin, true);
+    }
+    #[test]
+    fn add_interest_user() {
+        base::events::add_interest(Roles::User, true);
+    }
+    #[test]
+    fn add_interest_org_owner() {
+        base::events::add_interest(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod remove_interest_tests {
+    use super::*;
+
+    #[test]
+    fn remove_interest_org_member() {
+        base::events::remove_interest(Roles::OrgMember, true);
+    }
+    #[test]
+    fn remove_interest_guest() {
+        base::events::remove_interest(Roles::Guest, false);
+    }
+    #[test]
+    fn remove_interest_admin() {
+        base::events::remove_interest(Roles::Admin, true);
+    }
+    #[test]
+    fn remove_interest_user() {
+        base::events::remove_interest(Roles::User, true);
+    }
+    #[test]
+    fn remove_interest_org_owner() {
+        base::events::remove_interest(Roles::OrgOwner, true);
+    }
+}
+
 #[test]
 pub fn show_from_organizations() {
     let database = TestDatabase::new();

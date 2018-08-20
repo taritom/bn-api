@@ -2,7 +2,9 @@ use actix_web::Query;
 use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::Scopes;
 use auth::user::User;
-use bigneon_db::models::{Event, EventEditableAttributes, NewEvent};
+use bigneon_db::models::{
+    Event, EventEditableAttributes, EventInterest, NewEvent, NewEventInterest,
+};
 use chrono::NaiveDateTime;
 use errors::database_error::ConvertToWebError;
 use helpers::application;
@@ -106,6 +108,37 @@ pub fn update(
             Ok(updated_event) => HttpResponse::Ok().json(&updated_event),
             Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
         },
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+    }
+}
+
+pub fn add_interest(
+    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+) -> HttpResponse {
+    if !user.has_scope(Scopes::EventInterest) {
+        return application::unauthorized();
+    }
+
+    let connection = state.database.get_connection();
+    let event_interest_response =
+        EventInterest::create(parameters.id, user.id()).commit(&*connection);
+    match event_interest_response {
+        Ok(event_interest) => HttpResponse::Created().json(&event_interest),
+        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+    }
+}
+
+pub fn remove_interest(
+    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+) -> HttpResponse {
+    if !user.has_scope(Scopes::EventInterest) {
+        return application::unauthorized();
+    }
+
+    let connection = state.database.get_connection();
+    let event_interest_response = EventInterest::remove(parameters.id, user.id(), &*connection);
+    match event_interest_response {
+        Ok(event_interest) => HttpResponse::Ok().json(&event_interest),
         Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     }
 }

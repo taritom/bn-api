@@ -3,8 +3,8 @@ use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
 use diesel::prelude::*;
-use models::{EventArtist, EventLike, Organization, Venue};
-use schema::{artists, event_artists, event_likes, events, venues};
+use models::{EventArtist, EventInterest, Organization, Venue};
+use schema::{artists, event_artists, event_interest, events, venues};
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
@@ -183,15 +183,5 @@ impl Event {
         EventArtist::create(self.id, artist_id, 0)
             .commit(conn)
             .map(|_| ())
-    }
-
-    pub fn total_likes(event_id: &Uuid, conn: &Connectable) -> Result<u32, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Error counting event likes",
-            event_likes::table
-                .filter(event_likes::event_id.eq(event_id))
-                .load(conn.get_connection()),
-        ).map(|res: Vec<EventLike>| res.len() as u32)
     }
 }

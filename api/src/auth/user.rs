@@ -15,6 +15,7 @@ pub enum Scopes {
     ArtistRead,
     ArtistWrite,
     EventWrite,
+    EventInterest,
     OrgAdmin,
     OrgRead,
     OrgWrite,
@@ -29,6 +30,7 @@ impl fmt::Display for Scopes {
             Scopes::ArtistRead => "artist:read",
             Scopes::ArtistWrite => "artist:write",
             Scopes::EventWrite => "event:write",
+            Scopes::EventInterest => "event:interest",
             Scopes::OrgAdmin => "org:admin",
             Scopes::OrgRead => "org:read",
             Scopes::OrgWrite => "org:write",
@@ -127,10 +129,14 @@ fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
     match role {
         "Guest" => vec![Scopes::ArtistRead, Scopes::VenueRead],
         // More scopes will be available for users later
-        "User" => get_scopes_for_role("Guest"),
+        "User" => {
+            let mut roles = vec![Scopes::EventInterest];
+            roles.extend(get_scopes_for_role("Guest"));
+            roles
+        }
         "OrgMember" => {
             let mut roles = vec![Scopes::EventWrite, Scopes::OrgRead];
-            roles.extend(get_scopes_for_role("Guest"));
+            roles.extend(get_scopes_for_role("User"));
             roles
         }
         "OrgOwner" => {
@@ -158,6 +164,7 @@ fn get_scopes_for_role_test() {
             Scopes::UserRead,
             Scopes::EventWrite,
             Scopes::OrgRead,
+            Scopes::EventInterest,
             Scopes::ArtistRead,
             Scopes::VenueRead,
         ],
@@ -180,6 +187,7 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:read",
+            "event:interest",
             "event:write",
             "org:read",
             "org:write",
@@ -194,6 +202,7 @@ fn get_scopes_test() {
         vec![
             "artist:read",
             "artist:write",
+            "event:interest",
             "event:write",
             "org:admin",
             "org:read",
@@ -214,6 +223,7 @@ fn get_scopes_test() {
         vec![
             "artist:read",
             "artist:write",
+            "event:interest",
             "event:write",
             "org:admin",
             "org:read",

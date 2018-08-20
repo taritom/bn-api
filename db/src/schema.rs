@@ -25,7 +25,7 @@ table! {
 }
 
 table! {
-    event_likes (id) {
+    event_interest (id) {
         id -> Uuid,
         event_id -> Uuid,
         user_id -> Uuid,
@@ -143,8 +143,8 @@ joinable!(event_artists -> events (event_id));
 joinable!(event_histories -> events (event_id));
 joinable!(event_histories -> orders (order_id));
 joinable!(event_histories -> users (user_id));
-joinable!(event_likes -> events (event_id));
-joinable!(event_likes -> users (user_id));
+joinable!(event_interest -> events (event_id));
+joinable!(event_interest -> users (user_id));
 joinable!(events -> organizations (organization_id));
 joinable!(events -> venues (venue_id));
 joinable!(external_logins -> users (user_id));
@@ -161,7 +161,7 @@ allow_tables_to_appear_in_same_query!(
     artists,
     event_artists,
     event_histories,
-    event_likes,
+    event_interest,
     events,
     external_logins,
     orders,

@@ -2,7 +2,7 @@ pub mod artists;
 pub mod concerns;
 pub mod event_artists;
 pub mod event_histories;
-pub mod event_likes;
+pub mod event_interest;
 pub mod events;
 pub mod orders;
 pub mod organization_invites;

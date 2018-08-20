@@ -1,7 +1,7 @@
 pub use self::artists::Artist;
 pub use self::event_artists::EventArtist;
 pub use self::event_histories::EventHistory;
-pub use self::event_likes::*;
+pub use self::event_interest::*;
 pub use self::events::*;
 pub use self::external_logins::ExternalLogin;
 pub use self::orders::Order;
@@ -17,7 +17,7 @@ pub mod artists;
 pub mod concerns;
 pub mod event_artists;
 pub mod event_histories;
-pub mod event_likes;
+pub mod event_interest;
 pub mod events;
 pub mod external_logins;
 pub mod orders;

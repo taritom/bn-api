@@ -186,6 +186,7 @@ impl Organization {
         orgs.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(orgs)
     }
+
     pub fn remove_user(&self, user_id: &Uuid, conn: &Connectable) -> Result<usize, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,

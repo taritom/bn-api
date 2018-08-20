@@ -1,5 +1,5 @@
 extern crate chrono;
-use bigneon_db::models::{Artist, Event, EventEditableAttributes, EventLike, Venue};
+use bigneon_db::models::{Artist, Event, EventEditableAttributes, EventInterest, Venue};
 use support::project::TestProject;
 use unit::events::chrono::prelude::*;
 
@@ -201,32 +201,4 @@ fn find_for_organization_and_venue() {
     let found_event_via_venues = Event::find_all_events_from_venue(&venue1.id, &project).unwrap();
     assert_eq!(found_event_via_venues.len(), 1);
     assert_eq!(found_event_via_venues[0], all_events[0]);
-}
-
-#[test]
-fn total_likes() {
-    let project = TestProject::new();
-    let venue = Venue::create("Venue").commit(&project).unwrap();
-    let user = project.create_user().finish();
-    let user2 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
-
-    let event_like = EventLike::create(event.id, user.id)
-        .commit(&project)
-        .unwrap();
-
-    let event_like = EventLike::create(event.id, user2.id)
-        .commit(&project)
-        .unwrap();
-
-    let event_total = Event::total_likes(&event.id, &project).unwrap();
-
-    assert_eq!(event_total, 2);
 }

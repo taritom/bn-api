@@ -67,6 +67,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::GET).with(events::show);
             r.method(Method::PUT).with(events::update);
         })
+        .resource("/events/{id}/interest", |r| {
+            r.method(Method::POST).with(events::add_interest);
+            r.method(Method::DELETE).with(events::remove_interest);
+        })
         .resource("/password_reset", |r| {
             r.method(Method::POST).with(password_resets::create);
             r.method(Method::PUT).with(password_resets::update);
