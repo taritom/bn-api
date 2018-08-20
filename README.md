@@ -1,5 +1,8 @@
 # Big Neon API
 
+
+[![Build Status](https://travis-ci.org/big-neon/bn-api.svg?branch=master)](https://travis-ci.org/big-neon/bn-api)
+
 This is the Big Neon API repository, part of the Big Neon ticketing system.
 
 # Overall project architecture
