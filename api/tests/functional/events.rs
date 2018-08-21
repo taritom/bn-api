@@ -55,10 +55,65 @@ pub fn index() {
     let expected_events = vec![event2, event];
     let events_expected_json = serde_json::to_string(&expected_events).unwrap();
 
-    let test_request = TestRequest::create_with_uri(database, "/events?name=New");
+    let test_request = TestRequest::create_with_uri(database, "/events?query=New");
     let state = test_request.extract_state();
-    let query = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
-    let response = events::index((state, query));
+    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let response = events::index((state, parameters));
+
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, events_expected_json);
+}
+
+#[test]
+pub fn index_search_returns_only_one_event() {
+    let database = TestDatabase::new();
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*database.get_connection())
+        .unwrap();
+    let artist = Artist::create("Example")
+        .commit(&*database.get_connection())
+        .unwrap();
+    let organization = Organization::create(user.id, "Organization")
+        .commit(&*database.get_connection())
+        .unwrap();
+    let venue = Venue::create(&"Venue")
+        .commit(&*database.get_connection())
+        .unwrap();
+    let event = Event::create(
+        "NewEvent1",
+        organization.id,
+        venue.id,
+        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
+    ).commit(&*database.get_connection())
+        .unwrap();
+    event
+        .add_artist(artist.id, &*database.get_connection())
+        .unwrap();
+    let event2 = Event::create(
+        "NewEvent2",
+        organization.id,
+        venue.id,
+        NaiveDate::from_ymd(2015, 7, 8).and_hms(9, 10, 11),
+    ).commit(&*database.get_connection())
+        .unwrap();
+    event2
+        .add_artist(artist.id, &*database.get_connection())
+        .unwrap();
+
+    let expected_events = vec![event];
+    let events_expected_json = serde_json::to_string(&expected_events).unwrap();
+
+    let test_request = TestRequest::create_with_uri(database, "/events?query=NewEvent1");
+    let state = test_request.extract_state();
+    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let response = events::index((state, parameters));
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 

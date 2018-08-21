@@ -18,22 +18,18 @@ pub struct PathParameters {
 
 #[derive(Deserialize)]
 pub struct SearchParameters {
-    name: Option<String>,
-    venue: Option<String>,
-    artist: Option<String>,
+    query: Option<String>,
     start_utc: Option<NaiveDateTime>,
     end_utc: Option<NaiveDateTime>,
 }
 
-pub fn index((state, query): (State<AppState>, Query<SearchParameters>)) -> HttpResponse {
+pub fn index((state, parameters): (State<AppState>, Query<SearchParameters>)) -> HttpResponse {
     let connection = state.database.get_connection();
-    let query = query.into_inner();
+    let parameters = parameters.into_inner();
     let event_response = Event::search(
-        query.name,
-        query.venue,
-        query.artist,
-        query.start_utc,
-        query.end_utc,
+        parameters.query,
+        parameters.start_utc,
+        parameters.end_utc,
         &*connection,
     );
     match event_response {

@@ -113,39 +113,37 @@ fn find_list() {
 
     event2.add_artist(artist1.id, &project).unwrap();
     let all_events = vec![event, event2];
-    let all_found_events = Event::search(None, None, None, None, None, &project).unwrap();
+    let all_found_events = Event::search(None, None, None, &project).unwrap();
     assert_eq!(all_events, all_found_events);
-    let all_found_events = Event::search(
-        Some("".to_string()),
-        Some("".to_string()),
-        Some("".to_string()),
-        None,
-        None,
-        &project,
-    ).unwrap();
+    let all_found_events = Event::search(Some("".to_string()), None, None, &project).unwrap();
     assert_eq!(all_events, all_found_events);
-    let all_found_events =
-        Event::search(Some("New".to_string()), None, None, None, None, &project).unwrap();
+
+    // Event name search
+    let all_found_events = Event::search(Some("New".to_string()), None, None, &project).unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[1], all_found_events[0]);
 
-    let all_found_events =
-        Event::search(None, Some("1".to_string()), None, None, None, &project).unwrap();
+    // Venue name search
+    let all_found_events = Event::search(Some("Venue1".to_string()), None, None, &project).unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 
+    // Artist name search for artist in both events
     let all_found_events =
-        Event::search(None, None, Some("1".to_string()), None, None, &project).unwrap();
+        Event::search(Some("Artist1".to_string()), None, None, &project).unwrap();
     assert_eq!(all_events, all_found_events);
 
+    // Artist name search for artist at only one event
     let all_found_events =
-        Event::search(None, None, Some("2".to_string()), None, None, &project).unwrap();
+        Event::search(Some("Artist2".to_string()), None, None, &project).unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 
+    // Match names Venue2 and Artist2 returning both events
+    let all_found_events = Event::search(Some("2".to_string()), None, None, &project).unwrap();
+    assert_eq!(all_events, all_found_events);
+
     let all_found_events = Event::search(
-        None,
-        None,
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
@@ -155,8 +153,6 @@ fn find_list() {
     assert_eq!(all_events[1], all_found_events[0]);
 
     let all_found_events = Event::search(
-        None,
-        None,
         None,
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),

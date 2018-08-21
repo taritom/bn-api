@@ -117,24 +117,17 @@ impl Event {
     }
 
     pub fn search(
-        name_filter: Option<String>,
-        venue_filter: Option<String>,
-        artist_filter: Option<String>,
+        query_filter: Option<String>,
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
         conn: &Connectable,
     ) -> Result<Vec<Event>, DatabaseError> {
-        let name_like = match name_filter {
-            Some(n) => format!("%{}%", n),
-            None => "%".to_string(),
-        };
-        let venue_like = match venue_filter {
+        let query_like = match query_filter {
             Some(n) => format!("%{}%", n),
             None => "%".to_string(),
         };
 
-        let query = events::table
-            .filter(events::name.ilike(name_like))
+        let result = events::table
             .filter(
                 events::event_start
                     .gt(start_time.unwrap_or(NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0))),
@@ -143,40 +136,33 @@ impl Event {
                 events::event_start
                     .lt(end_time.unwrap_or(NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))),
             )
-            .inner_join(
+            .left_join(
                 venues::table.on(events::venue_id
                     .eq(venues::id)
-                    .and(venues::name.ilike(venue_like))),
-            );
-
-        let query = match artist_filter {
-            None => query
-                .select(events::all_columns)
-                .distinct()
-                .order_by(events::event_start.asc())
-                .then_order_by(events::name.asc())
-                .load(conn.get_connection()),
-            Some(l) => {
-                let l = format!("%{}%", l);
-                query
+                    .and(venues::name.ilike(query_like.clone()))),
+            )
+            .left_join(
+                event_artists::table
                     .inner_join(
-                        event_artists::table
-                            .inner_join(
-                                artists::table.on(event_artists::artist_id
-                                    .eq(artists::id)
-                                    .and(artists::name.ilike(l))),
-                            )
-                            .on(events::id.eq(event_artists::event_id)),
+                        artists::table.on(event_artists::artist_id
+                            .eq(artists::id)
+                            .and(artists::name.ilike(query_like.clone()))),
                     )
-                    .select(events::all_columns)
-                    .distinct()
-                    .order_by(events::event_start.asc())
-                    .then_order_by(events::name.asc())
-                    .load(conn.get_connection())
-            }
-        };
+                    .on(events::id.eq(event_artists::event_id)),
+            )
+            .filter(
+                events::name
+                    .ilike(query_like.clone())
+                    .or(venues::id.is_not_null())
+                    .or(artists::id.is_not_null()),
+            )
+            .select(events::all_columns)
+            .distinct()
+            .order_by(events::event_start.asc())
+            .then_order_by(events::name.asc())
+            .load(conn.get_connection());
 
-        DatabaseError::wrap(ErrorCode::QueryError, "Unable to load all events", query)
+        DatabaseError::wrap(ErrorCode::QueryError, "Unable to load all events", result)
     }
 
     pub fn add_artist(&self, artist_id: Uuid, conn: &Connectable) -> Result<(), DatabaseError> {
