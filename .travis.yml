@@ -38,11 +38,9 @@ env:
 before_script:
   - export PATH="$PATH:$HOME/.cargo/bin"
   - rustup component add rustfmt-preview
- # - scripts/init-test.sh
   - cd db
   - scripts/init-test.sh
   - cd ..
-  #- cargo install --git https://github.com/big-neon/bn-db.git --force
  # - bndb_cli create -c postgres://postgres:password123@localhost/bigneon_test -e superuser@bigneon.com -p password1 -m 55555555
 
 script:
