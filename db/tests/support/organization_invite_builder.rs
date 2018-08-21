@@ -5,6 +5,7 @@ extern crate chrono;
 use chrono::NaiveDateTime;
 use support::organization_invite_builder::chrono::prelude::*;
 
+#[allow(dead_code)]
 pub struct OrgInviteBuilder<'a> {
     organization_id: Option<Uuid>,
     invitee_id: Option<Uuid>,
@@ -44,16 +45,6 @@ impl<'a> OrgInviteBuilder<'a> {
 
     pub fn link_to_user(mut self, user: &User) -> OrgInviteBuilder<'a> {
         self.user_id = Some(user.id.clone());
-        self
-    }
-
-    pub fn update_status_changed(mut self, date: &NaiveDateTime) -> OrgInviteBuilder<'a> {
-        self.status_change_at = Some(date.clone());
-        self
-    }
-
-    pub fn accepted(mut self, status: bool) -> OrgInviteBuilder<'a> {
-        self.accepted = Some(status as i16);
         self
     }
 

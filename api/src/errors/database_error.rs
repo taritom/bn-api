@@ -1,9 +1,11 @@
 use actix_web::error;
 use actix_web::Error as web_error;
+use actix_web::HttpResponse;
 use bigneon_db::utils::errors::DatabaseError;
 
 pub trait ConvertToWebError {
     fn create_http_error(&self) -> web_error;
+    fn to_response(&self) -> HttpResponse;
 }
 
 impl ConvertToWebError for DatabaseError {
@@ -22,5 +24,9 @@ impl ConvertToWebError for DatabaseError {
             _ => error::ErrorInternalServerError("Unknown error"),
         };
         new_web_error
+    }
+
+    fn to_response(&self) -> HttpResponse {
+        HttpResponse::from_error(self.create_http_error())
     }
 }

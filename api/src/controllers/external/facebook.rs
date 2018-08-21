@@ -34,6 +34,7 @@ pub fn login(req: &HttpRequest<AppState>) -> HttpResponse {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct AuthCallbackPathParameters {
     code: Option<String>,
     error_reason: Option<String>,

@@ -1,10 +1,9 @@
 use db::Connectable;
 use diesel;
 use diesel::prelude::*;
-use models::{OrganizationUser, OrganizationVenue, User, Venue};
-use schema::{organization_users, organization_venues, organizations, users, venues};
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
+use models::*;
+use schema::{organization_users, organizations, users, venues};
+use utils::errors::*;
 use uuid::Uuid;
 
 #[derive(Identifiable, Associations, Queryable)]
@@ -79,13 +78,10 @@ impl Organization {
         attributes: OrganizationEditableAttributes,
         conn: &Connectable,
     ) -> Result<Organization, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::UpdateError,
-            "Could not update organization",
-            diesel::update(self)
-                .set(attributes)
-                .get_result(conn.get_connection()),
-        )
+        diesel::update(self)
+            .set(attributes)
+            .get_result(conn.get_connection())
+            .to_db_error(ErrorCode::UpdateError, "Could not update organization")
     }
 
     pub fn set_owner(
@@ -93,53 +89,53 @@ impl Organization {
         owner_user_id: Uuid,
         conn: &Connectable,
     ) -> Result<Organization, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::UpdateError,
-            "Could not update organization owner",
-            diesel::update(self)
-                .set(organizations::owner_user_id.eq(owner_user_id))
-                .get_result(conn.get_connection()),
-        )
+        diesel::update(self)
+            .set(organizations::owner_user_id.eq(owner_user_id))
+            .get_result(conn.get_connection())
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not update organization owner",
+            )
     }
 
-    pub fn users(&self, conn: &Connectable) -> Vec<User> {
+    pub fn users(&self, conn: &Connectable) -> Result<Vec<User>, DatabaseError> {
         let organization_users = OrganizationUser::belonging_to(self);
         let organization_owner = users::table
             .find(self.owner_user_id)
             .first::<User>(conn.get_connection())
-            .expect("Error loading organization owner");
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve organization users",
+            )?;
         let mut users = organization_users
             .inner_join(users::table)
             .filter(users::id.ne(self.owner_user_id))
             .select(users::all_columns)
             .load::<User>(conn.get_connection())
-            .expect("Error loading organization users");
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve organization users",
+            )?;
 
         users.insert(0, organization_owner);
-        users
+        Ok(users)
     }
 
     pub fn venues(&self, conn: &Connectable) -> Result<Vec<Venue>, DatabaseError> {
         let organization_venues = OrganizationVenue::belonging_to(self);
 
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Could not retrieve venues",
-            organization_venues
-                .inner_join(venues::table)
-                .select(venues::all_columns)
-                .load::<Venue>(conn.get_connection()),
-        )
+        organization_venues
+            .inner_join(venues::table)
+            .select(venues::all_columns)
+            .load::<Venue>(conn.get_connection())
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve venues")
     }
 
-    pub fn find(id: &Uuid, conn: &Connectable) -> Result<Organization, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Error loading organization",
-            organizations::table
-                .find(id)
-                .first::<Organization>(conn.get_connection()),
-        )
+    pub fn find(id: Uuid, conn: &Connectable) -> Result<Organization, DatabaseError> {
+        organizations::table
+            .find(id)
+            .first::<Organization>(conn.get_connection())
+            .to_db_error(ErrorCode::QueryError, "Error loading organization")
     }
 
     pub fn all(conn: &Connectable) -> Result<Vec<Organization>, DatabaseError> {
@@ -156,28 +152,22 @@ impl Organization {
         user_id: Uuid,
         conn: &Connectable,
     ) -> Result<Vec<Organization>, DatabaseError> {
-        let orgs = DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Unable to load all organizations",
-            organizations::table
-                .filter(organizations::owner_user_id.eq(user_id))
-                .load(conn.get_connection()),
-        );
+        let orgs = organizations::table
+            .filter(organizations::owner_user_id.eq(user_id))
+            .load(conn.get_connection())
+            .to_db_error(ErrorCode::QueryError, "Unable to load all organizations");
 
         let mut orgs = match orgs {
             Ok(o) => o,
             Err(e) => return Err(e),
         };
 
-        let org_members = DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Unable to load all organizations",
-            organization_users::table
-                .filter(organization_users::user_id.eq(user_id))
-                .inner_join(organizations::table)
-                .select(organizations::all_columns)
-                .load::<Organization>(conn.get_connection()),
-        );
+        let org_members = organization_users::table
+            .filter(organization_users::user_id.eq(user_id))
+            .inner_join(organizations::table)
+            .select(organizations::all_columns)
+            .load::<Organization>(conn.get_connection())
+            .to_db_error(ErrorCode::QueryError, "Unable to load all organizations");
 
         let mut org_members = match org_members {
             Ok(o) => o,
@@ -190,14 +180,15 @@ impl Organization {
     }
 
     pub fn remove_user(&self, user_id: &Uuid, conn: &Connectable) -> Result<usize, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Error loading organization",
-            diesel::delete(
-                organization_users::table
-                    .filter(organization_users::user_id.eq(user_id))
-                    .filter(organization_users::organization_id.eq(self.id)),
-            ).execute(conn.get_connection()),
-        )
+        diesel::delete(
+            organization_users::table
+                .filter(organization_users::user_id.eq(user_id))
+                .filter(organization_users::organization_id.eq(self.id)),
+        ).execute(conn.get_connection())
+            .to_db_error(ErrorCode::DeleteError, "Error removing user")
+    }
+
+    pub fn is_member(&self, user: &User, conn: &Connectable) -> Result<bool, DatabaseError> {
+        Ok(self.users(conn)?.contains(&user))
     }
 }

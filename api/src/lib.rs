@@ -2,7 +2,6 @@ extern crate actix_web;
 extern crate bigneon_db;
 extern crate diesel;
 extern crate dotenv;
-#[macro_use]
 extern crate futures;
 extern crate http;
 extern crate hyper;
@@ -35,3 +34,4 @@ pub mod mail;
 pub mod models;
 mod routing;
 pub mod server;
+pub mod tari;

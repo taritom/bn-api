@@ -5,12 +5,19 @@ use actix_web::{server, App};
 use config::Config;
 use database::{ConnectionGranting, Database};
 use routing;
+use tari::TariClient;
 
 pub struct AppState {
     pub config: Config,
     pub database: Box<ConnectionGranting>,
     pub token_secret: String,
     pub token_issuer: String,
+}
+
+impl AppState {
+    pub fn get_tari_client(&self) -> TariClient {
+        TariClient {}
+    }
 }
 
 pub struct Server {

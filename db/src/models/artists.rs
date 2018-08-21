@@ -1,4 +1,4 @@
-use db::connections::Connectable;
+use db::Connectable;
 use diesel;
 use diesel::prelude::*;
 use schema::artists;

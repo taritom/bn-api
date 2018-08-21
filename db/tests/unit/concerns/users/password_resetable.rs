@@ -1,4 +1,4 @@
-use bigneon_db::db::connections::Connectable;
+use bigneon_db::db::Connectable;
 use bigneon_db::models::concerns::users::password_resetable::{PasswordReset, PasswordResetable};
 use bigneon_db::models::User;
 use chrono::{Duration, Utc};

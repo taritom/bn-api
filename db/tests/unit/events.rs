@@ -1,5 +1,5 @@
 extern crate chrono;
-use bigneon_db::models::{Artist, Event, EventEditableAttributes, EventInterest, Venue};
+use bigneon_db::models::*;
 use support::project::TestProject;
 use unit::events::chrono::prelude::*;
 
@@ -20,6 +20,7 @@ fn create() {
     assert_eq!(event.organization_id, organization.id);
     assert_eq!(event.id.to_string().is_empty(), false);
 }
+
 #[test]
 fn update() {
     //create event
@@ -68,7 +69,7 @@ fn find_individuals() {
     let event = event.update(parameters, &project).unwrap();
 
     //find event
-    let found_event = Event::find(&event.id, &project).unwrap();
+    let found_event = Event::find(event.id, &project).unwrap();
     assert_eq!(found_event, event);
     //find event via organisation
     let found_event_via_organization =
@@ -170,7 +171,7 @@ fn find_for_organization_and_venue() {
     let venue2 = Venue::create("Venue2").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let mut event = Event::create(
+    let event = Event::create(
         "NewEvent",
         organization.id,
         venue1.id,
@@ -179,7 +180,7 @@ fn find_for_organization_and_venue() {
         .unwrap();
 
     //find more than one event
-    let mut event2 = Event::create(
+    let event2 = Event::create(
         "OldEvent",
         organization.id,
         venue2.id,
@@ -197,4 +198,21 @@ fn find_for_organization_and_venue() {
     let found_event_via_venues = Event::find_all_events_from_venue(&venue1.id, &project).unwrap();
     assert_eq!(found_event_via_venues.len(), 1);
     assert_eq!(found_event_via_venues[0], all_events[0]);
+}
+
+#[test]
+fn organization() {
+    let mut project = TestProject::new();
+    let venue = Venue::create("Venue").commit(&project).unwrap();
+    let user = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+    let event = Event::create(
+        "NewEvent",
+        organization.id,
+        venue.id,
+        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
+    ).commit(&project)
+        .unwrap();
+
+    assert_eq!(event.organization(&project).unwrap(), organization)
 }

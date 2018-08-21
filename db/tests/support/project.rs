@@ -1,13 +1,15 @@
-use bigneon_db::db::connections::Connectable;
-use bigneon_db::db::connections::DatabaseConnection;
+use bigneon_db::db::Connectable;
+use bigneon_db::db::DatabaseConnection;
 use diesel::dsl::sql;
 use diesel::sql_types::Bool;
 use diesel::{select, Connection, PgConnection, RunQueryDsl};
 use dotenv::dotenv;
 use std::env;
+use support::event_builder::EventBuilder;
 use support::organization_builder::OrganizationBuilder;
 use support::organization_invite_builder::OrgInviteBuilder;
 use support::user_builder::UserBuilder;
+use support::venue_builder::VenueBuilder;
 
 pub struct TestProject {
     pub connection: DatabaseConnection,
@@ -66,6 +68,14 @@ impl TestProject {
 
     pub fn create_organization_invite(&self) -> OrgInviteBuilder {
         OrgInviteBuilder::new(&self)
+    }
+
+    pub fn create_venue(&self) -> VenueBuilder {
+        VenueBuilder::new(&self)
+    }
+
+    pub fn create_event(&mut self) -> EventBuilder {
+        EventBuilder::new(self)
     }
 
     pub fn next_id(&mut self) -> i8 {

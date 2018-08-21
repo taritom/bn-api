@@ -78,6 +78,20 @@ table! {
 }
 
 table! {
+    organizations (id) {
+        id -> Uuid,
+        owner_user_id -> Uuid,
+        name -> Text,
+        address -> Nullable<Text>,
+        city -> Nullable<Text>,
+        state -> Nullable<Text>,
+        country -> Nullable<Text>,
+        zip -> Nullable<Text>,
+        phone -> Nullable<Text>,
+    }
+}
+
+table! {
     organization_users (id) {
         id -> Uuid,
         organization_id -> Uuid,
@@ -94,16 +108,13 @@ table! {
 }
 
 table! {
-    organizations (id) {
+    ticket_allocations (id) {
         id -> Uuid,
-        owner_user_id -> Uuid,
-        name -> Text,
-        address -> Nullable<Text>,
-        city -> Nullable<Text>,
-        state -> Nullable<Text>,
-        country -> Nullable<Text>,
-        zip -> Nullable<Text>,
-        phone -> Nullable<Text>,
+        event_id -> Uuid,
+        tari_asset_id -> Nullable<Text>,
+        created_on -> Timestamp,
+        synced_on -> Nullable<Timestamp>,
+        ticket_delta -> Int8,
     }
 }
 
@@ -156,6 +167,7 @@ joinable!(organization_users -> users (user_id));
 joinable!(organization_venues -> organizations (organization_id));
 joinable!(organization_venues -> venues (venue_id));
 joinable!(organizations -> users (owner_user_id));
+joinable!(ticket_allocations -> events (event_id));
 
 allow_tables_to_appear_in_same_query!(
     artists,
@@ -166,9 +178,10 @@ allow_tables_to_appear_in_same_query!(
     external_logins,
     orders,
     organization_invites,
+    organizations,
     organization_users,
     organization_venues,
-    organizations,
+    ticket_allocations,
     users,
     venues,
 );

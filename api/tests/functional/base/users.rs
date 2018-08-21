@@ -60,7 +60,7 @@ pub fn show_from_email(role: Roles, should_test_true: bool) {
 pub fn show(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let db_user = User::create("Jeff", "Last", "test@test.com", "555-555-5555", "password")
+    let _db_user = User::create("Jeff", "Last", "test@test.com", "555-555-5555", "password")
         .commit(&*connection)
         .unwrap();
 

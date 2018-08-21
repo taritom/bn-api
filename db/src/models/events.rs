@@ -3,8 +3,8 @@ use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
 use diesel::prelude::*;
-use models::{EventArtist, EventInterest, Organization, Venue};
-use schema::{artists, event_artists, event_interest, events, venues};
+use models::*;
+use schema::{artists, event_artists, events, venues};
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
@@ -84,13 +84,14 @@ impl Event {
         )
     }
 
-    pub fn find(id: &Uuid, conn: &Connectable) -> Result<Event, DatabaseError> {
+    pub fn find(id: Uuid, conn: &Connectable) -> Result<Event, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading event",
             events::table.find(id).first::<Event>(conn.get_connection()),
         )
     }
+
     pub fn find_all_events_from_venue(
         venue_id: &Uuid,
         conn: &Connectable,
@@ -103,6 +104,7 @@ impl Event {
                 .load(conn.get_connection()),
         )
     }
+
     pub fn find_all_events_from_organization(
         organization_id: &Uuid,
         conn: &Connectable,
@@ -169,5 +171,9 @@ impl Event {
         EventArtist::create(self.id, artist_id, 0)
             .commit(conn)
             .map(|_| ())
+    }
+
+    pub fn organization(&self, conn: &Connectable) -> Result<Organization, DatabaseError> {
+        Organization::find(self.organization_id, conn)
     }
 }

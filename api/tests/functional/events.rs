@@ -3,7 +3,7 @@ use actix_web::{http::StatusCode, FromRequest, Path};
 use bigneon_api::controllers::events::SearchParameters;
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{Artist, Event, Organization, Roles, User, Venue};
+use bigneon_db::models::*;
 use chrono::prelude::*;
 use functional::base;
 use serde_json;
@@ -353,4 +353,29 @@ pub fn show_from_venues() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);
+}
+
+#[cfg(test)]
+mod create_tickets_tests {
+    use super::*;
+    #[test]
+    fn create_tickets_org_member() {
+        base::events::create_tickets(Roles::OrgMember, true);
+    }
+    #[test]
+    fn create_tickets_guest() {
+        base::events::create_tickets(Roles::Guest, false);
+    }
+    #[test]
+    fn create_tickets_admin() {
+        base::events::create_tickets(Roles::Admin, true);
+    }
+    #[test]
+    fn create_tickets_user() {
+        base::events::create_tickets(Roles::User, false);
+    }
+    #[test]
+    fn create_tickets_org_owner() {
+        base::events::create_tickets(Roles::OrgOwner, true);
+    }
 }

@@ -1,10 +1,8 @@
 use actix_web::{HttpResponse, Json, State};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
-use bigneon_db::db::connections::Connectable;
-use bigneon_db::models::{
-    NewOrganizationInvite, Organization, OrganizationInvite, OrganizationUser, User,
-};
+use bigneon_db::db::Connectable;
+use bigneon_db::models::*;
 use errors::database_error::ConvertToWebError;
 use helpers::application;
 use mail::mailers;
@@ -45,7 +43,7 @@ pub fn create(
         Ok(u) => u,
         Err(e) => return HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
     };
-    let mut was_user_found = true;
+    let was_user_found: bool;
     //we only care to add the user id if we can find it via the email
     match User::find_by_email(&email, &*connection) {
         Ok(u) => match u {
@@ -61,7 +59,10 @@ pub fn create(
         Err(_e) => was_user_found = false,
     };
     if !(cfg!(test)) {
-        create_invite_email(&state, &*connection, &org_invite, !was_user_found);
+        match create_invite_email(&state, &*connection, &org_invite, !was_user_found) {
+            Ok(_) => return HttpResponse::Created().json(org_invite),
+            Err(e) => return application::internal_server_error(&e),
+        }
     }
     HttpResponse::Created().json(org_invite)
 }
@@ -117,29 +118,29 @@ pub fn create_invite_email(
     conn: &Connectable,
     invite: &OrganizationInvite,
     new_user: bool,
-) {
-    let mut recipient: String;
+) -> Result<String, String> {
+    let recipient: String;
     if new_user {
         recipient = "New user".to_string();
     } else {
         println!("{:?}", invite);
         recipient = match invite.user_id {
-            Some(v) => match User::find(&invite.user_id.unwrap(), conn) {
+            Some(v) => match User::find(&v, conn) {
                 Ok(u) => u.full_name(),
                 Err(_e) => "New user".to_string(),
             },
             None => "New user".to_string(),
         }
     }
-    let org = match Organization::find(&invite.organization_id, conn) {
+    let org = match Organization::find(invite.organization_id, conn) {
         Ok(u) => u,
-        Err(_e) => return,
+        Err(e) => return Err(e.to_string()),
     };
 
-    let result = mailers::organization_invites::invite_user_to_organization_email(
+    mailers::organization_invites::invite_user_to_organization_email(
         &state.config,
         invite,
         &org,
         &recipient,
-    ).deliver();
+    ).deliver()
 }

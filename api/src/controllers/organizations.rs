@@ -47,7 +47,7 @@ pub fn show(
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
-    let organization_response = Organization::find(&parameters.id, &*connection);
+    let organization_response = Organization::find(parameters.id, &*connection);
 
     match organization_response {
         Ok(organization) => HttpResponse::Ok().json(&organization),
@@ -81,7 +81,7 @@ pub fn update(
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
-    match Organization::find(&parameters.id, &*connection) {
+    match Organization::find(parameters.id, &*connection) {
         Ok(organization) => {
             match organization.update(organization_parameters.into_inner(), &*connection) {
                 Ok(updated_organization) => HttpResponse::Ok().json(&updated_organization),
@@ -104,7 +104,7 @@ pub fn update_owner(
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
-    match Organization::find(&parameters.id, &*connection) {
+    match Organization::find(parameters.id, &*connection) {
         Ok(organization) => {
             match organization.set_owner(json.into_inner().owner_user_id, &*connection) {
                 Ok(updated_organization) => HttpResponse::Ok().json(&updated_organization),
@@ -122,7 +122,7 @@ pub fn remove_user(
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
-    let organization = Organization::find(&parameters.id, &*connection).unwrap();
+    let organization = Organization::find(parameters.id, &*connection).unwrap();
     let organization_response = organization.remove_user(&user_id.into_inner(), &*connection);
     match organization_response {
         Ok(organization) => HttpResponse::Ok().json(&organization),

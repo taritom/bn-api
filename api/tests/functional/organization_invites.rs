@@ -82,8 +82,7 @@ mod send_organization_invite_email_tests {
     use super::*;
     #[test]
     fn send_mail() {
-        organization_invites::test_email(Roles::OrgOwner, false);
+        organization_invites::test_email();
     }
-
-    fn fail_to_sendmail() {}
+    // TODO: Test negative case
 }

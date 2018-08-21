@@ -20,6 +20,7 @@ pub enum Scopes {
     OrgRead,
     OrgWrite,
     UserRead,
+    TicketAdmin,
     VenueRead,
     VenueWrite,
 }
@@ -37,6 +38,7 @@ impl fmt::Display for Scopes {
             Scopes::UserRead => "user:read",
             Scopes::VenueRead => "venue:read",
             Scopes::VenueWrite => "venue:write",
+            Scopes::TicketAdmin => "ticket:admin",
         };
         write!(f, "{}", s)
     }
@@ -135,7 +137,7 @@ fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
             roles
         }
         "OrgMember" => {
-            let mut roles = vec![Scopes::EventWrite, Scopes::OrgRead];
+            let mut roles = vec![Scopes::EventWrite, Scopes::OrgRead, Scopes::TicketAdmin];
             roles.extend(get_scopes_for_role("User"));
             roles
         }
@@ -164,6 +166,7 @@ fn get_scopes_for_role_test() {
             Scopes::UserRead,
             Scopes::EventWrite,
             Scopes::OrgRead,
+            Scopes::TicketAdmin,
             Scopes::EventInterest,
             Scopes::ArtistRead,
             Scopes::VenueRead,
@@ -191,6 +194,7 @@ fn get_scopes_test() {
             "event:write",
             "org:read",
             "org:write",
+            "ticket:admin",
             "user:read",
             "venue:read",
         ],
@@ -207,6 +211,7 @@ fn get_scopes_test() {
             "org:admin",
             "org:read",
             "org:write",
+            "ticket:admin",
             "user:read",
             "venue:read",
             "venue:write",
@@ -228,6 +233,7 @@ fn get_scopes_test() {
             "org:admin",
             "org:read",
             "org:write",
+            "ticket:admin",
             "user:read",
             "venue:read",
             "venue:write",

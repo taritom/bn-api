@@ -59,6 +59,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         .resource("/organizations/{id}/events", |r| {
             r.method(Method::GET).with(events::show_from_organizations);
         })
+        .resource("/events/{id}/tickets", |r| {
+            r.method(Method::POST).with(events::create_tickets);
+        })
         .resource("/events", |r| {
             r.method(Method::GET).with(events::index);
             r.method(Method::POST).with(events::create);

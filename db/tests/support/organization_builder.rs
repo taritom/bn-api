@@ -1,5 +1,4 @@
 use bigneon_db::models::{Organization, OrganizationEditableAttributes, OrganizationUser, User};
-use rand::prelude::*;
 use support::project::TestProject;
 use uuid::Uuid;
 
@@ -38,8 +37,12 @@ impl<'a> OrganizationBuilder<'a> {
     }
 
     pub fn finish(&self) -> Organization {
-        let mut organization = Organization::create(self.owner_user_id.unwrap(), &self.name)
-            .commit(self.test_project)
+        let mut organization = Organization::create(
+            self.owner_user_id
+                .or_else(|| Some(self.test_project.create_user().finish().id))
+                .unwrap(),
+            &self.name,
+        ).commit(self.test_project)
             .unwrap();
         if !self.member_user_id.is_none() {
             OrganizationUser::create(organization.id, self.member_user_id.unwrap())

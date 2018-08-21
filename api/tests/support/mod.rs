@@ -4,7 +4,7 @@ pub mod test_request;
 use actix_web::Body::Binary;
 use actix_web::HttpResponse;
 use bigneon_api::auth::user::User as AuthUser;
-use bigneon_db::db::connections::Connectable;
+use bigneon_db::db::Connectable;
 use bigneon_db::models::{Roles, User};
 use std::str;
 

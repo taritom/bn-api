@@ -20,6 +20,7 @@ mod models;
 mod schema;
 mod utils;
 
+#[allow(unused_imports)]
 embed_migrations!("./migrations");
 
 use clap::ArgMatches;

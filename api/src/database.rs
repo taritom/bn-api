@@ -1,4 +1,4 @@
-use bigneon_db::db::connections::Connectable;
+use bigneon_db::db::Connectable;
 use config::Config;
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};

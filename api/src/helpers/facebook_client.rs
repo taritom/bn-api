@@ -1,22 +1,16 @@
-#![feature(async_await, await_macro, futures_api)]
 use futures::{future, Future, Stream};
 use http::uri::InvalidUri;
 use http::Uri;
 use hyper;
 use hyper::client::HttpConnector;
-use hyper::rt;
 use hyper::Body;
 use hyper::Client;
 use hyper::Error as HyperError;
 use hyper_tls::HttpsConnector;
-
 use serde_json;
-use std::error;
 use std::error::Error as StdError;
 use std::fmt;
 use std::fmt::Display;
-use std::fmt::Error;
-use std::fmt::Formatter;
 use url::ParseError;
 use url::Url;
 
@@ -157,6 +151,7 @@ struct DebugTokenResponse {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct DebugTokenResponseData {
     app_id: u64,
     #[serde(rename = "type")]
@@ -171,6 +166,7 @@ struct DebugTokenResponseData {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct DebugTokenResponseMetadata {
     sso: String,
 }

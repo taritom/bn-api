@@ -9,5 +9,6 @@ pub mod organization_invites;
 pub mod organization_users;
 pub mod organization_venues;
 pub mod organizations;
+pub mod ticket_allocations;
 pub mod users;
 pub mod venues;

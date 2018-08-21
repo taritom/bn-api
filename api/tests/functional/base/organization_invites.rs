@@ -1,8 +1,7 @@
-use actix_web::{http::StatusCode, HttpResponse, Json, Path};
+use actix_web::{http::StatusCode, HttpResponse, Json};
 use bigneon_api::controllers::organization_invites::{self, Info, NewOrgInviteRequest};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{NewOrganizationInvite, Organization, OrganizationInvite, Roles, User};
-use lettre::SendableEmail;
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -11,7 +10,7 @@ use support::test_request::TestRequest;
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user1 = User::create(
+    let owner = User::create(
         "Jeff",
         "Roen",
         "jeff@tari.com",
@@ -19,11 +18,11 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         "examplePassword",
     ).commit(&*connection)
         .unwrap();
-    let organization = Organization::create(user1.id, &"Organization")
+    let organization = Organization::create(owner.id, &"Organization")
         .commit(&*connection)
         .unwrap();
 
-    let user2 = User::create(
+    let _new_member = User::create(
         "Jeff2",
         "Wilco",
         "jeff2@tari.com",
@@ -40,7 +39,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         user_id: None,
     });
 
-    let user = support::create_auth_user_from_user(&user1, role, &*connection);
+    let user = support::create_auth_user_from_user(&owner, role, &*connection);
     let response = organization_invites::create((state, json, user));
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -48,7 +47,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::CREATED);
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
-        assert_eq!(org_in.inviter_id, user1.id);
+        assert_eq!(org_in.inviter_id, owner.id);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
@@ -172,19 +171,12 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
     }
 }
 
-pub fn test_email(role: Roles, _should_test_true: bool) {
+pub fn test_email() {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let email = "test@tari.com";
-    let user1 = User::create(
-        &"Name",
-        &"Last",
-        &email,
-        &"555-555-5555",
-        &"examplePassword",
-    ).commit(&*database.get_connection())
-        .unwrap();
-    let user2 = User::create(
+
+    let owner = User::create(
         "Jeff2",
         "Roen",
         "jeff2@tari.com",
@@ -192,13 +184,22 @@ pub fn test_email(role: Roles, _should_test_true: bool) {
         "examplePassword",
     ).commit(&*connection)
         .unwrap();
-    let organization = Organization::create(user2.id, &"Organization")
+    let organization = Organization::create(owner.id, &"Organization")
         .commit(&*connection)
+        .unwrap();
+
+    let new_member = User::create(
+        &"Name",
+        &"Last",
+        &email,
+        &"555-555-5555",
+        &"examplePassword",
+    ).commit(&*connection)
         .unwrap();
 
     let mut new_invite = NewOrganizationInvite {
         organization_id: organization.id,
-        inviter_id: user1.id,
+        inviter_id: new_member.id,
         user_email: email.into(),
         security_token: None,
         user_id: None,
@@ -211,9 +212,9 @@ pub fn test_email(role: Roles, _should_test_true: bool) {
     let org_invite =
         OrganizationInvite::get_invite_details(&new_invite.security_token.unwrap(), &*connection)
             .unwrap();
-    organization_invites::create_invite_email(&state, &*connection, &org_invite, false);
+    organization_invites::create_invite_email(&state, &*connection, &org_invite, false).unwrap();
 
-    let mail_transport = test_request.test_transport();
+    let _mail_transport = test_request.test_transport();
     {
         assert_eq!(0, 0); //todo find a way to test email without requiring smtp. Currently this only test for no panic
     }

@@ -1,6 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
+use bigneon_api::models::CreateTicketAllocationRequest;
 use bigneon_db::models::{
     Event, EventEditableAttributes, EventInterest, NewEvent, Organization, Roles, User, Venue,
 };
@@ -177,7 +178,7 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
         NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
     ).commit(&*connection)
         .unwrap();
-    let event_like_response = EventInterest::create(event.id, user.id)
+    let _event_like_response = EventInterest::create(event.id, user.id)
         .commit(&*connection)
         .unwrap();
 
@@ -202,4 +203,50 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
         let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
         assert_eq!(body, updated_event);
     }
+}
+
+pub fn create_tickets(role: Roles, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.get_connection();
+    let user = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
+        .unwrap();
+    let organization = Organization::create(user.id, "Organization")
+        .commit(&*connection)
+        .unwrap();
+    let venue = Venue::create(&"Venue").commit(&*connection).unwrap();
+    let event = Event::create(
+        "NewEvent",
+        organization.id,
+        venue.id,
+        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
+    ).commit(&*connection)
+        .unwrap();
+
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+
+    let user = support::create_auth_user_from_user(&user, role, &*connection);
+
+    let data = CreateTicketAllocationRequest {
+        name: "VIP".into(),
+        tickets_delta: 100,
+    };
+    let response = events::create_tickets((state, path, Json(data), user));
+
+    let _body = support::unwrap_body_to_string(&response).unwrap();
+    if should_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        return;
+    }
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

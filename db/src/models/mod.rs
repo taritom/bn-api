@@ -10,6 +10,7 @@ pub use self::organization_users::*;
 pub use self::organization_venues::*;
 pub use self::organizations::*;
 pub use self::roles::Roles;
+pub use self::ticket_allocations::*;
 pub use self::users::{DisplayUser, User};
 pub use self::venues::*;
 
@@ -26,5 +27,6 @@ pub mod organization_users;
 pub mod organization_venues;
 pub mod organizations;
 pub mod roles;
+pub mod ticket_allocations;
 pub mod users;
 pub mod venues;

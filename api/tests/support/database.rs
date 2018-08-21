@@ -1,6 +1,6 @@
 use bigneon_api::config::{Config, Environment};
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::db::connections::Connectable;
+use bigneon_db::db::Connectable;
 use diesel::prelude::*;
 use diesel::Connection;
 use std::sync::Arc;

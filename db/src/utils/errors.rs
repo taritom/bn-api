@@ -1,10 +1,10 @@
 use diesel::result::ConnectionError;
 use diesel::result::DatabaseErrorKind;
 use diesel::result::Error as DieselError;
+use diesel::result::QueryResult;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::error::Error;
 use std::fmt;
-use std::fmt::Display;
 
 pub enum ErrorCode {
     InvalidInput,
@@ -125,6 +125,16 @@ impl DatabaseError {
 impl From<ConnectionError> for DatabaseError {
     fn from(e: ConnectionError) -> Self {
         DatabaseError::new(ErrorCode::ConnectionError, Some(&e.to_string()))
+    }
+}
+
+pub trait ConvertToDatabaseError<U> {
+    fn to_db_error(self, code: ErrorCode, message: &'static str) -> Result<U, DatabaseError>;
+}
+
+impl<U> ConvertToDatabaseError<U> for QueryResult<U> {
+    fn to_db_error(self, code: ErrorCode, message: &'static str) -> Result<U, DatabaseError> {
+        DatabaseError::wrap(code, message, self)
     }
 }
 

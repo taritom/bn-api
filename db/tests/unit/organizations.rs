@@ -52,7 +52,7 @@ fn update_owner() {
     let user2 = project.create_user().finish();
 
     let updated_org = organization.set_owner(user2.id, &project).unwrap();
-    let db_org = Organization::find(&organization.id, &project).unwrap();
+    let db_org = Organization::find(organization.id, &project).unwrap();
     assert_eq!(updated_org.owner_user_id, user2.id);
     assert_eq!(db_org.owner_user_id, user2.id);
 }
@@ -67,7 +67,7 @@ fn find() {
         .with_owner(&user)
         .with_address()
         .finish();
-    let found_organization = Organization::find(&organization.id, &project).unwrap();
+    let found_organization = Organization::find(organization.id, &project).unwrap();
     assert_eq!(organization, found_organization);
 }
 
@@ -84,11 +84,11 @@ fn users() {
         .unwrap();
 
     // Owner is included in the user results for organization2 but not organization2
-    let user_results = organization.users(&project);
+    let user_results = organization.users(&project).unwrap();
     assert_eq!(user_results.len(), 1);
     assert_eq!(user.id, user_results[0].id);
 
-    let user_results = organization2.users(&project);
+    let user_results = organization2.users(&project).unwrap();
     assert_eq!(
         vec![user3.id, user2.id],
         user_results.iter().map(|u| u.id).collect::<Vec<Uuid>>()
@@ -98,10 +98,10 @@ fn users() {
     OrganizationUser::create(organization.id, user.id)
         .commit(&project)
         .unwrap();
-    let user_results = organization.users(&project);
+    let user_results = organization.users(&project).unwrap();
     assert_eq!(user_results.len(), 1);
     assert_eq!(user.id, user_results[0].id);
-    let user_results2 = organization2.users(&project);
+    let user_results2 = organization2.users(&project).unwrap();
     assert_eq!(user_results2.len(), 2);
     assert_eq!(user3.id, user_results2[0].id);
     assert_eq!(user2.id, user_results2[1].id);
@@ -110,11 +110,11 @@ fn users() {
     OrganizationUser::create(organization.id, user2.id)
         .commit(&project)
         .unwrap();
-    let user_results = organization.users(&project);
+    let user_results = organization.users(&project).unwrap();
     assert!(user_results.len() == 2);
     assert_eq!(user.id, user_results[0].id);
     assert_eq!(user2.id, user_results[1].id);
-    let user_results2 = organization2.users(&project);
+    let user_results2 = organization2.users(&project).unwrap();
     assert!(user_results2.len() == 2);
     assert_eq!(user3.id, user_results2[0].id);
     assert_eq!(user2.id, user_results2[1].id);
@@ -171,14 +171,14 @@ fn remove_users() {
         .unwrap();
     let user2_id = user2.id;
 
-    let user_results = organization.users(&project);
-    let users_predelete = vec![user.clone(), user2, user3.clone()];
-    assert_eq!(user_results, users_predelete);
+    let user_results = organization.users(&project).unwrap();
+    let users_before_delete = vec![user.clone(), user2, user3.clone()];
+    assert_eq!(user_results, users_before_delete);
 
     //remove user
     let result = organization.remove_user(&user2_id, &project).unwrap();
     assert_eq!(result, 1);
-    let user_results2 = organization.users(&project);
-    let users_postdelete = vec![user, user3];
-    assert_eq!(user_results2, users_postdelete);
+    let user_results2 = organization.users(&project).unwrap();
+    let users_post_delete = vec![user, user3];
+    assert_eq!(user_results2, users_post_delete);
 }

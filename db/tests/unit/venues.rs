@@ -1,7 +1,5 @@
 use bigneon_db::models::Venue;
-use bigneon_db::utils::errors::*;
 use support::project::TestProject;
-use uuid::Uuid;
 
 #[test]
 fn create() {

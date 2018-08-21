@@ -1,4 +1,4 @@
-use bigneon_db::models::{Organization, OrganizationInvite, User};
+use bigneon_db::models::{Organization, OrganizationInvite};
 use config::Config;
 use mail::mailers::Mailer;
 use std::env;
