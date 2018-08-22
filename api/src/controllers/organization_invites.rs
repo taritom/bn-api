@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, Json, State};
+use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::db::Connectable;
@@ -16,22 +16,32 @@ pub struct Info {
 }
 
 #[derive(Deserialize)]
+pub struct PathParameters {
+    pub id: Uuid,
+}
+
+#[derive(Deserialize)]
 pub struct NewOrgInviteRequest {
-    pub organization_id: Uuid,
     pub user_email: String,
     pub user_id: Option<Uuid>,
 }
 
 pub fn create(
-    (state, new_org_invite, user): (State<AppState>, Json<NewOrgInviteRequest>, AuthUser),
+    (state, new_org_invite, path, user): (
+        State<AppState>,
+        Json<NewOrgInviteRequest>,
+        Path<PathParameters>,
+        AuthUser,
+    ),
 ) -> HttpResponse {
     if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     };
+
     let connection = state.database.get_connection();
     let invite_args = new_org_invite.into_inner();
     let mut actual_new_invite = NewOrganizationInvite {
-        organization_id: invite_args.organization_id,
+        organization_id: path.id,
         inviter_id: user.id(),
         user_email: invite_args.user_email,
         security_token: None,

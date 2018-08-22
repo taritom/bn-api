@@ -27,12 +27,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::GET).with(venues::index);
             r.method(Method::POST).with(venues::create);
         })
-        .resource("/organizations/{id}/owner", |r| {
-            r.method(Method::PUT).with(organizations::update_owner);
-        })
-        .resource("/organizations/invite_user", |r| {
-            r.method(Method::POST).with(organization_invites::create);
-        })
         .resource("/organizations/accept_invite", |r| {
             r.method(Method::POST)
                 .with(organization_invites::accept_request);
@@ -43,6 +37,12 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         })
         .resource("/organizations/{id}/users", |r| {
             r.method(Method::DELETE).with(organizations::remove_user);
+        })
+        .resource("/organizations/{id}/owner", |r| {
+            r.method(Method::PUT).with(organizations::update_owner);
+        })
+        .resource("/organizations/{id}/invite", |r| {
+            r.method(Method::POST).with(organization_invites::create);
         })
         .resource("/organizations/{id}", |r| {
             r.method(Method::GET).with(organizations::show);

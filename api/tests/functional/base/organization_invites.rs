@@ -1,5 +1,7 @@
-use actix_web::{http::StatusCode, HttpResponse, Json};
-use bigneon_api::controllers::organization_invites::{self, Info, NewOrgInviteRequest};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use bigneon_api::controllers::organization_invites::{
+    self, Info, NewOrgInviteRequest, PathParameters,
+};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{NewOrganizationInvite, Organization, OrganizationInvite, Roles, User};
 use serde_json;
@@ -34,13 +36,14 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(NewOrgInviteRequest {
-        organization_id: organization.id,
         user_email: "jeff2@tari.com".into(),
         user_id: None,
     });
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
 
     let user = support::create_auth_user_from_user(&owner, role, &*connection);
-    let response = organization_invites::create((state, json, user));
+    let response = organization_invites::create((state, json, path, user));
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
