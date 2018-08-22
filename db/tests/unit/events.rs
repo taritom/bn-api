@@ -88,8 +88,8 @@ fn find_list() {
     let mut project = TestProject::new();
     let venue1 = Venue::create("Venue1").commit(&project).unwrap();
     let venue2 = Venue::create("Venue2").commit(&project).unwrap();
-    let artist1 = Artist::create("Artist1").commit(&project).unwrap();
-    let artist2 = Artist::create("Artist2").commit(&project).unwrap();
+    let artist1 = project.create_artist().with_name("Artist1".into()).finish();
+    let artist2 = project.create_artist().with_name("Artist2".into()).finish();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let event = Event::create(
@@ -100,7 +100,6 @@ fn find_list() {
     ).commit(&project)
         .unwrap();
     event.add_artist(artist1.id, &project).unwrap();
-
     event.add_artist(artist2.id, &project).unwrap();
 
     //find more than one event

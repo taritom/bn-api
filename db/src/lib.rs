@@ -11,8 +11,12 @@ extern crate uuid;
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
+#[macro_use]
+extern crate validator_derive;
+extern crate validator;
 
 pub mod db;
 pub mod models;
 pub mod schema;
 pub mod utils;
+pub mod validators;

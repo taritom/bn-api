@@ -2,7 +2,6 @@ use actix_web::{HttpResponse, Json, State};
 use auth::{claims::RefreshToken, TokenResponse};
 use bigneon_db::models::User;
 use crypto::sha2::Sha256;
-use errors::database_error::ConvertToWebError;
 use helpers::application;
 use jwt::{Header, Token};
 use server::AppState;
@@ -86,7 +85,7 @@ pub fn token_refresh(
                     return application::unauthorized_with_message("Invalid token");
                 }
             }
-            Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+            Err(_e) => return application::unauthorized_with_message("Invalid user"),
         }
     } else {
         application::unauthorized_with_message("Invalid token")

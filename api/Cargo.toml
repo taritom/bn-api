@@ -31,6 +31,7 @@ scheduled-thread-pool = "0.2"
 jwt = "0.4.0"
 rust-crypto="0.2"
 rustc-serialize = "0.3"
+validator = "0.7.1"
 
 [dev-dependencies]
 chrono = {version = "0.4.4",features = ["serde"]}

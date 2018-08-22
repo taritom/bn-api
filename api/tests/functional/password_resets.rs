@@ -242,5 +242,5 @@ fn update_incorrect_token() {
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));
 
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

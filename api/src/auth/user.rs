@@ -12,7 +12,6 @@ use uuid::Uuid;
 
 #[derive(PartialEq, Debug)]
 pub enum Scopes {
-    ArtistRead,
     ArtistWrite,
     EventWrite,
     EventInterest,
@@ -28,7 +27,6 @@ pub enum Scopes {
 impl fmt::Display for Scopes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match self {
-            Scopes::ArtistRead => "artist:read",
             Scopes::ArtistWrite => "artist:write",
             Scopes::EventWrite => "event:write",
             Scopes::EventInterest => "event:interest",
@@ -129,7 +127,7 @@ fn get_scopes(roles: Vec<String>) -> Vec<String> {
 
 fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
     match role {
-        "Guest" => vec![Scopes::ArtistRead, Scopes::VenueRead],
+        "Guest" => vec![Scopes::VenueRead],
         // More scopes will be available for users later
         "User" => {
             let mut roles = vec![Scopes::EventInterest];
@@ -158,7 +156,7 @@ fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
 #[test]
 fn get_scopes_for_role_test() {
     let res = get_scopes_for_role("Guest");
-    assert_eq!(vec![Scopes::ArtistRead, Scopes::VenueRead], res);
+    assert_eq!(vec![Scopes::VenueRead], res);
     let res = get_scopes_for_role("OrgOwner");
     assert_eq!(
         vec![
@@ -168,7 +166,6 @@ fn get_scopes_for_role_test() {
             Scopes::OrgRead,
             Scopes::TicketAdmin,
             Scopes::EventInterest,
-            Scopes::ArtistRead,
             Scopes::VenueRead,
         ],
         res
@@ -184,12 +181,11 @@ fn scopes_to_string() {
 #[test]
 fn get_scopes_test() {
     let res = get_scopes(vec!["Guest".to_string()]);
-    assert_eq!(vec!["artist:read", "venue:read"], res);
+    assert_eq!(vec!["venue:read"], res);
     let mut res = get_scopes(vec!["OrgOwner".to_string()]);
     res.sort();
     assert_eq!(
         vec![
-            "artist:read",
             "event:interest",
             "event:write",
             "org:read",
@@ -204,7 +200,6 @@ fn get_scopes_test() {
     res.sort();
     assert_eq!(
         vec![
-            "artist:read",
             "artist:write",
             "event:interest",
             "event:write",
@@ -226,7 +221,6 @@ fn get_scopes_test() {
     ]);
     assert_eq!(
         vec![
-            "artist:read",
             "artist:write",
             "event:interest",
             "event:write",

@@ -216,7 +216,7 @@ fn token_refresh_user_does_not_exist() {
 
     let response = auth::token_refresh((state, json));
 
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[test]

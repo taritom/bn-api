@@ -106,8 +106,8 @@ fn test_token_validity() {
     let recovered_invite2 =
         OrganizationInvite::get_invite_details(&org_invite.security_token.unwrap(), &project);
     let error_value = DatabaseError {
-        code: 6000,
-        message: "Access error".into(),
+        code: 2000,
+        message: "No results".into(),
         cause: Some("No valid token found, NotFound".into()),
     };
     match recovered_invite2 {

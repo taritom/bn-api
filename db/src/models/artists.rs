@@ -5,23 +5,53 @@ use schema::artists;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
+use validator::Validate;
+use validators;
 
 #[derive(Associations, Deserialize, Identifiable, Queryable, Serialize)]
 pub struct Artist {
     pub id: Uuid,
     pub name: String,
+    pub bio: String,
+    pub website_url: Option<String>,
+    pub youtube_video_urls: Vec<String>,
+    pub facebook_username: Option<String>,
+    pub instagram_username: Option<String>,
+    pub snapshat_username: Option<String>,
+    pub soundcloud_username: Option<String>,
+    pub bandcamp_username: Option<String>,
 }
 
-#[derive(Insertable, Deserialize)]
+#[derive(Insertable, Deserialize, Validate)]
 #[table_name = "artists"]
 pub struct NewArtist {
     pub name: String,
+    pub bio: String,
+    #[validate(url)]
+    pub website_url: Option<String>,
+    #[validate(custom = "validators::validate_urls")]
+    pub youtube_video_urls: Vec<String>,
+    pub facebook_username: Option<String>,
+    pub instagram_username: Option<String>,
+    pub snapshat_username: Option<String>,
+    pub soundcloud_username: Option<String>,
+    pub bandcamp_username: Option<String>,
 }
 
-#[derive(AsChangeset, Deserialize)]
+#[derive(AsChangeset, Deserialize, Validate)]
 #[table_name = "artists"]
-pub struct UserEditableAttributes {
-    pub name: String,
+pub struct ArtistEditableAttributes {
+    pub name: Option<String>,
+    pub bio: Option<String>,
+    #[validate(url)]
+    pub website_url: Option<String>,
+    #[validate(custom = "validators::validate_urls")]
+    pub youtube_video_urls: Option<Vec<String>>,
+    pub facebook_username: Option<String>,
+    pub instagram_username: Option<String>,
+    pub snapshat_username: Option<String>,
+    pub soundcloud_username: Option<String>,
+    pub bandcamp_username: Option<String>,
 }
 
 impl NewArtist {
@@ -37,9 +67,17 @@ impl NewArtist {
 }
 
 impl Artist {
-    pub fn create(name: &str) -> NewArtist {
+    pub fn create(name: &str, bio: &str, website_url: &str) -> NewArtist {
         NewArtist {
             name: String::from(name),
+            bio: String::from(bio),
+            website_url: Some(String::from(website_url)),
+            youtube_video_urls: Vec::new(),
+            facebook_username: None,
+            instagram_username: None,
+            snapshat_username: None,
+            soundcloud_username: None,
+            bandcamp_username: None,
         }
     }
 
@@ -63,7 +101,7 @@ impl Artist {
 
     pub fn update(
         &self,
-        attributes: &UserEditableAttributes,
+        attributes: &ArtistEditableAttributes,
         conn: &Connectable,
     ) -> Result<Artist, DatabaseError> {
         DatabaseError::wrap(

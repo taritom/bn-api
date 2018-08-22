@@ -1,12 +1,12 @@
 extern crate chrono;
-use bigneon_db::models::{Artist, Event, EventArtist, Venue};
+use bigneon_db::models::{Event, EventArtist, Venue};
 use support::project::TestProject;
 use unit::event_artists::chrono::prelude::*;
 
 #[test]
 fn create() {
     let mut project = TestProject::new();
-    let artist = Artist::create("Name").commit(&project).unwrap();
+    let artist = project.create_artist().finish();
     let venue = Venue::create("Name").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();

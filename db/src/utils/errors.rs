@@ -102,6 +102,10 @@ impl DatabaseError {
             Err(e) => {
                 println!("PG Database error:{}", e.to_string());
                 match e {
+                    DieselError::NotFound => Err(DatabaseError::new(
+                        ErrorCode::NoResults,
+                        Some(&format!("{}, {}", message, e.to_string())),
+                    )),
                     DieselError::DatabaseError(kind, _) => match kind {
                         DatabaseErrorKind::UniqueViolation => Err(DatabaseError::new(
                             ErrorCode::DuplicateKeyError,

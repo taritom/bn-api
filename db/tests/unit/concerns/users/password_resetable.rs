@@ -85,7 +85,7 @@ fn consume_password_reset_token() {
         Ok(_v) => panic!("Expected failure to consume expired password reset token"),
         Err(e) => assert_eq!(
             format!("{}", e),
-            "[3000] Query Error\nCaused by: Error loading user, NotFound"
+            "[2000] No results\nCaused by: Error loading user, NotFound"
         ),
     }
     assert!(!user.check_password(&password));

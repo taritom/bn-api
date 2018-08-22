@@ -22,7 +22,7 @@ pub fn index() {
         "examplePassword",
     ).commit(&*database.get_connection())
         .unwrap();
-    let artist = Artist::create("Example")
+    let artist = Artist::create("Example", "Bio", "http://www.example.com")
         .commit(&*database.get_connection())
         .unwrap();
     let organization = Organization::create(user.id, "Organization")
@@ -77,7 +77,7 @@ pub fn index_search_returns_only_one_event() {
         "examplePassword",
     ).commit(&*database.get_connection())
         .unwrap();
-    let artist = Artist::create("Example")
+    let artist = Artist::create("Example", "Bio", "http://www.example.com")
         .commit(&*database.get_connection())
         .unwrap();
     let organization = Organization::create(user.id, "Organization")

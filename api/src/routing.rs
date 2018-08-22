@@ -1,5 +1,5 @@
 use actix_web::middleware::cors::CorsBuilder;
-use actix_web::{http::header, http::Method, App, HttpResponse};
+use actix_web::{http::Method, App, HttpResponse};
 use controllers::*;
 use server::AppState;
 
@@ -8,7 +8,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         .resource("/artists/{id}", |r| {
             r.method(Method::GET).with(artists::show);
             r.method(Method::PUT).with(artists::update);
-            r.method(Method::DELETE).with(artists::destroy);
         })
         .resource("/artists", |r| {
             r.method(Method::GET).with(artists::index);
@@ -106,10 +105,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         })
         .register()
         .default_resource(|r| {
-            r.method(Method::GET).f(|_req| {
-                HttpResponse::NotFound()
-                    .header(header::CONTENT_TYPE, "application/json")
-                    .body(json!({"error": "Not found"}).to_string())
-            });
+            r.method(Method::GET)
+                .f(|_req| HttpResponse::NotFound().json(json!({"error": "Not found".to_string()})));
         })
 }

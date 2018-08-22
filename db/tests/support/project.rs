@@ -5,6 +5,7 @@ use diesel::sql_types::Bool;
 use diesel::{select, Connection, PgConnection, RunQueryDsl};
 use dotenv::dotenv;
 use std::env;
+use support::artist_builder::ArtistBuilder;
 use support::event_builder::EventBuilder;
 use support::organization_builder::OrganizationBuilder;
 use support::organization_invite_builder::OrgInviteBuilder;
@@ -81,6 +82,10 @@ impl TestProject {
     pub fn next_id(&mut self) -> i8 {
         self.next_unique_id += 1;
         self.next_unique_id
+    }
+
+    pub fn create_artist(&self) -> ArtistBuilder {
+        ArtistBuilder::new(&self)
     }
 }
 

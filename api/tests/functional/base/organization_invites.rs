@@ -175,7 +175,6 @@ pub fn test_email() {
     let database = TestDatabase::new();
     let connection = database.get_connection();
     let email = "test@tari.com";
-
     let owner = User::create(
         "Jeff2",
         "Roen",

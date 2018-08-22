@@ -14,11 +14,15 @@ extern crate uuid;
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
+#[macro_use]
+extern crate validator_derive;
+extern crate validator;
 
 mod db;
 mod models;
 mod schema;
 mod utils;
+pub mod validators;
 
 #[allow(unused_imports)]
 embed_migrations!("./migrations");
