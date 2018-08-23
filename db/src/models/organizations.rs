@@ -37,13 +37,15 @@ pub struct NewOrganization {
 
 impl NewOrganization {
     pub fn commit(&self, conn: &Connectable) -> Result<Organization, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::InsertError,
-            "Could not create new organization",
-            diesel::insert_into(organizations::table)
-                .values(self)
-                .get_result(conn.get_connection()),
-        )
+        let db_err = diesel::insert_into(organizations::table)
+            .values(self)
+            .get_result(conn.get_connection())
+            .to_db_error(ErrorCode::InsertError, "Could not create new organization")?;
+
+        //Would not have gotten here if the user_id did not exist
+        let _ = User::find(&self.owner_user_id, conn)?.add_role(Roles::OrgOwner, conn)?;
+
+        Ok(db_err)
     }
 }
 
@@ -89,13 +91,36 @@ impl Organization {
         owner_user_id: Uuid,
         conn: &Connectable,
     ) -> Result<Organization, DatabaseError> {
-        diesel::update(self)
+        let old_owner_id = &self.owner_user_id;
+
+        let db_result = diesel::update(self)
             .set(organizations::owner_user_id.eq(owner_user_id))
             .get_result(conn.get_connection())
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not update organization owner",
-            )
+            )?;
+
+        //Not checking this result as this user has to exist to get to this point.
+        User::find(&owner_user_id, conn)
+            .unwrap()
+            .add_role(Roles::OrgOwner, conn)?;
+
+        //Check if the old owner is the owner of any OTHER orgs
+        let result = organizations::table
+            .filter(organizations::owner_user_id.eq(old_owner_id))
+            .filter(organizations::id.ne(&self.id))
+            .load::<Organization>(conn.get_connection())
+            .to_db_error(ErrorCode::NoResults, "Could not search for organisations")?;
+        //If not then remove the OrgOwner Role.
+        if result.len() == 0 {
+            //Not handling the returned Result as the old user had to exist
+            User::find(&old_owner_id, conn)
+                .unwrap()
+                .remove_role(Roles::OrgOwner, conn)?;
+        }
+
+        Ok(db_result)
     }
 
     pub fn users(&self, conn: &Connectable) -> Result<Vec<User>, DatabaseError> {

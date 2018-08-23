@@ -342,6 +342,7 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
         "examplePassword",
     ).commit(&*connection)
         .unwrap();
+
     let organization = Organization::create(user1.id, &"Organization")
         .commit(&*connection)
         .unwrap();

@@ -111,7 +111,9 @@ fn add_role() {
     let user = project.create_user().finish();
 
     user.add_role(Roles::Admin, &project).unwrap();
+    //Try adding a duplicate role to check that it isnt duplicated.
+    user.add_role(Roles::Admin, &project).unwrap();
 
     let user2 = User::find(&user.id, &project).unwrap();
-    assert_eq!(user2.role, vec!["Guest", "Admin"]);
+    assert_eq!(user2.role, vec!["User", "Admin"]);
 }

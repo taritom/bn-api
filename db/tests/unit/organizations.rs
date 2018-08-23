@@ -1,4 +1,5 @@
-use bigneon_db::models::{Organization, OrganizationEditableAttributes, OrganizationUser};
+use bigneon_db::models::Roles;
+use bigneon_db::models::{Organization, OrganizationEditableAttributes, OrganizationUser, User};
 use support::project::TestProject;
 use uuid::Uuid;
 
@@ -12,6 +13,9 @@ fn create() {
 
     assert_eq!(organization.owner_user_id, user.id);
     assert_eq!(organization.id.to_string().is_empty(), false);
+
+    let user2 = User::find(&user.id, &project).unwrap();
+    assert_eq!(user2.role, vec!["User", "OrgOwner"]);
 }
 
 #[test]
@@ -159,7 +163,7 @@ fn all() {
 #[test]
 fn remove_users() {
     let mut project = TestProject::new();
-    let user = project.create_user().finish();
+    let mut user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -171,6 +175,8 @@ fn remove_users() {
         .unwrap();
     let user2_id = user2.id;
 
+    user.role.push("OrgOwner".to_string());
+
     let user_results = organization.users(&project).unwrap();
     let users_before_delete = vec![user.clone(), user2, user3.clone()];
     assert_eq!(user_results, users_before_delete);
@@ -181,4 +187,23 @@ fn remove_users() {
     let user_results2 = organization.users(&project).unwrap();
     let users_post_delete = vec![user, user3];
     assert_eq!(user_results2, users_post_delete);
+}
+
+#[test]
+fn change_owner() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let organization = Organization::create(user.id, "Organization")
+        .commit(&project)
+        .unwrap();
+
+    let user2 = project.create_user().finish();
+
+    organization.set_owner(user2.id, &project).unwrap();
+
+    let user1_check = User::find(&user.id, &project).unwrap();
+    let user2_check = User::find(&user2.id, &project).unwrap();
+
+    assert_eq!(user1_check.role, vec!["User"]);
+    assert_eq!(user2_check.role, vec!["User", "OrgOwner"]);
 }

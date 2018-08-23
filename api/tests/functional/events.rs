@@ -216,10 +216,6 @@ mod add_interest_tests {
         base::events::add_interest(Roles::OrgMember, true);
     }
     #[test]
-    fn add_interest_guest() {
-        base::events::add_interest(Roles::Guest, false);
-    }
-    #[test]
     fn add_interest_admin() {
         base::events::add_interest(Roles::Admin, true);
     }
@@ -240,10 +236,6 @@ mod remove_interest_tests {
     #[test]
     fn remove_interest_org_member() {
         base::events::remove_interest(Roles::OrgMember, true);
-    }
-    #[test]
-    fn remove_interest_guest() {
-        base::events::remove_interest(Roles::Guest, false);
     }
     #[test]
     fn remove_interest_admin() {

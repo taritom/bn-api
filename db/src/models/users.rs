@@ -71,7 +71,7 @@ impl User {
             email: Some(String::from(email)),
             phone: Some(String::from(phone)),
             hashed_pw: hash.to_string(),
-            role: vec![Roles::Guest.to_string()],
+            role: vec![Roles::User.to_string()],
         }
     }
 
@@ -103,12 +103,31 @@ impl User {
 
     pub fn add_role(&self, r: Roles, conn: &Connectable) -> Result<User, DatabaseError> {
         let mut new_roles = self.role.clone();
-        new_roles.push(r.to_string());
+        if !new_roles.contains(&r.to_string()) {
+            new_roles.push(r.to_string());
+        }
+
+        self.update_role(new_roles, conn)
+    }
+
+    pub fn remove_role(&self, r: Roles, conn: &Connectable) -> Result<User, DatabaseError> {
+        let mut current_roles = self.role.clone();
+
+        current_roles.retain(|x| x.as_str() != &r.to_string());
+
+        self.update_role(current_roles, conn)
+    }
+
+    fn update_role(
+        &self,
+        new_roles: Vec<String>,
+        conn: &Connectable,
+    ) -> Result<User, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
-            "Could not add role to user",
+            "Could not update role for user",
             diesel::update(self)
-                .set(users::role.eq(&new_roles))
+                .set(users::role.eq(new_roles))
                 .get_result(conn.get_connection()),
         )
     }

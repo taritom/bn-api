@@ -54,6 +54,7 @@ pub fn create(
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
+
     let organization = new_organization.commit(&*connection)?;
     Ok(HttpResponse::Created().json(&organization))
 }
