@@ -1,28 +1,29 @@
 use actix_web::{http::StatusCode, HttpResponse};
+use errors::*;
 use validator::ValidationErrors;
 
-pub fn unauthorized() -> HttpResponse {
+pub fn unauthorized() -> Result<HttpResponse, BigNeonError> {
     unauthorized_with_message("Unauthorized")
 }
 
-pub fn unauthorized_with_message(message: &str) -> HttpResponse {
+pub fn unauthorized_with_message(message: &str) -> Result<HttpResponse, BigNeonError> {
     warn!("Unauthorized: {}", message);
-    HttpResponse::Unauthorized().json(json!({"error": message.to_string()}))
+    Ok(HttpResponse::Unauthorized().json(json!({"error": message.to_string()})))
 }
 
-pub fn forbidden(message: &str) -> HttpResponse {
+pub fn forbidden(message: &str) -> Result<HttpResponse, BigNeonError> {
     warn!("Forbidden: {}", message);
-    HttpResponse::Forbidden().json(json!({"error":message.to_string()}))
+    Ok(HttpResponse::Forbidden().json(json!({"error":message.to_string()})))
 }
 
-pub fn internal_server_error(message: &str) -> HttpResponse {
+pub fn internal_server_error(message: &str) -> Result<HttpResponse, BigNeonError> {
     error!("Internal Server Error: {}", message);
-    HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
+    Ok(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
         .into_builder()
-        .json(json!({"error": message.to_string()}))
+        .json(json!({"error": message.to_string()})))
 }
 
-pub fn validation_error_response(errors: ValidationErrors) -> HttpResponse {
-    HttpResponse::BadRequest()
-        .json(json!({"error": "Validation error".to_string(), "fields": errors.inner()}))
+pub fn validation_error_response(errors: ValidationErrors) -> Result<HttpResponse, BigNeonError> {
+    Ok(HttpResponse::BadRequest()
+        .json(json!({"error": "Validation error".to_string(), "fields": errors.inner()})))
 }

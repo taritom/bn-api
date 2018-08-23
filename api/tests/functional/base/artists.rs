@@ -30,7 +30,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let state = test_request.extract_state();
 
     let user = support::create_auth_user(role, &*connection);
-    let response = artists::create((state, json, user));
+    let response: HttpResponse = artists::create((state, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -68,7 +68,7 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let state = test_request.extract_state();
 
     let user = support::create_auth_user(role, &*connection);
-    let response = artists::create((state, json, user));
+    let response: HttpResponse = artists::create((state, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -118,7 +118,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     });
 
     let user = support::create_auth_user(role, &*connection);
-    let response = artists::update((state, path, json, user));
+    let response: HttpResponse = artists::update((state, path, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -161,7 +161,7 @@ pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
     });
 
     let user = support::create_auth_user(role, &*connection);
-    let response = artists::update((state, path, json, user));
+    let response: HttpResponse = artists::update((state, path, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {

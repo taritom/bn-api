@@ -4,7 +4,9 @@ use bigneon_api::controllers::organization_invites::{
 };
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{NewOrganizationInvite, Organization, OrganizationInvite, Roles, User};
+use lettre::SendableEmail;
 use serde_json;
+use std::str;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -24,10 +26,11 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         .commit(&*connection)
         .unwrap();
 
-    let _new_member = User::create(
-        "Jeff2",
+    let email = "jeff2@tari.com";
+    let invited_user = User::create(
+        "Michael",
         "Wilco",
-        "jeff2@tari.com",
+        email.into(),
         "555-555-55556",
         "examplePassword6",
     ).commit(&*connection)
@@ -36,14 +39,14 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(NewOrgInviteRequest {
-        user_email: "jeff2@tari.com".into(),
+        user_email: Some(email.into()),
         user_id: None,
     });
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
     let user = support::create_auth_user_from_user(&owner, role, &*connection);
-    let response = organization_invites::create((state, json, path, user));
+    let response: HttpResponse = organization_invites::create((state, json, path, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -51,6 +54,218 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
         assert_eq!(org_in.inviter_id, owner.id);
+
+        let mail_transport = test_request.test_transport();
+
+        {
+            let sent = mail_transport.sent.lock().unwrap();
+            let mail = sent.first().expect("An invite mail was expected");
+            let envelope = mail.envelope();
+            let email_body = str::from_utf8(*mail.message()).unwrap();
+            assert_eq!(
+                format!("{:?}", envelope.to()),
+                format!("[EmailAddress(\"{}\")]", email)
+            );
+            assert_eq!(
+                format!("{:?}", envelope.from().unwrap()),
+                "EmailAddress(\"support@bigneon.com\")"
+            );
+
+            assert!(email_body.contains(&format!(
+                "Hi {} {}",
+                invited_user.first_name, invited_user.last_name
+            )));
+            assert!(email_body.contains("This invite link is valid for 7 days."));
+            assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
+        }
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, organization_expected_json);
+    }
+}
+
+pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.get_connection();
+    let owner = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
+        .unwrap();
+    let organization = Organization::create(owner.id, &"Organization")
+        .commit(&*connection)
+        .unwrap();
+
+    let email = "jeff2@tari.com";
+    let invited_user = User::create(
+        "Michael",
+        "Wilco",
+        email.into(),
+        "555-555-55556",
+        "examplePassword6",
+    ).commit(&*connection)
+        .unwrap();
+
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let json = Json(NewOrgInviteRequest {
+        user_email: None,
+        user_id: Some(invited_user.id),
+    });
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+
+    let user = support::create_auth_user_from_user(&owner, role, &*connection);
+    let response: HttpResponse = organization_invites::create((state, json, path, user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
+        assert_eq!(org_in.organization_id, organization.id);
+        assert_eq!(org_in.inviter_id, owner.id);
+
+        let mail_transport = test_request.test_transport();
+
+        {
+            let sent = mail_transport.sent.lock().unwrap();
+            let mail = sent.first().expect("An invite mail was expected");
+            let envelope = mail.envelope();
+            let email_body = str::from_utf8(*mail.message()).unwrap();
+            assert_eq!(
+                format!("{:?}", envelope.to()),
+                format!("[EmailAddress(\"{}\")]", email)
+            );
+            assert_eq!(
+                format!("{:?}", envelope.from().unwrap()),
+                "EmailAddress(\"support@bigneon.com\")"
+            );
+
+            assert!(email_body.contains(&format!(
+                "Hi {} {}",
+                invited_user.first_name, invited_user.last_name
+            )));
+            assert!(email_body.contains("This invite link is valid for 7 days."));
+            assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
+        }
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, organization_expected_json);
+    }
+}
+
+pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.get_connection();
+    let owner = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
+        .unwrap();
+    let organization = Organization::create(owner.id, &"Organization")
+        .commit(&*connection)
+        .unwrap();
+
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let email = "jeff2@tari.com";
+    let json = Json(NewOrgInviteRequest {
+        user_email: Some(email.into()),
+        user_id: None,
+    });
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+
+    let user = support::create_auth_user_from_user(&owner, role, &*connection);
+    let response: HttpResponse = organization_invites::create((state, json, path, user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
+        assert_eq!(org_in.organization_id, organization.id);
+        assert_eq!(org_in.inviter_id, owner.id);
+
+        let mail_transport = test_request.test_transport();
+
+        {
+            let sent = mail_transport.sent.lock().unwrap();
+            let mail = sent.first().expect("An invite mail was expected");
+            let envelope = mail.envelope();
+            let email_body = str::from_utf8(*mail.message()).unwrap();
+
+            assert_eq!(
+                format!("{:?}", envelope.to()),
+                format!("[EmailAddress(\"{}\")]", email)
+            );
+            assert_eq!(
+                format!("{:?}", envelope.from().unwrap()),
+                "EmailAddress(\"support@bigneon.com\")"
+            );
+
+            assert!(email_body.contains("Hi New user"));
+            assert!(email_body.contains("This invite link is valid for 7 days."));
+            assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
+        }
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, organization_expected_json);
+    }
+}
+
+pub fn create_failure_missing_required_parameters(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.get_connection();
+    let owner = User::create(
+        "Jeff",
+        "Roen",
+        "jeff@tari.com",
+        "555-555-5555",
+        "examplePassword",
+    ).commit(&*connection)
+        .unwrap();
+    let organization = Organization::create(owner.id, &"Organization")
+        .commit(&*connection)
+        .unwrap();
+
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+
+    let json = Json(NewOrgInviteRequest {
+        user_email: None,
+        user_id: None,
+    });
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+
+    let user = support::create_auth_user_from_user(&owner, role, &*connection);
+    let response: HttpResponse = organization_invites::create((state, json, path, user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let expected_json = json!({"error": "Missing required parameters, `user_id` or `user_email` required"})
+            .to_string();
+        assert_eq!(body, expected_json);
+
+        let mail_transport = test_request.test_transport();
+
+        {
+            let sent = mail_transport.sent.lock().unwrap();
+            assert!(sent.first().is_none());
+        }
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
@@ -103,7 +318,7 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         token: org_invite.security_token.unwrap(),
         user_id: user2.id,
     });
-    let response = organization_invites::accept_request((state, json, user));
+    let response: HttpResponse = organization_invites::accept_request((state, json, user)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
@@ -160,7 +375,7 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
         token: org_invite.security_token.unwrap(),
         user_id: user2.id,
     });
-    let response = organization_invites::decline_request((state, json, user));
+    let response: HttpResponse = organization_invites::decline_request((state, json, user)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_true {
@@ -171,53 +386,5 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
         let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
         let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
         assert_eq!(body, organization_expected_json);
-    }
-}
-
-pub fn test_email() {
-    let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let email = "test@tari.com";
-    let owner = User::create(
-        "Jeff2",
-        "Roen",
-        "jeff2@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(owner.id, &"Organization")
-        .commit(&*connection)
-        .unwrap();
-
-    let new_member = User::create(
-        &"Name",
-        &"Last",
-        &email,
-        &"555-555-5555",
-        &"examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-
-    let mut new_invite = NewOrganizationInvite {
-        organization_id: organization.id,
-        inviter_id: new_member.id,
-        user_email: email.into(),
-        security_token: None,
-        user_id: None,
-    };
-
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-    let new_invite = new_invite.commit(&*connection).unwrap();
-
-    let org_invite =
-        OrganizationInvite::get_invite_details(&new_invite.security_token.unwrap(), &*connection)
-            .unwrap();
-    organization_invites::create_invite_email(&state, &*connection, &org_invite, false).unwrap();
-
-    let _mail_transport = test_request.test_transport();
-    {
-        assert_eq!(0, 0); //todo find a way to test email without requiring smtp. Currently this only test for no panic
     }
 }

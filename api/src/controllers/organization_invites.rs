@@ -1,9 +1,8 @@
 use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
-use bigneon_db::db::Connectable;
 use bigneon_db::models::*;
-use errors::database_error::ConvertToWebError;
+use errors::*;
 use helpers::application;
 use mail::mailers;
 use server::AppState;
@@ -22,135 +21,129 @@ pub struct PathParameters {
 
 #[derive(Deserialize)]
 pub struct NewOrgInviteRequest {
-    pub user_email: String,
+    pub user_email: Option<String>,
     pub user_id: Option<Uuid>,
 }
 
 pub fn create(
-    (state, new_org_invite, path, user): (
+    (state, new_org_invite, path, auth_user): (
         State<AppState>,
         Json<NewOrgInviteRequest>,
         Path<PathParameters>,
         AuthUser,
     ),
-) -> HttpResponse {
-    if !user.has_scope(Scopes::OrgWrite) {
+) -> Result<HttpResponse, BigNeonError> {
+    if !auth_user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     };
 
     let connection = state.database.get_connection();
     let invite_args = new_org_invite.into_inner();
-    let mut actual_new_invite = NewOrganizationInvite {
-        organization_id: path.id,
-        inviter_id: user.id(),
-        user_email: invite_args.user_email,
-        security_token: None,
-        user_id: invite_args.user_id,
-    };
-    let email = actual_new_invite.user_email.clone();
 
-    let mut org_invite = match NewOrganizationInvite::commit(&mut actual_new_invite, &*connection) {
-        Ok(u) => u,
-        Err(e) => return HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-    };
-    let was_user_found: bool;
-    //we only care to add the user id if we can find it via the email
-    match User::find_by_email(&email, &*connection) {
-        Ok(u) => match u {
-            Some(v) => match org_invite.add_user_id(&v.id, &*connection) {
-                Ok(_u) => {
-                    was_user_found = true;
-                    org_invite.user_id = Some(v.id);
+    let mut invite: NewOrganizationInvite;
+    let email: String;
+    let recipient: String;
+    let user_id: Option<Uuid>;
+
+    match invite_args.user_id {
+        Some(user_id_value) => {
+            let user = User::find(&user_id_value, &*connection)?;
+            recipient = user.full_name();
+            user_id = Some(user.id);
+            match user.email {
+                Some(user_email) => {
+                    email = user_email;
                 }
-                Err(_e2) => was_user_found = false,
-            },
-            None => was_user_found = false,
-        },
-        Err(_e) => was_user_found = false,
-    };
-    if !(cfg!(test)) {
-        match create_invite_email(&state, &*connection, &org_invite, !was_user_found) {
-            Ok(_) => return HttpResponse::Created().json(org_invite),
-            Err(e) => return application::internal_server_error(&e),
+                None => unimplemented!(),
+            }
+        }
+        None => {
+            match invite_args.user_email {
+                Some(user_email) => {
+                    email = user_email;
+                    match User::find_by_email(&email, &*connection) {
+                        Ok(user) => {
+                            recipient = user.full_name();
+                            user_id = Some(user.id);
+                        }
+                        Err(e) => {
+                            match e.code {
+                                // Not found
+                                2000 => {
+                                    recipient = "New user".to_string();
+                                    user_id = None;
+                                }
+                                _ => return Err(e.into()),
+                            }
+                        }
+                    };
+                }
+                None => {
+                    return Ok(HttpResponse::BadRequest().json(json!({
+                        "error": "Missing required parameters, `user_id` or `user_email` required"
+                    })))
+                }
+            }
         }
     }
-    HttpResponse::Created().json(org_invite)
+
+    invite = NewOrganizationInvite {
+        organization_id: path.id,
+        inviter_id: auth_user.id(),
+        user_email: email.clone(),
+        security_token: None,
+        user_id: user_id,
+    };
+
+    let invite = invite.commit(&*connection)?;
+    let organization = Organization::find(invite.organization_id, &*connection)?;
+
+    match mailers::organization_invites::invite_user_to_organization_email(
+        &state.config,
+        &invite,
+        &organization,
+        &recipient,
+    ).deliver()
+    {
+        Ok(_) => Ok(HttpResponse::Created().json(invite)),
+        Err(e) => application::internal_server_error(&e),
+    }
 }
 
 fn do_invite_request(
     (state, info, _user, status): (State<AppState>, Json<Info>, AuthUser, i16),
-) -> HttpResponse {
+) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
     let info_struct = info.into_inner();
-    let invite_details =
-        match OrganizationInvite::get_invite_details(&info_struct.token, &*connection) {
-            Ok(u) => u,
-            Err(e) => return HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-        };
+    let invite_details = OrganizationInvite::get_invite_details(&info_struct.token, &*connection)?;
     // see if we can stop non-intended user using invite.
     //if this is a new user we cant do this check
     if (invite_details.user_id != None) && (invite_details.user_id.unwrap() != info_struct.user_id)
     {
         return application::unauthorized(); //if the user matched to the email, doesnt match the signed in user we can exit as this was not the intended recipient
     }
-    let accept_details = match invite_details.change_invite_status(status, &*connection) {
-        Ok(u) => u,
-        Err(e) => return HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-    };
+    let accept_details = invite_details.change_invite_status(status, &*connection)?;
+
     if status == 0
     //user did not accept
     {
-        return HttpResponse::Ok().json(json!({}));
+        return Ok(HttpResponse::Ok().json(json!({})));
     }
     //create actual m:n link
-    match OrganizationUser::create(accept_details.organization_id, info_struct.user_id)
-        .commit(&*connection)
-    {
-        Ok(u) => u,
-        Err(e) => return HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-    };
+    OrganizationUser::create(accept_details.organization_id, info_struct.user_id)
+        .commit(&*connection)?;
     //send email here
-    HttpResponse::Ok().json(json!({}))
+    Ok(HttpResponse::Ok().json(json!({})))
 }
 
-pub fn accept_request(data: (State<AppState>, Json<Info>, AuthUser)) -> HttpResponse {
-    let (state, id, user) = data;
+pub fn accept_request(
+    (state, id, user): (State<AppState>, Json<Info>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
     do_invite_request((state, id, user, 1))
 }
 
-pub fn decline_request(data: (State<AppState>, Json<Info>, AuthUser)) -> HttpResponse {
-    let (state, id, user) = data;
+pub fn decline_request(
+    (state, id, user): (State<AppState>, Json<Info>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
     do_invite_request((state, id, user, 0))
-}
-
-pub fn create_invite_email(
-    state: &State<AppState>,
-    conn: &Connectable,
-    invite: &OrganizationInvite,
-    new_user: bool,
-) -> Result<String, String> {
-    let recipient: String;
-    if new_user {
-        recipient = "New user".to_string();
-    } else {
-        println!("{:?}", invite);
-        recipient = match invite.user_id {
-            Some(v) => match User::find(&v, conn) {
-                Ok(u) => u.full_name(),
-                Err(_e) => "New user".to_string(),
-            },
-            None => "New user".to_string(),
-        }
-    }
-    let org = match Organization::find(invite.organization_id, conn) {
-        Ok(u) => u,
-        Err(e) => return Err(e.to_string()),
-    };
-
-    mailers::organization_invites::invite_user_to_organization_email(
-        &state.config,
-        invite,
-        &org,
-        &recipient,
-    ).deliver()
 }

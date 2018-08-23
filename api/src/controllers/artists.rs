@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::Scopes;
 use auth::user::User;
 use bigneon_db::models::{Artist, ArtistEditableAttributes, NewArtist};
-use errors::database_error::ConvertToWebError;
+use errors::*;
 use helpers::application;
 use server::AppState;
 use uuid::Uuid;
@@ -13,27 +13,23 @@ pub struct PathParameters {
     pub id: Uuid,
 }
 
-pub fn index(state: State<AppState>) -> HttpResponse {
+pub fn index(state: State<AppState>) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
-    let artists_response = Artist::all(&*connection);
-    match artists_response {
-        Ok(artists) => HttpResponse::Ok().json(&artists),
-        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-    }
+    let artists = Artist::all(&*connection)?;
+    Ok(HttpResponse::Ok().json(&artists))
 }
 
-pub fn show(data: (State<AppState>, Path<PathParameters>)) -> HttpResponse {
-    let (state, parameters) = data;
+pub fn show(
+    (state, parameters): (State<AppState>, Path<PathParameters>),
+) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
-    let artist_response = Artist::find(&parameters.id, &*connection);
-
-    match artist_response {
-        Ok(artist) => HttpResponse::Ok().json(&artist),
-        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-    }
+    let artist = Artist::find(&parameters.id, &*connection)?;
+    Ok(HttpResponse::Ok().json(&artist))
 }
 
-pub fn create((state, new_artist, user): (State<AppState>, Json<NewArtist>, User)) -> HttpResponse {
+pub fn create(
+    (state, new_artist, user): (State<AppState>, Json<NewArtist>, User),
+) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::ArtistWrite) {
         return application::unauthorized();
     }
@@ -41,12 +37,8 @@ pub fn create((state, new_artist, user): (State<AppState>, Json<NewArtist>, User
 
     match new_artist.validate() {
         Ok(_) => {
-            let artist_response = new_artist.commit(&*connection);
-
-            match artist_response {
-                Ok(artist) => HttpResponse::Created().json(&artist),
-                Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-            }
+            let artist = new_artist.commit(&*connection)?;
+            Ok(HttpResponse::Created().json(&artist))
         }
         Err(e) => application::validation_error_response(e),
     }
@@ -59,26 +51,17 @@ pub fn update(
         Json<ArtistEditableAttributes>,
         User,
     ),
-) -> HttpResponse {
+) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::ArtistWrite) {
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
-
-    let artist_response = Artist::find(&parameters.id, &*connection);
-
-    match artist_response {
-        Ok(artist) => match artist_parameters.validate() {
-            Ok(_) => {
-                let artist_update_response = artist.update(&artist_parameters, &*connection);
-
-                match artist_update_response {
-                    Ok(updated_artist) => HttpResponse::Ok().json(&updated_artist),
-                    Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-                }
-            }
-            Err(e) => application::validation_error_response(e),
-        },
-        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+    let artist = Artist::find(&parameters.id, &*connection)?;
+    match artist_parameters.validate() {
+        Ok(_) => {
+            let updated_artist = artist.update(&artist_parameters, &*connection)?;
+            Ok(HttpResponse::Ok().json(&updated_artist))
+        }
+        Err(e) => application::validation_error_response(e),
     }
 }

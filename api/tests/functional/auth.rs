@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, Json};
+use actix_web::{http::StatusCode, HttpResponse, Json};
 use bigneon_api::auth::{claims::AccessToken, claims::RefreshToken, TokenResponse};
 use bigneon_api::controllers::auth;
 use bigneon_api::controllers::auth::{LoginRequest, RefreshRequest};
@@ -31,7 +31,7 @@ fn token() {
     let state = test_request.extract_state();
     let json = Json(LoginRequest::new("fake@localhost", "strong_password"));
 
-    let response = auth::token((state, json));
+    let response: HttpResponse = auth::token((state, json)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -62,7 +62,7 @@ fn token_invalid_email() {
     let state = test_request.extract_state();
     let json = Json(LoginRequest::new("incorrect@localhost", "strong_password"));
 
-    let response = auth::token((state, json));
+    let response: HttpResponse = auth::token((state, json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -90,7 +90,7 @@ fn token_incorrect_password() {
     let state = test_request.extract_state();
     let json = Json(LoginRequest::new("incorrect@localhost", "incorrect"));
 
-    let response = auth::token((state, json));
+    let response: HttpResponse = auth::token((state, json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -123,7 +123,7 @@ fn token_refresh() {
         .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response = auth::token_refresh((state, json));
+    let response: HttpResponse = auth::token_refresh((state, json)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -157,7 +157,7 @@ fn token_refresh_invalid_refresh_token_secret() {
         .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response = auth::token_refresh((state, json));
+    let response: HttpResponse = auth::token_refresh((state, json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -182,7 +182,7 @@ fn token_refresh_invalid_refresh_token() {
     let state = test_request.extract_state();
     let json = Json(RefreshRequest::new(&"not.a.real.token"));
 
-    let response = auth::token_refresh((state, json));
+    let response: HttpResponse = auth::token_refresh((state, json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -214,9 +214,9 @@ fn token_refresh_user_does_not_exist() {
         .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response = auth::token_refresh((state, json));
+    let response: HttpResponse = auth::token_refresh((state, json)).into();
 
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn token_refresh_password_reset_since_issued() {
         .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response = auth::token_refresh((state, json));
+    let response: HttpResponse = auth::token_refresh((state, json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -280,7 +280,7 @@ fn token_refreshed_after_password_change() {
         .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response = auth::token_refresh((state, json));
+    let response: HttpResponse = auth::token_refresh((state, json)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -314,7 +314,7 @@ fn register_address_exists() {
         &"not_important",
     ));
 
-    let response = users::register((state, json));
+    let response: HttpResponse = users::register((state, json)).into();
 
     if response.status() == StatusCode::OK {
         panic!("Duplicate email was allowed when it should not be")
@@ -335,7 +335,7 @@ fn register_succeeds() {
         &"not_important",
     ));
 
-    let response = users::register((state, json));
+    let response: HttpResponse = users::register((state, json)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
 }

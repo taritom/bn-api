@@ -2,7 +2,7 @@ use actix_web::{error, error::Error, FromRequest, HttpRequest, Result};
 use auth::claims;
 use bigneon_db::models::User as DbUser;
 use crypto::sha2::Sha256;
-use errors::database_error::ConvertToWebError;
+use errors::*;
 use jwt::Header;
 use jwt::Token;
 use server::AppState;

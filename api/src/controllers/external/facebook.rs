@@ -9,6 +9,7 @@ use actix_web::State;
 use auth::TokenResponse;
 use bigneon_db::models::{ExternalLogin, User};
 use config::Config;
+use errors::*;
 use helpers::application;
 use helpers::facebook_client::FacebookClient;
 use models::FacebookWebLoginToken;
@@ -22,15 +23,15 @@ struct LoginResponse {
 }
 
 // TODO: Not covered by tests
-pub fn login(req: &HttpRequest<AppState>) -> HttpResponse {
+pub fn login(req: &HttpRequest<AppState>) -> Result<HttpResponse, BigNeonError> {
     let fb = create_fb_client(&req.state().config);
 
-    HttpResponse::Ok().json(LoginResponse {
+    Ok(HttpResponse::Ok().json(LoginResponse {
         redirect_url: fb.create_login_redirect_for(
             create_redirect_uri(&req).unwrap(),
             vec!["public_profile", "email"],
         ),
-    })
+    }))
 }
 
 #[derive(Deserialize)]
@@ -43,7 +44,7 @@ pub struct AuthCallbackPathParameters {
 }
 
 // TODO: Not covered by tests
-pub fn auth_callback(req: &HttpRequest<AppState>) -> HttpResponse {
+pub fn auth_callback(req: &HttpRequest<AppState>) -> Result<HttpResponse, BigNeonError> {
     info!("Auth callback received");
     let query = Query::<AuthCallbackPathParameters>::extract(&req).unwrap();
     if query.error.is_some() {
@@ -56,7 +57,7 @@ pub fn auth_callback(req: &HttpRequest<AppState>) -> HttpResponse {
 
     let code = match &query.code {
         Some(c) => c,
-        None => return HttpResponse::new(StatusCode::BAD_REQUEST),
+        None => return Ok(HttpResponse::new(StatusCode::BAD_REQUEST)),
     };
 
     let access_token = match fb.verify_auth_code(code, create_redirect_uri(&req).unwrap()) {
@@ -77,37 +78,29 @@ pub fn auth_callback(req: &HttpRequest<AppState>) -> HttpResponse {
 // TODO: Not covered by tests
 pub fn web_login(
     (state, auth_token): (State<AppState>, Json<FacebookWebLoginToken>),
-) -> HttpResponse {
+) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
     info!("Finding user");
-    let existing_user = ExternalLogin::find_user(&auth_token.user_id, "facebook.com", &*connection);
-
-    let existing_user = match existing_user {
-        Ok(e) => e,
-        Err(e) => return application::internal_server_error(e.description()),
-    };
-
+    let existing_user =
+        ExternalLogin::find_user(&auth_token.user_id, "facebook.com", &*connection)?;
     let user = match existing_user {
         Some(u) => {
             info!("Found existing user with id: {}", &u.user_id);
-            User::find(&u.user_id, &*connection).unwrap()
+            User::find(&u.user_id, &*connection)?
         }
         None => {
             info!("User not found, creating user");
-            match User::create_from_external_login(
+            User::create_from_external_login(
                 auth_token.user_id.clone(),
                 "facebook.com".to_string(),
                 auth_token.access_token.clone(),
                 &*connection,
-            ) {
-                Ok(u) => u,
-                Err(e) => return application::internal_server_error(e.description()),
-            }
+            )?
         }
     };
     info!("Saving access token");
     let response = TokenResponse::create_from_user(&state.token_secret, &state.token_issuer, &user);
-    return HttpResponse::Ok().json(response);
+    Ok(HttpResponse::Ok().json(response))
 }
 
 fn create_redirect_uri(req: &HttpRequest<AppState>) -> Result<Url, UrlGenerationError> {

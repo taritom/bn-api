@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, Json};
+use actix_web::{http::StatusCode, HttpResponse, Json};
 use bigneon_api::auth::{claims::AccessToken, claims::RefreshToken, TokenResponse};
 use bigneon_api::controllers::password_resets::{
     self, CreatePasswordResetParameters, UpdatePasswordResetParameters,
@@ -43,7 +43,7 @@ fn create() {
         email: email.clone().to_string(),
         reset_url: "http://localhost:9090/reset_password".to_string(),
     });
-    let response = password_resets::create((state, json));
+    let response: HttpResponse = password_resets::create((state, json)).into();
 
     // Reload user
     let user = User::find(&user.id, connection).expect("User to reload");
@@ -86,7 +86,7 @@ fn create_fake_email() {
         email: email.clone().to_string(),
         reset_url: "http://localhost:9090/reset_password".to_string(),
     });
-    let response = password_resets::create((state, json));
+    let response: HttpResponse = password_resets::create((state, json)).into();
 
     let mail_transport = test_request.test_transport();
 
@@ -127,7 +127,7 @@ fn create_invalid_reset_uri() {
         email: email.clone().to_string(),
         reset_url: reset_url.to_string(),
     });
-    let response = password_resets::create((state, json));
+    let response: HttpResponse = password_resets::create((state, json)).into();
 
     let mail_transport = test_request.test_transport();
 
@@ -159,7 +159,7 @@ fn update() {
         password_reset_token: user.password_reset_token.unwrap().clone(),
         password: new_password.to_string(),
     });
-    let response = password_resets::update((state, json));
+    let response: HttpResponse = password_resets::update((state, json)).into();
 
     let user = User::find(&user.id, connection).unwrap();
     assert!(user.password_reset_token.is_none());
@@ -206,7 +206,7 @@ fn update_expired_token() {
         password_reset_token: token.clone(),
         password: new_password.to_string(),
     });
-    let response = password_resets::update((state, json));
+    let response: HttpResponse = password_resets::update((state, json)).into();
 
     let user = User::find(&user.id, connection).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);
@@ -235,7 +235,7 @@ fn update_incorrect_token() {
         password_reset_token: Uuid::new_v4(),
         password: new_password.to_string(),
     });
-    let response = password_resets::update((state, json));
+    let response: HttpResponse = password_resets::update((state, json)).into();
 
     let user = User::find(&user.id, connection).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);

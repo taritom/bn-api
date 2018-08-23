@@ -1,5 +1,5 @@
 use actix_web::Query;
-use actix_web::{http::StatusCode, FromRequest, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events::SearchParameters;
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
@@ -58,7 +58,7 @@ pub fn index() {
     let test_request = TestRequest::create_with_uri(database, "/events?query=New");
     let state = test_request.extract_state();
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
-    let response = events::index((state, parameters));
+    let response: HttpResponse = events::index((state, parameters)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -113,7 +113,7 @@ pub fn index_search_returns_only_one_event() {
     let test_request = TestRequest::create_with_uri(database, "/events?query=NewEvent1");
     let state = test_request.extract_state();
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
-    let response = events::index((state, parameters));
+    let response: HttpResponse = events::index((state, parameters)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -151,8 +151,7 @@ pub fn show() {
     path.id = event.id;
     let state = test_request.extract_state();
 
-    let response = events::show((state, path));
-
+    let response: HttpResponse = events::show((state, path)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);
@@ -300,7 +299,7 @@ pub fn show_from_organizations() {
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let response = events::show_from_organizations((state, path));
+    let response: HttpResponse = events::show_from_organizations((state, path)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -348,7 +347,7 @@ pub fn show_from_venues() {
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
-    let response = events::show_from_venues((state, path));
+    let response: HttpResponse = events::show_from_venues((state, path)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);

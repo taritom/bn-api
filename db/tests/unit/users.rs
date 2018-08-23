@@ -85,13 +85,13 @@ fn find_by_email() {
 
     let found_user =
         User::find_by_email(&user.email.clone().unwrap(), &project).expect("User was not found");
-    assert_eq!(found_user.unwrap(), user);
+    assert_eq!(found_user, user);
 
-    assert!(
-        User::find_by_email("not@real.com", &project)
-            .unwrap()
-            .is_none(),
-        "User incorrectly returned when email invalid"
+    let not_found = User::find_by_email("not@real.com", &project);
+    let error = not_found.unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "[2000] No results\nCaused by: Error loading user, NotFound"
     );
 }
 

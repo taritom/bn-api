@@ -23,6 +23,18 @@ pub struct Venue {
     pub phone: Option<String>,
 }
 
+#[derive(AsChangeset, Default, Deserialize)]
+#[table_name = "venues"]
+pub struct VenueEditableAttributes {
+    pub name: Option<String>,
+    pub address: Option<String>,
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub country: Option<String>,
+    pub zip: Option<String>,
+    pub phone: Option<String>,
+}
+
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "venues"]
 pub struct NewVenue {
@@ -59,15 +71,21 @@ impl Venue {
             phone: None,
         }
     }
-    pub fn update(&self, conn: &Connectable) -> Result<Venue, DatabaseError> {
+
+    pub fn update(
+        &self,
+        attributes: VenueEditableAttributes,
+        conn: &Connectable,
+    ) -> Result<Venue, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
-            "Could not update venue",
+            "Could not update event",
             diesel::update(self)
-                .set(self)
+                .set(attributes)
                 .get_result(conn.get_connection()),
         )
     }
+
     pub fn find(id: &Uuid, conn: &Connectable) -> Result<Venue, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
@@ -75,6 +93,7 @@ impl Venue {
             venues::table.find(id).first::<Venue>(conn.get_connection()),
         )
     }
+
     pub fn all(conn: &Connectable) -> Result<Vec<Venue>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,

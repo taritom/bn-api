@@ -41,7 +41,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
     let user = support::create_auth_user(role, &*connection);
 
-    let response = events::create((state, json, user));
+    let response: HttpResponse = events::create((state, json, user)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
@@ -94,7 +94,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
 
     let user = support::create_auth_user(role, &*connection);
 
-    let response = events::update((state, path, json, user));
+    let response: HttpResponse = events::update((state, path, json, user)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
@@ -141,7 +141,7 @@ pub fn add_interest(role: Roles, should_test_succeed: bool) {
 
     let user = support::create_auth_user(role, &*connection);
 
-    let response = events::add_interest((state, path, user));
+    let response: HttpResponse = events::add_interest((state, path, user)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -190,7 +190,7 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
 
     let user = support::create_auth_user_from_user(&user, role, &*connection);
 
-    let response = events::remove_interest((state, path, user));
+    let response: HttpResponse = events::remove_interest((state, path, user)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -240,7 +240,7 @@ pub fn create_tickets(role: Roles, should_succeed: bool) {
         name: "VIP".into(),
         tickets_delta: 100,
     };
-    let response = events::create_tickets((state, path, Json(data), user));
+    let response: HttpResponse = events::create_tickets((state, path, Json(data), user)).into();
 
     let _body = support::unwrap_body_to_string(&response).unwrap();
     if should_succeed {

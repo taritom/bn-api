@@ -3,7 +3,7 @@ use auth::TokenResponse;
 use bigneon_db::models::concerns::users::password_resetable::*;
 use bigneon_db::models::User;
 use config::Config;
-use errors::database_error::ConvertToWebError;
+use errors::*;
 use mail::mailers;
 use server::AppState;
 use url::Url;
@@ -23,65 +23,56 @@ pub struct UpdatePasswordResetParameters {
 
 pub fn create(
     (state, parameters): (State<AppState>, Json<CreatePasswordResetParameters>),
-) -> HttpResponse {
+) -> Result<HttpResponse, BigNeonError> {
     if !valid_reset_url(&state.config, &parameters.reset_url) {
-        return HttpResponse::BadRequest().json(json!({
+        return Ok(HttpResponse::BadRequest().json(json!({
             "error":
                 format!(
                     "Invalid `reset_url`: `{}` is not a whitelisted domain",
                     parameters.reset_url
                 )
-        }));
+        })));
     }
 
     let connection = state.database.get_connection();
-    let request_pending_message = json!({
+    let request_pending_response = Ok(HttpResponse::Created().json(json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", parameters.email)
-    });
+    })));
     let error_message = json!({
         "error": "An error has occurred, please try again later"
     });
 
     let user = match User::find_by_email(&parameters.email, &*connection) {
-        Ok(user) => match user {
-            Some(user) => user,
-            None => return HttpResponse::Created().json(request_pending_message),
-        },
-        Err(_e) => return HttpResponse::Created().json(request_pending_message),
+        Ok(user) => user,
+        Err(_) => return request_pending_response,
     };
 
-    match user.create_password_reset_token(&*connection) {
-        Ok(user) => {
-            let result =
-                mailers::user::password_reset_email(&state.config, &user, &parameters.reset_url)
-                    .deliver();
+    let user = user.create_password_reset_token(&*connection)?;
+    let result =
+        mailers::user::password_reset_email(&state.config, &user, &parameters.reset_url).deliver();
 
-            match result {
-                Ok(_success) => HttpResponse::Created().json(request_pending_message),
-                Err(_e) => HttpResponse::BadRequest().json(error_message),
-            }
-        }
-        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
+    match result {
+        Ok(_) => request_pending_response,
+        Err(_) => Ok(HttpResponse::BadRequest().json(error_message)),
     }
 }
 
 pub fn update(
     (state, parameters): (State<AppState>, Json<UpdatePasswordResetParameters>),
-) -> HttpResponse {
+) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
 
-    match User::consume_password_reset_token(
+    let user = User::consume_password_reset_token(
         &parameters.password_reset_token,
         &parameters.password,
         &*connection,
-    ) {
-        Ok(user) => HttpResponse::Ok().json(&TokenResponse::create_from_user(
-            &state.token_secret,
-            &state.token_issuer,
-            &user,
-        )),
-        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-    }
+    )?;
+
+    Ok(HttpResponse::Ok().json(&TokenResponse::create_from_user(
+        &state.token_secret,
+        &state.token_issuer,
+        &user,
+    )))
 }
 
 fn valid_reset_url(config: &Config, reset_url: &String) -> bool {

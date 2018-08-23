@@ -24,27 +24,6 @@ fn create() {
 }
 
 #[test]
-fn add_user_to_invite() {
-    let mut project = TestProject::new();
-    let user = project.create_user().finish();
-    let user2 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
-    let org_invite = project
-        .create_organization_invite()
-        .with_org(&organization)
-        .with_invitee(&user)
-        .finish();
-    let updated_invite = org_invite.add_user_id(&user2.id, &project).unwrap();
-    assert_eq!(updated_invite.user_id.unwrap(), user2.id);
-
-    let _updated_invite_done =
-        OrganizationInvite::get_invite_details(&org_invite.security_token.unwrap(), &project)
-            .unwrap();
-
-    assert_eq!(updated_invite.user_id.unwrap(), user2.id);
-}
-
-#[test]
 fn change_invite_status_of_invite() {
     let mut project = TestProject::new();
     let user = project.create_user().finish();

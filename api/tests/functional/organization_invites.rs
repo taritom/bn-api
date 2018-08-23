@@ -27,6 +27,81 @@ mod create_tests {
 }
 
 #[cfg(test)]
+mod create_failure_missing_required_parameters_tests {
+    use super::*;
+    #[test]
+    fn create_failure_missing_required_parameters_org_member() {
+        organization_invites::create_failure_missing_required_parameters(Roles::OrgMember, false);
+    }
+    #[test]
+    fn create_failure_missing_required_parameters_guest() {
+        organization_invites::create_failure_missing_required_parameters(Roles::Guest, false);
+    }
+    #[test]
+    fn create_failure_missing_required_parameters_admin() {
+        organization_invites::create_failure_missing_required_parameters(Roles::Admin, true);
+    }
+    #[test]
+    fn create_failure_missing_required_parameters_user() {
+        organization_invites::create_failure_missing_required_parameters(Roles::User, false);
+    }
+    #[test]
+    fn create_failure_missing_required_parameters_org_owner() {
+        organization_invites::create_failure_missing_required_parameters(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod create_for_existing_user_via_user_id_tests {
+    use super::*;
+    #[test]
+    fn create_for_existing_user_via_user_id_org_member() {
+        organization_invites::create_for_existing_user_via_user_id(Roles::OrgMember, false);
+    }
+    #[test]
+    fn create_for_existing_user_via_user_id_guest() {
+        organization_invites::create_for_existing_user_via_user_id(Roles::Guest, false);
+    }
+    #[test]
+    fn create_for_existing_user_via_user_id_admin() {
+        organization_invites::create_for_existing_user_via_user_id(Roles::Admin, true);
+    }
+    #[test]
+    fn create_for_existing_user_via_user_id_user() {
+        organization_invites::create_for_existing_user_via_user_id(Roles::User, false);
+    }
+    #[test]
+    fn create_for_existing_user_via_user_id_org_owner() {
+        organization_invites::create_for_existing_user_via_user_id(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod create_for_new_user_tests {
+    use super::*;
+    #[test]
+    fn create_for_new_user_org_member() {
+        organization_invites::create_for_new_user(Roles::OrgMember, false);
+    }
+    #[test]
+    fn create_for_new_user_guest() {
+        organization_invites::create_for_new_user(Roles::Guest, false);
+    }
+    #[test]
+    fn create_for_new_user_admin() {
+        organization_invites::create_for_new_user(Roles::Admin, true);
+    }
+    #[test]
+    fn create_for_new_user_user() {
+        organization_invites::create_for_new_user(Roles::User, false);
+    }
+    #[test]
+    fn create_for_new_user_org_owner() {
+        organization_invites::create_for_new_user(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod accept_tests {
     use super::*;
     #[test]
@@ -75,14 +150,4 @@ mod decline_tests {
         organization_invites::decline_invite_status_of_invite(Roles::OrgOwner, true);
     }
 
-}
-
-#[cfg(test)]
-mod send_organization_invite_email_tests {
-    use super::*;
-    #[test]
-    fn send_mail() {
-        organization_invites::test_email();
-    }
-    // TODO: Test negative case
 }

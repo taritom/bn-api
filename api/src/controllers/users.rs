@@ -1,8 +1,8 @@
-use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query, State};
+use actix_web::{HttpResponse, Json, Path, Query, State};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::models::{DisplayUser, User};
-use errors::database_error::ConvertToWebError;
+use errors::*;
 use helpers::application;
 use models::register_request::RegisterRequest;
 use server::AppState;
@@ -24,67 +24,53 @@ pub struct CurrentUser {
     pub roles: Vec<String>,
 }
 
-pub fn current_user((state, user): (State<AppState>, AuthUser)) -> HttpResponse {
+pub fn current_user(
+    (state, user): (State<AppState>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
-    match User::find(&user.id(), &*connection) {
-        Ok(u) => {
-            let curr_user = CurrentUser {
-                roles: u.role.clone(),
-                user: u.for_display(),
-            };
-            HttpResponse::Ok().json(&curr_user)
-        }
-        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-    }
+    let user = User::find(&user.id(), &*connection)?;
+    let current_user = CurrentUser {
+        roles: user.role.clone(),
+        user: user.for_display(),
+    };
+    Ok(HttpResponse::Ok().json(&current_user))
 }
 
 pub fn show(
     (state, parameters, user): (State<AppState>, Path<PathParameters>, AuthUser),
-) -> HttpResponse {
-    let connection = state.database.get_connection();
-
+) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::UserRead) {
         return application::unauthorized();
     }
 
-    match User::find(&parameters.id, &*connection) {
-        Ok(u) => HttpResponse::Ok().json(&u.for_display()),
-        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-    }
+    let connection = state.database.get_connection();
+    let user = User::find(&parameters.id, &*connection)?;
+    Ok(HttpResponse::Ok().json(&user.for_display()))
 }
 
-pub fn find_by_email(data: (State<AppState>, Query<SearchUserByEmail>, AuthUser)) -> HttpResponse {
-    let (state, query, user) = data;
-    let connection = state.database.get_connection();
-
+pub fn find_by_email(
+    (state, query, user): (State<AppState>, Query<SearchUserByEmail>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::UserRead) {
         return application::unauthorized();
     }
 
-    match User::find_by_email(&query.into_inner().email, &*connection) {
-        Ok(u) => match u {
-            Some(u) => HttpResponse::Ok().json(&u.for_display()),
-            None => HttpResponse::new(StatusCode::NOT_FOUND),
-        },
-        Err(e) => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-    }
+    let connection = state.database.get_connection();
+    let user = User::find_by_email(&query.into_inner().email, &*connection)?;
+    Ok(HttpResponse::Ok().json(&user.for_display()))
 }
 
-pub fn register((state, request): (State<AppState>, Json<RegisterRequest>)) -> HttpResponse {
+pub fn register(
+    (state, request): (State<AppState>, Json<RegisterRequest>),
+) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
 
-    match User::create(
+    User::create(
         &request.first_name,
         &request.last_name,
         &request.email,
         &request.phone,
         &request.password,
-    ).commit(&*connection)
-    {
-        Ok(_u) => HttpResponse::Ok().finish(),
-        Err(e) => match e.code {
-            3400 => HttpResponse::new(StatusCode::CONFLICT),
-            _ => HttpResponse::from_error(ConvertToWebError::create_http_error(&e)),
-        },
-    }
+    ).commit(&*connection)?;
+    Ok(HttpResponse::Ok().finish())
 }

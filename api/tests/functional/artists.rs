@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, FromRequest, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::artists::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{Artist, Roles};
@@ -23,7 +23,7 @@ fn index() {
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let response = artists::index(state);
+    let response: HttpResponse = artists::index(state).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -43,7 +43,7 @@ fn show() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
-    let response = artists::show((state, path));
+    let response: HttpResponse = artists::show((state, path)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

@@ -1,4 +1,4 @@
-use actix_web::http::StatusCode;
+use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_api::helpers::application;
 use support;
 
@@ -6,7 +6,7 @@ use support;
 fn unauthorized() {
     let expected_json = json!({ "error": "Unauthorized" }).to_string();
 
-    let response = application::unauthorized();
+    let response: HttpResponse = application::unauthorized().into();
     assert_eq!(
         response.headers().get("Content-Type").unwrap(),
         "application/json"

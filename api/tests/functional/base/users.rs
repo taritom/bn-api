@@ -20,7 +20,7 @@ fn current_user() {
     let state = test_request.extract_state();
     let user = support::create_auth_user_from_user(&db_user, Roles::Guest, &*connection);
 
-    let response = users::current_user((state, user));
+    let response: HttpResponse = users::current_user((state, user)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -41,7 +41,7 @@ pub fn show_from_email(role: Roles, should_test_true: bool) {
     let state = test_request.extract_state();
     let user = support::create_auth_user_from_user(&db_user, role, &*connection);
     let data = Query::<SearchUserByEmail>::from_request(&test_request.request, &()).unwrap();
-    let response = users::find_by_email((state, data, user));
+    let response: HttpResponse = users::find_by_email((state, data, user)).into();
     let display_user: DisplayUser = db_user.into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -66,7 +66,6 @@ pub fn show(role: Roles, should_test_true: bool) {
 
     let db_display_user = User::find_by_email("test@test.com", &*connection)
         .unwrap()
-        .unwrap()
         .for_display();
 
     let test_request = TestRequest::create(database);
@@ -75,7 +74,7 @@ pub fn show(role: Roles, should_test_true: bool) {
     let user = support::create_auth_user(role, &*connection);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = db_display_user.id;
-    let response = users::show((state, path, user));
+    let response: HttpResponse = users::show((state, path, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {

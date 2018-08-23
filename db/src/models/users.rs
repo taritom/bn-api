@@ -83,14 +83,13 @@ impl User {
         )
     }
 
-    pub fn find_by_email(email: &str, conn: &Connectable) -> Result<Option<User>, DatabaseError> {
+    pub fn find_by_email(email: &str, conn: &Connectable) -> Result<User, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading user",
             users::table
                 .filter(users::email.eq(email))
-                .first::<User>(conn.get_connection())
-                .optional(),
+                .first::<User>(conn.get_connection()),
         )
     }
 

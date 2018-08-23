@@ -51,7 +51,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let user = support::create_auth_user_from_user(&user, role, &*connection);
-    let response = organizations::index((state, user));
+    let response: HttpResponse = organizations::index((state, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -121,7 +121,7 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let user = support::create_auth_user_from_user(&user, role, &*connection);
-    let response = organizations::index_for_all_orgs((state, user));
+    let response: HttpResponse = organizations::index_for_all_orgs((state, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -166,7 +166,7 @@ fn show() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let user = support::create_auth_user(Roles::OrgMember, &*connection);
-    let response = organizations::show((state, path, user));
+    let response: HttpResponse = organizations::show((state, path, user)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -200,7 +200,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     });
 
     let user = support::create_auth_user(role, &*connection);
-    let response = organizations::create((state, json, user));
+    let response: HttpResponse = organizations::create((state, json, user)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
@@ -246,7 +246,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     });
 
     let user = support::create_auth_user(role, &*connection);
-    let response = organizations::update((state, path, json, user));
+    let response: HttpResponse = organizations::update((state, path, json, user)).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -302,7 +302,7 @@ pub fn remove_user(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let user = support::create_auth_user(role, &*connection);
-    let response = organizations::remove_user((state, path, json, user));
+    let response: HttpResponse = organizations::remove_user((state, path, json, user)).into();
 
     let count = 1;
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -353,7 +353,7 @@ pub fn update_owner(role: Roles, should_succeed: bool) {
     let json = Json(update_owner_request);
 
     let auth_user = support::create_auth_user_from_user(&new_owner, role, &*connection);
-    let response = organizations::update_owner((state, path, json, auth_user));
+    let response: HttpResponse = organizations::update_owner((state, path, json, auth_user)).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);

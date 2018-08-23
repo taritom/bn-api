@@ -96,22 +96,8 @@ impl OrganizationInvite {
             "No valid token found",
             diesel::sql_query(format!(
                 "SELECT * FROM organization_invites WHERE security_token = '{}' AND create_at > '{}' AND accepted is NULL;"
-                ,token, expiredate //todo convert to use the .bind 
+                ,token, expiredate //todo convert to use the .bind
             )).get_result(conn.get_connection()),
-        )
-    }
-
-    pub fn add_user_id(
-        &self,
-        user_id: &Uuid,
-        conn: &Connectable,
-    ) -> Result<OrganizationInvite, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::UpdateError,
-            "Could not update organization invite table",
-            diesel::update(self)
-                .set((organization_invites::user_id.eq(user_id),))
-                .get_result(conn.get_connection()),
         )
     }
 }
