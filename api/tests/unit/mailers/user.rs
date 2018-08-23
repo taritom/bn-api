@@ -2,7 +2,6 @@ use bigneon_api::config::{Config, Environment};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_api::mail::mailers;
 use bigneon_db::models::concerns::users::password_resetable::PasswordResetable;
-use bigneon_db::models::User;
 use support::database::TestDatabase;
 
 #[test]
@@ -13,14 +12,7 @@ fn password_reset_email() {
     let database = TestDatabase::new();
     let connection = &*database.get_connection();
 
-    let user = User::create(
-        &"Name",
-        &"Last",
-        &"joe@tari.com",
-        &"555-555-5555",
-        &"examplePassword",
-    ).commit(connection)
-        .unwrap();
+    let user = database.create_user().finish();
     let user = user.create_password_reset_token(connection).unwrap();
 
     let reset_uri = "http://localhost/reset";

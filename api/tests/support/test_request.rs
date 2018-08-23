@@ -37,6 +37,7 @@ impl TestRequest {
             token_secret: config.token_secret.clone(),
             token_issuer: config.token_issuer.clone(),
         });
+
         // TODO: actix-web test requests do not allow router customization except
         // within crate. Forcing an ID here so the extractor can still build the
         // parameters wrapped in the Path struct. Should refactor when they settle

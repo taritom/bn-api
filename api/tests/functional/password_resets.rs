@@ -25,14 +25,10 @@ fn create() {
     let email = "joe@tari.com";
     let connection = &*database.get_connection();
 
-    let user = User::create(
-        &"Name",
-        &"Last",
-        &email,
-        &"555-555-5555",
-        &"examplePassword",
-    ).commit(connection)
-        .unwrap();
+    let user = database
+        .create_user()
+        .with_email(email.to_string())
+        .finish();
     let expected_json = json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", email)
     }).to_string();
@@ -105,14 +101,10 @@ fn create_invalid_reset_uri() {
     let email = "joe@tari.com";
     let reset_url = "http://not_whitelisted/reset_password";
 
-    User::create(
-        &"Name",
-        &"Last",
-        &email,
-        &"555-555-5555",
-        &"examplePassword",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    database
+        .create_user()
+        .with_email(email.to_string())
+        .finish();
     let expected_json = json!({
         "error":
             format!(
@@ -144,10 +136,8 @@ fn create_invalid_reset_uri() {
 fn update() {
     let database = TestDatabase::new();
     let connection = &*database.get_connection();
-    let user = User::create(&"Joe", &"Last", &"joe@tari.com", &"555-555-5555", &"pass")
-        .commit(connection)
-        .unwrap();
 
+    let user = database.create_user().finish();
     let user = user.create_password_reset_token(connection).unwrap();
     let new_password = "newPassword";
     assert!(!user.check_password(&new_password));
@@ -185,9 +175,7 @@ fn update_expired_token() {
     use bigneon_db::schema::users::dsl::*;
     let database = TestDatabase::new();
     let connection = &*database.get_connection();
-    let user = User::create(&"Joe", &"Last", &"joe@tari.com", &"555-555-5555", &"pass")
-        .commit(connection)
-        .unwrap();
+    let user = database.create_user().finish();
 
     let token = Uuid::new_v4();
     let user: User = diesel::update(users.filter(id.eq(user.id)))
@@ -220,10 +208,7 @@ fn update_expired_token() {
 fn update_incorrect_token() {
     let database = TestDatabase::new();
     let connection = &*database.get_connection();
-    let user = User::create(&"Joe", &"Last", &"joe@tari.com", &"555-555-5555", &"pass")
-        .commit(connection)
-        .unwrap();
-
+    let user = database.create_user().finish();
     let user = user.create_password_reset_token(connection).unwrap();
     let new_password = "newPassword";
     let token = user.password_reset_token.unwrap();

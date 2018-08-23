@@ -20,3 +20,9 @@ pub mod models;
 pub mod schema;
 pub mod utils;
 pub mod validators;
+
+mod test;
+
+pub mod dev {
+    pub use test::*;
+}

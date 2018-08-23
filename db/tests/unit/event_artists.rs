@@ -5,7 +5,7 @@ use unit::event_artists::chrono::prelude::*;
 
 #[test]
 fn create() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let artist = project.create_artist().finish();
     let venue = Venue::create("Name").commit(&project).unwrap();
     let user = project.create_user().finish();

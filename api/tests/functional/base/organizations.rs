@@ -1,9 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::organizations::{self, PathParameters, UpdateOwnerRequest};
-use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{
-    NewOrganization, Organization, OrganizationEditableAttributes, OrganizationUser, Roles, User,
-};
+use bigneon_db::models::{NewOrganization, Organization, OrganizationEditableAttributes, Roles};
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -11,46 +8,24 @@ use support::test_request::TestRequest;
 
 pub fn index(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, &"Organization")
-        .commit(&*connection)
-        .unwrap();
-
-    let mut attrs: OrganizationEditableAttributes = Default::default();
-    attrs.address = Some(<String>::from("Test Address"));
-    attrs.city = Some(<String>::from("Test Address"));
-    attrs.state = Some(<String>::from("Test state"));
-    attrs.country = Some(<String>::from("Test country"));
-    attrs.zip = Some(<String>::from("0124"));
-    attrs.phone = Some(<String>::from("+27123456789"));
-    let organization = organization.update(attrs, &*connection).unwrap();
-    let organization2 = Organization::create(user.id, &"Organization 2")
-        .commit(&*connection)
-        .unwrap();
-
-    let mut attrs: OrganizationEditableAttributes = Default::default();
-    attrs.address = Some(<String>::from("Test Address"));
-    attrs.city = Some(<String>::from("Test Address"));
-    attrs.state = Some(<String>::from("Test state"));
-    attrs.country = Some(<String>::from("Test country"));
-    attrs.zip = Some(<String>::from("0124"));
-    attrs.phone = Some(<String>::from("+27123456789"));
-    let organization2 = organization2.update(attrs, &*connection).unwrap();
+    let user = database.create_user().finish();
+    let organization = database
+        .create_organization()
+        .with_name("Organization 1".to_string())
+        .with_owner(&user)
+        .finish();
+    let organization2 = database
+        .create_organization()
+        .with_name("Organization 2".to_string())
+        .with_owner(&user)
+        .finish();
 
     let expected_organizations = vec![organization, organization2];
     let organization_expected_json = serde_json::to_string(&expected_organizations).unwrap();
 
+    let user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let user = support::create_auth_user_from_user(&user, role, &*connection);
     let response: HttpResponse = organizations::index((state, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
@@ -66,47 +41,20 @@ pub fn index(role: Roles, should_test_succeed: bool) {
 
 pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let user = User::create(
-        "Jeff",
-        "Wilco",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let user2 = User::create(
-        "Jeff2",
-        "Wilco",
-        "jeff2@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, &"Organization")
-        .commit(&*connection)
-        .unwrap();
 
-    let mut attrs: OrganizationEditableAttributes = Default::default();
-    attrs.address = Some(<String>::from("Test Address"));
-    attrs.city = Some(<String>::from("Test Address"));
-    attrs.state = Some(<String>::from("Test state"));
-    attrs.country = Some(<String>::from("Test country"));
-    attrs.zip = Some(<String>::from("0124"));
-    attrs.phone = Some(<String>::from("+27123456789"));
-    let organization = organization.update(attrs, &*connection).unwrap();
-    let organization2 = Organization::create(user2.id, &"Organization 2")
-        .commit(&*connection)
-        .unwrap();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
 
-    let mut attrs: OrganizationEditableAttributes = Default::default();
-    attrs.address = Some(<String>::from("Test Address"));
-    attrs.city = Some(<String>::from("Test Address"));
-    attrs.state = Some(<String>::from("Test state"));
-    attrs.country = Some(<String>::from("Test country"));
-    attrs.zip = Some(<String>::from("0124"));
-    attrs.phone = Some(<String>::from("+27123456789"));
-    let organization2 = organization2.update(attrs, &*connection).unwrap();
+    let organization = database
+        .create_organization()
+        .with_name("Organization 1".to_string())
+        .with_owner(&user)
+        .finish();
+    let organization2 = database
+        .create_organization()
+        .with_name("Organization 2".to_string())
+        .with_owner(&user2)
+        .finish();
 
     let mut expected_organizations = vec![organization, organization2];
     if role == Roles::OrgMember {
@@ -118,10 +66,10 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
     }
     let organization_expected_json = serde_json::to_string(&expected_organizations).unwrap();
 
+    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let user = support::create_auth_user_from_user(&user, role, &*connection);
-    let response: HttpResponse = organizations::index_for_all_orgs((state, user)).into();
+    let response: HttpResponse = organizations::index_for_all_orgs((state, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -137,35 +85,14 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
 #[test]
 fn show() {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, &"testOrganization")
-        .commit(&*connection)
-        .unwrap();
-
-    let mut attrs: OrganizationEditableAttributes = Default::default();
-
-    attrs.address = Some(<String>::from("Test Address"));
-    attrs.city = Some(<String>::from("Test Address"));
-    attrs.state = Some(<String>::from("Test state"));
-    attrs.country = Some(<String>::from("Test country"));
-    attrs.zip = Some(<String>::from("0124"));
-    attrs.phone = Some(<String>::from("+27123456789"));
-    let organization = organization.update(attrs, &*connection).unwrap();
+    let organization = database.create_organization().finish();
     let organization_expected_json = serde_json::to_string(&organization).unwrap();
 
+    let user = support::create_auth_user(Roles::OrgMember, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let user = support::create_auth_user(Roles::OrgMember, &*connection);
     let response: HttpResponse = organizations::show((state, path, user)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
@@ -175,17 +102,10 @@ fn show() {
 
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
     let name = "Organization Example";
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
+    let user = database.create_user().finish();
 
+    let auth_user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(NewOrganization {
@@ -199,9 +119,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         phone: None,
     });
 
-    let user = support::create_auth_user(role, &*connection);
-    let response: HttpResponse = organizations::create((state, json, user)).into();
-
+    let response: HttpResponse = organizations::create((state, json, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -217,20 +135,10 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
 pub fn update(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, &"Name")
-        .commit(&*connection)
-        .unwrap();
+    let organization = database.create_organization().finish();
     let new_name = "New Name";
 
+    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -245,9 +153,7 @@ pub fn update(role: Roles, should_succeed: bool) {
         phone: Some("phone".to_string()),
     });
 
-    let user = support::create_auth_user(role, &*connection);
     let response: HttpResponse = organizations::update((state, path, json, user)).into();
-
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         return;
@@ -260,50 +166,24 @@ pub fn update(role: Roles, should_succeed: bool) {
 
 pub fn remove_user(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let user2 = User::create(
-        "Jeff2",
-        "Roen",
-        "jeff2@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let user3 = User::create(
-        "Jeff3",
-        "Roen",
-        "jeff3@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, &"OrgName")
-        .commit(&*connection)
-        .unwrap();
-    //create links from org to users
-    let _orguser = OrganizationUser::create(organization.id, user2.id)
-        .commit(&*connection)
-        .unwrap();
-    let _orguser2 = OrganizationUser::create(organization.id, user3.id)
-        .commit(&*connection)
-        .unwrap();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let user3 = database.create_user().finish();
+    let organization = database
+        .create_organization()
+        .with_owner(&user)
+        .with_user(&user2)
+        .with_user(&user3)
+        .finish();
 
+    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(user3.id);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let user = support::create_auth_user(role, &*connection);
-    let response: HttpResponse = organizations::remove_user((state, path, json, user)).into();
 
+    let response: HttpResponse = organizations::remove_user((state, path, json, user)).into();
     let count = 1;
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
@@ -320,27 +200,11 @@ pub fn remove_user(role: Roles, should_test_succeed: bool) {
 
 pub fn update_owner(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let new_owner = User::create(
-        "New Jeff",
-        "Wilco",
-        "jeff2@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, &"Name")
-        .commit(&*connection)
-        .unwrap();
+    let user = database.create_user().finish();
+    let new_owner = database.create_user().finish();
+    let organization = database.create_organization().with_owner(&user).finish();
 
+    let auth_user = support::create_auth_user_from_user(&new_owner, role, &database);
     let test_request = TestRequest::create(database);
     let update_owner_request = UpdateOwnerRequest {
         owner_user_id: new_owner.id,
@@ -352,7 +216,6 @@ pub fn update_owner(role: Roles, should_succeed: bool) {
 
     let json = Json(update_owner_request);
 
-    let auth_user = support::create_auth_user_from_user(&new_owner, role, &*connection);
     let response: HttpResponse = organizations::update_owner((state, path, json, auth_user)).into();
 
     if !should_succeed {

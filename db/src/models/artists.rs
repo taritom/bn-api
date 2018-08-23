@@ -38,7 +38,7 @@ pub struct NewArtist {
     pub bandcamp_username: Option<String>,
 }
 
-#[derive(AsChangeset, Deserialize, Validate)]
+#[derive(AsChangeset, Default, Deserialize, Validate)]
 #[table_name = "artists"]
 pub struct ArtistEditableAttributes {
     pub name: Option<String>,

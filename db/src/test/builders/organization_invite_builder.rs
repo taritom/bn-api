@@ -1,9 +1,8 @@
-use bigneon_db::models::{Organization, OrganizationInvite, User};
-use support::project::TestProject;
-use uuid::Uuid;
-extern crate chrono;
+use chrono::prelude::*;
 use chrono::NaiveDateTime;
-use support::organization_invite_builder::chrono::prelude::*;
+use db::Connectable;
+use models::{Organization, OrganizationInvite, User};
+use uuid::Uuid;
 
 #[allow(dead_code)]
 pub struct OrgInviteBuilder<'a> {
@@ -15,18 +14,18 @@ pub struct OrgInviteBuilder<'a> {
     user_id: Option<Uuid>,
     status_change_at: Option<NaiveDateTime>,
     accepted: Option<i16>,
-    test_project: &'a TestProject,
+    connection: &'a Connectable,
 }
 
 impl<'a> OrgInviteBuilder<'a> {
-    pub fn new(test_project: &TestProject) -> OrgInviteBuilder {
+    pub fn new(connection: &Connectable) -> OrgInviteBuilder {
         OrgInviteBuilder {
             organization_id: None,
             invitee_id: None,
             user_email: "test@test.com".into(),
             create_at: NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
             security_token: Some(Uuid::new_v4()),
-            test_project: &test_project,
+            connection,
             user_id: None,
             status_change_at: None,
             accepted: None,
@@ -48,13 +47,18 @@ impl<'a> OrgInviteBuilder<'a> {
         self
     }
 
+    pub fn with_security_token(mut self, security_token: Option<Uuid>) -> Self {
+        self.security_token = security_token;
+        self
+    }
+
     pub fn finish(&self) -> OrganizationInvite {
         let orginvite = OrganizationInvite::create(
             self.organization_id.unwrap(),
             self.invitee_id.unwrap(),
             &self.user_email,
             self.user_id,
-        ).commit(self.test_project)
+        ).commit(self.connection)
             .unwrap();
         orginvite
     }

@@ -3,7 +3,7 @@ use bigneon_api::controllers::organization_invites::{
     self, Info, NewOrgInviteRequest, PathParameters,
 };
 use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{NewOrganizationInvite, Organization, OrganizationInvite, Roles, User};
+use bigneon_db::models::{OrganizationInvite, Roles};
 use lettre::SendableEmail;
 use serde_json;
 use std::str;
@@ -13,29 +13,16 @@ use support::test_request::TestRequest;
 
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let owner = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(owner.id, &"Organization")
-        .commit(&*connection)
-        .unwrap();
+    let owner = database.create_user().finish();
+    let organization = database.create_organization().with_owner(&owner).finish();
 
     let email = "jeff2@tari.com";
-    let invited_user = User::create(
-        "Michael",
-        "Wilco",
-        email.into(),
-        "555-555-55556",
-        "examplePassword6",
-    ).commit(&*connection)
-        .unwrap();
+    let invited_user = database
+        .create_user()
+        .with_email(email.to_string())
+        .finish();
 
+    let user = support::create_auth_user_from_user(&owner, role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(NewOrgInviteRequest {
@@ -45,7 +32,6 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let user = support::create_auth_user_from_user(&owner, role, &*connection);
     let response: HttpResponse = organization_invites::create((state, json, path, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -88,29 +74,15 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
 pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let owner = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(owner.id, &"Organization")
-        .commit(&*connection)
-        .unwrap();
+    let email = "test@tari.com";
+    let owner = database.create_user().finish();
+    let organization = database.create_organization().with_owner(&owner).finish();
+    let invited_user = database
+        .create_user()
+        .with_email(email.to_string())
+        .finish();
 
-    let email = "jeff2@tari.com";
-    let invited_user = User::create(
-        "Michael",
-        "Wilco",
-        email.into(),
-        "555-555-55556",
-        "examplePassword6",
-    ).commit(&*connection)
-        .unwrap();
-
+    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(NewOrgInviteRequest {
@@ -120,8 +92,8 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let user = support::create_auth_user_from_user(&owner, role, &*connection);
-    let response: HttpResponse = organization_invites::create((state, json, path, user)).into();
+    let response: HttpResponse =
+        organization_invites::create((state, json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -163,18 +135,9 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
 
 pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let owner = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(owner.id, &"Organization")
-        .commit(&*connection)
-        .unwrap();
+    let owner = database.create_user().finish();
+    let organization = database.create_organization().with_owner(&owner).finish();
+    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
@@ -186,8 +149,8 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let user = support::create_auth_user_from_user(&owner, role, &*connection);
-    let response: HttpResponse = organization_invites::create((state, json, path, user)).into();
+    let response: HttpResponse =
+        organization_invites::create((state, json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -227,18 +190,9 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
 
 pub fn create_failure_missing_required_parameters(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let owner = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(owner.id, &"Organization")
-        .commit(&*connection)
-        .unwrap();
+    let owner = database.create_user().finish();
+    let organization = database.create_organization().with_owner(&owner).finish();
+    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
@@ -250,8 +204,8 @@ pub fn create_failure_missing_required_parameters(role: Roles, should_test_succe
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let user = support::create_auth_user_from_user(&owner, role, &*connection);
-    let response: HttpResponse = organization_invites::create((state, json, path, user)).into();
+    let response: HttpResponse =
+        organization_invites::create((state, json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -277,49 +231,32 @@ pub fn create_failure_missing_required_parameters(role: Roles, should_test_succe
 pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user1 = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user1.id, &"Organization")
-        .commit(&*connection)
-        .unwrap();
-    let user2 = User::create(
-        "Jeff2",
-        "Roen",
-        "jeff2@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
+    let owner = database.create_user().finish();
+    let organization = database.create_organization().with_owner(&owner).finish();
+    let invited_user = database.create_user().finish();
 
+    let invite = database
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&owner)
+        .with_security_token(None)
+        .finish();
+
+    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let mut new_invite = NewOrganizationInvite {
-        organization_id: organization.id,
-        inviter_id: user1.id,
-        user_email: "jeff2@tari.com".into(),
-        security_token: None,
-        user_id: None,
-    };
-
-    let new_invite = new_invite.commit(&*connection).unwrap();
 
     let org_invite =
-        OrganizationInvite::get_invite_details(&new_invite.security_token.unwrap(), &*connection)
+        OrganizationInvite::get_invite_details(&invite.security_token.unwrap(), &*connection)
             .unwrap();
 
-    let user = support::create_auth_user(role, &*connection);
     let json = Json(Info {
         token: org_invite.security_token.unwrap(),
-        user_id: user2.id,
+        user_id: invited_user.id,
     });
-    let response: HttpResponse = organization_invites::accept_request((state, json, user)).into();
 
+    let response: HttpResponse =
+        organization_invites::accept_request((state, json, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -334,49 +271,34 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
 pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    let user1 = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
+    let email = "test@tari.com";
+    let owner = database.create_user().finish();
+    let organization = database.create_organization().with_owner(&owner).finish();
+    let new_member = database
+        .create_user()
+        .with_email(email.to_string())
+        .finish();
+    let invite = database
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&owner)
+        .with_security_token(None)
+        .finish();
 
-    let organization = Organization::create(user1.id, &"Organization")
-        .commit(&*connection)
-        .unwrap();
-    let user2 = User::create(
-        "Jeff2",
-        "Roen",
-        "jeff2@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-
+    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-    let mut new_invite = NewOrganizationInvite {
-        organization_id: organization.id,
-        inviter_id: user1.id,
-        user_email: "jeff2@tari.com".into(),
-        security_token: None,
-        user_id: None,
-    };
-
-    let new_invite = new_invite.commit(&*connection).unwrap();
 
     let org_invite =
-        OrganizationInvite::get_invite_details(&new_invite.security_token.unwrap(), &*connection)
+        OrganizationInvite::get_invite_details(&invite.security_token.unwrap(), &*connection)
             .unwrap();
 
-    let user = support::create_auth_user(role, &*connection);
     let json = Json(Info {
         token: org_invite.security_token.unwrap(),
-        user_id: user2.id,
+        user_id: new_member.id,
     });
-    let response: HttpResponse = organization_invites::decline_request((state, json, user)).into();
+    let response: HttpResponse =
+        organization_invites::decline_request((state, json, auth_user)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_true {

@@ -10,7 +10,7 @@ use unit::organization_invites::chrono::prelude::*;
 
 #[test]
 fn create() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let org_invite = project
@@ -25,7 +25,7 @@ fn create() {
 
 #[test]
 fn change_invite_status_of_invite() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -68,7 +68,7 @@ fn change_invite_status_of_invite() {
 }
 #[test]
 fn test_token_validity() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let mut org_invite = project

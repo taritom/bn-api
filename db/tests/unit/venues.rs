@@ -51,7 +51,7 @@ fn find() {
 
 #[test]
 fn has_organization() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let venue = project.create_venue().finish();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -69,11 +69,10 @@ fn has_organization() {
 
 #[test]
 fn create_find_via_org() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
 
     let venue = project.create_venue().finish();
     let venue2 = project.create_venue().finish();
-
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
 

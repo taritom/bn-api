@@ -1,6 +1,5 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::artists::{self, PathParameters};
-use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{Artist, ArtistEditableAttributes, NewArtist, Roles};
 use serde_json;
 use support;
@@ -9,11 +8,11 @@ use support::test_request::TestRequest;
 
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
 
     let name = "Artist Example";
     let bio = "Bio";
     let website_url = "http://www.example.com";
+
     let json = Json(NewArtist {
         name: name.clone().to_string(),
         bio: bio.clone().to_string(),
@@ -26,10 +25,10 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         bandcamp_username: None,
     });
 
+    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
 
-    let user = support::create_auth_user(role, &*connection);
     let response: HttpResponse = artists::create((state, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -47,7 +46,6 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
 pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
 
     let name = "Artist Example";
     let bio = "Bio";
@@ -64,10 +62,10 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
         bandcamp_username: None,
     });
 
+    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
 
-    let user = support::create_auth_user(role, &*connection);
     let response: HttpResponse = artists::create((state, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -92,32 +90,24 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
 
 pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let artist = Artist::create("Name", "Bio", "http://www.example.com")
-        .commit(&*connection)
-        .unwrap();
+    let artist = database.create_artist().finish();
     let name = "New Name";
     let bio = "New Bio";
     let website_url = "http://www.example2.com";
 
+    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
-    let json = Json(ArtistEditableAttributes {
-        name: Some(name.clone().to_string()),
-        bio: Some(bio.clone().to_string()),
-        website_url: Some(website_url.clone().to_string()),
-        youtube_video_urls: Some(Vec::new()),
-        facebook_username: None,
-        instagram_username: None,
-        snapshat_username: None,
-        soundcloud_username: None,
-        bandcamp_username: None,
-    });
+    let mut attributes: ArtistEditableAttributes = Default::default();
+    attributes.name = Some(name.clone().to_string());
+    attributes.bio = Some(bio.clone().to_string());
+    attributes.website_url = Some(website_url.clone().to_string());
+    attributes.youtube_video_urls = Some(Vec::new());
+    let json = Json(attributes);
 
-    let user = support::create_auth_user(role, &*connection);
     let response: HttpResponse = artists::update((state, path, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -135,32 +125,24 @@ pub fn update(role: Roles, should_test_succeed: bool) {
 
 pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let artist = Artist::create("Name", "Bio", "http://www.example.com")
-        .commit(&*connection)
-        .unwrap();
+    let artist = database.create_artist().finish();
     let name = "New Name";
     let bio = "New Bio";
     let website_url = "invalid-format.com";
 
+    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
-    let json = Json(ArtistEditableAttributes {
-        name: Some(name.clone().to_string()),
-        bio: Some(bio.clone().to_string()),
-        website_url: Some(website_url.to_string()),
-        youtube_video_urls: Some(vec!["invalid".to_string()]),
-        facebook_username: None,
-        instagram_username: None,
-        snapshat_username: None,
-        soundcloud_username: None,
-        bandcamp_username: None,
-    });
+    let mut attributes: ArtistEditableAttributes = Default::default();
+    attributes.name = Some(name.clone().to_string());
+    attributes.bio = Some(bio.clone().to_string());
+    attributes.website_url = Some(website_url.clone().to_string());
+    attributes.youtube_video_urls = Some(vec!["invalid".to_string()]);
+    let json = Json(attributes);
 
-    let user = support::create_auth_user(role, &*connection);
     let response: HttpResponse = artists::update((state, path, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 

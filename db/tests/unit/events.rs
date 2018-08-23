@@ -5,7 +5,7 @@ use unit::events::chrono::prelude::*;
 
 #[test]
 fn create() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let venue = Venue::create("Venue").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -24,7 +24,7 @@ fn create() {
 #[test]
 fn update() {
     //create event
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let venue = Venue::create("Venue").commit(&project).unwrap();
 
     let user = project.create_user().finish();
@@ -49,7 +49,7 @@ fn update() {
 #[test]
 fn find_individuals() {
     //create event
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let venue = Venue::create("Venue").commit(&project).unwrap();
 
     let user = project.create_user().finish();
@@ -85,7 +85,7 @@ fn find_individuals() {
 #[test]
 fn find_list() {
     //create event
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let venue1 = Venue::create("Venue1").commit(&project).unwrap();
     let venue2 = Venue::create("Venue2").commit(&project).unwrap();
     let artist1 = project.create_artist().with_name("Artist1".into()).finish();
@@ -165,7 +165,7 @@ fn find_list() {
 #[test]
 fn find_for_organization_and_venue() {
     //create event
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let venue1 = Venue::create("Venue1").commit(&project).unwrap();
     let venue2 = Venue::create("Venue2").commit(&project).unwrap();
     let user = project.create_user().finish();
@@ -201,7 +201,7 @@ fn find_for_organization_and_venue() {
 
 #[test]
 fn organization() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let venue = Venue::create("Venue").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();

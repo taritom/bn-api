@@ -1,6 +1,5 @@
-use bigneon_db::models::User;
-use support::project::TestProject;
-
+use db::Connectable;
+use models::User;
 use rand::prelude::*;
 
 pub struct UserBuilder<'a> {
@@ -9,20 +8,19 @@ pub struct UserBuilder<'a> {
     email: String,
     phone: String,
     password: String,
-    test_project: &'a TestProject,
+    connection: &'a Connectable,
 }
 
 impl<'a> UserBuilder<'a> {
-    pub fn new(test_project: &'a TestProject) -> Self {
-        let x: u8 = random();
-
+    pub fn new(connection: &'a Connectable) -> Self {
+        let x: u16 = random();
         UserBuilder {
             first_name: "Jeff".into(),
             last_name: "Wilco".into(),
             email: format!("jeff{}@tari.com", x).into(),
             phone: "555-555-5555".into(),
             password: "examplePassword".into(),
-            test_project,
+            connection,
         }
     }
 
@@ -36,6 +34,16 @@ impl<'a> UserBuilder<'a> {
         self
     }
 
+    pub fn with_password(mut self, password: String) -> Self {
+        self.password = password;
+        self
+    }
+
+    pub fn with_email(mut self, email: String) -> Self {
+        self.email = email;
+        self
+    }
+
     pub fn finish(&self) -> User {
         User::create(
             &self.first_name,
@@ -43,7 +51,7 @@ impl<'a> UserBuilder<'a> {
             &self.email,
             &self.phone,
             &self.password,
-        ).commit(self.test_project)
+        ).commit(self.connection)
             .unwrap()
     }
 }

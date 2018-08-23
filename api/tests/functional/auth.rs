@@ -3,9 +3,7 @@ use bigneon_api::auth::{claims::AccessToken, claims::RefreshToken, TokenResponse
 use bigneon_api::controllers::auth;
 use bigneon_api::controllers::auth::{LoginRequest, RefreshRequest};
 use bigneon_api::controllers::users;
-use bigneon_api::database::ConnectionGranting;
 use bigneon_api::models::register_request::RegisterRequest;
-use bigneon_db::models::User;
 use crypto::sha2::Sha256;
 use jwt::{Header, Token};
 use serde_json;
@@ -17,15 +15,13 @@ use uuid::Uuid;
 #[test]
 fn token() {
     let database = TestDatabase::new();
-
-    let user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    let email = "fake@localhost";
+    let password = "strong_password";
+    let user = database
+        .create_user()
+        .with_email(email.to_string())
+        .with_password(password.to_string())
+        .finish();
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
@@ -47,15 +43,7 @@ fn token() {
 #[test]
 fn token_invalid_email() {
     let database = TestDatabase::new();
-
-    let _user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    database.create_user().finish();
 
     let test_request = TestRequest::create(database);
 
@@ -75,20 +63,14 @@ fn token_invalid_email() {
 #[test]
 fn token_incorrect_password() {
     let database = TestDatabase::new();
-
-    let _user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    let user = database
+        .create_user()
+        .with_email("fake@localhost".to_string())
+        .finish();
 
     let test_request = TestRequest::create(database);
-
     let state = test_request.extract_state();
-    let json = Json(LoginRequest::new("incorrect@localhost", "incorrect"));
+    let json = Json(LoginRequest::new(&user.email.unwrap(), "incorrect"));
 
     let response: HttpResponse = auth::token((state, json)).into();
 
@@ -103,18 +85,9 @@ fn token_incorrect_password() {
 #[test]
 fn token_refresh() {
     let database = TestDatabase::new();
-
-    let user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    let user = database.create_user().finish();
 
     let test_request = TestRequest::create(database);
-
     let state = test_request.extract_state();
     let refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
     let header: Header = Default::default();
@@ -124,7 +97,6 @@ fn token_refresh() {
     let json = Json(RefreshRequest::new(&refresh_token));
 
     let response: HttpResponse = auth::token_refresh((state, json)).into();
-
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let response: TokenResponse = serde_json::from_str(&body).unwrap();
@@ -137,18 +109,9 @@ fn token_refresh() {
 #[test]
 fn token_refresh_invalid_refresh_token_secret() {
     let database = TestDatabase::new();
-
-    let user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    let user = database.create_user().finish();
 
     let test_request = TestRequest::create(database);
-
     let state = test_request.extract_state();
     let refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
     let header: Header = Default::default();
@@ -167,15 +130,7 @@ fn token_refresh_invalid_refresh_token_secret() {
 #[test]
 fn token_refresh_invalid_refresh_token() {
     let database = TestDatabase::new();
-
-    let _user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    database.create_user().finish();
 
     let test_request = TestRequest::create(database);
 
@@ -193,15 +148,7 @@ fn token_refresh_invalid_refresh_token() {
 fn token_refresh_user_does_not_exist() {
     let database = TestDatabase::new();
 
-    let user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
-
+    let user = database.create_user().finish();
     let test_request = TestRequest::create(database);
 
     let state = test_request.extract_state();
@@ -223,14 +170,7 @@ fn token_refresh_user_does_not_exist() {
 fn token_refresh_password_reset_since_issued() {
     let database = TestDatabase::new();
 
-    let user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    let user = database.create_user().finish();
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
 
     let test_request = TestRequest::create(database);
@@ -257,14 +197,7 @@ fn token_refresh_password_reset_since_issued() {
 fn token_refreshed_after_password_change() {
     let database = TestDatabase::new();
 
-    let user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    let user = database.create_user().finish();
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
 
     let test_request = TestRequest::create(database);
@@ -295,21 +228,14 @@ fn token_refreshed_after_password_change() {
 fn register_address_exists() {
     let database = TestDatabase::new();
 
-    let _user = User::create(
-        "user",
-        "last",
-        "fake@localhost",
-        "+27112233223",
-        "strong_password",
-    ).commit(&*database.get_connection())
-        .unwrap();
+    let existing_user = database.create_user().finish();
 
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(RegisterRequest::new(
         &"First",
         &"Last",
-        &"fake@localhost",
+        &existing_user.email.unwrap(),
         &"555",
         &"not_important",
     ));

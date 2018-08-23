@@ -3,7 +3,7 @@ use support::project::TestProject;
 
 #[test]
 pub fn create_test() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let event = project.create_event().finish();
     let allocation = TicketAllocation::create(event.id, 100)
         .commit(&project)
@@ -14,7 +14,7 @@ pub fn create_test() {
 
 #[test]
 pub fn update_test() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let event = project.create_event().finish();
     let mut allocation = TicketAllocation::create(event.id, 100)
         .commit(&project)

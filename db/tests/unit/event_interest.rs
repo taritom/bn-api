@@ -5,7 +5,7 @@ use support::project::TestProject;
 
 #[test]
 fn create() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let venue = Venue::create("Venue").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();

@@ -1,21 +1,15 @@
 use bigneon_db::db::Connectable;
 use bigneon_db::db::DatabaseConnection;
+use bigneon_db::dev::builders::*;
 use diesel::dsl::sql;
 use diesel::sql_types::Bool;
 use diesel::{select, Connection, PgConnection, RunQueryDsl};
 use dotenv::dotenv;
 use std::env;
-use support::artist_builder::ArtistBuilder;
-use support::event_builder::EventBuilder;
-use support::organization_builder::OrganizationBuilder;
-use support::organization_invite_builder::OrgInviteBuilder;
-use support::user_builder::UserBuilder;
-use support::venue_builder::VenueBuilder;
 
 pub struct TestProject {
     pub connection: DatabaseConnection,
     admin: PgConnection,
-    next_unique_id: i8,
 }
 
 #[allow(dead_code)]
@@ -33,11 +27,7 @@ impl TestProject {
             .get_connection()
             .begin_test_transaction()
             .expect("Could not start testing transaction");
-        TestProject {
-            connection,
-            admin,
-            next_unique_id: 0,
-        }
+        TestProject { connection, admin }
     }
 
     pub fn db_exists(&self, name: &str) -> bool {
@@ -60,32 +50,27 @@ impl TestProject {
     }
 
     pub fn create_user(&self) -> UserBuilder {
-        UserBuilder::new(&self)
+        UserBuilder::new(self)
     }
 
-    pub fn create_organization(&mut self) -> OrganizationBuilder {
+    pub fn create_organization(&self) -> OrganizationBuilder {
         OrganizationBuilder::new(self)
     }
 
     pub fn create_organization_invite(&self) -> OrgInviteBuilder {
-        OrgInviteBuilder::new(&self)
+        OrgInviteBuilder::new(self)
     }
 
     pub fn create_venue(&self) -> VenueBuilder {
-        VenueBuilder::new(&self)
+        VenueBuilder::new(self)
     }
 
-    pub fn create_event(&mut self) -> EventBuilder {
+    pub fn create_event(&self) -> EventBuilder {
         EventBuilder::new(self)
     }
 
-    pub fn next_id(&mut self) -> i8 {
-        self.next_unique_id += 1;
-        self.next_unique_id
-    }
-
     pub fn create_artist(&self) -> ArtistBuilder {
-        ArtistBuilder::new(&self)
+        ArtistBuilder::new(self)
     }
 }
 

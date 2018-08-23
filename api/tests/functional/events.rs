@@ -2,9 +2,7 @@ use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events::SearchParameters;
 use bigneon_api::controllers::events::{self, PathParameters};
-use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::*;
-use chrono::prelude::*;
 use functional::base;
 use serde_json;
 use support;
@@ -14,45 +12,19 @@ use support::test_request::TestRequest;
 #[test]
 pub fn index() {
     let database = TestDatabase::new();
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*database.get_connection())
-        .unwrap();
-    let artist = Artist::create("Example", "Bio", "http://www.example.com")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let venue = Venue::create(&"Venue")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-    event
-        .add_artist(artist.id, &*database.get_connection())
-        .unwrap();
-    let event2 = Event::create(
-        "NewEvent2",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2015, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-    event2
-        .add_artist(artist.id, &*database.get_connection())
-        .unwrap();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent1".to_string())
+        .with_organization(&organization)
+        .finish();
+    let event2 = database
+        .create_event()
+        .with_name("NewEvent2".to_string())
+        .with_organization(&organization)
+        .finish();
 
-    let expected_events = vec![event2, event];
+    let expected_events = vec![event, event2];
     let events_expected_json = serde_json::to_string(&expected_events).unwrap();
 
     let test_request = TestRequest::create_with_uri(database, "/events?query=New");
@@ -69,43 +41,17 @@ pub fn index() {
 #[test]
 pub fn index_search_returns_only_one_event() {
     let database = TestDatabase::new();
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*database.get_connection())
-        .unwrap();
-    let artist = Artist::create("Example", "Bio", "http://www.example.com")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let venue = Venue::create(&"Venue")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let event = Event::create(
-        "NewEvent1",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-    event
-        .add_artist(artist.id, &*database.get_connection())
-        .unwrap();
-    let event2 = Event::create(
-        "NewEvent2",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2015, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*database.get_connection())
-        .unwrap();
-    event2
-        .add_artist(artist.id, &*database.get_connection())
-        .unwrap();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent1".to_string())
+        .with_organization(&organization)
+        .finish();
+    database
+        .create_event()
+        .with_name("NewEvent2".to_string())
+        .with_organization(&organization)
+        .finish();
 
     let expected_events = vec![event];
     let events_expected_json = serde_json::to_string(&expected_events).unwrap();
@@ -124,26 +70,13 @@ pub fn index_search_returns_only_one_event() {
 #[test]
 pub fn show() {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*connection)
-        .unwrap();
-    let venue = Venue::create(&"Venue").commit(&*connection).unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*connection)
-        .unwrap();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_organization(&organization)
+        .finish();
+
     let event_expected_json = serde_json::to_string(&event).unwrap();
 
     let test_request = TestRequest::create(database);
@@ -254,41 +187,23 @@ mod remove_interest_tests {
 #[test]
 pub fn show_from_organizations() {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    //create prerequisites
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*connection)
-        .unwrap();
-    let venue = Venue::create(&"Venue").commit(&*connection).unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*connection)
-        .unwrap();
-    let event2 = Event::create(
-        "NewEvent2",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*connection)
-        .unwrap();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_organization(&organization)
+        .finish();
+    let event2 = database
+        .create_event()
+        .with_name("NewEvent2".to_string())
+        .with_organization(&organization)
+        .finish();
 
     let all_events = vec![event, event2];
     let event_expected_json = serde_json::to_string(&all_events).unwrap();
-    //find venue from organization
+
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
-
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let response: HttpResponse = events::show_from_organizations((state, path)).into();
@@ -301,35 +216,20 @@ pub fn show_from_organizations() {
 #[test]
 pub fn show_from_venues() {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    //create prerequisites
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*connection)
-        .unwrap();
-    let venue = Venue::create(&"Venue").commit(&*connection).unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*connection)
-        .unwrap();
-    let event2 = Event::create(
-        "NewEvent2",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*connection)
-        .unwrap();
-    //find venue from organization
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_venue(&venue)
+        .with_name("NewEvent".to_string())
+        .with_organization(&organization)
+        .finish();
+    let event2 = database
+        .create_event()
+        .with_venue(&venue)
+        .with_name("NewEvent2".to_string())
+        .with_organization(&organization)
+        .finish();
 
     let all_events = vec![event, event2];
     let event_expected_json = serde_json::to_string(&all_events).unwrap();

@@ -149,5 +149,4 @@ mod decline_tests {
     fn decline_org_owner() {
         organization_invites::decline_invite_status_of_invite(Roles::OrgOwner, true);
     }
-
 }

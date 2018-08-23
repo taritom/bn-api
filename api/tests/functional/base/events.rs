@@ -2,9 +2,7 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_api::models::CreateTicketAllocationRequest;
-use bigneon_db::models::{
-    Event, EventEditableAttributes, EventInterest, NewEvent, Organization, Roles, User, Venue,
-};
+use bigneon_db::models::{Event, EventEditableAttributes, EventInterest, NewEvent, Roles};
 use chrono::prelude::*;
 use serde_json;
 use support;
@@ -13,22 +11,12 @@ use support::test_request::TestRequest;
 
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    //create prerequisites
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*connection)
-        .unwrap();
-    let venue = Venue::create(&"Venue").commit(&*connection).unwrap();
-    //create event
+
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+
     let name = "event Example";
+    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let new_event = NewEvent {
@@ -39,10 +27,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     };
     let json = Json(new_event);
 
-    let user = support::create_auth_user(role, &*connection);
-
     let response: HttpResponse = events::create((state, json, user)).into();
-
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -56,29 +41,10 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
 pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    //create prerequisites
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*connection)
-        .unwrap();
-    let venue = Venue::create(&"Venue").commit(&*connection).unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*connection)
-        .unwrap();
+    let event = database.create_event().finish();
 
     let new_name = "New Event Name";
+    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
 
@@ -92,10 +58,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let user = support::create_auth_user(role, &*connection);
-
     let response: HttpResponse = events::update((state, path, json, user)).into();
-
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -111,38 +74,16 @@ pub fn update(role: Roles, should_test_succeed: bool) {
 
 pub fn add_interest(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    //create prerequisites
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*connection)
-        .unwrap();
-    let venue = Venue::create(&"Venue").commit(&*connection).unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*connection)
-        .unwrap();
+    let event = database.create_event().finish();
 
+    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let user = support::create_auth_user(role, &*connection);
-
     let response: HttpResponse = events::add_interest((state, path, user)).into();
-
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -158,40 +99,20 @@ pub fn add_interest(role: Roles, should_test_succeed: bool) {
 pub fn remove_interest(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.get_connection();
-    //create prerequisites
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*connection)
-        .unwrap();
-    let venue = Venue::create(&"Venue").commit(&*connection).unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*connection)
-        .unwrap();
-    let _event_like_response = EventInterest::create(event.id, user.id)
+    let user = database.create_user().finish();
+    let event = database.create_event().finish();
+    EventInterest::create(event.id, user.id)
         .commit(&*connection)
         .unwrap();
 
+    let user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let user = support::create_auth_user_from_user(&user, role, &*connection);
-
     let response: HttpResponse = events::remove_interest((state, path, user)).into();
-
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -207,34 +128,19 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
 
 pub fn create_tickets(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-    let user = User::create(
-        "Jeff",
-        "Roen",
-        "jeff@tari.com",
-        "555-555-5555",
-        "examplePassword",
-    ).commit(&*connection)
-        .unwrap();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(&*connection)
-        .unwrap();
-    let venue = Venue::create(&"Venue").commit(&*connection).unwrap();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&*connection)
-        .unwrap();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().with_user(&user).finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .finish();
 
+    let user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
-
-    let user = support::create_auth_user_from_user(&user, role, &*connection);
 
     let data = CreateTicketAllocationRequest {
         name: "VIP".into(),

@@ -32,7 +32,7 @@ env:
 # matrix:
 #   include:
 #     - env: BUILD_DIR: "api"
-#   include: 
+#   include:
 #     - env: BUILD_DIR: "db"
 
 before_script:
@@ -45,10 +45,8 @@ before_script:
 
 script:
   - cd db
-  - cargo fmt --all -- --check 
+  - cargo fmt --all -- --check
   - cargo test
   - cd ../api
-  - cargo fmt --all -- --check 
+  - cargo fmt --all -- --check
   - cargo test
-  
-  

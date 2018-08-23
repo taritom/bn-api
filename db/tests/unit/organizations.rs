@@ -1,4 +1,3 @@
-use bigneon_db::models::Roles;
 use bigneon_db::models::{Organization, OrganizationEditableAttributes, OrganizationUser, User};
 use support::project::TestProject;
 use uuid::Uuid;
@@ -20,7 +19,7 @@ fn create() {
 
 #[test]
 fn update() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let user = project.create_user().finish();
     //Edit Organization
     let mut edited_organization = project.create_organization().with_owner(&user).finish();
@@ -48,7 +47,7 @@ fn update() {
 
 #[test]
 fn update_owner() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let user = project.create_user().finish();
     //Edit Organization
     let organization = project.create_organization().with_owner(&user).finish();
@@ -63,7 +62,7 @@ fn update_owner() {
 
 #[test]
 fn find() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let user = project.create_user().finish();
     //Edit Organization
     let organization = project
@@ -77,7 +76,7 @@ fn find() {
 
 #[test]
 fn users() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
@@ -126,7 +125,7 @@ fn users() {
 
 #[test]
 fn all_linked_to_user() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let org1 = project.create_organization().with_owner(&user).finish();
@@ -138,13 +137,14 @@ fn all_linked_to_user() {
     let _org3 = project.create_organization().with_owner(&user2).finish();
 
     let orgs = Organization::all_linked_to_user(user.id, &project).unwrap();
-    let test_vec = vec![org1, org2];
+    let mut test_vec = vec![org1, org2];
+    test_vec.sort_by_key(|org| org.name.clone());
     assert_eq!(orgs, test_vec);
 }
 
 #[test]
 fn all() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let org1 = project.create_organization().with_owner(&user).finish();
@@ -156,13 +156,14 @@ fn all() {
     let org3 = project.create_organization().with_owner(&user2).finish();
 
     let orgs = Organization::all(&project).unwrap();
-    let test_vec = vec![org1, org2, org3];
+    let mut test_vec = vec![org1, org2, org3];
+    test_vec.sort_by_key(|org| org.name.clone());
     assert_eq!(orgs, test_vec);
 }
 
 #[test]
 fn remove_users() {
-    let mut project = TestProject::new();
+    let project = TestProject::new();
     let mut user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
@@ -178,7 +179,7 @@ fn remove_users() {
     user.role.push("OrgOwner".to_string());
 
     let user_results = organization.users(&project).unwrap();
-    let users_before_delete = vec![user.clone(), user2, user3.clone()];
+    let users_before_delete = vec![user.clone(), user3.clone(), user2];
     assert_eq!(user_results, users_before_delete);
 
     //remove user

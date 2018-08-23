@@ -1,7 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::artists::{self, PathParameters};
-use bigneon_api::database::ConnectionGranting;
-use bigneon_db::models::{Artist, Roles};
+use bigneon_db::models::Roles;
 use functional::base;
 use serde_json;
 use support;
@@ -11,12 +10,8 @@ use support::test_request::TestRequest;
 #[test]
 fn index() {
     let database = TestDatabase::new();
-    let artist = Artist::create("Artist", "Bio", "http://www.example.com")
-        .commit(&*database.get_connection())
-        .unwrap();
-    let artist2 = Artist::create("Artist 2", "Bio", "http://www.example.com")
-        .commit(&*database.get_connection())
-        .unwrap();
+    let artist = database.create_artist().finish();
+    let artist2 = database.create_artist().finish();
 
     let expected_artists = vec![artist, artist2];
     let artist_expected_json = serde_json::to_string(&expected_artists).unwrap();
@@ -33,9 +28,7 @@ fn index() {
 #[test]
 fn show() {
     let database = TestDatabase::new();
-    let artist = Artist::create("Name", "Bio", "http://www.example.com")
-        .commit(&*database.get_connection())
-        .unwrap();
+    let artist = database.create_artist().finish();
     let artist_expected_json = serde_json::to_string(&artist).unwrap();
 
     let test_request = TestRequest::create(database);
