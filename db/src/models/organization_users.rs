@@ -39,8 +39,8 @@ impl NewOrganizationUser {
 impl OrganizationUser {
     pub fn create(organization_id: Uuid, user_id: Uuid) -> NewOrganizationUser {
         NewOrganizationUser {
-            organization_id: organization_id,
-            user_id: user_id,
+            organization_id,
+            user_id,
         }
     }
 }

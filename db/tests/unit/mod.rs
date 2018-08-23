@@ -1,4 +1,5 @@
 pub mod artists;
+pub mod carts;
 pub mod concerns;
 pub mod event_artists;
 pub mod event_histories;

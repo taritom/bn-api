@@ -13,6 +13,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::GET).with(artists::index);
             r.method(Method::POST).with(artists::create);
         })
+        .resource("/cart", |r| {
+            r.method(Method::POST).with(cart::add);
+        })
         .resource("/venues/{id}/organizations", |r| {
             r.method(Method::POST).with(venues::add_to_organization);
         })

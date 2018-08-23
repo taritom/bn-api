@@ -1,5 +1,6 @@
 pub mod artists;
 pub mod auth;
+pub mod cart;
 pub mod events;
 pub mod external;
 pub mod organization_invites;

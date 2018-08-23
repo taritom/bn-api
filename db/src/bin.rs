@@ -29,7 +29,9 @@ embed_migrations!("./migrations");
 
 use clap::ArgMatches;
 use clap::{App, Arg, SubCommand};
+use db::Connectable;
 use db::DatabaseConnection;
+use diesel::connection::SimpleConnection;
 use diesel::pg::PgConnection;
 use diesel::Connection;
 use models::Roles;
@@ -73,18 +75,27 @@ pub fn main() {
                     .takes_value(true)
                     .help("password for system administrator"),
             ),
-        )
+        ).subcommand(
+        SubCommand::with_name("seed")
+            .about("Populates the database with example data")
+            .arg(Arg::with_name("connection")
+                     .short("c")
+                     .takes_value(true)
+                     .help("Connection string to the database")
+            )
+    )
         .get_matches();
 
     match matches.subcommand() {
         ("create", Some(matches)) => create_db_and_user(matches),
         ("migrate", Some(matches)) => migrate_db(matches),
+        ("seed", Some(matches)) => seed_db(matches),
         _ => unreachable!("The cli parser will prevent reaching here"),
     }
 }
 
 fn create_db(conn_string: &str) -> Result<(), diesel::result::Error> {
-    let parts: Vec<&str> = conn_string.split("/").collect();
+    let parts: Vec<&str> = conn_string.split('/').collect();
     let db = parts.last().unwrap();
     let db = str::replace(db, "'", "''");
     let postgres_conn_string = str::replace(conn_string, &db, "postgres");
@@ -142,4 +153,21 @@ fn create_db_and_user(matches: &ArgMatches) {
         .expect("Failed to create system admin");
     user.add_role(Roles::Admin, &db_connection)
         .expect("Could not assign System Administrator role to the user");
+}
+
+fn seed_db(matches: &ArgMatches) {
+    println!("Seeding database");
+    let conn_string = matches
+        .value_of("connection")
+        .expect("Connection string was not provided");
+
+    let db_connection = DatabaseConnection::new(conn_string).unwrap();
+
+    let seed_query = include_str!("seed_data/seed.sql");
+    println!("Seed {}", seed_query);
+
+    db_connection
+        .get_connection()
+        .batch_execute(seed_query)
+        .expect("Seeding database failed");
 }

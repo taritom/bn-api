@@ -63,7 +63,7 @@ impl TicketAllocation {
 
     pub fn update(self, conn: &Connectable) -> Result<TicketAllocation, DatabaseError> {
         let update_attr = TicketAllocationEditableAttributes {
-            synced_on: self.synced_on.clone(),
+            synced_on: self.synced_on,
             tari_asset_id: self.tari_asset_id.clone(),
         };
 

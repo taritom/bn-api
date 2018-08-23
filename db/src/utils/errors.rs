@@ -6,6 +6,7 @@ use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::error::Error;
 use std::fmt;
 
+#[derive(Clone, Copy)]
 pub enum ErrorCode {
     InvalidInput,
     MissingInput,

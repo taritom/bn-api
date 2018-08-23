@@ -55,7 +55,7 @@ impl OrganizationInvite {
             inviter_id: invitee_id,
             user_email: email.into(),
             security_token: None,
-            user_id: user_id,
+            user_id,
         }
     }
 

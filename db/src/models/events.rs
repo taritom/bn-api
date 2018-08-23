@@ -129,40 +129,39 @@ impl Event {
             None => "%".to_string(),
         };
 
-        let result = events::table
-            .filter(
-                events::event_start
-                    .gt(start_time.unwrap_or(NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0))),
-            )
-            .filter(
-                events::event_start
-                    .lt(end_time.unwrap_or(NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))),
-            )
-            .left_join(
-                venues::table.on(events::venue_id
-                    .eq(venues::id)
-                    .and(venues::name.ilike(query_like.clone()))),
-            )
-            .left_join(
-                event_artists::table
-                    .inner_join(
-                        artists::table.on(event_artists::artist_id
-                            .eq(artists::id)
-                            .and(artists::name.ilike(query_like.clone()))),
-                    )
-                    .on(events::id.eq(event_artists::event_id)),
-            )
-            .filter(
-                events::name
-                    .ilike(query_like.clone())
-                    .or(venues::id.is_not_null())
-                    .or(artists::id.is_not_null()),
-            )
-            .select(events::all_columns)
-            .distinct()
-            .order_by(events::event_start.asc())
-            .then_order_by(events::name.asc())
-            .load(conn.get_connection());
+        let result =
+            events::table
+                .filter(events::event_start.gt(
+                    start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
+                ))
+                .filter(events::event_start.lt(
+                    end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
+                ))
+                .left_join(
+                    venues::table.on(events::venue_id
+                        .eq(venues::id)
+                        .and(venues::name.ilike(query_like.clone()))),
+                )
+                .left_join(
+                    event_artists::table
+                        .inner_join(
+                            artists::table.on(event_artists::artist_id
+                                .eq(artists::id)
+                                .and(artists::name.ilike(query_like.clone()))),
+                        )
+                        .on(events::id.eq(event_artists::event_id)),
+                )
+                .filter(
+                    events::name
+                        .ilike(query_like.clone())
+                        .or(venues::id.is_not_null())
+                        .or(artists::id.is_not_null()),
+                )
+                .select(events::all_columns)
+                .distinct()
+                .order_by(events::event_start.asc())
+                .then_order_by(events::name.asc())
+                .load(conn.get_connection());
 
         DatabaseError::wrap(ErrorCode::QueryError, "Unable to load all events", result)
     }
@@ -175,5 +174,13 @@ impl Event {
 
     pub fn organization(&self, conn: &Connectable) -> Result<Organization, DatabaseError> {
         Organization::find(self.organization_id, conn)
+    }
+
+    pub fn add_ticket_allocation(
+        &self,
+        quantity: u32,
+        conn: &Connectable,
+    ) -> Result<TicketAllocation, DatabaseError> {
+        TicketAllocation::create(self.id, quantity as i64).commit(conn)
     }
 }
