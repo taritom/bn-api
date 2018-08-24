@@ -7,7 +7,7 @@ CREATE TABLE artists (
   youtube_video_urls TEXT[] DEFAULT '{}' NOT NULL,
   facebook_username TEXT,
   instagram_username TEXT,
-  snapshat_username TEXT,
+  snapchat_username TEXT,
   soundcloud_username TEXT,
   bandcamp_username TEXT
 );

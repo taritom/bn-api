@@ -7,7 +7,7 @@ table! {
         youtube_video_urls -> Array<Text>,
         facebook_username -> Nullable<Text>,
         instagram_username -> Nullable<Text>,
-        snapshat_username -> Nullable<Text>,
+        snapchat_username -> Nullable<Text>,
         soundcloud_username -> Nullable<Text>,
         bandcamp_username -> Nullable<Text>,
     }

@@ -50,7 +50,7 @@ fn artist_editable_attributes_validate() {
         youtube_video_urls: Some(vec!["invalid".to_string()]),
         facebook_username: None,
         instagram_username: None,
-        snapshat_username: None,
+        snapchat_username: None,
         soundcloud_username: None,
         bandcamp_username: None,
     };
@@ -125,7 +125,7 @@ fn update_attributes() {
         youtube_video_urls: None,
         facebook_username: None,
         instagram_username: None,
-        snapshat_username: None,
+        snapchat_username: None,
         soundcloud_username: None,
         bandcamp_username: None,
     };

@@ -20,7 +20,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         youtube_video_urls: Vec::new(),
         facebook_username: None,
         instagram_username: None,
-        snapshat_username: None,
+        snapchat_username: None,
         soundcloud_username: None,
         bandcamp_username: None,
     });
@@ -57,7 +57,7 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
         youtube_video_urls: vec!["invalid".to_string()],
         facebook_username: None,
         instagram_username: None,
-        snapshat_username: None,
+        snapchat_username: None,
         soundcloud_username: None,
         bandcamp_username: None,
     });

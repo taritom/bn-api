@@ -178,8 +178,8 @@ fn remove_users() {
 
     user.role.push("OrgOwner".to_string());
 
-    let user_results = organization.users(&project).unwrap();
-    let users_before_delete = vec![user.clone(), user3.clone(), user2];
+    let user_results = organization.users(&project).unwrap().sort_by_key(|k| k.id);
+    let users_before_delete = vec![user.clone(), user2, user3.clone()].sort_by_key(|k| k.id);
     assert_eq!(user_results, users_before_delete);
 
     //remove user

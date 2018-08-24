@@ -17,7 +17,7 @@ pub struct Artist {
     pub youtube_video_urls: Vec<String>,
     pub facebook_username: Option<String>,
     pub instagram_username: Option<String>,
-    pub snapshat_username: Option<String>,
+    pub snapchat_username: Option<String>,
     pub soundcloud_username: Option<String>,
     pub bandcamp_username: Option<String>,
 }
@@ -33,7 +33,7 @@ pub struct NewArtist {
     pub youtube_video_urls: Vec<String>,
     pub facebook_username: Option<String>,
     pub instagram_username: Option<String>,
-    pub snapshat_username: Option<String>,
+    pub snapchat_username: Option<String>,
     pub soundcloud_username: Option<String>,
     pub bandcamp_username: Option<String>,
 }
@@ -49,7 +49,7 @@ pub struct ArtistEditableAttributes {
     pub youtube_video_urls: Option<Vec<String>>,
     pub facebook_username: Option<String>,
     pub instagram_username: Option<String>,
-    pub snapshat_username: Option<String>,
+    pub snapchat_username: Option<String>,
     pub soundcloud_username: Option<String>,
     pub bandcamp_username: Option<String>,
 }
@@ -75,7 +75,7 @@ impl Artist {
             youtube_video_urls: Vec::new(),
             facebook_username: None,
             instagram_username: None,
-            snapshat_username: None,
+            snapchat_username: None,
             soundcloud_username: None,
             bandcamp_username: None,
         }
