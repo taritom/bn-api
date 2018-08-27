@@ -8,6 +8,7 @@ use errors::*;
 use helpers::application;
 use models::CreateTicketAllocationRequest;
 use server::AppState;
+use tari::tariclient::*;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -139,13 +140,19 @@ pub fn create_tickets(
     // TODO: move this to an async processor...
     let tari_client = state.get_tari_client();
 
-    let asset_id = match tari_client.create_asset(
-        &data.name,
-        &"TIX",
-        0,
-        data.tickets_delta,
-        &"BigNeonAddress",
-    ) {
+    let asset_id = match tari_client.create_asset(Asset {
+        id: data.name.clone(),
+        name: data.name.clone(),
+        symbol: "sym".into(), //TODO remove symbol from asset spec
+        decimals: 0,
+        total_supply: data.tickets_delta,
+        authorised_signers: vec!["896asudh9872ty4".into()], //TODO add bn-api pub key here
+        issuer: "BigNeonAddress".into(),
+        valid: true,
+        rule_flags: 0,
+        rule_metadata: "".into(),
+        expire_date: 10,
+    }) {
         Ok(a) => a,
         Err(e) => {
             return application::internal_server_error(&format!(

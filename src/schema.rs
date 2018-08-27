@@ -2,32 +2,6 @@ table! {
     artists (id) {
         id -> Uuid,
         name -> Text,
-        bio -> Text,
-        website_url -> Nullable<Text>,
-        youtube_video_urls -> Array<Text>,
-        facebook_username -> Nullable<Text>,
-        instagram_username -> Nullable<Text>,
-        snapchat_username -> Nullable<Text>,
-        soundcloud_username -> Nullable<Text>,
-        bandcamp_username -> Nullable<Text>,
-    }
-}
-
-table! {
-    cart_items (id) {
-        id -> Uuid,
-        cart_id -> Uuid,
-        created_on -> Timestamp,
-        ticket_allocation_id -> Uuid,
-        quantity -> Int8,
-    }
-}
-
-table! {
-    carts (id) {
-        id -> Uuid,
-        user_id -> Uuid,
-        created_on -> Timestamp,
     }
 }
 
@@ -175,9 +149,6 @@ table! {
     }
 }
 
-joinable!(cart_items -> carts (cart_id));
-joinable!(cart_items -> ticket_allocations (ticket_allocation_id));
-joinable!(carts -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
 joinable!(event_histories -> events (event_id));
@@ -200,8 +171,6 @@ joinable!(ticket_allocations -> events (event_id));
 
 allow_tables_to_appear_in_same_query!(
     artists,
-    cart_items,
-    carts,
     event_artists,
     event_histories,
     event_interest,

@@ -5,7 +5,7 @@ use actix_web::{server, App};
 use config::Config;
 use database::{ConnectionGranting, Database};
 use routing;
-use tari::TariClient;
+use tari::tariclient::*;
 
 pub struct AppState {
     pub config: Config,
