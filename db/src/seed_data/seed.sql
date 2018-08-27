@@ -16,4 +16,3 @@ INSERT INTO public.artists (id, name, bio, website_url, youtube_video_urls, face
 INSERT INTO public.ticket_allocations (id, event_id, tari_asset_id, created_on, synced_on, ticket_delta) VALUES ('46c10491-5596-4326-a7a3-0dc301ce4a0f', 'c2cbae75-e2f9-442a-9e0d-b2a288aca009', 'Test 1', '2018-08-22 11:41:07.626539', '2018-08-22 11:41:07.619112', 100);
 INSERT INTO public.ticket_allocations (id, event_id, tari_asset_id, created_on, synced_on, ticket_delta) VALUES ('cdf009a7-98e0-49d2-b84b-f6525b271ec2', 'c2cbae75-e2f9-442a-9e0d-b2a288aca009', 'Test 1', '2018-08-22 11:41:10.016970', '2018-08-22 11:41:09.999551', 100);
 
-

@@ -2,7 +2,7 @@
 CREATE TABLE cart_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   cart_id uuid NOT NULL REFERENCES carts (id),
-  created_on TIMESTAMP NOT NULL DEFAULT now(),
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
   ticket_allocation_id uuid NOT NULL REFERENCES ticket_allocations(id),
   quantity bigint not null
   );

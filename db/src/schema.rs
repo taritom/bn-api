@@ -17,7 +17,7 @@ table! {
     cart_items (id) {
         id -> Uuid,
         cart_id -> Uuid,
-        created_on -> Timestamp,
+        created_at -> Timestamp,
         ticket_allocation_id -> Uuid,
         quantity -> Int8,
     }
@@ -27,7 +27,7 @@ table! {
     carts (id) {
         id -> Uuid,
         user_id -> Uuid,
-        created_on -> Timestamp,
+        created_at -> Timestamp,
     }
 }
 
@@ -144,7 +144,7 @@ table! {
         id -> Uuid,
         event_id -> Uuid,
         tari_asset_id -> Nullable<Text>,
-        created_on -> Timestamp,
+        created_at -> Timestamp,
         synced_on -> Nullable<Timestamp>,
         ticket_delta -> Int8,
     }

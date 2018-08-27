@@ -16,7 +16,7 @@ use uuid::Uuid;
 pub struct Cart {
     pub id: Uuid,
     user_id: Uuid,
-    created_on: NaiveDateTime,
+    created_at: NaiveDateTime,
 }
 
 #[derive(Insertable, Serialize, Deserialize)]
@@ -106,7 +106,7 @@ impl From<CartItem> for DisplayCartItem {
 pub struct CartItem {
     pub id: Uuid,
     cart_id: Uuid,
-    created_on: NaiveDateTime,
+    created_at: NaiveDateTime,
     ticket_allocation_id: Uuid,
     quantity: i64,
 }

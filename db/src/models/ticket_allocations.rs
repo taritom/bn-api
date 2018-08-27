@@ -17,7 +17,7 @@ pub struct TicketAllocation {
     pub id: Uuid,
     pub event_id: Uuid,
     tari_asset_id: Option<String>,
-    pub created_on: NaiveDateTime,
+    pub created_at: NaiveDateTime,
     synced_on: Option<NaiveDateTime>,
     ticket_delta: i64,
 }
