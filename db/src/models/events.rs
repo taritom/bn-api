@@ -7,7 +7,9 @@ use models::*;
 use schema::{artists, event_artists, events, venues};
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
+use utils::errors::*;
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Associations, Identifiable, Queryable, AsChangeset)]
 #[belongs_to(Organization)]
@@ -20,38 +22,52 @@ pub struct Event {
     pub organization_id: Uuid,
     pub venue_id: Uuid,
     pub created_at: NaiveDateTime,
-    pub ticket_sell_date: NaiveDateTime,
     pub event_start: NaiveDateTime,
+    pub door_time: NaiveDateTime,
+    pub status: String,
+    pub publish_date: NaiveDateTime,
+    pub promo_image_url: Option<String>,
+    pub additional_info: Option<String>,
+    pub age_limit: Option<i32>,
 }
 
-#[derive(Insertable, Serialize, Deserialize)]
+#[derive(Insertable, Serialize, Deserialize, Validate)]
 #[table_name = "events"]
 pub struct NewEvent {
     pub name: String,
     pub organization_id: Uuid,
     pub venue_id: Uuid,
     pub event_start: NaiveDateTime,
+    pub door_time: NaiveDateTime,
+    pub status: String,
+    pub publish_date: NaiveDateTime,
+    #[validate(url)]
+    pub promo_image_url: Option<String>,
+    pub additional_info: Option<String>,
+    pub age_limit: Option<i32>,
 }
 
-#[derive(AsChangeset, Default, Deserialize)]
+#[derive(AsChangeset, Default, Deserialize, Validate)]
 #[table_name = "events"]
 pub struct EventEditableAttributes {
     pub name: Option<String>,
     pub organization_id: Option<Uuid>,
     pub venue_id: Option<Uuid>,
-    pub ticket_sell_date: Option<NaiveDateTime>,
     pub event_start: Option<NaiveDateTime>,
+    pub door_time: Option<NaiveDateTime>,
+    pub publish_date: Option<NaiveDateTime>,
+    #[validate(url)]
+    pub promo_image_url: Option<String>,
+    pub additional_info: Option<String>,
+    pub age_limit: Option<i32>,
 }
 
 impl NewEvent {
     pub fn commit(&self, conn: &Connectable) -> Result<Event, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::InsertError,
-            "Could not create new event",
-            diesel::insert_into(events::table)
-                .values(self)
-                .get_result(conn.get_connection()),
-        )
+        diesel::insert_into(events::table)
+            .values(self)
+            .get_result(conn.get_connection())
+            .to_db_error(ErrorCode::InsertError, "Could not create new event")
     }
 }
 
@@ -61,12 +77,20 @@ impl Event {
         organization_id: Uuid,
         venue_id: Uuid,
         event_start: NaiveDateTime,
+        door_time: NaiveDateTime,
+        publish_date: NaiveDateTime,
     ) -> NewEvent {
         NewEvent {
             name: name.into(),
-            organization_id: organization_id,
-            venue_id: venue_id,
-            event_start: event_start,
+            organization_id,
+            venue_id,
+            event_start,
+            door_time,
+            status: EventStatus::Draft.to_string(),
+            publish_date,
+            promo_image_url: None,
+            additional_info: None,
+            age_limit: None,
         }
     }
 
@@ -167,7 +191,7 @@ impl Event {
     }
 
     pub fn add_artist(&self, artist_id: Uuid, conn: &Connectable) -> Result<(), DatabaseError> {
-        EventArtist::create(self.id, artist_id, 0)
+        EventArtist::create(self.id, artist_id, 0, None)
             .commit(conn)
             .map(|_| ())
     }

@@ -5,6 +5,7 @@ use models::{Event, User};
 use schema::event_interest;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
+use utils::errors::*;
 use uuid::Uuid;
 
 #[derive(Associations, Identifiable, Queryable, Serialize)]
@@ -58,5 +59,28 @@ impl EventInterest {
                     .filter(event_interest::event_id.eq(event_id)),
             ).execute(conn.get_connection()),
         )
+    }
+
+    pub fn total_interest(event_id: Uuid, conn: &Connectable) -> Result<u32, DatabaseError> {
+        let result = event_interest::table
+            .filter(event_interest::event_id.eq(event_id))
+            .load::<EventInterest>(conn.get_connection())
+            .to_db_error(ErrorCode::QueryError, "Error loading event interest")?;
+
+        Ok(result.len() as u32)
+    }
+
+    pub fn user_interest(
+        event_id: Uuid,
+        user_id: Uuid,
+        conn: &Connectable,
+    ) -> Result<bool, DatabaseError> {
+        let result = event_interest::table
+            .filter(event_interest::event_id.eq(event_id))
+            .filter(event_interest::user_id.eq(user_id))
+            .load::<EventInterest>(conn.get_connection())
+            .to_db_error(ErrorCode::QueryError, "Error loading event interest")?;
+
+        Ok(result.len() > 0)
     }
 }

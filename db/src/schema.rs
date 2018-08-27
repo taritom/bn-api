@@ -37,6 +37,7 @@ table! {
         event_id -> Uuid,
         artist_id -> Uuid,
         rank -> Int4,
+        set_time -> Nullable<Timestamp>,
     }
 }
 
@@ -65,8 +66,13 @@ table! {
         organization_id -> Uuid,
         venue_id -> Uuid,
         created_at -> Timestamp,
-        ticket_sell_date -> Timestamp,
         event_start -> Timestamp,
+        door_time -> Timestamp,
+        status -> Text,
+        publish_date -> Timestamp,
+        promo_image_url -> Nullable<Text>,
+        additional_info -> Nullable<Text>,
+        age_limit -> Nullable<Int4>,
     }
 }
 

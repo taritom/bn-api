@@ -212,6 +212,7 @@ dependencies = [
  "url 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "validator 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "validator_derive 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

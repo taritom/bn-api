@@ -23,6 +23,8 @@ extern crate log;
 extern crate chrono;
 extern crate log4rs;
 extern crate rustc_serialize;
+#[macro_use]
+extern crate validator_derive;
 extern crate validator;
 
 pub mod auth;

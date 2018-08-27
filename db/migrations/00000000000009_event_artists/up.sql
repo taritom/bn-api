@@ -3,7 +3,8 @@ CREATE TABLE event_artists (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   event_id uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
   artist_id uuid NOT NULL REFERENCES artists (id) ON DELETE CASCADE,
-  rank INTEGER NOT NULL
+  rank INTEGER NOT NULL,
+  set_time TIMESTAMP
 );
 
 -- Indices

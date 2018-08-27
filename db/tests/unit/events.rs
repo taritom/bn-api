@@ -9,13 +9,13 @@ fn create() {
     let venue = Venue::create("Venue").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
     assert_eq!(event.venue_id, venue.id);
     assert_eq!(event.organization_id, organization.id);
     assert_eq!(event.id.to_string().is_empty(), false);
@@ -29,21 +29,22 @@ fn update() {
 
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let event = Event::create(
-        "newEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
     //Edit event
-    let sell_date = NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11);
     let parameters = EventEditableAttributes {
-        ticket_sell_date: Some(sell_date),
+        door_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
         ..Default::default()
     };
     let event = event.update(parameters, &project).unwrap();
-    assert_eq!(event.ticket_sell_date, sell_date);
+    assert_eq!(
+        event.door_time,
+        NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)
+    );
 }
 
 #[test]
@@ -54,16 +55,15 @@ fn find_individuals() {
 
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
     //Edit event
     let parameters = EventEditableAttributes {
-        ticket_sell_date: Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11)),
+        door_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
         ..Default::default()
     };
     let event = event.update(parameters, &project).unwrap();
@@ -92,28 +92,30 @@ fn find_list() {
     let artist2 = project.create_artist().with_name("Artist2".into()).finish();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let event = Event::create(
-        "OldEvent",
-        organization.id,
-        venue1.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event = project
+        .create_event()
+        .with_name("OldEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue1)
+        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .finish();
+
     event.add_artist(artist1.id, &project).unwrap();
     event.add_artist(artist2.id, &project).unwrap();
 
     //find more than one event
-    let event2 = Event::create(
-        "NewEvent",
-        organization.id,
-        venue2.id,
-        NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event2 = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue2)
+        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .finish();
 
     event2.add_artist(artist1.id, &project).unwrap();
     let all_events = vec![event, event2];
     let all_found_events = Event::search(None, None, None, &project).unwrap();
+
     assert_eq!(all_events, all_found_events);
     let all_found_events = Event::search(Some("".to_string()), None, None, &project).unwrap();
     assert_eq!(all_events, all_found_events);
@@ -175,6 +177,8 @@ fn find_for_organization_and_venue() {
         organization.id,
         venue1.id,
         NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
+        NaiveDate::from_ymd(2016, 7, 8).and_hms(8, 11, 12),
+        NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
     ).commit(&project)
         .unwrap();
 
@@ -184,6 +188,8 @@ fn find_for_organization_and_venue() {
         organization.id,
         venue2.id,
         NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
+        NaiveDate::from_ymd(2016, 7, 8).and_hms(8, 11, 12),
+        NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
     ).commit(&project)
         .unwrap();
     let all_events = vec![event, event2];
@@ -210,6 +216,8 @@ fn organization() {
         organization.id,
         venue.id,
         NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
+        NaiveDate::from_ymd(2016, 7, 8).and_hms(8, 11, 12),
+        NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
     ).commit(&project)
         .unwrap();
 

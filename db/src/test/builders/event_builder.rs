@@ -1,4 +1,5 @@
 use chrono::NaiveDate;
+use chrono::NaiveDateTime;
 use db::Connectable;
 use dev::builders::*;
 use models::*;
@@ -9,6 +10,7 @@ pub struct EventBuilder<'a> {
     name: String,
     organization_id: Option<Uuid>,
     venue_id: Option<Uuid>,
+    event_start: Option<NaiveDateTime>,
     connection: &'a Connectable,
 }
 
@@ -19,6 +21,7 @@ impl<'a> EventBuilder<'a> {
             name: format!("Event {}", x).into(),
             organization_id: None,
             venue_id: None,
+            event_start: None,
             connection,
         }
     }
@@ -38,6 +41,11 @@ impl<'a> EventBuilder<'a> {
         self
     }
 
+    pub fn with_event_start(mut self, date: &NaiveDateTime) -> Self {
+        self.event_start = Some(date.clone());
+        self
+    }
+
     pub fn finish(&mut self) -> Event {
         Event::create(
             &self.name,
@@ -47,7 +55,11 @@ impl<'a> EventBuilder<'a> {
             self.venue_id
                 .or_else(|| Some(VenueBuilder::new(self.connection).finish().id))
                 .unwrap(),
-            NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
+            self.event_start
+                .or_else(|| Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)))
+                .unwrap(),
+            NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10),
+            NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
         ).commit(self.connection)
             .unwrap()
     }

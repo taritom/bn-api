@@ -2,16 +2,19 @@ use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events::SearchParameters;
 use bigneon_api::controllers::events::{self, PathParameters};
+use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::*;
 use functional::base;
 use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 #[test]
 pub fn index() {
     let database = TestDatabase::new();
+
     let organization = database.create_organization().finish();
     let event = database
         .create_event()
@@ -70,21 +73,64 @@ pub fn index_search_returns_only_one_event() {
 #[test]
 pub fn show() {
     let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
     let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
     let event = database
         .create_event()
         .with_name("NewEvent".to_string())
         .with_organization(&organization)
+        .with_venue(&venue)
         .finish();
+    let event_id = event.id;
 
-    let event_expected_json = serde_json::to_string(&event).unwrap();
+    let artist1 = database.create_artist().finish();
+    let artist2 = database.create_artist().finish();
+
+    event.add_artist(artist1.id, &*database.get_connection());
+    event.add_artist(artist2.id, &*database.get_connection());
+
+    let event_artists =
+        EventArtist::find_all_from_event(event.id, &*database.get_connection()).unwrap();
+
+    let event_interest =
+        EventInterest::create(event.id, user.id).commit(&*database.get_connection());
+
+    #[derive(Serialize)]
+    struct ShortOrganization {
+        id: Uuid,
+        name: String,
+    }
+
+    #[derive(Serialize)]
+    struct R {
+        event: Event,
+        organization: ShortOrganization,
+        venue: Venue,
+        artists: Vec<EventArtist>,
+        total_interest: u32,
+        user_is_interested: bool,
+    }
+
+    let event_expected_json = serde_json::to_string(&R {
+        event: event,
+        organization: ShortOrganization {
+            id: organization.id,
+            name: organization.name,
+        },
+        venue: venue,
+        artists: event_artists,
+        total_interest: 1,
+        user_is_interested: true,
+    }).unwrap();
 
     let test_request = TestRequest::create(database);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = event.id;
+    path.id = event_id;
     let state = test_request.extract_state();
 
-    let response: HttpResponse = events::show((state, path)).into();
+    let response: HttpResponse = events::show((state, path, Some(auth_user))).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);
@@ -141,6 +187,31 @@ mod update_tests {
 }
 
 #[cfg(test)]
+mod add_artist_tests {
+    use super::*;
+    #[test]
+    fn add_artist_org_member() {
+        base::events::add_artist(Roles::OrgMember, true);
+    }
+    #[test]
+    fn add_artist_guest() {
+        base::events::add_artist(Roles::Guest, false);
+    }
+    #[test]
+    fn add_artist_admin() {
+        base::events::add_artist(Roles::Admin, true);
+    }
+    #[test]
+    fn add_artist_user() {
+        base::events::add_artist(Roles::User, false);
+    }
+    #[test]
+    fn add_artist_org_owner() {
+        base::events::add_artist(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod add_interest_tests {
     use super::*;
 
@@ -187,6 +258,7 @@ mod remove_interest_tests {
 #[test]
 pub fn show_from_organizations() {
     let database = TestDatabase::new();
+
     let organization = database.create_organization().finish();
     let event = database
         .create_event()
@@ -216,6 +288,7 @@ pub fn show_from_organizations() {
 #[test]
 pub fn show_from_venues() {
     let database = TestDatabase::new();
+
     let organization = database.create_organization().finish();
     let venue = database.create_venue().finish();
     let event = database

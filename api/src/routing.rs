@@ -34,7 +34,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::POST)
                 .with(organization_invites::accept_request);
         })
-        .resource("organizations/decline_invite", |r| {
+        .resource("/organizations/decline_invite", |r| {
             r.method(Method::POST)
                 .with(organization_invites::decline_request);
         })
@@ -71,6 +71,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         .resource("/events/{id}", |r| {
             r.method(Method::GET).with(events::show);
             r.method(Method::PUT).with(events::update);
+        })
+        .resource("/events/{id}/artist", |r| {
+            r.method(Method::POST).with(events::add_artist);
         })
         .resource("/events/{id}/interest", |r| {
             r.method(Method::POST).with(events::add_interest);

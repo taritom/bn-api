@@ -9,13 +9,7 @@ fn create() {
     let venue = Venue::create("Name").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event = project.create_event().finish();
     let order = Order::create(user.id, event.id).commit(&project).unwrap();
     let protocol_reference_hash = "HASH";
     let event_history = EventHistory::create(event.id, order.id, user.id, protocol_reference_hash)

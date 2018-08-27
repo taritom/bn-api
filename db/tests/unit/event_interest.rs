@@ -9,13 +9,7 @@ fn create() {
     let venue = Venue::create("Venue").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event = project.create_event().finish();
 
     let event_interest = EventInterest::create(event.id, user.id)
         .commit(&project)
@@ -23,4 +17,45 @@ fn create() {
 
     assert_eq!(event_interest.user_id, user.id);
     assert_eq!(event_interest.event_id, event.id);
+}
+
+#[test]
+fn total_interest() {
+    let project = TestProject::new();
+    let venue = Venue::create("Venue").commit(&project).unwrap();
+    let user1 = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user1).finish();
+    let event = project.create_event().finish();
+
+    let event_interest1 = EventInterest::create(event.id, user1.id)
+        .commit(&project)
+        .unwrap();
+
+    let event_interest2 = EventInterest::create(event.id, user2.id)
+        .commit(&project)
+        .unwrap();
+
+    assert_eq!(
+        EventInterest::total_interest(event.id, &project).unwrap(),
+        2
+    );
+}
+
+#[test]
+fn user_interest() {
+    let project = TestProject::new();
+    let venue = Venue::create("Venue").commit(&project).unwrap();
+    let user = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+    let event = project.create_event().finish();
+
+    let event_interest1 = EventInterest::create(event.id, user.id)
+        .commit(&project)
+        .unwrap();
+
+    assert_eq!(
+        EventInterest::user_interest(event.id, user.id, &project).unwrap(),
+        true
+    );
 }

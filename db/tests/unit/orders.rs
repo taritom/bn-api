@@ -14,6 +14,8 @@ fn create() {
         organization.id,
         venue.id,
         NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
+        NaiveDate::from_ymd(2016, 7, 8).and_hms(8, 11, 12),
+        NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
     ).commit(&project)
         .unwrap();
     let order = Order::create(user.id, event.id).commit(&project).unwrap();
