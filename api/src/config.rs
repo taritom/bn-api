@@ -14,6 +14,7 @@ pub enum Environment {
 #[derive(Clone)]
 pub struct Config {
     pub allowed_origins: String,
+    pub front_end_url: String,
     pub api_url: String,
     pub api_port: String,
     pub app_name: String,
@@ -50,6 +51,7 @@ const MAIL_FROM_NAME: &str = "MAIL_FROM_NAME";
 const MAIL_SMTP_HOST: &str = "MAIL_SMTP_HOST";
 const MAIL_SMTP_USER_NAME: &str = "MAIL_SMTP_USER_NAME";
 const MAIL_SMTP_PASSWORD: &str = "MAIL_SMTP_PASSWORD";
+const FRONT_END_URL: &str = "FRONT_END_URL";
 
 impl Config {
     pub fn new(environment: Environment) -> Self {
@@ -105,6 +107,9 @@ impl Config {
 
         let facebook_app_secret = env::var(&FACEBOOK_APP_SECRET).ok();
 
+        let front_end_url =
+            env::var(&FRONT_END_URL).expect(&format!("Front end url must be defined"));
+
         Config {
             allowed_origins,
             app_name,
@@ -121,6 +126,7 @@ impl Config {
             token_secret,
             token_issuer,
             whitelisted_domains,
+            front_end_url,
         }
     }
 }

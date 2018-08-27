@@ -10,13 +10,13 @@ pub fn invite_user_to_organization_email(
     recipient_name: &str,
 ) -> Mailer {
     let invite_link_accept = format!(
-        "{}/organizations/accept_invite?security_token={}",
-        env::var("FRONT_END_URL").unwrap(),
+        "{}organizations/accept_invite?security_token={}",
+        config.front_end_url.clone(),
         invite.security_token.expect("Security token is not set")
     );
     let invite_link_decline = format!(
         "{}/organizations/decline_invite?security_token={}",
-        env::var("FRONT_END_URL").unwrap(),
+        config.front_end_url.clone(),
         invite.security_token.expect("Security token is not set")
     );
 
