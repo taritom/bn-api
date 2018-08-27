@@ -49,8 +49,7 @@ pub fn main() {
                         .takes_value(true)
                         .help("Connection string to the database"),
                 ),
-        )
-        .subcommand(
+        ).subcommand(
             SubCommand::with_name("create")
                 .about("Creates a new instance of the database and inserts the system administrator user")
                 .arg(
@@ -76,6 +75,15 @@ pub fn main() {
                     .help("password for system administrator"),
             ),
         ).subcommand(
+            SubCommand::with_name("drop")
+                .about("Deletes the current database. WARNING! This is NOT REVERSIBLE")
+                .arg(
+                    Arg::with_name("connection")
+                        .short("c")
+                        .takes_value(true)
+                        .help("Connection string to the database"),
+                )
+        ).subcommand(
         SubCommand::with_name("seed")
             .about("Populates the database with example data")
             .arg(Arg::with_name("connection")
@@ -83,27 +91,36 @@ pub fn main() {
                      .takes_value(true)
                      .help("Connection string to the database")
             )
-    )
-        .get_matches();
+    ).get_matches();
 
     match matches.subcommand() {
         ("create", Some(matches)) => create_db_and_user(matches),
+        ("drop", Some(matches)) => drop_db(matches),
         ("migrate", Some(matches)) => migrate_db(matches),
         ("seed", Some(matches)) => seed_db(matches),
         _ => unreachable!("The cli parser will prevent reaching here"),
     }
 }
 
-fn create_db(conn_string: &str) -> Result<(), diesel::result::Error> {
+fn get_db(conn_string: &str) -> (String, String) {
     let parts: Vec<&str> = conn_string.split('/').collect();
     let db = parts.last().unwrap();
     let db = str::replace(db, "'", "''");
     let postgres_conn_string = str::replace(conn_string, &db, "postgres");
-    let connection = PgConnection::establish(&postgres_conn_string).unwrap();
+    (postgres_conn_string, db)
+}
 
-    connection
-        .execute(&format!("CREATE DATABASE \"{}\"", db))
-        .map(|_i| ())
+fn execute_sql(postgres_conn_string: &str, query: &str) -> Result<(), diesel::result::Error> {
+    let connection = PgConnection::establish(&postgres_conn_string).unwrap();
+    connection.execute(query).map(|_i| ())
+}
+
+fn create_db(conn_string: &str) -> Result<(), diesel::result::Error> {
+    let (postgres_conn_string, db) = get_db(conn_string);
+    execute_sql(
+        &postgres_conn_string,
+        &format!("CREATE DATABASE \"{}\"", db),
+    )
 }
 
 fn migrate_db(matches: &ArgMatches) {
@@ -170,4 +187,16 @@ fn seed_db(matches: &ArgMatches) {
         .get_connection()
         .batch_execute(seed_query)
         .expect("Seeding database failed");
+}
+
+fn drop_db(matches: &ArgMatches) {
+    let conn_string = matches
+        .value_of("connection")
+        .expect("Connection string was not provided");
+    let (postgres_conn_string, db) = get_db(conn_string);
+    println!("Dropping {} from {}", db, postgres_conn_string);
+    execute_sql(
+        &postgres_conn_string,
+        &format!("DROP DATABASE IF EXISTS \"{}\"", db),
+    ).expect("Error dropping database");
 }

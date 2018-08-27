@@ -6,6 +6,8 @@ ADD db ./db/
 ADD Cargo.lock Cargo.toml ./
 
 RUN cargo build --release
+WORKDIR /usr/src/bn-api/db
+RUN cargo install
 WORKDIR /usr/src/bn-api/api
 RUN cargo install
 
