@@ -86,7 +86,7 @@ pub fn web_login(
     let user = match existing_user {
         Some(u) => {
             info!("Found existing user with id: {}", &u.user_id);
-            User::find(&u.user_id, &*connection)?
+            User::find(u.user_id, &*connection)?
         }
         None => {
             info!("User not found, creating user");

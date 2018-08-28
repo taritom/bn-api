@@ -47,7 +47,7 @@ fn change_invite_status_of_invite() {
     */
     let testdate_start = Utc::now().naive_utc();
     let testdate_end = Utc::now().naive_utc() + Duration::seconds(60);
-    let compare_true = org_invite.acepted_invite(&project).unwrap();
+    let compare_true = org_invite.accept_invite(&project).unwrap();
     let compare_false = org_invite2.decline_invite(&project).unwrap();
 
     assert_eq!(compare_true.accepted, Some(1));

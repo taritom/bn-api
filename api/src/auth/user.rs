@@ -62,7 +62,7 @@ impl User {
         self.scopes.contains(&scope.to_string())
     }
 
-    pub fn requires_role(&self, scope: Scopes) -> Result<(), Error> {
+    pub fn requires_scope(&self, scope: Scopes) -> Result<(), Error> {
         match self.has_scope(scope) {
             true => Ok(()),
             false => Err(error::ErrorUnauthorized(
@@ -101,7 +101,7 @@ impl FromRequest<AppState> for User {
                             }
 
                             let connection = req.state().database.get_connection();
-                            match DbUser::find(&token.claims.get_id(), &*connection) {
+                            match DbUser::find(token.claims.get_id(), &*connection) {
                                 Ok(user) => Ok(User::new(user)),
                                 Err(e) => Err(ConvertToWebError::create_http_error(&e)),
                             }

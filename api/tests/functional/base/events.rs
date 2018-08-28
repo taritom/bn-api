@@ -86,10 +86,6 @@ pub fn update(role: Roles, should_test_succeed: bool) {
 pub fn add_artist(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
 
-    let organization = database.create_organization().finish();
-    let venue = database.create_venue().finish();
-
-    let name = "event Example";
     let user = support::create_auth_user(role, &database);
     let event = database.create_event().finish();
 

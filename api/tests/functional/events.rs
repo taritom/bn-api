@@ -88,13 +88,17 @@ pub fn show() {
     let artist1 = database.create_artist().finish();
     let artist2 = database.create_artist().finish();
 
-    event.add_artist(artist1.id, &*database.get_connection());
-    event.add_artist(artist2.id, &*database.get_connection());
+    event
+        .add_artist(artist1.id, &*database.get_connection())
+        .unwrap();
+    event
+        .add_artist(artist2.id, &*database.get_connection())
+        .unwrap();
 
     let event_artists =
         EventArtist::find_all_from_event(event.id, &*database.get_connection()).unwrap();
 
-    let event_interest =
+    let _event_interest =
         EventInterest::create(event.id, user.id).commit(&*database.get_connection());
 
     #[derive(Serialize)]

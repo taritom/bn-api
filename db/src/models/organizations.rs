@@ -43,7 +43,7 @@ impl NewOrganization {
             .to_db_error(ErrorCode::InsertError, "Could not create new organization")?;
 
         //Would not have gotten here if the user_id did not exist
-        let _ = User::find(&self.owner_user_id, conn)?.add_role(Roles::OrgOwner, conn)?;
+        let _ = User::find(self.owner_user_id, conn)?.add_role(Roles::OrgOwner, conn)?;
 
         Ok(db_err)
     }
@@ -91,7 +91,7 @@ impl Organization {
         owner_user_id: Uuid,
         conn: &Connectable,
     ) -> Result<Organization, DatabaseError> {
-        let old_owner_id = &self.owner_user_id;
+        let old_owner_id = self.owner_user_id;
 
         let db_result = diesel::update(self)
             .set(organizations::owner_user_id.eq(owner_user_id))
@@ -102,7 +102,7 @@ impl Organization {
             )?;
 
         //Not checking this result as this user has to exist to get to this point.
-        User::find(&owner_user_id, conn)
+        User::find(owner_user_id, conn)
             .unwrap()
             .add_role(Roles::OrgOwner, conn)?;
 
@@ -115,7 +115,7 @@ impl Organization {
         //If not then remove the OrgOwner Role.
         if result.len() == 0 {
             //Not handling the returned Result as the old user had to exist
-            User::find(&old_owner_id, conn)
+            User::find(old_owner_id, conn)
                 .unwrap()
                 .remove_role(Roles::OrgOwner, conn)?;
         }
@@ -204,13 +204,31 @@ impl Organization {
         Ok(orgs)
     }
 
-    pub fn remove_user(&self, user_id: &Uuid, conn: &Connectable) -> Result<usize, DatabaseError> {
-        diesel::delete(
+    pub fn remove_user(&self, user_id: Uuid, conn: &Connectable) -> Result<usize, DatabaseError> {
+        let rows_affected = diesel::delete(
             organization_users::table
                 .filter(organization_users::user_id.eq(user_id))
                 .filter(organization_users::organization_id.eq(self.id)),
         ).execute(conn.get_connection())
-            .to_db_error(ErrorCode::DeleteError, "Error removing user")
+            .to_db_error(ErrorCode::DeleteError, "Error removing user")?;
+
+        if Organization::all_linked_to_user(user_id, conn)?.len() == 0 {
+            let user = User::find(user_id, conn)?;
+            user.remove_role(Roles::OrgMember, conn)?;
+        }
+
+        Ok(rows_affected)
+    }
+
+    pub fn add_user(
+        &self,
+        user_id: Uuid,
+        conn: &Connectable,
+    ) -> Result<OrganizationUser, DatabaseError> {
+        let org_user = OrganizationUser::create(self.id, user_id).commit(conn)?;
+        let user = User::find(user_id, conn)?;
+        user.add_role(Roles::OrgMember, conn)?;
+        Ok(org_user)
     }
 
     pub fn is_member(&self, user: &User, conn: &Connectable) -> Result<bool, DatabaseError> {

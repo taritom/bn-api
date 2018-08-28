@@ -70,6 +70,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::PUT).with(organizations::update_owner);
         })
         .resource("/organizations/{id}/users", |r| {
+            r.method(Method::POST).with(organizations::add_user);
             r.method(Method::DELETE).with(organizations::remove_user);
         })
         .resource("/organizations/{id}/venues", |r| {

@@ -78,7 +78,7 @@ impl OrganizationInvite {
         )
     }
 
-    pub fn acepted_invite(&self, conn: &Connectable) -> Result<OrganizationInvite, DatabaseError> {
+    pub fn accept_invite(&self, conn: &Connectable) -> Result<OrganizationInvite, DatabaseError> {
         self.change_invite_status(1, conn)
     }
 

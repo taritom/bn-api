@@ -1,7 +1,6 @@
 extern crate chrono;
 use bigneon_db::models::{EventArtist, Venue};
 use support::project::TestProject;
-use unit::event_artists::chrono::prelude::*;
 
 #[test]
 fn create() {

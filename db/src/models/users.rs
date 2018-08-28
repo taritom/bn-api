@@ -74,7 +74,7 @@ impl User {
         }
     }
 
-    pub fn find(id: &Uuid, conn: &Connectable) -> Result<User, DatabaseError> {
+    pub fn find(id: Uuid, conn: &Connectable) -> Result<User, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading user",
@@ -168,6 +168,10 @@ impl User {
             user.add_external_login(external_user_id, site, access_token, conn)?;
             Ok(user)
         })
+    }
+
+    pub fn has_role(&self, role: Roles) -> bool {
+        self.role.contains(&role.to_string())
     }
 }
 

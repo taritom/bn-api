@@ -28,7 +28,7 @@ pub fn current_user(
     (state, user): (State<AppState>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
-    let user = User::find(&user.id(), &*connection)?;
+    let user = User::find(user.id(), &*connection)?;
     let current_user = CurrentUser {
         roles: user.role.clone(),
         user: user.for_display(),
@@ -44,7 +44,7 @@ pub fn show(
     }
 
     let connection = state.database.get_connection();
-    let user = User::find(&parameters.id, &*connection)?;
+    let user = User::find(parameters.id, &*connection)?;
     Ok(HttpResponse::Ok().json(&user.for_display()))
 }
 

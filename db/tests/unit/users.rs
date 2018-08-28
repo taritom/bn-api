@@ -50,12 +50,12 @@ fn find() {
     let project = TestProject::new();
     let user = project.create_user().finish();
 
-    let found_user = User::find(&user.id, &project).expect("User was not found");
+    let found_user = User::find(user.id, &project).expect("User was not found");
     assert_eq!(found_user.id, user.id);
     assert_eq!(found_user.email, user.email);
 
     assert!(
-        match User::find(&Uuid::new_v4(), &project) {
+        match User::find(Uuid::new_v4(), &project) {
             Ok(_user) => false,
             Err(_e) => true,
         },
@@ -114,6 +114,6 @@ fn add_role() {
     //Try adding a duplicate role to check that it isnt duplicated.
     user.add_role(Roles::Admin, &project).unwrap();
 
-    let user2 = User::find(&user.id, &project).unwrap();
+    let user2 = User::find(user.id, &project).unwrap();
     assert_eq!(user2.role, vec!["User", "Admin"]);
 }

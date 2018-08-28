@@ -47,7 +47,7 @@ pub fn create(
 
     match invite_args.user_id {
         Some(user_id_value) => {
-            let user = User::find(&user_id_value, &*connection)?;
+            let user = User::find(user_id_value, &*connection)?;
             recipient = user.full_name();
             user_id = Some(user.id);
             match user.email {

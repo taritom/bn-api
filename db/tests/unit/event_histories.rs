@@ -1,7 +1,6 @@
 extern crate chrono;
-use bigneon_db::models::{Event, EventHistory, Order, Venue};
+use bigneon_db::models::{EventHistory, Order, Venue};
 use support::project::TestProject;
-use unit::event_histories::chrono::prelude::*;
 
 #[test]
 fn create() {

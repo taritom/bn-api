@@ -42,7 +42,7 @@ fn create() {
     let response: HttpResponse = password_resets::create((state, json)).into();
 
     // Reload user
-    let user = User::find(&user.id, connection).expect("User to reload");
+    let user = User::find(user.id, connection).expect("User to reload");
     let mail_transport = test_request.test_transport();
 
     {
@@ -151,7 +151,7 @@ fn update() {
     });
     let response: HttpResponse = password_resets::update((state, json)).into();
 
-    let user = User::find(&user.id, connection).unwrap();
+    let user = User::find(user.id, connection).unwrap();
     assert!(user.password_reset_token.is_none());
     assert!(user.password_reset_requested_at.is_none());
     assert!(user.check_password(&new_password));
@@ -196,7 +196,7 @@ fn update_expired_token() {
     });
     let response: HttpResponse = password_resets::update((state, json)).into();
 
-    let user = User::find(&user.id, connection).unwrap();
+    let user = User::find(user.id, connection).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));
@@ -222,7 +222,7 @@ fn update_incorrect_token() {
     });
     let response: HttpResponse = password_resets::update((state, json)).into();
 
-    let user = User::find(&user.id, connection).unwrap();
+    let user = User::find(user.id, connection).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));

@@ -104,6 +104,24 @@ pub fn update_owner(
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
 
+pub fn add_user(
+    (state, path, add_request, user): (
+        State<AppState>,
+        Path<PathParameters>,
+        Json<AddUserRequest>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    if !user.has_scope(Scopes::OrgWrite) {
+        return application::unauthorized();
+    }
+    let conn = state.database.get_connection();
+
+    let org = Organization::find(path.id, &*conn)?;
+    org.add_user(add_request.user_id, &*conn)?;
+    Ok(HttpResponse::Ok().finish())
+}
+
 pub fn remove_user(
     (state, parameters, user_id, user): (State<AppState>, Path<PathParameters>, Json<Uuid>, User),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -113,7 +131,7 @@ pub fn remove_user(
     let connection = state.database.get_connection();
     let organization = Organization::find(parameters.id, &*connection)?;
 
-    let organization = organization.remove_user(&user_id.into_inner(), &*connection)?;
+    let organization = organization.remove_user(user_id.into_inner(), &*connection)?;
     Ok(HttpResponse::Ok().json(&organization))
 }
 
@@ -146,4 +164,9 @@ pub fn list_organization_members(
     };
 
     Ok(HttpResponse::Ok().json(org_owner_members))
+}
+
+#[derive(Deserialize)]
+pub struct AddUserRequest {
+    pub user_id: Uuid,
 }

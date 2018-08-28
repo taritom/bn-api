@@ -1,6 +1,6 @@
 extern crate chrono;
-use bigneon_db::models::{Event, EventInterest, Venue};
-use chrono::NaiveDate;
+use bigneon_db::models::{EventInterest, Venue};
+
 use support::project::TestProject;
 
 #[test]
@@ -22,17 +22,15 @@ fn create() {
 #[test]
 fn total_interest() {
     let project = TestProject::new();
-    let venue = Venue::create("Venue").commit(&project).unwrap();
     let user1 = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user1).finish();
     let event = project.create_event().finish();
 
-    let event_interest1 = EventInterest::create(event.id, user1.id)
+    let _event_interest1 = EventInterest::create(event.id, user1.id)
         .commit(&project)
         .unwrap();
 
-    let event_interest2 = EventInterest::create(event.id, user2.id)
+    let _event_interest2 = EventInterest::create(event.id, user2.id)
         .commit(&project)
         .unwrap();
 
@@ -45,12 +43,10 @@ fn total_interest() {
 #[test]
 fn user_interest() {
     let project = TestProject::new();
-    let venue = Venue::create("Venue").commit(&project).unwrap();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
     let event = project.create_event().finish();
 
-    let event_interest1 = EventInterest::create(event.id, user.id)
+    let _event_interest1 = EventInterest::create(event.id, user.id)
         .commit(&project)
         .unwrap();
 

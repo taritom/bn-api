@@ -203,6 +203,27 @@ pub fn remove_user(role: Roles, should_test_succeed: bool) {
     }
 }
 
+pub fn add_user(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database.create_organization().with_owner(&user).finish();
+
+    let user = support::create_auth_user(role, &database);
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let json = Json(organizations::AddUserRequest { user_id: user2.id });
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+
+    let response: HttpResponse = organizations::add_user((state, path, json, user)).into();
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}
+
 pub fn update_owner(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();

@@ -67,7 +67,7 @@ pub fn token_refresh(
     };
 
     if token.verify(state.config.token_secret.as_bytes(), Sha256::new()) {
-        let user = User::find(&token.claims.get_id(), &*connection)?;
+        let user = User::find(token.claims.get_id(), &*connection)?;
 
         // If the user changes their password invalidate all refresh tokens
         let password_modified_timestamp = user.password_modified_at.timestamp() as u64;

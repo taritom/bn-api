@@ -1,4 +1,6 @@
-use bigneon_db::models::{Organization, OrganizationEditableAttributes, OrganizationUser, User};
+use bigneon_db::models::{
+    Organization, OrganizationEditableAttributes, OrganizationUser, Roles, User,
+};
 use support::project::TestProject;
 use uuid::Uuid;
 
@@ -13,7 +15,7 @@ fn create() {
     assert_eq!(organization.owner_user_id, user.id);
     assert_eq!(organization.id.to_string().is_empty(), false);
 
-    let user2 = User::find(&user.id, &project).unwrap();
+    let user2 = User::find(user.id, &project).unwrap();
     assert_eq!(user2.role, vec!["User", "OrgOwner"]);
 }
 
@@ -184,7 +186,7 @@ fn remove_users() {
     assert_eq!(user_results, users_before_delete);
 
     //remove user
-    let result = organization.remove_user(&user2_id, &project).unwrap();
+    let result = organization.remove_user(user2_id, &project).unwrap();
     assert_eq!(result, 1);
     let user_results2 = organization.users(&project).unwrap();
     let users_post_delete = vec![user, user3];
@@ -204,9 +206,27 @@ fn change_owner() {
 
     organization.set_owner(user2.id, &project).unwrap();
 
-    let user1_check = User::find(&user.id, &project).unwrap();
-    let user2_check = User::find(&user2.id, &project).unwrap();
+    let user1_check = User::find(user.id, &project).unwrap();
+    let user2_check = User::find(user2.id, &project).unwrap();
 
     assert_eq!(user1_check.role, vec!["User"]);
     assert_eq!(user2_check.role, vec!["User", "OrgOwner"]);
+}
+
+#[test]
+fn add_user() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+    let organization_user = organization.add_user(user2.id, &project).unwrap();
+
+    assert_eq!(organization_user.user_id, user2.id);
+    assert_eq!(organization_user.organization_id, organization.id);
+    assert_eq!(organization_user.id.to_string().is_empty(), false);
+    let user2 = User::find(user2.id, &project).unwrap();
+    assert!(
+        user2.has_role(Roles::OrgMember),
+        "User does not have OrgMember role"
+    );
 }

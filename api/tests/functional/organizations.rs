@@ -102,6 +102,31 @@ mod remove_user_tests {
 }
 
 #[cfg(test)]
+mod add_user_tests {
+    use super::*;
+    #[test]
+    fn add_user_org_member() {
+        organizations::add_user(Roles::OrgMember, false);
+    }
+    #[test]
+    fn add_user_guest() {
+        organizations::add_user(Roles::Guest, false);
+    }
+    #[test]
+    fn add_user_admin() {
+        organizations::add_user(Roles::Admin, true);
+    }
+    #[test]
+    fn add_user_user() {
+        organizations::add_user(Roles::User, false);
+    }
+    #[test]
+    fn add_user_org_owner() {
+        organizations::add_user(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod update_tests {
     use super::*;
     #[test]

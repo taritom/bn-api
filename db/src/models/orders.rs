@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
 use diesel::prelude::*;
-use models::{Cart, Event, User};
+use models::{Event, User};
 use schema::orders;
 use serde::export::fmt::Display;
 use serde_json;
