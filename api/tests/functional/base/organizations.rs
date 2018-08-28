@@ -1,10 +1,15 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::organizations::{self, PathParameters, UpdateOwnerRequest};
-use bigneon_db::models::{NewOrganization, Organization, OrganizationEditableAttributes, Roles};
+use bigneon_api::database::ConnectionGranting;
+use bigneon_db::models::{
+    DisplayUser, NewOrganization, Organization, OrganizationEditableAttributes, OrganizationUser,
+    Roles,
+};
 use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 pub fn index(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
@@ -226,4 +231,34 @@ pub fn update_owner(role: Roles, should_succeed: bool) {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let updated_organization: Organization = serde_json::from_str(&body).unwrap();
     assert_eq!(updated_organization.owner_user_id, new_owner.id);
+}
+
+pub fn show_org_members(role: Roles, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let user1 = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database.create_organization().with_owner(&user1).finish();
+    let org_member1 =
+        OrganizationUser::create(organization.id, user2.id).commit(&*database.get_connection());
+
+    let auth_user = support::create_auth_user_from_user(&user1, role, &database);
+
+    let expected_data = vec![DisplayUser::from(user1), DisplayUser::from(user2)];
+
+    let expected_json = serde_json::to_string(&expected_data).unwrap();
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+
+    let response: HttpResponse =
+        organizations::list_organization_members((state, path, auth_user)).into();
+
+    if !should_succeed {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        return;
+    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, expected_json.to_string());
 }

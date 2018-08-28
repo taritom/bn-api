@@ -5,9 +5,10 @@ use models::{Organization, User};
 use schema::organization_users;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
+use utils::errors::*;
 use uuid::Uuid;
 
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Associations, Identifiable, Queryable, Serialize)]
 #[belongs_to(User)]
 #[belongs_to(Organization)]
 #[table_name = "organization_users"]
@@ -42,5 +43,15 @@ impl OrganizationUser {
             organization_id,
             user_id,
         }
+    }
+
+    pub fn find_users_by_organization(
+        organization_id: Uuid,
+        conn: &Connectable,
+    ) -> Result<Vec<OrganizationUser>, DatabaseError> {
+        organization_users::table
+            .filter(organization_users::organization_id.eq(organization_id))
+            .load(conn.get_connection())
+            .to_db_error(ErrorCode::QueryError, "Could not load organization users")
     }
 }

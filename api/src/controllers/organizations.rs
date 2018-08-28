@@ -1,5 +1,8 @@
 use actix_web::{HttpResponse, Json, Path, State};
-use bigneon_db::models::{NewOrganization, Organization, OrganizationEditableAttributes};
+use bigneon_db::models::{
+    DisplayUser, NewOrganization, Organization, OrganizationEditableAttributes, OrganizationUser,
+    User as DbUser,
+};
 use errors::*;
 
 use auth::user::Scopes;
@@ -11,6 +14,11 @@ use uuid::Uuid;
 #[derive(Deserialize)]
 pub struct PathParameters {
     pub id: Uuid,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpdateOwnerRequest {
+    pub owner_user_id: Uuid,
 }
 
 pub fn index((state, user): (State<AppState>, User)) -> Result<HttpResponse, BigNeonError> {
@@ -44,6 +52,7 @@ pub fn show(
     }
     let connection = state.database.get_connection();
     let organization = Organization::find(parameters.id, &*connection)?;
+
     Ok(HttpResponse::Ok().json(&organization))
 }
 
@@ -108,7 +117,22 @@ pub fn remove_user(
     Ok(HttpResponse::Ok().json(&organization))
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct UpdateOwnerRequest {
-    pub owner_user_id: Uuid,
+pub fn list_organization_members(
+    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    if !user.has_scope(Scopes::OrgRead) {
+        return application::unauthorized();
+    }
+
+    let connection = state.database.get_connection();
+
+    let organization = Organization::find(parameters.id, &*connection)?;
+
+    let members: Vec<DisplayUser> = organization
+        .users(&*connection)?
+        .iter()
+        .map(|u| DisplayUser::from(u.clone()))
+        .collect();
+
+    Ok(HttpResponse::Ok().json(members))
 }

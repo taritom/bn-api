@@ -150,3 +150,28 @@ mod update_owner_tests {
         organizations::update_owner(Roles::OrgOwner, false);
     }
 }
+
+#[cfg(test)]
+mod show_org_members_tests {
+    use super::*;
+    #[test]
+    fn show_org_members_org_member() {
+        organizations::show_org_members(Roles::OrgMember, true);
+    }
+    #[test]
+    fn show_org_members_guest() {
+        organizations::show_org_members(Roles::Guest, false);
+    }
+    #[test]
+    fn show_org_members_admin() {
+        organizations::show_org_members(Roles::Admin, true);
+    }
+    #[test]
+    fn show_org_members_user() {
+        organizations::show_org_members(Roles::User, false);
+    }
+    #[test]
+    fn show_org_members_org_owner() {
+        organizations::show_org_members(Roles::OrgOwner, true);
+    }
+}

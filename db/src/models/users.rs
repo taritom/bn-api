@@ -44,7 +44,6 @@ pub struct DisplayUser {
     pub last_name: String,
     pub email: Option<String>,
     pub phone: Option<String>,
-    pub created_at: NaiveDateTime,
 }
 
 impl NewUser {
@@ -180,7 +179,6 @@ impl From<User> for DisplayUser {
             last_name: user.last_name,
             email: user.email,
             phone: user.phone,
-            created_at: user.created_at,
         }
     }
 }

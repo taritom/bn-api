@@ -101,7 +101,7 @@ table! {
         id -> Uuid,
         user_id -> Uuid,
         status -> Text,
-        create_at -> Timestamp,
+        created_at -> Timestamp,
     }
 }
 
