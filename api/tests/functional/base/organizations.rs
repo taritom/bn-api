@@ -243,7 +243,16 @@ pub fn show_org_members(role: Roles, should_succeed: bool) {
 
     let auth_user = support::create_auth_user_from_user(&user1, role, &database);
 
-    let expected_data = vec![DisplayUser::from(user1), DisplayUser::from(user2)];
+    #[derive(Serialize)]
+    struct OrgOwnerMembers {
+        organization_owner: DisplayUser,
+        organization_members: Vec<DisplayUser>,
+    }
+
+    let expected_data = OrgOwnerMembers {
+        organization_owner: DisplayUser::from(user1),
+        organization_members: vec![DisplayUser::from(user2)],
+    };
 
     let expected_json = serde_json::to_string(&expected_data).unwrap();
     let test_request = TestRequest::create(database);

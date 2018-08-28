@@ -128,11 +128,22 @@ pub fn list_organization_members(
 
     let organization = Organization::find(parameters.id, &*connection)?;
 
-    let members: Vec<DisplayUser> = organization
+    let mut members: Vec<DisplayUser> = organization
         .users(&*connection)?
         .iter()
         .map(|u| DisplayUser::from(u.clone()))
         .collect();
 
-    Ok(HttpResponse::Ok().json(members))
+    #[derive(Serialize)]
+    struct OrgOwnerMembers {
+        organization_owner: DisplayUser,
+        organization_members: Vec<DisplayUser>,
+    }
+
+    let org_owner_members = OrgOwnerMembers {
+        organization_owner: members.remove(0),
+        organization_members: members,
+    };
+
+    Ok(HttpResponse::Ok().json(org_owner_members))
 }
