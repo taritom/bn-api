@@ -5,6 +5,7 @@ use diesel;
 use diesel::prelude::*;
 use models::Event;
 use schema::ticket_allocations;
+use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
@@ -76,11 +77,24 @@ impl TicketAllocation {
         )
     }
 
-    pub fn tari_asset_id(&self) -> Option<String> {
-        self.tari_asset_id.clone()
+    pub fn tari_asset_id(&self) -> Option<&String> {
+        self.tari_asset_id.as_ref()
     }
 
     pub fn ticket_delta(&self) -> i64 {
         self.ticket_delta
+    }
+
+    pub fn find_by_event_id(
+        event_id: Uuid,
+        conn: &Connectable,
+    ) -> Result<Vec<TicketAllocation>, DatabaseError> {
+        ticket_allocations::table
+            .filter(ticket_allocations::event_id.eq(event_id))
+            .load(conn.get_connection())
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not find ticket allocations for event",
+            )
     }
 }

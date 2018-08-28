@@ -2,20 +2,45 @@ use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
 use diesel::prelude::*;
+use models::orders::Order;
 use models::TicketAllocation;
 use models::User;
 use schema::{cart_items, carts};
+use serde_json;
+use std::fmt;
 use utils::errors;
 use utils::errors::*;
 use uuid::Uuid;
 
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "kebab-case")]
+pub enum CartStatus {
+    Open,
+    Completed,
+}
+
+impl fmt::Display for CartStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", serde_json::to_string(self).unwrap())
+    }
+}
+
+impl CartStatus {
+    pub fn parse(s: &str) -> Result<CartStatus, &'static str> {
+        serde_json::from_str(s).map_err(|_| "Could not parse cart status")
+    }
+}
+
 #[derive(Associations, Identifiable, Queryable, AsChangeset)]
 #[belongs_to(User)]
+#[belongs_to(Order)]
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "carts"]
 pub struct Cart {
     pub id: Uuid,
     user_id: Uuid,
+    pub order_id: Option<Uuid>,
+    status: String,
     created_at: NaiveDateTime,
 }
 
@@ -23,6 +48,7 @@ pub struct Cart {
 #[table_name = "carts"]
 pub struct NewCart {
     user_id: Uuid,
+    status: String,
 }
 
 impl NewCart {
@@ -36,7 +62,10 @@ impl NewCart {
 
 impl Cart {
     pub fn create(user_id: Uuid) -> NewCart {
-        NewCart { user_id }
+        NewCart {
+            user_id,
+            status: CartStatus::Open.to_string(),
+        }
     }
 
     pub fn find_for_user(user_id: Uuid, conn: &Connectable) -> Result<Cart, DatabaseError> {
@@ -80,6 +109,25 @@ impl Cart {
         let display_items: Vec<DisplayCartItem> =
             items.drain(0..).map(|i| DisplayCartItem::from(i)).collect();
         Ok(display_items)
+    }
+
+    pub fn checkout_and_create_order(
+        &mut self,
+        conn: &Connectable,
+    ) -> Result<Order, DatabaseError> {
+        let o = Order::create(self.user_id).commit(conn)?;
+
+        self.order_id = Some(o.id);
+        self.status = CartStatus::Completed.to_string();
+        diesel::update(&*self)
+            .set(&*self)
+            .execute(conn.get_connection())
+            .to_db_error(ErrorCode::UpdateError, "Could not update cart")?;
+        Ok(o)
+    }
+
+    pub fn status(&self) -> CartStatus {
+        CartStatus::parse(&self.status).unwrap()
     }
 }
 

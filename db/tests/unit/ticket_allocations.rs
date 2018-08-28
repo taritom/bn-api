@@ -21,5 +21,5 @@ pub fn update_test() {
         .unwrap();
     allocation.set_asset_id("asset1".into());
     let res = allocation.update(&project).unwrap();
-    assert_eq!(res.tari_asset_id(), Some("asset1".into()));
+    assert_eq!(res.tari_asset_id(), Some(&"asset1".into()));
 }

@@ -1,4 +1,4 @@
-use bigneon_db::models::Cart;
+use bigneon_db::models::{Cart, CartStatus, OrderStatus};
 use support::project::TestProject;
 
 #[test]
@@ -22,4 +22,22 @@ fn find_by_user_when_cart_does_not_exist() {
     let user = db.create_user().finish();
     let cart_result = Cart::find_for_user(user.id, &db);
     assert_eq!(cart_result.err().unwrap().code, 2000);
+}
+
+#[test]
+fn checkout() {
+    let db = TestProject::new();
+    let user = db.create_user().finish();
+    let event = db.create_event().with_tickets().finish();
+    let mut cart = Cart::create(user.id).commit(&db).unwrap();
+    cart.add_item(
+        event.ticket_allocations(&db).unwrap().first().unwrap().id,
+        1,
+        &db,
+    ).unwrap();
+    let order = cart.checkout_and_create_order(&db).unwrap();
+    assert_eq!(order.user_id, user.id);
+    assert_eq!(order.status(), OrderStatus::Unpaid);
+    assert_eq!(cart.status(), CartStatus::Completed);
+    assert_eq!(cart.order_id, Some(order.id));
 }

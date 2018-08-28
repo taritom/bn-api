@@ -12,6 +12,7 @@ pub struct EventBuilder<'a> {
     venue_id: Option<Uuid>,
     event_start: Option<NaiveDateTime>,
     connection: &'a Connectable,
+    with_tickets: bool,
 }
 
 impl<'a> EventBuilder<'a> {
@@ -23,6 +24,7 @@ impl<'a> EventBuilder<'a> {
             venue_id: None,
             event_start: None,
             connection,
+            with_tickets: false,
         }
     }
 
@@ -46,8 +48,13 @@ impl<'a> EventBuilder<'a> {
         self
     }
 
+    pub fn with_tickets(mut self) -> Self {
+        self.with_tickets = true;
+        self
+    }
+
     pub fn finish(&mut self) -> Event {
-        Event::create(
+        let event = Event::create(
             &self.name,
             self.organization_id
                 .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
@@ -61,6 +68,12 @@ impl<'a> EventBuilder<'a> {
             NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10),
             NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
         ).commit(self.connection)
-            .unwrap()
+            .unwrap();
+
+        if self.with_tickets {
+            TicketAllocation::create(event.id, 100).commit(self.connection);
+        }
+
+        event
     }
 }

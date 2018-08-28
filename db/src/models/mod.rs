@@ -1,5 +1,5 @@
 pub use self::artists::*;
-pub use self::carts::Cart;
+pub use self::carts::*;
 pub use self::event_artists::*;
 pub use self::event_histories::*;
 pub use self::event_interest::*;
@@ -18,9 +18,8 @@ pub use self::venues::*;
 
 pub mod concerns;
 
-mod carts;
-
 mod artists;
+mod carts;
 mod event_artists;
 mod event_histories;
 mod event_interest;

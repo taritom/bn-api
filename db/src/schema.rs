@@ -27,6 +27,8 @@ table! {
     carts (id) {
         id -> Uuid,
         user_id -> Uuid,
+        order_id -> Nullable<Uuid>,
+        status -> Text,
         created_at -> Timestamp,
     }
 }
@@ -88,10 +90,18 @@ table! {
 }
 
 table! {
+    order_line_items (id) {
+        id -> Uuid,
+        order_id -> Uuid,
+    }
+}
+
+table! {
     orders (id) {
         id -> Uuid,
         user_id -> Uuid,
-        event_id -> Uuid,
+        status -> Text,
+        create_at -> Timestamp,
     }
 }
 
@@ -183,6 +193,7 @@ table! {
 
 joinable!(cart_items -> carts (cart_id));
 joinable!(cart_items -> ticket_allocations (ticket_allocation_id));
+joinable!(carts -> orders (order_id));
 joinable!(carts -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
@@ -194,7 +205,7 @@ joinable!(event_interest -> users (user_id));
 joinable!(events -> organizations (organization_id));
 joinable!(events -> venues (venue_id));
 joinable!(external_logins -> users (user_id));
-joinable!(orders -> events (event_id));
+joinable!(order_line_items -> orders (order_id));
 joinable!(orders -> users (user_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
@@ -213,6 +224,7 @@ allow_tables_to_appear_in_same_query!(
     event_interest,
     events,
     external_logins,
+    order_line_items,
     orders,
     organization_invites,
     organizations,

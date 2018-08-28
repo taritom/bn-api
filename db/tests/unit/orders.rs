@@ -18,8 +18,7 @@ fn create() {
         NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
     ).commit(&project)
         .unwrap();
-    let order = Order::create(user.id, event.id).commit(&project).unwrap();
-    assert_eq!(order.event_id, event.id);
+    let order = Order::create(user.id).commit(&project).unwrap();
     assert_eq!(order.user_id, user.id);
     assert_eq!(order.id.to_string().is_empty(), false);
 }

@@ -207,4 +207,11 @@ impl Event {
     ) -> Result<TicketAllocation, DatabaseError> {
         TicketAllocation::create(self.id, quantity as i64).commit(conn)
     }
+
+    pub fn ticket_allocations(
+        &self,
+        conn: &Connectable,
+    ) -> Result<Vec<TicketAllocation>, DatabaseError> {
+        TicketAllocation::find_by_event_id(self.id, conn)
+    }
 }
