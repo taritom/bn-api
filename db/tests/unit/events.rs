@@ -16,7 +16,7 @@ fn create() {
         .with_venue(&venue)
         .finish();
 
-    assert_eq!(event.venue_id, venue.id);
+    assert_eq!(event.venue_id, Some(venue.id));
     assert_eq!(event.organization_id, organization.id);
     assert_eq!(event.id.to_string().is_empty(), false);
 }
@@ -43,7 +43,7 @@ fn update() {
     let event = event.update(parameters, &project).unwrap();
     assert_eq!(
         event.door_time,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)
+        Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11))
     );
 }
 
@@ -78,7 +78,7 @@ fn find_individuals() {
 
     //find event via venue
     let found_event_via_venue =
-        Event::find_all_events_from_venue(&event.venue_id, &project).unwrap();
+        Event::find_all_events_from_venue(&event.venue_id.unwrap(), &project).unwrap();
     assert_eq!(found_event_via_venue[0], event);
 }
 
@@ -172,26 +172,20 @@ fn find_for_organization_and_venue() {
     let venue2 = Venue::create("Venue2").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue1.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(8, 11, 12),
-        NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue1)
+        .finish();
 
     //find more than one event
-    let event2 = Event::create(
-        "OldEvent",
-        organization.id,
-        venue2.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(8, 11, 12),
-        NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event2 = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue2)
+        .finish();
     let all_events = vec![event, event2];
 
     //find all events via organisation
@@ -208,18 +202,29 @@ fn find_for_organization_and_venue() {
 #[test]
 fn organization() {
     let project = TestProject::new();
-    let venue = Venue::create("Venue").commit(&project).unwrap();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let event = Event::create(
-        "NewEvent",
-        organization.id,
-        venue.id,
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
-        NaiveDate::from_ymd(2016, 7, 8).and_hms(8, 11, 12),
-        NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
-    ).commit(&project)
-        .unwrap();
+    let event = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .finish();
 
-    assert_eq!(event.organization(&project).unwrap(), organization)
+    assert_eq!(event.organization(&project).unwrap(), organization);
+}
+
+#[test]
+fn venue() {
+    let project = TestProject::new();
+    let venue = Venue::create("Venue").commit(&project).unwrap();
+    let user = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_venue(&venue)
+        .finish();
+    assert_eq!(event.venue(&project).unwrap(), Some(venue));
+
+    let event = project.create_event().with_name("NewEvent".into()).finish();
+    assert_eq!(event.venue(&project).unwrap(), None);
 }

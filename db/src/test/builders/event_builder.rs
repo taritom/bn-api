@@ -59,19 +59,18 @@ impl<'a> EventBuilder<'a> {
             self.organization_id
                 .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
                 .unwrap(),
-            self.venue_id
-                .or_else(|| Some(VenueBuilder::new(self.connection).finish().id))
-                .unwrap(),
+            self.venue_id,
             self.event_start
-                .or_else(|| Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)))
-                .unwrap(),
-            NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10),
-            NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11),
+                .or_else(|| Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))),
+            Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10)),
+            Some(NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11)),
         ).commit(self.connection)
             .unwrap();
 
         if self.with_tickets {
-            TicketAllocation::create(event.id, 100).commit(self.connection);
+            TicketAllocation::create(event.id, 100)
+                .commit(self.connection)
+                .unwrap();
         }
 
         event

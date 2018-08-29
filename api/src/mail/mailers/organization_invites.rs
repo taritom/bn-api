@@ -1,7 +1,6 @@
 use bigneon_db::models::{Organization, OrganizationInvite};
 use config::Config;
 use mail::mailers::Mailer;
-use std::env;
 
 pub fn invite_user_to_organization_email(
     config: &Config,

@@ -35,10 +35,10 @@ pub struct AddArtistRequest {
 pub struct CreateEventRequest {
     pub name: String,
     pub organization_id: Uuid,
-    pub venue_id: Uuid,
-    pub event_start: NaiveDateTime,
-    pub door_time: NaiveDateTime,
-    pub publish_date: NaiveDateTime,
+    pub venue_id: Option<Uuid>,
+    pub event_start: Option<NaiveDateTime>,
+    pub door_time: Option<NaiveDateTime>,
+    pub publish_date: Option<NaiveDateTime>,
     #[validate(url)]
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
@@ -64,8 +64,8 @@ pub fn show(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
     let event = Event::find(parameters.id, &*connection)?;
-    let organization = Organization::find(event.organization_id, &*connection)?;
-    let venue = Venue::find(&event.venue_id, &*connection)?;
+    let organization = event.organization(&*connection)?;
+    let venue = event.venue(&*connection)?;
     let total_interest = EventInterest::total_interest(event.id, &*connection)?;
     let event_artists = EventArtist::find_all_from_event(event.id, &*connection)?;
 
@@ -85,7 +85,7 @@ pub fn show(
     struct R {
         event: Event,
         organization: ShortOrganization,
-        venue: Venue,
+        venue: Option<Venue>,
         artists: Vec<EventArtist>,
         total_interest: u32,
         user_is_interested: bool,

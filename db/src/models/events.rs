@@ -20,12 +20,12 @@ pub struct Event {
     pub id: Uuid,
     pub name: String,
     pub organization_id: Uuid,
-    pub venue_id: Uuid,
+    pub venue_id: Option<Uuid>,
     pub created_at: NaiveDateTime,
-    pub event_start: NaiveDateTime,
-    pub door_time: NaiveDateTime,
+    pub event_start: Option<NaiveDateTime>,
+    pub door_time: Option<NaiveDateTime>,
     pub status: String,
-    pub publish_date: NaiveDateTime,
+    pub publish_date: Option<NaiveDateTime>,
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
@@ -36,11 +36,11 @@ pub struct Event {
 pub struct NewEvent {
     pub name: String,
     pub organization_id: Uuid,
-    pub venue_id: Uuid,
-    pub event_start: NaiveDateTime,
-    pub door_time: NaiveDateTime,
+    pub venue_id: Option<Uuid>,
+    pub event_start: Option<NaiveDateTime>,
+    pub door_time: Option<NaiveDateTime>,
     pub status: String,
-    pub publish_date: NaiveDateTime,
+    pub publish_date: Option<NaiveDateTime>,
     #[validate(url)]
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
@@ -75,19 +75,19 @@ impl Event {
     pub fn create(
         name: &str,
         organization_id: Uuid,
-        venue_id: Uuid,
-        event_start: NaiveDateTime,
-        door_time: NaiveDateTime,
-        publish_date: NaiveDateTime,
+        venue_id: Option<Uuid>,
+        event_start: Option<NaiveDateTime>,
+        door_time: Option<NaiveDateTime>,
+        publish_date: Option<NaiveDateTime>,
     ) -> NewEvent {
         NewEvent {
             name: name.into(),
-            organization_id,
-            venue_id,
-            event_start,
-            door_time,
+            organization_id: organization_id,
+            venue_id: venue_id,
+            event_start: event_start,
+            door_time: door_time,
             status: EventStatus::Draft.to_string(),
-            publish_date,
+            publish_date: publish_date,
             promo_image_url: None,
             additional_info: None,
             age_limit: None,
@@ -163,7 +163,7 @@ impl Event {
                 ))
                 .left_join(
                     venues::table.on(events::venue_id
-                        .eq(venues::id)
+                        .eq(venues::id.nullable())
                         .and(venues::name.ilike(query_like.clone()))),
                 )
                 .left_join(
@@ -198,6 +198,19 @@ impl Event {
 
     pub fn organization(&self, conn: &Connectable) -> Result<Organization, DatabaseError> {
         Organization::find(self.organization_id, conn)
+    }
+
+    pub fn venue(&self, conn: &Connectable) -> Result<Option<Venue>, DatabaseError> {
+        match self.venue_id {
+            Some(venue_id) => {
+                let venue = Venue::find(&venue_id, conn);
+                match venue {
+                    Ok(venue) => Ok(Some(venue)),
+                    Err(e) => Err(e),
+                }
+            }
+            None => Ok(None),
+        }
     }
 
     pub fn add_ticket_allocation(
