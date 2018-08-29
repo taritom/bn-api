@@ -37,7 +37,6 @@ fn create() {
     let state = test_request.extract_state();
     let json = Json(CreatePasswordResetParameters {
         email: email.clone().to_string(),
-        reset_url: "http://localhost:9090/reset_password".to_string(),
     });
     let response: HttpResponse = password_resets::create((state, json)).into();
 
@@ -80,7 +79,6 @@ fn create_fake_email() {
     let state = test_request.extract_state();
     let json = Json(CreatePasswordResetParameters {
         email: email.clone().to_string(),
-        reset_url: "http://localhost:9090/reset_password".to_string(),
     });
     let response: HttpResponse = password_resets::create((state, json)).into();
 
@@ -91,43 +89,6 @@ fn create_fake_email() {
     }
 
     assert_eq!(response.status(), StatusCode::CREATED);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, expected_json);
-}
-
-#[test]
-fn create_invalid_reset_uri() {
-    let database = TestDatabase::new();
-    let email = "joe@tari.com";
-    let reset_url = "http://not_whitelisted/reset_password";
-
-    database
-        .create_user()
-        .with_email(email.to_string())
-        .finish();
-    let expected_json = json!({
-        "error":
-            format!(
-                "Invalid `reset_url`: `{}` is not a whitelisted domain",
-                reset_url
-            )
-    }).to_string();
-
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-    let json = Json(CreatePasswordResetParameters {
-        email: email.clone().to_string(),
-        reset_url: reset_url.to_string(),
-    });
-    let response: HttpResponse = password_resets::create((state, json)).into();
-
-    let mail_transport = test_request.test_transport();
-
-    {
-        assert_eq!(mail_transport.sent.lock().unwrap().len(), 0);
-    }
-
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_json);
 }

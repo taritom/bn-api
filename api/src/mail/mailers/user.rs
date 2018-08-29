@@ -2,10 +2,10 @@ use bigneon_db::models::User;
 use config::Config;
 use mail::mailers::Mailer;
 
-pub fn password_reset_email(config: &Config, user: &User, reset_uri: &str) -> Mailer {
+pub fn password_reset_email(config: &Config, user: &User) -> Mailer {
     let password_reset_link = format!(
-        "{}?password_reset_token={}",
-        reset_uri,
+        "{}/reset_password?password_reset_token={}",
+        config.front_end_url.clone(),
         user.password_reset_token
             .expect("Password reset token is not set")
     );

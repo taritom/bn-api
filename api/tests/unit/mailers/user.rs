@@ -15,9 +15,7 @@ fn password_reset_email() {
     let user = database.create_user().finish();
     let user = user.create_password_reset_token(connection).unwrap();
 
-    let reset_uri = "http://localhost/reset";
-
-    let password_reset_email = mailers::user::password_reset_email(&config, &user, reset_uri);
+    let password_reset_email = mailers::user::password_reset_email(&config, &user);
     let name = user.full_name();
     assert_eq!(
         password_reset_email.to(),
@@ -40,8 +38,8 @@ fn password_reset_email() {
             .contains("This password reset link is valid for 24 hours")
     );
     assert!(password_reset_email.body().contains(&format!(
-        "{}?password_reset_token={}",
-        reset_uri,
+        "{}/reset_password?password_reset_token={}",
+        config.front_end_url,
         user.password_reset_token.unwrap()
     )));
 }

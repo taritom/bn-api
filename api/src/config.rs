@@ -1,8 +1,6 @@
 use dotenv::dotenv;
 use mail::transports::{SmtpTransport, TestTransport, Transport};
-use std::collections::HashSet;
 use std::env;
-use std::iter::FromIterator;
 
 #[derive(Clone)]
 pub enum Environment {
@@ -26,7 +24,6 @@ pub struct Config {
     pub mail_transport: Box<Transport + Send + Sync>,
     pub token_secret: String,
     pub token_issuer: String,
-    pub whitelisted_domains: HashSet<String>,
     pub facebook_app_id: Option<String>,
     pub facebook_app_secret: Option<String>,
 }
@@ -42,7 +39,6 @@ const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
 const TOKEN_SECRET: &str = "TOKEN_SECRET";
 const TOKEN_ISSUER: &str = "TOKEN_ISSUER";
-const WHITELISTED_DOMAINS: &str = "WHITELISTED_DOMAINS";
 
 // Mail settings
 const MAIL_FROM_EMAIL: &str = "MAIL_FROM_EMAIL";
@@ -86,13 +82,6 @@ impl Config {
             }
         };
 
-        let whitelisted_domains = HashSet::from_iter(
-            env::var(&WHITELISTED_DOMAINS)
-                .unwrap_or("".to_lowercase().to_string())
-                .split(',')
-                .map(String::from),
-        );
-
         let allowed_origins = env::var(&ALLOWED_ORIGINS).unwrap_or("*".to_string());
         let api_url = env::var(&API_URL).unwrap_or("127.0.0.1".to_string());
         let api_port = env::var(&API_PORT).unwrap_or("8088".to_string());
@@ -125,7 +114,6 @@ impl Config {
             mail_transport,
             token_secret,
             token_issuer,
-            whitelisted_domains,
             front_end_url,
         }
     }

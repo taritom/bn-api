@@ -29,7 +29,6 @@ impl TestRequest {
 
         config.mail_from_email = "support@bigneon.com".to_string();
         config.mail_from_name = "Big Neon".to_string();
-        config.whitelisted_domains.insert("localhost".to_string());
 
         let test_request = test::TestRequest::with_state(AppState {
             config: config.clone(),
