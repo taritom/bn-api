@@ -9,7 +9,6 @@ use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
-use uuid::Uuid;
 
 pub fn index(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();

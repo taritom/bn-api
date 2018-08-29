@@ -2,10 +2,32 @@ use actix_web::error;
 use actix_web::Error as web_error;
 use actix_web::HttpResponse;
 use bigneon_db::utils::errors::DatabaseError;
+use reqwest::Error as ReqwestError;
+use serde_json::Error as SerdeError;
+use std::error::Error;
+use std::fmt::Debug;
+use std::string::ToString;
 
-pub trait ConvertToWebError {
+pub trait ConvertToWebError: Debug + Error + ToString {
     fn create_http_error(&self) -> web_error;
-    fn to_response(&self) -> HttpResponse;
+
+    fn to_response(&self) -> HttpResponse {
+        HttpResponse::from_error(self.create_http_error())
+    }
+}
+
+impl ConvertToWebError for ReqwestError {
+    fn create_http_error(&self) -> web_error {
+        error!("Reqwest Error: {}", self.description());
+        error::ErrorInternalServerError("Internal error")
+    }
+}
+
+impl ConvertToWebError for SerdeError {
+    fn create_http_error(&self) -> web_error {
+        error!("SerdeError Error: {}", self.description());
+        error::ErrorInternalServerError("Internal error")
+    }
 }
 
 impl ConvertToWebError for DatabaseError {
@@ -24,9 +46,5 @@ impl ConvertToWebError for DatabaseError {
             _ => error::ErrorInternalServerError("Unknown error"),
         };
         new_web_error
-    }
-
-    fn to_response(&self) -> HttpResponse {
-        HttpResponse::from_error(self.create_http_error())
     }
 }

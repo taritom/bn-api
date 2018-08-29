@@ -14,9 +14,9 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let website_url = "http://www.example.com";
 
     let json = Json(NewArtist {
-        name: name.clone().to_string(),
-        bio: bio.clone().to_string(),
-        website_url: Some(website_url.clone().to_string()),
+        name: name.to_string(),
+        bio: bio.to_string(),
+        website_url: Some(website_url.to_string()),
         youtube_video_urls: Vec::new(),
         facebook_username: None,
         instagram_username: None,
@@ -51,8 +51,8 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let bio = "Bio";
     let website_url = "invalid-format.com";
     let json = Json(NewArtist {
-        name: name.clone().to_string(),
-        bio: bio.clone().to_string(),
+        name: name.to_string(),
+        bio: bio.to_string(),
         website_url: Some(website_url.to_string()),
         youtube_video_urls: vec!["invalid".to_string()],
         facebook_username: None,
@@ -102,9 +102,9 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     path.id = artist.id;
 
     let mut attributes: ArtistEditableAttributes = Default::default();
-    attributes.name = Some(name.clone().to_string());
-    attributes.bio = Some(bio.clone().to_string());
-    attributes.website_url = Some(website_url.clone().to_string());
+    attributes.name = Some(name.to_string());
+    attributes.bio = Some(bio.to_string());
+    attributes.website_url = Some(website_url.to_string());
     attributes.youtube_video_urls = Some(Vec::new());
     let json = Json(attributes);
 
@@ -137,9 +137,9 @@ pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
     path.id = artist.id;
 
     let mut attributes: ArtistEditableAttributes = Default::default();
-    attributes.name = Some(name.clone().to_string());
-    attributes.bio = Some(bio.clone().to_string());
-    attributes.website_url = Some(website_url.clone().to_string());
+    attributes.name = Some(name.to_string());
+    attributes.bio = Some(bio.to_string());
+    attributes.website_url = Some(website_url.to_string());
     attributes.youtube_video_urls = Some(vec!["invalid".to_string()]);
     let json = Json(attributes);
 

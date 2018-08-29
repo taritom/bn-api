@@ -151,15 +151,18 @@ impl User {
 
     pub fn create_from_external_login(
         external_user_id: String,
+        first_name: String,
+        last_name: String,
+        email: String,
         site: String,
         access_token: String,
         conn: &Connectable,
     ) -> Result<User, DatabaseError> {
         let hash = PasswordHash::generate("random", None);
         let new_user = NewUser {
-            first_name: String::from("Unknown"),
-            last_name: String::from("Unknown"),
-            email: None,
+            first_name: first_name.to_string(),
+            last_name: last_name.to_string(),
+            email: Some(email.to_string()),
             phone: None,
             hashed_pw: hash.to_string(),
             role: vec![Roles::Guest.to_string()],

@@ -37,13 +37,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         .resource("/events/{id}/tickets", |r| {
             r.method(Method::POST).with(events::create_tickets);
         })
-        .resource("/external/facebook/auth_callback", |r| {
-            r.name("facebook_callback");
-            r.method(Method::GET).f(external::facebook::auth_callback)
-        })
-        .resource("/external/facebook/login", |r| {
-            r.method(Method::POST).f(external::facebook::login)
-        })
         .resource("/external/facebook/web_login", |r| {
             r.method(Method::POST).with(external::facebook::web_login)
         })

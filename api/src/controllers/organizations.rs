@@ -1,7 +1,6 @@
 use actix_web::{HttpResponse, Json, Path, State};
 use bigneon_db::models::{
-    DisplayUser, NewOrganization, Organization, OrganizationEditableAttributes, OrganizationUser,
-    User as DbUser,
+    DisplayUser, NewOrganization, Organization, OrganizationEditableAttributes,
 };
 use errors::*;
 

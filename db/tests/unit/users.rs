@@ -1,5 +1,4 @@
-use bigneon_db::models::Roles;
-use bigneon_db::models::User;
+use bigneon_db::models::{ExternalLogin, Roles, User};
 use bigneon_db::utils::errors;
 use bigneon_db::utils::errors::ErrorCode;
 use support::project::TestProject;
@@ -93,6 +92,40 @@ fn find_by_email() {
         error.to_string(),
         "[2000] No results\nCaused by: Error loading user, NotFound"
     );
+}
+
+#[test]
+fn create_from_external_login() {
+    let project = TestProject::new();
+    let external_id = "123";
+    let first_name = "Dennis";
+    let last_name = "Miguel";
+    let email = "dennis@tari.com";
+    let site = "facebook.com";
+    let access_token = "abc-123";
+
+    let user = User::create_from_external_login(
+        external_id.to_string(),
+        first_name.to_string(),
+        last_name.to_string(),
+        email.to_string(),
+        site.to_string(),
+        access_token.to_string(),
+        &project,
+    ).unwrap();
+
+    let external_login = ExternalLogin::find_user(external_id, site, &project)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(user.id, external_login.user_id);
+    assert_eq!(access_token, external_login.access_token);
+    assert_eq!(site, external_login.site);
+    assert_eq!(external_id, external_login.external_user_id);
+
+    assert_eq!(Some(email.to_string()), user.email);
+    assert_eq!(first_name, user.first_name);
+    assert_eq!(last_name, user.last_name);
 }
 
 #[test]

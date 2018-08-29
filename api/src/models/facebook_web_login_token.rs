@@ -2,8 +2,6 @@
 pub struct FacebookWebLoginToken {
     #[serde(rename = "accessToken")]
     pub access_token: String,
-    #[serde(rename = "userID")]
-    pub user_id: String,
     #[serde(rename = "expiresIn")]
     pub expires_in: u64,
     #[serde(rename = "signedRequest")]
