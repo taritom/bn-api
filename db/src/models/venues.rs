@@ -9,8 +9,8 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(Associations, Identifiable, Queryable, AsChangeset, Serialize, Deserialize, PartialEq,
-         Debug)]
+#[derive(Clone, Associations, Identifiable, Queryable, AsChangeset, Serialize, Deserialize,
+         PartialEq, Debug)]
 #[table_name = "venues"]
 pub struct Venue {
     pub id: Uuid,
@@ -86,7 +86,7 @@ impl Venue {
         )
     }
 
-    pub fn find(id: &Uuid, conn: &Connectable) -> Result<Venue, DatabaseError> {
+    pub fn find(id: Uuid, conn: &Connectable) -> Result<Venue, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading venue",

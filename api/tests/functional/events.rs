@@ -4,6 +4,7 @@ use bigneon_api::controllers::events::SearchParameters;
 use bigneon_api::controllers::events::{self, PathParameters};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::*;
+use chrono::NaiveDateTime;
 use functional::base;
 use serde_json;
 use support;
@@ -16,19 +17,37 @@ pub fn index() {
     let database = TestDatabase::new();
 
     let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
     let event = database
         .create_event()
         .with_name("NewEvent1".to_string())
         .with_organization(&organization)
+        .with_venue(&venue)
         .finish();
     let event2 = database
         .create_event()
         .with_name("NewEvent2".to_string())
         .with_organization(&organization)
+        .with_venue(&venue)
         .finish();
 
-    let expected_events = vec![event, event2];
-    let events_expected_json = serde_json::to_string(&expected_events).unwrap();
+    #[derive(Serialize)]
+    struct EventVenueEntry {
+        event: Event,
+        venue: Option<Venue>,
+    }
+
+    let expected_results = vec![
+        EventVenueEntry {
+            event: event,
+            venue: Some(venue.clone()),
+        },
+        EventVenueEntry {
+            event: event2,
+            venue: Some(venue),
+        },
+    ];
+    let events_expected_json = serde_json::to_string(&expected_results).unwrap();
 
     let test_request = TestRequest::create_with_uri(database, "/events?query=New");
     let state = test_request.extract_state();
@@ -56,7 +75,16 @@ pub fn index_search_returns_only_one_event() {
         .with_organization(&organization)
         .finish();
 
-    let expected_events = vec![event];
+    #[derive(Serialize)]
+    struct EventVenueEntry {
+        event: Event,
+        venue: Option<Venue>,
+    }
+
+    let expected_events = vec![EventVenueEntry {
+        event: event,
+        venue: None,
+    }];
     let events_expected_json = serde_json::to_string(&expected_events).unwrap();
 
     let test_request = TestRequest::create_with_uri(database, "/events?query=NewEvent1");
@@ -95,9 +123,6 @@ pub fn show() {
         .add_artist(artist2.id, &*database.get_connection())
         .unwrap();
 
-    let event_artists =
-        EventArtist::find_all_from_event(event.id, &*database.get_connection()).unwrap();
-
     let _event_interest =
         EventInterest::create(event.id, user.id).commit(&*database.get_connection());
 
@@ -106,16 +131,35 @@ pub fn show() {
         id: Uuid,
         name: String,
     }
-
+    #[derive(Serialize)]
+    struct DisplayEventArtist {
+        event_id: Uuid,
+        artist_id: Uuid,
+        rank: i32,
+        set_time: Option<NaiveDateTime>,
+    }
     #[derive(Serialize)]
     struct R {
         event: Event,
         organization: ShortOrganization,
         venue: Venue,
-        artists: Vec<EventArtist>,
+        artists: Vec<DisplayEventArtist>,
         total_interest: u32,
         user_is_interested: bool,
     }
+
+    let event_artists =
+        EventArtist::find_all_from_event(event.id, &*database.get_connection()).unwrap();
+
+    let display_event_artists: Vec<DisplayEventArtist> = event_artists
+        .iter()
+        .map(|e| DisplayEventArtist {
+            event_id: e.event_id,
+            artist_id: e.artist_id,
+            rank: e.rank,
+            set_time: e.set_time,
+        })
+        .collect();
 
     let event_expected_json = serde_json::to_string(&R {
         event: event,
@@ -124,7 +168,7 @@ pub fn show() {
             name: organization.name,
         },
         venue: venue,
-        artists: event_artists,
+        artists: display_event_artists,
         total_interest: 1,
         user_is_interested: true,
     }).unwrap();

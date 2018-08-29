@@ -30,7 +30,7 @@ fn find() {
     //find organization linked to venue
     let organization_venue = OrganizationVenue::find_via_venue_all(&venue.id, &project).unwrap();
     assert_eq!(organization_venue[0].organization_id, organization.id);
-    let found_venue = Venue::find(&organization_venue[0].venue_id, &project).unwrap();
+    let found_venue = Venue::find(organization_venue[0].venue_id, &project).unwrap();
     assert_eq!(found_venue, venue);
 }
 #[test]

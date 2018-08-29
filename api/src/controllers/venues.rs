@@ -29,7 +29,7 @@ pub fn show(
         return application::unauthorized();
     }
     let connection = state.database.get_connection();
-    let venue = Venue::find(&parameters.id, &*connection)?;
+    let venue = Venue::find(parameters.id, &*connection)?;
     Ok(HttpResponse::Ok().json(&venue))
 }
 
@@ -68,7 +68,7 @@ pub fn update(
     }
     let connection = state.database.get_connection();
 
-    let venue = Venue::find(&parameters.id, &*connection)?;
+    let venue = Venue::find(parameters.id, &*connection)?;
     let updated_venue = venue.update(venue_parameters.into_inner(), &*connection)?;
     Ok(HttpResponse::Ok().json(updated_venue))
 }
@@ -86,7 +86,7 @@ pub fn add_to_organization(
     }
     let connection = state.database.get_connection();
     let add_request = add_request.into_inner();
-    let venue = Venue::find(&parameters.id, &*connection)?;
+    let venue = Venue::find(parameters.id, &*connection)?;
     let has_organization = venue.has_organization(add_request.organization_id, &*connection)?;
 
     if has_organization {

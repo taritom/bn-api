@@ -203,7 +203,7 @@ impl Event {
     pub fn venue(&self, conn: &Connectable) -> Result<Option<Venue>, DatabaseError> {
         match self.venue_id {
             Some(venue_id) => {
-                let venue = Venue::find(&venue_id, conn);
+                let venue = Venue::find(venue_id, conn);
                 match venue {
                     Ok(venue) => Ok(Some(venue)),
                     Err(e) => Err(e),

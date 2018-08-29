@@ -39,7 +39,7 @@ fn find() {
     let project = TestProject::new();
     let venue = project.create_venue().finish();
 
-    let found_venue = Venue::find(&venue.id, &project).unwrap();
+    let found_venue = Venue::find(venue.id, &project).unwrap();
     assert_eq!(venue, found_venue);
 
     let venue2 = project.create_venue().finish();

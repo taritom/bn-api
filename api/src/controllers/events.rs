@@ -62,7 +62,25 @@ pub fn index(
         parameters.end_utc,
         &*connection,
     )?;
-    Ok(HttpResponse::Ok().json(&events))
+
+    #[derive(Serialize)]
+    struct EventVenueEntry {
+        event: Event,
+        venue: Option<Venue>,
+    }
+
+    let mut results: Vec<EventVenueEntry> = Vec::new();
+    for e in events {
+        results.push(EventVenueEntry {
+            venue: match e.venue_id {
+                Some(v) => Some(Venue::find(v, &*connection)?),
+                None => None,
+            },
+            event: e,
+        })
+    }
+
+    Ok(HttpResponse::Ok().json(&results))
 }
 
 pub fn show(
@@ -86,16 +104,32 @@ pub fn show(
         id: Uuid,
         name: String,
     }
-
+    #[derive(Serialize)]
+    struct DisplayEventArtist {
+        event_id: Uuid,
+        artist_id: Uuid,
+        rank: i32,
+        set_time: Option<NaiveDateTime>,
+    }
     #[derive(Serialize)]
     struct R {
         event: Event,
         organization: ShortOrganization,
         venue: Option<Venue>,
-        artists: Vec<EventArtist>,
+        artists: Vec<DisplayEventArtist>,
         total_interest: u32,
         user_is_interested: bool,
     }
+
+    let display_event_artists: Vec<DisplayEventArtist> = event_artists
+        .iter()
+        .map(|e| DisplayEventArtist {
+            event_id: e.event_id,
+            artist_id: e.artist_id,
+            rank: e.rank,
+            set_time: e.set_time,
+        })
+        .collect();
 
     Ok(HttpResponse::Ok().json(&R {
         event: event,
@@ -104,7 +138,7 @@ pub fn show(
             name: organization.name,
         },
         venue: venue,
-        artists: event_artists,
+        artists: display_event_artists,
         total_interest: total_interest,
         user_is_interested: user_interest,
     }))
