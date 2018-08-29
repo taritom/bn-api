@@ -30,7 +30,7 @@ pub struct NewArtist {
     #[validate(url)]
     pub website_url: Option<String>,
     #[validate(custom = "validators::validate_urls")]
-    pub youtube_video_urls: Vec<String>,
+    pub youtube_video_urls: Option<Vec<String>>,
     pub facebook_username: Option<String>,
     pub instagram_username: Option<String>,
     pub snapchat_username: Option<String>,
@@ -72,7 +72,7 @@ impl Artist {
             name: String::from(name),
             bio: String::from(bio),
             website_url: Some(String::from(website_url)),
-            youtube_video_urls: Vec::new(),
+            youtube_video_urls: None,
             facebook_username: None,
             instagram_username: None,
             snapchat_username: None,

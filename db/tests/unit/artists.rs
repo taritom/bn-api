@@ -26,7 +26,7 @@ fn new_artist_validate() {
     let website_url = "invalid.com";
 
     let mut artist = Artist::create(name, bio, website_url);
-    artist.youtube_video_urls = vec!["h".into()];
+    artist.youtube_video_urls = Some(vec!["h".into()]);
 
     let result = artist.validate();
     assert!(result.is_err());

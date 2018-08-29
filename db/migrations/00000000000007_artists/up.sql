@@ -12,4 +12,4 @@ CREATE TABLE artists (
   bandcamp_username TEXT
 );
 
-CREATE UNIQUE INDEX index_artists_name ON artists (name);
+CREATE INDEX index_artists_name ON artists (name);
