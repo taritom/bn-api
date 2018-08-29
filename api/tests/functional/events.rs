@@ -259,6 +259,28 @@ mod remove_interest_tests {
     }
 }
 
+#[cfg(test)]
+mod update_artists_tests {
+    use super::*;
+
+    #[test]
+    fn update_artists_org_member() {
+        base::events::update_artists(Roles::OrgMember, true);
+    }
+    #[test]
+    fn update_artists_admin() {
+        base::events::update_artists(Roles::Admin, true);
+    }
+    #[test]
+    fn update_artists_user() {
+        base::events::update_artists(Roles::User, false);
+    }
+    #[test]
+    fn update_artists_org_owner() {
+        base::events::update_artists(Roles::OrgOwner, true);
+    }
+}
+
 #[test]
 pub fn show_from_organizations() {
     let database = TestDatabase::new();

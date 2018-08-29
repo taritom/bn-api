@@ -24,7 +24,7 @@ pub struct SearchParameters {
     end_utc: Option<NaiveDateTime>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct AddArtistRequest {
     pub artist_id: Uuid,
     pub rank: i32,
@@ -43,6 +43,12 @@ pub struct CreateEventRequest {
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct UpdateArtistsRequest {
+    pub artist_id: Uuid,
+    pub set_time: Option<NaiveDateTime>,
 }
 
 pub fn index(
@@ -215,6 +221,34 @@ pub fn add_artist(
         event_artist.set_time,
     ).commit(&*connection)?;
     Ok(HttpResponse::Created().json(&event_artist))
+}
+
+pub fn update_artists(
+    (state, parameters, artists, user): (
+        State<AppState>,
+        Path<PathParameters>,
+        Json<Vec<UpdateArtistsRequest>>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    if !user.has_scope(Scopes::EventWrite) {
+        return application::unauthorized();
+    }
+    let connection = state.database.get_connection();
+
+    EventArtist::clear_all_from_event(parameters.id, &*connection)?;
+
+    let mut rank = 0;
+    let mut added_artists: Vec<EventArtist> = Vec::new();
+
+    for a in &artists.into_inner() {
+        added_artists.push(
+            EventArtist::create(parameters.id, a.artist_id, rank, a.set_time).commit(&*connection)?,
+        );
+        rank += 1;
+    }
+
+    Ok(HttpResponse::Ok().json(&added_artists))
 }
 
 pub fn create_tickets(

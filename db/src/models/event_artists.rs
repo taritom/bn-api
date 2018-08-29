@@ -9,7 +9,7 @@ use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
 
-#[derive(Associations, Identifiable, Queryable, Serialize, PartialEq, Debug)]
+#[derive(Associations, Identifiable, Queryable, Serialize, Deserialize, PartialEq, Debug)]
 #[belongs_to(Event)]
 #[belongs_to(Artist)]
 #[table_name = "event_artists"]
@@ -67,5 +67,13 @@ impl EventArtist {
             .to_db_error(ErrorCode::QueryError, "Could not load event artist")?;
 
         Ok(result)
+    }
+
+    pub fn clear_all_from_event(event_id: Uuid, conn: &Connectable) -> Result<(), DatabaseError> {
+        let _result = diesel::delete(
+            event_artists::table.filter(event_artists::event_id.eq(event_id)),
+        ).execute(conn.get_connection())
+            .to_db_error(ErrorCode::DeleteError, "Could not delete event artists.")?;
+        Ok(())
     }
 }

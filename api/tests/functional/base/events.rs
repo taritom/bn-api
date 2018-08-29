@@ -1,10 +1,10 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::events::{
-    self, AddArtistRequest, CreateEventRequest, PathParameters,
+    self, AddArtistRequest, CreateEventRequest, PathParameters, UpdateArtistsRequest,
 };
 use bigneon_api::database::ConnectionGranting;
 use bigneon_api::models::CreateTicketAllocationRequest;
-use bigneon_db::models::{Event, EventEditableAttributes, EventInterest, Roles};
+use bigneon_db::models::{Event, EventArtist, EventEditableAttributes, EventInterest, Roles};
 use chrono::prelude::*;
 use serde_json;
 use support;
@@ -165,6 +165,48 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, "1");
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+        let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, updated_event);
+    }
+}
+
+pub fn update_artists(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.get_connection();
+
+    let user = database.create_user().finish();
+    let event = database.create_event().finish();
+    let artist1 = database.create_artist().finish();
+    let artist2 = database.create_artist().finish();
+
+    let user = support::create_auth_user_from_user(&user, role, &database);
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+
+    let mut payload: Vec<UpdateArtistsRequest> = Vec::new();
+    payload.push(UpdateArtistsRequest {
+        artist_id: artist1.id,
+        set_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
+    });
+    payload.push(UpdateArtistsRequest {
+        artist_id: artist2.id,
+        set_time: None,
+    });
+
+    let response: HttpResponse = events::update_artists((state, path, Json(payload), user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        let returned_event_artists: Vec<EventArtist> = serde_json::from_str(&body).unwrap();
+        assert_eq!(returned_event_artists[0].artist_id, artist1.id);
+        assert_eq!(returned_event_artists[1].set_time, None);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
