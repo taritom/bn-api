@@ -2,34 +2,11 @@ use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
 use diesel::prelude::*;
-use models::orders::Order;
-use models::TicketAllocation;
-use models::User;
+use models::{CartStatus, Order, PricePoint, User};
 use schema::{cart_items, carts};
-use serde_json;
-use std::fmt;
 use utils::errors;
 use utils::errors::*;
 use uuid::Uuid;
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(rename_all = "kebab-case")]
-pub enum CartStatus {
-    Open,
-    Completed,
-}
-
-impl fmt::Display for CartStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", serde_json::to_string(self).unwrap())
-    }
-}
-
-impl CartStatus {
-    pub fn parse(s: &str) -> Result<CartStatus, &'static str> {
-        serde_json::from_str(s).map_err(|_| "Could not parse cart status")
-    }
-}
 
 #[derive(Associations, Identifiable, Queryable, AsChangeset)]
 #[belongs_to(User)]
@@ -80,17 +57,17 @@ impl Cart {
 
     pub fn add_item(
         &self,
-        ticket_allocation_id: Uuid,
+        price_point_id: Uuid,
         quantity: i64,
         conn: &Connectable,
     ) -> Result<(), DatabaseError> {
-        let item = CartItem::find(self.id, ticket_allocation_id, conn)?;
+        let item = CartItem::find(self.id, price_point_id, conn)?;
         if item.is_none() {
             if quantity <= 0 {
                 return Ok(());
             }
 
-            CartItem::create(self.id, ticket_allocation_id, quantity as u32).commit(conn)?;
+            CartItem::create(self.id, price_point_id, quantity as u32).commit(conn)?;
             Ok(())
         } else {
             let mut item = item.unwrap();
@@ -133,21 +110,21 @@ impl Cart {
 
 #[derive(PartialEq, Debug)]
 pub struct DisplayCartItem {
-    pub ticket_allocation_id: Uuid,
+    pub price_point_id: Uuid,
     pub quantity: u32,
 }
 
 impl From<CartItem> for DisplayCartItem {
     fn from(item: CartItem) -> Self {
         DisplayCartItem {
-            ticket_allocation_id: item.ticket_allocation_id,
+            price_point_id: item.price_point_id,
             quantity: item.quantity as u32,
         }
     }
 }
 
 #[derive(Identifiable, Associations, Queryable, AsChangeset)]
-#[belongs_to(TicketAllocation)]
+#[belongs_to(PricePoint)]
 #[belongs_to(Cart)]
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "cart_items"]
@@ -155,27 +132,27 @@ pub struct CartItem {
     pub id: Uuid,
     cart_id: Uuid,
     created_at: NaiveDateTime,
-    ticket_allocation_id: Uuid,
     quantity: i64,
+    price_point_id: Uuid,
 }
 
 impl CartItem {
-    fn create(cart_id: Uuid, ticket_allocation_id: Uuid, quantity: u32) -> NewCartItem {
+    fn create(cart_id: Uuid, price_point_id: Uuid, quantity: u32) -> NewCartItem {
         NewCartItem {
             cart_id,
-            ticket_allocation_id,
+            price_point_id,
             quantity: quantity as i64,
         }
     }
 
     fn find(
         cart_id: Uuid,
-        ticket_allocation_id: Uuid,
+        price_point_id: Uuid,
         conn: &Connectable,
     ) -> Result<Option<CartItem>, DatabaseError> {
         cart_items::table
             .filter(cart_items::cart_id.eq(cart_id))
-            .filter(cart_items::ticket_allocation_id.eq(ticket_allocation_id))
+            .filter(cart_items::price_point_id.eq(price_point_id))
             .first(conn.get_connection())
             .optional()
             .to_db_error(
@@ -211,7 +188,7 @@ impl CartItem {
 #[table_name = "cart_items"]
 struct NewCartItem {
     cart_id: Uuid,
-    ticket_allocation_id: Uuid,
+    price_point_id: Uuid,
     quantity: i64,
 }
 

@@ -2,34 +2,11 @@ use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
 use diesel::prelude::*;
-use models::User;
+use models::{OrderStatus, User};
 use schema::orders;
-use serde::export::fmt::Display;
-use serde_json;
-use std::fmt;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(rename_all = "kebab-case")]
-pub enum OrderStatus {
-    Unpaid,
-    Paid,
-    Cancelled,
-}
-
-impl Display for OrderStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", serde_json::to_string(self).unwrap())
-    }
-}
-
-impl OrderStatus {
-    pub fn parse(s: &str) -> Result<OrderStatus, &'static str> {
-        serde_json::from_str(s).map_err(|_| "Could not parse order status")
-    }
-}
 
 #[derive(Associations, Identifiable, Queryable)]
 #[belongs_to(User)]
@@ -37,6 +14,7 @@ pub struct Order {
     pub id: Uuid,
     pub user_id: Uuid,
     status: String,
+    #[allow(dead_code)]
     created_at: NaiveDateTime,
 }
 

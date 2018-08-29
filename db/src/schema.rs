@@ -18,8 +18,8 @@ table! {
         id -> Uuid,
         cart_id -> Uuid,
         created_at -> Timestamp,
-        ticket_allocation_id -> Uuid,
         quantity -> Int8,
+        price_point_id -> Uuid,
     }
 }
 
@@ -150,6 +150,17 @@ table! {
 }
 
 table! {
+    price_points (id) {
+        id -> Uuid,
+        ticket_type_id -> Uuid,
+        name -> Text,
+        status -> Text,
+        price_in_cents -> Int8,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
     ticket_allocations (id) {
         id -> Uuid,
         event_id -> Uuid,
@@ -157,6 +168,16 @@ table! {
         created_at -> Timestamp,
         synced_on -> Nullable<Timestamp>,
         ticket_delta -> Int8,
+    }
+}
+
+table! {
+    ticket_types (id) {
+        id -> Uuid,
+        event_id -> Uuid,
+        name -> Text,
+        status -> Text,
+        created_at -> Timestamp,
     }
 }
 
@@ -192,7 +213,7 @@ table! {
 }
 
 joinable!(cart_items -> carts (cart_id));
-joinable!(cart_items -> ticket_allocations (ticket_allocation_id));
+joinable!(cart_items -> price_points (price_point_id));
 joinable!(carts -> orders (order_id));
 joinable!(carts -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
@@ -213,7 +234,9 @@ joinable!(organization_users -> users (user_id));
 joinable!(organization_venues -> organizations (organization_id));
 joinable!(organization_venues -> venues (venue_id));
 joinable!(organizations -> users (owner_user_id));
+joinable!(price_points -> ticket_types (ticket_type_id));
 joinable!(ticket_allocations -> events (event_id));
+joinable!(ticket_types -> events (event_id));
 
 allow_tables_to_appear_in_same_query!(
     artists,
@@ -230,7 +253,9 @@ allow_tables_to_appear_in_same_query!(
     organizations,
     organization_users,
     organization_venues,
+    price_points,
     ticket_allocations,
+    ticket_types,
     users,
     venues,
 );

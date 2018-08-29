@@ -1,14 +1,11 @@
 extern crate chrono;
-use bigneon_db::models::{EventArtist, Venue};
+use bigneon_db::models::EventArtist;
 use support::project::TestProject;
 
 #[test]
 fn create() {
     let project = TestProject::new();
     let artist = project.create_artist().finish();
-    let venue = Venue::create("Name").commit(&project).unwrap();
-    let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
     let event = project.create_event().finish();
     let rank = 1;
 
@@ -33,9 +30,6 @@ fn find_all_by_event() {
     let project = TestProject::new();
     let artist1 = project.create_artist().finish();
     let artist2 = project.create_artist().finish();
-    let venue = Venue::create("Name").commit(&project).unwrap();
-    let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
     let event = project.create_event().finish();
 
     let event_artist1 = EventArtist::create(event.id, artist1.id, 1, None)

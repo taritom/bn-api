@@ -1,17 +1,11 @@
-use actix_web::Error;
-use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::Json;
-use actix_web::Responder;
 use actix_web::State;
 use auth::user::User;
 use bigneon_db::models::Cart;
 use errors::ConvertToWebError;
-use serde_json;
 use server::AppState;
 use uuid::Uuid;
-
-use bigneon_db::utils::errors::DatabaseError;
 
 #[derive(Deserialize)]
 pub struct AddToCartRequest {
@@ -51,7 +45,7 @@ pub fn add((state, json, user): (State<AppState>, Json<AddToCartRequest>, User))
 
     // Add the item
     match cart.add_item(data.ticket_allocation_id, data.quantity, &*conn) {
-        Ok(o) => HttpResponse::Ok().json(&AddToCartResponse { cart_id: cart.id }),
+        Ok(_o) => HttpResponse::Ok().json(&AddToCartResponse { cart_id: cart.id }),
         Err(e) => return e.to_response(),
     }
 }

@@ -1,13 +1,11 @@
 extern crate chrono;
-use bigneon_db::models::{EventHistory, Order, Venue};
+use bigneon_db::models::{EventHistory, Order};
 use support::project::TestProject;
 
 #[test]
 fn create() {
     let project = TestProject::new();
-    let venue = Venue::create("Name").commit(&project).unwrap();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
     let event = project.create_event().finish();
 
     let order = Order::create(user.id).commit(&project).unwrap();

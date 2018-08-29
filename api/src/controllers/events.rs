@@ -6,7 +6,7 @@ use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use errors::*;
 use helpers::application;
-use models::CreateTicketAllocationRequest;
+use models::{CreateTicketAllocationRequest, DisplayTicketType};
 use server::AppState;
 use tari::tariclient::*;
 use uuid::Uuid;
@@ -301,4 +301,24 @@ pub fn create_tickets(
 
     let updated_allocation = allocation.update(&*connection)?;
     Ok(HttpResponse::Ok().json(json!({"ticket_allocation_id": updated_allocation.id})))
+}
+
+pub fn list_ticket_types(
+    (state, path): (State<AppState>, Path<PathParameters>),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = state.database.get_connection();
+    let ticket_types = TicketType::find_by_event_id(path.id, &*conn)?;
+    let mut encoded_ticket_types = Vec::<DisplayTicketType>::new();
+    for t in ticket_types {
+        encoded_ticket_types.push(DisplayTicketType::from_ticket_type(&t, &*conn)?);
+    }
+
+    #[derive(Serialize)]
+    struct R {
+        ticket_types: Vec<DisplayTicketType>,
+    };
+
+    Ok(HttpResponse::Ok().json(R {
+        ticket_types: encoded_ticket_types,
+    }))
 }

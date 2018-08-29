@@ -258,8 +258,9 @@ pub fn show_org_members(role: Roles, should_succeed: bool) {
     let user1 = database.create_user().finish();
     let user2 = database.create_user().finish();
     let organization = database.create_organization().with_owner(&user1).finish();
-    let org_member1 =
-        OrganizationUser::create(organization.id, user2.id).commit(&*database.get_connection());
+    OrganizationUser::create(organization.id, user2.id)
+        .commit(&*database.get_connection())
+        .unwrap();
 
     let auth_user = support::create_auth_user_from_user(&user1, role, &database);
 

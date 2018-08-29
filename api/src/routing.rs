@@ -36,6 +36,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::DELETE).with(events::remove_interest);
         })
         .resource("/events/{id}/tickets", |r| {
+            r.method(Method::GET).with(events::list_ticket_types);
             r.method(Method::POST).with(events::create_tickets);
         })
         .resource("/external/facebook/web_login", |r| {

@@ -369,3 +369,19 @@ mod create_tickets_tests {
         base::events::create_tickets(Roles::OrgOwner, true);
     }
 }
+
+#[test]
+fn list_ticket_types() {
+    let db = TestDatabase::new();
+    let event = db.create_event().with_price_points().finish();
+    let request = TestRequest::create(db);
+    let state = request.extract_state();
+
+    let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
+    path.id = event.id;
+
+    let response = events::list_ticket_types((state, path)).unwrap();
+
+    let _body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}

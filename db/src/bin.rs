@@ -16,6 +16,7 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate validator_derive;
+extern crate bigneon_db;
 extern crate validator;
 
 mod db;

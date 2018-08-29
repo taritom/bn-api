@@ -217,7 +217,6 @@ fn organization() {
 fn venue() {
     let project = TestProject::new();
     let venue = Venue::create("Venue").commit(&project).unwrap();
-    let user = project.create_user().finish();
     let event = project
         .create_event()
         .with_name("NewEvent".into())
@@ -227,4 +226,30 @@ fn venue() {
 
     let event = project.create_event().with_name("NewEvent".into()).finish();
     assert_eq!(event.venue(&project).unwrap(), None);
+}
+
+#[test]
+fn add_ticket_type() {
+    let db = TestProject::new();
+    let event = db.create_event().finish();
+    let ticket_type = event
+        .add_ticket_type("General Admission".to_string(), &db)
+        .unwrap();
+
+    assert_eq!(ticket_type.event_id, event.id);
+    assert_eq!(ticket_type.name, "General Admission".to_string());
+}
+
+#[test]
+fn ticket_types() {
+    let db = TestProject::new();
+    let event = db.create_event().finish();
+    let ticket_type_ga = event
+        .add_ticket_type("General Admission".to_string(), &db)
+        .unwrap();
+    let ticket_type_vip = event.add_ticket_type("VIP".to_string(), &db).unwrap();
+
+    let ticket_types = event.ticket_types(&db).unwrap();
+
+    assert_eq!(ticket_types, vec![ticket_type_ga, ticket_type_vip]);
 }

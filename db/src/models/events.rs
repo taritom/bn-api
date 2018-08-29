@@ -213,18 +213,15 @@ impl Event {
         }
     }
 
-    pub fn add_ticket_allocation(
+    pub fn add_ticket_type(
         &self,
-        quantity: u32,
+        name: String,
         conn: &Connectable,
-    ) -> Result<TicketAllocation, DatabaseError> {
-        TicketAllocation::create(self.id, quantity as i64).commit(conn)
+    ) -> Result<TicketType, DatabaseError> {
+        TicketType::create(self.id, name).commit(conn)
     }
 
-    pub fn ticket_allocations(
-        &self,
-        conn: &Connectable,
-    ) -> Result<Vec<TicketAllocation>, DatabaseError> {
-        TicketAllocation::find_by_event_id(self.id, conn)
+    pub fn ticket_types(&self, conn: &Connectable) -> Result<Vec<TicketType>, DatabaseError> {
+        TicketType::find_by_event_id(self.id, conn)
     }
 }

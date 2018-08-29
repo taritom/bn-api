@@ -175,7 +175,6 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
 
 pub fn update_artists(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
 
     let user = database.create_user().finish();
     let event = database.create_event().finish();

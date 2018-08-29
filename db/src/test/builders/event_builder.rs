@@ -13,6 +13,7 @@ pub struct EventBuilder<'a> {
     event_start: Option<NaiveDateTime>,
     connection: &'a Connectable,
     with_tickets: bool,
+    with_price_points: bool,
 }
 
 impl<'a> EventBuilder<'a> {
@@ -25,6 +26,7 @@ impl<'a> EventBuilder<'a> {
             event_start: None,
             connection,
             with_tickets: false,
+            with_price_points: false,
         }
     }
 
@@ -53,6 +55,12 @@ impl<'a> EventBuilder<'a> {
         self
     }
 
+    pub fn with_price_points(mut self) -> Self {
+        self.with_tickets = true;
+        self.with_price_points = true;
+        self
+    }
+
     pub fn finish(&mut self) -> Event {
         let event = Event::create(
             &self.name,
@@ -68,9 +76,18 @@ impl<'a> EventBuilder<'a> {
             .unwrap();
 
         if self.with_tickets {
-            TicketAllocation::create(event.id, 100)
-                .commit(self.connection)
+            event
+                .add_ticket_type("General Admission".to_string(), self.connection)
                 .unwrap();
+
+            if self.with_price_points {
+                for t in event.ticket_types(self.connection).unwrap() {
+                    t.add_price_point("Early bird".to_string(), 100, self.connection)
+                        .unwrap();
+                    t.add_price_point("Standard".to_string(), 200, self.connection)
+                        .unwrap();
+                }
+            }
         }
 
         event

@@ -1,14 +1,12 @@
 extern crate chrono;
-use bigneon_db::models::{EventInterest, Venue};
+use bigneon_db::models::EventInterest;
 
 use support::project::TestProject;
 
 #[test]
 fn create() {
     let project = TestProject::new();
-    let venue = Venue::create("Venue").commit(&project).unwrap();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
     let event = project.create_event().finish();
 
     let event_interest = EventInterest::create(event.id, user.id)
