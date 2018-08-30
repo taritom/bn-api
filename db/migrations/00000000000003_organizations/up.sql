@@ -7,7 +7,7 @@ CREATE TABLE organizations (
   city TEXT,
   state TEXT,
   country TEXT,
-  zip TEXT,
+  postal_code TEXT,
   phone TEXT
 );
 

@@ -144,7 +144,7 @@ table! {
         city -> Nullable<Text>,
         state -> Nullable<Text>,
         country -> Nullable<Text>,
-        zip -> Nullable<Text>,
+        postal_code -> Nullable<Text>,
         phone -> Nullable<Text>,
     }
 }
@@ -157,6 +157,13 @@ table! {
         status -> Text,
         price_in_cents -> Int8,
         created_at -> Timestamp,
+    }
+}
+
+table! {
+    regions (id) {
+        id -> Uuid,
+        name -> Text,
     }
 }
 
@@ -202,12 +209,13 @@ table! {
 table! {
     venues (id) {
         id -> Uuid,
+        region_id -> Nullable<Uuid>,
         name -> Text,
         address -> Nullable<Text>,
         city -> Nullable<Text>,
         state -> Nullable<Text>,
         country -> Nullable<Text>,
-        zip -> Nullable<Text>,
+        postal_code -> Nullable<Text>,
         phone -> Nullable<Text>,
     }
 }
@@ -237,6 +245,7 @@ joinable!(organizations -> users (owner_user_id));
 joinable!(price_points -> ticket_types (ticket_type_id));
 joinable!(ticket_allocations -> events (event_id));
 joinable!(ticket_types -> events (event_id));
+joinable!(venues -> regions (region_id));
 
 allow_tables_to_appear_in_same_query!(
     artists,
@@ -254,6 +263,7 @@ allow_tables_to_appear_in_same_query!(
     organization_venues,
     organizations,
     price_points,
+    regions,
     ticket_allocations,
     ticket_types,
     users,

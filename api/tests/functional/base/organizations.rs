@@ -118,7 +118,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         address: None,
         city: None,
         state: None,
-        zip: None,
+        postal_code: None,
         country: None,
         phone: None,
     });
@@ -153,7 +153,7 @@ pub fn update(role: Roles, should_succeed: bool) {
         city: Some("city".to_string()),
         state: Some("state".to_string()),
         country: Some("country".to_string()),
-        zip: Some("zip".to_string()),
+        postal_code: Some("postal_code".to_string()),
         phone: Some("phone".to_string()),
     });
 

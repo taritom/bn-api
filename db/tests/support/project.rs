@@ -49,8 +49,12 @@ impl TestProject {
             .unwrap()
     }
 
-    pub fn create_user(&self) -> UserBuilder {
-        UserBuilder::new(self)
+    pub fn create_artist(&self) -> ArtistBuilder {
+        ArtistBuilder::new(self)
+    }
+
+    pub fn create_event(&self) -> EventBuilder {
+        EventBuilder::new(self)
     }
 
     pub fn create_organization(&self) -> OrganizationBuilder {
@@ -61,16 +65,16 @@ impl TestProject {
         OrgInviteBuilder::new(self)
     }
 
+    pub fn create_region(&self) -> RegionBuilder {
+        RegionBuilder::new(self)
+    }
+
+    pub fn create_user(&self) -> UserBuilder {
+        UserBuilder::new(self)
+    }
+
     pub fn create_venue(&self) -> VenueBuilder {
         VenueBuilder::new(self)
-    }
-
-    pub fn create_event(&self) -> EventBuilder {
-        EventBuilder::new(self)
-    }
-
-    pub fn create_artist(&self) -> ArtistBuilder {
-        ArtistBuilder::new(self)
     }
 }
 

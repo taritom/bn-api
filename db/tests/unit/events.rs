@@ -6,7 +6,7 @@ use unit::events::chrono::prelude::*;
 #[test]
 fn create() {
     let project = TestProject::new();
-    let venue = Venue::create("Venue").commit(&project).unwrap();
+    let venue = project.create_venue().finish();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let event = project
@@ -25,7 +25,7 @@ fn create() {
 fn update() {
     //create event
     let project = TestProject::new();
-    let venue = Venue::create("Venue").commit(&project).unwrap();
+    let venue = project.create_venue().finish();
 
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -51,7 +51,7 @@ fn update() {
 fn find_individuals() {
     //create event
     let project = TestProject::new();
-    let venue = Venue::create("Venue").commit(&project).unwrap();
+    let venue = project.create_venue().finish();
 
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -83,11 +83,21 @@ fn find_individuals() {
 }
 
 #[test]
-fn find_list() {
+fn search() {
     //create event
     let project = TestProject::new();
-    let venue1 = Venue::create("Venue1").commit(&project).unwrap();
-    let venue2 = Venue::create("Venue2").commit(&project).unwrap();
+    let region1 = project.create_region().finish();
+    let region2 = project.create_region().finish();
+    let venue1 = project
+        .create_venue()
+        .with_name("Venue1".into())
+        .with_region(&region1)
+        .finish();
+    let venue2 = project
+        .create_venue()
+        .with_name("Venue2".into())
+        .with_region(&region2)
+        .finish();
     let artist1 = project.create_artist().with_name("Artist1".into()).finish();
     let artist2 = project.create_artist().with_name("Artist2".into()).finish();
     let user = project.create_user().finish();
@@ -114,38 +124,75 @@ fn find_list() {
 
     event2.add_artist(artist1.id, &project).unwrap();
     let all_events = vec![event, event2];
-    let all_found_events = Event::search(None, None, None, &project).unwrap();
-
+    let all_found_events = Event::search(None, None, None, None, &project).unwrap();
     assert_eq!(all_events, all_found_events);
-    let all_found_events = Event::search(Some("".to_string()), None, None, &project).unwrap();
+
+    let all_found_events = Event::search(Some("".to_string()), None, None, None, &project).unwrap();
     assert_eq!(all_events, all_found_events);
 
     // Event name search
-    let all_found_events = Event::search(Some("New".to_string()), None, None, &project).unwrap();
+    let all_found_events =
+        Event::search(Some("New".to_string()), None, None, None, &project).unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[1], all_found_events[0]);
 
     // Venue name search
-    let all_found_events = Event::search(Some("Venue1".to_string()), None, None, &project).unwrap();
+    let all_found_events =
+        Event::search(Some("Venue1".to_string()), None, None, None, &project).unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 
     // Artist name search for artist in both events
     let all_found_events =
-        Event::search(Some("Artist1".to_string()), None, None, &project).unwrap();
+        Event::search(Some("Artist1".to_string()), None, None, None, &project).unwrap();
     assert_eq!(all_events, all_found_events);
 
     // Artist name search for artist at only one event
     let all_found_events =
-        Event::search(Some("Artist2".to_string()), None, None, &project).unwrap();
+        Event::search(Some("Artist2".to_string()), None, None, None, &project).unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 
     // Match names Venue2 and Artist2 returning both events
-    let all_found_events = Event::search(Some("2".to_string()), None, None, &project).unwrap();
+    let all_found_events =
+        Event::search(Some("2".to_string()), None, None, None, &project).unwrap();
     assert_eq!(all_events, all_found_events);
 
+    // Match events belonging to given region
+    let all_found_events =
+        Event::search(None, Some(region1.id.into()), None, None, &project).unwrap();
+    assert_eq!(all_found_events.len(), 1);
+    assert_eq!(all_events[0], all_found_events[0]);
+
+    // Match events belonging to other region
+    let all_found_events =
+        Event::search(None, Some(region2.id.into()), None, None, &project).unwrap();
+    assert_eq!(all_found_events.len(), 1);
+    assert_eq!(all_events[1], all_found_events[0]);
+
+    // Combination of query and region resulting in no records
     let all_found_events = Event::search(
+        Some("Artist2".to_string()),
+        Some(region2.id.into()),
+        None,
+        None,
+        &project,
+    ).unwrap();
+    assert_eq!(all_found_events.len(), 0);
+
+    // Combination of query and region resulting in records
+    let all_found_events = Event::search(
+        Some("Artist2".to_string()),
+        Some(region1.id.into()),
+        None,
+        None,
+        &project,
+    ).unwrap();
+    assert_eq!(all_found_events.len(), 1);
+    assert_eq!(all_events[0], all_found_events[0]);
+
+    let all_found_events = Event::search(
+        None,
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
@@ -155,6 +202,7 @@ fn find_list() {
     assert_eq!(all_events[1], all_found_events[0]);
 
     let all_found_events = Event::search(
+        None,
         None,
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
@@ -168,8 +216,8 @@ fn find_list() {
 fn find_for_organization_and_venue() {
     //create event
     let project = TestProject::new();
-    let venue1 = Venue::create("Venue1").commit(&project).unwrap();
-    let venue2 = Venue::create("Venue2").commit(&project).unwrap();
+    let venue1 = project.create_venue().with_name("Venue1".into()).finish();
+    let venue2 = project.create_venue().with_name("Venue2".into()).finish();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let event = project
@@ -216,7 +264,7 @@ fn organization() {
 #[test]
 fn venue() {
     let project = TestProject::new();
-    let venue = Venue::create("Venue").commit(&project).unwrap();
+    let venue = project.create_venue().finish();
     let event = project
         .create_event()
         .with_name("NewEvent".into())

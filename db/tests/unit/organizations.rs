@@ -31,7 +31,7 @@ fn update() {
     edited_organization.city = Some("Test Address".to_string());
     edited_organization.state = Some("Test state".to_string());
     edited_organization.country = Some("Test country".to_string());
-    edited_organization.zip = Some("0124".to_string());
+    edited_organization.postal_code = Some("0124".to_string());
     edited_organization.phone = Some("+27123456789".to_string());
 
     let mut changed_attrs: OrganizationEditableAttributes = Default::default();
@@ -40,7 +40,7 @@ fn update() {
     changed_attrs.city = Some("Test Address".to_string());
     changed_attrs.state = Some("Test state".to_string());
     changed_attrs.country = Some("Test country".to_string());
-    changed_attrs.zip = Some("0124".to_string());
+    changed_attrs.postal_code = Some("0124".to_string());
     changed_attrs.phone = Some("+27123456789".to_string());
     let updated_organization =
         Organization::update(&edited_organization, changed_attrs, &project).unwrap();

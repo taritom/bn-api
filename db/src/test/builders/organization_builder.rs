@@ -66,7 +66,7 @@ impl<'a> OrganizationBuilder<'a> {
             attrs.city = Some(<String>::from("Test Address"));
             attrs.state = Some(<String>::from("Test state"));
             attrs.country = Some(<String>::from("Test country"));
-            attrs.zip = Some(<String>::from("0124"));
+            attrs.postal_code = Some(<String>::from("0124"));
             attrs.phone = Some(<String>::from("+27123456789"));
             organization = organization.update(attrs, self.connection).unwrap();
         }

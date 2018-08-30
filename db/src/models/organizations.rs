@@ -18,7 +18,7 @@ pub struct Organization {
     pub city: Option<String>,
     pub state: Option<String>,
     pub country: Option<String>,
-    pub zip: Option<String>,
+    pub postal_code: Option<String>,
     pub phone: Option<String>,
 }
 
@@ -31,7 +31,7 @@ pub struct NewOrganization {
     pub city: Option<String>,
     pub state: Option<String>,
     pub country: Option<String>,
-    pub zip: Option<String>,
+    pub postal_code: Option<String>,
     pub phone: Option<String>,
 }
 
@@ -57,7 +57,7 @@ pub struct OrganizationEditableAttributes {
     pub city: Option<String>,
     pub state: Option<String>,
     pub country: Option<String>,
-    pub zip: Option<String>,
+    pub postal_code: Option<String>,
     pub phone: Option<String>,
 }
 
@@ -70,7 +70,7 @@ impl Organization {
             city: None,
             state: None,
             country: None,
-            zip: None,
+            postal_code: None,
             phone: None,
         }
     }

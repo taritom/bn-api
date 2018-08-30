@@ -20,6 +20,7 @@ pub struct PathParameters {
 #[derive(Deserialize)]
 pub struct SearchParameters {
     query: Option<String>,
+    region_id: Option<Uuid>,
     start_utc: Option<NaiveDateTime>,
     end_utc: Option<NaiveDateTime>,
 }
@@ -58,6 +59,7 @@ pub fn index(
     let parameters = parameters.into_inner();
     let events = Event::search(
         parameters.query,
+        parameters.region_id,
         parameters.start_utc,
         parameters.end_utc,
         &*connection,

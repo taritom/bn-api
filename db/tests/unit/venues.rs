@@ -5,7 +5,7 @@ use support::project::TestProject;
 fn commit() {
     let project = TestProject::new();
     let name = "Name";
-    let venue = Venue::create(name.clone()).commit(&project).unwrap();
+    let venue = Venue::create(name.clone(), None).commit(&project).unwrap();
 
     assert_eq!(venue.name, name);
     assert_eq!(venue.id.to_string().is_empty(), false);
@@ -20,12 +20,13 @@ fn update() {
     let new_address = "Test Address";
 
     let parameters = VenueEditableAttributes {
+        region_id: None,
         name: Some(new_name.to_string()),
         address: Some(new_address.to_string()),
         city: None,
         state: None,
         country: None,
-        zip: None,
+        postal_code: None,
         phone: None,
     };
 
@@ -41,7 +42,12 @@ fn find() {
 
     let found_venue = Venue::find(venue.id, &project).unwrap();
     assert_eq!(venue, found_venue);
+}
 
+#[test]
+fn all() {
+    let project = TestProject::new();
+    let venue = project.create_venue().finish();
     let venue2 = project.create_venue().finish();
 
     let all_found_venues = Venue::all(&project).unwrap();

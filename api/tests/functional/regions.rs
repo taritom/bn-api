@@ -1,0 +1,100 @@
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use bigneon_api::controllers::regions::{self, PathParameters};
+use bigneon_db::models::Roles;
+use functional::base;
+use serde_json;
+use support;
+use support::database::TestDatabase;
+use support::test_request::TestRequest;
+
+#[test]
+fn index() {
+    let database = TestDatabase::new();
+    let region = database
+        .create_region()
+        .with_name("Region1".into())
+        .finish();
+    let region2 = database
+        .create_region()
+        .with_name("Region2".into())
+        .finish();
+
+    let expected_regions = vec![region, region2];
+    let region_expected_json = serde_json::to_string(&expected_regions).unwrap();
+
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let response: HttpResponse = regions::index(state).into();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, region_expected_json);
+}
+
+#[test]
+fn show() {
+    let database = TestDatabase::new();
+    let region = database.create_region().finish();
+    let region_expected_json = serde_json::to_string(&region).unwrap();
+
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = region.id;
+
+    let response: HttpResponse = regions::show((state, path)).into();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, region_expected_json);
+}
+
+#[cfg(test)]
+mod create_tests {
+    use super::*;
+    #[test]
+    fn create_org_member() {
+        base::regions::create(Roles::OrgMember, false);
+    }
+    #[test]
+    fn create_guest() {
+        base::regions::create(Roles::Guest, false);
+    }
+    #[test]
+    fn create_admin() {
+        base::regions::create(Roles::Admin, true);
+    }
+    #[test]
+    fn create_user() {
+        base::regions::create(Roles::User, false);
+    }
+    #[test]
+    fn create_org_owner() {
+        base::regions::create(Roles::OrgOwner, false);
+    }
+}
+
+#[cfg(test)]
+mod update_tests {
+    use super::*;
+    #[test]
+    fn update_org_member() {
+        base::regions::update(Roles::OrgMember, false);
+    }
+    #[test]
+    fn update_guest() {
+        base::regions::update(Roles::Guest, false);
+    }
+    #[test]
+    fn update_admin() {
+        base::regions::update(Roles::Admin, true);
+    }
+    #[test]
+    fn update_user() {
+        base::regions::update(Roles::User, false);
+    }
+    #[test]
+    fn update_org_owner() {
+        base::regions::update(Roles::OrgOwner, false);
+    }
+}

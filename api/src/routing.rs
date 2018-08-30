@@ -83,6 +83,14 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::POST).with(password_resets::create);
             r.method(Method::PUT).with(password_resets::update);
         })
+        .resource("/regions/{id}", |r| {
+            r.method(Method::GET).with(regions::show);
+            r.method(Method::PUT).with(regions::update);
+        })
+        .resource("/regions", |r| {
+            r.method(Method::GET).with(regions::index);
+            r.method(Method::POST).with(regions::create)
+        })
         .resource("/status", |r| r.get().f(|_| HttpResponse::Ok()))
         .resource("/users/me", |r| {
             r.method(Method::GET).with(users::current_user)

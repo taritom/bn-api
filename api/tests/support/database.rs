@@ -45,8 +45,12 @@ impl TestDatabase {
         }
     }
 
-    pub fn create_user(&self) -> UserBuilder {
-        UserBuilder::new(&self.connection)
+    pub fn create_artist(&self) -> ArtistBuilder {
+        ArtistBuilder::new(&self.connection)
+    }
+
+    pub fn create_event(&self) -> EventBuilder {
+        EventBuilder::new(&self.connection)
     }
 
     pub fn create_organization(&self) -> OrganizationBuilder {
@@ -57,15 +61,15 @@ impl TestDatabase {
         OrgInviteBuilder::new(&self.connection)
     }
 
+    pub fn create_region(&self) -> RegionBuilder {
+        RegionBuilder::new(&self.connection)
+    }
+
+    pub fn create_user(&self) -> UserBuilder {
+        UserBuilder::new(&self.connection)
+    }
+
     pub fn create_venue(&self) -> VenueBuilder {
         VenueBuilder::new(&self.connection)
-    }
-
-    pub fn create_event(&self) -> EventBuilder {
-        EventBuilder::new(&self.connection)
-    }
-
-    pub fn create_artist(&self) -> ArtistBuilder {
-        ArtistBuilder::new(&self.connection)
     }
 }

@@ -86,7 +86,7 @@ table! {
         city -> Nullable<Text>,
         state -> Nullable<Text>,
         country -> Nullable<Text>,
-        zip -> Nullable<Text>,
+        postal_code -> Nullable<Text>,
         phone -> Nullable<Text>,
     }
 }
@@ -144,7 +144,7 @@ table! {
         city -> Nullable<Text>,
         state -> Nullable<Text>,
         country -> Nullable<Text>,
-        zip -> Nullable<Text>,
+        postal_code -> Nullable<Text>,
         phone -> Nullable<Text>,
     }
 }

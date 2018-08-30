@@ -144,6 +144,7 @@ impl Event {
 
     pub fn search(
         query_filter: Option<String>,
+        region_id: Option<Uuid>,
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
         conn: &Connectable,
@@ -153,7 +154,7 @@ impl Event {
             None => "%".to_string(),
         };
 
-        let result =
+        let mut query =
             events::table
                 .filter(events::event_start.gt(
                     start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
@@ -161,11 +162,7 @@ impl Event {
                 .filter(events::event_start.lt(
                     end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
                 ))
-                .left_join(
-                    venues::table.on(events::venue_id
-                        .eq(venues::id.nullable())
-                        .and(venues::name.ilike(query_like.clone()))),
-                )
+                .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
                 .left_join(
                     event_artists::table
                         .inner_join(
@@ -178,14 +175,22 @@ impl Event {
                 .filter(
                     events::name
                         .ilike(query_like.clone())
-                        .or(venues::id.is_not_null())
+                        .or(venues::id
+                            .is_not_null()
+                            .and(venues::name.ilike(query_like.clone())))
                         .or(artists::id.is_not_null()),
                 )
                 .select(events::all_columns)
                 .distinct()
                 .order_by(events::event_start.asc())
                 .then_order_by(events::name.asc())
-                .load(conn.get_connection());
+                .into_boxed();
+
+        if region_id.is_some() {
+            query = query.filter(venues::region_id.eq(region_id.unwrap()));
+        }
+
+        let result = query.load(conn.get_connection());
 
         DatabaseError::wrap(ErrorCode::QueryError, "Unable to load all events", result)
     }

@@ -3,7 +3,7 @@ use diesel;
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
-use models::OrganizationVenue;
+use models::{OrganizationVenue, Region};
 use schema::{organization_venues, venues};
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -11,39 +11,43 @@ use uuid::Uuid;
 
 #[derive(Clone, Associations, Identifiable, Queryable, AsChangeset, Serialize, Deserialize,
          PartialEq, Debug)]
+#[belongs_to(Region)]
 #[table_name = "venues"]
 pub struct Venue {
     pub id: Uuid,
+    pub region_id: Option<Uuid>,
     pub name: String,
     pub address: Option<String>,
     pub city: Option<String>,
     pub state: Option<String>,
     pub country: Option<String>,
-    pub zip: Option<String>,
+    pub postal_code: Option<String>,
     pub phone: Option<String>,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
 #[table_name = "venues"]
 pub struct VenueEditableAttributes {
+    pub region_id: Option<Uuid>,
     pub name: Option<String>,
     pub address: Option<String>,
     pub city: Option<String>,
     pub state: Option<String>,
     pub country: Option<String>,
-    pub zip: Option<String>,
+    pub postal_code: Option<String>,
     pub phone: Option<String>,
 }
 
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "venues"]
 pub struct NewVenue {
+    pub region_id: Option<Uuid>,
     pub name: String,
     pub address: Option<String>,
     pub city: Option<String>,
     pub state: Option<String>,
     pub country: Option<String>,
-    pub zip: Option<String>,
+    pub postal_code: Option<String>,
     pub phone: Option<String>,
 }
 
@@ -60,14 +64,15 @@ impl NewVenue {
 }
 
 impl Venue {
-    pub fn create(name: &str) -> NewVenue {
+    pub fn create(name: &str, region_id: Option<Uuid>) -> NewVenue {
         NewVenue {
             name: String::from(name),
+            region_id,
             address: None,
             city: None,
             state: None,
             country: None,
-            zip: None,
+            postal_code: None,
             phone: None,
         }
     }
@@ -79,7 +84,7 @@ impl Venue {
     ) -> Result<Venue, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
-            "Could not update event",
+            "Could not update venue",
             diesel::update(self)
                 .set(attributes)
                 .get_result(conn.get_connection()),

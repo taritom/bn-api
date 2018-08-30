@@ -72,18 +72,20 @@ pub fn show_with_invalid_id(role: Roles, should_succeed: bool) {
 pub fn create(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let name = "Venue Example";
+    let region = database.create_region().finish();
 
     let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create(database);
     let state = test_request.extract_state();
     let json = Json(NewVenue {
         name: name.clone().to_string(),
+        region_id: Some(region.id.clone()),
         address: None,
         country: None,
         city: None,
         phone: None,
         state: None,
-        zip: None,
+        postal_code: None,
     });
 
     let response: HttpResponse = venues::create((state, json, user)).into();
@@ -96,6 +98,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let venue: Venue = serde_json::from_str(&body).unwrap();
     assert_eq!(venue.name, name);
+    assert_eq!(venue.region_id, Some(region.id));
 }
 
 pub fn update(role: Roles, should_succeed: bool) {
