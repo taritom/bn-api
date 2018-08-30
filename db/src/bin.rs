@@ -103,11 +103,18 @@ pub fn main() {
     }
 }
 
+fn change_database(conn_string: &str) -> String {
+    let last_slash = conn_string
+        .rfind('/')
+        .expect("Connection string does not conform to <hostname>/<database>");
+    format!("{}/postgres", conn_string.get(..last_slash).unwrap())
+}
+
 fn get_db(conn_string: &str) -> (String, String) {
     let parts: Vec<&str> = conn_string.split('/').collect();
     let db = parts.last().unwrap();
     let db = str::replace(db, "'", "''");
-    let postgres_conn_string = str::replace(conn_string, &db, "postgres");
+    let postgres_conn_string = change_database(conn_string);
     (postgres_conn_string, db)
 }
 
