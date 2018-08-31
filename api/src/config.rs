@@ -45,8 +45,7 @@ const MAIL_FROM_EMAIL: &str = "MAIL_FROM_EMAIL";
 const MAIL_FROM_NAME: &str = "MAIL_FROM_NAME";
 // Optional for test environment, required for other environments
 const MAIL_SMTP_HOST: &str = "MAIL_SMTP_HOST";
-const MAIL_SMTP_USER_NAME: &str = "MAIL_SMTP_USER_NAME";
-const MAIL_SMTP_PASSWORD: &str = "MAIL_SMTP_PASSWORD";
+const MAIL_SMTP_PORT: &str = "MAIL_SMTP_PORT";
 const FRONT_END_URL: &str = "FRONT_END_URL";
 
 impl Config {
@@ -72,13 +71,14 @@ impl Config {
             _ => {
                 let host = env::var(&MAIL_SMTP_HOST)
                     .expect(&format!("{} must be defined.", MAIL_SMTP_HOST));
-                let user_name = env::var(&MAIL_SMTP_USER_NAME)
-                    .expect(&format!("{} must be defined.", MAIL_SMTP_USER_NAME));
-                let password = env::var(&MAIL_SMTP_PASSWORD)
-                    .expect(&format!("{} must be defined.", MAIL_SMTP_PASSWORD));
+                let port = env::var(&MAIL_SMTP_PORT)
+                    .expect(&format!("{} must be defined.", MAIL_SMTP_PORT));
 
-                Box::new(SmtpTransport::new(&domain, &host, &user_name, &password))
-                    as Box<Transport + Send + Sync>
+                Box::new(SmtpTransport::new(
+                    &domain,
+                    &host,
+                    port.parse::<u16>().unwrap(),
+                )) as Box<Transport + Send + Sync>
             }
         };
 

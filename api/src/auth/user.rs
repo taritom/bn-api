@@ -60,6 +60,10 @@ impl User {
         self.user.id
     }
 
+    pub fn email(&self) -> Option<String> {
+        self.user.email.clone()
+    }
+
     pub fn has_scope(&self, scope: Scopes) -> bool {
         self.scopes.contains(&scope.to_string())
     }

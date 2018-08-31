@@ -9,13 +9,15 @@ pub fn invite_user_to_organization_email(
     recipient_name: &str,
 ) -> Mailer {
     let invite_link_accept = format!(
-        "{}organizations/accept_invite?security_token={}",
+        "{}:{}/organizations/accept_invite?security_token={}",
         config.front_end_url.clone(),
+        config.api_port.clone(),
         invite.security_token.expect("Security token is not set")
     );
     let invite_link_decline = format!(
-        "{}/organizations/decline_invite?security_token={}",
+        "{}:{}/organizations/decline_invite?security_token={}",
         config.front_end_url.clone(),
+        config.api_port.clone(),
         invite.security_token.expect("Security token is not set")
     );
 
@@ -28,7 +30,7 @@ pub fn invite_user_to_organization_email(
         ),
         format!("{}:Invite to ", org.name.clone()),
         format!(
-            " Hi {} \nThis invite link is valid for 7 days. \nIf you want accept the invitation please click this link: {} \nIf want to decline please click this link: {}",
+            " Hi {} \r\nThis invite link is valid for 7 days. \r\nIf you want accept the invitation please click this link: {} \r\nIf want to decline please click this link: {}",
             recipient_name,
             invite_link_accept,
             invite_link_decline

@@ -1,6 +1,6 @@
-use lettre::smtp::authentication::{Credentials, Mechanism};
-use lettre::smtp::extension::ClientId;
-use lettre::{EmailTransport, SmtpTransport as LettreSmtpTransport};
+use lettre::smtp::ConnectionReuseParameters;
+use lettre::smtp::SmtpTransportBuilder;
+use lettre::{ClientSecurity, EmailTransport, SmtpTransport as LettreSmtpTransport};
 use lettre_email::Email;
 use mail::transports::Transport;
 use std::any::Any;
@@ -9,14 +9,12 @@ use std::any::Any;
 pub struct SmtpTransport {
     domain: String,
     host: String,
-    user_name: String,
-    password: String,
+    port: u16,
 }
 
 impl Transport for SmtpTransport {
     fn send(&mut self, email: Email) -> Result<String, String> {
         let mut transport = self.build_smtp_transport();
-
         match transport.send(&email) {
             Ok(_response) => Ok("Mail has sent successfully".to_string()),
             Err(e) => Err(format!("Mail failed to send: {}", e)),
@@ -33,25 +31,21 @@ impl Transport for SmtpTransport {
 }
 
 impl SmtpTransport {
-    pub fn new(domain: &str, host: &str, user_name: &str, password: &str) -> Self {
+    pub fn new(domain: &str, host: &str, port: u16) -> Self {
         SmtpTransport {
             domain: domain.clone().to_string(),
             host: host.clone().to_string(),
-            user_name: user_name.clone().to_string(),
-            password: password.clone().to_string(),
+            port: port.clone(),
         }
     }
 
     fn build_smtp_transport(&self) -> LettreSmtpTransport {
-        LettreSmtpTransport::simple_builder(&self.host.clone())
-            .unwrap()
-            .hello_name(ClientId::Domain(self.domain.clone()))
-            .credentials(Credentials::new(
-                self.user_name.clone(),
-                self.password.clone(),
-            ))
+        SmtpTransportBuilder::new(
+            (self.host.clone().as_str(), self.port),
+            ClientSecurity::None,
+        ).expect("Failed to create transport")
             .smtp_utf8(true)
-            .authentication_mechanism(Mechanism::Plain)
+            .connection_reuse(ConnectionReuseParameters::NoReuse)
             .build()
     }
 }

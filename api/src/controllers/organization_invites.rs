@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, Json, Path, State};
+use actix_web::{HttpResponse, Json, Path, Query, State};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
@@ -17,6 +17,11 @@ pub struct Info {
 #[derive(Deserialize)]
 pub struct PathParameters {
     pub id: Uuid,
+}
+
+#[derive(Deserialize)]
+pub struct InviteResponseQuery {
+    pub security_token: Uuid,
 }
 
 #[derive(Deserialize)]
@@ -86,6 +91,10 @@ pub fn create(
             }
         }
     }
+    //If an active invite exists for this email then first expire it before issuing the new invite.
+    if let Ok(i) = OrganizationInvite::find_active_invite_by_email(&email, &*connection) {
+        i.change_invite_status(0, &*connection);
+    }
 
     invite = NewOrganizationInvite {
         organization_id: path.id,
@@ -110,40 +119,50 @@ pub fn create(
     }
 }
 
-fn do_invite_request(
-    (state, info, _user, status): (State<AppState>, Json<Info>, AuthUser, i16),
+pub fn accept_request(
+    (state, query, user): (
+        State<AppState>,
+        Query<InviteResponseQuery>,
+        Option<AuthUser>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = state.database.get_connection();
-    let info_struct = info.into_inner();
-    let invite_details = OrganizationInvite::get_invite_details(&info_struct.token, &*connection)?;
-    // see if we can stop non-intended user using invite.
-    //if this is a new user we cant do this check
-    if (invite_details.user_id != None) && (invite_details.user_id.unwrap() != info_struct.user_id)
-    {
-        return application::unauthorized(); //if the user matched to the email, doesnt match the signed in user we can exit as this was not the intended recipient
-    }
-    let accept_details = invite_details.change_invite_status(status, &*connection)?;
+    let query_struct = query.into_inner();
 
-    if status == 0
-    //user did not accept
-    {
-        return Ok(HttpResponse::Ok().json(json!({})));
+    let invite_details =
+        OrganizationInvite::get_invite_details(&query_struct.security_token, &*connection)?;
+    //Check that the user is logged in, that if the invite has a user_id associated with it that it is the currently logged in user
+    match user {
+        Some(u) => {
+            if (invite_details.user_id.is_some() && invite_details.user_id.unwrap() != u.id())
+                || (invite_details.user_id.is_none()
+                    && invite_details.user_email != u.email().unwrap())
+            {
+                return application::unauthorized();
+            } else {
+                let accept_details = invite_details.change_invite_status(1, &*connection)?;
+                OrganizationUser::create(accept_details.organization_id, u.id())
+                    .commit(&*connection)?;
+            }
+        }
+        None => return application::unauthorized(),
     }
-    //create actual m:n link
-    OrganizationUser::create(accept_details.organization_id, info_struct.user_id)
-        .commit(&*connection)?;
-    //send email here
+
     Ok(HttpResponse::Ok().json(json!({})))
 }
 
-pub fn accept_request(
-    (state, id, user): (State<AppState>, Json<Info>, AuthUser),
-) -> Result<HttpResponse, BigNeonError> {
-    do_invite_request((state, id, user, 1))
-}
-
 pub fn decline_request(
-    (state, id, user): (State<AppState>, Json<Info>, AuthUser),
+    (state, query, _user): (
+        State<AppState>,
+        Query<InviteResponseQuery>,
+        Option<AuthUser>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
-    do_invite_request((state, id, user, 0))
+    let connection = state.database.get_connection();
+    let query_struct = query.into_inner();
+    let invite_details =
+        OrganizationInvite::get_invite_details(&query_struct.security_token, &*connection)?;
+
+    invite_details.change_invite_status(0, &*connection)?;
+    return Ok(HttpResponse::Ok().json(json!({})));
 }

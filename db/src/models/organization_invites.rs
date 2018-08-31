@@ -3,6 +3,7 @@ use db::Connectable;
 use diesel;
 use diesel::prelude::*;
 use schema::organization_invites;
+use utils::errors::ConvertToDatabaseError;
 use utils::errors::{DatabaseError, ErrorCode};
 use uuid::Uuid;
 
@@ -99,5 +100,16 @@ impl OrganizationInvite {
                 ,token, expiredate //todo convert to use the .bind
             )).get_result(conn.get_connection()),
         )
+    }
+
+    pub fn find_active_invite_by_email(
+        email: &String,
+        conn: &Connectable,
+    ) -> Result<OrganizationInvite, DatabaseError> {
+        organization_invites::table
+            .filter(organization_invites::user_email.eq(email))
+            .filter(organization_invites::security_token.is_not_null())
+            .first::<OrganizationInvite>(conn.get_connection())
+            .to_db_error(ErrorCode::NoResults, "Cannot find organization invite")
     }
 }

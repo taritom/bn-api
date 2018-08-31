@@ -42,6 +42,11 @@ impl<'a> OrgInviteBuilder<'a> {
         self
     }
 
+    pub fn with_email(mut self, email: &String) -> OrgInviteBuilder<'a> {
+        self.user_email = email.clone();
+        self
+    }
+
     pub fn link_to_user(mut self, user: &User) -> OrgInviteBuilder<'a> {
         self.user_id = Some(user.id.clone());
         self

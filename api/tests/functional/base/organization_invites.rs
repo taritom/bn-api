@@ -1,6 +1,6 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::organization_invites::{
-    self, Info, NewOrgInviteRequest, PathParameters,
+    self, Info, InviteResponseQuery, NewOrgInviteRequest, PathParameters,
 };
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{OrganizationInvite, Roles};
@@ -239,24 +239,30 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         .create_organization_invite()
         .with_org(&organization)
         .with_invitee(&owner)
+        .with_email(&owner.email.clone().unwrap())
         .with_security_token(None)
         .finish();
 
     let auth_user = support::create_auth_user_from_user(&owner, role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
 
     let org_invite =
         OrganizationInvite::get_invite_details(&invite.security_token.unwrap(), &*connection)
             .unwrap();
 
-    let json = Json(Info {
-        token: org_invite.security_token.unwrap(),
-        user_id: invited_user.id,
-    });
+    let test_request = TestRequest::create_with_uri(
+        database,
+        format!(
+            "/accept_invite?security_token={}",
+            &invite.security_token.unwrap().to_string()
+        ).as_str(),
+    );
+    let state = test_request.extract_state();
+
+    let parameters =
+        Query::<InviteResponseQuery>::from_request(&test_request.request, &()).unwrap();
 
     let response: HttpResponse =
-        organization_invites::accept_request((state, json, auth_user)).into();
+        organization_invites::accept_request((state, parameters, Some(auth_user))).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -286,19 +292,25 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
         .finish();
 
     let auth_user = support::create_auth_user_from_user(&owner, role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
 
     let org_invite =
         OrganizationInvite::get_invite_details(&invite.security_token.unwrap(), &*connection)
             .unwrap();
 
-    let json = Json(Info {
-        token: org_invite.security_token.unwrap(),
-        user_id: new_member.id,
-    });
+    let test_request = TestRequest::create_with_uri(
+        database,
+        format!(
+            "/decline_invite?security_token={}",
+            &invite.security_token.unwrap().to_string()
+        ).as_str(),
+    );
+    let state = test_request.extract_state();
+
+    let parameters =
+        Query::<InviteResponseQuery>::from_request(&test_request.request, &()).unwrap();
+
     let response: HttpResponse =
-        organization_invites::decline_request((state, json, auth_user)).into();
+        organization_invites::decline_request((state, parameters, Some(auth_user))).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_true {
