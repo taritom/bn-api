@@ -1,5 +1,5 @@
 #[derive(Deserialize)]
-pub struct CreateTicketAllocationRequest {
+pub struct CreateTicketTypeRequest {
     pub name: String,
-    pub tickets_delta: i64,
+    pub capacity: u32,
 }

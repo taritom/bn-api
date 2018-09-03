@@ -14,42 +14,12 @@ table! {
 }
 
 table! {
-    cart_items (id) {
-        id -> Uuid,
-        cart_id -> Uuid,
-        created_at -> Timestamp,
-        quantity -> Int8,
-        price_point_id -> Uuid,
-    }
-}
-
-table! {
-    carts (id) {
-        id -> Uuid,
-        user_id -> Uuid,
-        order_id -> Nullable<Uuid>,
-        status -> Text,
-        created_at -> Timestamp,
-    }
-}
-
-table! {
     event_artists (id) {
         id -> Uuid,
         event_id -> Uuid,
         artist_id -> Uuid,
         rank -> Int4,
         set_time -> Nullable<Timestamp>,
-    }
-}
-
-table! {
-    event_histories (id) {
-        id -> Uuid,
-        event_id -> Uuid,
-        order_id -> Uuid,
-        user_id -> Uuid,
-        protocol_reference_hash -> Varchar,
     }
 }
 
@@ -90,9 +60,13 @@ table! {
 }
 
 table! {
-    order_line_items (id) {
+    order_items (id) {
         id -> Uuid,
         order_id -> Uuid,
+        item_type -> Text,
+        ticket_type_id -> Uuid,
+        quantity -> Int8,
+        created_at -> Timestamp,
     }
 }
 
@@ -101,6 +75,7 @@ table! {
         id -> Uuid,
         user_id -> Uuid,
         status -> Text,
+        order_type -> Text,
         created_at -> Timestamp,
     }
 }
@@ -220,21 +195,15 @@ table! {
     }
 }
 
-joinable!(cart_items -> carts (cart_id));
-joinable!(cart_items -> price_points (price_point_id));
-joinable!(carts -> orders (order_id));
-joinable!(carts -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
-joinable!(event_histories -> events (event_id));
-joinable!(event_histories -> orders (order_id));
-joinable!(event_histories -> users (user_id));
 joinable!(event_interest -> events (event_id));
 joinable!(event_interest -> users (user_id));
 joinable!(events -> organizations (organization_id));
 joinable!(events -> venues (venue_id));
 joinable!(external_logins -> users (user_id));
-joinable!(order_line_items -> orders (order_id));
+joinable!(order_items -> orders (order_id));
+joinable!(order_items -> ticket_types (ticket_type_id));
 joinable!(orders -> users (user_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
@@ -249,14 +218,11 @@ joinable!(venues -> regions (region_id));
 
 allow_tables_to_appear_in_same_query!(
     artists,
-    cart_items,
-    carts,
     event_artists,
-    event_histories,
     event_interest,
     events,
     external_logins,
-    order_line_items,
+    order_items,
     orders,
     organization_invites,
     organizations,

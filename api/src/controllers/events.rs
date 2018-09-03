@@ -6,7 +6,7 @@ use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use errors::*;
 use helpers::application;
-use models::{CreateTicketAllocationRequest, DisplayTicketType};
+use models::{CreateTicketTypeRequest, DisplayTicketType};
 use server::AppState;
 use tari::tariclient::*;
 use uuid::Uuid;
@@ -313,7 +313,7 @@ pub fn create_tickets(
     (state, path, data, user): (
         State<AppState>,
         Path<PathParameters>,
-        Json<CreateTicketAllocationRequest>,
+        Json<CreateTicketTypeRequest>,
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -327,38 +327,40 @@ pub fn create_tickets(
         return application::forbidden("User does not belong to this organization");
     }
 
-    let mut allocation =
-        TicketAllocation::create(path.id, data.tickets_delta).commit(&*connection)?;
+    let ticket_type = TicketType::create(event.id, data.name.clone()).commit(&*connection)?;
 
-    // TODO: move this to an async processor...
-    let tari_client = state.get_tari_client();
-
-    let asset_id = match tari_client.create_asset(Asset {
-        id: data.name.clone(),
-        name: data.name.clone(),
-        symbol: "sym".into(), //TODO remove symbol from asset spec
-        decimals: 0,
-        total_supply: data.tickets_delta,
-        authorised_signers: vec!["896asudh9872ty4".into()], //TODO add bn-api pub key here
-        issuer: "BigNeonAddress".into(),
-        valid: true,
-        rule_flags: 0,
-        rule_metadata: "".into(),
-        expire_date: 10,
-    }) {
-        Ok(a) => a,
-        Err(e) => {
-            return application::internal_server_error(&format!(
-                "Could not create tari asset:{}",
-                e.to_string()
-            ))
-        }
-    };
-
-    allocation.set_asset_id(asset_id);
-
-    let updated_allocation = allocation.update(&*connection)?;
-    Ok(HttpResponse::Ok().json(json!({"ticket_allocation_id": updated_allocation.id})))
+    //    let mut allocation =
+    //        TicketAllocation::create(path.id, data.tickets_delta).commit(&*connection)?;
+    //
+    //    // TODO: move this to an async processor...
+    //    let tari_client = state.get_tari_client();
+    //
+    //    let asset_id = match tari_client.create_asset(Asset {
+    //        id: data.name.clone(),
+    //        name: data.name.clone(),
+    //        symbol: "sym".into(), //TODO remove symbol from asset spec
+    //        decimals: 0,
+    //        total_supply: data.tickets_delta,
+    //        authorised_signers: vec!["896asudh9872ty4".into()], //TODO add bn-api pub key here
+    //        issuer: "BigNeonAddress".into(),
+    //        valid: true,
+    //        rule_flags: 0,
+    //        rule_metadata: "".into(),
+    //        expire_date: 10,
+    //    }) {
+    //        Ok(a) => a,
+    //        Err(e) => {
+    //            return application::internal_server_error(&format!(
+    //                "Could not create tari asset:{}",
+    //                e.to_string()
+    //            ))
+    //        }
+    //    };
+    //
+    //    allocation.set_asset_id(asset_id);
+    //
+    //    let updated_allocation = allocation.update(&*connection)?;
+    Ok(HttpResponse::Ok().json(json!({"ticket_type_id": ticket_type.id})))
 }
 
 pub fn list_ticket_types(

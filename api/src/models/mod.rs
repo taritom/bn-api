@@ -1,5 +1,5 @@
 pub use self::add_venue_to_organization_request::AddVenueToOrganizationRequest;
-pub use self::create_ticket_allocation_request::CreateTicketAllocationRequest;
+pub use self::create_ticket_allocation_request::CreateTicketTypeRequest;
 pub use self::display_price_point::*;
 pub use self::display_ticket_type::*;
 pub use self::facebook_web_login_token::FacebookWebLoginToken;

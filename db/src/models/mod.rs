@@ -1,8 +1,6 @@
 pub use self::artists::*;
-pub use self::carts::*;
 pub use self::enums::*;
 pub use self::event_artists::*;
-pub use self::event_histories::*;
 pub use self::event_interest::*;
 pub use self::events::*;
 pub use self::external_logins::*;
@@ -22,10 +20,8 @@ pub use self::venues::*;
 pub mod concerns;
 
 mod artists;
-mod carts;
 mod enums;
 mod event_artists;
-mod event_histories;
 mod event_interest;
 mod events;
 mod external_logins;

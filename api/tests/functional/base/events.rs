@@ -3,7 +3,7 @@ use bigneon_api::controllers::events::{
     self, AddArtistRequest, CreateEventRequest, PathParameters, UpdateArtistsRequest,
 };
 use bigneon_api::database::ConnectionGranting;
-use bigneon_api::models::CreateTicketAllocationRequest;
+use bigneon_api::models::CreateTicketTypeRequest;
 use bigneon_db::models::{Event, EventArtist, EventEditableAttributes, EventInterest, Roles};
 use chrono::prelude::*;
 use serde_json;
@@ -232,9 +232,9 @@ pub fn create_tickets(role: Roles, should_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let data = CreateTicketAllocationRequest {
+    let data = CreateTicketTypeRequest {
         name: "VIP".into(),
-        tickets_delta: 100,
+        capacity: 100,
     };
     let response: HttpResponse = events::create_tickets((state, path, Json(data), user)).into();
 

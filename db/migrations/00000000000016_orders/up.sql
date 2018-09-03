@@ -4,6 +4,7 @@ CREATE TABLE orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   user_id uuid NOT NULL REFERENCES users (id),
   status TEXT NOT NULL,
+  order_type TEXT not null,
   created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
