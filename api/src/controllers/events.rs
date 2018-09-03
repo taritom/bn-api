@@ -115,7 +115,18 @@ pub fn show(
     }
     #[derive(Serialize)]
     struct R {
-        event: Event,
+        id: Uuid,
+        name: String,
+        organization_id: Uuid,
+        venue_id: Option<Uuid>,
+        created_at: NaiveDateTime,
+        event_start: Option<NaiveDateTime>,
+        door_time: Option<NaiveDateTime>,
+        status: String,
+        publish_date: Option<NaiveDateTime>,
+        promo_image_url: Option<String>,
+        additional_info: Option<String>,
+        age_limit: Option<i32>,
         organization: ShortOrganization,
         venue: Option<Venue>,
         artists: Vec<DisplayEventArtist>,
@@ -134,7 +145,18 @@ pub fn show(
         .collect();
 
     Ok(HttpResponse::Ok().json(&R {
-        event: event,
+        id: event.id,
+        name: event.name,
+        organization_id: event.organization_id,
+        venue_id: event.venue_id,
+        created_at: event.created_at,
+        event_start: event.event_start,
+        door_time: event.door_time,
+        status: event.status,
+        publish_date: event.publish_date,
+        promo_image_url: event.promo_image_url,
+        additional_info: event.additional_info,
+        age_limit: event.age_limit,
         organization: ShortOrganization {
             id: organization.id,
             name: organization.name,
