@@ -33,17 +33,50 @@ pub fn index() {
 
     #[derive(Serialize)]
     struct EventVenueEntry {
-        event: Event,
+        id: Uuid,
+        name: String,
+        organization_id: Uuid,
+        venue_id: Option<Uuid>,
+        created_at: NaiveDateTime,
+        event_start: Option<NaiveDateTime>,
+        door_time: Option<NaiveDateTime>,
+        status: String,
+        publish_date: Option<NaiveDateTime>,
+        promo_image_url: Option<String>,
+        additional_info: Option<String>,
+        age_limit: Option<i32>,
         venue: Option<Venue>,
     }
 
     let expected_results = vec![
         EventVenueEntry {
-            event: event,
+            id: event.id,
+            name: event.name,
+            organization_id: event.organization_id,
+            venue_id: event.venue_id,
+            created_at: event.created_at,
+            event_start: event.event_start,
+            door_time: event.door_time,
+            status: event.status,
+            publish_date: event.publish_date,
+            promo_image_url: event.promo_image_url,
+            additional_info: event.additional_info,
+            age_limit: event.age_limit,
             venue: Some(venue.clone()),
         },
         EventVenueEntry {
-            event: event2,
+            id: event2.id,
+            name: event2.name,
+            organization_id: event2.organization_id,
+            venue_id: event2.venue_id,
+            created_at: event2.created_at,
+            event_start: event2.event_start,
+            door_time: event2.door_time,
+            status: event2.status,
+            publish_date: event2.publish_date,
+            promo_image_url: event2.promo_image_url,
+            additional_info: event2.additional_info,
+            age_limit: event2.age_limit,
             venue: Some(venue),
         },
     ];
@@ -77,12 +110,34 @@ pub fn index_search_returns_only_one_event() {
 
     #[derive(Serialize)]
     struct EventVenueEntry {
-        event: Event,
+        id: Uuid,
+        name: String,
+        organization_id: Uuid,
+        venue_id: Option<Uuid>,
+        created_at: NaiveDateTime,
+        event_start: Option<NaiveDateTime>,
+        door_time: Option<NaiveDateTime>,
+        status: String,
+        publish_date: Option<NaiveDateTime>,
+        promo_image_url: Option<String>,
+        additional_info: Option<String>,
+        age_limit: Option<i32>,
         venue: Option<Venue>,
     }
 
     let expected_events = vec![EventVenueEntry {
-        event: event,
+        id: event.id,
+        name: event.name,
+        organization_id: event.organization_id,
+        venue_id: event.venue_id,
+        created_at: event.created_at,
+        event_start: event.event_start,
+        door_time: event.door_time,
+        status: event.status,
+        publish_date: event.publish_date,
+        promo_image_url: event.promo_image_url,
+        additional_info: event.additional_info,
+        age_limit: event.age_limit,
         venue: None,
     }];
     let events_expected_json = serde_json::to_string(&expected_events).unwrap();

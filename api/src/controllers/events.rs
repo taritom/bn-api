@@ -67,7 +67,18 @@ pub fn index(
 
     #[derive(Serialize)]
     struct EventVenueEntry {
-        event: Event,
+        id: Uuid,
+        name: String,
+        organization_id: Uuid,
+        venue_id: Option<Uuid>,
+        created_at: NaiveDateTime,
+        event_start: Option<NaiveDateTime>,
+        door_time: Option<NaiveDateTime>,
+        status: String,
+        publish_date: Option<NaiveDateTime>,
+        promo_image_url: Option<String>,
+        additional_info: Option<String>,
+        age_limit: Option<i32>,
         venue: Option<Venue>,
     }
 
@@ -78,7 +89,18 @@ pub fn index(
                 Some(v) => Some(Venue::find(v, &*connection)?),
                 None => None,
             },
-            event: e,
+            id: e.id,
+            name: e.name,
+            organization_id: e.organization_id,
+            venue_id: e.venue_id,
+            created_at: e.created_at,
+            event_start: e.event_start,
+            door_time: e.door_time,
+            status: e.status,
+            publish_date: e.publish_date,
+            promo_image_url: e.promo_image_url,
+            additional_info: e.additional_info,
+            age_limit: e.age_limit,
         })
     }
 
