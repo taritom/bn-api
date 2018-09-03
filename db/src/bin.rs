@@ -74,6 +74,8 @@ pub fn main() {
                     .short("p")
                     .takes_value(true)
                     .help("password for system administrator"),
+                ).arg(
+                Arg::with_name("force").short("f").help("Drops the database if it exists. WARNING! This is NOT REVERSIBLE")
             ),
         ).subcommand(
             SubCommand::with_name("drop")
@@ -152,6 +154,10 @@ fn create_db_and_user(matches: &ArgMatches) {
     let conn_string = matches
         .value_of("connection")
         .expect("Connection string was not provided");
+
+    if matches.is_present("force") {
+        drop_db(matches);
+    }
 
     create_db(conn_string)
         .expect("Can't create database because one with the same name already exists");
