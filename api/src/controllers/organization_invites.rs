@@ -141,8 +141,8 @@ pub fn accept_request(
                 return application::unauthorized();
             } else {
                 let accept_details = invite_details.change_invite_status(1, &*connection)?;
-                OrganizationUser::create(accept_details.organization_id, u.id())
-                    .commit(&*connection)?;
+                let org = Organization::find(accept_details.organization_id, &*connection)?;
+                let _ = org.add_user(u.id(), &*connection)?;
             }
         }
         None => return application::unauthorized(),

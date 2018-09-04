@@ -2,6 +2,7 @@ use chrono::{Duration, NaiveDateTime, Utc};
 use db::Connectable;
 use diesel;
 use diesel::prelude::*;
+use models::*;
 use schema::organization_invites;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::{DatabaseError, ErrorCode};
