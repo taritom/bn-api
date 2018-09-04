@@ -76,6 +76,10 @@ impl TestProject {
     pub fn create_venue(&self) -> VenueBuilder {
         VenueBuilder::new(self)
     }
+
+    pub fn create_fee_schedule(&self) -> FeeScheduleBuilder {
+        FeeScheduleBuilder::new(self)
+    }
 }
 
 /// Returns the database connection and starts a transaction that will never be committed

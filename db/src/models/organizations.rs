@@ -20,6 +20,7 @@ pub struct Organization {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
+    pub fee_schedule_id: Option<Uuid>,
 }
 
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -233,5 +234,20 @@ impl Organization {
 
     pub fn is_member(&self, user: &User, conn: &Connectable) -> Result<bool, DatabaseError> {
         Ok(self.users(conn)?.contains(&user))
+    }
+
+    pub fn add_fee_schedule(
+        &self,
+        fee_schedule: &FeeSchedule,
+        conn: &Connectable,
+    ) -> Result<(), DatabaseError> {
+        diesel::update(self)
+            .set(organizations::fee_schedule_id.eq(fee_schedule.id))
+            .execute(conn.get_connection())
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not set the fee schedule for this organization",
+            )?;
+        Ok(())
     }
 }

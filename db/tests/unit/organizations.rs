@@ -230,3 +230,13 @@ fn add_user() {
         "User does not have OrgMember role"
     );
 }
+
+#[test]
+fn add_fee_schedule() {
+    let db = TestProject::new();
+    let organization = db.create_organization().finish();
+    let fee_structure = db.create_fee_schedule().finish();
+    organization.add_fee_schedule(&fee_structure, &db).unwrap();
+    let organization = Organization::find(organization.id, &db).unwrap();
+    assert_eq!(organization.fee_schedule_id.unwrap(), fee_structure.id);
+}

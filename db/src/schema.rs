@@ -60,6 +60,24 @@ table! {
 }
 
 table! {
+    fee_schedule_ranges (id) {
+        id -> Uuid,
+        fee_schedule_id -> Uuid,
+        min_price -> Int8,
+        fee -> Int8,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
+    fee_schedules (id) {
+        id -> Uuid,
+        name -> Text,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
     order_items (id) {
         id -> Uuid,
         order_id -> Uuid,
@@ -105,6 +123,7 @@ table! {
         country -> Nullable<Text>,
         postal_code -> Nullable<Text>,
         phone -> Nullable<Text>,
+        fee_schedule_id -> Nullable<Uuid>,
     }
 }
 
@@ -202,6 +221,7 @@ joinable!(event_interest -> users (user_id));
 joinable!(events -> organizations (organization_id));
 joinable!(events -> venues (venue_id));
 joinable!(external_logins -> users (user_id));
+joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
 joinable!(order_items -> orders (order_id));
 joinable!(order_items -> ticket_types (ticket_type_id));
 joinable!(orders -> users (user_id));
@@ -210,6 +230,7 @@ joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
 joinable!(organization_venues -> organizations (organization_id));
 joinable!(organization_venues -> venues (venue_id));
+joinable!(organizations -> fee_schedules (fee_schedule_id));
 joinable!(organizations -> users (owner_user_id));
 joinable!(price_points -> ticket_types (ticket_type_id));
 joinable!(ticket_allocations -> events (event_id));
@@ -222,6 +243,8 @@ allow_tables_to_appear_in_same_query!(
     event_interest,
     events,
     external_logins,
+    fee_schedule_ranges,
+    fee_schedules,
     order_items,
     orders,
     organization_invites,

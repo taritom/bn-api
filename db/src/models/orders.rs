@@ -16,6 +16,7 @@ pub struct Order {
     pub id: Uuid,
     pub user_id: Uuid,
     status: String,
+    #[allow(dead_code)]
     order_type: String,
     #[allow(dead_code)]
     created_at: NaiveDateTime,
