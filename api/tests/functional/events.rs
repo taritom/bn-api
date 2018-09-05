@@ -312,6 +312,31 @@ mod update_tests {
 }
 
 #[cfg(test)]
+mod cancel_tests {
+    use super::*;
+    #[test]
+    fn cancel_org_member() {
+        base::events::cancel(Roles::OrgMember, true);
+    }
+    #[test]
+    fn cancel_guest() {
+        base::events::cancel(Roles::Guest, false);
+    }
+    #[test]
+    fn cancel_admin() {
+        base::events::cancel(Roles::Admin, true);
+    }
+    #[test]
+    fn cancel_user() {
+        base::events::cancel(Roles::User, false);
+    }
+    #[test]
+    fn cancel_org_owner() {
+        base::events::cancel(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod add_artist_tests {
     use super::*;
     #[test]

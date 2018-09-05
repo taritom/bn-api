@@ -48,6 +48,25 @@ fn update() {
 }
 
 #[test]
+fn cancel() {
+    //create event
+    let project = TestProject::new();
+    let venue = project.create_venue().finish();
+
+    let user = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+    let event = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
+    let event = event.cancel(&project).unwrap();
+    assert!(!event.cancelled_at.is_none());
+}
+
+#[test]
 fn find_individuals() {
     //create event
     let project = TestProject::new();

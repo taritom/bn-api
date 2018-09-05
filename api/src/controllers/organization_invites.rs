@@ -92,8 +92,8 @@ pub fn create(
         }
     }
     //If an active invite exists for this email then first expire it before issuing the new invite.
-    if let Ok(i) = OrganizationInvite::find_active_invite_by_email(&email, &*connection) {
-        i.change_invite_status(0, &*connection);
+    if let Some(i) = OrganizationInvite::find_active_invite_by_email(&email, &*connection)? {
+        i.change_invite_status(0, &*connection)?;
     }
 
     invite = NewOrganizationInvite {

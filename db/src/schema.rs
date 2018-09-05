@@ -45,6 +45,7 @@ table! {
         promo_image_url -> Nullable<Text>,
         additional_info -> Nullable<Text>,
         age_limit -> Nullable<Int4>,
+        cancelled_at -> Nullable<Timestamp>,
     }
 }
 

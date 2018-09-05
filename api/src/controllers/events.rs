@@ -257,6 +257,21 @@ pub fn update(
     }
 }
 
+pub fn cancel(
+    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    if !user.has_scope(Scopes::EventWrite) {
+        return application::unauthorized();
+    }
+
+    let connection = state.database.get_connection();
+    let event = Event::find(parameters.id, &*connection)?;
+    //Doing this in the DB layer so it can use the DB time as now.
+    let updated_event = event.cancel(&*connection)?;
+
+    Ok(HttpResponse::Ok().json(&updated_event))
+}
+
 pub fn add_interest(
     (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {

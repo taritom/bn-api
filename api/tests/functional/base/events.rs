@@ -65,6 +65,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         promo_image_url: None,
         additional_info: None,
         age_limit: None,
+        cancelled_at: None,
     });
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
@@ -75,6 +76,30 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         let updated_event: Event = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_event.name, new_name);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+        let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, updated_event);
+    }
+}
+
+pub fn cancel(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let event = database.create_event().finish();
+
+    let user = support::create_auth_user(role, &database);
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+
+    let response: HttpResponse = events::cancel((state, path, user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        let updated_event: Event = serde_json::from_str(&body).unwrap();
+        assert!(!updated_event.cancelled_at.is_none());
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));

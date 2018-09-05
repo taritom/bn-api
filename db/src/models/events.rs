@@ -2,6 +2,7 @@ use chrono::NaiveDate;
 use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::*;
 use schema::{artists, event_artists, events, venues};
@@ -29,6 +30,7 @@ pub struct Event {
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
+    pub cancelled_at: Option<NaiveDateTime>,
 }
 
 #[derive(Insertable, Serialize, Deserialize, Validate)]
@@ -60,6 +62,7 @@ pub struct EventEditableAttributes {
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
+    pub cancelled_at: Option<NaiveDateTime>,
 }
 
 impl NewEvent {
@@ -114,6 +117,13 @@ impl Event {
             "Error loading event",
             events::table.find(id).first::<Event>(conn.get_connection()),
         )
+    }
+
+    pub fn cancel(self, conn: &Connectable) -> Result<Event, DatabaseError> {
+        diesel::update(&self)
+            .set(events::cancelled_at.eq(dsl::now.nullable()))
+            .get_result(conn.get_connection())
+            .to_db_error(ErrorCode::UpdateError, "Could not update event")
     }
 
     pub fn find_all_events_from_venue(
