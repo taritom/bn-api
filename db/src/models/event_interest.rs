@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
 use diesel::prelude::*;
@@ -16,6 +17,8 @@ pub struct EventInterest {
     pub id: Uuid,
     pub event_id: Uuid,
     pub user_id: Uuid,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Insertable)]

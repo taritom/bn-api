@@ -1,5 +1,7 @@
+use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::*;
 use schema::{organization_users, organizations, users, venues};
@@ -20,6 +22,8 @@ pub struct Organization {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
     pub fee_schedule_id: Option<Uuid>,
 }
 
@@ -82,7 +86,7 @@ impl Organization {
         conn: &Connectable,
     ) -> Result<Organization, DatabaseError> {
         diesel::update(self)
-            .set(attributes)
+            .set((attributes, organizations::updated_at.eq(dsl::now)))
             .get_result(conn.get_connection())
             .to_db_error(ErrorCode::UpdateError, "Could not update organization")
     }
@@ -95,7 +99,10 @@ impl Organization {
         let old_owner_id = self.owner_user_id;
 
         let db_result = diesel::update(self)
-            .set(organizations::owner_user_id.eq(owner_user_id))
+            .set((
+                organizations::owner_user_id.eq(owner_user_id),
+                organizations::updated_at.eq(dsl::now),
+            ))
             .get_result(conn.get_connection())
             .to_db_error(
                 ErrorCode::UpdateError,

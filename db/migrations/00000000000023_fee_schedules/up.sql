@@ -1,7 +1,8 @@
 CREATE TABLE fee_schedules (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   name TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT now()
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices

@@ -12,7 +12,8 @@ CREATE TABLE events (
   promo_image_url TEXT NULL,
   additional_info TEXT NULL,
   age_limit INTEGER NULL,
-  cancelled_at TIMESTAMP NULL
+  cancelled_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices

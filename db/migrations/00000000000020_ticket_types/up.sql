@@ -3,7 +3,8 @@ CREATE TABLE ticket_types (
   event_id uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   status TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT now()
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices

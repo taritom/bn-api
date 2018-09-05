@@ -2,7 +2,6 @@ extern crate chrono;
 use bigneon_db::db::Connectable;
 use bigneon_db::models::OrganizationInvite;
 use bigneon_db::utils::errors::{DatabaseError, ErrorCode};
-use chrono::{Duration, Utc};
 use diesel;
 use diesel::prelude::*;
 use support::project::TestProject;
@@ -45,26 +44,14 @@ fn change_invite_status_of_invite() {
     we cant test for an exact date, as this will depend on the database write delay
     we will test for a period of 30 seconds
     */
-    let testdate_start = Utc::now().naive_utc();
-    let testdate_end = Utc::now().naive_utc() + Duration::seconds(60);
     let compare_true = org_invite.accept_invite(&project).unwrap();
     let compare_false = org_invite2.decline_invite(&project).unwrap();
 
     assert_eq!(compare_true.accepted, Some(1));
     assert_eq!(compare_true.security_token, None);
-    assert_eq!(
-        compare_true.status_change_at.unwrap() > testdate_start,
-        true
-    );
-    assert_eq!(compare_true.status_change_at.unwrap() < testdate_end, true);
 
     assert_eq!(compare_false.accepted, Some(0));
     assert_eq!(compare_false.security_token, None);
-    assert_eq!(
-        compare_false.status_change_at.unwrap() > testdate_start,
-        true
-    );
-    assert_eq!(compare_false.status_change_at.unwrap() < testdate_end, true);
 }
 #[test]
 fn test_token_validity() {
@@ -80,7 +67,7 @@ fn test_token_validity() {
         OrganizationInvite::get_invite_details(&org_invite.security_token.unwrap(), &project)
             .unwrap();
     assert_eq!(org_invite, recovered_invite);
-    org_invite.create_at = NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11);
+    org_invite.created_at = NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11);
     org_invite = update(&org_invite, &project).unwrap();
     let recovered_invite2 =
         OrganizationInvite::get_invite_details(&org_invite.security_token.unwrap(), &project);

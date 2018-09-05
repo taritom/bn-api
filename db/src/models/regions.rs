@@ -1,5 +1,7 @@
+use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use schema::regions;
 use utils::errors::ConvertToDatabaseError;
@@ -11,6 +13,8 @@ use uuid::Uuid;
 pub struct Region {
     pub id: Uuid,
     pub name: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -39,7 +43,7 @@ impl Region {
             ErrorCode::UpdateError,
             "Could not update region",
             diesel::update(self)
-                .set(attributes)
+                .set((attributes, regions::updated_at.eq(dsl::now)))
                 .get_result(conn.get_connection()),
         )
     }

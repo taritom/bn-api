@@ -1,6 +1,7 @@
 use chrono::{Duration, NaiveDateTime, Utc};
 use db::Connectable;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use schema::organization_invites;
 use utils::errors::ConvertToDatabaseError;
@@ -17,11 +18,11 @@ pub struct OrganizationInvite {
     pub organization_id: Uuid,
     pub inviter_id: Uuid,
     pub user_email: String,
-    pub create_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
     pub security_token: Option<Uuid>,
     pub user_id: Option<Uuid>,
-    pub status_change_at: Option<NaiveDateTime>,
     pub accepted: Option<i16>,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Insertable, PartialEq, Debug, Deserialize)]
@@ -73,7 +74,7 @@ impl OrganizationInvite {
                 .set((
                     organization_invites::security_token.eq(null),
                     organization_invites::accepted.eq(change_status),
-                    organization_invites::status_change_at.eq(Utc::now().naive_utc()),
+                    organization_invites::updated_at.eq(dsl::now),
                 ))
                 .get_result(conn.get_connection()),
         )
@@ -96,7 +97,7 @@ impl OrganizationInvite {
             ErrorCode::AccessError,
             "No valid token found",
             diesel::sql_query(format!(
-                "SELECT * FROM organization_invites WHERE security_token = '{}' AND create_at > '{}' AND accepted is NULL;"
+                "SELECT * FROM organization_invites WHERE security_token = '{}' AND created_at > '{}' AND accepted is NULL;"
                 ,token, expiredate //todo convert to use the .bind
             )).get_result(conn.get_connection()),
         )

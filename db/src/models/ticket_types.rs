@@ -18,6 +18,7 @@ pub struct TicketType {
     pub name: String,
     status: String,
     created_at: NaiveDateTime,
+    updated_at: NaiveDateTime,
 }
 
 impl TicketType {

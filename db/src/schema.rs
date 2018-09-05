@@ -10,6 +10,8 @@ table! {
         snapchat_username -> Nullable<Text>,
         soundcloud_username -> Nullable<Text>,
         bandcamp_username -> Nullable<Text>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -20,6 +22,8 @@ table! {
         artist_id -> Uuid,
         rank -> Int4,
         set_time -> Nullable<Timestamp>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -28,6 +32,8 @@ table! {
         id -> Uuid,
         event_id -> Uuid,
         user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -46,6 +52,7 @@ table! {
         additional_info -> Nullable<Text>,
         age_limit -> Nullable<Int4>,
         cancelled_at -> Nullable<Timestamp>,
+        updated_at -> Timestamp,
     }
 }
 
@@ -57,6 +64,7 @@ table! {
         site -> Text,
         access_token -> Text,
         external_user_id -> Text,
+        updated_at -> Timestamp,
     }
 }
 
@@ -67,6 +75,7 @@ table! {
         min_price -> Int8,
         fee -> Int8,
         created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -75,6 +84,7 @@ table! {
         id -> Uuid,
         name -> Text,
         created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -86,6 +96,7 @@ table! {
         ticket_type_id -> Uuid,
         quantity -> Int8,
         created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -96,6 +107,7 @@ table! {
         status -> Text,
         order_type -> Text,
         created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -105,11 +117,11 @@ table! {
         organization_id -> Uuid,
         inviter_id -> Uuid,
         user_email -> Text,
-        create_at -> Timestamp,
+        created_at -> Timestamp,
         security_token -> Nullable<Uuid>,
         user_id -> Nullable<Uuid>,
-        status_change_at -> Nullable<Timestamp>,
         accepted -> Nullable<Int2>,
+        updated_at -> Timestamp,
     }
 }
 
@@ -124,6 +136,8 @@ table! {
         country -> Nullable<Text>,
         postal_code -> Nullable<Text>,
         phone -> Nullable<Text>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
         fee_schedule_id -> Nullable<Uuid>,
     }
 }
@@ -133,6 +147,8 @@ table! {
         id -> Uuid,
         organization_id -> Uuid,
         user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -152,6 +168,7 @@ table! {
         status -> Text,
         price_in_cents -> Int8,
         created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -159,6 +176,8 @@ table! {
     regions (id) {
         id -> Uuid,
         name -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -168,8 +187,9 @@ table! {
         event_id -> Uuid,
         tari_asset_id -> Nullable<Text>,
         created_at -> Timestamp,
-        synced_on -> Nullable<Timestamp>,
+        synced_at -> Nullable<Timestamp>,
         ticket_delta -> Int8,
+        updated_at -> Timestamp,
     }
 }
 
@@ -180,6 +200,7 @@ table! {
         name -> Text,
         status -> Text,
         created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -198,6 +219,7 @@ table! {
         role -> Array<Text>,
         password_reset_token -> Nullable<Uuid>,
         password_reset_requested_at -> Nullable<Timestamp>,
+        updated_at -> Timestamp,
     }
 }
 
@@ -212,6 +234,8 @@ table! {
         country -> Nullable<Text>,
         postal_code -> Nullable<Text>,
         phone -> Nullable<Text>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 

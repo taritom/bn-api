@@ -1,6 +1,8 @@
+use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
 use diesel::dsl::exists;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::select;
 use models::{OrganizationVenue, Region};
@@ -23,6 +25,8 @@ pub struct Venue {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -86,7 +90,7 @@ impl Venue {
             ErrorCode::UpdateError,
             "Could not update venue",
             diesel::update(self)
-                .set(attributes)
+                .set((attributes, venues::updated_at.eq(dsl::now)))
                 .get_result(conn.get_connection()),
         )
     }

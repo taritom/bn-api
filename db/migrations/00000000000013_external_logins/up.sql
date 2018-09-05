@@ -5,7 +5,8 @@ CREATE TABLE external_logins (
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   site TEXT NOT NULL,
   access_token TEXT NOT NULL,
-  external_user_id TEXT NOT NULL
+  external_user_id TEXT NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 CREATE INDEX index_external_logins_user_id ON external_logins (user_id);

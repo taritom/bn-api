@@ -4,11 +4,11 @@ CREATE TABLE organization_invites (
   organization_id uuid NOT NULL REFERENCES organizations (id),
   inviter_id uuid NOT NULL REFERENCES users (id),
   user_email TEXT NOT NULL,
-  create_at TIMESTAMP NOT NULL DEFAULT now(),
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
   security_token uuid UNIQUE,
   user_id uuid REFERENCES users (id),
-  status_change_at TIMESTAMP ,
-  accepted SMALLINT
+  accepted SMALLINT,
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices

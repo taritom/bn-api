@@ -9,7 +9,9 @@ CREATE TABLE artists (
   instagram_username TEXT,
   snapchat_username TEXT,
   soundcloud_username TEXT,
-  bandcamp_username TEXT
+  bandcamp_username TEXT,
+  created_at TIMESTAMP DEFAULT now() NOT NULL,
+  updated_at TIMESTAMP DEFAULT now() NOT NULL
 );
 
 CREATE INDEX index_artists_name ON artists (name);

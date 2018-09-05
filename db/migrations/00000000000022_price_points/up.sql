@@ -4,7 +4,8 @@ CREATE TABLE price_points (
   name TEXT NOT NULL,
   status TEXT NOT NULL,
   price_in_cents BIGINT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT now()
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT  NULL DEFAULT now()
 );
 
 -- Indices

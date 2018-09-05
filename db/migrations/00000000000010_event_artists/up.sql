@@ -4,7 +4,9 @@ CREATE TABLE event_artists (
   event_id uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
   artist_id uuid NOT NULL REFERENCES artists (id) ON DELETE CASCADE,
   rank INTEGER NOT NULL,
-  set_time TIMESTAMP
+  set_time TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices

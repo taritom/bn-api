@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::ExternalLogin;
 use models::Roles;
@@ -35,6 +36,7 @@ pub struct User {
     pub role: Vec<String>,
     pub password_reset_token: Option<Uuid>,
     pub password_reset_requested_at: Option<NaiveDateTime>,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -126,7 +128,7 @@ impl User {
             ErrorCode::UpdateError,
             "Could not update role for user",
             diesel::update(self)
-                .set(users::role.eq(new_roles))
+                .set((users::role.eq(new_roles), users::updated_at.eq(dsl::now)))
                 .get_result(conn.get_connection()),
         )
     }

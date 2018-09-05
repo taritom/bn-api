@@ -8,7 +8,9 @@ CREATE TABLE organizations (
   state TEXT,
   country TEXT,
   postal_code TEXT,
-  phone TEXT
+  phone TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices

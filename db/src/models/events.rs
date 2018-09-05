@@ -31,6 +31,7 @@ pub struct Event {
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
     pub cancelled_at: Option<NaiveDateTime>,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Insertable, Serialize, Deserialize, Validate)]
@@ -85,12 +86,12 @@ impl Event {
     ) -> NewEvent {
         NewEvent {
             name: name.into(),
-            organization_id: organization_id,
-            venue_id: venue_id,
-            event_start: event_start,
-            door_time: door_time,
+            organization_id,
+            venue_id,
+            event_start,
+            door_time,
             status: EventStatus::Draft.to_string(),
-            publish_date: publish_date,
+            publish_date,
             promo_image_url: None,
             additional_info: None,
             age_limit: None,
@@ -106,7 +107,7 @@ impl Event {
             ErrorCode::UpdateError,
             "Could not update event",
             diesel::update(self)
-                .set(attributes)
+                .set((attributes, events::updated_at.eq(dsl::now)))
                 .get_result(conn.get_connection()),
         )
     }

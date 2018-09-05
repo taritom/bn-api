@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use chrono::Utc;
 use db::Connectable;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::Event;
 use schema::ticket_allocations;
@@ -19,8 +20,9 @@ pub struct TicketAllocation {
     pub event_id: Uuid,
     tari_asset_id: Option<String>,
     pub created_at: NaiveDateTime,
-    synced_on: Option<NaiveDateTime>,
+    synced_at: Option<NaiveDateTime>,
     ticket_delta: i64,
+    updated_at: NaiveDateTime,
 }
 
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -34,7 +36,7 @@ pub struct NewTicketAllocation {
 #[table_name = "ticket_allocations"]
 pub struct TicketAllocationEditableAttributes {
     tari_asset_id: Option<String>,
-    synced_on: Option<NaiveDateTime>,
+    synced_at: Option<NaiveDateTime>,
 }
 
 impl NewTicketAllocation {
@@ -59,12 +61,12 @@ impl TicketAllocation {
 
     pub fn set_asset_id(&mut self, asset_id: String) {
         self.tari_asset_id = Some(asset_id);
-        self.synced_on = Some(Utc::now().naive_utc())
+        self.synced_at = Some(Utc::now().naive_utc())
     }
 
     pub fn update(self, conn: &Connectable) -> Result<TicketAllocation, DatabaseError> {
         let update_attr = TicketAllocationEditableAttributes {
-            synced_on: self.synced_on,
+            synced_at: self.synced_at,
             tari_asset_id: self.tari_asset_id.clone(),
         };
 
@@ -72,7 +74,7 @@ impl TicketAllocation {
             ErrorCode::UpdateError,
             "Could not update organization",
             diesel::update(&self)
-                .set(update_attr)
+                .set((update_attr, ticket_allocations::updated_at.eq(dsl::now)))
                 .get_result(conn.get_connection()),
         )
     }

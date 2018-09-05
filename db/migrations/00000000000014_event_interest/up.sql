@@ -2,7 +2,9 @@
 CREATE TABLE event_interest(
   id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   event_id uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE
+  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices

@@ -1,6 +1,7 @@
 use chrono::{NaiveDateTime, Utc};
 use db::Connectable;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::User;
 use schema::users;
@@ -54,6 +55,7 @@ impl PasswordResetable for User {
                             .set((
                                 hashed_pw.eq(&hash.to_string()),
                                 password_modified_at.eq(now),
+                                updated_at.eq(dsl::now),
                                 PasswordReset {
                                     password_reset_token: None,
                                     password_reset_requested_at: None,
@@ -106,7 +108,7 @@ impl PasswordResetable for User {
             ErrorCode::UpdateError,
             "Could not create token for resetting password",
             diesel::update(self)
-                .set(data)
+                .set((data, users::updated_at.eq(dsl::now)))
                 .get_result(conn.get_connection()),
         )
     }

@@ -1,5 +1,7 @@
+use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use schema::artists;
 use utils::errors::DatabaseError;
@@ -20,6 +22,8 @@ pub struct Artist {
     pub snapchat_username: Option<String>,
     pub soundcloud_username: Option<String>,
     pub bandcamp_username: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Insertable, Deserialize, Validate)]
@@ -27,22 +31,6 @@ pub struct Artist {
 pub struct NewArtist {
     pub name: String,
     pub bio: String,
-    #[validate(url)]
-    pub website_url: Option<String>,
-    #[validate(custom = "validators::validate_urls")]
-    pub youtube_video_urls: Option<Vec<String>>,
-    pub facebook_username: Option<String>,
-    pub instagram_username: Option<String>,
-    pub snapchat_username: Option<String>,
-    pub soundcloud_username: Option<String>,
-    pub bandcamp_username: Option<String>,
-}
-
-#[derive(AsChangeset, Default, Deserialize, Validate)]
-#[table_name = "artists"]
-pub struct ArtistEditableAttributes {
-    pub name: Option<String>,
-    pub bio: Option<String>,
     #[validate(url)]
     pub website_url: Option<String>,
     #[validate(custom = "validators::validate_urls")]
@@ -104,12 +92,12 @@ impl Artist {
         attributes: &ArtistEditableAttributes,
         conn: &Connectable,
     ) -> Result<Artist, DatabaseError> {
+        let query = diesel::update(self).set((attributes, artists::updated_at.eq(dsl::now)));
+
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Error updating artist",
-            diesel::update(self)
-                .set(attributes)
-                .get_result(conn.get_connection()),
+            query.get_result(conn.get_connection()),
         )
     }
 
@@ -119,5 +107,43 @@ impl Artist {
             "Failed to destroy artist record",
             diesel::delete(self).execute(conn.get_connection()),
         )
+    }
+}
+
+#[derive(AsChangeset, Deserialize, Validate)]
+#[table_name = "artists"]
+pub struct ArtistEditableAttributes {
+    pub name: Option<String>,
+    pub bio: Option<String>,
+    #[validate(url)]
+    pub website_url: Option<String>,
+    #[validate(custom = "validators::validate_urls")]
+    pub youtube_video_urls: Option<Vec<String>>,
+    pub facebook_username: Option<String>,
+    pub instagram_username: Option<String>,
+    pub snapchat_username: Option<String>,
+    pub soundcloud_username: Option<String>,
+    pub bandcamp_username: Option<String>,
+}
+
+impl Default for ArtistEditableAttributes {
+    fn default() -> Self {
+        ArtistEditableAttributes {
+            name: None,
+            bio: None,
+            website_url: None,
+            youtube_video_urls: None,
+            facebook_username: None,
+            instagram_username: None,
+            snapchat_username: None,
+            soundcloud_username: None,
+            bandcamp_username: None,
+        }
+    }
+}
+
+impl ArtistEditableAttributes {
+    pub fn new() -> ArtistEditableAttributes {
+        Default::default()
     }
 }

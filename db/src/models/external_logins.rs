@@ -19,6 +19,7 @@ pub struct ExternalLogin {
     pub site: String,
     pub access_token: String,
     pub external_user_id: String,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]

@@ -4,7 +4,8 @@ CREATE TABLE order_items (
   item_type text not null,
   ticket_type_id Uuid not null references ticket_types,
   quantity bigint not null,
-  created_at TIMESTAMP not null default now()
+  created_at TIMESTAMP not null default now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 
 );
 

@@ -43,17 +43,11 @@ fn new_artist_validate() {
 
 #[test]
 fn artist_editable_attributes_validate() {
-    let artist_parameters = ArtistEditableAttributes {
-        name: Some("New Name".into()),
-        bio: Some("Bio".into()),
-        website_url: Some("invalid.com".into()),
-        youtube_video_urls: Some(vec!["invalid".to_string()]),
-        facebook_username: None,
-        instagram_username: None,
-        snapchat_username: None,
-        soundcloud_username: None,
-        bandcamp_username: None,
-    };
+    let mut artist_parameters = ArtistEditableAttributes::new();
+    artist_parameters.name = Some("New Name".into());
+    artist_parameters.bio = Some("Bio".into());
+    artist_parameters.website_url = Some("invalid.com".into());
+    artist_parameters.youtube_video_urls = Some(vec!["invalid".to_string()]);
 
     let result = artist_parameters.validate();
     assert!(result.is_err());
@@ -118,18 +112,15 @@ fn update_attributes() {
     let name = "Old Name";
     let artist = project.create_artist().with_name(name.into()).finish();
 
-    let artist_parameters = ArtistEditableAttributes {
-        name: Some("New Name".into()),
-        bio: Some("Bio".into()),
-        website_url: Some("http://www.example.com".into()),
-        youtube_video_urls: None,
-        facebook_username: None,
-        instagram_username: None,
-        snapchat_username: None,
-        soundcloud_username: None,
-        bandcamp_username: None,
-    };
+    println!(
+        "Created at: {}, updated at:{}",
+        artist.created_at, artist.updated_at
+    );
 
+    let mut artist_parameters = ArtistEditableAttributes::new();
+    artist_parameters.name = Some("New Name".into());
+    artist_parameters.bio = Some("Bio".into());
+    artist_parameters.website_url = Some("http://www.example.com".into());
     let updated_artist = artist.update(&artist_parameters, &project).unwrap();
 
     assert_eq!(updated_artist.id, artist.id);

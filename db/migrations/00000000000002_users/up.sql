@@ -12,7 +12,8 @@ CREATE TABLE users (
   active BOOLEAN NOT NULL DEFAULT 't',
   role text[] NOT NULL,
   password_reset_token uuid NULL,
-  password_reset_requested_at TIMESTAMP NULL
+  password_reset_requested_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices

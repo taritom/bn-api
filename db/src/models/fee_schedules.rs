@@ -11,10 +11,9 @@ use uuid::Uuid;
 #[derive(Queryable, Identifiable, Clone)]
 pub struct FeeSchedule {
     pub id: Uuid,
-    #[allow(dead_code)]
     pub name: String,
-    #[allow(dead_code)]
     pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 impl FeeSchedule {
@@ -74,6 +73,6 @@ pub struct FeeScheduleRange {
     fee_schedule_id: Uuid,
     pub min_price: i64,
     pub fee: i64,
-    #[allow(dead_code)]
-    created_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }

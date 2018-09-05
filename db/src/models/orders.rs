@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use db::Connectable;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::{OrderItemTypes, OrderStatus, OrderTypes, TicketType, User};
 use schema::{order_items, orders};
@@ -18,8 +19,8 @@ pub struct Order {
     status: String,
     #[allow(dead_code)]
     order_type: String,
-    #[allow(dead_code)]
-    created_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Insertable)]
@@ -100,7 +101,10 @@ impl Order {
     pub fn checkout(&mut self, conn: &Connectable) -> Result<(), DatabaseError> {
         self.status = OrderStatus::PendingPayment.to_string();
         diesel::update(&*self)
-            .set(orders::status.eq(&self.status))
+            .set((
+                orders::status.eq(&self.status),
+                orders::updated_at.eq(dsl::now),
+            ))
             .execute(conn.get_connection())
             .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
         Ok(())
@@ -118,6 +122,7 @@ pub struct OrderItem {
     ticket_type_id: Uuid,
     quantity: i64,
     created_at: NaiveDateTime,
+    updated_at: NaiveDateTime,
 }
 
 impl OrderItem {
@@ -148,7 +153,10 @@ impl OrderItem {
 
     fn update(&self, conn: &Connectable) -> Result<(), DatabaseError> {
         diesel::update(self)
-            .set(order_items::quantity.eq(self.quantity))
+            .set((
+                order_items::quantity.eq(self.quantity),
+                order_items::updated_at.eq(dsl::now),
+            ))
             .execute(conn.get_connection())
             .map(|_| ())
             .to_db_error(

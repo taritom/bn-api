@@ -18,6 +18,7 @@ pub struct PricePoint {
     status: String,
     pub price_in_cents: i64,
     created_at: NaiveDateTime,
+    updated_at: NaiveDateTime,
 }
 
 impl PricePoint {

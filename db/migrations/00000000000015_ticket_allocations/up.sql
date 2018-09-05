@@ -4,8 +4,9 @@ CREATE TABLE ticket_allocations (
   event_id uuid NOT NULL REFERENCES events (id),
   tari_asset_id TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
-  synced_on TIMESTAMP NULL,
-  ticket_delta BIGINT NOT NULL
+  synced_at TIMESTAMP NULL,
+  ticket_delta BIGINT NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices

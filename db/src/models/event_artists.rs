@@ -19,6 +19,8 @@ pub struct EventArtist {
     pub artist_id: Uuid,
     pub rank: i32,
     pub set_time: Option<NaiveDateTime>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Insertable)]
