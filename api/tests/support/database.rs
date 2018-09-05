@@ -72,4 +72,8 @@ impl TestDatabase {
     pub fn create_venue(&self) -> VenueBuilder {
         VenueBuilder::new(&self.connection)
     }
+
+    pub fn create_fee_schedule(&self) -> FeeScheduleBuilder {
+        FeeScheduleBuilder::new(&self.connection)
+    }
 }

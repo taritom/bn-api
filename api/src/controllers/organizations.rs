@@ -1,11 +1,12 @@
 use actix_web::{HttpResponse, Json, Path, State};
-use bigneon_db::models::{
-    DisplayUser, NewOrganization, Organization, OrganizationEditableAttributes,
-};
-use errors::*;
-
 use auth::user::Scopes;
 use auth::user::User;
+use bigneon_db::models::{
+    DisplayUser, FeeSchedule, FeeScheduleRange, NewOrganization, Organization,
+    OrganizationEditableAttributes,
+};
+use chrono::NaiveDateTime;
+use errors::*;
 use helpers::application;
 use server::AppState;
 use uuid::Uuid;
@@ -18,6 +19,11 @@ pub struct PathParameters {
 #[derive(Serialize, Deserialize)]
 pub struct UpdateOwnerRequest {
     pub owner_user_id: Uuid,
+}
+
+#[derive(Deserialize)]
+pub struct AddUserRequest {
+    pub user_id: Uuid,
 }
 
 pub fn index((state, user): (State<AppState>, User)) -> Result<HttpResponse, BigNeonError> {
@@ -165,7 +171,34 @@ pub fn list_organization_members(
     Ok(HttpResponse::Ok().json(org_owner_members))
 }
 
-#[derive(Deserialize)]
-pub struct AddUserRequest {
-    pub user_id: Uuid,
+pub fn show_fee_schedule(
+    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    if !user.has_scope(Scopes::OrgWrite) {
+        return application::unauthorized();
+    }
+
+    let connection = state.database.get_connection();
+
+    let organization = Organization::find(parameters.id, &*connection)?;
+    if organization.fee_schedule_id.is_none() {
+        return Ok(HttpResponse::NotFound().finish());
+    }
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id.unwrap(), &*connection)?;
+    let fee_schedule_ranges = fee_schedule.ranges(&*connection)?;
+
+    #[derive(Serialize)]
+    struct FeeScheduleWithRanges {
+        id: Uuid,
+        name: String,
+        created_at: NaiveDateTime,
+        ranges: Vec<FeeScheduleRange>,
+    }
+
+    Ok(HttpResponse::Ok().json(FeeScheduleWithRanges {
+        id: fee_schedule.id,
+        name: fee_schedule.name,
+        created_at: fee_schedule.created_at,
+        ranges: fee_schedule_ranges,
+    }))
 }

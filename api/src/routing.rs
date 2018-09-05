@@ -50,13 +50,11 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::GET)
                 .with(organization_invites::decline_request);
         })
-        .resource("/organizations/{id}/users", |r| {
-            r.method(Method::DELETE).with(organizations::remove_user);
-            r.method(Method::GET)
-                .with(organizations::list_organization_members);
-        })
         .resource("/organizations/{id}/events", |r| {
             r.method(Method::GET).with(events::show_from_organizations);
+        })
+        .resource("/organizations/{id}/fee_schedule", |r| {
+            r.method(Method::GET).with(organizations::show_fee_schedule);
         })
         .resource("/organizations/{id}/invite", |r| {
             r.method(Method::POST).with(organization_invites::create);
@@ -67,6 +65,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         .resource("/organizations/{id}/users", |r| {
             r.method(Method::POST).with(organizations::add_user);
             r.method(Method::DELETE).with(organizations::remove_user);
+            r.method(Method::GET)
+                .with(organizations::list_organization_members);
         })
         .resource("/organizations/{id}/venues", |r| {
             r.method(Method::GET).with(venues::show_from_organizations);

@@ -1,6 +1,6 @@
 use db::Connectable;
 use dev::builders::*;
-use models::{Organization, OrganizationEditableAttributes, OrganizationUser, User};
+use models::{FeeSchedule, Organization, OrganizationEditableAttributes, OrganizationUser, User};
 use rand::prelude::*;
 use uuid::Uuid;
 
@@ -9,6 +9,7 @@ pub struct OrganizationBuilder<'a> {
     owner_user_id: Option<Uuid>,
     members: Vec<Uuid>,
     connection: &'a Connectable,
+    fee_schedule: Option<FeeSchedule>,
     use_address: bool,
 }
 
@@ -19,6 +20,7 @@ impl<'a> OrganizationBuilder<'a> {
             name: format!("test org{}", x).into(),
             owner_user_id: None,
             members: Vec::new(),
+            fee_schedule: None,
             connection,
             use_address: false,
         }
@@ -44,6 +46,11 @@ impl<'a> OrganizationBuilder<'a> {
         self
     }
 
+    pub fn with_fee_schedule(mut self, fee_schedule: &FeeSchedule) -> OrganizationBuilder<'a> {
+        self.fee_schedule = Some(fee_schedule.clone());
+        self
+    }
+
     pub fn finish(&self) -> Organization {
         let mut organization = Organization::create(
             self.owner_user_id
@@ -52,6 +59,11 @@ impl<'a> OrganizationBuilder<'a> {
             &self.name,
         ).commit(self.connection)
             .unwrap();
+
+        if self.fee_schedule.is_some() {
+            let _ =
+                organization.add_fee_schedule(&self.fee_schedule.clone().unwrap(), self.connection);
+        }
 
         for user_id in self.members.clone() {
             OrganizationUser::create(organization.id, user_id)

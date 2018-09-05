@@ -8,13 +8,13 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(Queryable, Identifiable)]
+#[derive(Queryable, Identifiable, Clone)]
 pub struct FeeSchedule {
     pub id: Uuid,
     #[allow(dead_code)]
-    name: String,
+    pub name: String,
     #[allow(dead_code)]
-    created_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
 }
 
 impl FeeSchedule {
@@ -26,6 +26,13 @@ impl FeeSchedule {
             .filter(fee_schedule_ranges::fee_schedule_id.eq(self.id))
             .load(conn.get_connection())
             .to_db_error(ErrorCode::QueryError, "Could not load fee schedule ranges")
+    }
+
+    pub fn find(id: Uuid, conn: &Connectable) -> Result<FeeSchedule, DatabaseError> {
+        fee_schedules::table
+            .find(id)
+            .first::<FeeSchedule>(conn.get_connection())
+            .to_db_error(ErrorCode::QueryError, "Error loading Fee Schedule")
     }
 }
 
@@ -59,7 +66,7 @@ impl NewFeeSchedule {
     }
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 pub struct FeeScheduleRange {
     #[allow(dead_code)]
     id: Uuid,

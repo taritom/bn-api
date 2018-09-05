@@ -2,13 +2,15 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::organizations::{self, PathParameters, UpdateOwnerRequest};
 use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{
-    DisplayUser, NewOrganization, Organization, OrganizationEditableAttributes, OrganizationUser,
-    Roles,
+    DisplayUser, FeeScheduleRange, NewOrganization, Organization, OrganizationEditableAttributes,
+    OrganizationUser, Roles,
 };
+use chrono::NaiveDateTime;
 use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 pub fn index(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
@@ -283,6 +285,51 @@ pub fn show_org_members(role: Roles, should_succeed: bool) {
 
     let response: HttpResponse =
         organizations::list_organization_members((state, path, auth_user)).into();
+
+    if !should_succeed {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        return;
+    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, expected_json.to_string());
+}
+
+pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let user1 = database.create_user().finish();
+    let fee_schedule = database.create_fee_schedule().finish();
+    let fee_schedule_ranges = fee_schedule.ranges(&*database.get_connection());
+    let mut organization = database
+        .create_organization()
+        .with_owner(&user1)
+        .with_fee_schedule(&fee_schedule)
+        .finish();
+
+    let auth_user = support::create_auth_user(role, &database);
+
+    #[derive(Serialize)]
+    struct FeeScheduleWithRanges {
+        id: Uuid,
+        name: String,
+        created_at: NaiveDateTime,
+        ranges: Vec<FeeScheduleRange>,
+    }
+
+    let expected_data = FeeScheduleWithRanges {
+        id: fee_schedule.id,
+        name: fee_schedule.name,
+        created_at: fee_schedule.created_at,
+        ranges: fee_schedule_ranges.unwrap(),
+    };
+
+    let expected_json = serde_json::to_string(&expected_data).unwrap();
+    let test_request = TestRequest::create(database);
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+
+    let response: HttpResponse = organizations::show_fee_schedule((state, path, auth_user)).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);

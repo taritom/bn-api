@@ -200,3 +200,28 @@ mod show_org_members_tests {
         organizations::show_org_members(Roles::OrgOwner, true);
     }
 }
+
+#[cfg(test)]
+mod show_fee_schedule_tests {
+    use super::*;
+    #[test]
+    fn show_fee_schedule_org_member() {
+        organizations::show_fee_schedule(Roles::OrgMember, false);
+    }
+    #[test]
+    fn show_fee_schedule_guest() {
+        organizations::show_fee_schedule(Roles::Guest, false);
+    }
+    #[test]
+    fn show_fee_schedule_admin() {
+        organizations::show_fee_schedule(Roles::Admin, true);
+    }
+    #[test]
+    fn show_fee_schedule_user() {
+        organizations::show_fee_schedule(Roles::User, false);
+    }
+    #[test]
+    fn show_fee_schedule_org_owner() {
+        organizations::show_fee_schedule(Roles::OrgOwner, true);
+    }
+}
