@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::prelude::*;
 use models::{Artist, Event};
@@ -33,13 +32,13 @@ pub struct NewEventArtist {
 }
 
 impl NewEventArtist {
-    pub fn commit(&self, conn: &Connectable) -> Result<EventArtist, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<EventArtist, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not add artist to event",
             diesel::insert_into(event_artists::table)
                 .values(self)
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 }
@@ -61,20 +60,20 @@ impl EventArtist {
 
     pub fn find_all_from_event(
         event_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Vec<EventArtist>, DatabaseError> {
         let result = event_artists::table
             .filter(event_artists::event_id.eq(event_id))
-            .load(conn.get_connection())
+            .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load event artist")?;
 
         Ok(result)
     }
 
-    pub fn clear_all_from_event(event_id: Uuid, conn: &Connectable) -> Result<(), DatabaseError> {
+    pub fn clear_all_from_event(event_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
         let _result = diesel::delete(
             event_artists::table.filter(event_artists::event_id.eq(event_id)),
-        ).execute(conn.get_connection())
+        ).execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Could not delete event artists.")?;
         Ok(())
     }

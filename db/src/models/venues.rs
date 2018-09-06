@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::dsl::exists;
 use diesel::expression::dsl;
@@ -56,13 +55,13 @@ pub struct NewVenue {
 }
 
 impl NewVenue {
-    pub fn commit(&self, connection: &Connectable) -> Result<Venue, DatabaseError> {
+    pub fn commit(&self, connection: &PgConnection) -> Result<Venue, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new venue",
             diesel::insert_into(venues::table)
                 .values(self)
-                .get_result(connection.get_connection()),
+                .get_result(connection),
         )
     }
 }
@@ -84,36 +83,36 @@ impl Venue {
     pub fn update(
         &self,
         attributes: VenueEditableAttributes,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Venue, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update venue",
             diesel::update(self)
                 .set((attributes, venues::updated_at.eq(dsl::now)))
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 
-    pub fn find(id: Uuid, conn: &Connectable) -> Result<Venue, DatabaseError> {
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<Venue, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading venue",
-            venues::table.find(id).first::<Venue>(conn.get_connection()),
+            venues::table.find(id).first::<Venue>(conn),
         )
     }
 
-    pub fn all(conn: &Connectable) -> Result<Vec<Venue>, DatabaseError> {
+    pub fn all(conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Unable to load all venues",
-            venues::table.load(conn.get_connection()),
+            venues::table.load(conn),
         )
     }
 
     pub fn find_for_organization(
         organization_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Vec<Venue>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
@@ -123,14 +122,14 @@ impl Venue {
                 .inner_join(venues::table)
                 .order_by(venues::name)
                 .select(venues::all_columns)
-                .load::<Venue>(conn.get_connection()),
+                .load::<Venue>(conn),
         )
     }
 
     pub fn has_organization(
         &self,
         organization_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<bool, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
@@ -139,14 +138,14 @@ impl Venue {
                 organization_venues::table
                     .filter(organization_venues::organization_id.eq(organization_id))
                     .filter(organization_venues::venue_id.eq(self.id)),
-            )).get_result(conn.get_connection()),
+            )).get_result(conn),
         )
     }
 
     pub fn add_to_organization(
         &self,
         organization_id: &Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<OrganizationVenue, DatabaseError> {
         OrganizationVenue::create(*organization_id, self.id)
             .commit(conn)

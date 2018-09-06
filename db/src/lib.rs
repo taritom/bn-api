@@ -15,7 +15,6 @@ extern crate serde_json;
 extern crate validator_derive;
 extern crate validator;
 
-pub mod db;
 pub mod models;
 pub mod schema;
 pub mod utils;

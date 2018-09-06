@@ -1,14 +1,13 @@
-use actix_web::{HttpResponse, Json, Path, State};
-use auth::user::Scopes;
-use auth::user::User;
+use actix_web::{HttpResponse, Json, Path};
+use auth::user::{Scopes, User};
 use bigneon_db::models::{
     DisplayUser, FeeSchedule, FeeScheduleRange, NewOrganization, Organization,
     OrganizationEditableAttributes,
 };
 use chrono::NaiveDateTime;
+use db::Connection;
 use errors::*;
 use helpers::application;
-use server::AppState;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -26,56 +25,52 @@ pub struct AddUserRequest {
     pub user_id: Uuid,
 }
 
-pub fn index((state, user): (State<AppState>, User)) -> Result<HttpResponse, BigNeonError> {
+pub fn index((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
     if user.has_scope(Scopes::OrgAdmin) {
-        return index_for_all_orgs((state, user));
+        return index_for_all_orgs((connection, user));
     }
     if !user.has_scope(Scopes::OrgRead) {
         return application::unauthorized();
     }
-    let connection = state.database.get_connection();
-    let organizations = Organization::all_linked_to_user(user.id(), &*connection)?;
+    let organizations = Organization::all_linked_to_user(user.id(), connection.get())?;
     Ok(HttpResponse::Ok().json(&organizations))
 }
 
 pub fn index_for_all_orgs(
-    (state, user): (State<AppState>, User),
+    (connection, user): (Connection, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::OrgAdmin) {
         return application::unauthorized();
     }
-    let connection = state.database.get_connection();
-    let organizations = Organization::all(&*connection)?;
+    let organizations = Organization::all(connection.get())?;
     Ok(HttpResponse::Ok().json(&organizations))
 }
 
 pub fn show(
-    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+    (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::OrgRead) {
         return application::unauthorized();
     }
-    let connection = state.database.get_connection();
-    let organization = Organization::find(parameters.id, &*connection)?;
+    let organization = Organization::find(parameters.id, connection.get())?;
 
     Ok(HttpResponse::Ok().json(&organization))
 }
 
 pub fn create(
-    (state, new_organization, user): (State<AppState>, Json<NewOrganization>, User),
+    (connection, new_organization, user): (Connection, Json<NewOrganization>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::OrgAdmin) {
         return application::unauthorized();
     }
-    let connection = state.database.get_connection();
 
-    let organization = new_organization.commit(&*connection)?;
+    let organization = new_organization.commit(connection.get())?;
     Ok(HttpResponse::Created().json(&organization))
 }
 
 pub fn update(
-    (state, parameters, organization_parameters, user): (
-        State<AppState>,
+    (connection, parameters, organization_parameters, user): (
+        Connection,
         Path<PathParameters>,
         Json<OrganizationEditableAttributes>,
         User,
@@ -84,16 +79,16 @@ pub fn update(
     if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     }
-    let connection = state.database.get_connection();
-    let organization = Organization::find(parameters.id, &*connection)?;
+    let connection = connection.get();
+    let organization = Organization::find(parameters.id, connection)?;
     let updated_organization =
-        organization.update(organization_parameters.into_inner(), &*connection)?;
+        organization.update(organization_parameters.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
 
 pub fn update_owner(
-    (state, parameters, json, user): (
-        State<AppState>,
+    (connection, parameters, json, user): (
+        Connection,
         Path<PathParameters>,
         Json<UpdateOwnerRequest>,
         User,
@@ -102,16 +97,15 @@ pub fn update_owner(
     if !user.has_scope(Scopes::OrgAdmin) {
         return application::unauthorized();
     }
-    let connection = state.database.get_connection();
-    let organization = Organization::find(parameters.id, &*connection)?;
-    let updated_organization =
-        organization.set_owner(json.into_inner().owner_user_id, &*connection)?;
+    let connection = connection.get();
+    let organization = Organization::find(parameters.id, connection)?;
+    let updated_organization = organization.set_owner(json.into_inner().owner_user_id, connection)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
 
 pub fn add_user(
-    (state, path, add_request, user): (
-        State<AppState>,
+    (connection, path, add_request, user): (
+        Connection,
         Path<PathParameters>,
         Json<AddUserRequest>,
         User,
@@ -120,39 +114,37 @@ pub fn add_user(
     if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     }
-    let conn = state.database.get_connection();
-
-    let org = Organization::find(path.id, &*conn)?;
-    org.add_user(add_request.user_id, &*conn)?;
+    let connection = connection.get();
+    let org = Organization::find(path.id, connection)?;
+    org.add_user(add_request.user_id, connection)?;
     Ok(HttpResponse::Ok().finish())
 }
 
 pub fn remove_user(
-    (state, parameters, user_id, user): (State<AppState>, Path<PathParameters>, Json<Uuid>, User),
+    (connection, parameters, user_id, user): (Connection, Path<PathParameters>, Json<Uuid>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     }
-    let connection = state.database.get_connection();
-    let organization = Organization::find(parameters.id, &*connection)?;
+    let connection = connection.get();
+    let organization = Organization::find(parameters.id, connection)?;
 
-    let organization = organization.remove_user(user_id.into_inner(), &*connection)?;
+    let organization = organization.remove_user(user_id.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(&organization))
 }
 
 pub fn list_organization_members(
-    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+    (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::OrgRead) {
         return application::unauthorized();
     }
 
-    let connection = state.database.get_connection();
-
-    let organization = Organization::find(parameters.id, &*connection)?;
+    let connection = connection.get();
+    let organization = Organization::find(parameters.id, connection)?;
 
     let mut members: Vec<DisplayUser> = organization
-        .users(&*connection)?
+        .users(connection)?
         .iter()
         .map(|u| DisplayUser::from(u.clone()))
         .collect();
@@ -172,20 +164,19 @@ pub fn list_organization_members(
 }
 
 pub fn show_fee_schedule(
-    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+    (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     }
+    let connection = connection.get();
 
-    let connection = state.database.get_connection();
-
-    let organization = Organization::find(parameters.id, &*connection)?;
+    let organization = Organization::find(parameters.id, connection)?;
     if organization.fee_schedule_id.is_none() {
         return Ok(HttpResponse::NotFound().finish());
     }
-    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id.unwrap(), &*connection)?;
-    let fee_schedule_ranges = fee_schedule.ranges(&*connection)?;
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id.unwrap(), connection)?;
+    let fee_schedule_ranges = fee_schedule.ranges(connection)?;
 
     #[derive(Serialize)]
     struct FeeScheduleWithRanges {

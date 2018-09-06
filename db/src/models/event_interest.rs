@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::prelude::*;
 use models::{Event, User};
@@ -29,13 +28,13 @@ pub struct NewEventInterest {
 }
 
 impl NewEventInterest {
-    pub fn commit(&self, conn: &Connectable) -> Result<EventInterest, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<EventInterest, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new event like",
             diesel::insert_into(event_interest::table)
                 .values(self)
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 }
@@ -51,7 +50,7 @@ impl EventInterest {
     pub fn remove(
         event_id: Uuid,
         user_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<usize, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
@@ -60,14 +59,14 @@ impl EventInterest {
                 event_interest::table
                     .filter(event_interest::user_id.eq(user_id))
                     .filter(event_interest::event_id.eq(event_id)),
-            ).execute(conn.get_connection()),
+            ).execute(conn),
         )
     }
 
-    pub fn total_interest(event_id: Uuid, conn: &Connectable) -> Result<u32, DatabaseError> {
+    pub fn total_interest(event_id: Uuid, conn: &PgConnection) -> Result<u32, DatabaseError> {
         let result = event_interest::table
             .filter(event_interest::event_id.eq(event_id))
-            .load::<EventInterest>(conn.get_connection())
+            .load::<EventInterest>(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading event interest")?;
 
         Ok(result.len() as u32)
@@ -76,12 +75,12 @@ impl EventInterest {
     pub fn user_interest(
         event_id: Uuid,
         user_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<bool, DatabaseError> {
         let result = event_interest::table
             .filter(event_interest::event_id.eq(event_id))
             .filter(event_interest::user_id.eq(user_id))
-            .load::<EventInterest>(conn.get_connection())
+            .load::<EventInterest>(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading event interest")?;
 
         Ok(result.len() > 0)

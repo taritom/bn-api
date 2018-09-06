@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
@@ -32,14 +31,14 @@ pub struct NewOrder {
 }
 
 impl NewOrder {
-    pub fn commit(&self, conn: &Connectable) -> Result<Order, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<Order, DatabaseError> {
         use schema::orders;
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new order",
             diesel::insert_into(orders::table)
                 .values(self)
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 }
@@ -57,12 +56,12 @@ impl Order {
         return OrderStatus::parse(&self.status).unwrap();
     }
 
-    pub fn find_cart_for_user(user_id: Uuid, conn: &Connectable) -> Result<Order, DatabaseError> {
+    pub fn find_cart_for_user(user_id: Uuid, conn: &PgConnection) -> Result<Order, DatabaseError> {
         orders::table
             .filter(orders::user_id.eq(user_id))
             .filter(orders::status.eq("Draft"))
             .filter(orders::order_type.eq("Cart"))
-            .first(conn.get_connection())
+            .first(conn)
             .to_db_error(
                 errors::ErrorCode::QueryError,
                 "Could not load cart for user",
@@ -73,7 +72,7 @@ impl Order {
         &self,
         ticket_type_id: Uuid,
         quantity: i64,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         let item = OrderItem::find(self.id, ticket_type_id, conn)?;
         if item.is_none() {
@@ -94,18 +93,18 @@ impl Order {
         }
     }
 
-    pub fn items(&self, conn: &Connectable) -> Result<Vec<OrderItem>, DatabaseError> {
+    pub fn items(&self, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
         OrderItem::find_for_order(self.id, conn)
     }
 
-    pub fn checkout(&mut self, conn: &Connectable) -> Result<(), DatabaseError> {
+    pub fn checkout(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
         self.status = OrderStatus::PendingPayment.to_string();
         diesel::update(&*self)
             .set((
                 orders::status.eq(&self.status),
                 orders::updated_at.eq(dsl::now),
             ))
-            .execute(conn.get_connection())
+            .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
         Ok(())
     }
@@ -138,12 +137,12 @@ impl OrderItem {
     fn find(
         order_id: Uuid,
         ticket_type_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Option<OrderItem>, errors::DatabaseError> {
         order_items::table
             .filter(order_items::order_id.eq(order_id))
             .filter(order_items::ticket_type_id.eq(ticket_type_id))
-            .first(conn.get_connection())
+            .first(conn)
             .optional()
             .to_db_error(
                 errors::ErrorCode::QueryError,
@@ -151,13 +150,13 @@ impl OrderItem {
             )
     }
 
-    fn update(&self, conn: &Connectable) -> Result<(), DatabaseError> {
+    fn update(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         diesel::update(self)
             .set((
                 order_items::quantity.eq(self.quantity),
                 order_items::updated_at.eq(dsl::now),
             ))
-            .execute(conn.get_connection())
+            .execute(conn)
             .map(|_| ())
             .to_db_error(
                 errors::ErrorCode::UpdateError,
@@ -165,20 +164,20 @@ impl OrderItem {
             )
     }
 
-    fn delete(self, conn: &Connectable) -> Result<(), DatabaseError> {
-        diesel::delete(&self)
-            .execute(conn.get_connection())
-            .map(|_| ())
-            .to_db_error(
-                errors::ErrorCode::DeleteError,
-                "Could not delete order item",
-            )
+    fn delete(self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        diesel::delete(&self).execute(conn).map(|_| ()).to_db_error(
+            errors::ErrorCode::DeleteError,
+            "Could not delete order item",
+        )
     }
 
-    fn find_for_order(order_id: Uuid, conn: &Connectable) -> Result<Vec<OrderItem>, DatabaseError> {
+    fn find_for_order(
+        order_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<OrderItem>, DatabaseError> {
         order_items::table
             .filter(order_items::order_id.eq(order_id))
-            .load(conn.get_connection())
+            .load(conn)
             .to_db_error(errors::ErrorCode::QueryError, "Could not load order items")
     }
 }
@@ -193,10 +192,10 @@ struct NewTicketsOrderItem {
 }
 
 impl NewTicketsOrderItem {
-    fn commit(self, conn: &Connectable) -> Result<OrderItem, DatabaseError> {
+    fn commit(self, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
         diesel::insert_into(order_items::table)
             .values(self)
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(
                 errors::ErrorCode::InsertError,
                 "Could not create order item",

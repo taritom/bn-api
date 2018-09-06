@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
@@ -43,13 +42,13 @@ pub struct NewArtist {
 }
 
 impl NewArtist {
-    pub fn commit(&self, conn: &Connectable) -> Result<Artist, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<Artist, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new artist",
             diesel::insert_into(artists::table)
                 .values(self)
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 }
@@ -69,43 +68,41 @@ impl Artist {
         }
     }
 
-    pub fn all(conn: &Connectable) -> Result<Vec<Artist>, DatabaseError> {
+    pub fn all(conn: &PgConnection) -> Result<Vec<Artist>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Unable to load artists",
-            artists::table.load(conn.get_connection()),
+            artists::table.load(conn),
         )
     }
 
-    pub fn find(id: &Uuid, conn: &Connectable) -> Result<Artist, DatabaseError> {
+    pub fn find(id: &Uuid, conn: &PgConnection) -> Result<Artist, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading artist",
-            artists::table
-                .find(id)
-                .first::<Artist>(conn.get_connection()),
+            artists::table.find(id).first::<Artist>(conn),
         )
     }
 
     pub fn update(
         &self,
         attributes: &ArtistEditableAttributes,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Artist, DatabaseError> {
         let query = diesel::update(self).set((attributes, artists::updated_at.eq(dsl::now)));
 
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Error updating artist",
-            query.get_result(conn.get_connection()),
+            query.get_result(conn),
         )
     }
 
-    pub fn destroy(&self, conn: &Connectable) -> Result<usize, DatabaseError> {
+    pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::DeleteError,
             "Failed to destroy artist record",
-            diesel::delete(self).execute(conn.get_connection()),
+            diesel::delete(self).execute(conn),
         )
     }
 }

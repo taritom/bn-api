@@ -5,7 +5,9 @@ use support::project::TestProject;
 fn create() {
     let project = TestProject::new();
     let name = "Name";
-    let region = Region::create(name.into()).commit(&project).unwrap();
+    let region = Region::create(name.into())
+        .commit(project.get_connection())
+        .unwrap();
 
     assert_eq!(region.name, name);
     assert_eq!(region.id.to_string().is_empty(), false);
@@ -22,7 +24,7 @@ fn update() {
         name: Some(new_name.to_string()),
     };
 
-    let updated_region = region.update(parameters, &project).unwrap();
+    let updated_region = region.update(parameters, project.get_connection()).unwrap();
     assert_eq!(updated_region.name, new_name);
 }
 
@@ -31,7 +33,7 @@ fn find() {
     let project = TestProject::new();
     let region = project.create_region().finish();
 
-    let found_region = Region::find(&region.id, &project).unwrap();
+    let found_region = Region::find(&region.id, project.get_connection()).unwrap();
     assert_eq!(region, found_region);
 }
 
@@ -41,7 +43,7 @@ fn all() {
     let region = project.create_region().with_name("Region1".into()).finish();
     let region2 = project.create_region().with_name("Region2".into()).finish();
 
-    let all_found_regions = Region::all(&project).unwrap();
+    let all_found_regions = Region::all(project.get_connection()).unwrap();
     let all_regions = vec![region, region2];
     assert_eq!(all_regions, all_found_regions);
 }

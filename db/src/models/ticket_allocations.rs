@@ -1,6 +1,5 @@
 use chrono::NaiveDateTime;
 use chrono::Utc;
-use db::Connectable;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
@@ -40,13 +39,13 @@ pub struct TicketAllocationEditableAttributes {
 }
 
 impl NewTicketAllocation {
-    pub fn commit(&self, conn: &Connectable) -> Result<TicketAllocation, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<TicketAllocation, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new ticket allocation",
             diesel::insert_into(ticket_allocations::table)
                 .values(self)
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 }
@@ -64,7 +63,7 @@ impl TicketAllocation {
         self.synced_at = Some(Utc::now().naive_utc())
     }
 
-    pub fn update(self, conn: &Connectable) -> Result<TicketAllocation, DatabaseError> {
+    pub fn update(self, conn: &PgConnection) -> Result<TicketAllocation, DatabaseError> {
         let update_attr = TicketAllocationEditableAttributes {
             synced_at: self.synced_at,
             tari_asset_id: self.tari_asset_id.clone(),
@@ -75,7 +74,7 @@ impl TicketAllocation {
             "Could not update organization",
             diesel::update(&self)
                 .set((update_attr, ticket_allocations::updated_at.eq(dsl::now)))
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 
@@ -89,11 +88,11 @@ impl TicketAllocation {
 
     pub fn find_by_event_id(
         event_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Vec<TicketAllocation>, DatabaseError> {
         ticket_allocations::table
             .filter(ticket_allocations::event_id.eq(event_id))
-            .load(conn.get_connection())
+            .load(conn)
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not find ticket allocations for event",

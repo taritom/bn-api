@@ -1,13 +1,13 @@
 use actix_web::Query;
-use actix_web::{HttpResponse, Json, Path, State};
+use actix_web::{HttpResponse, Json, Path};
 use auth::user::Scopes;
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
+use db::Connection;
 use errors::*;
 use helpers::application;
 use models::{CreateTicketTypeRequest, DisplayTicketType};
-use server::AppState;
 use tari::tariclient::*;
 use uuid::Uuid;
 use validator::Validate;
@@ -53,16 +53,16 @@ pub struct UpdateArtistsRequest {
 }
 
 pub fn index(
-    (state, parameters): (State<AppState>, Query<SearchParameters>),
+    (connection, parameters): (Connection, Query<SearchParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
+    let connection = connection.get();
     let parameters = parameters.into_inner();
     let events = Event::search(
         parameters.query,
         parameters.region_id,
         parameters.start_utc,
         parameters.end_utc,
-        &*connection,
+        connection,
     )?;
 
     #[derive(Serialize)]
@@ -86,7 +86,7 @@ pub fn index(
     for e in events {
         results.push(EventVenueEntry {
             venue: match e.venue_id {
-                Some(v) => Some(Venue::find(v, &*connection)?),
+                Some(v) => Some(Venue::find(v, connection)?),
                 None => None,
             },
             id: e.id,
@@ -108,17 +108,17 @@ pub fn index(
 }
 
 pub fn show(
-    (state, parameters, user): (State<AppState>, Path<PathParameters>, Option<User>),
+    (connection, parameters, user): (Connection, Path<PathParameters>, Option<User>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
-    let event = Event::find(parameters.id, &*connection)?;
-    let organization = event.organization(&*connection)?;
-    let venue = event.venue(&*connection)?;
-    let total_interest = EventInterest::total_interest(event.id, &*connection)?;
-    let event_artists = EventArtist::find_all_from_event(event.id, &*connection)?;
+    let connection = connection.get();
+    let event = Event::find(parameters.id, connection)?;
+    let organization = event.organization(connection)?;
+    let venue = event.venue(connection)?;
+    let total_interest = EventInterest::total_interest(event.id, connection)?;
+    let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
 
     let user_interest = match user {
-        Some(u) => EventInterest::user_interest(event.id, u.id(), &*connection)?,
+        Some(u) => EventInterest::user_interest(event.id, u.id(), connection)?,
         None => false,
     };
 
@@ -191,27 +191,22 @@ pub fn show(
 }
 
 pub fn show_from_organizations(
-    (state, organization_id): (State<AppState>, Path<PathParameters>),
+    (connection, organization_id): (Connection, Path<PathParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
-
-    let events = Event::find_all_events_from_organization(&organization_id.id, &*connection)?;
+    let events = Event::find_all_events_from_organization(&organization_id.id, connection.get())?;
     Ok(HttpResponse::Ok().json(&events))
 }
 
 pub fn show_from_venues(
-    (state, venue_id): (State<AppState>, Path<PathParameters>),
+    (connection, venue_id): (Connection, Path<PathParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
-
-    let events = Event::find_all_events_from_venue(&venue_id.id, &*connection)?;
+    let events = Event::find_all_events_from_venue(&venue_id.id, connection.get())?;
     Ok(HttpResponse::Ok().json(&events))
 }
 
 pub fn create(
-    (state, new_event, user): (State<AppState>, Json<CreateEventRequest>, User),
+    (connection, new_event, user): (Connection, Json<CreateEventRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
     if !user.has_scope(Scopes::EventWrite) {
         return application::unauthorized();
     }
@@ -225,7 +220,7 @@ pub fn create(
                 new_event.event_start,
                 new_event.door_time,
                 new_event.publish_date,
-            ).commit(&*connection)?;
+            ).commit(connection.get())?;
             Ok(HttpResponse::Created().json(&event_response))
         }
         Err(e) => application::validation_error_response(e),
@@ -233,8 +228,8 @@ pub fn create(
 }
 
 pub fn update(
-    (state, parameters, event_parameters, user): (
-        State<AppState>,
+    (connection, parameters, event_parameters, user): (
+        Connection,
         Path<PathParameters>,
         Json<EventEditableAttributes>,
         User,
@@ -243,14 +238,12 @@ pub fn update(
     if !user.has_scope(Scopes::EventWrite) {
         return application::unauthorized();
     }
-
-    let connection = state.database.get_connection();
-
-    let event = Event::find(parameters.id, &*connection)?;
+    let connection = connection.get();
+    let event = Event::find(parameters.id, connection)?;
 
     match event_parameters.validate() {
         Ok(_) => {
-            let updated_event = event.update(event_parameters.into_inner(), &*connection)?;
+            let updated_event = event.update(event_parameters.into_inner(), connection)?;
             Ok(HttpResponse::Ok().json(&updated_event))
         }
         Err(e) => application::validation_error_response(e),
@@ -258,47 +251,45 @@ pub fn update(
 }
 
 pub fn cancel(
-    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+    (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::EventWrite) {
         return application::unauthorized();
     }
+    let connection = connection.get();
 
-    let connection = state.database.get_connection();
-    let event = Event::find(parameters.id, &*connection)?;
+    let event = Event::find(parameters.id, connection)?;
     //Doing this in the DB layer so it can use the DB time as now.
-    let updated_event = event.cancel(&*connection)?;
+    let updated_event = event.cancel(connection)?;
 
     Ok(HttpResponse::Ok().json(&updated_event))
 }
 
 pub fn add_interest(
-    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+    (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::EventInterest) {
         return application::unauthorized();
     }
 
-    let connection = state.database.get_connection();
-    let event_interest = EventInterest::create(parameters.id, user.id()).commit(&*connection)?;
+    let event_interest = EventInterest::create(parameters.id, user.id()).commit(connection.get())?;
     Ok(HttpResponse::Created().json(&event_interest))
 }
 
 pub fn remove_interest(
-    (state, parameters, user): (State<AppState>, Path<PathParameters>, User),
+    (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::EventInterest) {
         return application::unauthorized();
     }
 
-    let connection = state.database.get_connection();
-    let event_interest = EventInterest::remove(parameters.id, user.id(), &*connection)?;
+    let event_interest = EventInterest::remove(parameters.id, user.id(), connection.get())?;
     Ok(HttpResponse::Ok().json(&event_interest))
 }
 
 pub fn add_artist(
-    (state, parameters, event_artist, user): (
-        State<AppState>,
+    (connection, parameters, event_artist, user): (
+        Connection,
         Path<PathParameters>,
         Json<AddArtistRequest>,
         User,
@@ -308,19 +299,18 @@ pub fn add_artist(
         return application::unauthorized();
     }
 
-    let connection = state.database.get_connection();
     let event_artist = EventArtist::create(
         parameters.id,
         event_artist.artist_id,
         event_artist.rank,
         event_artist.set_time,
-    ).commit(&*connection)?;
+    ).commit(connection.get())?;
     Ok(HttpResponse::Created().json(&event_artist))
 }
 
 pub fn update_artists(
-    (state, parameters, artists, user): (
-        State<AppState>,
+    (connection, parameters, artists, user): (
+        Connection,
         Path<PathParameters>,
         Json<Vec<UpdateArtistsRequest>>,
         User,
@@ -329,16 +319,16 @@ pub fn update_artists(
     if !user.has_scope(Scopes::EventWrite) {
         return application::unauthorized();
     }
-    let connection = state.database.get_connection();
 
-    EventArtist::clear_all_from_event(parameters.id, &*connection)?;
+    let connection = connection.get();
+    EventArtist::clear_all_from_event(parameters.id, connection)?;
 
     let mut rank = 0;
     let mut added_artists: Vec<EventArtist> = Vec::new();
 
     for a in &artists.into_inner() {
         added_artists.push(
-            EventArtist::create(parameters.id, a.artist_id, rank, a.set_time).commit(&*connection)?,
+            EventArtist::create(parameters.id, a.artist_id, rank, a.set_time).commit(connection)?,
         );
         rank += 1;
     }
@@ -347,8 +337,8 @@ pub fn update_artists(
 }
 
 pub fn create_tickets(
-    (state, path, data, user): (
-        State<AppState>,
+    (connection, path, data, user): (
+        Connection,
         Path<PathParameters>,
         Json<CreateTicketTypeRequest>,
         User,
@@ -357,17 +347,17 @@ pub fn create_tickets(
     if !user.has_scope(Scopes::TicketAdmin) {
         return application::unauthorized();
     }
-    let connection = state.database.get_connection();
-    let event = Event::find(path.id, &*connection)?;
-    let organization = event.organization(&*connection)?;
-    if !organization.is_member(&user.user, &*connection)? {
+    let connection = connection.get();
+    let event = Event::find(path.id, connection)?;
+    let organization = event.organization(connection)?;
+    if !organization.is_member(&user.user, connection)? {
         return application::forbidden("User does not belong to this organization");
     }
 
-    let ticket_type = TicketType::create(event.id, data.name.clone()).commit(&*connection)?;
+    let ticket_type = TicketType::create(event.id, data.name.clone()).commit(connection)?;
 
     //    let mut allocation =
-    //        TicketAllocation::create(path.id, data.tickets_delta).commit(&*connection)?;
+    //        TicketAllocation::create(path.id, data.tickets_delta).commit(connection)?;
     //
     //    // TODO: move this to an async processor...
     //    let tari_client = state.get_tari_client();
@@ -396,18 +386,18 @@ pub fn create_tickets(
     //
     //    allocation.set_asset_id(asset_id);
     //
-    //    let updated_allocation = allocation.update(&*connection)?;
+    //    let updated_allocation = allocation.update(connection)?;
     Ok(HttpResponse::Ok().json(json!({"ticket_type_id": ticket_type.id})))
 }
 
 pub fn list_ticket_types(
-    (state, path): (State<AppState>, Path<PathParameters>),
+    (connection, path): (Connection, Path<PathParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let conn = state.database.get_connection();
-    let ticket_types = TicketType::find_by_event_id(path.id, &*conn)?;
+    let connection = connection.get();
+    let ticket_types = TicketType::find_by_event_id(path.id, connection)?;
     let mut encoded_ticket_types = Vec::<DisplayTicketType>::new();
     for t in ticket_types {
-        encoded_ticket_types.push(DisplayTicketType::from_ticket_type(&t, &*conn)?);
+        encoded_ticket_types.push(DisplayTicketType::from_ticket_type(&t, connection)?);
     }
 
     #[derive(Serialize)]

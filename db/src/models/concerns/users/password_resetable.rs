@@ -1,5 +1,4 @@
 use chrono::{NaiveDateTime, Utc};
-use db::Connectable;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
@@ -23,13 +22,13 @@ pub trait PasswordResetable {
     fn has_valid_password_reset_token(&self) -> bool;
     fn find_by_password_reset_token(
         password_reset_token: &Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<User, DatabaseError>;
-    fn create_password_reset_token(&self, conn: &Connectable) -> Result<User, DatabaseError>;
+    fn create_password_reset_token(&self, conn: &PgConnection) -> Result<User, DatabaseError>;
     fn consume_password_reset_token(
         token: &Uuid,
         password: &str,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<User, DatabaseError>;
 }
 
@@ -37,7 +36,7 @@ impl PasswordResetable for User {
     fn consume_password_reset_token(
         token: &Uuid,
         password: &str,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         use schema::users::dsl::*;
 
@@ -61,7 +60,7 @@ impl PasswordResetable for User {
                                     password_reset_requested_at: None,
                                 },
                             ))
-                            .get_result(conn.get_connection()),
+                            .get_result(conn),
                     )
                 } else {
                     Err(DatabaseError::new(
@@ -76,14 +75,14 @@ impl PasswordResetable for User {
 
     fn find_by_password_reset_token(
         password_reset_token: &Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading user",
             users::table
                 .filter(users::password_reset_token.eq(password_reset_token))
-                .first::<User>(conn.get_connection()),
+                .first::<User>(conn),
         )
     }
 
@@ -98,7 +97,7 @@ impl PasswordResetable for User {
         }
     }
 
-    fn create_password_reset_token(&self, conn: &Connectable) -> Result<User, DatabaseError> {
+    fn create_password_reset_token(&self, conn: &PgConnection) -> Result<User, DatabaseError> {
         let data = PasswordReset {
             password_reset_token: Some(Uuid::new_v4()),
             password_reset_requested_at: Some(Utc::now().naive_utc()),
@@ -109,7 +108,7 @@ impl PasswordResetable for User {
             "Could not create token for resetting password",
             diesel::update(self)
                 .set((data, users::updated_at.eq(dsl::now)))
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 }

@@ -6,7 +6,7 @@ pub fn create_test() {
     let project = TestProject::new();
     let event = project.create_event().finish();
     let allocation = TicketAllocation::create(event.id, 100)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
     assert_eq!(allocation.tari_asset_id(), None);
     assert_eq!(allocation.ticket_delta(), 100);
@@ -17,9 +17,9 @@ pub fn update_test() {
     let project = TestProject::new();
     let event = project.create_event().finish();
     let mut allocation = TicketAllocation::create(event.id, 100)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
     allocation.set_asset_id("asset1".into());
-    let res = allocation.update(&project).unwrap();
+    let res = allocation.update(project.get_connection()).unwrap();
     assert_eq!(res.tari_asset_id(), Some(&"asset1".into()));
 }

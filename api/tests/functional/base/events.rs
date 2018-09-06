@@ -2,7 +2,6 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::events::{
     self, AddArtistRequest, CreateEventRequest, PathParameters, UpdateArtistsRequest,
 };
-use bigneon_api::database::ConnectionGranting;
 use bigneon_api::models::CreateTicketTypeRequest;
 use bigneon_db::models::{Event, EventArtist, EventEditableAttributes, EventInterest, Roles};
 use chrono::prelude::*;
@@ -13,14 +12,11 @@ use support::test_request::TestRequest;
 
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-
     let organization = database.create_organization().finish();
     let venue = database.create_venue().finish();
 
     let name = "event Example";
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
     let new_event = CreateEventRequest {
         name: name.clone().to_string(),
         organization_id: organization.id,
@@ -34,7 +30,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     };
     let json = Json(new_event);
 
-    let response: HttpResponse = events::create((state, json, user)).into();
+    let response: HttpResponse = events::create((database.connection.into(), json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -52,8 +48,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
 
     let new_name = "New Event Name";
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
 
     let json = Json(EventEditableAttributes {
         name: Some(new_name.clone().to_string()),
@@ -70,7 +65,8 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = events::update((state, path, json, user)).into();
+    let response: HttpResponse =
+        events::update((database.connection.into(), path, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -89,12 +85,11 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
     let event = database.create_event().finish();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = events::cancel((state, path, user)).into();
+    let response: HttpResponse = events::cancel((database.connection.into(), path, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -110,14 +105,12 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
 
 pub fn add_artist(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-
     let user = support::create_auth_user(role, &database);
     let event = database.create_event().finish();
 
     let artist = database.create_artist().finish();
 
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
 
     let new_event_artist = AddArtistRequest {
         artist_id: artist.id,
@@ -130,7 +123,8 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = events::add_artist((state, path, json, user)).into();
+    let response: HttpResponse =
+        events::add_artist((database.connection.into(), path, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -144,17 +138,16 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
 
 pub fn add_interest(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-
     let event = database.create_event().finish();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = events::add_interest((state, path, user)).into();
+    let response: HttpResponse =
+        events::add_interest((database.connection.into(), path, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -169,22 +162,20 @@ pub fn add_interest(role: Roles, should_test_succeed: bool) {
 
 pub fn remove_interest(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.get_connection();
-
     let user = database.create_user().finish();
     let event = database.create_event().finish();
     EventInterest::create(event.id, user.id)
-        .commit(&*connection)
+        .commit(&database.connection)
         .unwrap();
 
     let user = support::create_auth_user_from_user(&user, role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = events::remove_interest((state, path, user)).into();
+    let response: HttpResponse =
+        events::remove_interest((database.connection.into(), path, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -200,15 +191,13 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
 
 pub fn update_artists(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-
     let user = database.create_user().finish();
     let event = database.create_event().finish();
     let artist1 = database.create_artist().finish();
     let artist2 = database.create_artist().finish();
 
     let user = support::create_auth_user_from_user(&user, role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
@@ -223,7 +212,8 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
         set_time: None,
     });
 
-    let response: HttpResponse = events::update_artists((state, path, Json(payload), user)).into();
+    let response: HttpResponse =
+        events::update_artists((database.connection.into(), path, Json(payload), user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -241,7 +231,6 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
 
 pub fn create_tickets(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-
     let user = database.create_user().finish();
     let organization = database.create_organization().with_user(&user).finish();
     let event = database
@@ -251,8 +240,7 @@ pub fn create_tickets(role: Roles, should_succeed: bool) {
 
     let user = support::create_auth_user_from_user(&user, role, &database);
 
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
@@ -261,7 +249,8 @@ pub fn create_tickets(role: Roles, should_succeed: bool) {
         name: "VIP".into(),
         capacity: 100,
     };
-    let response: HttpResponse = events::create_tickets((state, path, Json(data), user)).into();
+    let response: HttpResponse =
+        events::create_tickets((database.connection.into(), path, Json(data), user)).into();
 
     let _body = support::unwrap_body_to_string(&response).unwrap();
     if should_succeed {

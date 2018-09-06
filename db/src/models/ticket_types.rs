@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::prelude::*;
 use models::PricePoint;
@@ -32,23 +31,23 @@ impl TicketType {
 
     pub fn find_by_event_id(
         event_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Vec<TicketType>, DatabaseError> {
         ticket_types::table
             .filter(ticket_types::event_id.eq(event_id))
             .order_by(ticket_types::name)
-            .load(conn.get_connection())
+            .load(conn)
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not load ticket types for event",
             )
     }
 
-    pub fn price_points(&self, conn: &Connectable) -> Result<Vec<PricePoint>, DatabaseError> {
+    pub fn price_points(&self, conn: &PgConnection) -> Result<Vec<PricePoint>, DatabaseError> {
         price_points::table
             .filter(price_points::ticket_type_id.eq(self.id))
             .order_by(price_points::name)
-            .load(conn.get_connection())
+            .load(conn)
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not load price points for ticket type",
@@ -59,7 +58,7 @@ impl TicketType {
         &self,
         name: String,
         price_in_cents: i64,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<PricePoint, DatabaseError> {
         PricePoint::create(self.id, name, price_in_cents).commit(conn)
     }
@@ -78,10 +77,10 @@ pub struct NewTicketType {
 }
 
 impl NewTicketType {
-    pub fn commit(self, conn: &Connectable) -> Result<TicketType, DatabaseError> {
+    pub fn commit(self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
         diesel::insert_into(ticket_types::table)
             .values(self)
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create ticket type")
     }
 }

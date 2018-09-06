@@ -19,7 +19,6 @@ extern crate validator_derive;
 extern crate bigneon_db;
 extern crate validator;
 
-mod db;
 mod models;
 mod schema;
 mod utils;
@@ -30,8 +29,6 @@ embed_migrations!("./migrations");
 
 use clap::ArgMatches;
 use clap::{App, Arg, SubCommand};
-use db::Connectable;
-use db::DatabaseConnection;
 use diesel::connection::SimpleConnection;
 use diesel::pg::PgConnection;
 use diesel::Connection;
@@ -163,7 +160,7 @@ fn create_db_and_user(matches: &ArgMatches) {
         .expect("Can't create database because one with the same name already exists");
 
     {
-        let connection = PgConnection::establish(conn_string).unwrap();
+        let connection = get_connection(conn_string);
 
         embedded_migrations::run_with_output(&connection, &mut std::io::stdout())
             .expect("Migration failed");
@@ -178,7 +175,7 @@ fn create_db_and_user(matches: &ArgMatches) {
         .expect("Password was not provided");
     println!("Creating user");
 
-    let db_connection = DatabaseConnection::new(conn_string).unwrap();
+    let db_connection = get_connection(conn_string);
     let user = models::User::create("System", "Administrator", username, phone, password)
         .commit(&db_connection)
         .expect("Failed to create system admin");
@@ -192,15 +189,18 @@ fn seed_db(matches: &ArgMatches) {
         .value_of("connection")
         .expect("Connection string was not provided");
 
-    let db_connection = DatabaseConnection::new(conn_string).unwrap();
+    let db_connection = get_connection(conn_string);
 
     let seed_query = include_str!("seed_data/seed.sql");
     println!("Seed {}", seed_query);
 
     db_connection
-        .get_connection()
         .batch_execute(seed_query)
         .expect("Seeding database failed");
+}
+
+fn get_connection(connection_string: &str) -> PgConnection {
+    PgConnection::establish(&connection_string).expect("Error connecting to DB")
 }
 
 fn drop_db(matches: &ArgMatches) {

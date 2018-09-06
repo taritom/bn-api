@@ -26,10 +26,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     });
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-
-    let response: HttpResponse = artists::create((state, json, user)).into();
+    let response: HttpResponse = artists::create((database.connection.into(), json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -63,10 +60,7 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
     });
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-
-    let response: HttpResponse = artists::create((state, json, user)).into();
+    let response: HttpResponse = artists::create((database.connection.into(), json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -96,8 +90,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let website_url = "http://www.example2.com";
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
@@ -108,7 +101,8 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     attributes.youtube_video_urls = Some(Vec::new());
     let json = Json(attributes);
 
-    let response: HttpResponse = artists::update((state, path, json, user)).into();
+    let response: HttpResponse =
+        artists::update((database.connection.into(), path, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -131,8 +125,7 @@ pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let website_url = "invalid-format.com";
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
@@ -143,7 +136,8 @@ pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
     attributes.youtube_video_urls = Some(vec!["invalid".to_string()]);
     let json = Json(attributes);
 
-    let response: HttpResponse = artists::update((state, path, json, user)).into();
+    let response: HttpResponse =
+        artists::update((database.connection.into(), path, json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {

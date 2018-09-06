@@ -1,6 +1,5 @@
 use chrono::NaiveDate;
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
@@ -67,10 +66,10 @@ pub struct EventEditableAttributes {
 }
 
 impl NewEvent {
-    pub fn commit(&self, conn: &Connectable) -> Result<Event, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         diesel::insert_into(events::table)
             .values(self)
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new event")
     }
 }
@@ -101,55 +100,55 @@ impl Event {
     pub fn update(
         &self,
         attributes: EventEditableAttributes,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update event",
             diesel::update(self)
                 .set((attributes, events::updated_at.eq(dsl::now)))
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 
-    pub fn find(id: Uuid, conn: &Connectable) -> Result<Event, DatabaseError> {
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<Event, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading event",
-            events::table.find(id).first::<Event>(conn.get_connection()),
+            events::table.find(id).first::<Event>(conn),
         )
     }
 
-    pub fn cancel(self, conn: &Connectable) -> Result<Event, DatabaseError> {
+    pub fn cancel(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         diesel::update(&self)
             .set(events::cancelled_at.eq(dsl::now.nullable()))
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update event")
     }
 
     pub fn find_all_events_from_venue(
         venue_id: &Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading event via venue",
             events::table
                 .filter(events::venue_id.eq(venue_id))
-                .load(conn.get_connection()),
+                .load(conn),
         )
     }
 
     pub fn find_all_events_from_organization(
         organization_id: &Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading events via organization",
             events::table
                 .filter(events::organization_id.eq(organization_id))
-                .load(conn.get_connection()),
+                .load(conn),
         )
     }
 
@@ -158,7 +157,7 @@ impl Event {
         region_id: Option<Uuid>,
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
         let query_like = match query_filter {
             Some(n) => format!("%{}%", n),
@@ -201,22 +200,22 @@ impl Event {
             query = query.filter(venues::region_id.eq(region_id.unwrap()));
         }
 
-        let result = query.load(conn.get_connection());
+        let result = query.load(conn);
 
         DatabaseError::wrap(ErrorCode::QueryError, "Unable to load all events", result)
     }
 
-    pub fn add_artist(&self, artist_id: Uuid, conn: &Connectable) -> Result<(), DatabaseError> {
+    pub fn add_artist(&self, artist_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
         EventArtist::create(self.id, artist_id, 0, None)
             .commit(conn)
             .map(|_| ())
     }
 
-    pub fn organization(&self, conn: &Connectable) -> Result<Organization, DatabaseError> {
+    pub fn organization(&self, conn: &PgConnection) -> Result<Organization, DatabaseError> {
         Organization::find(self.organization_id, conn)
     }
 
-    pub fn venue(&self, conn: &Connectable) -> Result<Option<Venue>, DatabaseError> {
+    pub fn venue(&self, conn: &PgConnection) -> Result<Option<Venue>, DatabaseError> {
         match self.venue_id {
             Some(venue_id) => {
                 let venue = Venue::find(venue_id, conn);
@@ -232,12 +231,12 @@ impl Event {
     pub fn add_ticket_type(
         &self,
         name: String,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         TicketType::create(self.id, name).commit(conn)
     }
 
-    pub fn ticket_types(&self, conn: &Connectable) -> Result<Vec<TicketType>, DatabaseError> {
+    pub fn ticket_types(&self, conn: &PgConnection) -> Result<Vec<TicketType>, DatabaseError> {
         TicketType::find_by_event_id(self.id, conn)
     }
 }

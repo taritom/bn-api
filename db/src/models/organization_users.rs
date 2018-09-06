@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::prelude::*;
 use models::{Organization, User};
@@ -29,13 +28,13 @@ pub struct NewOrganizationUser {
 }
 
 impl NewOrganizationUser {
-    pub fn commit(&self, conn: &Connectable) -> Result<OrganizationUser, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<OrganizationUser, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new organization user",
             diesel::insert_into(organization_users::table)
                 .values(self)
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 }
@@ -50,11 +49,11 @@ impl OrganizationUser {
 
     pub fn find_users_by_organization(
         organization_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Vec<OrganizationUser>, DatabaseError> {
         organization_users::table
             .filter(organization_users::organization_id.eq(organization_id))
-            .load(conn.get_connection())
+            .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load organization users")
     }
 }

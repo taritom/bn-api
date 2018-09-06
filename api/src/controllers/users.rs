@@ -1,11 +1,11 @@
-use actix_web::{HttpResponse, Json, Path, Query, State};
+use actix_web::{HttpResponse, Json, Path, Query};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::models::{DisplayUser, User};
+use db::Connection;
 use errors::*;
 use helpers::application;
 use models::register_request::RegisterRequest;
-use server::AppState;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -25,10 +25,9 @@ pub struct CurrentUser {
 }
 
 pub fn current_user(
-    (state, user): (State<AppState>, AuthUser),
+    (connection, user): (Connection, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
-    let user = User::find(user.id(), &*connection)?;
+    let user = User::find(user.id(), connection.get())?;
     let current_user = CurrentUser {
         roles: user.role.clone(),
         user: user.for_display(),
@@ -37,40 +36,36 @@ pub fn current_user(
 }
 
 pub fn show(
-    (state, parameters, user): (State<AppState>, Path<PathParameters>, AuthUser),
+    (connection, parameters, user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::UserRead) {
         return application::unauthorized();
     }
 
-    let connection = state.database.get_connection();
-    let user = User::find(parameters.id, &*connection)?;
+    let user = User::find(parameters.id, connection.get())?;
     Ok(HttpResponse::Ok().json(&user.for_display()))
 }
 
 pub fn find_by_email(
-    (state, query, user): (State<AppState>, Query<SearchUserByEmail>, AuthUser),
+    (connection, query, user): (Connection, Query<SearchUserByEmail>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     if !user.has_scope(Scopes::UserRead) {
         return application::unauthorized();
     }
 
-    let connection = state.database.get_connection();
-    let user = User::find_by_email(&query.into_inner().email, &*connection)?;
+    let user = User::find_by_email(&query.into_inner().email, connection.get())?;
     Ok(HttpResponse::Ok().json(&user.for_display()))
 }
 
 pub fn register(
-    (state, request): (State<AppState>, Json<RegisterRequest>),
+    (connection, request): (Connection, Json<RegisterRequest>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
-
     User::create(
         &request.first_name,
         &request.last_name,
         &request.email,
         &request.phone,
         &request.password,
-    ).commit(&*connection)?;
+    ).commit(connection.get())?;
     Ok(HttpResponse::Ok().finish())
 }

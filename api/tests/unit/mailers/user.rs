@@ -1,5 +1,4 @@
 use bigneon_api::config::{Config, Environment};
-use bigneon_api::database::ConnectionGranting;
 use bigneon_api::mail::mailers;
 use bigneon_db::models::concerns::users::password_resetable::PasswordResetable;
 use support::database::TestDatabase;
@@ -10,10 +9,11 @@ fn password_reset_email() {
     config.mail_from_name = "Big Neon Support".to_string();
     config.mail_from_email = "support@bigneon.com".to_string();
     let database = TestDatabase::new();
-    let connection = &*database.get_connection();
 
     let user = database.create_user().finish();
-    let user = user.create_password_reset_token(connection).unwrap();
+    let user = user
+        .create_password_reset_token(&database.connection)
+        .unwrap();
 
     let password_reset_email = mailers::user::password_reset_email(&config, &user);
     let name = user.full_name();

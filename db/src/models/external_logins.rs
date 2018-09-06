@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::prelude::*;
 use models::User;
@@ -32,10 +31,10 @@ pub struct NewExternalLogin {
 }
 
 impl NewExternalLogin {
-    pub fn commit(self, conn: &Connectable) -> Result<ExternalLogin, DatabaseError> {
+    pub fn commit(self, conn: &PgConnection) -> Result<ExternalLogin, DatabaseError> {
         let res = diesel::insert_into(external_logins::table)
             .values(self)
-            .get_result(conn.get_connection());
+            .get_result(conn);
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new external login",
@@ -62,7 +61,7 @@ impl ExternalLogin {
     pub fn find_user(
         external_user_id: &str,
         site: &str,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Option<ExternalLogin>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
@@ -70,7 +69,7 @@ impl ExternalLogin {
             external_logins::table
                 .filter(external_logins::external_user_id.eq(external_user_id))
                 .filter(external_logins::site.eq(site))
-                .first::<ExternalLogin>(conn.get_connection())
+                .first::<ExternalLogin>(conn)
                 .optional(),
         )
     }

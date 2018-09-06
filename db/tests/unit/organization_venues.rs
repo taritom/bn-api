@@ -9,7 +9,7 @@ fn create() {
     let venue = project.create_venue().finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let organization_venue = OrganizationVenue::create(organization.id, venue.id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
     assert_eq!(organization_venue.venue_id, venue.id);
@@ -25,12 +25,14 @@ fn find() {
     let venue = project.create_venue().finish();
 
     OrganizationVenue::create(organization.id, venue.id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
     //find organization linked to venue
-    let organization_venue = OrganizationVenue::find_via_venue_all(&venue.id, &project).unwrap();
+    let organization_venue =
+        OrganizationVenue::find_via_venue_all(&venue.id, project.get_connection()).unwrap();
     assert_eq!(organization_venue[0].organization_id, organization.id);
-    let found_venue = Venue::find(organization_venue[0].venue_id, &project).unwrap();
+    let found_venue =
+        Venue::find(organization_venue[0].venue_id, project.get_connection()).unwrap();
     assert_eq!(found_venue, venue);
 }
 #[test]
@@ -48,21 +50,21 @@ fn find_lists() {
 
     //create organization > venue links
     OrganizationVenue::create(all_organizations[0], all_venues[0].id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
     OrganizationVenue::create(all_organizations[0], all_venues[1].id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
     OrganizationVenue::create(all_organizations[1], all_venues[0].id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
     OrganizationVenue::create(all_organizations[1], all_venues[1].id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
     //find organization linked to venue
     let organization_ids =
-        OrganizationVenue::find_via_venue_all(&all_venues[0].id, &project).unwrap();
+        OrganizationVenue::find_via_venue_all(&all_venues[0].id, project.get_connection()).unwrap();
 
     let organization_ids: Vec<Uuid> = organization_ids
         .iter()

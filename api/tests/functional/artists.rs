@@ -15,10 +15,7 @@ fn index() {
 
     let expected_artists = vec![artist, artist2];
     let artist_expected_json = serde_json::to_string(&expected_artists).unwrap();
-
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-    let response: HttpResponse = artists::index(state).into();
+    let response: HttpResponse = artists::index(database.connection.into()).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -31,12 +28,11 @@ fn show() {
     let artist = database.create_artist().finish();
     let artist_expected_json = serde_json::to_string(&artist).unwrap();
 
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
-    let response: HttpResponse = artists::show((state, path)).into();
+    let response: HttpResponse = artists::show((database.connection.into(), path)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

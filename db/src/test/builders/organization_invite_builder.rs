@@ -1,6 +1,6 @@
 use chrono::prelude::*;
 use chrono::NaiveDateTime;
-use db::Connectable;
+use diesel::prelude::*;
 use models::{Organization, OrganizationInvite, User};
 use uuid::Uuid;
 
@@ -14,11 +14,11 @@ pub struct OrgInviteBuilder<'a> {
     user_id: Option<Uuid>,
     status_change_at: Option<NaiveDateTime>,
     accepted: Option<i16>,
-    connection: &'a Connectable,
+    connection: &'a PgConnection,
 }
 
 impl<'a> OrgInviteBuilder<'a> {
-    pub fn new(connection: &Connectable) -> OrgInviteBuilder {
+    pub fn new(connection: &PgConnection) -> OrgInviteBuilder {
         OrgInviteBuilder {
             organization_id: None,
             invitee_id: None,

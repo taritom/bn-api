@@ -2,6 +2,7 @@ use actix_web::error;
 use actix_web::Error as web_error;
 use actix_web::HttpResponse;
 use bigneon_db::utils::errors::DatabaseError;
+use diesel::result::Error as DieselError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
 use std::error::Error;
@@ -13,6 +14,13 @@ pub trait ConvertToWebError: Debug + Error + ToString {
 
     fn to_response(&self) -> HttpResponse {
         HttpResponse::from_error(self.create_http_error())
+    }
+}
+
+impl ConvertToWebError for DieselError {
+    fn create_http_error(&self) -> web_error {
+        error!("Diesel Error: {}", self.description());
+        error::ErrorInternalServerError("Internal error")
     }
 }
 

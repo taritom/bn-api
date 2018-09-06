@@ -1,40 +1,15 @@
-use bigneon_db::db::Connectable;
 use config::Config;
-use diesel::prelude::*;
+use db::Connection;
+use db::ConnectionType;
 use diesel::r2d2::{self, ConnectionManager};
+use diesel::PgConnection;
 use scheduled_thread_pool::ScheduledThreadPool;
 use std::sync::Arc;
 
-type R2D2Connection = r2d2::PooledConnection<ConnectionManager<PgConnection>>;
 type R2D2Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
-
-pub trait ConnectionGranting {
-    fn get_connection(&self) -> Box<Connectable>;
-}
 
 pub struct Database {
     connection_pool: R2D2Pool,
-}
-
-pub struct ConnectionWrapper {
-    connection: R2D2Connection,
-}
-
-impl Connectable for ConnectionWrapper {
-    fn get_connection(&self) -> &PgConnection {
-        &*self.connection
-    }
-}
-
-impl ConnectionGranting for Database {
-    fn get_connection(&self) -> Box<Connectable> {
-        Box::new(ConnectionWrapper {
-            connection: self
-                .connection_pool
-                .get()
-                .expect("Failed to get connection from pool"),
-        })
-    }
 }
 
 impl Database {
@@ -42,6 +17,14 @@ impl Database {
         Database {
             connection_pool: create_connection_pool(&config),
         }
+    }
+
+    pub fn get_connection(&self) -> Connection {
+        ConnectionType::R2D2(Arc::new(
+            self.connection_pool
+                .get()
+                .expect("Failed to get connection from pool"),
+        )).into()
     }
 }
 

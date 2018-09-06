@@ -1,6 +1,5 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::venues::{self, PathParameters};
-use bigneon_api::database::ConnectionGranting;
 use bigneon_api::models::AddVenueToOrganizationRequest;
 use bigneon_db::models::{NewVenue, OrganizationVenue, Roles, Venue, VenueEditableAttributes};
 use serde_json;
@@ -18,9 +17,7 @@ pub fn index(role: Roles, should_succeed: bool) {
     let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-    let response: HttpResponse = venues::index((state, user)).into();
+    let response: HttpResponse = venues::index((database.connection.into(), user)).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -37,12 +34,11 @@ pub fn show(role: Roles, should_succeed: bool) {
     let venue_expected_json = serde_json::to_string(&venue).unwrap();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
 
-    let response: HttpResponse = venues::show((state, path, user)).into();
+    let response: HttpResponse = venues::show((database.connection.into(), path, user)).into();
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         return;
@@ -55,12 +51,11 @@ pub fn show(role: Roles, should_succeed: bool) {
 pub fn show_with_invalid_id(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = Uuid::new_v4();
 
-    let response: HttpResponse = venues::show((state, path, user)).into();
+    let response: HttpResponse = venues::show((database.connection.into(), path, user)).into();
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         return;
@@ -75,8 +70,6 @@ pub fn create(role: Roles, should_succeed: bool) {
     let region = database.create_region().finish();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
     let json = Json(NewVenue {
         name: name.clone().to_string(),
         region_id: Some(region.id.clone()),
@@ -88,7 +81,7 @@ pub fn create(role: Roles, should_succeed: bool) {
         postal_code: None,
     });
 
-    let response: HttpResponse = venues::create((state, json, user)).into();
+    let response: HttpResponse = venues::create((database.connection.into(), json, user)).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -107,8 +100,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let new_name = "New Name";
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
 
@@ -116,7 +108,8 @@ pub fn update(role: Roles, should_succeed: bool) {
     attributes.name = Some(new_name.to_string());
     let json = Json(attributes);
 
-    let response: HttpResponse = venues::update((state, path, json, user)).into();
+    let response: HttpResponse =
+        venues::update((database.connection.into(), path, json, user)).into();
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         return;
@@ -134,22 +127,22 @@ pub fn show_from_organizations(role: Roles, should_succeed: bool) {
     let venue = database.create_venue().finish();
     let venue2 = database.create_venue().finish();
     venue
-        .add_to_organization(&organization.id, &*database.get_connection())
+        .add_to_organization(&organization.id, &database.connection)
         .unwrap();
     venue2
-        .add_to_organization(&organization.id, &*database.get_connection())
+        .add_to_organization(&organization.id, &database.connection)
         .unwrap();
 
     let all_venues = vec![venue, venue2];
     let venue_expected_json = serde_json::to_string(&all_venues).unwrap();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let response: HttpResponse = venues::show_from_organizations((state, path, user)).into();
+    let response: HttpResponse =
+        venues::show_from_organizations((database.connection.into(), path, user)).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -166,8 +159,7 @@ pub fn add_to_organization(role: Roles, should_succeed: bool) {
     let organization = database.create_organization().with_user(&user).finish();
     let venue = database.create_venue().finish();
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
 
@@ -175,7 +167,8 @@ pub fn add_to_organization(role: Roles, should_succeed: bool) {
         organization_id: organization.id,
     });
 
-    let response: HttpResponse = venues::add_to_organization((state, path, json, user)).into();
+    let response: HttpResponse =
+        venues::add_to_organization((database.connection.into(), path, json, user)).into();
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         return;
@@ -194,12 +187,11 @@ pub fn add_to_organization_where_link_already_exists(role: Roles, should_succeed
     let organization = database.create_organization().with_user(&user).finish();
     let venue = database.create_venue().finish();
     venue
-        .add_to_organization(&organization.id, &*database.get_connection())
+        .add_to_organization(&organization.id, &database.connection)
         .unwrap();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
 
@@ -207,7 +199,8 @@ pub fn add_to_organization_where_link_already_exists(role: Roles, should_succeed
         organization_id: organization.id,
     });
 
-    let response: HttpResponse = venues::add_to_organization((state, path, json, user)).into();
+    let response: HttpResponse =
+        venues::add_to_organization((database.connection.into(), path, json, user)).into();
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         return;

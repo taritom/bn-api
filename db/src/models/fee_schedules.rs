@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::prelude::*;
 use schema::{fee_schedule_ranges, fee_schedules};
@@ -20,17 +19,17 @@ impl FeeSchedule {
     pub fn create(name: String, ranges: Vec<(i64, i64)>) -> NewFeeSchedule {
         NewFeeSchedule { name, ranges }
     }
-    pub fn ranges(&self, conn: &Connectable) -> Result<Vec<FeeScheduleRange>, DatabaseError> {
+    pub fn ranges(&self, conn: &PgConnection) -> Result<Vec<FeeScheduleRange>, DatabaseError> {
         fee_schedule_ranges::table
             .filter(fee_schedule_ranges::fee_schedule_id.eq(self.id))
-            .load(conn.get_connection())
+            .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load fee schedule ranges")
     }
 
-    pub fn find(id: Uuid, conn: &Connectable) -> Result<FeeSchedule, DatabaseError> {
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
         fee_schedules::table
             .find(id)
-            .first::<FeeSchedule>(conn.get_connection())
+            .first::<FeeSchedule>(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading Fee Schedule")
     }
 }
@@ -41,10 +40,10 @@ pub struct NewFeeSchedule {
 }
 
 impl NewFeeSchedule {
-    pub fn commit(self, conn: &Connectable) -> Result<FeeSchedule, DatabaseError> {
+    pub fn commit(self, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
         let result: FeeSchedule = diesel::insert_into(fee_schedules::table)
             .values(fee_schedules::name.eq(&self.name))
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create fee schedule")?;
 
         for range in &self.ranges {
@@ -54,7 +53,7 @@ impl NewFeeSchedule {
                     fee_schedule_ranges::min_price.eq(range.0),
                     fee_schedule_ranges::fee.eq(range.1),
                 ))
-                .execute(conn.get_connection())
+                .execute(conn)
                 .to_db_error(
                     ErrorCode::InsertError,
                     "Could not create fee schedule range",

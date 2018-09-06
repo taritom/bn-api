@@ -13,10 +13,8 @@ fn current_user() {
     let db_user = database.create_user().finish();
 
     let user = support::create_auth_user_from_user(&db_user, Roles::Guest, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
 
-    let response: HttpResponse = users::current_user((state, user)).into();
+    let response: HttpResponse = users::current_user((database.connection.into(), user)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let current_user: CurrentUser = serde_json::from_str(&body).unwrap();
@@ -32,10 +30,10 @@ pub fn show_from_email(role: Roles, should_test_true: bool) {
         .with_email(email.to_string())
         .finish();
     let user = support::create_auth_user_from_user(&db_user, role, &database);
-    let test_request = TestRequest::create_with_uri(database, &format!("/?email={}", email));
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create_with_uri(&format!("/?email={}", email));
     let data = Query::<SearchUserByEmail>::from_request(&test_request.request, &()).unwrap();
-    let response: HttpResponse = users::find_by_email((state, data, user)).into();
+    let response: HttpResponse =
+        users::find_by_email((database.connection.into(), data, user)).into();
     let display_user: DisplayUser = db_user.into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -56,12 +54,11 @@ pub fn show(role: Roles, should_test_true: bool) {
     let display_user = database.create_user().finish().for_display();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = display_user.id;
-    let response: HttpResponse = users::show((state, path, user)).into();
+    let response: HttpResponse = users::show((database.connection.into(), path, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {

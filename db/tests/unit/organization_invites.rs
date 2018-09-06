@@ -1,5 +1,4 @@
 extern crate chrono;
-use bigneon_db::db::Connectable;
 use bigneon_db::models::OrganizationInvite;
 use bigneon_db::utils::errors::{DatabaseError, ErrorCode};
 use diesel;
@@ -40,12 +39,14 @@ fn change_invite_status_of_invite() {
         .with_invitee(&user)
         .link_to_user(&user2)
         .finish();
-    /*making the asumption that it wont take more than 60 seconds to update the status
+    /*making the assumption that it wont take more than 60 seconds to update the status
     we cant test for an exact date, as this will depend on the database write delay
     we will test for a period of 30 seconds
     */
-    let compare_true = org_invite.accept_invite(&project).unwrap();
-    let compare_false = org_invite2.decline_invite(&project).unwrap();
+    let compare_true = org_invite.accept_invite(&project.get_connection()).unwrap();
+    let compare_false = org_invite2
+        .decline_invite(&project.get_connection())
+        .unwrap();
 
     assert_eq!(compare_true.accepted, Some(1));
     assert_eq!(compare_true.security_token, None);
@@ -63,14 +64,17 @@ fn test_token_validity() {
         .with_org(&organization)
         .with_invitee(&user)
         .finish();
-    let recovered_invite =
-        OrganizationInvite::get_invite_details(&org_invite.security_token.unwrap(), &project)
-            .unwrap();
+    let recovered_invite = OrganizationInvite::get_invite_details(
+        &org_invite.security_token.unwrap(),
+        project.get_connection(),
+    ).unwrap();
     assert_eq!(org_invite, recovered_invite);
     org_invite.created_at = NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11);
-    org_invite = update(&org_invite, &project).unwrap();
-    let recovered_invite2 =
-        OrganizationInvite::get_invite_details(&org_invite.security_token.unwrap(), &project);
+    org_invite = update(&org_invite, &project.get_connection()).unwrap();
+    let recovered_invite2 = OrganizationInvite::get_invite_details(
+        &org_invite.security_token.unwrap(),
+        &project.get_connection(),
+    );
     let error_value = DatabaseError {
         code: 2000,
         message: "No results".into(),
@@ -85,13 +89,11 @@ fn test_token_validity() {
 // dont want to update the details in the main function, so keeping this in the unit test section
 fn update(
     org_invite: &OrganizationInvite,
-    conn: &Connectable,
+    conn: &PgConnection,
 ) -> Result<OrganizationInvite, DatabaseError> {
     DatabaseError::wrap(
         ErrorCode::UpdateError,
         "Could not update organization_invite",
-        diesel::update(org_invite)
-            .set(org_invite)
-            .get_result(conn.get_connection()),
+        diesel::update(org_invite).set(org_invite).get_result(conn),
     )
 }

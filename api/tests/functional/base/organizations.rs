@@ -1,6 +1,5 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::organizations::{self, PathParameters, UpdateOwnerRequest};
-use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::{
     DisplayUser, FeeScheduleRange, NewOrganization, Organization, OrganizationEditableAttributes,
     OrganizationUser, Roles,
@@ -30,9 +29,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let organization_expected_json = serde_json::to_string(&expected_organizations).unwrap();
 
     let user = support::create_auth_user_from_user(&user, role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-    let response: HttpResponse = organizations::index((state, user)).into();
+    let response: HttpResponse = organizations::index((database.connection.into(), user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -73,9 +70,8 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
     let organization_expected_json = serde_json::to_string(&expected_organizations).unwrap();
 
     let auth_user = support::create_auth_user_from_user(&user, role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-    let response: HttpResponse = organizations::index_for_all_orgs((state, auth_user)).into();
+    let response: HttpResponse =
+        organizations::index_for_all_orgs((database.connection.into(), auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -95,11 +91,11 @@ fn show() {
     let organization_expected_json = serde_json::to_string(&organization).unwrap();
 
     let user = support::create_auth_user(Roles::OrgMember, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let response: HttpResponse = organizations::show((state, path, user)).into();
+    let response: HttpResponse =
+        organizations::show((database.connection.into(), path, user)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -112,8 +108,6 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let user = database.create_user().finish();
 
     let auth_user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
     let json = Json(NewOrganization {
         owner_user_id: user.id,
         name: name.clone().to_string(),
@@ -125,7 +119,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         phone: None,
     });
 
-    let response: HttpResponse = organizations::create((state, json, auth_user)).into();
+    let response: HttpResponse =
+        organizations::create((database.connection.into(), json, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -145,8 +140,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let new_name = "New Name";
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let json = Json(OrganizationEditableAttributes {
@@ -159,7 +153,8 @@ pub fn update(role: Roles, should_succeed: bool) {
         phone: Some("phone".to_string()),
     });
 
-    let response: HttpResponse = organizations::update((state, path, json, user)).into();
+    let response: HttpResponse =
+        organizations::update((database.connection.into(), path, json, user)).into();
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         return;
@@ -183,13 +178,13 @@ pub fn remove_user(role: Roles, should_test_succeed: bool) {
         .finish();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let json = Json(user3.id);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let response: HttpResponse = organizations::remove_user((state, path, json, user)).into();
+    let response: HttpResponse =
+        organizations::remove_user((database.connection.into(), path, json, user)).into();
     let count = 1;
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
@@ -211,13 +206,13 @@ pub fn add_user(role: Roles, should_test_succeed: bool) {
     let organization = database.create_organization().with_owner(&user).finish();
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let json = Json(organizations::AddUserRequest { user_id: user2.id });
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let response: HttpResponse = organizations::add_user((state, path, json, user)).into();
+    let response: HttpResponse =
+        organizations::add_user((database.connection.into(), path, json, user)).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
     } else {
@@ -232,18 +227,18 @@ pub fn update_owner(role: Roles, should_succeed: bool) {
     let organization = database.create_organization().with_owner(&user).finish();
 
     let auth_user = support::create_auth_user_from_user(&new_owner, role, &database);
-    let test_request = TestRequest::create(database);
+    let test_request = TestRequest::create();
     let update_owner_request = UpdateOwnerRequest {
         owner_user_id: new_owner.id,
     };
 
-    let state = test_request.extract_state();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
     let json = Json(update_owner_request);
 
-    let response: HttpResponse = organizations::update_owner((state, path, json, auth_user)).into();
+    let response: HttpResponse =
+        organizations::update_owner((database.connection.into(), path, json, auth_user)).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -261,7 +256,7 @@ pub fn show_org_members(role: Roles, should_succeed: bool) {
     let user2 = database.create_user().finish();
     let organization = database.create_organization().with_owner(&user1).finish();
     OrganizationUser::create(organization.id, user2.id)
-        .commit(&*database.get_connection())
+        .commit(&database.connection)
         .unwrap();
 
     let auth_user = support::create_auth_user_from_user(&user1, role, &database);
@@ -278,13 +273,13 @@ pub fn show_org_members(role: Roles, should_succeed: bool) {
     };
 
     let expected_json = serde_json::to_string(&expected_data).unwrap();
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
     let response: HttpResponse =
-        organizations::list_organization_members((state, path, auth_user)).into();
+        organizations::list_organization_members((database.connection.into(), path, auth_user))
+            .into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -299,8 +294,8 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user1 = database.create_user().finish();
     let fee_schedule = database.create_fee_schedule().finish();
-    let fee_schedule_ranges = fee_schedule.ranges(&*database.get_connection());
-    let mut organization = database
+    let fee_schedule_ranges = fee_schedule.ranges(&database.connection);
+    let organization = database
         .create_organization()
         .with_owner(&user1)
         .with_fee_schedule(&fee_schedule)
@@ -324,12 +319,12 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
     };
 
     let expected_json = serde_json::to_string(&expected_data).unwrap();
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let response: HttpResponse = organizations::show_fee_schedule((state, path, auth_user)).into();
+    let response: HttpResponse =
+        organizations::show_fee_schedule((database.connection.into(), path, auth_user)).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);

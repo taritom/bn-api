@@ -1,4 +1,4 @@
-use db::Connectable;
+use diesel::prelude::*;
 use models::User;
 use rand::prelude::*;
 
@@ -8,11 +8,11 @@ pub struct UserBuilder<'a> {
     email: String,
     phone: String,
     password: String,
-    connection: &'a Connectable,
+    connection: &'a PgConnection,
 }
 
 impl<'a> UserBuilder<'a> {
-    pub fn new(connection: &'a Connectable) -> Self {
+    pub fn new(connection: &'a PgConnection) -> Self {
         let x: u16 = random();
         UserBuilder {
             first_name: "Jeff".into(),

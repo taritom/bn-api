@@ -1,4 +1,4 @@
-use db::Connectable;
+use diesel::prelude::*;
 use models::Artist;
 use rand::prelude::*;
 
@@ -6,11 +6,11 @@ pub struct ArtistBuilder<'a> {
     name: String,
     bio: String,
     website_url: String,
-    connection: &'a Connectable,
+    connection: &'a PgConnection,
 }
 
 impl<'a> ArtistBuilder<'a> {
-    pub fn new(connection: &'a Connectable) -> Self {
+    pub fn new(connection: &'a PgConnection) -> Self {
         let x: u16 = random();
         ArtistBuilder {
             name: format!("Artist {}", x).into(),

@@ -1,5 +1,4 @@
 use chrono::{Duration, NaiveDateTime, Utc};
-use db::Connectable;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
@@ -36,11 +35,11 @@ pub struct NewOrganizationInvite {
 }
 
 impl NewOrganizationInvite {
-    pub fn commit(&mut self, conn: &Connectable) -> Result<OrganizationInvite, DatabaseError> {
+    pub fn commit(&mut self, conn: &PgConnection) -> Result<OrganizationInvite, DatabaseError> {
         self.security_token = Some(Uuid::new_v4());
         let res = diesel::insert_into(organization_invites::table)
             .values(&*self)
-            .get_result(conn.get_connection());
+            .get_result(conn);
         DatabaseError::wrap(ErrorCode::InsertError, "Could not create new invite", res)
     }
 }
@@ -64,7 +63,7 @@ impl OrganizationInvite {
     pub fn change_invite_status(
         &self,
         change_status: i16,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<OrganizationInvite, DatabaseError> {
         let null: Option<Uuid> = None; //this here so the compiler can infer the type of None
         DatabaseError::wrap(
@@ -76,21 +75,21 @@ impl OrganizationInvite {
                     organization_invites::accepted.eq(change_status),
                     organization_invites::updated_at.eq(dsl::now),
                 ))
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 
-    pub fn accept_invite(&self, conn: &Connectable) -> Result<OrganizationInvite, DatabaseError> {
+    pub fn accept_invite(&self, conn: &PgConnection) -> Result<OrganizationInvite, DatabaseError> {
         self.change_invite_status(1, conn)
     }
 
-    pub fn decline_invite(&self, conn: &Connectable) -> Result<OrganizationInvite, DatabaseError> {
+    pub fn decline_invite(&self, conn: &PgConnection) -> Result<OrganizationInvite, DatabaseError> {
         self.change_invite_status(0, conn)
     }
 
     pub fn get_invite_details(
         token: &Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<OrganizationInvite, DatabaseError> {
         let expiredate = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
         DatabaseError::wrap(
@@ -99,18 +98,18 @@ impl OrganizationInvite {
             diesel::sql_query(format!(
                 "SELECT * FROM organization_invites WHERE security_token = '{}' AND created_at > '{}' AND accepted is NULL;"
                 ,token, expiredate //todo convert to use the .bind
-            )).get_result(conn.get_connection()),
+            )).get_result(conn),
         )
     }
 
     pub fn find_active_invite_by_email(
         email: &String,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Option<OrganizationInvite>, DatabaseError> {
         organization_invites::table
             .filter(organization_invites::user_email.eq(email))
             .filter(organization_invites::security_token.is_not_null())
-            .first::<OrganizationInvite>(conn.get_connection())
+            .first::<OrganizationInvite>(conn)
             .optional()
             .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
     }

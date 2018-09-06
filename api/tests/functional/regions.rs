@@ -22,9 +22,7 @@ fn index() {
     let expected_regions = vec![region, region2];
     let region_expected_json = serde_json::to_string(&expected_regions).unwrap();
 
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
-    let response: HttpResponse = regions::index(state).into();
+    let response: HttpResponse = regions::index(database.connection.into()).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -37,12 +35,11 @@ fn show() {
     let region = database.create_region().finish();
     let region_expected_json = serde_json::to_string(&region).unwrap();
 
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = region.id;
 
-    let response: HttpResponse = regions::show((state, path)).into();
+    let response: HttpResponse = regions::show((database.connection.into(), path)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

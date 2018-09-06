@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
@@ -41,10 +40,10 @@ pub struct NewOrganization {
 }
 
 impl NewOrganization {
-    pub fn commit(&self, conn: &Connectable) -> Result<Organization, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<Organization, DatabaseError> {
         let db_err = diesel::insert_into(organizations::table)
             .values(self)
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new organization")?;
 
         //Would not have gotten here if the user_id did not exist
@@ -83,18 +82,18 @@ impl Organization {
     pub fn update(
         &self,
         attributes: OrganizationEditableAttributes,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
         diesel::update(self)
             .set((attributes, organizations::updated_at.eq(dsl::now)))
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update organization")
     }
 
     pub fn set_owner(
         &self,
         owner_user_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
         let old_owner_id = self.owner_user_id;
 
@@ -103,7 +102,7 @@ impl Organization {
                 organizations::owner_user_id.eq(owner_user_id),
                 organizations::updated_at.eq(dsl::now),
             ))
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not update organization owner",
@@ -118,7 +117,7 @@ impl Organization {
         let result = organizations::table
             .filter(organizations::owner_user_id.eq(old_owner_id))
             .filter(organizations::id.ne(&self.id))
-            .load::<Organization>(conn.get_connection())
+            .load::<Organization>(conn)
             .to_db_error(ErrorCode::NoResults, "Could not search for organisations")?;
         //If not then remove the OrgOwner Role.
         if result.len() == 0 {
@@ -131,11 +130,11 @@ impl Organization {
         Ok(db_result)
     }
 
-    pub fn users(&self, conn: &Connectable) -> Result<Vec<User>, DatabaseError> {
+    pub fn users(&self, conn: &PgConnection) -> Result<Vec<User>, DatabaseError> {
         let organization_users = OrganizationUser::belonging_to(self);
         let organization_owner = users::table
             .find(self.owner_user_id)
-            .first::<User>(conn.get_connection())
+            .first::<User>(conn)
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not retrieve organization users",
@@ -144,7 +143,7 @@ impl Organization {
             .inner_join(users::table)
             .filter(users::id.ne(self.owner_user_id))
             .select(users::all_columns)
-            .load::<User>(conn.get_connection())
+            .load::<User>(conn)
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not retrieve organization users",
@@ -154,40 +153,40 @@ impl Organization {
         Ok(users)
     }
 
-    pub fn venues(&self, conn: &Connectable) -> Result<Vec<Venue>, DatabaseError> {
+    pub fn venues(&self, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
         let organization_venues = OrganizationVenue::belonging_to(self);
 
         organization_venues
             .inner_join(venues::table)
             .select(venues::all_columns)
-            .load::<Venue>(conn.get_connection())
+            .load::<Venue>(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve venues")
     }
 
-    pub fn find(id: Uuid, conn: &Connectable) -> Result<Organization, DatabaseError> {
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<Organization, DatabaseError> {
         organizations::table
             .find(id)
-            .first::<Organization>(conn.get_connection())
+            .first::<Organization>(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading organization")
     }
 
-    pub fn all(conn: &Connectable) -> Result<Vec<Organization>, DatabaseError> {
+    pub fn all(conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Unable to load all organizations",
             organizations::table
                 .order_by(organizations::name)
-                .load(conn.get_connection()),
+                .load(conn),
         )
     }
 
     pub fn all_linked_to_user(
         user_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Vec<Organization>, DatabaseError> {
         let orgs = organizations::table
             .filter(organizations::owner_user_id.eq(user_id))
-            .load(conn.get_connection())
+            .load(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load all organizations");
 
         let mut orgs = match orgs {
@@ -199,7 +198,7 @@ impl Organization {
             .filter(organization_users::user_id.eq(user_id))
             .inner_join(organizations::table)
             .select(organizations::all_columns)
-            .load::<Organization>(conn.get_connection())
+            .load::<Organization>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load all organizations");
 
         let mut org_members = match org_members {
@@ -212,12 +211,12 @@ impl Organization {
         Ok(orgs)
     }
 
-    pub fn remove_user(&self, user_id: Uuid, conn: &Connectable) -> Result<usize, DatabaseError> {
+    pub fn remove_user(&self, user_id: Uuid, conn: &PgConnection) -> Result<usize, DatabaseError> {
         let rows_affected = diesel::delete(
             organization_users::table
                 .filter(organization_users::user_id.eq(user_id))
                 .filter(organization_users::organization_id.eq(self.id)),
-        ).execute(conn.get_connection())
+        ).execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Error removing user")?;
 
         if Organization::all_linked_to_user(user_id, conn)?.len() == 0 {
@@ -231,7 +230,7 @@ impl Organization {
     pub fn add_user(
         &self,
         user_id: Uuid,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<OrganizationUser, DatabaseError> {
         let org_user = OrganizationUser::create(self.id, user_id).commit(conn)?;
         let user = User::find(user_id, conn)?;
@@ -239,18 +238,18 @@ impl Organization {
         Ok(org_user)
     }
 
-    pub fn is_member(&self, user: &User, conn: &Connectable) -> Result<bool, DatabaseError> {
+    pub fn is_member(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {
         Ok(self.users(conn)?.contains(&user))
     }
 
     pub fn add_fee_schedule(
         &self,
         fee_schedule: &FeeSchedule,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         diesel::update(self)
             .set(organizations::fee_schedule_id.eq(fee_schedule.id))
-            .execute(conn.get_connection())
+            .execute(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not set the fee schedule for this organization",

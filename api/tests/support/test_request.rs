@@ -1,8 +1,8 @@
 use actix_web::{test, FromRequest, HttpRequest, State};
 use bigneon_api::config::{Config, Environment};
+use bigneon_api::db::Database;
 use bigneon_api::mail::transports::TestTransport;
 use bigneon_api::server::AppState;
-use support::database::TestDatabase;
 
 pub struct TestRequest {
     pub request: HttpRequest<AppState>,
@@ -18,11 +18,11 @@ impl TestRequest {
             .unwrap()
     }
 
-    pub fn create(database: TestDatabase) -> TestRequest {
-        TestRequest::create_with_uri(database, "/")
+    pub fn create() -> TestRequest {
+        TestRequest::create_with_uri("/")
     }
 
-    pub fn create_with_uri(database: TestDatabase, path: &str) -> TestRequest {
+    pub fn create_with_uri(path: &str) -> TestRequest {
         let mut config = Config::new(Environment::Test);
         config.token_secret = "test_secret".into();
         config.token_issuer = "bn-api-test".into();
@@ -32,7 +32,7 @@ impl TestRequest {
 
         let test_request = test::TestRequest::with_state(AppState {
             config: config.clone(),
-            database: Box::new(database),
+            database: Database::from_config(&config),
             token_secret: config.token_secret.clone(),
             token_issuer: config.token_issuer.clone(),
         });

@@ -5,6 +5,7 @@ use crypto::sha2::Sha256;
 use errors::*;
 use jwt::Header;
 use jwt::Token;
+use middleware::RequestConnection;
 use server::AppState;
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -106,8 +107,8 @@ impl FromRequest<AppState> for User {
                                 return Err(error::ErrorUnauthorized("Token has expired"));
                             }
 
-                            let connection = req.state().database.get_connection();
-                            match DbUser::find(token.claims.get_id(), &*connection) {
+                            let connection = req.connection()?;
+                            match DbUser::find(token.claims.get_id(), connection.get()) {
                                 Ok(user) => Ok(User::new(user)),
                                 Err(e) => Err(ConvertToWebError::create_http_error(&e)),
                             }

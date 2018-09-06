@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, Json, State};
 use auth::{claims::RefreshToken, TokenResponse};
 use bigneon_db::models::User;
 use crypto::sha2::Sha256;
+use db::Connection;
 use errors::*;
 use helpers::application;
 use jwt::{Header, Token};
@@ -36,14 +37,12 @@ impl RefreshRequest {
 }
 
 pub fn token(
-    (state, login_request): (State<AppState>, Json<LoginRequest>),
+    (state, connection, login_request): (State<AppState>, Connection, Json<LoginRequest>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
-
     // Generic messaging to prevent exposing user is member of system
     let login_failure_messaging = "Email or password incorrect";
 
-    let user = match User::find_by_email(&login_request.email, &*connection) {
+    let user = match User::find_by_email(&login_request.email, connection.get()) {
         Ok(u) => u,
         Err(_e) => return application::unauthorized_with_message(login_failure_messaging),
     };
@@ -57,17 +56,15 @@ pub fn token(
 }
 
 pub fn token_refresh(
-    (state, refresh_request): (State<AppState>, Json<RefreshRequest>),
+    (state, connection, refresh_request): (State<AppState>, Connection, Json<RefreshRequest>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
-
     let token = match Token::<Header, RefreshToken>::parse(&refresh_request.refresh_token) {
         Ok(token) => token,
         Err(_e) => return application::unauthorized_with_message("Invalid token"),
     };
 
     if token.verify(state.config.token_secret.as_bytes(), Sha256::new()) {
-        let user = User::find(token.claims.get_id(), &*connection)?;
+        let user = User::find(token.claims.get_id(), connection.get())?;
 
         // If the user changes their password invalidate all refresh tokens
         let password_modified_timestamp = user.password_modified_at.timestamp() as u64;

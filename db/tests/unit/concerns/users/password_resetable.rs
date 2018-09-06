@@ -1,4 +1,3 @@
-use bigneon_db::db::Connectable;
 use bigneon_db::models::concerns::users::password_resetable::{PasswordReset, PasswordResetable};
 use bigneon_db::models::User;
 use chrono::{Duration, Utc};
@@ -12,12 +11,13 @@ fn find_by_password_reset_token() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let user = user
-        .create_password_reset_token(&project)
+        .create_password_reset_token(project.get_connection())
         .expect("Failed to create reset token");
 
-    let found_user =
-        User::find_by_password_reset_token(&user.password_reset_token.unwrap(), &project)
-            .expect("User was not found");
+    let found_user = User::find_by_password_reset_token(
+        &user.password_reset_token.unwrap(),
+        project.get_connection(),
+    ).expect("User was not found");
     assert_eq!(found_user.id, user.id);
     assert_eq!(
         found_user.password_reset_token.unwrap(),
@@ -25,7 +25,7 @@ fn find_by_password_reset_token() {
     );
 
     assert!(
-        match User::find_by_password_reset_token(&Uuid::new_v4(), &project) {
+        match User::find_by_password_reset_token(&Uuid::new_v4(), project.get_connection()) {
             Ok(_user) => false,
             Err(_e) => true,
         },
@@ -40,7 +40,7 @@ fn consume_password_reset_token() {
     let user = project.create_user().finish();
     let pw_modified_at = user.password_modified_at;
     let user: User = user
-        .create_password_reset_token(&project)
+        .create_password_reset_token(project.get_connection())
         .expect("Failed to create reset token")
         .into();
     let password = "newPassword";
@@ -50,7 +50,7 @@ fn consume_password_reset_token() {
     let user = User::consume_password_reset_token(
         &user.password_reset_token.unwrap(),
         &password,
-        &project,
+        project.get_connection(),
     ).unwrap();
     assert!(user.check_password(&password));
     assert!(user.password_reset_token.is_none());
@@ -70,7 +70,7 @@ fn consume_password_reset_token() {
     match User::consume_password_reset_token(
         &user.password_reset_token.unwrap(),
         &password,
-        &project,
+        project.get_connection(),
     ) {
         Ok(_v) => panic!("Expected failure to consume expired password reset token"),
         Err(e) => assert_eq!(
@@ -81,7 +81,7 @@ fn consume_password_reset_token() {
     assert!(!user.check_password(&password));
 
     // Invalid token
-    match User::consume_password_reset_token(&Uuid::new_v4(), &password, &project) {
+    match User::consume_password_reset_token(&Uuid::new_v4(), &password, project.get_connection()) {
         Ok(_v) => panic!("Expected failure to consume expired password reset token"),
         Err(e) => assert_eq!(
             format!("{}", e),
@@ -99,7 +99,9 @@ fn create_password_reset_token() {
     assert!(user.password_reset_token.is_none());
     assert!(user.password_reset_requested_at.is_none());
 
-    let user = user.create_password_reset_token(&project).unwrap();
+    let user = user
+        .create_password_reset_token(project.get_connection())
+        .unwrap();
     assert!(user.password_reset_token.is_some());
     assert!(user.password_reset_requested_at.is_some());
 }

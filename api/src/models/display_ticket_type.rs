@@ -1,6 +1,6 @@
-use bigneon_db::db::Connectable;
 use bigneon_db::models::TicketType;
 use bigneon_db::utils::errors::DatabaseError;
+use diesel::PgConnection;
 use models::DisplayPricePoint;
 use uuid::Uuid;
 
@@ -15,7 +15,7 @@ pub struct DisplayTicketType {
 impl DisplayTicketType {
     pub fn from_ticket_type(
         ticket_type: &TicketType,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<DisplayTicketType, DatabaseError> {
         let price_points: Vec<DisplayPricePoint> = ticket_type
             .price_points(conn)?

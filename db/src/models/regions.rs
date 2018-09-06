@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
@@ -37,43 +36,39 @@ impl Region {
     pub fn update(
         &self,
         attributes: RegionEditableAttributes,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<Region, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update region",
             diesel::update(self)
                 .set((attributes, regions::updated_at.eq(dsl::now)))
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 
-    pub fn find(id: &Uuid, conn: &Connectable) -> Result<Region, DatabaseError> {
+    pub fn find(id: &Uuid, conn: &PgConnection) -> Result<Region, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading region",
-            regions::table
-                .find(id)
-                .first::<Region>(conn.get_connection()),
+            regions::table.find(id).first::<Region>(conn),
         )
     }
 
-    pub fn all(conn: &Connectable) -> Result<Vec<Region>, DatabaseError> {
+    pub fn all(conn: &PgConnection) -> Result<Vec<Region>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Unable to load all regions",
-            regions::table
-                .then_order_by(regions::name.asc())
-                .load(conn.get_connection()),
+            regions::table.then_order_by(regions::name.asc()).load(conn),
         )
     }
 }
 
 impl NewRegion {
-    pub fn commit(self, conn: &Connectable) -> Result<Region, DatabaseError> {
+    pub fn commit(self, conn: &PgConnection) -> Result<Region, DatabaseError> {
         diesel::insert_into(regions::table)
             .values(self)
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create region")
     }
 }

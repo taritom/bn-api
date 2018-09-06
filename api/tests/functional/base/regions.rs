@@ -11,13 +11,11 @@ pub fn create(role: Roles, should_succeed: bool) {
     let name = "Region Example";
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
     let json = Json(NewRegion {
         name: name.clone().to_string(),
     });
 
-    let response: HttpResponse = regions::create((state, json, user)).into();
+    let response: HttpResponse = regions::create((database.connection.into(), json, user)).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -35,8 +33,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let new_name = "New Name";
 
     let user = support::create_auth_user(role, &database);
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = region.id;
 
@@ -44,7 +41,8 @@ pub fn update(role: Roles, should_succeed: bool) {
     attributes.name = Some(new_name.to_string());
     let json = Json(attributes);
 
-    let response: HttpResponse = regions::update((state, path, json, user)).into();
+    let response: HttpResponse =
+        regions::update((database.connection.into(), path, json, user)).into();
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         return;

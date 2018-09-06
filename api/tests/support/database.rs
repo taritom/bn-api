@@ -1,32 +1,15 @@
 use bigneon_api::config::{Config, Environment};
-use bigneon_api::database::ConnectionGranting;
-use bigneon_db::db::Connectable;
 use bigneon_db::dev::builders::*;
-use diesel::prelude::*;
 use diesel::Connection;
+use diesel::PgConnection;
 use std::sync::Arc;
 
-pub struct TestDatabase {
-    connection: TestConnection,
-}
-
-impl ConnectionGranting for TestDatabase {
-    fn get_connection(&self) -> Box<Connectable> {
-        Box::new(self.connection.clone())
-    }
-}
-
 #[derive(Clone)]
-pub struct TestConnection {
-    connection: Arc<PgConnection>,
+pub struct TestDatabase {
+    pub connection: Arc<PgConnection>,
 }
 
-impl Connectable for TestConnection {
-    fn get_connection(&self) -> &PgConnection {
-        &self.connection
-    }
-}
-
+#[allow(dead_code)]
 impl TestDatabase {
     pub fn new() -> TestDatabase {
         let config = Config::new(Environment::Test);
@@ -39,9 +22,7 @@ impl TestDatabase {
         connection.begin_test_transaction().unwrap();
 
         TestDatabase {
-            connection: (TestConnection {
-                connection: Arc::new(connection),
-            }),
+            connection: Arc::new(connection),
         }
     }
 

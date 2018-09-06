@@ -1,6 +1,7 @@
 use actix_web::{HttpResponse, Json, State};
 use auth::TokenResponse;
 use bigneon_db::models::{ExternalLogin, User};
+use db::Connection;
 use errors::*;
 use models::FacebookWebLoginToken;
 use reqwest::{self, header::*};
@@ -20,14 +21,14 @@ struct FacebookGraphResponse {
 
 // TODO: Not covered by tests
 pub fn web_login(
-    (state, auth_token): (State<AppState>, Json<FacebookWebLoginToken>),
+    (state, connection, auth_token): (State<AppState>, Connection, Json<FacebookWebLoginToken>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
     info!("Finding user");
     let url = format!(
         "{}/me?fields=id,email,first_name,last_name",
         FACEBOOK_GRAPH_URL
     );
+    let connection = connection.get();
     let client = reqwest::Client::new();
     let response = client
         .get(&url)
@@ -40,24 +41,24 @@ pub fn web_login(
     let facebook_graph_response: FacebookGraphResponse = serde_json::from_str(&response)?;
 
     let existing_user =
-        ExternalLogin::find_user(&facebook_graph_response.id, "facebook.com", &*connection)?;
+        ExternalLogin::find_user(&facebook_graph_response.id, "facebook.com", connection)?;
     let user = match existing_user {
         Some(u) => {
             info!("Found existing user with id: {}", &u.user_id);
-            User::find(u.user_id, &*connection)?
+            User::find(u.user_id, connection)?
         }
         None => {
             info!("User not found for external id");
 
             // Link account if email exists
-            match User::find_by_email(&facebook_graph_response.email.clone(), &*connection) {
+            match User::find_by_email(&facebook_graph_response.email.clone(), connection) {
                 Ok(user) => {
                     info!("User has existing account, linking external service");
                     user.add_external_login(
                         facebook_graph_response.id.clone(),
                         SITE.to_string(),
                         auth_token.access_token.clone(),
-                        &*connection,
+                        connection,
                     )?;
                     user
                 }
@@ -73,7 +74,7 @@ pub fn web_login(
                                 facebook_graph_response.email.clone(),
                                 SITE.to_string(),
                                 auth_token.access_token.clone(),
-                                &*connection,
+                                connection,
                             )?
                         }
                         _ => return Err(e.into()),

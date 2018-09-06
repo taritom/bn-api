@@ -1,5 +1,3 @@
-use bigneon_db::db::Connectable;
-use bigneon_db::db::DatabaseConnection;
 use bigneon_db::dev::builders::*;
 use diesel::dsl::sql;
 use diesel::sql_types::Bool;
@@ -8,7 +6,7 @@ use dotenv::dotenv;
 use std::env;
 
 pub struct TestProject {
-    pub connection: DatabaseConnection,
+    pub connection: PgConnection,
     admin: PgConnection,
 }
 
@@ -20,11 +18,10 @@ impl TestProject {
         let admin_str =
             env::var("TEST_DATABASE_ADMIN_URL").expect("TEST_DATABASE_ADMIN_URL must be defined.");
         let connection =
-            DatabaseConnection::new(&conn_str).expect("Could not connect to test database");
+            PgConnection::establish(&conn_str).expect("Could not get access to test database");
         let admin = PgConnection::establish(&admin_str)
             .expect("Could not get admin access to admin test database");
         connection
-            .get_connection()
             .begin_test_transaction()
             .expect("Could not start testing transaction");
         TestProject { connection, admin }
@@ -50,41 +47,38 @@ impl TestProject {
     }
 
     pub fn create_artist(&self) -> ArtistBuilder {
-        ArtistBuilder::new(self)
+        ArtistBuilder::new(&self.connection)
     }
 
     pub fn create_event(&self) -> EventBuilder {
-        EventBuilder::new(self)
+        EventBuilder::new(&self.connection)
     }
 
     pub fn create_organization(&self) -> OrganizationBuilder {
-        OrganizationBuilder::new(self)
+        OrganizationBuilder::new(&self.connection)
     }
 
     pub fn create_organization_invite(&self) -> OrgInviteBuilder {
-        OrgInviteBuilder::new(self)
+        OrgInviteBuilder::new(&self.connection)
     }
 
     pub fn create_region(&self) -> RegionBuilder {
-        RegionBuilder::new(self)
+        RegionBuilder::new(&self.connection)
     }
 
     pub fn create_user(&self) -> UserBuilder {
-        UserBuilder::new(self)
+        UserBuilder::new(&self.connection)
     }
 
     pub fn create_venue(&self) -> VenueBuilder {
-        VenueBuilder::new(self)
+        VenueBuilder::new(&self.connection)
     }
 
     pub fn create_fee_schedule(&self) -> FeeScheduleBuilder {
-        FeeScheduleBuilder::new(self)
+        FeeScheduleBuilder::new(&self.connection)
     }
-}
 
-/// Returns the database connection and starts a transaction that will never be committed
-impl Connectable for TestProject {
-    fn get_connection(&self) -> &PgConnection {
-        &self.connection.get_connection()
+    pub fn get_connection(&self) -> &PgConnection {
+        &self.connection
     }
 }

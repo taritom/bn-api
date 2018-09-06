@@ -10,7 +10,7 @@ fn create() {
     let rank = 1;
 
     let event_artist = EventArtist::create(event.id, artist.id, rank, None)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
     assert_eq!(
@@ -33,13 +33,13 @@ fn find_all_by_event() {
     let event = project.create_event().finish();
 
     let event_artist1 = EventArtist::create(event.id, artist1.id, 1, None)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
     let event_artist2 = EventArtist::create(event.id, artist2.id, 2, None)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
-    let result = EventArtist::find_all_from_event(event.id, &project).unwrap();
+    let result = EventArtist::find_all_from_event(event.id, project.get_connection()).unwrap();
 
     assert_eq!(vec![event_artist1, event_artist2], result);
 }

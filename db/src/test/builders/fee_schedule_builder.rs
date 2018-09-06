@@ -1,13 +1,13 @@
-use db::Connectable;
+use diesel::prelude::*;
 use models::*;
 
 pub struct FeeScheduleBuilder<'a> {
     name: String,
-    connection: &'a Connectable,
+    connection: &'a PgConnection,
 }
 
 impl<'a> FeeScheduleBuilder<'a> {
-    pub fn new(connection: &Connectable) -> FeeScheduleBuilder {
+    pub fn new(connection: &PgConnection) -> FeeScheduleBuilder {
         FeeScheduleBuilder {
             connection,
             name: "Name".into(),

@@ -1,14 +1,14 @@
-use db::Connectable;
+use diesel::prelude::*;
 use models::*;
 use rand::prelude::*;
 
 pub struct RegionBuilder<'a> {
     name: String,
-    connection: &'a Connectable,
+    connection: &'a PgConnection,
 }
 
 impl<'a> RegionBuilder<'a> {
-    pub fn new(connection: &Connectable) -> RegionBuilder {
+    pub fn new(connection: &PgConnection) -> RegionBuilder {
         let x: u16 = random();
         RegionBuilder {
             connection,

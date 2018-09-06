@@ -10,7 +10,7 @@ fn create() {
     let event = project.create_event().finish();
 
     let event_interest = EventInterest::create(event.id, user.id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
     assert_eq!(event_interest.user_id, user.id);
@@ -25,15 +25,15 @@ fn total_interest() {
     let event = project.create_event().finish();
 
     let _event_interest1 = EventInterest::create(event.id, user1.id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
     let _event_interest2 = EventInterest::create(event.id, user2.id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
     assert_eq!(
-        EventInterest::total_interest(event.id, &project).unwrap(),
+        EventInterest::total_interest(event.id, project.get_connection()).unwrap(),
         2
     );
 }
@@ -45,11 +45,11 @@ fn user_interest() {
     let event = project.create_event().finish();
 
     let _event_interest1 = EventInterest::create(event.id, user.id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
     assert_eq!(
-        EventInterest::user_interest(event.id, user.id, &project).unwrap(),
+        EventInterest::user_interest(event.id, user.id, project.get_connection()).unwrap(),
         true
     );
 }

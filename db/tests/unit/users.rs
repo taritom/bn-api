@@ -13,7 +13,7 @@ fn commit() {
     let phone_number = "555-555-5555";
     let password = "examplePassword";
     let user = User::create(first_name, last_name, email, phone_number, password)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
     assert_eq!(user.first_name, first_name);
@@ -34,8 +34,8 @@ fn commit_duplicate_email() {
     let email = &user1.email.unwrap();
     let phone_number = "555-555-5555";
     let password = "examplePassword";
-    let result =
-        User::create(first_name, last_name, email, phone_number, password).commit(&project);
+    let result = User::create(first_name, last_name, email, phone_number, password)
+        .commit(project.get_connection());
 
     assert_eq!(result.is_err(), true);
     assert_eq!(
@@ -49,12 +49,12 @@ fn find() {
     let project = TestProject::new();
     let user = project.create_user().finish();
 
-    let found_user = User::find(user.id, &project).expect("User was not found");
+    let found_user = User::find(user.id, project.get_connection()).expect("User was not found");
     assert_eq!(found_user.id, user.id);
     assert_eq!(found_user.email, user.email);
 
     assert!(
-        match User::find(Uuid::new_v4(), &project) {
+        match User::find(Uuid::new_v4(), project.get_connection()) {
             Ok(_user) => false,
             Err(_e) => true,
         },
@@ -82,11 +82,11 @@ fn find_by_email() {
     let project = TestProject::new();
     let user = project.create_user().finish();
 
-    let found_user =
-        User::find_by_email(&user.email.clone().unwrap(), &project).expect("User was not found");
+    let found_user = User::find_by_email(&user.email.clone().unwrap(), project.get_connection())
+        .expect("User was not found");
     assert_eq!(found_user, user);
 
-    let not_found = User::find_by_email("not@real.com", &project);
+    let not_found = User::find_by_email("not@real.com", project.get_connection());
     let error = not_found.unwrap_err();
     assert_eq!(
         error.to_string(),
@@ -111,10 +111,10 @@ fn create_from_external_login() {
         email.to_string(),
         site.to_string(),
         access_token.to_string(),
-        &project,
+        project.get_connection(),
     ).unwrap();
 
-    let external_login = ExternalLogin::find_user(external_id, site, &project)
+    let external_login = ExternalLogin::find_user(external_id, site, project.get_connection())
         .unwrap()
         .unwrap();
 
@@ -143,10 +143,12 @@ fn add_role() {
     let project = TestProject::new();
     let user = project.create_user().finish();
 
-    user.add_role(Roles::Admin, &project).unwrap();
+    user.add_role(Roles::Admin, project.get_connection())
+        .unwrap();
     //Try adding a duplicate role to check that it isnt duplicated.
-    user.add_role(Roles::Admin, &project).unwrap();
+    user.add_role(Roles::Admin, project.get_connection())
+        .unwrap();
 
-    let user2 = User::find(user.id, &project).unwrap();
+    let user2 = User::find(user.id, project.get_connection()).unwrap();
     assert_eq!(user2.role, vec!["User", "Admin"]);
 }

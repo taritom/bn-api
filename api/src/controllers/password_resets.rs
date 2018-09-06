@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, Json, State};
 use auth::TokenResponse;
 use bigneon_db::models::concerns::users::password_resetable::*;
 use bigneon_db::models::User;
+use db::Connection;
 use errors::*;
 use mail::mailers;
 use server::AppState;
@@ -19,9 +20,12 @@ pub struct UpdatePasswordResetParameters {
 }
 
 pub fn create(
-    (state, parameters): (State<AppState>, Json<CreatePasswordResetParameters>),
+    (state, connection, parameters): (
+        State<AppState>,
+        Connection,
+        Json<CreatePasswordResetParameters>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
     let request_pending_response = Ok(HttpResponse::Created().json(json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", parameters.email)
     })));
@@ -29,12 +33,13 @@ pub fn create(
         "error": "An error has occurred, please try again later"
     });
 
-    let user = match User::find_by_email(&parameters.email, &*connection) {
+    let connection = connection.get();
+    let user = match User::find_by_email(&parameters.email, connection) {
         Ok(user) => user,
         Err(_) => return request_pending_response,
     };
 
-    let user = user.create_password_reset_token(&*connection)?;
+    let user = user.create_password_reset_token(connection)?;
     let result = mailers::user::password_reset_email(&state.config, &user).deliver();
 
     match result {
@@ -44,14 +49,16 @@ pub fn create(
 }
 
 pub fn update(
-    (state, parameters): (State<AppState>, Json<UpdatePasswordResetParameters>),
+    (state, connection, parameters): (
+        State<AppState>,
+        Connection,
+        Json<UpdatePasswordResetParameters>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
-
     let user = User::consume_password_reset_token(
         &parameters.password_reset_token,
         &parameters.password,
-        &*connection,
+        connection.get(),
     )?;
 
     Ok(HttpResponse::Ok().json(&TokenResponse::create_from_user(

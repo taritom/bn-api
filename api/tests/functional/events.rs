@@ -2,7 +2,6 @@ use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events::SearchParameters;
 use bigneon_api::controllers::events::{self, PathParameters};
-use bigneon_api::database::ConnectionGranting;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use functional::base;
@@ -82,10 +81,9 @@ pub fn index() {
     ];
     let events_expected_json = serde_json::to_string(&expected_results).unwrap();
 
-    let test_request = TestRequest::create_with_uri(database, "/events?query=New");
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
-    let response: HttpResponse = events::index((state, parameters)).into();
+    let response: HttpResponse = events::index((database.connection.into(), parameters)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -142,10 +140,9 @@ pub fn index_search_returns_only_one_event() {
     }];
     let events_expected_json = serde_json::to_string(&expected_events).unwrap();
 
-    let test_request = TestRequest::create_with_uri(database, "/events?query=NewEvent1");
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
-    let response: HttpResponse = events::index((state, parameters)).into();
+    let response: HttpResponse = events::index((database.connection.into(), parameters)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -171,15 +168,10 @@ pub fn show() {
     let artist1 = database.create_artist().finish();
     let artist2 = database.create_artist().finish();
 
-    event
-        .add_artist(artist1.id, &*database.get_connection())
-        .unwrap();
-    event
-        .add_artist(artist2.id, &*database.get_connection())
-        .unwrap();
+    event.add_artist(artist1.id, &database.connection).unwrap();
+    event.add_artist(artist2.id, &database.connection).unwrap();
 
-    let _event_interest =
-        EventInterest::create(event.id, user.id).commit(&*database.get_connection());
+    let _event_interest = EventInterest::create(event.id, user.id).commit(&database.connection);
 
     #[derive(Serialize)]
     struct ShortOrganization {
@@ -214,8 +206,7 @@ pub fn show() {
         user_is_interested: bool,
     }
 
-    let event_artists =
-        EventArtist::find_all_from_event(event.id, &*database.get_connection()).unwrap();
+    let event_artists = EventArtist::find_all_from_event(event.id, &database.connection).unwrap();
 
     let display_event_artists: Vec<DisplayEventArtist> = event_artists
         .iter()
@@ -250,12 +241,12 @@ pub fn show() {
         user_is_interested: true,
     }).unwrap();
 
-    let test_request = TestRequest::create(database);
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event_id;
-    let state = test_request.extract_state();
 
-    let response: HttpResponse = events::show((state, path, Some(auth_user))).into();
+    let response: HttpResponse =
+        events::show((database.connection.into(), path, Some(auth_user))).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);
@@ -446,11 +437,11 @@ pub fn show_from_organizations() {
     let all_events = vec![event, event2];
     let event_expected_json = serde_json::to_string(&all_events).unwrap();
 
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let response: HttpResponse = events::show_from_organizations((state, path)).into();
+    let response: HttpResponse =
+        events::show_from_organizations((database.connection.into(), path)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -479,12 +470,12 @@ pub fn show_from_venues() {
     let all_events = vec![event, event2];
     let event_expected_json = serde_json::to_string(&all_events).unwrap();
     //find venue from organization
-    let test_request = TestRequest::create(database);
-    let state = test_request.extract_state();
+    let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
-    let response: HttpResponse = events::show_from_venues((state, path)).into();
+    let response: HttpResponse =
+        events::show_from_venues((database.connection.into(), path)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -518,15 +509,14 @@ mod create_tickets_tests {
 
 #[test]
 fn list_ticket_types() {
-    let db = TestDatabase::new();
-    let event = db.create_event().with_price_points().finish();
-    let request = TestRequest::create(db);
-    let state = request.extract_state();
+    let database = TestDatabase::new();
+    let event = database.create_event().with_price_points().finish();
+    let request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = event.id;
 
-    let response = events::list_ticket_types((state, path)).unwrap();
+    let response = events::list_ticket_types((database.connection.into(), path)).unwrap();
 
     let _body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);

@@ -8,7 +8,7 @@ fn create() {
     let user2 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let organization_user = OrganizationUser::create(organization.id, user2.id)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
 
     assert_eq!(organization_user.user_id, user2.id);

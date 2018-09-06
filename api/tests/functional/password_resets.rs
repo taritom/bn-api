@@ -3,7 +3,7 @@ use bigneon_api::auth::{claims::AccessToken, claims::RefreshToken, TokenResponse
 use bigneon_api::controllers::password_resets::{
     self, CreatePasswordResetParameters, UpdatePasswordResetParameters,
 };
-use bigneon_api::database::ConnectionGranting;
+use bigneon_api::db::Connection as BigNeonConnection;
 use bigneon_db::models::concerns::users::password_resetable::*;
 use bigneon_db::models::User;
 use chrono::{Duration, Utc};
@@ -22,8 +22,8 @@ use uuid::Uuid;
 #[test]
 fn create() {
     let database = TestDatabase::new();
+    let connection_object: BigNeonConnection = database.connection.clone().into();
     let email = "joe@tari.com";
-    let connection = &*database.get_connection();
 
     let user = database
         .create_user()
@@ -33,15 +33,15 @@ fn create() {
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", email)
     }).to_string();
 
-    let test_request = TestRequest::create(database);
+    let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(CreatePasswordResetParameters {
         email: email.clone().to_string(),
     });
-    let response: HttpResponse = password_resets::create((state, json)).into();
+    let response: HttpResponse = password_resets::create((state, connection_object, json)).into();
 
     // Reload user
-    let user = User::find(user.id, connection).expect("User to reload");
+    let user = User::find(user.id, &*database.connection).expect("User to reload");
     let mail_transport = test_request.test_transport();
 
     {
@@ -75,12 +75,13 @@ fn create_fake_email() {
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", email)
     }).to_string();
 
-    let test_request = TestRequest::create(database);
+    let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(CreatePasswordResetParameters {
         email: email.clone().to_string(),
     });
-    let response: HttpResponse = password_resets::create((state, json)).into();
+    let response: HttpResponse =
+        password_resets::create((state, database.connection.into(), json)).into();
 
     let mail_transport = test_request.test_transport();
 
@@ -96,23 +97,25 @@ fn create_fake_email() {
 #[test]
 fn update() {
     let database = TestDatabase::new();
-    let connection = &*database.get_connection();
+    let connection_object: BigNeonConnection = database.connection.clone().into();
 
     let user = database.create_user().finish();
-    let user = user.create_password_reset_token(connection).unwrap();
+    let user = user
+        .create_password_reset_token(&*database.connection)
+        .unwrap();
     let new_password = "newPassword";
     assert!(!user.check_password(&new_password));
 
-    let test_request = TestRequest::create(database);
+    let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let token_secret = state.config.token_secret.clone();
     let json = Json(UpdatePasswordResetParameters {
         password_reset_token: user.password_reset_token.unwrap().clone(),
         password: new_password.to_string(),
     });
-    let response: HttpResponse = password_resets::update((state, json)).into();
+    let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
 
-    let user = User::find(user.id, connection).unwrap();
+    let user = User::find(user.id, &*database.connection).unwrap();
     assert!(user.password_reset_token.is_none());
     assert!(user.password_reset_requested_at.is_none());
     assert!(user.check_password(&new_password));
@@ -135,7 +138,7 @@ fn update() {
 fn update_expired_token() {
     use bigneon_db::schema::users::dsl::*;
     let database = TestDatabase::new();
-    let connection = &*database.get_connection();
+    let connection_object: BigNeonConnection = database.connection.clone().into();
     let user = database.create_user().finish();
 
     let token = Uuid::new_v4();
@@ -144,20 +147,20 @@ fn update_expired_token() {
             password_reset_token: Some(token.clone()),
             password_reset_requested_at: Some(Utc::now().naive_utc() - Duration::days(3)),
         })
-        .get_result(connection.get_connection())
+        .get_result(&*database.connection)
         .unwrap();
     let new_password = "newPassword";
     assert!(!user.check_password(&new_password));
 
-    let test_request = TestRequest::create(database);
+    let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(UpdatePasswordResetParameters {
         password_reset_token: token.clone(),
         password: new_password.to_string(),
     });
-    let response: HttpResponse = password_resets::update((state, json)).into();
+    let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
 
-    let user = User::find(user.id, connection).unwrap();
+    let user = User::find(user.id, &*database.connection).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));
@@ -168,22 +171,24 @@ fn update_expired_token() {
 #[test]
 fn update_incorrect_token() {
     let database = TestDatabase::new();
-    let connection = &*database.get_connection();
+    let connection_object: BigNeonConnection = database.connection.clone().into();
     let user = database.create_user().finish();
-    let user = user.create_password_reset_token(connection).unwrap();
+    let user = user
+        .create_password_reset_token(&*database.connection)
+        .unwrap();
     let new_password = "newPassword";
     let token = user.password_reset_token.unwrap();
     assert!(!user.check_password(&new_password));
 
-    let test_request = TestRequest::create(database);
+    let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(UpdatePasswordResetParameters {
         password_reset_token: Uuid::new_v4(),
         password: new_password.to_string(),
     });
-    let response: HttpResponse = password_resets::update((state, json)).into();
+    let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
 
-    let user = User::find(user.id, connection).unwrap();
+    let user = User::find(user.id, &*database.connection).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));

@@ -1,5 +1,5 @@
-use db::Connectable;
 use dev::builders::*;
+use diesel::prelude::*;
 use models::{FeeSchedule, Organization, OrganizationEditableAttributes, OrganizationUser, User};
 use rand::prelude::*;
 use uuid::Uuid;
@@ -8,13 +8,13 @@ pub struct OrganizationBuilder<'a> {
     name: String,
     owner_user_id: Option<Uuid>,
     members: Vec<Uuid>,
-    connection: &'a Connectable,
+    connection: &'a PgConnection,
     fee_schedule: Option<FeeSchedule>,
     use_address: bool,
 }
 
 impl<'a> OrganizationBuilder<'a> {
-    pub fn new(connection: &'a Connectable) -> OrganizationBuilder {
+    pub fn new(connection: &'a PgConnection) -> OrganizationBuilder {
         let x: u16 = random();
         OrganizationBuilder {
             name: format!("test org{}", x).into(),

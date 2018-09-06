@@ -1,15 +1,15 @@
-use db::Connectable;
+use diesel::prelude::*;
 use models::*;
 use uuid::Uuid;
 
 pub struct VenueBuilder<'a> {
     name: String,
     region_id: Option<Uuid>,
-    connection: &'a Connectable,
+    connection: &'a PgConnection,
 }
 
 impl<'a> VenueBuilder<'a> {
-    pub fn new(connection: &Connectable) -> VenueBuilder {
+    pub fn new(connection: &PgConnection) -> VenueBuilder {
         VenueBuilder {
             connection,
             name: "Name".into(),

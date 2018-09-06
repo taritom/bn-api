@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, Json, Path, Query, State};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
+use db::Connection;
 use errors::*;
 use helpers::application;
 use mail::mailers;
@@ -31,8 +32,9 @@ pub struct NewOrgInviteRequest {
 }
 
 pub fn create(
-    (state, new_org_invite, path, auth_user): (
+    (state, connection, new_org_invite, path, auth_user): (
         State<AppState>,
+        Connection,
         Json<NewOrgInviteRequest>,
         Path<PathParameters>,
         AuthUser,
@@ -41,9 +43,8 @@ pub fn create(
     if !auth_user.has_scope(Scopes::OrgWrite) {
         return application::unauthorized();
     };
-
-    let connection = state.database.get_connection();
     let invite_args = new_org_invite.into_inner();
+    let connection = connection.get();
 
     let mut invite: NewOrganizationInvite;
     let email: String;
@@ -52,7 +53,7 @@ pub fn create(
 
     match invite_args.user_id {
         Some(user_id_value) => {
-            let user = User::find(user_id_value, &*connection)?;
+            let user = User::find(user_id_value, connection)?;
             recipient = user.full_name();
             user_id = Some(user.id);
             match user.email {
@@ -66,7 +67,7 @@ pub fn create(
             match invite_args.user_email {
                 Some(user_email) => {
                     email = user_email;
-                    match User::find_by_email(&email, &*connection) {
+                    match User::find_by_email(&email, connection) {
                         Ok(user) => {
                             recipient = user.full_name();
                             user_id = Some(user.id);
@@ -92,8 +93,8 @@ pub fn create(
         }
     }
     //If an active invite exists for this email then first expire it before issuing the new invite.
-    if let Some(i) = OrganizationInvite::find_active_invite_by_email(&email, &*connection)? {
-        i.change_invite_status(0, &*connection)?;
+    if let Some(i) = OrganizationInvite::find_active_invite_by_email(&email, connection)? {
+        i.change_invite_status(0, connection)?;
     }
 
     invite = NewOrganizationInvite {
@@ -104,8 +105,8 @@ pub fn create(
         user_id: user_id,
     };
 
-    let invite = invite.commit(&*connection)?;
-    let organization = Organization::find(invite.organization_id, &*connection)?;
+    let invite = invite.commit(connection)?;
+    let organization = Organization::find(invite.organization_id, connection)?;
 
     match mailers::organization_invites::invite_user_to_organization_email(
         &state.config,
@@ -120,17 +121,12 @@ pub fn create(
 }
 
 pub fn accept_request(
-    (state, query, user): (
-        State<AppState>,
-        Query<InviteResponseQuery>,
-        Option<AuthUser>,
-    ),
+    (connection, query, user): (Connection, Query<InviteResponseQuery>, Option<AuthUser>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
     let query_struct = query.into_inner();
-
+    let connection = connection.get();
     let invite_details =
-        OrganizationInvite::get_invite_details(&query_struct.security_token, &*connection)?;
+        OrganizationInvite::get_invite_details(&query_struct.security_token, connection)?;
     //Check that the user is logged in, that if the invite has a user_id associated with it that it is the currently logged in user
     match user {
         Some(u) => {
@@ -140,9 +136,9 @@ pub fn accept_request(
             {
                 return application::unauthorized();
             } else {
-                let accept_details = invite_details.change_invite_status(1, &*connection)?;
-                let org = Organization::find(accept_details.organization_id, &*connection)?;
-                let _ = org.add_user(u.id(), &*connection)?;
+                let accept_details = invite_details.change_invite_status(1, connection)?;
+                let org = Organization::find(accept_details.organization_id, connection)?;
+                let _ = org.add_user(u.id(), connection)?;
             }
         }
         None => return application::unauthorized(),
@@ -152,17 +148,13 @@ pub fn accept_request(
 }
 
 pub fn decline_request(
-    (state, query, _user): (
-        State<AppState>,
-        Query<InviteResponseQuery>,
-        Option<AuthUser>,
-    ),
+    (connection, query, _user): (Connection, Query<InviteResponseQuery>, Option<AuthUser>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = state.database.get_connection();
     let query_struct = query.into_inner();
+    let connection = connection.get();
     let invite_details =
-        OrganizationInvite::get_invite_details(&query_struct.security_token, &*connection)?;
+        OrganizationInvite::get_invite_details(&query_struct.security_token, connection)?;
 
-    invite_details.change_invite_status(0, &*connection)?;
+    invite_details.change_invite_status(0, connection)?;
     return Ok(HttpResponse::Ok().json(json!({})));
 }

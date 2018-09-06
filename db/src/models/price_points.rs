@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::prelude::*;
 use models::{PricePointStatus, TicketType};
@@ -46,10 +45,10 @@ pub struct NewPricePoint {
 }
 
 impl NewPricePoint {
-    pub fn commit(self, conn: &Connectable) -> Result<PricePoint, DatabaseError> {
+    pub fn commit(self, conn: &PgConnection) -> Result<PricePoint, DatabaseError> {
         diesel::insert_into(price_points::table)
             .values(self)
-            .get_result(conn.get_connection())
+            .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create price point")
     }
 }

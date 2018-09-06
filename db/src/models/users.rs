@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use db::Connectable;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
@@ -49,10 +48,10 @@ pub struct DisplayUser {
 }
 
 impl NewUser {
-    pub fn commit(&self, conn: &Connectable) -> Result<User, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<User, DatabaseError> {
         let res = diesel::insert_into(users::table)
             .values(self)
-            .get_result(conn.get_connection());
+            .get_result(conn);
         DatabaseError::wrap(ErrorCode::InsertError, "Could not create new user", res)
     }
 }
@@ -76,21 +75,21 @@ impl User {
         }
     }
 
-    pub fn find(id: Uuid, conn: &Connectable) -> Result<User, DatabaseError> {
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<User, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading user",
-            users::table.find(id).first::<User>(conn.get_connection()),
+            users::table.find(id).first::<User>(conn),
         )
     }
 
-    pub fn find_by_email(email: &str, conn: &Connectable) -> Result<User, DatabaseError> {
+    pub fn find_by_email(email: &str, conn: &PgConnection) -> Result<User, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading user",
             users::table
                 .filter(users::email.eq(email))
-                .first::<User>(conn.get_connection()),
+                .first::<User>(conn),
         )
     }
 
@@ -102,7 +101,7 @@ impl User {
         hash.verify(password)
     }
 
-    pub fn add_role(&self, r: Roles, conn: &Connectable) -> Result<User, DatabaseError> {
+    pub fn add_role(&self, r: Roles, conn: &PgConnection) -> Result<User, DatabaseError> {
         let mut new_roles = self.role.clone();
         if !new_roles.contains(&r.to_string()) {
             new_roles.push(r.to_string());
@@ -111,7 +110,7 @@ impl User {
         self.update_role(new_roles, conn)
     }
 
-    pub fn remove_role(&self, r: Roles, conn: &Connectable) -> Result<User, DatabaseError> {
+    pub fn remove_role(&self, r: Roles, conn: &PgConnection) -> Result<User, DatabaseError> {
         let mut current_roles = self.role.clone();
 
         current_roles.retain(|x| x.as_str() != &r.to_string());
@@ -122,14 +121,14 @@ impl User {
     fn update_role(
         &self,
         new_roles: Vec<String>,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update role for user",
             diesel::update(self)
                 .set((users::role.eq(new_roles), users::updated_at.eq(dsl::now)))
-                .get_result(conn.get_connection()),
+                .get_result(conn),
         )
     }
 
@@ -146,7 +145,7 @@ impl User {
         external_user_id: String,
         site: String,
         access_token: String,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<ExternalLogin, DatabaseError> {
         ExternalLogin::create(external_user_id, site, self.id, access_token).commit(&*conn)
     }
@@ -158,7 +157,7 @@ impl User {
         email: String,
         site: String,
         access_token: String,
-        conn: &Connectable,
+        conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         let hash = PasswordHash::generate("random", None);
         let new_user = NewUser {

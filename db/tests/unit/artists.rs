@@ -11,7 +11,7 @@ fn commit() {
     let website_url = "http://www.example.com";
 
     let artist = Artist::create(name, bio, website_url)
-        .commit(&project)
+        .commit(project.get_connection())
         .unwrap();
     assert_eq!(name, artist.name);
     assert_eq!(bio, artist.bio);
@@ -65,14 +65,15 @@ fn artist_editable_attributes_validate() {
 #[test]
 fn find() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let artist = project.create_artist().finish();
 
-    let found_artist = Artist::find(&artist.id, &project).expect("Artist was not found");
+    let found_artist = Artist::find(&artist.id, connection).expect("Artist was not found");
     assert_eq!(found_artist.id, artist.id);
     assert_eq!(found_artist.name, artist.name);
 
     assert!(
-        match Artist::find(&Uuid::new_v4(), &project) {
+        match Artist::find(&Uuid::new_v4(), connection) {
             Ok(_artist) => false,
             Err(_e) => true,
         },
@@ -88,7 +89,7 @@ fn all() {
     assert_eq!(name, artist.name);
     assert_eq!(artist.id.to_string().is_empty(), false);
 
-    let found_artists = Artist::all(&project).unwrap();
+    let found_artists = Artist::all(project.get_connection()).unwrap();
     assert_eq!(1, found_artists.len());
     assert_eq!(found_artists[0].id, artist.id);
     assert_eq!(found_artists[0].name, artist.name);
@@ -98,7 +99,7 @@ fn all() {
     assert_eq!(name2, artist2.name);
     assert_eq!(artist2.id.to_string().is_empty(), false);
 
-    let found_artists = Artist::all(&project).unwrap();
+    let found_artists = Artist::all(project.get_connection()).unwrap();
     assert_eq!(2, found_artists.len());
     assert_eq!(found_artists[0].id, artist.id);
     assert_eq!(found_artists[0].name, artist.name);
@@ -121,7 +122,9 @@ fn update_attributes() {
     artist_parameters.name = Some("New Name".into());
     artist_parameters.bio = Some("Bio".into());
     artist_parameters.website_url = Some("http://www.example.com".into());
-    let updated_artist = artist.update(&artist_parameters, &project).unwrap();
+    let updated_artist = artist
+        .update(&artist_parameters, &project.get_connection())
+        .unwrap();
 
     assert_eq!(updated_artist.id, artist.id);
     assert_ne!(updated_artist.name, artist.name);
@@ -132,6 +135,6 @@ fn update_attributes() {
 fn destroy() {
     let project = TestProject::new();
     let artist = project.create_artist().finish();
-    assert!(artist.destroy(&project).unwrap() > 0);
-    assert!(Artist::find(&artist.id, &project).is_err());
+    assert!(artist.destroy(project.get_connection()).unwrap() > 0);
+    assert!(Artist::find(&artist.id, project.get_connection()).is_err());
 }

@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use chrono::NaiveDateTime;
-use db::Connectable;
 use dev::builders::*;
+use diesel::prelude::*;
 use models::*;
 use rand::prelude::*;
 use uuid::Uuid;
@@ -11,13 +11,13 @@ pub struct EventBuilder<'a> {
     organization_id: Option<Uuid>,
     venue_id: Option<Uuid>,
     event_start: Option<NaiveDateTime>,
-    connection: &'a Connectable,
+    connection: &'a PgConnection,
     with_tickets: bool,
     with_price_points: bool,
 }
 
 impl<'a> EventBuilder<'a> {
-    pub fn new(connection: &Connectable) -> EventBuilder {
+    pub fn new(connection: &PgConnection) -> EventBuilder {
         let x: u16 = random();
         EventBuilder {
             name: format!("Event {}", x).into(),
