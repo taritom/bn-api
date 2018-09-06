@@ -18,13 +18,15 @@ pub struct TicketType {
     status: String,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
+    asset_id: Uuid,
 }
 
 impl TicketType {
-    pub fn create(event_id: Uuid, name: String) -> NewTicketType {
+    pub fn create(event_id: Uuid, name: String, asset_id: Uuid) -> NewTicketType {
         NewTicketType {
             event_id,
             name,
+            asset_id,
             status: TicketTypeStatus::Published.to_string(),
         }
     }
@@ -74,6 +76,7 @@ pub struct NewTicketType {
     event_id: Uuid,
     name: String,
     status: String,
+    asset_id: Uuid,
 }
 
 impl NewTicketType {

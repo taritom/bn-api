@@ -16,6 +16,17 @@ table! {
 }
 
 table! {
+    assets (id) {
+        id -> Uuid,
+        blockchain_name -> Text,
+        blockchain_asset_id -> Nullable<Text>,
+        status -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     event_artists (id) {
         id -> Uuid,
         event_id -> Uuid,
@@ -93,10 +104,13 @@ table! {
         id -> Uuid,
         order_id -> Uuid,
         item_type -> Text,
-        ticket_type_id -> Uuid,
-        quantity -> Int8,
+        cost -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        ticket_instance_id -> Nullable<Uuid>,
+        price_point_id -> Nullable<Uuid>,
+        fee_schedule_range_id -> Nullable<Uuid>,
+        parent_id -> Nullable<Uuid>,
     }
 }
 
@@ -106,6 +120,7 @@ table! {
         user_id -> Uuid,
         status -> Text,
         order_type -> Text,
+        expires_at -> Timestamp,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -174,13 +189,22 @@ table! {
 }
 
 table! {
-    ticket_allocations (id) {
+    ticket_holdings (id) {
         id -> Uuid,
-        event_id -> Uuid,
-        tari_asset_id -> Nullable<Text>,
+        name -> Text,
+        asset_id -> Uuid,
         created_at -> Timestamp,
-        synced_at -> Nullable<Timestamp>,
-        ticket_delta -> Int8,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    ticket_instances (id) {
+        id -> Uuid,
+        asset_id -> Uuid,
+        token_id -> Int4,
+        ticket_holding_id -> Nullable<Uuid>,
+        created_at -> Timestamp,
         updated_at -> Timestamp,
     }
 }
@@ -193,6 +217,7 @@ table! {
         status -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        asset_id -> Uuid,
     }
 }
 
@@ -233,6 +258,17 @@ table! {
     }
 }
 
+table! {
+    wallets (id) {
+        id -> Uuid,
+        user_id -> Nullable<Uuid>,
+        organization_id -> Nullable<Uuid>,
+        name -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
 joinable!(event_interest -> events (event_id));
@@ -241,8 +277,10 @@ joinable!(events -> organizations (organization_id));
 joinable!(events -> venues (venue_id));
 joinable!(external_logins -> users (user_id));
 joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
+joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
 joinable!(order_items -> orders (order_id));
-joinable!(order_items -> ticket_types (ticket_type_id));
+joinable!(order_items -> price_points (price_point_id));
+joinable!(order_items -> ticket_instances (ticket_instance_id));
 joinable!(orders -> users (user_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
@@ -250,13 +288,19 @@ joinable!(organization_users -> users (user_id));
 joinable!(organizations -> fee_schedules (fee_schedule_id));
 joinable!(organizations -> users (owner_user_id));
 joinable!(price_points -> ticket_types (ticket_type_id));
-joinable!(ticket_allocations -> events (event_id));
+joinable!(ticket_holdings -> assets (asset_id));
+joinable!(ticket_instances -> assets (asset_id));
+joinable!(ticket_instances -> ticket_holdings (ticket_holding_id));
+joinable!(ticket_types -> assets (asset_id));
 joinable!(ticket_types -> events (event_id));
 joinable!(venues -> organizations (organization_id));
 joinable!(venues -> regions (region_id));
+joinable!(wallets -> organizations (organization_id));
+joinable!(wallets -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     artists,
+    assets,
     event_artists,
     event_interest,
     events,
@@ -270,8 +314,10 @@ allow_tables_to_appear_in_same_query!(
     organization_users,
     price_points,
     regions,
-    ticket_allocations,
+    ticket_holdings,
+    ticket_instances,
     ticket_types,
     users,
     venues,
+    wallets,
 );

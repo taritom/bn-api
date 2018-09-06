@@ -10,7 +10,6 @@ pub mod organization_users;
 pub mod organizations;
 pub mod price_points;
 pub mod regions;
-pub mod ticket_allocations;
 pub mod ticket_types;
 pub mod users;
 pub mod venues;

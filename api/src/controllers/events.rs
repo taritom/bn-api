@@ -354,7 +354,7 @@ pub fn create_tickets(
         return application::forbidden("User does not belong to this organization");
     }
 
-    let ticket_type = TicketType::create(event.id, data.name.clone()).commit(connection)?;
+    let ticket_type = event.add_ticket_type(data.name.clone(), connection)?;
 
     //    let mut allocation =
     //        TicketAllocation::create(path.id, data.tickets_delta).commit(connection)?;

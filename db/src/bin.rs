@@ -17,6 +17,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate validator_derive;
 extern crate bigneon_db;
+extern crate time;
 extern crate validator;
 
 mod models;

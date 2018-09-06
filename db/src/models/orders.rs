@@ -1,9 +1,10 @@
-use chrono::NaiveDateTime;
+use chrono::prelude::*;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use models::{OrderItemTypes, OrderStatus, OrderTypes, TicketType, User};
+use models::{OrderStatus, OrderTypes, User};
 use schema::{order_items, orders};
+use time::Duration;
 use utils::errors;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -18,6 +19,7 @@ pub struct Order {
     status: String,
     #[allow(dead_code)]
     order_type: String,
+    pub expires_at: NaiveDateTime,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -27,6 +29,7 @@ pub struct Order {
 pub struct NewOrder {
     user_id: Uuid,
     status: String,
+    expires_at: NaiveDateTime,
     order_type: String,
 }
 
@@ -48,6 +51,7 @@ impl Order {
         NewOrder {
             user_id,
             status: OrderStatus::Draft.to_string(),
+            expires_at: Utc::now().naive_utc() + Duration::minutes(15),
             order_type: order_type.to_string(),
         }
     }
@@ -74,23 +78,24 @@ impl Order {
         quantity: i64,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        let item = OrderItem::find(self.id, ticket_type_id, conn)?;
-        if item.is_none() {
-            if quantity <= 0 {
-                return Ok(());
-            }
-
-            OrderItem::create_tickets(self.id, ticket_type_id, quantity as u32).commit(conn)?;
-            Ok(())
-        } else {
-            let mut item = item.unwrap();
-            item.quantity += quantity;
-            if item.quantity <= 0 {
-                item.delete(conn)
-            } else {
-                item.update(conn)
-            }
-        }
+        unimplemented!()
+        //        let item = OrderItem::find(self.id, ticket_type_id, conn)?;
+        //        if item.is_none() {
+        //            if quantity <= 0 {
+        //                return Ok(());
+        //            }
+        //
+        //            OrderItem::create_tickets(self.id, ticket_type_id, quantity as u32).commit(conn)?;
+        //            Ok(())
+        //        } else {
+        //            let mut item = item.unwrap();
+        //            item.quantity += quantity;
+        //            if item.quantity <= 0 {
+        //                item.delete(conn)
+        //            } else {
+        //                item.update(conn)
+        //            }
+        //        }
     }
 
     pub fn items(&self, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
@@ -111,27 +116,31 @@ impl Order {
 }
 
 #[derive(Identifiable, Associations, Queryable, AsChangeset)]
-#[belongs_to(TicketType)]
 #[belongs_to(Order)]
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct OrderItem {
     pub id: Uuid,
     order_id: Uuid,
     item_type: String,
-    ticket_type_id: Uuid,
-    quantity: i64,
+    cost: i64,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
+    ticket_instance_id: Option<Uuid>,
+    price_point_id: Option<Uuid>,
+    fee_schedule_range_id: Option<Uuid>,
+    parent_id: Option<Uuid>,
 }
 
 impl OrderItem {
     fn create_tickets(order_id: Uuid, ticket_type_id: Uuid, quantity: u32) -> NewTicketsOrderItem {
-        NewTicketsOrderItem {
-            order_id,
-            ticket_type_id,
-            item_type: OrderItemTypes::Tickets.to_string(),
-            quantity: quantity as i64,
-        }
+        unimplemented!()
+
+        //        NewTicketsOrderItem {
+        //            order_id,
+        //            ticket_type_id,
+        //            item_type: OrderItemTypes::Tickets.to_string(),
+        //            quantity: quantity as i64,
+        //        }
     }
 
     fn find(
@@ -139,29 +148,31 @@ impl OrderItem {
         ticket_type_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Option<OrderItem>, errors::DatabaseError> {
-        order_items::table
-            .filter(order_items::order_id.eq(order_id))
-            .filter(order_items::ticket_type_id.eq(ticket_type_id))
-            .first(conn)
-            .optional()
-            .to_db_error(
-                errors::ErrorCode::QueryError,
-                "Could not retrieve order item",
-            )
+        unimplemented!()
+        //        order_items::table
+        //            .filter(order_items::order_id.eq(order_id))
+        //            .filter(order_items::ticket_type_id.eq(ticket_type_id))
+        //            .first(conn)
+        //            .optional()
+        //            .to_db_error(
+        //                errors::ErrorCode::QueryError,
+        //                "Could not retrieve order item",
+        //            )
     }
 
     fn update(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        diesel::update(self)
-            .set((
-                order_items::quantity.eq(self.quantity),
-                order_items::updated_at.eq(dsl::now),
-            ))
-            .execute(conn)
-            .map(|_| ())
-            .to_db_error(
-                errors::ErrorCode::UpdateError,
-                "Could not update order item",
-            )
+        unimplemented!()
+        //        diesel::update(self)
+        //            .set((
+        //                order_items::quantity.eq(self.quantity),
+        //                order_items::updated_at.eq(dsl::now),
+        //            ))
+        //            .execute(conn)
+        //            .map(|_| ())
+        //            .to_db_error(
+        //                errors::ErrorCode::UpdateError,
+        //                "Could not update order item",
+        //            )
     }
 
     fn delete(self, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -187,8 +198,10 @@ impl OrderItem {
 struct NewTicketsOrderItem {
     order_id: Uuid,
     item_type: String,
-    ticket_type_id: Uuid,
-    quantity: i64,
+    cost: i64,
+    ticket_instance_id: Uuid,
+    price_point_id: Uuid,
+    fee_schedule_range_id: Uuid,
 }
 
 impl NewTicketsOrderItem {

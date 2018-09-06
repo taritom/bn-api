@@ -233,7 +233,9 @@ impl Event {
         name: String,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
-        TicketType::create(self.id, name).commit(conn)
+        let asset = Asset::create(format!("{}.{}", self.name, name)).commit(conn)?;
+
+        TicketType::create(self.id, name, asset.id).commit(conn)
     }
 
     pub fn ticket_types(&self, conn: &PgConnection) -> Result<Vec<TicketType>, DatabaseError> {

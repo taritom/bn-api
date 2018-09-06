@@ -6,6 +6,7 @@ extern crate dotenv;
 extern crate log;
 extern crate log4rs;
 extern crate rand;
+extern crate time;
 extern crate uuid;
 #[macro_use]
 extern crate serde_derive;
