@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, Json, Path};
 use auth::user::{Scopes, User};
 use bigneon_db::models::{
-    DisplayUser, FeeSchedule, FeeScheduleRange, NewOrganization, Organization,
+    DisplayUser, FeeSchedule, FeeScheduleRange, NewOrganization, NewVenue, Organization,
     OrganizationEditableAttributes,
 };
 use chrono::NaiveDateTime;
@@ -101,6 +101,23 @@ pub fn update_owner(
     let organization = Organization::find(parameters.id, connection)?;
     let updated_organization = organization.set_owner(json.into_inner().owner_user_id, connection)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
+}
+
+pub fn add_venue(
+    (connection, parameters, new_venue, user): (
+        Connection,
+        Path<PathParameters>,
+        Json<NewVenue>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    if !user.has_scope(Scopes::OrgWrite) {
+        return application::unauthorized();
+    }
+    let mut new_venue = new_venue.into_inner();
+    new_venue.organization_id = Some(parameters.id);
+    let venue = new_venue.commit(connection.get())?;
+    Ok(HttpResponse::Created().json(&venue))
 }
 
 pub fn add_user(

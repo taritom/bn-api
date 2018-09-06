@@ -3,9 +3,9 @@ use diesel;
 use diesel::dsl::exists;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use diesel::select;
-use models::{OrganizationVenue, Region};
-use schema::{organization_venues, venues};
+use models::Region;
+use schema::{organization_users, venues};
+use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
@@ -17,6 +17,8 @@ use uuid::Uuid;
 pub struct Venue {
     pub id: Uuid,
     pub region_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
+    pub is_private: bool,
     pub name: String,
     pub address: Option<String>,
     pub city: Option<String>,
@@ -32,6 +34,8 @@ pub struct Venue {
 #[table_name = "venues"]
 pub struct VenueEditableAttributes {
     pub region_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
+    pub is_private: Option<bool>,
     pub name: Option<String>,
     pub address: Option<String>,
     pub city: Option<String>,
@@ -44,8 +48,10 @@ pub struct VenueEditableAttributes {
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "venues"]
 pub struct NewVenue {
-    pub region_id: Option<Uuid>,
     pub name: String,
+    pub region_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
+    pub is_private: Option<bool>,
     pub address: Option<String>,
     pub city: Option<String>,
     pub state: Option<String>,
@@ -67,10 +73,17 @@ impl NewVenue {
 }
 
 impl Venue {
-    pub fn create(name: &str, region_id: Option<Uuid>) -> NewVenue {
+    pub fn create(
+        name: &str,
+        region_id: Option<Uuid>,
+        organization_id: Option<Uuid>,
+        is_private: Option<bool>,
+    ) -> NewVenue {
         NewVenue {
             name: String::from(name),
             region_id,
+            is_private,
+            organization_id,
             address: None,
             city: None,
             state: None,
@@ -102,58 +115,51 @@ impl Venue {
         )
     }
 
-    pub fn all(conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Unable to load all venues",
-            venues::table.load(conn),
-        )
+    pub fn all(user_id: Option<Uuid>, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
+        let query = match user_id {
+            Some(u) => venues::table
+                .left_join(
+                    organization_users::table.on(venues::organization_id
+                        .eq(organization_users::organization_id.nullable())
+                        .and(organization_users::user_id.eq(u))),
+                )
+                .filter(
+                    organization_users::user_id
+                        .eq(u)
+                        .or(venues::is_private.eq(false)),
+                )
+                .select(venues::all_columns)
+                .load(conn),
+            None => venues::table
+                .filter(venues::is_private.eq(false))
+                .select(venues::all_columns)
+                .load(conn),
+        };
+
+        query.to_db_error(ErrorCode::QueryError, "Unable to load all venues")
     }
 
     pub fn find_for_organization(
         organization_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<Venue>, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Could not retrieve venues",
-            organization_venues::table
-                .filter(organization_venues::organization_id.eq(organization_id))
-                .inner_join(venues::table)
-                .order_by(venues::name)
-                .select(venues::all_columns)
-                .load::<Venue>(conn),
-        )
-    }
-
-    pub fn has_organization(
-        &self,
-        organization_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<bool, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Could not retrieve venues",
-            select(exists(
-                organization_venues::table
-                    .filter(organization_venues::organization_id.eq(organization_id))
-                    .filter(organization_venues::venue_id.eq(self.id)),
-            )).get_result(conn),
-        )
+        venues::table
+            .filter(venues::organization_id.eq(organization_id))
+            .order_by(venues::name)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve venues")
     }
 
     pub fn add_to_organization(
-        &self,
+        self,
         organization_id: &Uuid,
         conn: &PgConnection,
-    ) -> Result<OrganizationVenue, DatabaseError> {
-        OrganizationVenue::create(*organization_id, self.id)
-            .commit(conn)
-            .map_err(|e| {
-                DatabaseError::new(
-                    ErrorCode::UpdateError,
-                    Some(&format!("Could not update venue:{}", e.cause.unwrap())),
-                )
-            })
+    ) -> Result<Venue, DatabaseError> {
+        //Should I make sure that this venue doesn't already have one here even though there is logic
+        //for that in the bn-api layer?
+        diesel::update(&self)
+            .set(venues::organization_id.eq(organization_id))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update venue")
     }
 }

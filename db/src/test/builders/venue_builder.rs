@@ -5,6 +5,8 @@ use uuid::Uuid;
 pub struct VenueBuilder<'a> {
     name: String,
     region_id: Option<Uuid>,
+    organization_id: Option<Uuid>,
+    is_private: Option<bool>,
     connection: &'a PgConnection,
 }
 
@@ -14,6 +16,8 @@ impl<'a> VenueBuilder<'a> {
             connection,
             name: "Name".into(),
             region_id: None,
+            is_private: None,
+            organization_id: None,
         }
     }
 
@@ -27,9 +31,18 @@ impl<'a> VenueBuilder<'a> {
         self
     }
 
+    pub fn make_private(mut self) -> Self {
+        self.is_private = Some(true);
+        self
+    }
+
     pub fn finish(self) -> Venue {
-        Venue::create(&self.name, self.region_id)
-            .commit(self.connection)
+        Venue::create(
+            &self.name,
+            self.region_id,
+            self.organization_id,
+            self.is_private,
+        ).commit(self.connection)
             .unwrap()
     }
 }

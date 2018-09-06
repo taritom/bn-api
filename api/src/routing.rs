@@ -71,6 +71,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         })
         .resource("/organizations/{id}/venues", |r| {
             r.method(Method::GET).with(venues::show_from_organizations);
+            r.method(Method::POST).with(organizations::add_venue);
         })
         .resource("/organizations/{id}", |r| {
             r.method(Method::GET).with(organizations::show);

@@ -154,12 +154,10 @@ impl Organization {
     }
 
     pub fn venues(&self, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
-        let organization_venues = OrganizationVenue::belonging_to(self);
-
-        organization_venues
-            .inner_join(venues::table)
-            .select(venues::all_columns)
-            .load::<Venue>(conn)
+        venues::table
+            .filter(venues::organization_id.eq(self.id))
+            .order_by(venues::name)
+            .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve venues")
     }
 

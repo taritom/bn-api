@@ -13,11 +13,12 @@ pub struct PathParameters {
     pub id: Uuid,
 }
 
-pub fn index((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::VenueRead) {
-        return application::unauthorized();
-    }
-    let venues = Venue::all(connection.get())?;
+pub fn index((connection, user): (Connection, Option<User>)) -> Result<HttpResponse, BigNeonError> {
+    let venues = match user {
+        Some(u) => Venue::all(Some(u.id()), connection.get())?,
+        None => Venue::all(None, connection.get())?,
+    };
+
     Ok(HttpResponse::Ok().json(&venues))
 }
 
@@ -82,14 +83,12 @@ pub fn add_to_organization(
     }
     let connection = connection.get();
     let add_request = add_request.into_inner();
-    let venue = Venue::find(parameters.id, connection)?;
-    let has_organization = venue.has_organization(add_request.organization_id, connection)?;
+    let venue = Venue::find(parameters.id, &*connection)?;
 
-    if has_organization {
+    if venue.organization_id.is_some() {
         Ok(HttpResponse::Conflict().json(json!({"error": "An error has occurred"})))
     } else {
-        let organization_venue =
-            venue.add_to_organization(&add_request.organization_id, connection)?;
-        Ok(HttpResponse::Ok().json(&organization_venue))
+        let venue = venue.add_to_organization(&add_request.organization_id, connection)?;
+        Ok(HttpResponse::Ok().json(&venue))
     }
 }

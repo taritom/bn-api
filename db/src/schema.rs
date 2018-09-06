@@ -126,24 +126,6 @@ table! {
 }
 
 table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
-    organization_venues (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        venue_id -> Uuid,
-    }
-}
-
-table! {
     organizations (id) {
         id -> Uuid,
         owner_user_id -> Uuid,
@@ -157,6 +139,16 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Nullable<Uuid>,
+    }
+}
+
+table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -227,6 +219,8 @@ table! {
     venues (id) {
         id -> Uuid,
         region_id -> Nullable<Uuid>,
+        organization_id -> Nullable<Uuid>,
+        is_private -> Bool,
         name -> Text,
         address -> Nullable<Text>,
         city -> Nullable<Text>,
@@ -253,13 +247,12 @@ joinable!(orders -> users (user_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
-joinable!(organization_venues -> organizations (organization_id));
-joinable!(organization_venues -> venues (venue_id));
 joinable!(organizations -> fee_schedules (fee_schedule_id));
 joinable!(organizations -> users (owner_user_id));
 joinable!(price_points -> ticket_types (ticket_type_id));
 joinable!(ticket_allocations -> events (event_id));
 joinable!(ticket_types -> events (event_id));
+joinable!(venues -> organizations (organization_id));
 joinable!(venues -> regions (region_id));
 
 allow_tables_to_appear_in_same_query!(
@@ -273,9 +266,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organization_users,
-    organization_venues,
     organizations,
+    organization_users,
     price_points,
     regions,
     ticket_allocations,

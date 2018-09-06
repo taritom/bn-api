@@ -7,7 +7,6 @@ pub mod fee_schedules;
 pub mod orders;
 pub mod organization_invites;
 pub mod organization_users;
-pub mod organization_venues;
 pub mod organizations;
 pub mod price_points;
 pub mod regions;
