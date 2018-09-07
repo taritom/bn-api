@@ -108,7 +108,7 @@ fn all() {
 }
 
 #[test]
-fn update_attributes() {
+fn update() {
     let project = TestProject::new();
     let name = "Old Name";
     let artist = project.create_artist().with_name(name.into()).finish();

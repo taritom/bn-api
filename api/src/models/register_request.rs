@@ -1,3 +1,5 @@
+use bigneon_db::models::{NewUser, User};
+
 #[derive(Deserialize)]
 pub struct RegisterRequest {
     pub email: String,
@@ -5,6 +7,18 @@ pub struct RegisterRequest {
     pub last_name: String,
     pub phone: String,
     pub password: String,
+}
+
+impl From<RegisterRequest> for NewUser {
+    fn from(attributes: RegisterRequest) -> Self {
+        User::create(
+            &attributes.first_name,
+            &attributes.last_name,
+            &attributes.email,
+            &attributes.phone,
+            &attributes.password,
+        )
+    }
 }
 
 impl RegisterRequest {

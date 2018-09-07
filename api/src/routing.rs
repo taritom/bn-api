@@ -95,7 +95,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         })
         .resource("/status", |r| r.get().f(|_| HttpResponse::Ok()))
         .resource("/users/me", |r| {
-            r.method(Method::GET).with(users::current_user)
+            r.method(Method::GET).with(users::current_user);
+            r.method(Method::PUT).with(users::update_current_user);
         })
         .resource("/users/register", |r| {
             r.method(Method::POST).with(users::register)

@@ -1,8 +1,9 @@
-use bigneon_db::models::{ExternalLogin, Roles, User};
+use bigneon_db::models::{ExternalLogin, Roles, User, UserEditableAttributes};
 use bigneon_db::utils::errors;
 use bigneon_db::utils::errors::ErrorCode;
 use support::project::TestProject;
 use uuid::Uuid;
+use validator::Validate;
 
 #[test]
 fn commit() {
@@ -92,6 +93,52 @@ fn find_by_email() {
         error.to_string(),
         "[2000] No results\nCaused by: Error loading user, NotFound"
     );
+}
+
+#[test]
+fn update() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let mut attributes: UserEditableAttributes = Default::default();
+    let email = "new_email@tari.com";
+    attributes.email = Some(email.clone().into());
+
+    let updated_user = user.update(&attributes.into(), connection).unwrap();
+    assert_eq!(updated_user.email, Some(email.into()));
+}
+
+#[test]
+fn new_user_validate() {
+    let email = "abc";
+    let user = User::create(
+        "First".into(),
+        "Last".into(),
+        email.into(),
+        "123".into(),
+        "Password".into(),
+    );
+    let result = user.validate();
+    assert!(result.is_err());
+    let errors = result.unwrap_err().inner();
+
+    assert!(errors.contains_key("email"));
+    assert_eq!(errors["email"].len(), 1);
+    assert_eq!(errors["email"][0].code, "email");
+}
+
+#[test]
+fn user_editable_attributes_validate() {
+    let mut user_parameters: UserEditableAttributes = Default::default();
+    user_parameters.email = Some("abc".into());
+
+    let result = user_parameters.validate();
+    assert!(result.is_err());
+    let errors = result.unwrap_err().inner();
+
+    assert!(errors.contains_key("email"));
+    assert_eq!(errors["email"].len(), 1);
+    assert_eq!(errors["email"][0].code, "email");
 }
 
 #[test]

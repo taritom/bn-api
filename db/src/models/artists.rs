@@ -107,7 +107,7 @@ impl Artist {
     }
 }
 
-#[derive(AsChangeset, Deserialize, Validate)]
+#[derive(AsChangeset, Default, Deserialize, Validate)]
 #[table_name = "artists"]
 pub struct ArtistEditableAttributes {
     pub name: Option<String>,
@@ -121,22 +121,6 @@ pub struct ArtistEditableAttributes {
     pub snapchat_username: Option<String>,
     pub soundcloud_username: Option<String>,
     pub bandcamp_username: Option<String>,
-}
-
-impl Default for ArtistEditableAttributes {
-    fn default() -> Self {
-        ArtistEditableAttributes {
-            name: None,
-            bio: None,
-            website_url: None,
-            youtube_video_urls: None,
-            facebook_username: None,
-            instagram_username: None,
-            snapchat_username: None,
-            soundcloud_username: None,
-            bandcamp_username: None,
-        }
-    }
 }
 
 impl ArtistEditableAttributes {

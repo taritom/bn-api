@@ -8,12 +8,14 @@ use schema::users;
 use utils::errors::{DatabaseError, ErrorCode};
 use utils::passwords::PasswordHash;
 use uuid::Uuid;
+use validator::Validate;
 
-#[derive(Insertable, PartialEq, Debug)]
+#[derive(Insertable, PartialEq, Debug, Validate)]
 #[table_name = "users"]
 pub struct NewUser {
     pub first_name: String,
     pub last_name: String,
+    #[validate(email)]
     pub email: Option<String>,
     pub phone: Option<String>,
     pub hashed_pw: String,
@@ -45,6 +47,18 @@ pub struct DisplayUser {
     pub last_name: String,
     pub email: Option<String>,
     pub phone: Option<String>,
+}
+
+#[derive(AsChangeset, Default, Deserialize, Validate)]
+#[table_name = "users"]
+pub struct UserEditableAttributes {
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    #[validate(email)]
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub active: Option<bool>,
+    pub role: Option<Vec<String>>,
 }
 
 impl NewUser {
@@ -90,6 +104,20 @@ impl User {
             users::table
                 .filter(users::email.eq(email))
                 .first::<User>(conn),
+        )
+    }
+
+    pub fn update(
+        &self,
+        attributes: &UserEditableAttributes,
+        conn: &PgConnection,
+    ) -> Result<User, DatabaseError> {
+        let query = diesel::update(self).set((attributes, users::updated_at.eq(dsl::now)));
+
+        DatabaseError::wrap(
+            ErrorCode::UpdateError,
+            "Error updating user",
+            query.get_result(conn),
         )
     }
 

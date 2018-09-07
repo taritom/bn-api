@@ -14,6 +14,7 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate jwt;
 extern crate uuid;
+extern crate validator;
 
 mod functional;
 mod support;
