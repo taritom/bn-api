@@ -89,6 +89,6 @@ pub fn add_to_organization(
         Ok(HttpResponse::Conflict().json(json!({"error": "An error has occurred"})))
     } else {
         let venue = venue.add_to_organization(&add_request.organization_id, connection)?;
-        Ok(HttpResponse::Ok().json(&venue))
+        Ok(HttpResponse::Created().json(&venue))
     }
 }

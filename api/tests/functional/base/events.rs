@@ -254,7 +254,7 @@ pub fn create_tickets(role: Roles, should_succeed: bool) {
 
     let _body = support::unwrap_body_to_string(&response).unwrap();
     if should_succeed {
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::CREATED);
         return;
     }
 

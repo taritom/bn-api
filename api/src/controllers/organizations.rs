@@ -134,7 +134,7 @@ pub fn add_user(
     let connection = connection.get();
     let org = Organization::find(path.id, connection)?;
     org.add_user(add_request.user_id, connection)?;
-    Ok(HttpResponse::Ok().finish())
+    Ok(HttpResponse::Created().finish())
 }
 
 pub fn remove_user(

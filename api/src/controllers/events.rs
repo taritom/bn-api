@@ -387,7 +387,7 @@ pub fn create_tickets(
     //    allocation.set_asset_id(asset_id);
     //
     //    let updated_allocation = allocation.update(connection)?;
-    Ok(HttpResponse::Ok().json(json!({"ticket_type_id": ticket_type.id})))
+    Ok(HttpResponse::Created().json(json!({"ticket_type_id": ticket_type.id})))
 }
 
 pub fn list_ticket_types(

@@ -44,7 +44,7 @@ pub fn add((connection, json, user): (Connection, Json<AddToCartRequest>, User))
 
     // Add the item
     match cart.add_tickets(data.ticket_type_id, data.quantity, connection) {
-        Ok(_o) => HttpResponse::Ok().json(&AddToCartResponse { cart_id: cart.id }),
+        Ok(_o) => HttpResponse::Created().json(&AddToCartResponse { cart_id: cart.id }),
         Err(e) => return e.to_response(),
     }
 }

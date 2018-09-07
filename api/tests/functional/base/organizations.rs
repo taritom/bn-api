@@ -214,7 +214,7 @@ pub fn add_user(role: Roles, should_test_succeed: bool) {
     let response: HttpResponse =
         organizations::add_user((database.connection.into(), path, json, user)).into();
     if should_test_succeed {
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::CREATED);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }

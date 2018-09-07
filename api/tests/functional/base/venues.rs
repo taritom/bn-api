@@ -182,7 +182,7 @@ pub fn add_to_organization(role: Roles, should_succeed: bool) {
         return;
     }
 
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let new_venue: Venue = serde_json::from_str(&body).unwrap();
     assert_eq!(new_venue.organization_id.unwrap(), organization.id);
