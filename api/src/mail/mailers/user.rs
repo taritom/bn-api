@@ -4,7 +4,7 @@ use mail::mailers::Mailer;
 
 pub fn password_reset_email(config: &Config, user: &User) -> Mailer {
     let password_reset_link = format!(
-        "{}/reset_password?password_reset_token={}",
+        "{}/password-reset?token={}",
         config.front_end_url.clone(),
         user.password_reset_token
             .expect("Password reset token is not set")

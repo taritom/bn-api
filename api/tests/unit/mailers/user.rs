@@ -38,7 +38,7 @@ fn password_reset_email() {
             .contains("This password reset link is valid for 24 hours")
     );
     assert!(password_reset_email.body().contains(&format!(
-        "{}/reset_password?password_reset_token={}",
+        "{}/password-reset?token={}",
         config.front_end_url,
         user.password_reset_token.unwrap()
     )));
