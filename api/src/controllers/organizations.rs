@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, Json, Path};
 use auth::user::{Scopes, User};
 use bigneon_db::models::{
-    DisplayUser, FeeSchedule, FeeScheduleRange, NewOrganization, NewVenue, Organization,
+    DisplayUser, FeeSchedule, FeeScheduleRange, NewArtist, NewOrganization, NewVenue, Organization,
     OrganizationEditableAttributes,
 };
 use chrono::NaiveDateTime;
@@ -9,6 +9,7 @@ use db::Connection;
 use errors::*;
 use helpers::application;
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Deserialize)]
 pub struct PathParameters {
@@ -118,6 +119,33 @@ pub fn add_venue(
     new_venue.organization_id = Some(parameters.id);
     let venue = new_venue.commit(connection.get())?;
     Ok(HttpResponse::Created().json(&venue))
+}
+
+pub fn add_artist(
+    (connection, parameters, new_artist, user): (
+        Connection,
+        Path<PathParameters>,
+        Json<NewArtist>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    if !(user.has_scope(Scopes::OrgAdmin)
+        || (user.has_scope(Scopes::OrgWrite)
+            && Organization::find(parameters.id, connection)?.is_member(&user.user, connection)?))
+    {
+        return application::unauthorized();
+    }
+    let mut new_artist = new_artist.into_inner();
+    new_artist.organization_id = Some(parameters.id);
+
+    match new_artist.validate() {
+        Ok(_) => {
+            let artist = new_artist.commit(connection)?;
+            Ok(HttpResponse::Created().json(&artist))
+        }
+        Err(e) => application::validation_error_response(e),
+    }
 }
 
 pub fn add_user(

@@ -45,7 +45,7 @@ impl fmt::Display for Scopes {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct User {
     pub user: DbUser,
     pub scopes: Vec<String>,

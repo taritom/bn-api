@@ -1,6 +1,8 @@
 table! {
     artists (id) {
         id -> Uuid,
+        organization_id -> Nullable<Uuid>,
+        is_private -> Bool,
         name -> Text,
         bio -> Text,
         image_url -> Nullable<Text>,
@@ -143,16 +145,6 @@ table! {
 }
 
 table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     organizations (id) {
         id -> Uuid,
         owner_user_id -> Uuid,
@@ -166,6 +158,16 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Nullable<Uuid>,
+    }
+}
+
+table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -274,6 +276,7 @@ table! {
     }
 }
 
+joinable!(artists -> organizations (organization_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
 joinable!(event_interest -> events (event_id));
@@ -315,8 +318,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organization_users,
     organizations,
+    organization_users,
     price_points,
     regions,
     ticket_holdings,

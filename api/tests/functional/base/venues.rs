@@ -10,8 +10,14 @@ use uuid::Uuid;
 
 pub fn index(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let venue = database.create_venue().finish();
-    let venue2 = database.create_venue().finish();
+    let venue = database
+        .create_venue()
+        .with_name("Venue1".to_string())
+        .finish();
+    let venue2 = database
+        .create_venue()
+        .with_name("Venue2".to_string())
+        .finish();
 
     let expected_venues = vec![venue, venue2];
     let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
@@ -122,7 +128,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     assert_eq!(updated_venue.name, new_name);
 }
 
-pub fn show_from_organizations(role: Roles, should_succeed: bool) {
+pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().with_user(&user).finish();
@@ -144,11 +150,17 @@ pub fn show_from_organizations(role: Roles, should_succeed: bool) {
     let all_venues = vec![venue, venue2];
     let venue_expected_json = serde_json::to_string(&all_venues).unwrap();
 
-    let user = support::create_auth_user(role, &database);
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
+
+    let mut user = None;
+
+    if role.is_some() {
+        user = Some(support::create_auth_user(role.unwrap(), &database));
+    }
+
     let response: HttpResponse =
         venues::show_from_organizations((database.connection.into(), path, user)).into();
 

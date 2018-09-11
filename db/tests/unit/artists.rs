@@ -10,7 +10,7 @@ fn commit() {
     let bio = "Bio";
     let website_url = "http://www.example.com";
 
-    let artist = Artist::create(name, bio, website_url)
+    let artist = Artist::create(name, None, None, bio, website_url)
         .commit(project.get_connection())
         .unwrap();
     assert_eq!(name, artist.name);
@@ -25,9 +25,11 @@ fn new_artist_validate() {
     let bio = "Bio";
     let website_url = "invalid.com";
 
-    let mut artist = Artist::create(name, bio, website_url);
+    let mut artist = Artist::create(name, None, None, bio, website_url);
+
     artist.image_url = Some("invalid".into());
     artist.thumb_image_url = Some("invalid".into());
+
     artist.youtube_video_urls = Some(vec!["h".into()]);
 
     let result = artist.validate();
@@ -99,7 +101,7 @@ fn all() {
     assert_eq!(name, artist.name);
     assert_eq!(artist.id.to_string().is_empty(), false);
 
-    let found_artists = Artist::all(project.get_connection()).unwrap();
+    let found_artists = Artist::all(None, project.get_connection()).unwrap();
     assert_eq!(1, found_artists.len());
     assert_eq!(found_artists[0].id, artist.id);
     assert_eq!(found_artists[0].name, artist.name);
@@ -109,7 +111,7 @@ fn all() {
     assert_eq!(name2, artist2.name);
     assert_eq!(artist2.id.to_string().is_empty(), false);
 
-    let found_artists = Artist::all(project.get_connection()).unwrap();
+    let found_artists = Artist::all(None, project.get_connection()).unwrap();
     assert_eq!(2, found_artists.len());
     assert_eq!(found_artists[0].id, artist.id);
     assert_eq!(found_artists[0].name, artist.name);
@@ -147,4 +149,42 @@ fn destroy() {
     let artist = project.create_artist().finish();
     assert!(artist.destroy(project.get_connection()).unwrap() > 0);
     assert!(Artist::find(&artist.id, project.get_connection()).is_err());
+}
+
+#[test]
+fn find_via_org() {
+    let project = TestProject::new();
+    let org1 = project.create_organization().finish();
+    let artist1 = project
+        .create_artist()
+        .with_name("Artist1".to_string())
+        .with_organization(org1.id)
+        .finish();
+
+    let artist2 = project
+        .create_artist()
+        .with_name("Artist2".to_string())
+        .with_organization(org1.id)
+        .finish();
+
+    let user = project.create_user().finish();
+
+    let all_artists = vec![artist1, artist2];
+
+    let found_artists =
+        Artist::find_for_organization(None, org1.id, project.get_connection()).unwrap();
+    assert_eq!(found_artists, all_artists);
+
+    // Add another venue for another org to make sure it isn't included
+    let org2 = project.create_organization().with_owner(&user).finish();
+    let artist3 = project
+        .create_artist()
+        .with_name("Artist3".to_string())
+        .with_organization(org2.id)
+        .finish();
+
+    let found_artists =
+        Artist::find_for_organization(None, org1.id, project.get_connection()).unwrap();
+    assert_eq!(found_artists, all_artists);
+    assert!(!found_artists.contains(&artist3));
 }

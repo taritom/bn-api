@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, Json, Path};
 use auth::user::Scopes;
 use auth::user::User;
-use bigneon_db::models::{NewVenue, Venue, VenueEditableAttributes};
+use bigneon_db::models::{NewVenue, Organization, Venue, VenueEditableAttributes};
 use db::Connection;
 use errors::*;
 use helpers::application;
@@ -33,12 +33,14 @@ pub fn show(
 }
 
 pub fn show_from_organizations(
-    (connection, organization_id, user): (Connection, Path<PathParameters>, User),
+    (connection, organization_id, user): (Connection, Path<PathParameters>, Option<User>),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::VenueRead) {
-        return application::unauthorized();
-    }
-    let venues = Venue::find_for_organization(organization_id.id, connection.get())?;
+    let venues = match user {
+        Some(u) => {
+            Venue::find_for_organization(Some(u.id()), organization_id.id, connection.get())?
+        }
+        None => Venue::find_for_organization(None, organization_id.id, connection.get())?,
+    };
     Ok(HttpResponse::Ok().json(&venues))
 }
 
@@ -60,12 +62,18 @@ pub fn update(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::VenueWrite) {
+    let connection = connection.get();
+
+    let venue = Venue::find(parameters.id, connection)?;
+
+    if !user.has_scope(Scopes::VenueWrite)
+        && !(user.has_scope(Scopes::OrgWrite) && venue.organization_id.is_some()
+            && Organization::find(venue.organization_id.unwrap(), connection)?
+                .is_member(&user.user, connection)?)
+    {
         return application::unauthorized();
     }
 
-    let connection = connection.get();
-    let venue = Venue::find(parameters.id, connection)?;
     let updated_venue = venue.update(venue_parameters.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(updated_venue))
 }

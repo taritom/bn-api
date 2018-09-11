@@ -127,6 +127,56 @@ mod add_user_tests {
 }
 
 #[cfg(test)]
+mod add_venue_tests {
+    use super::*;
+    #[test]
+    fn add_venue_org_member() {
+        organizations::add_venue(Roles::OrgMember, false);
+    }
+    #[test]
+    fn add_venue_guest() {
+        organizations::add_venue(Roles::Guest, false);
+    }
+    #[test]
+    fn add_venue_admin() {
+        organizations::add_venue(Roles::Admin, true);
+    }
+    #[test]
+    fn add_venue_user() {
+        organizations::add_venue(Roles::User, false);
+    }
+    #[test]
+    fn add_venue_org_owner() {
+        organizations::add_venue(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod add_artist_tests {
+    use super::*;
+    #[test]
+    fn add_artist_org_member() {
+        organizations::add_artist(Roles::OrgMember, false);
+    }
+    #[test]
+    fn add_artist_guest() {
+        organizations::add_artist(Roles::Guest, false);
+    }
+    #[test]
+    fn add_artist_admin() {
+        organizations::add_artist(Roles::Admin, true);
+    }
+    #[test]
+    fn add_artist_user() {
+        organizations::add_artist(Roles::User, false);
+    }
+    #[test]
+    fn add_artist_org_owner() {
+        organizations::add_artist(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod update_tests {
     use super::*;
     #[test]

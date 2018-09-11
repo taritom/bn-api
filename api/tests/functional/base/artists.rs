@@ -14,6 +14,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let website_url = "http://www.example.com";
 
     let json = Json(NewArtist {
+        organization_id: None,
+        is_private: None,
         name: name.to_string(),
         bio: bio.to_string(),
         website_url: Some(website_url.to_string()),
@@ -43,6 +45,8 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let bio = "Bio";
     let website_url = "invalid-format.com";
     let json = Json(NewArtist {
+        organization_id: None,
+        is_private: None,
         name: name.to_string(),
         bio: bio.to_string(),
         website_url: Some(website_url.to_string()),

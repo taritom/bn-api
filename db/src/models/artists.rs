@@ -2,16 +2,19 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use schema::artists;
+use schema::{artists, organization_users};
+use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 use validator::Validate;
 use validators;
 
-#[derive(Associations, Deserialize, Identifiable, Queryable, Serialize)]
+#[derive(Associations, Deserialize, Identifiable, Queryable, Serialize, Debug, PartialEq)]
 pub struct Artist {
     pub id: Uuid,
+    pub organization_id: Option<Uuid>,
+    pub is_private: bool,
     pub name: String,
     pub bio: String,
     pub image_url: Option<String>,
@@ -30,6 +33,8 @@ pub struct Artist {
 #[derive(Insertable, Default, Deserialize, Validate)]
 #[table_name = "artists"]
 pub struct NewArtist {
+    pub organization_id: Option<Uuid>,
+    pub is_private: Option<bool>,
     pub name: String,
     pub bio: String,
     #[validate(url)]
@@ -60,8 +65,16 @@ impl NewArtist {
 }
 
 impl Artist {
-    pub fn create(name: &str, bio: &str, website_url: &str) -> NewArtist {
+    pub fn create(
+        name: &str,
+        organization_id: Option<Uuid>,
+        is_private: Option<bool>,
+        bio: &str,
+        website_url: &str,
+    ) -> NewArtist {
         NewArtist {
+            organization_id,
+            is_private,
             name: String::from(name),
             bio: String::from(bio),
             website_url: Some(String::from(website_url)),
@@ -69,12 +82,30 @@ impl Artist {
         }
     }
 
-    pub fn all(conn: &PgConnection) -> Result<Vec<Artist>, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Unable to load artists",
-            artists::table.load(conn),
-        )
+    pub fn all(user_id: Option<Uuid>, conn: &PgConnection) -> Result<Vec<Artist>, DatabaseError> {
+        let query = match user_id {
+            Some(u) => artists::table
+                .left_join(
+                    organization_users::table.on(artists::organization_id
+                        .eq(organization_users::organization_id.nullable())
+                        .and(organization_users::user_id.eq(u))),
+                )
+                .filter(
+                    organization_users::user_id
+                        .eq(u)
+                        .or(artists::is_private.eq(false)),
+                )
+                .order_by(artists::name)
+                .select(artists::all_columns)
+                .load(conn),
+            None => artists::table
+                .filter(artists::is_private.eq(false))
+                .order_by(artists::name)
+                .select(artists::all_columns)
+                .load(conn),
+        };
+
+        query.to_db_error(ErrorCode::QueryError, "Unable to load all artists")
     }
 
     pub fn find(id: &Uuid, conn: &PgConnection) -> Result<Artist, DatabaseError> {
@@ -83,6 +114,38 @@ impl Artist {
             "Error loading artist",
             artists::table.find(id).first::<Artist>(conn),
         )
+    }
+
+    pub fn find_for_organization(
+        user_id: Option<Uuid>,
+        organization_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<Artist>, DatabaseError> {
+        let query = match user_id {
+            Some(u) => artists::table
+                .left_join(
+                    organization_users::table.on(artists::organization_id
+                        .eq(organization_users::organization_id.nullable())
+                        .and(organization_users::user_id.eq(u))),
+                )
+                .filter(
+                    organization_users::user_id
+                        .eq(u)
+                        .or(artists::is_private.eq(false)),
+                )
+                .filter(artists::organization_id.eq(organization_id))
+                .order_by(artists::name)
+                .select(artists::all_columns)
+                .load(conn),
+            None => artists::table
+                .filter(artists::is_private.eq(false))
+                .filter(artists::organization_id.eq(organization_id))
+                .order_by(artists::name)
+                .select(artists::all_columns)
+                .load(conn),
+        };
+
+        query.to_db_error(ErrorCode::QueryError, "Unable to load all artists")
     }
 
     pub fn update(

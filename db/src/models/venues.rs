@@ -122,10 +122,12 @@ impl Venue {
                         .eq(u)
                         .or(venues::is_private.eq(false)),
                 )
+                .order_by(venues::name)
                 .select(venues::all_columns)
                 .load(conn),
             None => venues::table
                 .filter(venues::is_private.eq(false))
+                .order_by(venues::name)
                 .select(venues::all_columns)
                 .load(conn),
         };
@@ -134,14 +136,35 @@ impl Venue {
     }
 
     pub fn find_for_organization(
+        user_id: Option<Uuid>,
         organization_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<Venue>, DatabaseError> {
-        venues::table
-            .filter(venues::organization_id.eq(organization_id))
-            .order_by(venues::name)
-            .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not retrieve venues")
+        let query = match user_id {
+            Some(u) => venues::table
+                .left_join(
+                    organization_users::table.on(venues::organization_id
+                        .eq(organization_users::organization_id.nullable())
+                        .and(organization_users::user_id.eq(u))),
+                )
+                .filter(
+                    organization_users::user_id
+                        .eq(u)
+                        .or(venues::is_private.eq(false)),
+                )
+                .filter(venues::organization_id.eq(organization_id))
+                .order_by(venues::name)
+                .select(venues::all_columns)
+                .load(conn),
+            None => venues::table
+                .filter(venues::is_private.eq(false))
+                .filter(venues::organization_id.eq(organization_id))
+                .order_by(venues::name)
+                .select(venues::all_columns)
+                .load(conn),
+        };
+
+        query.to_db_error(ErrorCode::QueryError, "Unable to load all venues")
     }
 
     pub fn add_to_organization(

@@ -79,7 +79,7 @@ fn all() {
 }
 
 #[test]
-fn create_find_via_org() {
+fn find_via_org() {
     let project = TestProject::new();
 
     let venue = project
@@ -105,7 +105,7 @@ fn create_find_via_org() {
     let found_venues = organization.venues(project.get_connection()).unwrap();
     assert_eq!(found_venues, all_venues);
     let found_venues =
-        Venue::find_for_organization(organization.id, project.get_connection()).unwrap();
+        Venue::find_for_organization(None, organization.id, project.get_connection()).unwrap();
     assert_eq!(found_venues, all_venues);
 
     // Add another venue for another org to make sure it isn't included
@@ -116,7 +116,7 @@ fn create_find_via_org() {
         .unwrap();
 
     let found_venues =
-        Venue::find_for_organization(organization.id, project.get_connection()).unwrap();
+        Venue::find_for_organization(None, organization.id, project.get_connection()).unwrap();
     assert_eq!(found_venues, all_venues);
     assert!(!found_venues.contains(&other_venue));
 }

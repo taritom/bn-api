@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, Json, Path};
 use auth::user::Scopes;
 use auth::user::User;
-use bigneon_db::models::{Artist, ArtistEditableAttributes, NewArtist};
+use bigneon_db::models::{Artist, ArtistEditableAttributes, NewArtist, Organization};
 use db::Connection;
 use errors::*;
 use helpers::application;
@@ -13,8 +13,11 @@ pub struct PathParameters {
     pub id: Uuid,
 }
 
-pub fn index(connection: Connection) -> Result<HttpResponse, BigNeonError> {
-    let artists = Artist::all(connection.get())?;
+pub fn index((connection, user): (Connection, Option<User>)) -> Result<HttpResponse, BigNeonError> {
+    let artists = match user {
+        Some(u) => Artist::all(Some(u.id()), connection.get())?,
+        None => Artist::all(None, connection.get())?,
+    };
     Ok(HttpResponse::Ok().json(&artists))
 }
 
@@ -41,6 +44,18 @@ pub fn create(
     }
 }
 
+pub fn show_from_organizations(
+    (connection, organization_id, user): (Connection, Path<PathParameters>, Option<User>),
+) -> Result<HttpResponse, BigNeonError> {
+    let artists = match user {
+        Some(u) => {
+            Artist::find_for_organization(Some(u.id()), organization_id.id, connection.get())?
+        }
+        None => Artist::find_for_organization(None, organization_id.id, connection.get())?,
+    };
+    Ok(HttpResponse::Ok().json(&artists))
+}
+
 pub fn update(
     (connection, parameters, artist_parameters, user): (
         Connection,
@@ -49,11 +64,17 @@ pub fn update(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::ArtistWrite) {
-        return application::unauthorized();
-    }
     let connection = connection.get();
     let artist = Artist::find(&parameters.id, connection)?;
+
+    if !(user.has_scope(Scopes::ArtistWrite)
+        || (user.has_scope(Scopes::OrgWrite) && artist.organization_id.is_some()
+            && Organization::find(artist.organization_id.unwrap(), connection)?
+                .is_member(&user.user, connection)?))
+    {
+        return application::unauthorized();
+    }
+
     match artist_parameters.validate() {
         Ok(_) => {
             let updated_artist = artist.update(&artist_parameters, connection)?;

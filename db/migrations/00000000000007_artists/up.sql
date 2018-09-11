@@ -1,6 +1,8 @@
 -- Define the artists table
 CREATE TABLE artists (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  organization_id uuid NULL REFERENCES organizations (id),
+  is_private BOOLEAN NOT NULL DEFAULT FALSE,
   name TEXT NOT NULL,
   bio TEXT NOT NULL,
   image_url TEXT NULL,
@@ -17,3 +19,4 @@ CREATE TABLE artists (
 );
 
 CREATE INDEX index_artists_name ON artists (name);
+CREATE INDEX index_artists_organization_id ON artists (organization_id);

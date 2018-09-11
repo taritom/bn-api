@@ -1,8 +1,8 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::organizations::{self, PathParameters, UpdateOwnerRequest};
 use bigneon_db::models::{
-    DisplayUser, FeeScheduleRange, NewOrganization, Organization, OrganizationEditableAttributes,
-    OrganizationUser, Roles,
+    Artist, DisplayUser, FeeScheduleRange, NewArtist, NewOrganization, NewVenue, Organization,
+    OrganizationEditableAttributes, OrganizationUser, Roles, Venue,
 };
 use chrono::NaiveDateTime;
 use serde_json;
@@ -215,6 +215,85 @@ pub fn add_user(role: Roles, should_test_succeed: bool) {
         organizations::add_user((database.connection.into(), path, json, user)).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}
+
+pub fn add_venue(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let organization = database.create_organization().finish();
+
+    let user = support::create_auth_user(role, &database);
+    let test_request = TestRequest::create();
+    let name = "Venue";
+    let json = Json(NewVenue {
+        name: name.clone().to_string(),
+        region_id: None,
+        organization_id: None,
+        is_private: None,
+        address: None,
+        country: None,
+        city: None,
+        phone: None,
+        state: None,
+        postal_code: None,
+    });
+
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+
+    let response: HttpResponse =
+        organizations::add_venue((database.connection.into(), path, json, user)).into();
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let body = support::unwrap_body_to_string(&response).unwrap();
+        let venue: Venue = serde_json::from_str(&body).unwrap();
+        assert_eq!(venue.name, name);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}
+
+pub fn add_artist(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let user = support::create_auth_user(role, &database);
+    let organization = database
+        .create_organization()
+        .with_user(&user.user)
+        .finish();
+
+    let test_request = TestRequest::create();
+    let name = "Artist Example";
+    let bio = "Bio";
+    let website_url = "http://www.example.com";
+
+    let json = Json(NewArtist {
+        organization_id: None,
+        is_private: None,
+        name: name.to_string(),
+        bio: bio.to_string(),
+        website_url: Some(website_url.to_string()),
+        image_url: None,
+        thumb_image_url: None,
+        youtube_video_urls: None,
+        facebook_username: None,
+        instagram_username: None,
+        snapchat_username: None,
+        soundcloud_username: None,
+        bandcamp_username: None,
+    });
+
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+
+    let response: HttpResponse =
+        organizations::add_artist((database.connection.into(), path, json, user)).into();
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let body = support::unwrap_body_to_string(&response).unwrap();
+        let artist: Artist = serde_json::from_str(&body).unwrap();
+        assert_eq!(artist.name, name);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
