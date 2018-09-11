@@ -1,1 +1,1 @@
-pub mod user_contact_attributes;
+pub mod user_profile_attributes;

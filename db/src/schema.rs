@@ -141,6 +141,16 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         owner_user_id -> Uuid,
@@ -154,16 +164,6 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Nullable<Uuid>,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -228,6 +228,9 @@ table! {
         last_name -> Text,
         email -> Nullable<Text>,
         phone -> Nullable<Text>,
+        profile_pic_url -> Nullable<Text>,
+        thumb_profile_pic_url -> Nullable<Text>,
+        cover_photo_url -> Nullable<Text>,
         hashed_pw -> Text,
         password_modified_at -> Timestamp,
         created_at -> Timestamp,
@@ -310,8 +313,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     price_points,
     regions,
     ticket_holdings,

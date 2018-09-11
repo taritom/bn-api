@@ -29,6 +29,9 @@ pub struct User {
     pub last_name: String,
     pub email: Option<String>,
     pub phone: Option<String>,
+    pub profile_pic_url: Option<String>,
+    pub thumb_profile_pic_url: Option<String>,
+    pub cover_photo_url: Option<String>,
     pub hashed_pw: String,
     pub password_modified_at: NaiveDateTime,
     pub created_at: NaiveDateTime,
@@ -47,6 +50,9 @@ pub struct DisplayUser {
     pub last_name: String,
     pub email: Option<String>,
     pub phone: Option<String>,
+    pub profile_pic_url: Option<String>,
+    pub thumb_profile_pic_url: Option<String>,
+    pub cover_photo_url: Option<String>,
 }
 
 #[derive(AsChangeset, Default, Deserialize, Validate)]
@@ -59,6 +65,12 @@ pub struct UserEditableAttributes {
     pub phone: Option<String>,
     pub active: Option<bool>,
     pub role: Option<Vec<String>>,
+    #[validate(url)]
+    pub profile_pic_url: Option<String>,
+    #[validate(url)]
+    pub thumb_profile_pic_url: Option<String>,
+    #[validate(url)]
+    pub cover_photo_url: Option<String>,
 }
 
 impl NewUser {
@@ -215,6 +227,9 @@ impl From<User> for DisplayUser {
             last_name: user.last_name,
             email: user.email,
             phone: user.phone,
+            profile_pic_url: user.profile_pic_url,
+            thumb_profile_pic_url: user.thumb_profile_pic_url,
+            cover_photo_url: user.cover_photo_url,
         }
     }
 }

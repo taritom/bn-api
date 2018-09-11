@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse, Json};
 use bigneon_api::controllers::users::{self, CurrentUser};
-use bigneon_api::models::{RegisterRequest, UserContactAttributes};
+use bigneon_api::models::{RegisterRequest, UserProfileAttributes};
 use bigneon_db::models::Roles;
 use functional::base;
 use serde_json;
@@ -123,7 +123,7 @@ pub fn update_current_user() {
     let database = TestDatabase::new();
     let user = support::create_auth_user(Roles::Guest, &database);
     let email = "new-email@tari.com";
-    let mut attributes: UserContactAttributes = Default::default();
+    let mut attributes: UserProfileAttributes = Default::default();
     attributes.email = Some(email.clone().into());
     let json = Json(attributes);
 
@@ -139,7 +139,7 @@ pub fn update_current_user() {
 pub fn update_current_user_with_validation_errors() {
     let database = TestDatabase::new();
     let user = support::create_auth_user(Roles::Guest, &database);
-    let mut attributes: UserContactAttributes = Default::default();
+    let mut attributes: UserProfileAttributes = Default::default();
     attributes.email = Some("bad-email".into());
     let json = Json(attributes);
 
@@ -162,7 +162,7 @@ fn update_current_user_address_exists() {
     let existing_user = database.create_user().finish();
 
     let user = support::create_auth_user(Roles::Guest, &database);
-    let mut attributes: UserContactAttributes = Default::default();
+    let mut attributes: UserProfileAttributes = Default::default();
     attributes.email = existing_user.email;
     let json = Json(attributes);
 

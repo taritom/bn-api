@@ -5,7 +5,7 @@ use bigneon_db::models::{DisplayUser, NewUser, User};
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{RegisterRequest, UserContactAttributes};
+use models::{RegisterRequest, UserProfileAttributes};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -37,7 +37,7 @@ pub fn current_user(
 }
 
 pub fn update_current_user(
-    (connection, user_parameters, user): (Connection, Json<UserContactAttributes>, AuthUser),
+    (connection, user_parameters, user): (Connection, Json<UserProfileAttributes>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(user.id(), connection)?;
