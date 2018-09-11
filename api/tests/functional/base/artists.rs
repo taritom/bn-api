@@ -17,12 +17,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         name: name.to_string(),
         bio: bio.to_string(),
         website_url: Some(website_url.to_string()),
-        youtube_video_urls: None,
-        facebook_username: None,
-        instagram_username: None,
-        snapchat_username: None,
-        soundcloud_username: None,
-        bandcamp_username: None,
+        ..Default::default()
     });
 
     let user = support::create_auth_user(role, &database);
@@ -52,11 +47,7 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
         bio: bio.to_string(),
         website_url: Some(website_url.to_string()),
         youtube_video_urls: Some(vec!["invalid".to_string()]),
-        facebook_username: None,
-        instagram_username: None,
-        snapchat_username: None,
-        soundcloud_username: None,
-        bandcamp_username: None,
+        ..Default::default()
     });
 
     let user = support::create_auth_user(role, &database);

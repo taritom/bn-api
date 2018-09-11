@@ -26,11 +26,21 @@ fn new_artist_validate() {
     let website_url = "invalid.com";
 
     let mut artist = Artist::create(name, bio, website_url);
+    artist.image_url = Some("invalid".into());
+    artist.thumb_image_url = Some("invalid".into());
     artist.youtube_video_urls = Some(vec!["h".into()]);
 
     let result = artist.validate();
     assert!(result.is_err());
     let errors = result.unwrap_err().inner();
+
+    assert!(errors.contains_key("image_url"));
+    assert_eq!(errors["image_url"].len(), 1);
+    assert_eq!(errors["image_url"][0].code, "url");
+
+    assert!(errors.contains_key("youtube_video_urls"));
+    assert_eq!(errors["youtube_video_urls"].len(), 1);
+    assert_eq!(errors["youtube_video_urls"][0].code, "url");
 
     assert!(errors.contains_key("website_url"));
     assert_eq!(errors["website_url"].len(), 1);

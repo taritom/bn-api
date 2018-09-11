@@ -33,7 +33,7 @@ pub struct Event {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Insertable, Serialize, Deserialize, Validate)]
+#[derive(Default, Insertable, Serialize, Deserialize, Validate)]
 #[table_name = "events"]
 pub struct NewEvent {
     pub name: String,
@@ -91,9 +91,7 @@ impl Event {
             door_time,
             status: EventStatus::Draft.to_string(),
             publish_date,
-            promo_image_url: None,
-            additional_info: None,
-            age_limit: None,
+            ..Default::default()
         }
     }
 

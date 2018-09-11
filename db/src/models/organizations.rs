@@ -26,7 +26,7 @@ pub struct Organization {
     pub fee_schedule_id: Option<Uuid>,
 }
 
-#[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "organizations"]
 pub struct NewOrganization {
     pub owner_user_id: Uuid,
@@ -70,12 +70,7 @@ impl Organization {
         NewOrganization {
             owner_user_id: owner_user_id,
             name: name.into(),
-            address: None,
-            city: None,
-            state: None,
-            country: None,
-            postal_code: None,
-            phone: None,
+            ..Default::default()
         }
     }
 

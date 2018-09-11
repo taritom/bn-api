@@ -3,6 +3,8 @@ table! {
         id -> Uuid,
         name -> Text,
         bio -> Text,
+        image_url -> Nullable<Text>,
+        thumb_image_url -> Nullable<Text>,
         website_url -> Nullable<Text>,
         youtube_video_urls -> Array<Text>,
         facebook_username -> Nullable<Text>,

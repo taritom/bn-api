@@ -14,6 +14,8 @@ pub struct Artist {
     pub id: Uuid,
     pub name: String,
     pub bio: String,
+    pub image_url: Option<String>,
+    pub thumb_image_url: Option<String>,
     pub website_url: Option<String>,
     pub youtube_video_urls: Vec<String>,
     pub facebook_username: Option<String>,
@@ -25,11 +27,15 @@ pub struct Artist {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Insertable, Deserialize, Validate)]
+#[derive(Insertable, Default, Deserialize, Validate)]
 #[table_name = "artists"]
 pub struct NewArtist {
     pub name: String,
     pub bio: String,
+    #[validate(url)]
+    pub image_url: Option<String>,
+    #[validate(url)]
+    pub thumb_image_url: Option<String>,
     #[validate(url)]
     pub website_url: Option<String>,
     #[validate(custom = "validators::validate_urls")]
@@ -59,12 +65,7 @@ impl Artist {
             name: String::from(name),
             bio: String::from(bio),
             website_url: Some(String::from(website_url)),
-            youtube_video_urls: None,
-            facebook_username: None,
-            instagram_username: None,
-            snapchat_username: None,
-            soundcloud_username: None,
-            bandcamp_username: None,
+            ..Default::default()
         }
     }
 
@@ -112,6 +113,10 @@ impl Artist {
 pub struct ArtistEditableAttributes {
     pub name: Option<String>,
     pub bio: Option<String>,
+    #[validate(url)]
+    pub image_url: Option<String>,
+    #[validate(url)]
+    pub thumb_image_url: Option<String>,
     #[validate(url)]
     pub website_url: Option<String>,
     #[validate(custom = "validators::validate_urls")]

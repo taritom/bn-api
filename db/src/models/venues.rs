@@ -1,6 +1,5 @@
 use chrono::NaiveDateTime;
 use diesel;
-use diesel::dsl::exists;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::Region;
@@ -45,7 +44,7 @@ pub struct VenueEditableAttributes {
     pub phone: Option<String>,
 }
 
-#[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "venues"]
 pub struct NewVenue {
     pub name: String,
@@ -84,12 +83,7 @@ impl Venue {
             region_id,
             is_private,
             organization_id,
-            address: None,
-            city: None,
-            state: None,
-            country: None,
-            postal_code: None,
-            phone: None,
+            ..Default::default()
         }
     }
 
