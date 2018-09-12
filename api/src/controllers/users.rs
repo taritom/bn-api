@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, Json, Path, Query};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
-use bigneon_db::models::{DisplayUser, NewUser, User};
+use bigneon_db::models::{DisplayUser, NewUser, Organization, User};
 use db::Connection;
 use errors::*;
 use helpers::application;
@@ -63,6 +63,17 @@ pub fn show(
 
     let user = User::find(parameters.id, connection.get())?;
     Ok(HttpResponse::Ok().json(&user.for_display()))
+}
+
+pub fn list_organizations(
+    (connection, parameters, user): (Connection, Path<PathParameters>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
+    if !user.has_scope(Scopes::UserRead) {
+        return application::unauthorized();
+    }
+    let organization_links =
+        Organization::all_org_names_linked_to_user(parameters.id, connection.get())?;
+    Ok(HttpResponse::Ok().json(&organization_links))
 }
 
 pub fn find_by_email(

@@ -8,6 +8,31 @@ use support;
 use support::database::TestDatabase;
 
 #[cfg(test)]
+mod user_list_organizations_tests {
+    use super::*;
+    #[test]
+    fn list_organizations_org_member() {
+        base::users::list_organizations(Roles::OrgMember, false);
+    }
+    #[test]
+    fn list_organizations_guest() {
+        base::users::list_organizations(Roles::Guest, false);
+    }
+    #[test]
+    fn list_organizations_admin() {
+        base::users::list_organizations(Roles::Admin, true);
+    }
+    #[test]
+    fn list_organizations_user() {
+        base::users::list_organizations(Roles::User, false);
+    }
+    #[test]
+    fn list_organizations_org_owner() {
+        base::users::list_organizations(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod user_search_by_email_tests {
     use super::*;
     #[test]

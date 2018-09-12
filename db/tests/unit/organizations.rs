@@ -150,6 +150,57 @@ fn all_linked_to_user() {
 }
 
 #[test]
+fn all_org_names_linked_to_user() {
+    let project = TestProject::new();
+    let user1 = project.create_user().finish(); //Member and owner link
+    let user2 = project.create_user().finish(); //Only owner link
+    let user3 = project.create_user().finish(); //Only membership link
+    let user4 = project.create_user().finish(); //No links
+    let org1 = project
+        .create_organization()
+        .with_name(String::from("Test Org1"))
+        .with_owner(&user1)
+        .with_user(&user3)
+        .finish();
+    let org2 = project
+        .create_organization()
+        .with_name(String::from("Test Org2"))
+        .with_owner(&user2)
+        .with_user(&user1)
+        .finish();
+    let user1_links =
+        Organization::all_org_names_linked_to_user(user1.id, project.get_connection()).unwrap();
+    let user2_links =
+        Organization::all_org_names_linked_to_user(user2.id, project.get_connection()).unwrap();
+    let user3_links =
+        Organization::all_org_names_linked_to_user(user3.id, project.get_connection()).unwrap();
+    let user4_links =
+        Organization::all_org_names_linked_to_user(user4.id, project.get_connection()).unwrap();
+    let role_owner_string = String::from("owner");
+    let role_member_string = String::from("member");
+    //User1 has 2 links, owner of Org1 and member of Org2
+    assert_eq!(user1_links.len(), 2);
+    assert_eq!(
+        (user1_links[0].id == org1.id) && (user1_links[1].id == org2.id),
+        true
+    );
+    assert_eq!(
+        (user1_links[0].role == role_owner_string) && (user1_links[1].role == role_member_string),
+        true
+    );
+    //User2 has only 1 owner link with Org2
+    assert_eq!(user2_links.len(), 1);
+    assert_eq!(user2_links[0].id, org2.id);
+    assert_eq!(user2_links[0].role, role_owner_string);
+    //User3 has only 1 member link with Org1
+    assert_eq!(user3_links.len(), 1);
+    assert_eq!(user3_links[0].id, org1.id);
+    assert_eq!(user3_links[0].role, role_member_string);
+    //User4 has no links
+    assert_eq!(user4_links.len(), 0);
+}
+
+#[test]
 fn all() {
     let project = TestProject::new();
     let user = project.create_user().finish();

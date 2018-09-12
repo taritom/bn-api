@@ -26,6 +26,13 @@ pub struct Organization {
     pub fee_schedule_id: Option<Uuid>,
 }
 
+#[derive(Serialize)]
+pub struct DisplayOrganizationLink {
+    pub id: Uuid,
+    pub name: String,
+    pub role: String,
+}
+
 #[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "organizations"]
 pub struct NewOrganization {
@@ -202,6 +209,46 @@ impl Organization {
         orgs.append(&mut org_members);
         orgs.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(orgs)
+    }
+
+    pub fn all_org_names_linked_to_user(
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<DisplayOrganizationLink>, DatabaseError> {
+        //Compile list of organisations where the user is the owner
+        let org_owner_list: Vec<Organization> = organizations::table
+            .filter(organizations::owner_user_id.eq(user_id))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load all organizations")?;
+        //Compile list of organisations where the user is a member of that organisation
+        let org_member_list: Vec<Organization> = organization_users::table
+            .filter(organization_users::user_id.eq(user_id))
+            .inner_join(organizations::table)
+            .select(organizations::all_columns)
+            .load::<Organization>(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load all organizations")?;
+        //Compile complete list with only display information
+        let role_owner_string = String::from("owner");
+        let role_member_string = String::from("member");
+        let mut result_list: Vec<DisplayOrganizationLink> = Vec::new();
+        for curr_org_owner in &org_owner_list {
+            let curr_entry = DisplayOrganizationLink {
+                id: curr_org_owner.id,
+                name: curr_org_owner.name.clone(),
+                role: role_owner_string.clone(),
+            };
+            result_list.push(curr_entry);
+        }
+        for curr_org_member in &org_member_list {
+            let curr_entry = DisplayOrganizationLink {
+                id: curr_org_member.id,
+                name: curr_org_member.name.clone(),
+                role: role_member_string.clone(),
+            };
+            result_list.push(curr_entry);
+        }
+        result_list.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(result_list)
     }
 
     pub fn remove_user(&self, user_id: Uuid, conn: &PgConnection) -> Result<usize, DatabaseError> {
