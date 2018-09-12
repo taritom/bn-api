@@ -2,7 +2,7 @@ use dotenv::dotenv;
 use mail::transports::{SmtpTransport, TestTransport, Transport};
 use std::env;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Environment {
     Development,
     Test,
@@ -19,13 +19,14 @@ pub struct Config {
     pub database_url: String,
     pub domain: String,
     pub environment: Environment,
+    pub facebook_app_id: Option<String>,
+    pub facebook_app_secret: Option<String>,
+    pub google_recapatcha_secret_key: Option<String>,
     pub mail_from_email: String,
     pub mail_from_name: String,
     pub mail_transport: Box<Transport + Send + Sync>,
     pub token_secret: String,
     pub token_issuer: String,
-    pub facebook_app_id: Option<String>,
-    pub facebook_app_secret: Option<String>,
 }
 
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
@@ -36,6 +37,7 @@ const DATABASE_URL: &str = "DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
+const GOOGLE_RECAPTCHA_SECRET_KEY: &str = "GOOGLE_RECAPTCHA_SECRET_KEY";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
 const TOKEN_SECRET: &str = "TOKEN_SECRET";
 const TOKEN_ISSUER: &str = "TOKEN_ISSUER";
@@ -99,6 +101,8 @@ impl Config {
         let front_end_url =
             env::var(&FRONT_END_URL).expect(&format!("Front end url must be defined"));
 
+        let google_recapatcha_secret_key = env::var(&GOOGLE_RECAPTCHA_SECRET_KEY).ok();
+
         Config {
             allowed_origins,
             app_name,
@@ -109,6 +113,7 @@ impl Config {
             environment,
             facebook_app_id,
             facebook_app_secret,
+            google_recapatcha_secret_key,
             mail_from_name,
             mail_from_email,
             mail_transport,

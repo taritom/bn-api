@@ -22,10 +22,10 @@ fn token() {
         .finish();
 
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
     let json = Json(LoginRequest::new("fake@localhost", "strong_password"));
 
-    let response: HttpResponse = auth::token((state, database.connection.into(), json)).into();
+    let response: HttpResponse =
+        auth::token((test_request.request, database.connection.into(), json)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -44,11 +44,10 @@ fn token_invalid_email() {
     database.create_user().finish();
 
     let test_request = TestRequest::create();
-
-    let state = test_request.extract_state();
     let json = Json(LoginRequest::new("incorrect@localhost", "strong_password"));
 
-    let response: HttpResponse = auth::token((state, database.connection.into(), json)).into();
+    let response: HttpResponse =
+        auth::token((test_request.request, database.connection.into(), json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -67,10 +66,10 @@ fn token_incorrect_password() {
         .finish();
 
     let test_request = TestRequest::create();
-    let state = test_request.extract_state();
     let json = Json(LoginRequest::new(&user.email.unwrap(), "incorrect"));
 
-    let response: HttpResponse = auth::token((state, database.connection.into(), json)).into();
+    let response: HttpResponse =
+        auth::token((test_request.request, database.connection.into(), json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();

@@ -1,17 +1,33 @@
-use actix_web::{HttpResponse, Json, State};
+use actix_web::{HttpRequest, HttpResponse, Json, State};
 use auth::{claims::RefreshToken, TokenResponse};
 use bigneon_db::models::User;
+use config::*;
 use crypto::sha2::Sha256;
 use db::Connection;
 use errors::*;
 use helpers::application;
 use jwt::{Header, Token};
+use reqwest;
+use serde_json;
 use server::AppState;
+use std::collections::HashMap;
+
+const GOOGLE_RECAPTCHA_SITE_VERIFY_URL: &'static str =
+    "https://www.google.com/recaptcha/api/siteverify";
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
     email: String,
     password: String,
+    #[serde(rename = "g-recaptcha-response")]
+    captcha_response: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GoogleCaptchaResponse {
+    success: bool,
+    #[serde(rename = "error-codes")]
+    error_codes: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -24,6 +40,7 @@ impl LoginRequest {
         LoginRequest {
             email: String::from(email),
             password: String::from(password),
+            captcha_response: None,
         }
     }
 }
@@ -37,8 +54,33 @@ impl RefreshRequest {
 }
 
 pub fn token(
-    (state, connection, login_request): (State<AppState>, Connection, Json<LoginRequest>),
+    (http_request, connection, login_request): (
+        HttpRequest<AppState>,
+        Connection,
+        Json<LoginRequest>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
+    let state = http_request.state();
+    let connection_info = http_request.connection_info();
+    let remote_ip = connection_info.remote();
+
+    if let Some(ref google_recapatcha_secret_key) = state.config.google_recapatcha_secret_key {
+        match login_request.captcha_response {
+            Some(ref captcha_response) => {
+                if !verify_google_captcha_response(
+                    google_recapatcha_secret_key,
+                    captcha_response,
+                    remote_ip.map(str::to_string),
+                )? {
+                    return application::unauthorized_with_message("Captcha value invalid");
+                }
+            }
+            None => {
+                return application::unauthorized_with_message("Captcha required");
+            }
+        }
+    }
+
     // Generic messaging to prevent exposing user is member of system
     let login_failure_messaging = "Email or password incorrect";
 
@@ -82,4 +124,30 @@ pub fn token_refresh(
     } else {
         application::unauthorized_with_message("Invalid token")
     }
+}
+
+fn verify_google_captcha_response(
+    google_recapatcha_secret_key: &String,
+    captcha_response: &String,
+    remote_ip: Option<String>,
+) -> Result<bool, BigNeonError> {
+    let client = reqwest::Client::new();
+    let mut params = HashMap::new();
+    params.insert("secret", google_recapatcha_secret_key);
+    params.insert("response", captcha_response);
+
+    if let Some(ref remote_ip) = remote_ip {
+        params.insert("remoteip", remote_ip);
+    }
+
+    let response = client
+        .post(GOOGLE_RECAPTCHA_SITE_VERIFY_URL)
+        .form(&params)
+        .send()?
+        .text()?;
+    let google_captcha_response: GoogleCaptchaResponse = serde_json::from_str(&response)?;
+    if let Some(error_codes) = google_captcha_response.error_codes {
+        warn!("Google captcha error encountered: {:?}", error_codes);
+    }
+    Ok(google_captcha_response.success)
 }
