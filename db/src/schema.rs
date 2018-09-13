@@ -99,6 +99,7 @@ table! {
     fee_schedules (id) {
         id -> Uuid,
         name -> Text,
+        version -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

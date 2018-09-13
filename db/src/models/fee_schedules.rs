@@ -7,10 +7,11 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(Queryable, Identifiable, Clone)]
+#[derive(Queryable, Identifiable, Clone, Debug)]
 pub struct FeeSchedule {
     pub id: Uuid,
     pub name: String,
+    pub version: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -34,15 +35,36 @@ impl FeeSchedule {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct NewFeeSchedule {
-    name: String,
-    ranges: Vec<(i64, i64)>,
+    pub name: String,
+    pub ranges: Vec<(i64, i64)>,
 }
 
 impl NewFeeSchedule {
     pub fn commit(self, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
+        let previous_version = fee_schedules::table
+            .filter(fee_schedules::name.eq(&self.name))
+            .order_by(fee_schedules::id.desc())
+            .first::<FeeSchedule>(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading Fee Schedule");
+
+        let next_version = match previous_version {
+            Err(e) => {
+                if e.code == 2000 {
+                    0
+                } else {
+                    return Err(e);
+                }
+            }
+            Ok(pv) => pv.version + 1,
+        };
+
         let result: FeeSchedule = diesel::insert_into(fee_schedules::table)
-            .values(fee_schedules::name.eq(&self.name))
+            .values((
+                fee_schedules::name.eq(&self.name),
+                fee_schedules::version.eq(next_version),
+            ))
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create fee schedule")?;
 
@@ -64,7 +86,7 @@ impl NewFeeSchedule {
     }
 }
 
-#[derive(Queryable, Serialize)]
+#[derive(Queryable, Serialize, Deserialize)]
 pub struct FeeScheduleRange {
     #[allow(dead_code)]
     id: Uuid,

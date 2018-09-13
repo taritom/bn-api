@@ -1,8 +1,8 @@
 use actix_web::{HttpResponse, Json, Path};
 use auth::user::{Scopes, User};
 use bigneon_db::models::{
-    DisplayUser, FeeSchedule, FeeScheduleRange, NewArtist, NewOrganization, NewVenue, Organization,
-    OrganizationEditableAttributes,
+    DisplayUser, FeeSchedule, FeeScheduleRange, NewArtist, NewFeeSchedule, NewOrganization,
+    NewVenue, Organization, OrganizationEditableAttributes,
 };
 use chrono::NaiveDateTime;
 use db::Connection;
@@ -24,6 +24,15 @@ pub struct UpdateOwnerRequest {
 #[derive(Deserialize)]
 pub struct AddUserRequest {
     pub user_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct FeeScheduleWithRanges {
+    pub id: Uuid,
+    pub name: String,
+    pub version: i64,
+    pub created_at: NaiveDateTime,
+    pub ranges: Vec<FeeScheduleRange>,
 }
 
 pub fn index((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
@@ -223,17 +232,35 @@ pub fn show_fee_schedule(
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id.unwrap(), connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;
 
-    #[derive(Serialize)]
-    struct FeeScheduleWithRanges {
-        id: Uuid,
-        name: String,
-        created_at: NaiveDateTime,
-        ranges: Vec<FeeScheduleRange>,
-    }
-
     Ok(HttpResponse::Ok().json(FeeScheduleWithRanges {
         id: fee_schedule.id,
         name: fee_schedule.name,
+        version: fee_schedule.version,
+        created_at: fee_schedule.created_at,
+        ranges: fee_schedule_ranges,
+    }))
+}
+
+pub fn add_fee_schedule(
+    (connection, parameters, json, user): (
+        Connection,
+        Path<PathParameters>,
+        Json<NewFeeSchedule>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    if !user.has_scope(Scopes::OrgAdmin) {
+        return application::unauthorized();
+    }
+    let connection = connection.get();
+
+    let fee_schedule = json.into_inner().commit(connection)?;
+    let fee_schedule_ranges = fee_schedule.ranges(connection)?;
+
+    Ok(HttpResponse::Created().json(FeeScheduleWithRanges {
+        id: fee_schedule.id,
+        name: fee_schedule.name,
+        version: fee_schedule.version,
         created_at: fee_schedule.created_at,
         ranges: fee_schedule_ranges,
     }))

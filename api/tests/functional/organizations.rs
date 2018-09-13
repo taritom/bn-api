@@ -275,3 +275,28 @@ mod show_fee_schedule_tests {
         organizations::show_fee_schedule(Roles::OrgOwner, true);
     }
 }
+
+#[cfg(test)]
+mod add_fee_schedule_tests {
+    use super::*;
+    #[test]
+    fn add_fee_schedule_org_member() {
+        organizations::add_fee_schedule(Roles::OrgMember, false);
+    }
+    #[test]
+    fn add_fee_schedule_guest() {
+        organizations::add_fee_schedule(Roles::Guest, false);
+    }
+    #[test]
+    fn add_fee_schedule_admin() {
+        organizations::add_fee_schedule(Roles::Admin, true);
+    }
+    #[test]
+    fn add_fee_schedule_user() {
+        organizations::add_fee_schedule(Roles::User, false);
+    }
+    #[test]
+    fn add_fee_schedule_org_owner() {
+        organizations::add_fee_schedule(Roles::OrgOwner, false);
+    }
+}

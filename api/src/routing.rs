@@ -59,6 +59,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         })
         .resource("/organizations/{id}/fee_schedule", |r| {
             r.method(Method::GET).with(organizations::show_fee_schedule);
+            r.method(Method::POST).with(organizations::add_fee_schedule);
         })
         .resource("/organizations/{id}/invite", |r| {
             r.method(Method::POST).with(organization_invites::create);
