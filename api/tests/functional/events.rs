@@ -44,6 +44,7 @@ pub fn index() {
         promo_image_url: Option<String>,
         additional_info: Option<String>,
         age_limit: Option<i32>,
+        cancelled_at: Option<NaiveDateTime>,
         venue: Option<Venue>,
     }
 
@@ -61,6 +62,7 @@ pub fn index() {
             promo_image_url: event.promo_image_url,
             additional_info: event.additional_info,
             age_limit: event.age_limit,
+            cancelled_at: event.cancelled_at,
             venue: Some(venue.clone()),
         },
         EventVenueEntry {
@@ -76,6 +78,7 @@ pub fn index() {
             promo_image_url: event2.promo_image_url,
             additional_info: event2.additional_info,
             age_limit: event2.age_limit,
+            cancelled_at: event2.cancelled_at,
             venue: Some(venue),
         },
     ];
@@ -120,6 +123,7 @@ pub fn index_search_returns_only_one_event() {
         promo_image_url: Option<String>,
         additional_info: Option<String>,
         age_limit: Option<i32>,
+        cancelled_at: Option<NaiveDateTime>,
         venue: Option<Venue>,
     }
 
@@ -136,6 +140,7 @@ pub fn index_search_returns_only_one_event() {
         promo_image_url: event.promo_image_url,
         additional_info: event.additional_info,
         age_limit: event.age_limit,
+        cancelled_at: event.cancelled_at,
         venue: None,
     }];
     let events_expected_json = serde_json::to_string(&expected_events).unwrap();

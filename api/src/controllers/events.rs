@@ -79,6 +79,7 @@ pub fn index(
         promo_image_url: Option<String>,
         additional_info: Option<String>,
         age_limit: Option<i32>,
+        cancelled_at: Option<NaiveDateTime>,
         venue: Option<Venue>,
     }
 
@@ -101,6 +102,7 @@ pub fn index(
             promo_image_url: e.promo_image_url,
             additional_info: e.additional_info,
             age_limit: e.age_limit,
+            cancelled_at: e.cancelled_at,
         })
     }
 
