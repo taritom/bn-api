@@ -43,12 +43,11 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         .resource("/external/facebook/web_login", |r| {
             r.method(Method::POST).with(external::facebook::web_login)
         })
-        .resource("/organizations/accept_invite", |r| {
-            r.method(Method::GET)
+        .resource("/invitations", |r| {
+            //@TODO Add a Method::GET to view the invitation (who sent it / for what organization name)
+            r.method(Method::POST)
                 .with(organization_invites::accept_request);
-        })
-        .resource("/organizations/decline_invite", |r| {
-            r.method(Method::GET)
+            r.method(Method::DELETE)
                 .with(organization_invites::decline_request);
         })
         .resource("/organizations/{id}/artists", |r| {
