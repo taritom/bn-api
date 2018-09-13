@@ -76,6 +76,8 @@ impl Config {
                 let port = env::var(&MAIL_SMTP_PORT)
                     .expect(&format!("{} must be defined.", MAIL_SMTP_PORT));
 
+                info!("Mail configured {}:{}", host, port);
+
                 Box::new(SmtpTransport::new(
                     &domain,
                     &host,
