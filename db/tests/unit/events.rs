@@ -355,7 +355,11 @@ fn add_ticket_type() {
     let project = TestProject::new();
     let event = project.create_event().finish();
     let ticket_type = event
-        .add_ticket_type("General Admission".to_string(), project.get_connection())
+        .add_ticket_type(
+            "General Admission".to_string(),
+            100,
+            project.get_connection(),
+        )
         .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
@@ -367,10 +371,14 @@ fn ticket_types() {
     let project = TestProject::new();
     let event = project.create_event().finish();
     let ticket_type_ga = event
-        .add_ticket_type("General Admission".to_string(), project.get_connection())
+        .add_ticket_type(
+            "General Admission".to_string(),
+            100,
+            project.get_connection(),
+        )
         .unwrap();
     let ticket_type_vip = event
-        .add_ticket_type("VIP".to_string(), project.get_connection())
+        .add_ticket_type("VIP".to_string(), 100, project.get_connection())
         .unwrap();
 
     let ticket_types = event.ticket_types(project.get_connection()).unwrap();

@@ -11,6 +11,7 @@ use uuid::Uuid;
 #[derive(Queryable, Identifiable)]
 pub struct Asset {
     pub id: Uuid,
+    ticket_type_id: Uuid,
     blockchain_name: String,
     // TODO: This will be populated after it is created on the blockchain.
     blockchain_asset_id: Option<String>,
@@ -20,9 +21,10 @@ pub struct Asset {
 }
 
 impl Asset {
-    pub fn create(blockchain_name: String) -> NewAsset {
+    pub fn create(ticket_type_id: Uuid, blockchain_name: String) -> NewAsset {
         NewAsset {
             blockchain_name,
+            ticket_type_id,
             status: AssetStatus::Unsynced.to_string(),
         }
     }
@@ -33,6 +35,7 @@ impl Asset {
 pub struct NewAsset {
     blockchain_name: String,
     status: String,
+    ticket_type_id: Uuid,
 }
 
 impl NewAsset {

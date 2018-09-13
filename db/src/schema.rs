@@ -22,6 +22,7 @@ table! {
 table! {
     assets (id) {
         id -> Uuid,
+        ticket_type_id -> Uuid,
         blockchain_name -> Text,
         blockchain_asset_id -> Nullable<Text>,
         status -> Text,
@@ -112,7 +113,7 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         ticket_instance_id -> Nullable<Uuid>,
-        price_point_id -> Nullable<Uuid>,
+        ticket_pricing_id -> Nullable<Uuid>,
         fee_schedule_range_id -> Nullable<Uuid>,
         parent_id -> Nullable<Uuid>,
     }
@@ -172,18 +173,6 @@ table! {
 }
 
 table! {
-    price_points (id) {
-        id -> Uuid,
-        ticket_type_id -> Uuid,
-        name -> Text,
-        status -> Text,
-        price_in_cents -> Int8,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     regions (id) {
         id -> Uuid,
         name -> Text,
@@ -208,6 +197,20 @@ table! {
         asset_id -> Uuid,
         token_id -> Int4,
         ticket_holding_id -> Nullable<Uuid>,
+        order_id -> Nullable<Uuid>,
+        reserved_until -> Nullable<Timestamp>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    ticket_pricing (id) {
+        id -> Uuid,
+        ticket_type_id -> Uuid,
+        name -> Text,
+        status -> Text,
+        price_in_cents -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -221,7 +224,6 @@ table! {
         status -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        asset_id -> Uuid,
     }
 }
 
@@ -277,6 +279,7 @@ table! {
 }
 
 joinable!(artists -> organizations (organization_id));
+joinable!(assets -> ticket_types (ticket_type_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
 joinable!(event_interest -> events (event_id));
@@ -287,19 +290,19 @@ joinable!(external_logins -> users (user_id));
 joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
 joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
 joinable!(order_items -> orders (order_id));
-joinable!(order_items -> price_points (price_point_id));
 joinable!(order_items -> ticket_instances (ticket_instance_id));
+joinable!(order_items -> ticket_pricing (ticket_pricing_id));
 joinable!(orders -> users (user_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
 joinable!(organizations -> fee_schedules (fee_schedule_id));
 joinable!(organizations -> users (owner_user_id));
-joinable!(price_points -> ticket_types (ticket_type_id));
 joinable!(ticket_holdings -> assets (asset_id));
 joinable!(ticket_instances -> assets (asset_id));
+joinable!(ticket_instances -> orders (order_id));
 joinable!(ticket_instances -> ticket_holdings (ticket_holding_id));
-joinable!(ticket_types -> assets (asset_id));
+joinable!(ticket_pricing -> ticket_types (ticket_type_id));
 joinable!(ticket_types -> events (event_id));
 joinable!(venues -> organizations (organization_id));
 joinable!(venues -> regions (region_id));
@@ -320,10 +323,10 @@ allow_tables_to_appear_in_same_query!(
     organization_invites,
     organizations,
     organization_users,
-    price_points,
     regions,
     ticket_holdings,
     ticket_instances,
+    ticket_pricing,
     ticket_types,
     users,
     venues,

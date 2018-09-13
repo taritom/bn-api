@@ -41,5 +41,5 @@ string_enum! { OrderStatus [Draft, PendingPayment, Paid, Cancelled] }
 // Potentially there will also be shipping or other items on an order
 string_enum! { OrderItemTypes [Tickets]}
 string_enum! { OrderTypes [Cart, BackOffice] }
-string_enum! { PricePointStatus [Published] }
+string_enum! { TicketPricingStatus [Published] }
 string_enum! { TicketTypeStatus [Published] }

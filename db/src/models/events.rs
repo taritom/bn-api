@@ -229,11 +229,13 @@ impl Event {
     pub fn add_ticket_type(
         &self,
         name: String,
+        quantity: u32,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
-        let asset = Asset::create(format!("{}.{}", self.name, name)).commit(conn)?;
-
-        TicketType::create(self.id, name, asset.id).commit(conn)
+        let ticket_type = TicketType::create(self.id, name.clone()).commit(conn)?;
+        let asset = Asset::create(ticket_type.id, format!("{}.{}", self.name, &name)).commit(conn)?;
+        TicketInstance::create_multiple(asset.id, quantity, conn)?;
+        Ok(ticket_type)
     }
 
     pub fn ticket_types(&self, conn: &PgConnection) -> Result<Vec<TicketType>, DatabaseError> {

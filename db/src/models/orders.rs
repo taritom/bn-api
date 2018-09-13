@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use models::{OrderStatus, OrderTypes, User};
+use models::{OrderStatus, OrderTypes, TicketInstance, User};
 use schema::{order_items, orders};
 use time::Duration;
 use utils::errors;
@@ -77,25 +77,8 @@ impl Order {
         ticket_type_id: Uuid,
         quantity: i64,
         conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
-        unimplemented!()
-        //        let item = OrderItem::find(self.id, ticket_type_id, conn)?;
-        //        if item.is_none() {
-        //            if quantity <= 0 {
-        //                return Ok(());
-        //            }
-        //
-        //            OrderItem::create_tickets(self.id, ticket_type_id, quantity as u32).commit(conn)?;
-        //            Ok(())
-        //        } else {
-        //            let mut item = item.unwrap();
-        //            item.quantity += quantity;
-        //            if item.quantity <= 0 {
-        //                item.delete(conn)
-        //            } else {
-        //                item.update(conn)
-        //            }
-        //        }
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        TicketInstance::reserve_tickets(&self, ticket_type_id, None, quantity, conn)
     }
 
     pub fn items(&self, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
@@ -126,7 +109,7 @@ pub struct OrderItem {
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     ticket_instance_id: Option<Uuid>,
-    price_point_id: Option<Uuid>,
+    ticket_pricing_id: Option<Uuid>,
     fee_schedule_range_id: Option<Uuid>,
     parent_id: Option<Uuid>,
 }
@@ -175,12 +158,12 @@ impl OrderItem {
         //            )
     }
 
-    fn delete(self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        diesel::delete(&self).execute(conn).map(|_| ()).to_db_error(
-            errors::ErrorCode::DeleteError,
-            "Could not delete order item",
-        )
-    }
+    //    fn delete(self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    //        diesel::delete(&self).execute(conn).map(|_| ()).to_db_error(
+    //            errors::ErrorCode::DeleteError,
+    //            "Could not delete order item",
+    //        )
+    //    }
 
     fn find_for_order(
         order_id: Uuid,
@@ -200,7 +183,7 @@ struct NewTicketsOrderItem {
     item_type: String,
     cost: i64,
     ticket_instance_id: Uuid,
-    price_point_id: Uuid,
+    ticket_pricing_id: Uuid,
     fee_schedule_range_id: Uuid,
 }
 

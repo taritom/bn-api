@@ -7,7 +7,7 @@ use chrono::NaiveDateTime;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{CreateTicketTypeRequest, DisplayTicketType};
+use models::DisplayTicketType;
 use tari::tariclient::*;
 use uuid::Uuid;
 use validator::Validate;
@@ -336,6 +336,12 @@ pub fn update_artists(
     Ok(HttpResponse::Ok().json(&added_artists))
 }
 
+#[derive(Deserialize)]
+pub struct CreateTicketTypeRequest {
+    pub name: String,
+    pub capacity: u32,
+}
+
 pub fn create_tickets(
     (connection, path, data, user): (
         Connection,
@@ -354,7 +360,7 @@ pub fn create_tickets(
         return application::forbidden("User does not belong to this organization");
     }
 
-    let ticket_type = event.add_ticket_type(data.name.clone(), connection)?;
+    let ticket_type = event.add_ticket_type(data.name.clone(), data.capacity, connection)?;
 
     //    let mut allocation =
     //        TicketAllocation::create(path.id, data.tickets_delta).commit(connection)?;

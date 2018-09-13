@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, Json, Path, Query, State};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
+use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::*;
 use helpers::application;
@@ -63,34 +64,29 @@ pub fn create(
                 None => unimplemented!(),
             }
         }
-        None => {
-            match invite_args.user_email {
-                Some(user_email) => {
-                    email = user_email;
-                    match User::find_by_email(&email, connection) {
-                        Ok(user) => {
+        None => match invite_args.user_email {
+            Some(user_email) => {
+                email = user_email;
+                match User::find_by_email(&email, connection).optional() {
+                    Ok(maybe_a_user) => match maybe_a_user {
+                        Some(user) => {
                             recipient = user.full_name();
                             user_id = Some(user.id);
                         }
-                        Err(e) => {
-                            match e.code {
-                                // Not found
-                                2000 => {
-                                    recipient = "New user".to_string();
-                                    user_id = None;
-                                }
-                                _ => return Err(e.into()),
-                            }
+                        None => {
+                            recipient = "New user".to_string();
+                            user_id = None;
                         }
-                    };
-                }
-                None => {
-                    return Ok(HttpResponse::BadRequest().json(json!({
+                    },
+                    Err(e) => return Err(e.into()),
+                };
+            }
+            None => {
+                return Ok(HttpResponse::BadRequest().json(json!({
                         "error": "Missing required parameters, `user_id` or `user_email` required"
                     })))
-                }
             }
-        }
+        },
     }
     //If an active invite exists for this email then first expire it before issuing the new invite.
     if let Some(i) = OrganizationInvite::find_active_invite_by_email(&email, connection)? {

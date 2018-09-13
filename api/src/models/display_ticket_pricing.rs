@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 #[derive(Serialize)]
-pub struct DisplayPricePoint {
+pub struct DisplayTicketPricing {
     pub id: Uuid,
     pub name: String,
     pub status: String,

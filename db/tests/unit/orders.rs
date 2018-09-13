@@ -1,5 +1,5 @@
 use bigneon_db::models::Order;
-use bigneon_db::models::{OrderStatus, OrderTypes};
+use bigneon_db::models::OrderTypes;
 use support::project::TestProject;
 
 #[test]
@@ -27,19 +27,22 @@ fn add_to_cart() {
     let event = project
         .create_event()
         .with_tickets()
-        .with_price_points()
+        .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
     let cart = Order::create(user.id, OrderTypes::Cart)
         .commit(project.get_connection())
         .unwrap();
     let ticket = &event.ticket_types(project.get_connection()).unwrap()[0];
-    // TODO: Reimplement these tests
-    //    cart.add_tickets(ticket.id, 10, &db).unwrap();
-    //
-    //    let db_cart = Order::find_cart_for_user(user.id, &db).unwrap();
-    //    assert_eq!(cart.id, db_cart.id);
-    //    assert_eq!(cart.items(&db).unwrap(), db_cart.items(&db).unwrap());
+    cart.add_tickets(ticket.id, 10, project.get_connection())
+        .unwrap();
+
+    let db_cart = Order::find_cart_for_user(user.id, project.get_connection()).unwrap();
+    assert_eq!(cart.id, db_cart.id);
+    assert_eq!(
+        cart.items(project.get_connection()).unwrap(),
+        db_cart.items(project.get_connection()).unwrap()
+    );
 }
 
 #[test]
@@ -57,9 +60,9 @@ fn checkout() {
     let event = project
         .create_event()
         .with_tickets()
-        .with_price_points()
+        .with_ticket_pricing()
         .finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
+    let mut _cart = Order::create(user.id, OrderTypes::Cart)
         .commit(project.get_connection())
         .unwrap();
     let ticket = &event.ticket_types(project.get_connection()).unwrap()[0];

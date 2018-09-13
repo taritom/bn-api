@@ -13,7 +13,7 @@ pub struct EventBuilder<'a> {
     event_start: Option<NaiveDateTime>,
     connection: &'a PgConnection,
     with_tickets: bool,
-    with_price_points: bool,
+    with_ticket_pricing: bool,
 }
 
 impl<'a> EventBuilder<'a> {
@@ -26,7 +26,7 @@ impl<'a> EventBuilder<'a> {
             event_start: None,
             connection,
             with_tickets: false,
-            with_price_points: false,
+            with_ticket_pricing: false,
         }
     }
 
@@ -55,9 +55,9 @@ impl<'a> EventBuilder<'a> {
         self
     }
 
-    pub fn with_price_points(mut self) -> Self {
+    pub fn with_ticket_pricing(mut self) -> Self {
         self.with_tickets = true;
-        self.with_price_points = true;
+        self.with_ticket_pricing = true;
         self
     }
 
@@ -77,14 +77,14 @@ impl<'a> EventBuilder<'a> {
 
         if self.with_tickets {
             event
-                .add_ticket_type("General Admission".to_string(), self.connection)
+                .add_ticket_type("General Admission".to_string(), 100, self.connection)
                 .unwrap();
 
-            if self.with_price_points {
+            if self.with_ticket_pricing {
                 for t in event.ticket_types(self.connection).unwrap() {
-                    t.add_price_point("Early bird".to_string(), 100, self.connection)
+                    t.add_ticket_pricing("Early bird".to_string(), 100, self.connection)
                         .unwrap();
-                    t.add_price_point("Standard".to_string(), 200, self.connection)
+                    t.add_ticket_pricing("Standard".to_string(), 200, self.connection)
                         .unwrap();
                 }
             }

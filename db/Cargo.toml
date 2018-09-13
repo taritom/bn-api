@@ -6,6 +6,7 @@ license = "BSD-3"
 repository = "https://github.com/big-neon/bn-db/"
 description = "Big Neon database bindings and facade layer"
 documentation = "https://github.com/big-neon/docs"
+autobins = false
 
 [lib]
 name="bigneon_db"
@@ -37,6 +38,3 @@ time="0.1"
 fake = { version = "1.2.2" }
 url = "1.7.1"
 rand = "0.5"
-
-[[test]]
-name = "tests"

@@ -1,8 +1,8 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use bigneon_api::controllers::events::CreateTicketTypeRequest;
 use bigneon_api::controllers::events::{
     self, AddArtistRequest, CreateEventRequest, PathParameters, UpdateArtistsRequest,
 };
-use bigneon_api::models::CreateTicketTypeRequest;
 use bigneon_db::models::{Event, EventArtist, EventEditableAttributes, EventInterest, Roles};
 use chrono::prelude::*;
 use serde_json;

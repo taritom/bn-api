@@ -1,5 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse};
 use errors::*;
+use serde_json;
 use validator::ValidationErrors;
 
 pub fn unauthorized() -> Result<HttpResponse, BigNeonError> {
@@ -26,4 +27,20 @@ pub fn internal_server_error(message: &str) -> Result<HttpResponse, BigNeonError
 pub fn validation_error_response(errors: ValidationErrors) -> Result<HttpResponse, BigNeonError> {
     Ok(HttpResponse::BadRequest()
         .json(json!({"error": "Validation error".to_string(), "fields": errors.inner()})))
+}
+
+pub fn no_content() -> Result<HttpResponse, BigNeonError> {
+    warn!("No Content");
+    Ok(HttpResponse::new(StatusCode::NO_CONTENT))
+}
+
+pub fn not_found() -> Result<HttpResponse, BigNeonError> {
+    warn!("Not found");
+    Ok(HttpResponse::new(StatusCode::NOT_FOUND))
+}
+
+pub fn created(json: serde_json::Value) -> Result<HttpResponse, BigNeonError> {
+    Ok(HttpResponse::new(StatusCode::CREATED)
+        .into_builder()
+        .json(json))
 }

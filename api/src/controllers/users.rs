@@ -1,7 +1,8 @@
-use actix_web::{HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
 use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::models::{DisplayUser, NewUser, Organization, User};
+use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::*;
 use helpers::application;
@@ -83,7 +84,10 @@ pub fn find_by_email(
         return application::unauthorized();
     }
 
-    let user = User::find_by_email(&query.into_inner().email, connection.get())?;
+    let user = match User::find_by_email(&query.into_inner().email, connection.get()).optional()? {
+        Some(u) => u,
+        None => return Ok(HttpResponse::new(StatusCode::NO_CONTENT)),
+    };
     Ok(HttpResponse::Ok().json(&user.for_display()))
 }
 

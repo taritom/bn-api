@@ -98,6 +98,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             r.method(Method::POST).with(regions::create)
         })
         .resource("/status", |r| r.get().f(|_| HttpResponse::Ok()))
+        .resource("/ticket-pricing", |r| {
+            r.method(Method::POST).with(ticket_pricing::create);
+        })
         .resource("/users/me", |r| {
             r.method(Method::GET).with(users::current_user);
             r.method(Method::PUT).with(users::update_current_user);

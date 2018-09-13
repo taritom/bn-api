@@ -510,7 +510,7 @@ mod create_tickets_tests {
 #[test]
 fn list_ticket_types() {
     let database = TestDatabase::new();
-    let event = database.create_event().with_price_points().finish();
+    let event = database.create_event().with_ticket_pricing().finish();
     let request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();

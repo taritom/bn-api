@@ -1,9 +1,9 @@
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
-use models::PricePoint;
+use models::TicketPricing;
 use models::{Event, TicketTypeStatus};
-use schema::{price_points, ticket_types};
+use schema::{ticket_pricing, ticket_types};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -18,17 +18,22 @@ pub struct TicketType {
     status: String,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
-    asset_id: Uuid,
 }
 
 impl TicketType {
-    pub fn create(event_id: Uuid, name: String, asset_id: Uuid) -> NewTicketType {
+    pub fn create(event_id: Uuid, name: String) -> NewTicketType {
         NewTicketType {
             event_id,
             name,
-            asset_id,
             status: TicketTypeStatus::Published.to_string(),
         }
+    }
+
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
+        ticket_types::table
+            .filter(ticket_types::id.eq(id))
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not find ticket type")
     }
 
     pub fn find_by_event_id(
@@ -45,24 +50,24 @@ impl TicketType {
             )
     }
 
-    pub fn price_points(&self, conn: &PgConnection) -> Result<Vec<PricePoint>, DatabaseError> {
-        price_points::table
-            .filter(price_points::ticket_type_id.eq(self.id))
-            .order_by(price_points::name)
+    pub fn ticket_pricing(&self, conn: &PgConnection) -> Result<Vec<TicketPricing>, DatabaseError> {
+        ticket_pricing::table
+            .filter(ticket_pricing::ticket_type_id.eq(self.id))
+            .order_by(ticket_pricing::name)
             .load(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not load price points for ticket type",
+                "Could not load ticket pricing for ticket type",
             )
     }
 
-    pub fn add_price_point(
+    pub fn add_ticket_pricing(
         &self,
         name: String,
         price_in_cents: i64,
         conn: &PgConnection,
-    ) -> Result<PricePoint, DatabaseError> {
-        PricePoint::create(self.id, name, price_in_cents).commit(conn)
+    ) -> Result<TicketPricing, DatabaseError> {
+        TicketPricing::create(self.id, name, price_in_cents).commit(conn)
     }
 
     pub fn status(&self) -> TicketTypeStatus {
@@ -76,7 +81,6 @@ pub struct NewTicketType {
     event_id: Uuid,
     name: String,
     status: String,
-    asset_id: Uuid,
 }
 
 impl NewTicketType {

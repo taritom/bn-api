@@ -1,6 +1,7 @@
 use actix_web::{HttpResponse, Json, State};
 use auth::TokenResponse;
 use bigneon_db::models::{ExternalLogin, User};
+use bigneon_db::utils::errors::OptionalToDatabaseError;
 use db::Connection;
 use errors::*;
 use models::FacebookWebLoginToken;
