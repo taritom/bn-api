@@ -32,7 +32,7 @@ impl TestProject {
             "EXISTS(SELECT 1 FROM pg_database WHERE datname='{}')",
             name
         ))).get_result(&self.admin)
-            .unwrap()
+        .unwrap()
     }
 
     pub fn table_exists(&self, table: &str) -> bool {
@@ -43,7 +43,7 @@ impl TestProject {
              WHERE table_name = '{}')",
             table
         ))).get_result(&self.admin)
-            .unwrap()
+        .unwrap()
     }
 
     pub fn create_artist(&self) -> ArtistBuilder {

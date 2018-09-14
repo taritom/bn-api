@@ -9,8 +9,18 @@ use uuid::Uuid;
 
 const INVITE_EXPIRATION_PERIOD_IN_DAYS: i64 = 7;
 
-#[derive(Insertable, Queryable, Identifiable, PartialEq, Debug, Clone, Serialize, Deserialize,
-         AsChangeset, QueryableByName)]
+#[derive(
+    Insertable,
+    Queryable,
+    Identifiable,
+    PartialEq,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    AsChangeset,
+    QueryableByName,
+)]
 #[table_name = "organization_invites"]
 pub struct OrganizationInvite {
     pub id: Uuid,
@@ -74,8 +84,7 @@ impl OrganizationInvite {
                     organization_invites::security_token.eq(null),
                     organization_invites::accepted.eq(change_status),
                     organization_invites::updated_at.eq(dsl::now),
-                ))
-                .get_result(conn),
+                )).get_result(conn),
         )
     }
 

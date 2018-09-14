@@ -65,7 +65,7 @@ fn checkout() {
     let mut _cart = Order::create(user.id, OrderTypes::Cart)
         .commit(project.get_connection())
         .unwrap();
-    let ticket = &event.ticket_types(project.get_connection()).unwrap()[0];
+    let _ticket = &event.ticket_types(project.get_connection()).unwrap()[0];
     // TODO: Reimplement these tests
     //    cart.add_tickets(ticket.id, 10, project.get_connection())
     //        .unwrap();

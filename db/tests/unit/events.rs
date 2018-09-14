@@ -359,8 +359,7 @@ fn add_ticket_type() {
             "General Admission".to_string(),
             100,
             project.get_connection(),
-        )
-        .unwrap();
+        ).unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
     assert_eq!(ticket_type.name, "General Admission".to_string());
@@ -375,8 +374,7 @@ fn ticket_types() {
             "General Admission".to_string(),
             100,
             project.get_connection(),
-        )
-        .unwrap();
+        ).unwrap();
     let ticket_type_vip = event
         .add_ticket_type("VIP".to_string(), 100, project.get_connection())
         .unwrap();

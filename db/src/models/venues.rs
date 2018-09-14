@@ -9,8 +9,17 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(Clone, Associations, Identifiable, Queryable, AsChangeset, Serialize, Deserialize,
-         PartialEq, Debug)]
+#[derive(
+    Clone,
+    Associations,
+    Identifiable,
+    Queryable,
+    AsChangeset,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Debug,
+)]
 #[belongs_to(Region)]
 #[table_name = "venues"]
 pub struct Venue {
@@ -116,13 +125,11 @@ impl Venue {
                     organization_users::table.on(venues::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u))),
-                )
-                .filter(
+                ).filter(
                     organization_users::user_id
                         .eq(u)
                         .or(venues::is_private.eq(false)),
-                )
-                .order_by(venues::name)
+                ).order_by(venues::name)
                 .select(venues::all_columns)
                 .load(conn),
             None => venues::table
@@ -146,13 +153,11 @@ impl Venue {
                     organization_users::table.on(venues::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u))),
-                )
-                .filter(
+                ).filter(
                     organization_users::user_id
                         .eq(u)
                         .or(venues::is_private.eq(false)),
-                )
-                .filter(venues::organization_id.eq(organization_id))
+                ).filter(venues::organization_id.eq(organization_id))
                 .order_by(venues::name)
                 .select(venues::all_columns)
                 .load(conn),

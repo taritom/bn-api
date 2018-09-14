@@ -91,8 +91,7 @@ impl Order {
             .set((
                 orders::status.eq(&self.status),
                 orders::updated_at.eq(dsl::now),
-            ))
-            .execute(conn)
+            )).execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
         Ok(())
     }

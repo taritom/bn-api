@@ -17,7 +17,7 @@ pub struct FeeSchedule {
 }
 
 impl FeeSchedule {
-    pub fn create(name: String, ranges: Vec<(i64, i64)>) -> NewFeeSchedule {
+    pub fn create(name: String, ranges: Vec<(NewFeeScheduleRange)>) -> NewFeeSchedule {
         NewFeeSchedule { name, ranges }
     }
     pub fn ranges(&self, conn: &PgConnection) -> Result<Vec<FeeScheduleRange>, DatabaseError> {
@@ -38,7 +38,7 @@ impl FeeSchedule {
 #[derive(Serialize, Deserialize)]
 pub struct NewFeeSchedule {
     pub name: String,
-    pub ranges: Vec<(i64, i64)>,
+    pub ranges: Vec<NewFeeScheduleRange>,
 }
 
 impl NewFeeSchedule {
@@ -64,18 +64,16 @@ impl NewFeeSchedule {
             .values((
                 fee_schedules::name.eq(&self.name),
                 fee_schedules::version.eq(next_version),
-            ))
-            .get_result(conn)
+            )).get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create fee schedule")?;
 
         for range in &self.ranges {
             diesel::insert_into(fee_schedule_ranges::table)
                 .values((
                     fee_schedule_ranges::fee_schedule_id.eq(result.id),
-                    fee_schedule_ranges::min_price.eq(range.0),
-                    fee_schedule_ranges::fee.eq(range.1),
-                ))
-                .execute(conn)
+                    fee_schedule_ranges::min_price.eq(range.min_price),
+                    fee_schedule_ranges::fee.eq(range.fee),
+                )).execute(conn)
                 .to_db_error(
                     ErrorCode::InsertError,
                     "Could not create fee schedule range",
@@ -96,4 +94,10 @@ pub struct FeeScheduleRange {
     pub fee: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct NewFeeScheduleRange {
+    pub min_price: i64,
+    pub fee: i64,
 }

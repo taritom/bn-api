@@ -146,8 +146,7 @@ fn update_expired_token() {
         .set(PasswordReset {
             password_reset_token: Some(token.clone()),
             password_reset_requested_at: Some(Utc::now().naive_utc() - Duration::days(3)),
-        })
-        .get_result(&*database.connection)
+        }).get_result(&*database.connection)
         .unwrap();
     let new_password = "newPassword";
     assert!(!user.check_password(&new_password));

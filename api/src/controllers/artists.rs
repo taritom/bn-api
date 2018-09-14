@@ -68,7 +68,8 @@ pub fn update(
     let artist = Artist::find(&parameters.id, connection)?;
 
     if !(user.has_scope(Scopes::ArtistWrite)
-        || (user.has_scope(Scopes::OrgWrite) && artist.organization_id.is_some()
+        || (user.has_scope(Scopes::OrgWrite)
+            && artist.organization_id.is_some()
             && Organization::find(artist.organization_id.unwrap(), connection)?
                 .is_member(&user.user, connection)?))
     {

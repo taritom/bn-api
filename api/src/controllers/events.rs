@@ -165,8 +165,7 @@ pub fn show(
             artist_id: e.artist_id,
             rank: e.rank,
             set_time: e.set_time,
-        })
-        .collect();
+        }).collect();
 
     Ok(HttpResponse::Ok().json(&R {
         id: event.id,
@@ -274,7 +273,8 @@ pub fn add_interest(
         return application::unauthorized();
     }
 
-    let event_interest = EventInterest::create(parameters.id, user.id()).commit(connection.get())?;
+    let event_interest =
+        EventInterest::create(parameters.id, user.id()).commit(connection.get())?;
     Ok(HttpResponse::Created().json(&event_interest))
 }
 

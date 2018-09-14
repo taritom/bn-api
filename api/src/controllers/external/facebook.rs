@@ -35,8 +35,7 @@ pub fn web_login(
         .get(&url)
         .header(Authorization(Bearer {
             token: auth_token.access_token.to_owned(),
-        }))
-        .send()?
+        })).send()?
         .text()?;
 
     let facebook_graph_response: FacebookGraphResponse = serde_json::from_str(&response)?;

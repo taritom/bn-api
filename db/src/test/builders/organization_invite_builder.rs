@@ -64,7 +64,7 @@ impl<'a> OrgInviteBuilder<'a> {
             &self.user_email,
             self.user_id,
         ).commit(self.connection)
-            .unwrap();
+        .unwrap();
         orginvite
     }
 }

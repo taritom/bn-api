@@ -3,8 +3,9 @@ use bigneon_api::controllers::organizations::{
     self, FeeScheduleWithRanges, PathParameters, UpdateOwnerRequest,
 };
 use bigneon_db::models::{
-    Artist, DisplayUser, FeeScheduleRange, NewArtist, NewFeeSchedule, NewOrganization, NewVenue,
-    Organization, OrganizationEditableAttributes, OrganizationUser, Roles, Venue,
+    Artist, DisplayUser, FeeScheduleRange, NewArtist, NewFeeSchedule, NewFeeScheduleRange,
+    NewOrganization, NewVenue, Organization, OrganizationEditableAttributes, OrganizationUser,
+    Roles, Venue,
 };
 use chrono::NaiveDateTime;
 use serde_json;
@@ -153,6 +154,7 @@ pub fn update(role: Roles, should_succeed: bool) {
         country: Some("country".to_string()),
         postal_code: Some("postal_code".to_string()),
         phone: Some("phone".to_string()),
+        fee_schedule_id: None,
     });
 
     let response: HttpResponse =
@@ -426,7 +428,16 @@ pub fn add_fee_schedule(role: Roles, should_succeed: bool) {
 
     let json = Json(NewFeeSchedule {
         name: "Fees".to_string(),
-        ranges: vec![(0, 100), (100, 200)],
+        ranges: vec![
+            NewFeeScheduleRange {
+                min_price: 20,
+                fee: 10,
+            },
+            NewFeeScheduleRange {
+                min_price: 1000,
+                fee: 100,
+            },
+        ],
     });
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();

@@ -71,10 +71,10 @@ impl EventArtist {
     }
 
     pub fn clear_all_from_event(event_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
-        let _result = diesel::delete(
-            event_artists::table.filter(event_artists::event_id.eq(event_id)),
-        ).execute(conn)
-            .to_db_error(ErrorCode::DeleteError, "Could not delete event artists.")?;
+        let _result =
+            diesel::delete(event_artists::table.filter(event_artists::event_id.eq(event_id)))
+                .execute(conn)
+                .to_db_error(ErrorCode::DeleteError, "Could not delete event artists.")?;
         Ok(())
     }
 }

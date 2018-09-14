@@ -213,8 +213,9 @@ pub fn create_failure_missing_required_parameters(role: Roles, should_test_succe
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        let expected_json = json!({"error": "Missing required parameters, `user_id` or `user_email` required"})
-            .to_string();
+        let expected_json =
+            json!({"error": "Missing required parameters, `user_id` or `user_email` required"})
+                .to_string();
         assert_eq!(body, expected_json);
 
         let mail_transport = test_request.test_transport();

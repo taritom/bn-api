@@ -43,6 +43,6 @@ impl<'a> VenueBuilder<'a> {
             self.organization_id,
             self.is_private,
         ).commit(self.connection)
-            .unwrap()
+        .unwrap()
     }
 }

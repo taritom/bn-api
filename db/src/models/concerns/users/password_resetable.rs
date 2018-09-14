@@ -59,8 +59,7 @@ impl PasswordResetable for User {
                                     password_reset_token: None,
                                     password_reset_requested_at: None,
                                 },
-                            ))
-                            .get_result(conn),
+                            )).get_result(conn),
                     )
                 } else {
                     Err(DatabaseError::new(
@@ -91,7 +90,8 @@ impl PasswordResetable for User {
             Some(password_reset_requested_at) => {
                 let now = Utc::now().naive_utc();
                 now.signed_duration_since(password_reset_requested_at)
-                    .num_days() < PASSWORD_RESET_EXPIRATION_PERIOD_IN_DAYS
+                    .num_days()
+                    < PASSWORD_RESET_EXPIRATION_PERIOD_IN_DAYS
             }
             None => false,
         }

@@ -52,6 +52,6 @@ impl<'a> UserBuilder<'a> {
             &self.phone,
             &self.password,
         ).commit(self.connection)
-            .unwrap()
+        .unwrap()
     }
 }

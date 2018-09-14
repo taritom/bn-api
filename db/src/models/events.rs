@@ -162,37 +162,34 @@ impl Event {
             None => "%".to_string(),
         };
 
-        let mut query =
-            events::table
-                .filter(events::event_start.gt(
-                    start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
-                ))
-                .filter(events::event_start.lt(
-                    end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
-                ))
-                .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
-                .left_join(
-                    event_artists::table
-                        .inner_join(
-                            artists::table.on(event_artists::artist_id
-                                .eq(artists::id)
-                                .and(artists::name.ilike(query_like.clone()))),
-                        )
-                        .on(events::id.eq(event_artists::event_id)),
-                )
-                .filter(
-                    events::name
-                        .ilike(query_like.clone())
-                        .or(venues::id
-                            .is_not_null()
-                            .and(venues::name.ilike(query_like.clone())))
-                        .or(artists::id.is_not_null()),
-                )
-                .select(events::all_columns)
-                .distinct()
-                .order_by(events::event_start.asc())
-                .then_order_by(events::name.asc())
-                .into_boxed();
+        let mut query = events::table
+            .filter(
+                events::event_start
+                    .gt(start_time
+                        .unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0))),
+            ).filter(
+                events::event_start
+                    .lt(end_time
+                        .unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))),
+            ).left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
+            .left_join(
+                event_artists::table
+                    .inner_join(
+                        artists::table.on(event_artists::artist_id
+                            .eq(artists::id)
+                            .and(artists::name.ilike(query_like.clone()))),
+                    ).on(events::id.eq(event_artists::event_id)),
+            ).filter(
+                events::name
+                    .ilike(query_like.clone())
+                    .or(venues::id
+                        .is_not_null()
+                        .and(venues::name.ilike(query_like.clone()))).or(artists::id.is_not_null()),
+            ).select(events::all_columns)
+            .distinct()
+            .order_by(events::event_start.asc())
+            .then_order_by(events::name.asc())
+            .into_boxed();
 
         if region_id.is_some() {
             query = query.filter(venues::region_id.eq(region_id.unwrap()));
@@ -233,7 +230,8 @@ impl Event {
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         let ticket_type = TicketType::create(self.id, name.clone()).commit(conn)?;
-        let asset = Asset::create(ticket_type.id, format!("{}.{}", self.name, &name)).commit(conn)?;
+        let asset =
+            Asset::create(ticket_type.id, format!("{}.{}", self.name, &name)).commit(conn)?;
         TicketInstance::create_multiple(asset.id, quantity, conn)?;
         Ok(ticket_type)
     }

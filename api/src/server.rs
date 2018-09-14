@@ -37,23 +37,22 @@ impl Server {
                     token_secret: config.token_secret.clone(),
                     token_issuer: config.token_issuer.clone(),
                 }).middleware(DatabaseTransaction::new())
-                    .middleware(Logger::default())
-                    .configure(|a| {
-                        routing::routes(
-                            Cors::for_app(a)
-                                .allowed_origin(&config.allowed_origins)
-                                .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
-                                .allowed_headers(vec![
-                                    http::header::AUTHORIZATION,
-                                    http::header::ACCEPT,
-                                ])
-                                .allowed_header(http::header::CONTENT_TYPE)
-                                .max_age(3600),
-                        )
-                    })
+                .middleware(Logger::default())
+                .configure(|a| {
+                    routing::routes(
+                        Cors::for_app(a)
+                            .allowed_origin(&config.allowed_origins)
+                            .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
+                            .allowed_headers(vec![
+                                http::header::AUTHORIZATION,
+                                http::header::ACCEPT,
+                            ]).allowed_header(http::header::CONTENT_TYPE)
+                            .max_age(3600),
+                    )
+                })
             }
         }).bind(&bind_addr)
-            .expect(&format!("Can not bind to {}", bind_addr))
-            .run();
+        .expect(&format!("Can not bind to {}", bind_addr))
+        .run();
     }
 }

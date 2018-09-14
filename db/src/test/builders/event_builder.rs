@@ -73,7 +73,7 @@ impl<'a> EventBuilder<'a> {
             Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10)),
             Some(NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11)),
         ).commit(self.connection)
-            .unwrap();
+        .unwrap();
 
         if self.with_tickets {
             event

@@ -15,8 +15,19 @@ impl<'a> FeeScheduleBuilder<'a> {
     }
 
     pub fn finish(self) -> FeeSchedule {
-        FeeSchedule::create(self.name, vec![(0, 200), (10_000, 100)])
-            .commit(self.connection)
-            .unwrap()
+        FeeSchedule::create(
+            self.name,
+            vec![
+                NewFeeScheduleRange {
+                    min_price: 20,
+                    fee: 10,
+                },
+                NewFeeScheduleRange {
+                    min_price: 1000,
+                    fee: 100,
+                },
+            ],
+        ).commit(self.connection)
+        .unwrap()
     }
 }

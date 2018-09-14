@@ -66,10 +66,10 @@ pub fn update(
 
     let venue = Venue::find(parameters.id, connection)?;
 
-    if !user.has_scope(Scopes::VenueWrite)
-        && !(user.has_scope(Scopes::OrgWrite) && venue.organization_id.is_some()
-            && Organization::find(venue.organization_id.unwrap(), connection)?
-                .is_member(&user.user, connection)?)
+    if !user.has_scope(Scopes::VenueWrite) && !(user.has_scope(Scopes::OrgWrite)
+        && venue.organization_id.is_some()
+        && Organization::find(venue.organization_id.unwrap(), connection)?
+            .is_member(&user.user, connection)?)
     {
         return application::unauthorized();
     }

@@ -25,8 +25,7 @@ impl DisplayTicketType {
                 name: p.name.clone(),
                 status: p.status().to_string(),
                 price_in_cents: p.price_in_cents,
-            })
-            .collect();
+            }).collect();
 
         Ok(DisplayTicketType {
             id: ticket_type.id,

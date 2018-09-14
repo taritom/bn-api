@@ -70,6 +70,7 @@ pub struct OrganizationEditableAttributes {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
+    pub fee_schedule_id: Option<Uuid>,
 }
 
 impl Organization {
@@ -103,8 +104,7 @@ impl Organization {
             .set((
                 organizations::owner_user_id.eq(owner_user_id),
                 organizations::updated_at.eq(dsl::now),
-            ))
-            .get_result(conn)
+            )).get_result(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not update organization owner",
@@ -257,7 +257,7 @@ impl Organization {
                 .filter(organization_users::user_id.eq(user_id))
                 .filter(organization_users::organization_id.eq(self.id)),
         ).execute(conn)
-            .to_db_error(ErrorCode::DeleteError, "Error removing user")?;
+        .to_db_error(ErrorCode::DeleteError, "Error removing user")?;
 
         if Organization::all_linked_to_user(user_id, conn)?.len() == 0 {
             let user = User::find(user_id, conn)?;

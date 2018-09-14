@@ -62,8 +62,7 @@ fn consume_password_reset_token() {
         .set(PasswordReset {
             password_reset_token: Some(Uuid::new_v4()),
             password_reset_requested_at: Some(Utc::now().naive_utc() - Duration::days(3)),
-        })
-        .get_result(project.get_connection())
+        }).get_result(project.get_connection())
         .unwrap();
     let pw_modified_at = user.password_modified_at;
     let password = "newPassword2";

@@ -58,7 +58,7 @@ impl<'a> OrganizationBuilder<'a> {
                 .unwrap(),
             &self.name,
         ).commit(self.connection)
-            .unwrap();
+        .unwrap();
 
         if self.fee_schedule.is_some() {
             let _ =

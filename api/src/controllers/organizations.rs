@@ -109,7 +109,8 @@ pub fn update_owner(
     }
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    let updated_organization = organization.set_owner(json.into_inner().owner_user_id, connection)?;
+    let updated_organization =
+        organization.set_owner(json.into_inner().owner_user_id, connection)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
 
@@ -227,7 +228,9 @@ pub fn show_fee_schedule(
 
     let organization = Organization::find(parameters.id, connection)?;
     if organization.fee_schedule_id.is_none() {
-        return Ok(HttpResponse::NotFound().finish());
+        return Ok(
+            HttpResponse::Ok().json(json!({"success": false, "message": "Fee schedule not found"}))
+        );
     }
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id.unwrap(), connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;
@@ -256,6 +259,20 @@ pub fn add_fee_schedule(
 
     let fee_schedule = json.into_inner().commit(connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;
+
+    let update_fee_schedule_id = OrganizationEditableAttributes {
+        name: None,
+        address: None,
+        city: None,
+        state: None,
+        country: None,
+        postal_code: None,
+        phone: None,
+        fee_schedule_id: Some(fee_schedule.id),
+    };
+
+    let organization = Organization::find(parameters.id, connection)?
+        .update(update_fee_schedule_id, connection)?;
 
     Ok(HttpResponse::Created().json(FeeScheduleWithRanges {
         id: fee_schedule.id,

@@ -48,6 +48,6 @@ impl<'a> ArtistBuilder<'a> {
             &self.bio,
             &self.website_url,
         ).commit(self.connection)
-            .unwrap()
+        .unwrap()
     }
 }

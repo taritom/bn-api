@@ -220,8 +220,7 @@ pub fn show() {
             artist_id: e.artist_id,
             rank: e.rank,
             set_time: e.set_time,
-        })
-        .collect();
+        }).collect();
 
     let event_expected_json = serde_json::to_string(&R {
         id: event.id,

@@ -89,13 +89,11 @@ impl Artist {
                     organization_users::table.on(artists::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u))),
-                )
-                .filter(
+                ).filter(
                     organization_users::user_id
                         .eq(u)
                         .or(artists::is_private.eq(false)),
-                )
-                .order_by(artists::name)
+                ).order_by(artists::name)
                 .select(artists::all_columns)
                 .load(conn),
             None => artists::table
@@ -127,13 +125,11 @@ impl Artist {
                     organization_users::table.on(artists::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u))),
-                )
-                .filter(
+                ).filter(
                     organization_users::user_id
                         .eq(u)
                         .or(artists::is_private.eq(false)),
-                )
-                .filter(artists::organization_id.eq(organization_id))
+                ).filter(artists::organization_id.eq(organization_id))
                 .order_by(artists::name)
                 .select(artists::all_columns)
                 .load(conn),
