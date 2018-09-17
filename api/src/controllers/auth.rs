@@ -1,7 +1,6 @@
 use actix_web::{HttpRequest, HttpResponse, Json, State};
 use auth::{claims::RefreshToken, TokenResponse};
 use bigneon_db::models::User;
-use config::*;
 use crypto::sha2::Sha256;
 use db::Connection;
 use errors::*;

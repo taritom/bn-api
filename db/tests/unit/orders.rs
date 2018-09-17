@@ -1,5 +1,4 @@
-use bigneon_db::models::Order;
-use bigneon_db::models::OrderTypes;
+use bigneon_db::models::*;
 use support::project::TestProject;
 
 #[test]
@@ -54,7 +53,7 @@ fn find_by_user_when_cart_does_not_exist() {
 }
 
 #[test]
-fn checkout() {
+fn add_external_payment() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let event = project
@@ -62,15 +61,13 @@ fn checkout() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let mut _cart = Order::create(user.id, OrderTypes::Cart)
+    let mut cart = Order::create(user.id, OrderTypes::Cart)
         .commit(project.get_connection())
         .unwrap();
-    let _ticket = &event.ticket_types(project.get_connection()).unwrap()[0];
-    // TODO: Reimplement these tests
-    //    cart.add_tickets(ticket.id, 10, project.get_connection())
-    //        .unwrap();
-    //
-    //    cart.checkout(project.get_connection()).unwrap();
-    //    assert_eq!(cart.user_id, user.id);
-    //    assert_eq!(cart.status(), OrderStatus::PendingPayment);
+    let ticket = &event.ticket_types(project.get_connection()).unwrap()[0];
+    cart.add_tickets(ticket.id, 10, project.get_connection())
+        .unwrap();
+    cart.add_external_payment("test".to_string(), user.id, 100, project.get_connection())
+        .unwrap();
+    assert_eq!(cart.status(), OrderStatus::Paid);
 }

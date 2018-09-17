@@ -10,6 +10,7 @@ pub use self::orders::*;
 pub use self::organization_invites::*;
 pub use self::organization_users::*;
 pub use self::organizations::*;
+pub use self::payments::*;
 pub use self::regions::*;
 pub use self::roles::*;
 pub use self::ticket_instances::*;
@@ -17,6 +18,7 @@ pub use self::ticket_pricing::*;
 pub use self::ticket_types::*;
 pub use self::users::*;
 pub use self::venues::*;
+pub use self::wallets::*;
 
 pub mod concerns;
 
@@ -32,6 +34,7 @@ mod orders;
 mod organization_invites;
 mod organization_users;
 mod organizations;
+mod payments;
 mod regions;
 mod roles;
 mod ticket_instances;
@@ -39,3 +42,4 @@ mod ticket_pricing;
 mod ticket_types;
 mod users;
 mod venues;
+mod wallets;

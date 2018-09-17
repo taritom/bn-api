@@ -174,6 +174,19 @@ table! {
 }
 
 table! {
+    payments (id) {
+        id -> Uuid,
+        order_id -> Uuid,
+        created_by -> Uuid,
+        payment_method -> Text,
+        amount -> Int8,
+        external_reference -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     regions (id) {
         id -> Uuid,
         name -> Text,
@@ -299,6 +312,8 @@ joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
 joinable!(organizations -> fee_schedules (fee_schedule_id));
 joinable!(organizations -> users (owner_user_id));
+joinable!(payments -> orders (order_id));
+joinable!(payments -> users (created_by));
 joinable!(ticket_holdings -> assets (asset_id));
 joinable!(ticket_instances -> assets (asset_id));
 joinable!(ticket_instances -> orders (order_id));
@@ -324,6 +339,7 @@ allow_tables_to_appear_in_same_query!(
     organization_invites,
     organizations,
     organization_users,
+    payments,
     regions,
     ticket_holdings,
     ticket_instances,

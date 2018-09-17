@@ -2,6 +2,7 @@ use actix_web::HttpResponse;
 use actix_web::ResponseError;
 use bigneon_db::utils::errors::DatabaseError;
 use diesel::result::Error as DieselError;
+use errors::AuthError;
 use errors::*;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
@@ -31,6 +32,12 @@ impl From<DieselError> for BigNeonError {
 
 impl From<SerdeError> for BigNeonError {
     fn from(e: SerdeError) -> Self {
+        BigNeonError(Box::new(e))
+    }
+}
+
+impl From<AuthError> for BigNeonError {
+    fn from(e: AuthError) -> Self {
         BigNeonError(Box::new(e))
     }
 }

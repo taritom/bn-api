@@ -17,6 +17,13 @@ pub fn forbidden(message: &str) -> Result<HttpResponse, BigNeonError> {
     Ok(HttpResponse::Forbidden().json(json!({"error":message.to_string()})))
 }
 
+pub fn unprocessable(message: &str) -> Result<HttpResponse, BigNeonError> {
+    warn!("Unprocessible: {}", message);
+    Ok(HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY)
+        .into_builder()
+        .json(json!({"error":message.to_string()})))
+}
+
 pub fn internal_server_error(message: &str) -> Result<HttpResponse, BigNeonError> {
     error!("Internal Server Error: {}", message);
     Ok(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)

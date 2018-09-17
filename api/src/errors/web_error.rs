@@ -3,6 +3,7 @@ use actix_web::Error as web_error;
 use actix_web::HttpResponse;
 use bigneon_db::utils::errors::DatabaseError;
 use diesel::result::Error as DieselError;
+use errors::AuthError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
 use std::error::Error;
@@ -35,6 +36,13 @@ impl ConvertToWebError for SerdeError {
     fn create_http_error(&self) -> web_error {
         error!("SerdeError Error: {}", self.description());
         error::ErrorInternalServerError("Internal error")
+    }
+}
+
+impl ConvertToWebError for AuthError {
+    fn create_http_error(&self) -> web_error {
+        error!("AuthError Error: {}", self.reason);
+        error::ErrorUnauthorized(self.reason.clone())
     }
 }
 

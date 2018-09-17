@@ -16,12 +16,13 @@ pub enum Scopes {
     ArtistWrite,
     EventWrite,
     EventInterest,
+    OrderMakeExternalPayment,
     OrgAdmin,
     OrgRead,
     OrgWrite,
     RegionWrite,
-    UserRead,
     TicketAdmin,
+    UserRead,
     VenueRead,
     VenueWrite,
 }
@@ -32,6 +33,7 @@ impl fmt::Display for Scopes {
             Scopes::ArtistWrite => "artist:write",
             Scopes::EventWrite => "event:write",
             Scopes::EventInterest => "event:interest",
+            Scopes::OrderMakeExternalPayment => "order::make-external-payment",
             Scopes::OrgAdmin => "org:admin",
             Scopes::OrgRead => "org:read",
             Scopes::OrgWrite => "org:write",
@@ -69,12 +71,12 @@ impl User {
         self.scopes.contains(&scope.to_string())
     }
 
-    pub fn requires_scope(&self, scope: Scopes) -> Result<(), Error> {
+    pub fn requires_scope(&self, scope: Scopes) -> Result<(), AuthError> {
         match self.has_scope(scope) {
             true => Ok(()),
-            false => Err(error::ErrorUnauthorized(
-                "User does not have the required permissions",
-            )),
+            false => Err(AuthError {
+                reason: "User does not have the required permissions".to_string(),
+            }),
         }
     }
 }
@@ -157,6 +159,7 @@ fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
                 Scopes::OrgAdmin,
                 Scopes::RegionWrite,
                 Scopes::VenueWrite,
+                Scopes::OrderMakeExternalPayment,
             ];
             roles.extend(get_scopes_for_role("OrgOwner"));
             roles
@@ -215,6 +218,7 @@ fn get_scopes_test() {
             "artist:write",
             "event:interest",
             "event:write",
+            "order::make-external-payment",
             "org:admin",
             "org:read",
             "org:write",
@@ -237,6 +241,7 @@ fn get_scopes_test() {
             "artist:write",
             "event:interest",
             "event:write",
+            "order::make-external-payment",
             "org:admin",
             "org:read",
             "org:write",

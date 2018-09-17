@@ -2,7 +2,8 @@ use chrono::prelude::*;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use models::{OrderStatus, OrderTypes, TicketInstance, User};
+use models::payments::Payment;
+use models::{OrderItemTypes, OrderStatus, OrderTypes, PaymentMethods, TicketInstance, User};
 use schema::{order_items, orders};
 use time::Duration;
 use utils::errors;
@@ -17,7 +18,6 @@ pub struct Order {
     pub id: Uuid,
     pub user_id: Uuid,
     status: String,
-    #[allow(dead_code)]
     order_type: String,
     pub expires_at: NaiveDateTime,
     pub created_at: NaiveDateTime,
@@ -72,6 +72,13 @@ impl Order {
             )
     }
 
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<Order, DatabaseError> {
+        orders::table
+            .filter(orders::id.eq(id))
+            .first(conn)
+            .to_db_error(errors::ErrorCode::QueryError, "Could not find order")
+    }
+
     pub fn add_tickets(
         &self,
         ticket_type_id: Uuid,
@@ -85,15 +92,42 @@ impl Order {
         OrderItem::find_for_order(self.id, conn)
     }
 
-    pub fn checkout(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        self.status = OrderStatus::PendingPayment.to_string();
+    pub fn add_external_payment(
+        &mut self,
+        external_reference: String,
+        current_user_id: Uuid,
+        amount: i64,
+        conn: &PgConnection,
+    ) -> Result<Payment, DatabaseError> {
         diesel::update(&*self)
             .set((
                 orders::status.eq(&self.status),
                 orders::updated_at.eq(dsl::now),
             )).execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
-        Ok(())
+
+        let payment = Payment::create(
+            self.id,
+            current_user_id,
+            PaymentMethods::External,
+            external_reference,
+            amount,
+        ).commit(conn)?;
+
+        // TODO: Check if total paid is equal to total amount
+        self.status = OrderStatus::Paid.to_string();
+
+        // TODO: Move the tickets to the user's wallet.
+        //        let target_wallet_id = self.target_wallet_id(conn)?;
+        //        for order_item in self.order_items(conn)? {
+        //            if order_item.item_type() == OrderItemTypes::Tickets {
+        //                for ticket in order_item.tickets(conn)? {
+        //                    ticket.move_to_wallet(target_wallet_id, conn)?;
+        //                }
+        //            }
+        //        }
+
+        Ok(payment)
     }
 }
 
@@ -123,6 +157,10 @@ impl OrderItem {
         //            item_type: OrderItemTypes::Tickets.to_string(),
         //            quantity: quantity as i64,
         //        }
+    }
+
+    fn item_type(&self) -> OrderItemTypes {
+        OrderItemTypes::parse(&self.item_type).unwrap()
     }
 
     fn find(

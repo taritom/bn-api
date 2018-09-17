@@ -30,6 +30,10 @@ impl TestDatabase {
         ArtistBuilder::new(&self.connection)
     }
 
+    pub fn create_cart(&self) -> OrderBuilder {
+        OrderBuilder::new(&self.connection)
+    }
+
     pub fn create_event(&self) -> EventBuilder {
         EventBuilder::new(&self.connection)
     }
