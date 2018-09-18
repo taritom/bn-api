@@ -24,6 +24,12 @@ pub struct SearchParameters {
     end_utc: Option<NaiveDateTime>,
 }
 
+#[derive(Deserialize)]
+pub struct PagingSearchParameters {
+    pub from_index: usize,
+    pub to_index: usize,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct AddArtistRequest {
     pub artist_id: Uuid,
@@ -278,6 +284,30 @@ pub fn cancel(
     let updated_event = event.cancel(connection)?;
 
     Ok(HttpResponse::Ok().json(&updated_event))
+}
+
+pub fn list_interested_users(
+    (connection, path_parameters, query_parameters, user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingSearchParameters>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::EventInterest, None, connection)? {
+        return application::unauthorized();
+    }
+
+    let query_parameters = query_parameters.into_inner();
+    let event_interested_users = EventInterest::list_interested_users(
+        path_parameters.id,
+        user.id(),
+        query_parameters.from_index,
+        query_parameters.to_index,
+        connection,
+    )?;
+    Ok(HttpResponse::Ok().json(&event_interested_users))
 }
 
 pub fn add_interest(

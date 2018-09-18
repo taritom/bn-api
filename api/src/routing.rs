@@ -33,6 +33,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(events::add_artist);
         r.method(Method::PUT).with(events::update_artists);
     }).resource("/events/{id}/interest", |r| {
+        r.method(Method::GET).with(events::list_interested_users);
         r.method(Method::POST).with(events::add_interest);
         r.method(Method::DELETE).with(events::remove_interest);
     }).resource("/events/{id}/tickets", |r| {

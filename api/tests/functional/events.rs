@@ -325,6 +325,28 @@ mod add_artist_tests {
 }
 
 #[cfg(test)]
+mod list_interested_users_tests {
+    use super::*;
+
+    #[test]
+    fn list_interested_users_org_member() {
+        base::events::list_interested_users(Roles::OrgMember, true);
+    }
+    #[test]
+    fn list_interested_users_admin() {
+        base::events::list_interested_users(Roles::Admin, true);
+    }
+    #[test]
+    fn list_interested_users_user() {
+        base::events::list_interested_users(Roles::User, true);
+    }
+    #[test]
+    fn list_interested_users_org_owner() {
+        base::events::list_interested_users(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod add_interest_tests {
     use super::*;
 

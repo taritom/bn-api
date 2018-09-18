@@ -1,7 +1,12 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
-use bigneon_api::controllers::events;
-use bigneon_api::controllers::events::*;
-use bigneon_db::models::*;
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
+use bigneon_api::controllers::events::{
+    self, AddArtistRequest, CreateEventRequest, CreateTicketTypeRequest, PagingSearchParameters,
+    PathParameters, UpdateArtistsRequest,
+};
+use bigneon_db::models::{
+    DisplayEventInterestedUser, DisplayEventInterestedUserList, Event, EventArtist,
+    EventEditableAttributes, EventInterest, Organization, Roles, Venue,
+};
 use chrono::prelude::*;
 use diesel::PgConnection;
 use serde_json;
@@ -189,6 +194,67 @@ pub fn add_artist(role: Roles, should_test_succeed: bool, same_organization: boo
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {
         support::expects_unauthorized(&response);
+    }
+}
+
+pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let event = database.create_event().finish();
+    let primary_user = support::create_auth_user(role, &database);
+    EventInterest::create(event.id, primary_user.id())
+        .commit(&database.connection)
+        .unwrap();
+    let n_secondary_users = 5;
+    let mut secondary_users: Vec<DisplayEventInterestedUser> = Vec::new();
+    secondary_users.reserve(n_secondary_users);
+    for _u_id in 0..n_secondary_users {
+        let curr_secondary_user = database.create_user().finish();
+        EventInterest::create(event.id, curr_secondary_user.id)
+            .commit(&database.connection)
+            .unwrap();
+        let curr_user_entry = DisplayEventInterestedUser {
+            user_id: curr_secondary_user.id,
+            first_name: curr_secondary_user.first_name.clone(),
+            last_name: curr_secondary_user.last_name.clone(),
+            thumb_profile_pic_url: None,
+        };
+        secondary_users.push(curr_user_entry);
+    }
+    secondary_users.sort_by_key(|x| x.user_id); //Sort results for testing purposes
+                                                //Construct api query
+    let from_index: usize = 0;
+    let to_index: usize = 10;
+    let test_request = TestRequest::create_with_uri(&format!(
+        "/interest?from_index={}&to_index={}",
+        from_index.to_string(),
+        to_index.to_string()
+    ));
+    let query_parameters =
+        Query::<PagingSearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path_parameters.id = event.id;
+    let response: HttpResponse = events::list_interested_users((
+        database.connection.into(),
+        path_parameters,
+        query_parameters,
+        primary_user,
+    )).into();
+    let response_body = support::unwrap_body_to_string(&response).unwrap();
+    //Construct expected output
+    let expected_data = DisplayEventInterestedUserList {
+        total_interests: secondary_users.len(),
+        users: secondary_users,
+    };
+    let expected_json_body = serde_json::to_string(&expected_data).unwrap();
+
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response_body, expected_json_body);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+        let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(response_body, updated_event);
     }
 }
 
