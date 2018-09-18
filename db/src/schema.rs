@@ -110,6 +110,7 @@ table! {
         id -> Uuid,
         order_id -> Uuid,
         item_type -> Text,
+        quantity -> Nullable<Int8>,
         cost -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,

@@ -20,6 +20,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(cart::add);
     }).resource("/carts/{id}/checkout", |r| {
         r.method(Method::POST).with(cart::checkout);
+    }).resource("/carts/{id}", |r| {
+        r.method(Method::GET).with(cart::show);
     }).resource("/events", |r| {
         r.method(Method::GET).with(events::index);
         r.method(Method::POST).with(events::create);

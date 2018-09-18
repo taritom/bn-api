@@ -4,9 +4,6 @@ ALTER TABLE order_items
   DROP COLUMN ticket_type_id;
 
 ALTER TABLE order_items
-  DROP COLUMN quantity;
-
-ALTER TABLE order_items
   ADD ticket_pricing_id Uuid NULL REFERENCES ticket_pricing(id);
 
 ALTER TABLE order_items

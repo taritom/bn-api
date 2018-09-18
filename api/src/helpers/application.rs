@@ -12,6 +12,11 @@ pub fn unauthorized_with_message(message: &str) -> Result<HttpResponse, BigNeonE
     Ok(HttpResponse::Unauthorized().json(json!({"error": message.to_string()})))
 }
 
+pub fn forbidden(message: &str) -> Result<HttpResponse, BigNeonError> {
+    warn!("Forbidden: {}", message);
+    Ok(HttpResponse::Forbidden().json(json!({"error":message.to_string()})))
+}
+
 pub fn unprocessable(message: &str) -> Result<HttpResponse, BigNeonError> {
     warn!("Unprocessible: {}", message);
     Ok(HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY)

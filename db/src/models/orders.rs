@@ -104,6 +104,7 @@ impl Order {
         let order_item = NewTicketsOrderItem {
             order_id: self.id,
             item_type: OrderItemTypes::Tickets.to_string(),
+            quantity,
             ticket_pricing_id: ticket_pricing.id,
             fee_schedule_range_id: fee_schedule_range.id,
             cost: ticket_pricing.price_in_cents * quantity,
@@ -168,7 +169,7 @@ impl Order {
         Ok(payment)
     }
 
-    pub fn calculate_total(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
+    pub fn calculate_total(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
         let order_items = self.items(conn)?;
         let mut total = 0;
 
@@ -176,7 +177,7 @@ impl Order {
             total += item.cost;
         }
 
-        Ok(total as u32)
+        Ok(total)
     }
 }
 
@@ -187,6 +188,7 @@ pub struct OrderItem {
     pub id: Uuid,
     order_id: Uuid,
     item_type: String,
+    pub quantity: Option<i64>,
     pub cost: i64,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
@@ -207,7 +209,7 @@ impl OrderItem {
         //        }
     }
 
-    fn item_type(&self) -> OrderItemTypes {
+    pub fn item_type(&self) -> OrderItemTypes {
         OrderItemTypes::parse(&self.item_type).unwrap()
     }
 
@@ -266,6 +268,7 @@ impl OrderItem {
 struct NewTicketsOrderItem {
     order_id: Uuid,
     item_type: String,
+    quantity: i64,
     cost: i64,
     ticket_pricing_id: Uuid,
     fee_schedule_range_id: Uuid,

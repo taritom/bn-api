@@ -58,6 +58,49 @@ pub enum PaymentRequest {
     External { reference: String },
 }
 
+pub fn show(
+    (connection, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let order = Order::find(path.id, connection)?;
+
+    if order.user_id != user.id() {
+        return application::forbidden("You do not have access to completed this cart");
+    }
+
+    #[derive(Serialize)]
+    struct DisplayCart {
+        id: Uuid,
+        items: Vec<DisplayCartItem>,
+        total: i64,
+    }
+
+    #[derive(Serialize)]
+    struct DisplayCartItem {
+        id: Uuid,
+        item_type: String,
+        quantity: u32,
+        cost: i64,
+    }
+
+    let items: Vec<DisplayCartItem> = order
+        .items(connection)?
+        .iter()
+        .map(|i| DisplayCartItem {
+            id: i.id,
+            item_type: i.item_type().to_string(),
+            quantity: i.quantity.unwrap_or_default() as u32,
+            cost: i.cost,
+        }).collect();
+    let r = DisplayCart {
+        id: order.id,
+        items,
+        total: order.calculate_total(connection)?,
+    };
+
+    Ok(HttpResponse::Ok().json(r))
+}
+
 pub fn checkout(
     (connection, json, path, user): (
         Connection,
@@ -75,6 +118,8 @@ pub fn checkout(
     }
 }
 
+// TODO: This should actually probably move to an `orders` controller, since the
+// user will not be calling this.
 fn checkout_external(
     conn: Connection,
     order_id: Uuid,
@@ -88,10 +133,6 @@ fn checkout_external(
     }
 
     let mut order = Order::find(order_id, connection)?;
-    //
-    //    if order.user_id != user.id {
-    //        return application::forbidden("You do not have access to completed this cart")
-    //    }
 
     if order.status() != OrderStatus::Draft {
         return application::unprocessable(

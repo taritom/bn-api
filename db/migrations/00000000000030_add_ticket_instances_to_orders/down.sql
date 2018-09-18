@@ -18,7 +18,5 @@ ALTER TABLE order_items
 ALTER TABLE order_items
   ADD ticket_type_id Uuid NULL REFERENCES ticket_types(id);
 
-ALTER TABLE order_items
-  ADD quantity bigint NOT NULL;
 
 CREATE INDEX index_order_items_ticket_type_id ON order_items (ticket_type_id);

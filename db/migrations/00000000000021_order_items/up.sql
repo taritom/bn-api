@@ -3,7 +3,7 @@ CREATE TABLE order_items (
   order_id uuid NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
   item_type text not null,
   ticket_type_id Uuid not null references ticket_types,
-  quantity bigint not null,
+  quantity bigint null,
   cost bigint not null,
   created_at TIMESTAMP not null default now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
