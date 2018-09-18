@@ -3,6 +3,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::scopes;
+use models::wallets::Wallet;
 use models::ExternalLogin;
 use models::{Organization, OrganizationUser, Roles};
 use schema::{organization_users, organizations, users};
@@ -77,10 +78,14 @@ pub struct UserEditableAttributes {
 
 impl NewUser {
     pub fn commit(&self, conn: &PgConnection) -> Result<User, DatabaseError> {
-        let res = diesel::insert_into(users::table)
+        let user: User = diesel::insert_into(users::table)
             .values(self)
-            .get_result(conn);
-        DatabaseError::wrap(ErrorCode::InsertError, "Could not create new user", res)
+            .get_result(conn)
+            .to_db_error(ErrorCode::InsertError, "Could not create new user")?;
+
+        Wallet::create_for_user(user.id, "Default".to_string()).commit(conn)?;
+
+        Ok(user)
     }
 }
 
@@ -300,6 +305,10 @@ impl User {
             }
         }
         Ok(can_read)
+    }
+
+    pub fn wallets(&self, conn: &PgConnection) -> Result<Vec<Wallet>, DatabaseError> {
+        Wallet::find_for_user(self.id, conn)
     }
 }
 

@@ -25,6 +25,9 @@ fn commit() {
     assert_ne!(user.hashed_pw, password);
     assert_eq!(user.hashed_pw.is_empty(), false);
     assert_eq!(user.id.to_string().is_empty(), false);
+
+    let wallets = user.wallets(project.get_connection()).unwrap();
+    assert_eq!(wallets.len(), 1);
 }
 
 #[test]
