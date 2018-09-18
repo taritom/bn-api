@@ -58,15 +58,14 @@ pub enum PaymentRequest {
     External { reference: String },
 }
 
-pub fn show(
-    (connection, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let order = Order::find(path.id, connection)?;
-
-    if order.user_id != user.id() {
-        return application::forbidden("You do not have access to completed this cart");
+    let order = Order::find_cart_for_user(user.id(), connection).optional()?;
+    if order.is_none() {
+        return Ok(HttpResponse::Ok().json(json!({})));
     }
+
+    let order = order.unwrap();
 
     #[derive(Serialize)]
     struct DisplayCart {

@@ -18,6 +18,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(auth::token_refresh)
     }).resource("/cart", |r| {
         r.method(Method::POST).with(cart::add);
+        r.method(Method::GET).with(cart::show);
     }).resource("/carts/{id}/checkout", |r| {
         r.method(Method::POST).with(cart::checkout);
     }).resource("/carts/{id}", |r| {
