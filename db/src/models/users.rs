@@ -2,10 +2,12 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use models::scopes;
 use models::ExternalLogin;
-use models::Roles;
-use schema::users;
-use utils::errors::{DatabaseError, ErrorCode};
+use models::{Organization, OrganizationUser, Roles};
+use schema::{organization_users, organizations, users};
+use std::collections::HashMap;
+use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::passwords::PasswordHash;
 use uuid::Uuid;
 use validator::Validate;
@@ -158,6 +160,56 @@ impl User {
         self.update_role(current_roles, conn)
     }
 
+    pub fn get_global_scopes(&self) -> Vec<String> {
+        scopes::get_scopes(self.role.clone())
+    }
+
+    pub fn get_roles_by_organization(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<HashMap<Uuid, Vec<String>>, DatabaseError> {
+        let mut roles_by_organization = HashMap::new();
+        for organization in self.organizations(conn)? {
+            roles_by_organization.insert(
+                organization.id.clone(),
+                organization.get_roles_for_user(self, conn)?,
+            );
+        }
+        Ok(roles_by_organization)
+    }
+
+    pub fn get_scopes_by_organization(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<HashMap<Uuid, Vec<String>>, DatabaseError> {
+        let mut scopes_by_organization = HashMap::new();
+        for organization in self.organizations(conn)? {
+            scopes_by_organization.insert(
+                organization.id.clone(),
+                organization.get_scopes_for_user(self, conn)?,
+            );
+        }
+        Ok(scopes_by_organization)
+    }
+
+    pub fn organizations(&self, conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
+        organizations::table
+            .left_join(organization_users::table)
+            .filter(
+                organization_users::user_id
+                    .eq(self.id)
+                    .or(organization_users::id
+                        .is_null()
+                        .and(organizations::owner_user_id.eq(self.id))),
+            ).select(organizations::all_columns)
+            .order_by(organizations::name.asc())
+            .load::<Organization>(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve organization users",
+            )
+    }
+
     fn update_role(
         &self,
         new_roles: Vec<String>,
@@ -206,7 +258,7 @@ impl User {
             email: Some(email.to_string()),
             phone: None,
             hashed_pw: hash.to_string(),
-            role: vec![Roles::Guest.to_string()],
+            role: vec![Roles::User.to_string()],
         };
         new_user.commit(&*conn).and_then(|user| {
             user.add_external_login(external_user_id, site, access_token, conn)?;
@@ -216,6 +268,38 @@ impl User {
 
     pub fn has_role(&self, role: Roles) -> bool {
         self.role.contains(&role.to_string())
+    }
+
+    pub fn can_read_user(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        if self.has_role(Roles::Admin) || self == user {
+            return Ok(true);
+        }
+        // TODO: Once OrgAdmin is moved to the organization_users table this logic will need to be adjusted
+
+        let organizations = organizations::table
+            .filter(organizations::owner_user_id.eq(self.id))
+            .load::<Organization>(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve organizations owned by user",
+            )?;
+        let organizations2 = OrganizationUser::belonging_to(user)
+            .inner_join(organizations::table)
+            .select(organizations::all_columns)
+            .load::<Organization>(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve organizations for user",
+            )?;
+
+        let mut can_read = false;
+        for organization in organizations {
+            can_read = organizations2.contains(&organization);
+            if can_read {
+                break;
+            }
+        }
+        Ok(can_read)
     }
 }
 

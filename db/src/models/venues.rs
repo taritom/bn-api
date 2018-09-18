@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use models::Region;
+use models::{Organization, Region};
 use schema::{organization_users, venues};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -42,8 +42,6 @@ pub struct Venue {
 #[table_name = "venues"]
 pub struct VenueEditableAttributes {
     pub region_id: Option<Uuid>,
-    pub organization_id: Option<Uuid>,
-    pub is_private: Option<bool>,
     pub name: Option<String>,
     pub address: Option<String>,
     pub city: Option<String>,
@@ -59,7 +57,6 @@ pub struct NewVenue {
     pub name: String,
     pub region_id: Option<Uuid>,
     pub organization_id: Option<Uuid>,
-    pub is_private: Option<bool>,
     pub address: Option<String>,
     pub city: Option<String>,
     pub state: Option<String>,
@@ -81,16 +78,10 @@ impl NewVenue {
 }
 
 impl Venue {
-    pub fn create(
-        name: &str,
-        region_id: Option<Uuid>,
-        organization_id: Option<Uuid>,
-        is_private: Option<bool>,
-    ) -> NewVenue {
+    pub fn create(name: &str, region_id: Option<Uuid>, organization_id: Option<Uuid>) -> NewVenue {
         NewVenue {
             name: String::from(name),
             region_id,
-            is_private,
             organization_id,
             ..Default::default()
         }
@@ -183,5 +174,28 @@ impl Venue {
             .set(venues::organization_id.eq(organization_id))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update venue")
+    }
+
+    pub fn set_privacy(
+        &self,
+        is_private: bool,
+        conn: &PgConnection,
+    ) -> Result<Venue, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::UpdateError,
+            "Could not update is_private for artist",
+            diesel::update(self)
+                .set((
+                    venues::is_private.eq(is_private),
+                    venues::updated_at.eq(dsl::now),
+                )).get_result(conn),
+        )
+    }
+
+    pub fn organization(&self, conn: &PgConnection) -> Result<Option<Organization>, DatabaseError> {
+        match self.organization_id {
+            Some(organization_id) => Ok(Some(Organization::find(organization_id, conn)?)),
+            None => Ok(None),
+        }
     }
 }

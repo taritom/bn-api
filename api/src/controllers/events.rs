@@ -1,6 +1,5 @@
 use actix_web::Query;
 use actix_web::{HttpResponse, Json, Path};
-use auth::user::Scopes;
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
@@ -115,10 +114,10 @@ pub fn show(
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
     let organization = event.organization(connection)?;
-    let venue = event.venue(connection)?;
-    let total_interest = EventInterest::total_interest(event.id, connection)?;
-    let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
 
+    let venue = event.venue(connection)?;
+    let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
+    let total_interest = EventInterest::total_interest(event.id, connection)?;
     let user_interest = match user {
         Some(u) => EventInterest::user_interest(event.id, u.id(), connection)?,
         None => false,
@@ -208,8 +207,15 @@ pub fn show_from_venues(
 pub fn create(
     (connection, new_event, user): (Connection, Json<CreateEventRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::EventWrite) {
-        return application::unauthorized();
+    let connection = connection.get();
+    if !user.has_scope(Scopes::EventWrite, None, connection)? {
+        if !user.has_scope(
+            Scopes::EventWrite,
+            Some(&Organization::find(new_event.organization_id, connection)?),
+            connection,
+        )? {
+            return application::unauthorized();
+        }
     }
 
     match new_event.validate() {
@@ -221,7 +227,7 @@ pub fn create(
                 new_event.event_start,
                 new_event.door_time,
                 new_event.publish_date,
-            ).commit(connection.get())?;
+            ).commit(connection)?;
             Ok(HttpResponse::Created().json(&event_response))
         }
         Err(e) => application::validation_error_response(e),
@@ -236,11 +242,15 @@ pub fn update(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::EventWrite) {
-        return application::unauthorized();
-    }
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
+    if !user.has_scope(
+        Scopes::EventWrite,
+        Some(&event.organization(connection)?),
+        connection,
+    )? {
+        return application::unauthorized();
+    }
 
     match event_parameters.validate() {
         Ok(_) => {
@@ -254,12 +264,16 @@ pub fn update(
 pub fn cancel(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::EventWrite) {
+    let connection = connection.get();
+    let event = Event::find(parameters.id, connection)?;
+    if !user.has_scope(
+        Scopes::EventWrite,
+        Some(&event.organization(connection)?),
+        connection,
+    )? {
         return application::unauthorized();
     }
-    let connection = connection.get();
 
-    let event = Event::find(parameters.id, connection)?;
     //Doing this in the DB layer so it can use the DB time as now.
     let updated_event = event.cancel(connection)?;
 
@@ -269,23 +283,24 @@ pub fn cancel(
 pub fn add_interest(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::EventInterest) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::EventInterest, None, connection)? {
         return application::unauthorized();
     }
 
-    let event_interest =
-        EventInterest::create(parameters.id, user.id()).commit(connection.get())?;
+    let event_interest = EventInterest::create(parameters.id, user.id()).commit(connection)?;
     Ok(HttpResponse::Created().json(&event_interest))
 }
 
 pub fn remove_interest(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::EventInterest) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::EventInterest, None, connection)? {
         return application::unauthorized();
     }
 
-    let event_interest = EventInterest::remove(parameters.id, user.id(), connection.get())?;
+    let event_interest = EventInterest::remove(parameters.id, user.id(), connection)?;
     Ok(HttpResponse::Ok().json(&event_interest))
 }
 
@@ -297,7 +312,13 @@ pub fn add_artist(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::EventWrite) {
+    let connection = connection.get();
+    let event = Event::find(parameters.id, connection)?;
+    if !user.has_scope(
+        Scopes::EventWrite,
+        Some(&event.organization(connection)?),
+        connection,
+    )? {
         return application::unauthorized();
     }
 
@@ -306,7 +327,7 @@ pub fn add_artist(
         event_artist.artist_id,
         event_artist.rank,
         event_artist.set_time,
-    ).commit(connection.get())?;
+    ).commit(connection)?;
     Ok(HttpResponse::Created().json(&event_artist))
 }
 
@@ -318,11 +339,16 @@ pub fn update_artists(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::EventWrite) {
+    let connection = connection.get();
+    let event = Event::find(parameters.id, connection)?;
+    if !user.has_scope(
+        Scopes::EventWrite,
+        Some(&event.organization(connection)?),
+        connection,
+    )? {
         return application::unauthorized();
     }
 
-    let connection = connection.get();
     EventArtist::clear_all_from_event(parameters.id, connection)?;
 
     let mut rank = 0;
@@ -352,14 +378,14 @@ pub fn create_tickets(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::TicketAdmin) {
-        return application::unauthorized();
-    }
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
-    let organization = event.organization(connection)?;
-    if !organization.is_member(&user.user, connection)? {
-        return application::forbidden("User does not belong to this organization");
+    if !user.has_scope(
+        Scopes::TicketAdmin,
+        Some(&event.organization(connection)?),
+        connection,
+    )? {
+        return application::unauthorized();
     }
 
     let ticket_type = event.add_ticket_type(data.name.clone(), data.capacity, connection)?;

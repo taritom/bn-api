@@ -13,7 +13,7 @@ use validator::Validate;
 
 #[derive(Associations, Identifiable, Queryable, AsChangeset)]
 #[belongs_to(Organization)]
-#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, QueryableByName, Serialize, Deserialize, PartialEq, Debug)]
 #[belongs_to(Venue)]
 #[table_name = "events"]
 pub struct Event {
@@ -53,7 +53,6 @@ pub struct NewEvent {
 #[table_name = "events"]
 pub struct EventEditableAttributes {
     pub name: Option<String>,
-    pub organization_id: Option<Uuid>,
     pub venue_id: Option<Uuid>,
     pub event_start: Option<NaiveDateTime>,
     pub door_time: Option<NaiveDateTime>,
@@ -161,7 +160,6 @@ impl Event {
             Some(n) => format!("%{}%", n),
             None => "%".to_string(),
         };
-
         let mut query = events::table
             .filter(
                 events::event_start

@@ -155,105 +155,25 @@ pub fn index_search_returns_only_one_event() {
     assert_eq!(body, events_expected_json);
 }
 
-#[test]
-pub fn show() {
-    let database = TestDatabase::new();
-    let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
-    let organization = database.create_organization().finish();
-    let venue = database.create_venue().finish();
-    let event = database
-        .create_event()
-        .with_name("NewEvent".to_string())
-        .with_organization(&organization)
-        .with_venue(&venue)
-        .finish();
-    let event_id = event.id;
-
-    let artist1 = database.create_artist().finish();
-    let artist2 = database.create_artist().finish();
-
-    event.add_artist(artist1.id, &database.connection).unwrap();
-    event.add_artist(artist2.id, &database.connection).unwrap();
-
-    let _event_interest = EventInterest::create(event.id, user.id).commit(&database.connection);
-
-    #[derive(Serialize)]
-    struct ShortOrganization {
-        id: Uuid,
-        name: String,
+#[cfg(test)]
+mod show_tests {
+    use super::*;
+    #[test]
+    fn show_org_member() {
+        base::events::show(Roles::OrgMember);
     }
-    #[derive(Serialize)]
-    struct DisplayEventArtist {
-        event_id: Uuid,
-        artist_id: Uuid,
-        rank: i32,
-        set_time: Option<NaiveDateTime>,
+    #[test]
+    fn show_admin() {
+        base::events::show(Roles::Admin);
     }
-    #[derive(Serialize)]
-    struct R {
-        id: Uuid,
-        name: String,
-        organization_id: Uuid,
-        venue_id: Option<Uuid>,
-        created_at: NaiveDateTime,
-        event_start: Option<NaiveDateTime>,
-        door_time: Option<NaiveDateTime>,
-        status: String,
-        publish_date: Option<NaiveDateTime>,
-        promo_image_url: Option<String>,
-        additional_info: Option<String>,
-        age_limit: Option<i32>,
-        organization: ShortOrganization,
-        venue: Venue,
-        artists: Vec<DisplayEventArtist>,
-        total_interest: u32,
-        user_is_interested: bool,
+    #[test]
+    fn show_user() {
+        base::events::show(Roles::User);
     }
-
-    let event_artists = EventArtist::find_all_from_event(event.id, &database.connection).unwrap();
-
-    let display_event_artists: Vec<DisplayEventArtist> = event_artists
-        .iter()
-        .map(|e| DisplayEventArtist {
-            event_id: e.event_id,
-            artist_id: e.artist_id,
-            rank: e.rank,
-            set_time: e.set_time,
-        }).collect();
-
-    let event_expected_json = serde_json::to_string(&R {
-        id: event.id,
-        name: event.name,
-        organization_id: event.organization_id,
-        venue_id: event.venue_id,
-        created_at: event.created_at,
-        event_start: event.event_start,
-        door_time: event.door_time,
-        status: event.status,
-        publish_date: event.publish_date,
-        promo_image_url: event.promo_image_url,
-        additional_info: event.additional_info,
-        age_limit: event.age_limit,
-        organization: ShortOrganization {
-            id: organization.id,
-            name: organization.name,
-        },
-        venue: venue,
-        artists: display_event_artists,
-        total_interest: 1,
-        user_is_interested: true,
-    }).unwrap();
-
-    let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = event_id;
-
-    let response: HttpResponse =
-        events::show((database.connection.into(), path, Some(auth_user))).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, event_expected_json);
+    #[test]
+    fn show_org_owner() {
+        base::events::show(Roles::OrgOwner);
+    }
 }
 
 #[cfg(test)]
@@ -261,23 +181,35 @@ mod create_tests {
     use super::*;
     #[test]
     fn create_org_member() {
-        base::events::create(Roles::OrgMember, true);
-    }
-    #[test]
-    fn create_guest() {
-        base::events::create(Roles::Guest, false);
+        base::events::create(Roles::OrgMember, true, true);
     }
     #[test]
     fn create_admin() {
-        base::events::create(Roles::Admin, true);
+        base::events::create(Roles::Admin, true, true);
     }
     #[test]
     fn create_user() {
-        base::events::create(Roles::User, false);
+        base::events::create(Roles::User, false, true);
     }
     #[test]
     fn create_org_owner() {
-        base::events::create(Roles::OrgOwner, true);
+        base::events::create(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn create_other_organization_org_member() {
+        base::events::create(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn create_other_organization_admin() {
+        base::events::create(Roles::Admin, true, false);
+    }
+    #[test]
+    fn create_other_organization_user() {
+        base::events::create(Roles::User, false, false);
+    }
+    #[test]
+    fn create_other_organization_org_owner() {
+        base::events::create(Roles::OrgOwner, false, false);
     }
 }
 
@@ -286,23 +218,35 @@ mod update_tests {
     use super::*;
     #[test]
     fn update_org_member() {
-        base::events::update(Roles::OrgMember, true);
-    }
-    #[test]
-    fn update_guest() {
-        base::events::update(Roles::Guest, false);
+        base::events::update(Roles::OrgMember, true, true);
     }
     #[test]
     fn update_admin() {
-        base::events::update(Roles::Admin, true);
+        base::events::update(Roles::Admin, true, true);
     }
     #[test]
     fn update_user() {
-        base::events::update(Roles::User, false);
+        base::events::update(Roles::User, false, true);
     }
     #[test]
     fn update_org_owner() {
-        base::events::update(Roles::OrgOwner, true);
+        base::events::update(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn update_other_organization_org_member() {
+        base::events::update(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn update_other_organization_admin() {
+        base::events::update(Roles::Admin, true, false);
+    }
+    #[test]
+    fn update_other_organization_user() {
+        base::events::update(Roles::User, false, false);
+    }
+    #[test]
+    fn update_other_organization_org_owner() {
+        base::events::update(Roles::OrgOwner, false, false);
     }
 }
 
@@ -311,23 +255,35 @@ mod cancel_tests {
     use super::*;
     #[test]
     fn cancel_org_member() {
-        base::events::cancel(Roles::OrgMember, true);
-    }
-    #[test]
-    fn cancel_guest() {
-        base::events::cancel(Roles::Guest, false);
+        base::events::cancel(Roles::OrgMember, true, true);
     }
     #[test]
     fn cancel_admin() {
-        base::events::cancel(Roles::Admin, true);
+        base::events::cancel(Roles::Admin, true, true);
     }
     #[test]
     fn cancel_user() {
-        base::events::cancel(Roles::User, false);
+        base::events::cancel(Roles::User, false, true);
     }
     #[test]
     fn cancel_org_owner() {
-        base::events::cancel(Roles::OrgOwner, true);
+        base::events::cancel(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn cancel_other_organization_org_member() {
+        base::events::cancel(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn cancel_other_organization_admin() {
+        base::events::cancel(Roles::Admin, true, false);
+    }
+    #[test]
+    fn cancel_other_organization_user() {
+        base::events::cancel(Roles::User, false, false);
+    }
+    #[test]
+    fn cancel_other_organization_org_owner() {
+        base::events::cancel(Roles::OrgOwner, false, false);
     }
 }
 
@@ -336,23 +292,35 @@ mod add_artist_tests {
     use super::*;
     #[test]
     fn add_artist_org_member() {
-        base::events::add_artist(Roles::OrgMember, true);
-    }
-    #[test]
-    fn add_artist_guest() {
-        base::events::add_artist(Roles::Guest, false);
+        base::events::add_artist(Roles::OrgMember, true, true);
     }
     #[test]
     fn add_artist_admin() {
-        base::events::add_artist(Roles::Admin, true);
+        base::events::add_artist(Roles::Admin, true, true);
     }
     #[test]
     fn add_artist_user() {
-        base::events::add_artist(Roles::User, false);
+        base::events::add_artist(Roles::User, false, true);
     }
     #[test]
     fn add_artist_org_owner() {
-        base::events::add_artist(Roles::OrgOwner, true);
+        base::events::add_artist(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn add_artist_other_organization_org_member() {
+        base::events::add_artist(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn add_artist_other_organization_admin() {
+        base::events::add_artist(Roles::Admin, true, false);
+    }
+    #[test]
+    fn add_artist_other_organization_user() {
+        base::events::add_artist(Roles::User, false, false);
+    }
+    #[test]
+    fn add_artist_other_organization_org_owner() {
+        base::events::add_artist(Roles::OrgOwner, false, false);
     }
 }
 
@@ -403,22 +371,37 @@ mod remove_interest_tests {
 #[cfg(test)]
 mod update_artists_tests {
     use super::*;
-
     #[test]
     fn update_artists_org_member() {
-        base::events::update_artists(Roles::OrgMember, true);
+        base::events::update_artists(Roles::OrgMember, true, true);
     }
     #[test]
     fn update_artists_admin() {
-        base::events::update_artists(Roles::Admin, true);
+        base::events::update_artists(Roles::Admin, true, true);
     }
     #[test]
     fn update_artists_user() {
-        base::events::update_artists(Roles::User, false);
+        base::events::update_artists(Roles::User, false, true);
     }
     #[test]
     fn update_artists_org_owner() {
-        base::events::update_artists(Roles::OrgOwner, true);
+        base::events::update_artists(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn update_artists_other_organization_org_member() {
+        base::events::update_artists(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn update_artists_other_organization_admin() {
+        base::events::update_artists(Roles::Admin, true, false);
+    }
+    #[test]
+    fn update_artists_other_organization_user() {
+        base::events::update_artists(Roles::User, false, false);
+    }
+    #[test]
+    fn update_artists_other_organization_org_owner() {
+        base::events::update_artists(Roles::OrgOwner, false, false);
     }
 }
 
@@ -470,6 +453,14 @@ pub fn show_from_venues() {
         .with_name("NewEvent2".to_string())
         .with_organization(&organization)
         .finish();
+    // Private event is not returned
+    let private_venue = database.create_venue().make_private().finish();
+    let _event3 = database
+        .create_event()
+        .with_name("NewEvent3".to_string())
+        .with_organization(&organization)
+        .with_venue(&private_venue)
+        .finish();
 
     let all_events = vec![event, event2];
     let event_expected_json = serde_json::to_string(&all_events).unwrap();
@@ -492,10 +483,6 @@ mod create_tickets_tests {
     #[test]
     fn create_tickets_org_member() {
         base::events::create_tickets(Roles::OrgMember, true);
-    }
-    #[test]
-    fn create_tickets_guest() {
-        base::events::create_tickets(Roles::Guest, false);
     }
     #[test]
     fn create_tickets_admin() {

@@ -151,7 +151,17 @@ fn search() {
     event2
         .add_artist(artist1.id, project.get_connection())
         .unwrap();
-    let all_events = vec![event, event2];
+
+    //find more than one event
+    let event3 = project
+        .create_event()
+        .with_name("NewEvent2".into())
+        .with_organization(&organization)
+        .with_venue(&venue2)
+        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .finish();
+
+    let all_events = vec![event, event2, event3];
     let all_found_events = Event::search(None, None, None, None, project.get_connection()).unwrap();
     assert_eq!(all_events, all_found_events);
 
@@ -172,8 +182,9 @@ fn search() {
         None,
         project.get_connection(),
     ).unwrap();
-    assert_eq!(all_found_events.len(), 1);
+    assert_eq!(all_found_events.len(), 2);
     assert_eq!(all_events[1], all_found_events[0]);
+    assert_eq!(all_events[2], all_found_events[1]);
 
     // Venue name search
     let all_found_events = Event::search(
@@ -194,7 +205,9 @@ fn search() {
         None,
         project.get_connection(),
     ).unwrap();
-    assert_eq!(all_events, all_found_events);
+    assert_eq!(all_found_events.len(), 2);
+    assert_eq!(all_events[0], all_found_events[0]);
+    assert_eq!(all_events[1], all_found_events[1]);
 
     // Artist name search for artist at only one event
     let all_found_events = Event::search(
@@ -236,8 +249,9 @@ fn search() {
         None,
         project.get_connection(),
     ).unwrap();
-    assert_eq!(all_found_events.len(), 1);
+    assert_eq!(all_found_events.len(), 2);
     assert_eq!(all_events[1], all_found_events[0]);
+    assert_eq!(all_events[2], all_found_events[1]);
 
     // Combination of query and region resulting in no records
     let all_found_events = Event::search(
@@ -267,8 +281,9 @@ fn search() {
         None,
         project.get_connection(),
     ).unwrap();
-    assert_eq!(all_found_events.len(), 1);
+    assert_eq!(all_found_events.len(), 2);
     assert_eq!(all_events[1], all_found_events[0]);
+    assert_eq!(all_events[2], all_found_events[1]);
 
     let all_found_events = Event::search(
         None,
@@ -285,24 +300,38 @@ fn search() {
 fn find_for_organization_and_venue() {
     //create event
     let project = TestProject::new();
-    let venue1 = project.create_venue().with_name("Venue1".into()).finish();
-    let venue2 = project.create_venue().with_name("Venue2".into()).finish();
+    let venue1 = project.create_venue().finish();
+    let venue2 = project.create_venue().finish();
     let user = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
+
+    let artist1 = project.create_artist().finish();
+    let artist2 = project.create_artist().finish();
+
     let event = project
         .create_event()
-        .with_name("NewEvent".into())
+        .with_name("Event1".into())
         .with_organization(&organization)
         .with_venue(&venue1)
         .finish();
+    event
+        .add_artist(artist1.id, project.get_connection())
+        .unwrap();
+    event
+        .add_artist(artist2.id, project.get_connection())
+        .unwrap();
 
     //find more than one event
     let event2 = project
         .create_event()
-        .with_name("NewEvent".into())
+        .with_name("Event2".into())
         .with_organization(&organization)
         .with_venue(&venue2)
         .finish();
+    event2
+        .add_artist(artist1.id, project.get_connection())
+        .unwrap();
+
     let all_events = vec![event, event2];
 
     //find all events via organisation

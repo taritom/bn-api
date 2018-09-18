@@ -1,7 +1,6 @@
 use actix_web::{HttpResponse, Json, Path};
-use auth::user::Scopes;
 use auth::user::User;
-use bigneon_db::models::{NewVenue, Organization, Venue, VenueEditableAttributes};
+use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
@@ -23,12 +22,11 @@ pub fn index((connection, user): (Connection, Option<User>)) -> Result<HttpRespo
 }
 
 pub fn show(
-    (connection, parameters, user): (Connection, Path<PathParameters>, User),
+    (connection, parameters): (Connection, Path<PathParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::VenueRead) {
-        return application::unauthorized();
-    }
-    let venue = Venue::find(parameters.id, connection.get())?;
+    let connection = connection.get();
+    let venue = Venue::find(parameters.id, connection)?;
+
     Ok(HttpResponse::Ok().json(&venue))
 }
 
@@ -47,11 +45,39 @@ pub fn show_from_organizations(
 pub fn create(
     (connection, new_venue, user): (Connection, Json<NewVenue>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::VenueWrite) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::VenueWrite, None, connection)? {
+        if new_venue.organization_id.is_none() {
+            return application::unauthorized();
+        } else if let Some(organization_id) = new_venue.organization_id {
+            let organization = Organization::find(organization_id, connection)?;
+            if !user.has_scope(Scopes::VenueWrite, Some(&organization), connection)? {
+                return application::unauthorized();
+            }
+        }
+    }
+
+    let mut venue = new_venue.commit(connection)?;
+
+    // New venues belonging to an organization start private
+    if venue.organization_id.is_some() {
+        venue = venue.set_privacy(true, connection)?;
+    }
+
+    Ok(HttpResponse::Created().json(&venue))
+}
+
+pub fn toggle_privacy(
+    (connection, parameters, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::VenueWrite, None, connection)? {
         return application::unauthorized();
     }
-    let venue = new_venue.commit(connection.get())?;
-    Ok(HttpResponse::Created().json(&venue))
+
+    let venue = Venue::find(parameters.id, connection)?;
+    let updated_venue = venue.set_privacy(!venue.is_private, connection)?;
+    Ok(HttpResponse::Ok().json(updated_venue))
 }
 
 pub fn update(
@@ -63,15 +89,15 @@ pub fn update(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-
     let venue = Venue::find(parameters.id, connection)?;
-
-    if !user.has_scope(Scopes::VenueWrite) && !(user.has_scope(Scopes::OrgWrite)
-        && venue.organization_id.is_some()
-        && Organization::find(venue.organization_id.unwrap(), connection)?
-            .is_member(&user.user, connection)?)
-    {
-        return application::unauthorized();
+    if !user.has_scope(Scopes::VenueWrite, None, connection)? {
+        if !venue.is_private || venue.organization_id.is_none() {
+            return application::unauthorized();
+        } else if let Some(organization) = venue.organization(connection)? {
+            if !user.has_scope(Scopes::VenueWrite, Some(&organization), connection)? {
+                return application::unauthorized();
+            }
+        }
     }
 
     let updated_venue = venue.update(venue_parameters.into_inner(), connection)?;
@@ -86,13 +112,12 @@ pub fn add_to_organization(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::VenueWrite) || !user.has_scope(Scopes::OrgWrite) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
         return application::unauthorized();
     }
-    let connection = connection.get();
-    let add_request = add_request.into_inner();
     let venue = Venue::find(parameters.id, &*connection)?;
-
+    let add_request = add_request.into_inner();
     if venue.organization_id.is_some() {
         Ok(HttpResponse::Conflict().json(json!({"error": "An error has occurred"})))
     } else {

@@ -1,7 +1,6 @@
 use actix_web::{HttpResponse, Json, Path};
-use auth::user::Scopes;
 use auth::user::User;
-use bigneon_db::models::{NewRegion, Region, RegionEditableAttributes};
+use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
@@ -27,10 +26,11 @@ pub fn show(
 pub fn create(
     (connection, new_region, user): (Connection, Json<NewRegion>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::RegionWrite) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::RegionWrite, None, connection)? {
         return application::unauthorized();
     }
-    let region = new_region.into_inner().commit(connection.get())?;
+    let region = new_region.into_inner().commit(connection)?;
     Ok(HttpResponse::Created().json(&region))
 }
 
@@ -42,10 +42,10 @@ pub fn update(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::RegionWrite) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::RegionWrite, None, connection)? {
         return application::unauthorized();
     }
-    let connection = connection.get();
     let region = Region::find(&parameters.id, connection)?;
     let updated_region = region.update(region_parameters.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(updated_region))

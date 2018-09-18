@@ -1,5 +1,6 @@
 use bigneon_api::config::{Config, Environment};
 use bigneon_db::dev::builders::*;
+use bigneon_db::models::User;
 use diesel::Connection;
 use diesel::PgConnection;
 use std::sync::Arc;
@@ -23,6 +24,15 @@ impl TestDatabase {
 
         TestDatabase {
             connection: Arc::new(connection),
+        }
+    }
+
+    pub fn create_organization_with_user(&self, user: &User, owner: bool) -> OrganizationBuilder {
+        let organization_builder = self.create_organization();
+        if owner {
+            organization_builder.with_owner(&user)
+        } else {
+            organization_builder.with_user(&user)
         }
     }
 

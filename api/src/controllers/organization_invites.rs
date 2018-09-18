@@ -1,5 +1,4 @@
 use actix_web::{HttpResponse, Json, Path, Query, State};
-use auth::user::Scopes;
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
@@ -41,11 +40,16 @@ pub fn create(
         AuthUser,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !auth_user.has_scope(Scopes::OrgWrite) {
-        return application::unauthorized();
-    };
-    let invite_args = new_org_invite.into_inner();
     let connection = connection.get();
+    if !auth_user.has_scope(
+        Scopes::OrgWrite,
+        Some(&Organization::find(path.id, connection)?),
+        connection,
+    )? {
+        return application::unauthorized();
+    }
+
+    let invite_args = new_org_invite.into_inner();
 
     let mut invite: NewOrganizationInvite;
     let email: String;

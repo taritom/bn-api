@@ -5,7 +5,7 @@ use support::project::TestProject;
 fn commit() {
     let project = TestProject::new();
     let name = "Name";
-    let venue = Venue::create(name.clone(), None, None, None)
+    let venue = Venue::create(name.clone(), None, None)
         .commit(project.get_connection())
         .unwrap();
 
@@ -22,21 +22,28 @@ fn update() {
     let new_address = "Test Address";
 
     let parameters = VenueEditableAttributes {
-        region_id: None,
-        organization_id: None,
-        is_private: Some(false),
         name: Some(new_name.to_string()),
         address: Some(new_address.to_string()),
-        city: None,
-        state: None,
-        country: None,
-        postal_code: None,
-        phone: None,
+        ..Default::default()
     };
 
     let updated_venue = venue.update(parameters, project.get_connection()).unwrap();
     assert_eq!(updated_venue.name, new_name);
     assert_eq!(updated_venue.address.unwrap(), new_address);
+}
+
+#[test]
+fn set_privacy() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut venue = project.create_venue().finish();
+    assert!(!venue.is_private);
+
+    venue = venue.set_privacy(true, connection).unwrap();
+    assert!(venue.is_private);
+
+    venue = venue.set_privacy(false, connection).unwrap();
+    assert!(!venue.is_private);
 }
 
 #[test]
@@ -72,7 +79,9 @@ fn all() {
         .finish();
     let venue3 = venue3.add_to_organization(&organization.id, &project.get_connection());
     let user = project.create_user().finish();
-    let _ = organization.add_user(user.id, &project.get_connection());
+    let _ = organization
+        .add_user(user.id, &project.get_connection())
+        .unwrap();
     all_venues.push(venue3.unwrap());
     let all_found_venues = Venue::all(Some(user.id), &project.get_connection()).unwrap();
     assert_eq!(all_venues, all_found_venues);
@@ -119,4 +128,21 @@ fn find_via_org() {
         Venue::find_for_organization(None, organization.id, project.get_connection()).unwrap();
     assert_eq!(found_venues, all_venues);
     assert!(!found_venues.contains(&other_venue));
+}
+
+#[test]
+fn organization() {
+    let project = TestProject::new();
+    let organization = project.create_organization().finish();
+    let venue = project
+        .create_venue()
+        .with_organization(&organization)
+        .finish();
+    let venue2 = project.create_venue().finish();
+
+    assert_eq!(
+        Ok(Some(organization)),
+        venue.organization(project.get_connection())
+    );
+    assert_eq!(Ok(None), venue2.organization(project.get_connection()));
 }

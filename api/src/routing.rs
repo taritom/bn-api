@@ -5,7 +5,9 @@ use server::AppState;
 
 pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     // Please try to keep in alphabetical order
-    app.resource("/artists/{id}", |r| {
+    app.resource("/artists/{id}/toggle_privacy", |r| {
+        r.method(Method::PUT).with(artists::toggle_privacy);
+    }).resource("/artists/{id}", |r| {
         r.method(Method::GET).with(artists::show);
         r.method(Method::PUT).with(artists::update);
     }).resource("/artists", |r| {
@@ -95,6 +97,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(events::show_from_venues);
     }).resource("/venues/{id}/organizations", |r| {
         r.method(Method::POST).with(venues::add_to_organization);
+    }).resource("/venues/{id}/toggle_privacy", |r| {
+        r.method(Method::PUT).with(venues::toggle_privacy);
     }).resource("/venues/{id}", |r| {
         r.method(Method::GET).with(venues::show);
         r.method(Method::PUT).with(venues::update);

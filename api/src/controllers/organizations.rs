@@ -1,9 +1,6 @@
 use actix_web::{HttpResponse, Json, Path};
-use auth::user::{Scopes, User};
-use bigneon_db::models::{
-    DisplayUser, FeeSchedule, FeeScheduleRange, NewArtist, NewFeeSchedule, NewOrganization,
-    NewVenue, Organization, OrganizationEditableAttributes,
-};
+use auth::user::User;
+use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use db::Connection;
 use errors::*;
@@ -36,11 +33,8 @@ pub struct FeeScheduleWithRanges {
 }
 
 pub fn index((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
-    if user.has_scope(Scopes::OrgAdmin) {
+    if user.has_scope(Scopes::OrgAdmin, None, connection.get())? {
         return index_for_all_orgs((connection, user));
-    }
-    if !user.has_scope(Scopes::OrgRead) {
-        return application::unauthorized();
     }
     let organizations = Organization::all_linked_to_user(user.id(), connection.get())?;
     Ok(HttpResponse::Ok().json(&organizations))
@@ -49,20 +43,22 @@ pub fn index((connection, user): (Connection, User)) -> Result<HttpResponse, Big
 pub fn index_for_all_orgs(
     (connection, user): (Connection, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgAdmin) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
         return application::unauthorized();
     }
-    let organizations = Organization::all(connection.get())?;
+    let organizations = Organization::all(connection)?;
     Ok(HttpResponse::Ok().json(&organizations))
 }
 
 pub fn show(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgRead) {
+    let connection = connection.get();
+    let organization = Organization::find(parameters.id, connection)?;
+    if !user.has_scope(Scopes::OrgRead, Some(&organization), connection)? {
         return application::unauthorized();
     }
-    let organization = Organization::find(parameters.id, connection.get())?;
 
     Ok(HttpResponse::Ok().json(&organization))
 }
@@ -70,11 +66,12 @@ pub fn show(
 pub fn create(
     (connection, new_organization, user): (Connection, Json<NewOrganization>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgAdmin) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
         return application::unauthorized();
     }
 
-    let organization = new_organization.commit(connection.get())?;
+    let organization = new_organization.commit(connection)?;
     Ok(HttpResponse::Created().json(&organization))
 }
 
@@ -86,11 +83,12 @@ pub fn update(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgWrite) {
-        return application::unauthorized();
-    }
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
+    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
+        return application::unauthorized();
+    }
+
     let updated_organization =
         organization.update(organization_parameters.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
@@ -104,10 +102,10 @@ pub fn update_owner(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgAdmin) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
         return application::unauthorized();
     }
-    let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
     let updated_organization =
         organization.set_owner(json.into_inner().owner_user_id, connection)?;
@@ -122,12 +120,15 @@ pub fn add_venue(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgWrite) {
+    let connection = connection.get();
+    let organization = Organization::find(parameters.id, connection)?;
+    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
         return application::unauthorized();
     }
+
     let mut new_venue = new_venue.into_inner();
     new_venue.organization_id = Some(parameters.id);
-    let venue = new_venue.commit(connection.get())?;
+    let venue = new_venue.commit(connection)?;
     Ok(HttpResponse::Created().json(&venue))
 }
 
@@ -140,12 +141,11 @@ pub fn add_artist(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    if !(user.has_scope(Scopes::OrgAdmin)
-        || (user.has_scope(Scopes::OrgWrite)
-            && Organization::find(parameters.id, connection)?.is_member(&user.user, connection)?))
-    {
+    let organization = Organization::find(parameters.id, connection)?;
+    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
         return application::unauthorized();
     }
+
     let mut new_artist = new_artist.into_inner();
     new_artist.organization_id = Some(parameters.id);
 
@@ -166,23 +166,23 @@ pub fn add_user(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgWrite) {
+    let connection = connection.get();
+    let organization = Organization::find(path.id, connection)?;
+    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
         return application::unauthorized();
     }
-    let connection = connection.get();
-    let org = Organization::find(path.id, connection)?;
-    org.add_user(add_request.user_id, connection)?;
+    organization.add_user(add_request.user_id, connection)?;
     Ok(HttpResponse::Created().finish())
 }
 
 pub fn remove_user(
     (connection, parameters, user_id, user): (Connection, Path<PathParameters>, Json<Uuid>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgWrite) {
-        return application::unauthorized();
-    }
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
+    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
+        return application::unauthorized();
+    }
 
     let organization = organization.remove_user(user_id.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(&organization))
@@ -191,12 +191,11 @@ pub fn remove_user(
 pub fn list_organization_members(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgRead) {
-        return application::unauthorized();
-    }
-
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
+    if !user.has_scope(Scopes::OrgRead, Some(&organization), connection)? {
+        return application::unauthorized();
+    }
 
     let mut members: Vec<DisplayUser> = organization
         .users(connection)?
@@ -221,12 +220,11 @@ pub fn list_organization_members(
 pub fn show_fee_schedule(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgWrite) {
+    let connection = connection.get();
+    let organization = Organization::find(parameters.id, connection)?;
+    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
         return application::unauthorized();
     }
-    let connection = connection.get();
-
-    let organization = Organization::find(parameters.id, connection)?;
     if organization.fee_schedule_id.is_none() {
         return Ok(
             HttpResponse::Ok().json(json!({"success": false, "message": "Fee schedule not found"}))
@@ -252,10 +250,10 @@ pub fn add_fee_schedule(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    if !user.has_scope(Scopes::OrgAdmin) {
+    let connection = connection.get();
+    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
         return application::unauthorized();
     }
-    let connection = connection.get();
 
     let fee_schedule = json.into_inner().commit(connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;

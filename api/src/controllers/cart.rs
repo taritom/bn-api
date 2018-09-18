@@ -1,9 +1,8 @@
 use actix_web::HttpResponse;
 use actix_web::Json;
 use actix_web::Path;
-use auth::user::Scopes;
 use auth::user::User;
-use bigneon_db::models::{Order, OrderStatus, OrderTypes};
+use bigneon_db::models::{Order, OrderStatus, OrderTypes, Scopes};
 use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::BigNeonError;
@@ -83,9 +82,11 @@ fn checkout_external(
     checkout_request: &CheckoutCartRequest,
     user: User,
 ) -> Result<HttpResponse, BigNeonError> {
-    user.requires_scope(Scopes::OrderMakeExternalPayment)?;
-
     let connection = conn.get();
+    if !user.has_scope(Scopes::OrderMakeExternalPayment, None, connection)? {
+        return application::unauthorized();
+    }
+
     let mut order = Order::find(order_id, connection)?;
     //
     //    if order.user_id != user.id {

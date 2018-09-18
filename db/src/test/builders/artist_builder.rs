@@ -1,12 +1,12 @@
 use diesel::prelude::*;
-use models::Artist;
+use models::*;
 use rand::prelude::*;
 use uuid::Uuid;
 
 pub struct ArtistBuilder<'a> {
     name: String,
     organization_id: Option<Uuid>,
-    is_private: Option<bool>,
+    is_private: bool,
     bio: String,
     website_url: String,
     connection: &'a PgConnection,
@@ -20,7 +20,7 @@ impl<'a> ArtistBuilder<'a> {
             bio: "Bigraphy".into(),
             website_url: "http://www.example.com".into(),
             connection,
-            is_private: None,
+            is_private: false,
             organization_id: None,
         }
     }
@@ -30,24 +30,26 @@ impl<'a> ArtistBuilder<'a> {
         self
     }
 
-    pub fn with_organization(mut self, organization_id: Uuid) -> Self {
-        self.organization_id = Some(organization_id);
+    pub fn with_organization(mut self, organization: &Organization) -> Self {
+        self.organization_id = Some(organization.id.clone());
         self
     }
 
     pub fn make_private(mut self) -> Self {
-        self.is_private = Some(true);
+        self.is_private = true;
         self
     }
 
     pub fn finish(&self) -> Artist {
-        Artist::create(
+        let artist = Artist::create(
             &self.name,
             self.organization_id,
-            self.is_private,
             &self.bio,
             &self.website_url,
         ).commit(self.connection)
-        .unwrap()
+        .unwrap();
+        artist
+            .set_privacy(self.is_private, self.connection)
+            .unwrap()
     }
 }

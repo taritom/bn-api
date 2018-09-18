@@ -1,8 +1,7 @@
 pub mod database;
 pub mod test_request;
 
-use actix_web::Body::Binary;
-use actix_web::HttpResponse;
+use actix_web::{http::StatusCode, Body::Binary, HttpResponse};
 use bigneon_api::auth::user::User as AuthUser;
 use bigneon_db::models::{Roles, User};
 use std::str;
@@ -21,6 +20,20 @@ pub fn create_auth_user(role: Roles, database: &TestDatabase) -> AuthUser {
 }
 
 pub fn create_auth_user_from_user(user: &User, role: Roles, database: &TestDatabase) -> AuthUser {
-    let user = user.add_role(role, &database.connection).unwrap();
-    AuthUser::new(user)
+    if role == Roles::Admin || role == Roles::User {
+        let user = user.add_role(role, &database.connection).unwrap();
+        AuthUser::new(user)
+    } else {
+        AuthUser::new(user.clone())
+    }
+}
+
+pub fn expects_unauthorized(response: &HttpResponse) {
+    let expected_json: HttpResponse;
+    expected_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let expected_text = unwrap_body_to_string(&expected_json).unwrap();
+    let body = unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, expected_text);
 }

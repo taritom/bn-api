@@ -1,8 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
-use bigneon_api::controllers::organization_invites::{
-    self, InviteResponseQuery, NewOrgInviteRequest, PathParameters,
-};
-use bigneon_db::models::{OrganizationInvite, Roles};
+use bigneon_api::controllers::organization_invites::{self, *};
+use bigneon_db::models::*;
 use lettre::SendableEmail;
 use serde_json;
 use std::str;
@@ -10,10 +8,14 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
-pub fn create(role: Roles, should_test_succeed: bool) {
+pub fn create(role: Roles, should_test_succeed: bool, same_organization: bool) {
     let database = TestDatabase::new();
-    let owner = database.create_user().finish();
-    let organization = database.create_organization().with_owner(&owner).finish();
+    let user = database.create_user().finish();
+    let organization = if same_organization && role != Roles::User {
+        database.create_organization_with_user(&user, role == Roles::OrgOwner)
+    } else {
+        database.create_organization()
+    }.finish();
 
     let email = "jeff2@tari.com";
     let invited_user = database
@@ -21,7 +23,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         .with_email(email.to_string())
         .finish();
 
-    let user = support::create_auth_user_from_user(&owner, role, &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(NewOrgInviteRequest {
@@ -31,15 +33,20 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let response: HttpResponse =
-        organization_invites::create((state, database.connection.into(), json, path, user)).into();
+    let response: HttpResponse = organization_invites::create((
+        state,
+        database.connection.into(),
+        json,
+        path,
+        auth_user.clone(),
+    )).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
-        assert_eq!(org_in.inviter_id, owner.id);
+        assert_eq!(org_in.inviter_id, user.id);
 
         let mail_transport = test_request.test_transport();
 
@@ -65,24 +72,27 @@ pub fn create(role: Roles, should_test_succeed: bool) {
             assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
         }
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, organization_expected_json);
+        support::expects_unauthorized(&response);
     }
 }
 
 pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let email = "test@tari.com";
-    let owner = database.create_user().finish();
-    let organization = database.create_organization().with_owner(&owner).finish();
+    let user = database.create_user().finish();
+
+    let organization = if role != Roles::User {
+        database.create_organization_with_user(&user, role == Roles::OrgOwner)
+    } else {
+        database.create_organization()
+    }.finish();
+
     let invited_user = database
         .create_user()
         .with_email(email.to_string())
         .finish();
 
-    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(NewOrgInviteRequest {
@@ -101,7 +111,7 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
         assert_eq!(response.status(), StatusCode::CREATED);
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
-        assert_eq!(org_in.inviter_id, owner.id);
+        assert_eq!(org_in.inviter_id, user.id);
 
         let mail_transport = test_request.test_transport();
 
@@ -136,9 +146,15 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
 
 pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let owner = database.create_user().finish();
-    let organization = database.create_organization().with_owner(&owner).finish();
-    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
+    let user = database.create_user().finish();
+
+    let organization = if role != Roles::User {
+        database.create_organization_with_user(&user, role == Roles::OrgOwner)
+    } else {
+        database.create_organization()
+    }.finish();
+
+    let auth_user = support::create_auth_user_from_user(&user, role, &database);
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -159,7 +175,7 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::CREATED);
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
-        assert_eq!(org_in.inviter_id, owner.id);
+        assert_eq!(org_in.inviter_id, user.id);
 
         let mail_transport = test_request.test_transport();
 
@@ -192,9 +208,15 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
 
 pub fn create_failure_missing_required_parameters(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let owner = database.create_user().finish();
-    let organization = database.create_organization().with_owner(&owner).finish();
-    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
+    let user = database.create_user().finish();
+
+    let organization = if role != Roles::User {
+        database.create_organization_with_user(&user, role == Roles::OrgOwner)
+    } else {
+        database.create_organization()
+    }.finish();
+
+    let auth_user = support::create_auth_user_from_user(&user, role, &database);
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();

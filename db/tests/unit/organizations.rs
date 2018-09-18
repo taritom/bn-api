@@ -7,16 +7,22 @@ use uuid::Uuid;
 #[test]
 fn create() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let user = project.create_user().finish();
     let organization = Organization::create(user.id, "Organization")
-        .commit(project.get_connection())
+        .commit(connection)
         .unwrap();
 
     assert_eq!(organization.owner_user_id, user.id);
     assert_eq!(organization.id.to_string().is_empty(), false);
 
-    let user2 = User::find(user.id, project.get_connection()).unwrap();
-    assert_eq!(user2.role, vec!["User", "OrgOwner"]);
+    let user2 = User::find(user.id, connection).unwrap();
+    assert!(
+        organization
+            .get_roles_for_user(&user2, connection)
+            .unwrap()
+            .contains(&"OrgOwner".into())
+    );
 }
 
 #[test]
@@ -131,6 +137,26 @@ fn users() {
 }
 
 #[test]
+fn is_member() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_owner(&user)
+        .with_user(&user2)
+        .finish();
+    // Reload for owner role
+    let user = User::find(user.id.clone(), connection).unwrap();
+
+    assert!(organization.is_member(&user, connection).unwrap());
+    assert!(organization.is_member(&user2, connection).unwrap());
+    assert!(!organization.is_member(&user3, connection).unwrap());
+}
+
+#[test]
 fn all_linked_to_user() {
     let project = TestProject::new();
     let user = project.create_user().finish();
@@ -222,7 +248,7 @@ fn all() {
 #[test]
 fn remove_users() {
     let project = TestProject::new();
-    let mut user = project.create_user().finish();
+    let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
@@ -233,8 +259,6 @@ fn remove_users() {
         .commit(project.get_connection())
         .unwrap();
     let user2_id = user2.id;
-
-    user.role.push("OrgOwner".to_string());
 
     let user_results = organization
         .users(project.get_connection())
@@ -256,43 +280,127 @@ fn remove_users() {
 }
 
 #[test]
+pub fn get_roles_for_user() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let mut user3 = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_owner(&user)
+        .with_user(&user2)
+        .finish();
+    user3 = user3.add_role(Roles::Admin, connection).unwrap();
+
+    assert_eq!(
+        organization.get_roles_for_user(&user, connection).unwrap(),
+        vec!["OrgOwner", "OrgMember"]
+    );
+    assert_eq!(
+        organization.get_roles_for_user(&user2, connection).unwrap(),
+        vec!["OrgMember"]
+    );
+    assert!(
+        organization
+            .get_roles_for_user(&user3, connection)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+pub fn get_scopes_for_user() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let mut user3 = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_owner(&user)
+        .with_user(&user2)
+        .finish();
+    user3 = user3.add_role(Roles::Admin, connection).unwrap();
+
+    assert_eq!(
+        organization.get_scopes_for_user(&user, connection).unwrap(),
+        vec![
+            "artist:write",
+            "event:interest",
+            "event:write",
+            "org:read",
+            "org:write",
+            "ticket:admin",
+            "user:read",
+            "venue:write"
+        ]
+    );
+    assert_eq!(
+        organization
+            .get_scopes_for_user(&user2, connection)
+            .unwrap(),
+        vec![
+            "artist:write",
+            "event:interest",
+            "event:write",
+            "org:read",
+            "ticket:admin",
+            "venue:write"
+        ]
+    );
+    assert!(
+        organization
+            .get_scopes_for_user(&user3, connection)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn change_owner() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let user = project.create_user().finish();
-    let organization = Organization::create(user.id, "Organization")
-        .commit(project.get_connection())
+    let mut organization = Organization::create(user.id, "Organization")
+        .commit(connection)
         .unwrap();
 
     let user2 = project.create_user().finish();
 
-    organization
-        .set_owner(user2.id, project.get_connection())
-        .unwrap();
-
-    let user1_check = User::find(user.id, project.get_connection()).unwrap();
-    let user2_check = User::find(user2.id, project.get_connection()).unwrap();
-
-    assert_eq!(user1_check.role, vec!["User"]);
-    assert_eq!(user2_check.role, vec!["User", "OrgOwner"]);
+    organization = organization.set_owner(user2.id, connection).unwrap();
+    assert!(
+        !organization
+            .get_roles_for_user(&user, connection)
+            .unwrap()
+            .contains(&"OrgOwner".into())
+    );
+    assert!(
+        organization
+            .get_roles_for_user(&user2, connection)
+            .unwrap()
+            .contains(&"OrgOwner".into())
+    );
 }
 
 #[test]
 fn add_user() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let organization_user = organization
-        .add_user(user2.id, project.get_connection())
-        .unwrap();
+    let organization_user = organization.add_user(user2.id, connection).unwrap();
 
     assert_eq!(organization_user.user_id, user2.id);
     assert_eq!(organization_user.organization_id, organization.id);
     assert_eq!(organization_user.id.to_string().is_empty(), false);
-    let user2 = User::find(user2.id, project.get_connection()).unwrap();
+    let user2 = User::find(user2.id, connection).unwrap();
     assert!(
-        user2.has_role(Roles::OrgMember),
-        "User does not have OrgMember role"
+        organization
+            .get_roles_for_user(&user2, connection)
+            .unwrap()
+            .contains(&"OrgMember".into())
     );
 }
 
@@ -306,4 +414,14 @@ fn add_fee_schedule() {
         .unwrap();
     let organization = Organization::find(organization.id, project.get_connection()).unwrap();
     assert_eq!(organization.fee_schedule_id.unwrap(), fee_structure.id);
+}
+
+#[test]
+fn owner() {
+    let project = TestProject::new();
+    let owner = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&owner).finish();
+    let organization_owner = organization.owner(&project.get_connection()).unwrap();
+
+    assert_eq!(owner.id, organization_owner.id);
 }

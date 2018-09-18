@@ -6,7 +6,7 @@ pub struct VenueBuilder<'a> {
     name: String,
     region_id: Option<Uuid>,
     organization_id: Option<Uuid>,
-    is_private: Option<bool>,
+    is_private: bool,
     connection: &'a PgConnection,
 }
 
@@ -16,7 +16,7 @@ impl<'a> VenueBuilder<'a> {
             connection,
             name: "Name".into(),
             region_id: None,
-            is_private: None,
+            is_private: false,
             organization_id: None,
         }
     }
@@ -32,17 +32,19 @@ impl<'a> VenueBuilder<'a> {
     }
 
     pub fn make_private(mut self) -> Self {
-        self.is_private = Some(true);
+        self.is_private = true;
+        self
+    }
+
+    pub fn with_organization(mut self, organization: &Organization) -> Self {
+        self.organization_id = Some(organization.id.clone());
         self
     }
 
     pub fn finish(self) -> Venue {
-        Venue::create(
-            &self.name,
-            self.region_id,
-            self.organization_id,
-            self.is_private,
-        ).commit(self.connection)
-        .unwrap()
+        let venue = Venue::create(&self.name, self.region_id, self.organization_id)
+            .commit(self.connection)
+            .unwrap();
+        venue.set_privacy(self.is_private, self.connection).unwrap()
     }
 }

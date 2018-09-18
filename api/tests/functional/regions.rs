@@ -54,10 +54,6 @@ mod create_tests {
         base::regions::create(Roles::OrgMember, false);
     }
     #[test]
-    fn create_guest() {
-        base::regions::create(Roles::Guest, false);
-    }
-    #[test]
     fn create_admin() {
         base::regions::create(Roles::Admin, true);
     }
@@ -77,10 +73,6 @@ mod update_tests {
     #[test]
     fn update_org_member() {
         base::regions::update(Roles::OrgMember, false);
-    }
-    #[test]
-    fn update_guest() {
-        base::regions::update(Roles::Guest, false);
     }
     #[test]
     fn update_admin() {

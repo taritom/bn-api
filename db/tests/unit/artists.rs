@@ -10,7 +10,7 @@ fn commit() {
     let bio = "Bio";
     let website_url = "http://www.example.com";
 
-    let artist = Artist::create(name, None, None, bio, website_url)
+    let artist = Artist::create(name, None, bio, website_url)
         .commit(project.get_connection())
         .unwrap();
     assert_eq!(name, artist.name);
@@ -25,7 +25,7 @@ fn new_artist_validate() {
     let bio = "Bio";
     let website_url = "invalid.com";
 
-    let mut artist = Artist::create(name, None, None, bio, website_url);
+    let mut artist = Artist::create(name, None, bio, website_url);
 
     artist.image_url = Some("invalid".into());
     artist.thumb_image_url = Some("invalid".into());
@@ -94,6 +94,20 @@ fn find() {
 }
 
 #[test]
+fn set_privacy() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut artist = project.create_artist().finish();
+    assert!(!artist.is_private);
+
+    artist = artist.set_privacy(true, connection).unwrap();
+    assert!(artist.is_private);
+
+    artist = artist.set_privacy(false, connection).unwrap();
+    assert!(!artist.is_private);
+}
+
+#[test]
 fn all() {
     let project = TestProject::new();
     let name = "Name";
@@ -152,19 +166,36 @@ fn destroy() {
 }
 
 #[test]
+fn organization() {
+    let project = TestProject::new();
+    let organization = project.create_organization().finish();
+    let artist = project
+        .create_artist()
+        .with_organization(&organization)
+        .finish();
+    let artist2 = project.create_artist().finish();
+
+    assert_eq!(
+        Ok(Some(organization)),
+        artist.organization(project.get_connection())
+    );
+    assert_eq!(Ok(None), artist2.organization(project.get_connection()));
+}
+
+#[test]
 fn find_via_org() {
     let project = TestProject::new();
     let org1 = project.create_organization().finish();
     let artist1 = project
         .create_artist()
         .with_name("Artist1".to_string())
-        .with_organization(org1.id)
+        .with_organization(&org1)
         .finish();
 
     let artist2 = project
         .create_artist()
         .with_name("Artist2".to_string())
-        .with_organization(org1.id)
+        .with_organization(&org1)
         .finish();
 
     let user = project.create_user().finish();
@@ -180,7 +211,7 @@ fn find_via_org() {
     let artist3 = project
         .create_artist()
         .with_name("Artist3".to_string())
-        .with_organization(org2.id)
+        .with_organization(&org2)
         .finish();
 
     let found_artists =

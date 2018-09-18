@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use models::Organization;
 use schema::{artists, organization_users};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -34,7 +35,6 @@ pub struct Artist {
 #[table_name = "artists"]
 pub struct NewArtist {
     pub organization_id: Option<Uuid>,
-    pub is_private: Option<bool>,
     pub name: String,
     pub bio: String,
     #[validate(url)]
@@ -68,13 +68,11 @@ impl Artist {
     pub fn create(
         name: &str,
         organization_id: Option<Uuid>,
-        is_private: Option<bool>,
         bio: &str,
         website_url: &str,
     ) -> NewArtist {
         NewArtist {
             organization_id,
-            is_private,
             name: String::from(name),
             bio: String::from(bio),
             website_url: Some(String::from(website_url)),
@@ -163,6 +161,29 @@ impl Artist {
             ErrorCode::DeleteError,
             "Failed to destroy artist record",
             diesel::delete(self).execute(conn),
+        )
+    }
+
+    pub fn organization(&self, conn: &PgConnection) -> Result<Option<Organization>, DatabaseError> {
+        match self.organization_id {
+            Some(organization_id) => Ok(Some(Organization::find(organization_id, conn)?)),
+            None => Ok(None),
+        }
+    }
+
+    pub fn set_privacy(
+        &self,
+        is_private: bool,
+        conn: &PgConnection,
+    ) -> Result<Artist, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::UpdateError,
+            "Could not update is_private for artist",
+            diesel::update(self)
+                .set((
+                    artists::is_private.eq(is_private),
+                    artists::updated_at.eq(dsl::now),
+                )).get_result(conn),
         )
     }
 }
