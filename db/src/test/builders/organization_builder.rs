@@ -1,6 +1,9 @@
 use dev::builders::*;
 use diesel::prelude::*;
-use models::{FeeSchedule, Organization, OrganizationEditableAttributes, OrganizationUser, User};
+use models::{
+    FeeSchedule, NewFeeScheduleRange, Organization, OrganizationEditableAttributes,
+    OrganizationUser, User,
+};
 use rand::prelude::*;
 use uuid::Uuid;
 
@@ -51,19 +54,26 @@ impl<'a> OrganizationBuilder<'a> {
         self
     }
 
-    pub fn finish(&self) -> Organization {
+    pub fn finish(mut self) -> Organization {
+        if self.fee_schedule.is_none() {
+            let fee_schedule = FeeSchedule::create(
+                format!("{} zero fees", self.name).into(),
+                vec![NewFeeScheduleRange {
+                    min_price: 0,
+                    fee: 0,
+                }],
+            ).commit(self.connection);
+            self.fee_schedule = Some(fee_schedule.unwrap());
+        }
+
         let mut organization = Organization::create(
             self.owner_user_id
                 .or_else(|| Some(UserBuilder::new(self.connection).finish().id))
                 .unwrap(),
             &self.name,
+            self.fee_schedule.unwrap().id,
         ).commit(self.connection)
         .unwrap();
-
-        if self.fee_schedule.is_some() {
-            let _ =
-                organization.add_fee_schedule(&self.fee_schedule.clone().unwrap(), self.connection);
-        }
 
         for user_id in self.members.clone() {
             OrganizationUser::create(organization.id, user_id)

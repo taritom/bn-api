@@ -19,7 +19,9 @@ pub enum ErrorCode {
     ConnectionError,
     InternalError,
     AccessError,
+    BusinessProcessError,
     Unknown,
+    MultipleResultsWhenOneExpected,
 }
 
 pub fn get_error_message(code: ErrorCode) -> (i32, String) {
@@ -28,6 +30,7 @@ pub fn get_error_message(code: ErrorCode) -> (i32, String) {
         InvalidInput => (1000, "Invalid input"),
         MissingInput => (1100, "Missing input"),
         NoResults => (2000, "No results"),
+        MultipleResultsWhenOneExpected => (2100, "Multiple results when one was expected"),
         QueryError => (3000, "Query Error"),
         InsertError => (3100, "Could not insert record"),
         UpdateError => (3200, "Could not update record"),
@@ -36,6 +39,7 @@ pub fn get_error_message(code: ErrorCode) -> (i32, String) {
         ConnectionError => (4000, "Connection Error"),
         InternalError => (5000, "Internal error"),
         AccessError => (6000, "Access error"),
+        BusinessProcessError => (7000, "Business Process error"),
         Unknown => (10, "Unknown database error"),
     };
     (code, msg.to_string())

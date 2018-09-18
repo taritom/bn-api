@@ -368,6 +368,8 @@ pub fn update_artists(
 pub struct CreateTicketTypeRequest {
     pub name: String,
     pub capacity: u32,
+    pub start_date: NaiveDateTime,
+    pub end_date: NaiveDateTime,
 }
 
 pub fn create_tickets(
@@ -388,7 +390,13 @@ pub fn create_tickets(
         return application::unauthorized();
     }
 
-    let ticket_type = event.add_ticket_type(data.name.clone(), data.capacity, connection)?;
+    let ticket_type = event.add_ticket_type(
+        data.name.clone(),
+        data.capacity,
+        data.start_date,
+        data.end_date,
+        connection,
+    )?;
 
     //    let mut allocation =
     //        TicketAllocation::create(path.id, data.tickets_delta).commit(connection)?;

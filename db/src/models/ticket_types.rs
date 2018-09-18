@@ -10,22 +10,32 @@ use utils::errors::ErrorCode;
 use uuid::Uuid;
 
 #[derive(Identifiable, Associations, Queryable, PartialEq, Debug)]
+#[table_name = "ticket_types"]
 #[belongs_to(Event)]
 pub struct TicketType {
     pub id: Uuid,
     pub event_id: Uuid,
     pub name: String,
     status: String,
+    start_date: NaiveDateTime,
+    end_date: NaiveDateTime,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
 
 impl TicketType {
-    pub fn create(event_id: Uuid, name: String) -> NewTicketType {
+    pub fn create(
+        event_id: Uuid,
+        name: String,
+        start_date: NaiveDateTime,
+        end_date: NaiveDateTime,
+    ) -> NewTicketType {
         NewTicketType {
             event_id,
             name,
             status: TicketTypeStatus::Published.to_string(),
+            start_date,
+            end_date,
         }
     }
 
@@ -64,10 +74,12 @@ impl TicketType {
     pub fn add_ticket_pricing(
         &self,
         name: String,
+        start_date: NaiveDateTime,
+        end_date: NaiveDateTime,
         price_in_cents: i64,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
-        TicketPricing::create(self.id, name, price_in_cents).commit(conn)
+        TicketPricing::create(self.id, name, start_date, end_date, price_in_cents).commit(conn)
     }
 
     pub fn status(&self) -> TicketTypeStatus {
@@ -81,6 +93,8 @@ pub struct NewTicketType {
     event_id: Uuid,
     name: String,
     status: String,
+    start_date: NaiveDateTime,
+    end_date: NaiveDateTime,
 }
 
 impl NewTicketType {

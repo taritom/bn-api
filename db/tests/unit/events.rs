@@ -383,10 +383,14 @@ fn venue() {
 fn add_ticket_type() {
     let project = TestProject::new();
     let event = project.create_event().finish();
+    let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type = event
         .add_ticket_type(
             "General Admission".to_string(),
             100,
+            sd,
+            ed,
             project.get_connection(),
         ).unwrap();
 
@@ -398,14 +402,18 @@ fn add_ticket_type() {
 fn ticket_types() {
     let project = TestProject::new();
     let event = project.create_event().finish();
+    let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type_ga = event
         .add_ticket_type(
             "General Admission".to_string(),
             100,
+            sd,
+            ed,
             project.get_connection(),
         ).unwrap();
     let ticket_type_vip = event
-        .add_ticket_type("VIP".to_string(), 100, project.get_connection())
+        .add_ticket_type("VIP".to_string(), 100, sd, ed, project.get_connection())
         .unwrap();
 
     let ticket_types = event.ticket_types(project.get_connection()).unwrap();

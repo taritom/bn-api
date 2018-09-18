@@ -43,3 +43,38 @@ fn fee_schedule_create() {
 
     assert_eq!(fee_schedule2.version, 1);
 }
+
+#[test]
+fn get_fee_schedule_range() {
+    let project = TestProject::new();
+    let fee_schedule = FeeSchedule::create(
+        "default".to_string(),
+        vec![
+            NewFeeScheduleRange {
+                min_price: 20,
+                fee: 10,
+            },
+            NewFeeScheduleRange {
+                min_price: 100,
+                fee: 20,
+            },
+        ],
+    ).commit(project.get_connection())
+    .unwrap();
+
+    let fee_schedule_range1 = fee_schedule
+        .get_range(30, project.get_connection())
+        .unwrap()
+        .unwrap();
+    let fee_schedule_range2 = fee_schedule
+        .get_range(150, project.get_connection())
+        .unwrap()
+        .unwrap();
+    let fee_schedule_range3 = fee_schedule
+        .get_range(10, project.get_connection())
+        .unwrap();
+
+    assert_eq!(fee_schedule_range1.fee, 10);
+    assert_eq!(fee_schedule_range2.fee, 20);
+    assert!(fee_schedule_range3.is_none());
+}

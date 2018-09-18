@@ -1,11 +1,14 @@
 use bigneon_db::models::TicketType;
+use chrono::NaiveDate;
 use support::project::TestProject;
 #[test]
 fn create() {
     let db = TestProject::new();
     let event = db.create_event().finish();
+    let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type = event
-        .add_ticket_type("VIP".to_string(), 100, &db.get_connection())
+        .add_ticket_type("VIP".to_string(), 100, sd, ed, &db.get_connection())
         .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);

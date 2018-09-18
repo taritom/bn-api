@@ -1,5 +1,3 @@
-
-DROP INDEX IF EXISTS index_order_items_ticket_instance_id;
 DROP INDEX IF EXISTS index_order_items_ticket_pricing_id;
 DROP INDEX IF EXISTS index_order_items_fee_schedule_range_id;
 DROP INDEX IF EXISTS index_order_items_parent_id;

@@ -13,6 +13,8 @@ pub struct CreateTicketPricingRequest {
     pub ticket_type_id: Uuid,
     pub name: String,
     pub price: i64,
+    pub start_date: NaiveDateTime,
+    pub end_date: NaiveDateTime,
 }
 
 pub fn create(
@@ -20,7 +22,13 @@ pub fn create(
 ) -> Result<HttpResponse, BigNeonError> {
     let db = connection.get();
     let ticket_type = TicketType::find(json.ticket_type_id, db)?;
-    let pricing = ticket_type.add_ticket_pricing(json.name.clone(), json.price, db)?;
+    let pricing = ticket_type.add_ticket_pricing(
+        json.name.clone(),
+        json.start_date,
+        json.end_date,
+        json.price,
+        db,
+    )?;
     application::created(json!({
         "ticket_pricing_id": pricing.id
     }))

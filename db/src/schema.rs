@@ -99,7 +99,7 @@ table! {
     fee_schedules (id) {
         id -> Uuid,
         name -> Text,
-        version -> Int8,
+        version -> Int2,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -113,7 +113,6 @@ table! {
         cost -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        ticket_instance_id -> Nullable<Uuid>,
         ticket_pricing_id -> Nullable<Uuid>,
         fee_schedule_range_id -> Nullable<Uuid>,
         parent_id -> Nullable<Uuid>,
@@ -147,16 +146,6 @@ table! {
 }
 
 table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     organizations (id) {
         id -> Uuid,
         owner_user_id -> Uuid,
@@ -169,7 +158,17 @@ table! {
         phone -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        fee_schedule_id -> Nullable<Uuid>,
+        fee_schedule_id -> Uuid,
+    }
+}
+
+table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -211,7 +210,7 @@ table! {
         asset_id -> Uuid,
         token_id -> Int4,
         ticket_holding_id -> Nullable<Uuid>,
-        order_id -> Nullable<Uuid>,
+        order_item_id -> Nullable<Uuid>,
         reserved_until -> Nullable<Timestamp>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
@@ -225,6 +224,8 @@ table! {
         name -> Text,
         status -> Text,
         price_in_cents -> Int8,
+        start_date -> Timestamp,
+        end_date -> Timestamp,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -236,6 +237,8 @@ table! {
         event_id -> Uuid,
         name -> Text,
         status -> Text,
+        start_date -> Timestamp,
+        end_date -> Timestamp,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -304,7 +307,6 @@ joinable!(external_logins -> users (user_id));
 joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
 joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
 joinable!(order_items -> orders (order_id));
-joinable!(order_items -> ticket_instances (ticket_instance_id));
 joinable!(order_items -> ticket_pricing (ticket_pricing_id));
 joinable!(orders -> users (user_id));
 joinable!(organization_invites -> organizations (organization_id));
@@ -316,7 +318,7 @@ joinable!(payments -> orders (order_id));
 joinable!(payments -> users (created_by));
 joinable!(ticket_holdings -> assets (asset_id));
 joinable!(ticket_instances -> assets (asset_id));
-joinable!(ticket_instances -> orders (order_id));
+joinable!(ticket_instances -> order_items (order_item_id));
 joinable!(ticket_instances -> ticket_holdings (ticket_holding_id));
 joinable!(ticket_pricing -> ticket_types (ticket_type_id));
 joinable!(ticket_types -> events (event_id));
@@ -337,8 +339,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organization_users,
     organizations,
+    organization_users,
     payments,
     regions,
     ticket_holdings,

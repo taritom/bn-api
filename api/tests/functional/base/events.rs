@@ -313,10 +313,13 @@ pub fn create_tickets(role: Roles, should_succeed: bool) {
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
-
+    let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let data = CreateTicketTypeRequest {
         name: "VIP".into(),
         capacity: 100,
+        start_date: sd,
+        end_date: ed,
     };
     let response: HttpResponse =
         events::create_tickets((database.connection.into(), path, Json(data), user)).into();

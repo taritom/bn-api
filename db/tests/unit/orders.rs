@@ -23,8 +23,13 @@ fn create() {
 #[test]
 fn add_to_cart() {
     let project = TestProject::new();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
     let event = project
         .create_event()
+        .with_organization(&organization)
         .with_tickets()
         .with_ticket_pricing()
         .finish();
@@ -50,6 +55,31 @@ fn find_by_user_when_cart_does_not_exist() {
     let user = project.create_user().finish();
     let cart_result = Order::find_cart_for_user(user.id, project.get_connection());
     assert_eq!(cart_result.err().unwrap().code, 2000);
+}
+
+#[test]
+fn calculate_cart_total() {
+    let project = TestProject::new();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(project.get_connection())
+        .unwrap();
+    let ticket = &event.ticket_types(project.get_connection()).unwrap()[0];
+    cart.add_tickets(ticket.id, 10, project.get_connection())
+        .unwrap();
+
+    let total = cart.calculate_total(project.get_connection()).unwrap();
+    assert_eq!(total, 1700);
 }
 
 #[test]

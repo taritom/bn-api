@@ -1,3 +1,5 @@
+//Suppresses the new warning that has appeared after the last rust update with the Diesel traits
+#![allow(proc_macro_derive_resolution_fallback)]
 pub use self::artists::*;
 pub use self::assets::*;
 pub use self::enums::*;

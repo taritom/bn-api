@@ -9,7 +9,7 @@ use schema::{organization_users, organizations, users, venues};
 use utils::errors::*;
 use uuid::Uuid;
 
-#[derive(Identifiable, Associations, Queryable)]
+#[derive(Identifiable, Associations, Queryable, AsChangeset)]
 #[belongs_to(User, foreign_key = "owner_user_id")]
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "organizations"]
@@ -25,7 +25,7 @@ pub struct Organization {
     pub phone: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-    pub fee_schedule_id: Option<Uuid>,
+    pub fee_schedule_id: Uuid,
 }
 
 #[derive(Serialize)]
@@ -40,6 +40,7 @@ pub struct DisplayOrganizationLink {
 pub struct NewOrganization {
     pub owner_user_id: Uuid,
     pub name: String,
+    pub fee_schedule_id: Uuid,
     pub address: Option<String>,
     pub city: Option<String>,
     pub state: Option<String>,
@@ -73,10 +74,11 @@ pub struct OrganizationEditableAttributes {
 }
 
 impl Organization {
-    pub fn create(owner_user_id: Uuid, name: &str) -> NewOrganization {
+    pub fn create(owner_user_id: Uuid, name: &str, fee_schedule_id: Uuid) -> NewOrganization {
         NewOrganization {
             owner_user_id: owner_user_id,
             name: name.into(),
+            fee_schedule_id,
             ..Default::default()
         }
     }
@@ -294,14 +296,17 @@ impl Organization {
         &self,
         fee_schedule: &FeeSchedule,
         conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    ) -> Result<Organization, DatabaseError> {
+        let attributes = OrganizationEditableAttributes {
+            fee_schedule_id: Some(fee_schedule.id),
+            ..Default::default()
+        };
         diesel::update(self)
-            .set(organizations::fee_schedule_id.eq(fee_schedule.id))
-            .execute(conn)
+            .set((attributes, organizations::updated_at.eq(dsl::now)))
+            .get_result(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not set the fee schedule for this organization",
-            )?;
-        Ok(())
+            )
     }
 }

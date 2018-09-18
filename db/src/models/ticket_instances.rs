@@ -3,21 +3,21 @@ use diesel;
 use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::sql_types::Bigint;
-use models::orders::Order;
+use models::orders::{Order, OrderItem};
 use schema::ticket_instances;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(Deserialize, Serialize, Queryable, QueryableByName)]
+#[derive(Identifiable, Deserialize, Serialize, Queryable, QueryableByName)]
 #[table_name = "ticket_instances"]
 pub struct TicketInstance {
     id: Uuid,
     asset_id: Uuid,
     token_id: i32,
     ticket_holding_id: Option<Uuid>,
-    order_id: Option<Uuid>,
+    order_item_id: Option<Uuid>,
     reserved_until: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
@@ -46,7 +46,8 @@ impl TicketInstance {
     }
 
     pub fn reserve_tickets(
-        order: &Order,
+        order_item: &OrderItem,
+        order_expires_at: &NaiveDateTime,
         ticket_type_id: Uuid,
         ticket_holding_id: Option<Uuid>,
         quantity: i64,
@@ -54,8 +55,8 @@ impl TicketInstance {
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let query = include_str!("../queries/reserve_tickets.sql");
         let q = diesel::sql_query(query)
-            .bind::<sql_types::Uuid, _>(order.id)
-            .bind::<sql_types::Timestamp, _>(order.expires_at)
+            .bind::<sql_types::Uuid, _>(order_item.id)
+            .bind::<sql_types::Timestamp, _>(order_expires_at)
             .bind::<sql_types::Uuid, _>(ticket_type_id)
             .bind::<sql_types::Nullable<sql_types::Uuid>, _>(ticket_holding_id)
             .bind::<Bigint, _>(quantity);

@@ -27,9 +27,21 @@ pub struct AddUserRequest {
 pub struct FeeScheduleWithRanges {
     pub id: Uuid,
     pub name: String,
-    pub version: i64,
+    pub version: i16,
     pub created_at: NaiveDateTime,
     pub ranges: Vec<FeeScheduleRange>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct NewOrganizationRequest {
+    pub owner_user_id: Uuid,
+    pub name: String,
+    pub address: Option<String>,
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub country: Option<String>,
+    pub postal_code: Option<String>,
+    pub phone: Option<String>,
 }
 
 pub fn index((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
@@ -64,14 +76,34 @@ pub fn show(
 }
 
 pub fn create(
-    (connection, new_organization, user): (Connection, Json<NewOrganization>, User),
+    (connection, new_organization, user): (Connection, Json<NewOrganizationRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
         return application::unauthorized();
     }
 
-    let organization = new_organization.commit(connection)?;
+    let fee_schedule = FeeSchedule::create(
+        format!("{} default fees", new_organization.name).into(),
+        vec![NewFeeScheduleRange {
+            min_price: 0,
+            fee: 0,
+        }],
+    ).commit(connection)?;
+
+    let new_organization_with_fee_schedule = NewOrganization {
+        owner_user_id: new_organization.owner_user_id.clone(),
+        name: new_organization.name.clone(),
+        fee_schedule_id: fee_schedule.id,
+        address: new_organization.address.clone(),
+        city: new_organization.city.clone(),
+        state: new_organization.state.clone(),
+        country: new_organization.country.clone(),
+        postal_code: new_organization.postal_code.clone(),
+        phone: new_organization.phone.clone(),
+    };
+
+    let organization = new_organization_with_fee_schedule.commit(connection)?;
     Ok(HttpResponse::Created().json(&organization))
 }
 
@@ -225,12 +257,8 @@ pub fn show_fee_schedule(
     if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
         return application::unauthorized();
     }
-    if organization.fee_schedule_id.is_none() {
-        return Ok(
-            HttpResponse::Ok().json(json!({"success": false, "message": "Fee schedule not found"}))
-        );
-    }
-    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id.unwrap(), connection)?;
+
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;
 
     Ok(HttpResponse::Ok().json(FeeScheduleWithRanges {

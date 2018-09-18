@@ -3,7 +3,11 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::payments::Payment;
-use models::{OrderItemTypes, OrderStatus, OrderTypes, PaymentMethods, TicketInstance, User};
+use models::PaymentMethods;
+use models::{
+    Event, FeeSchedule, FeeScheduleRange, OrderItemTypes, OrderStatus, OrderTypes, Organization,
+    TicketInstance, TicketPricing, TicketType, User,
+};
 use schema::{order_items, orders};
 use time::Duration;
 use utils::errors;
@@ -85,7 +89,41 @@ impl Order {
         quantity: i64,
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
-        TicketInstance::reserve_tickets(&self, ticket_type_id, None, quantity, conn)
+        let ticket_pricing = TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
+
+        let organization = Organization::find(
+            Event::find(TicketType::find(ticket_type_id, conn)?.event_id, conn)?.organization_id,
+            conn,
+        )?;
+
+        let fee_schedule_range = FeeSchedule::find(organization.fee_schedule_id, conn)?
+            .get_range(ticket_pricing.price_in_cents, conn)?;
+
+        let fee_schedule_range = fee_schedule_range.unwrap();
+
+        let order_item = NewTicketsOrderItem {
+            order_id: self.id,
+            item_type: OrderItemTypes::Tickets.to_string(),
+            ticket_pricing_id: ticket_pricing.id,
+            fee_schedule_range_id: fee_schedule_range.id,
+            cost: ticket_pricing.price_in_cents * quantity,
+        }.commit(conn)?;
+
+        let fee_item = NewFeesOrderItem {
+            order_id: self.id,
+            item_type: OrderItemTypes::Fees.to_string(),
+            cost: fee_schedule_range.fee * quantity,
+            parent_id: order_item.id,
+        }.commit(conn)?;
+
+        TicketInstance::reserve_tickets(
+            &order_item,
+            &self.expires_at,
+            ticket_type_id,
+            None,
+            quantity,
+            conn,
+        )
     }
 
     pub fn items(&self, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
@@ -129,6 +167,17 @@ impl Order {
 
         Ok(payment)
     }
+
+    pub fn calculate_total(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
+        let order_items = self.items(conn)?;
+        let mut total = 0;
+
+        for item in &order_items {
+            total += item.cost;
+        }
+
+        Ok(total as u32)
+    }
 }
 
 #[derive(Identifiable, Associations, Queryable, AsChangeset)]
@@ -138,10 +187,9 @@ pub struct OrderItem {
     pub id: Uuid,
     order_id: Uuid,
     item_type: String,
-    cost: i64,
+    pub cost: i64,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
-    ticket_instance_id: Option<Uuid>,
     ticket_pricing_id: Option<Uuid>,
     fee_schedule_range_id: Option<Uuid>,
     parent_id: Option<Uuid>,
@@ -219,12 +267,32 @@ struct NewTicketsOrderItem {
     order_id: Uuid,
     item_type: String,
     cost: i64,
-    ticket_instance_id: Uuid,
     ticket_pricing_id: Uuid,
     fee_schedule_range_id: Uuid,
 }
 
 impl NewTicketsOrderItem {
+    fn commit(self, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
+        diesel::insert_into(order_items::table)
+            .values(self)
+            .get_result(conn)
+            .to_db_error(
+                errors::ErrorCode::InsertError,
+                "Could not create order item",
+            )
+    }
+}
+
+#[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
+#[table_name = "order_items"]
+struct NewFeesOrderItem {
+    order_id: Uuid,
+    item_type: String,
+    cost: i64,
+    parent_id: Uuid,
+}
+
+impl NewFeesOrderItem {
     fn commit(self, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
         diesel::insert_into(order_items::table)
             .values(self)

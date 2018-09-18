@@ -59,6 +59,7 @@ impl ConvertToWebError for DatabaseError {
             3400 => error::ErrorConflict("Duplicate record exists"),
             4000 => error::ErrorInternalServerError("Connection error"),
             5000 => error::ErrorInternalServerError("Internal error"),
+            7000 => error::ErrorInternalServerError("Business process error"),
             _ => error::ErrorInternalServerError("Unknown error"),
         };
         new_web_error

@@ -124,7 +124,17 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let user = database.create_user().finish();
 
     let auth_user = support::create_auth_user(role, &database);
-    let json = Json(NewOrganization {
+
+    let fee_schedule = FeeSchedule::create(
+        format!("Zero fees",).into(),
+        vec![NewFeeScheduleRange {
+            min_price: 0,
+            fee: 0,
+        }],
+    ).commit(&*database.connection)
+    .unwrap();
+
+    let json = Json(NewOrganizationRequest {
         owner_user_id: user.id,
         name: name.clone().to_string(),
         address: None,

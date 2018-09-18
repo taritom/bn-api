@@ -1,8 +1,10 @@
 CREATE TABLE ticket_types (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-  event_id uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+  event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   status TEXT NOT NULL,
+  start_date TIMESTAMP NOT NULL,
+  end_date TIMESTAMP NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );

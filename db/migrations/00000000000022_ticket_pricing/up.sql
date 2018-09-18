@@ -4,6 +4,8 @@ CREATE TABLE ticket_pricing (
   name TEXT NOT NULL,
   status TEXT NOT NULL,
   price_in_cents BIGINT NOT NULL,
+  start_date TIMESTAMP NOT NULL,
+  end_date TIMESTAMP NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT  NULL DEFAULT now()
 );

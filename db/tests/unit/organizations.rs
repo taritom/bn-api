@@ -1,5 +1,6 @@
 use bigneon_db::models::{
-    Organization, OrganizationEditableAttributes, OrganizationUser, Roles, User,
+    FeeSchedule, NewFeeScheduleRange, Organization, OrganizationEditableAttributes,
+    OrganizationUser, Roles, User,
 };
 use support::project::TestProject;
 use uuid::Uuid;
@@ -9,7 +10,15 @@ fn create() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    let organization = Organization::create(user.id, "Organization")
+    let fee_schedule = FeeSchedule::create(
+        format!("Zero fees",).into(),
+        vec![NewFeeScheduleRange {
+            min_price: 0,
+            fee: 0,
+        }],
+    ).commit(connection)
+    .unwrap();
+    let organization = Organization::create(user.id, "Organization", fee_schedule.id)
         .commit(connection)
         .unwrap();
 
@@ -362,7 +371,15 @@ fn change_owner() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    let mut organization = Organization::create(user.id, "Organization")
+    let fee_schedule = FeeSchedule::create(
+        format!("Zero fees",).into(),
+        vec![NewFeeScheduleRange {
+            min_price: 0,
+            fee: 0,
+        }],
+    ).commit(connection)
+    .unwrap();
+    let mut organization = Organization::create(user.id, "Organization", fee_schedule.id)
         .commit(connection)
         .unwrap();
 
@@ -413,7 +430,7 @@ fn add_fee_schedule() {
         .add_fee_schedule(&fee_structure, project.get_connection())
         .unwrap();
     let organization = Organization::find(organization.id, project.get_connection()).unwrap();
-    assert_eq!(organization.fee_schedule_id.unwrap(), fee_structure.id);
+    assert_eq!(organization.fee_schedule_id, fee_structure.id);
 }
 
 #[test]

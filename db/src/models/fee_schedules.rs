@@ -11,15 +11,34 @@ use uuid::Uuid;
 pub struct FeeSchedule {
     pub id: Uuid,
     pub name: String,
-    pub version: i64,
+    pub version: i16,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+}
+
+#[derive(Queryable, Serialize, Deserialize, Clone)]
+pub struct FeeScheduleRange {
+    #[allow(dead_code)]
+    pub id: Uuid,
+    #[allow(dead_code)]
+    fee_schedule_id: Uuid,
+    pub min_price: i64,
+    pub fee: i64,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct NewFeeScheduleRange {
+    pub min_price: i64,
+    pub fee: i64,
 }
 
 impl FeeSchedule {
     pub fn create(name: String, ranges: Vec<(NewFeeScheduleRange)>) -> NewFeeSchedule {
         NewFeeSchedule { name, ranges }
     }
+
     pub fn ranges(&self, conn: &PgConnection) -> Result<Vec<FeeScheduleRange>, DatabaseError> {
         fee_schedule_ranges::table
             .filter(fee_schedule_ranges::fee_schedule_id.eq(self.id))
@@ -32,6 +51,29 @@ impl FeeSchedule {
             .find(id)
             .first::<FeeSchedule>(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading Fee Schedule")
+    }
+
+    pub fn get_range(
+        &self,
+        price: i64,
+        conn: &PgConnection,
+    ) -> Result<Option<FeeScheduleRange>, DatabaseError> {
+        let ranges: Vec<FeeScheduleRange> = fee_schedule_ranges::table
+            .filter(fee_schedule_ranges::fee_schedule_id.eq(self.id))
+            .order_by(fee_schedule_ranges::min_price.asc())
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load fee schedule ranges")?;
+
+        let mut found_range = None;
+
+        for r in 0..ranges.len() {
+            if ranges[r].min_price > price {
+                break;
+            }
+            found_range = Some(ranges[r].clone());
+        }
+
+        Ok(found_range)
     }
 }
 
@@ -82,22 +124,4 @@ impl NewFeeSchedule {
 
         Ok(result)
     }
-}
-
-#[derive(Queryable, Serialize, Deserialize)]
-pub struct FeeScheduleRange {
-    #[allow(dead_code)]
-    id: Uuid,
-    #[allow(dead_code)]
-    fee_schedule_id: Uuid,
-    pub min_price: i64,
-    pub fee: i64,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct NewFeeScheduleRange {
-    pub min_price: i64,
-    pub fee: i64,
 }

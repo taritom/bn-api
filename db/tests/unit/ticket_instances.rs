@@ -5,7 +5,15 @@ use support::project::TestProject;
 pub fn reserve_tickets() {
     let db = TestProject::new();
 
-    let event = db.create_event().with_ticket_pricing().finish();
+    let organization = db
+        .create_organization()
+        .with_fee_schedule(&db.create_fee_schedule().finish())
+        .finish();
+    let event = db
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
     let user = db.create_user().finish();
     let order = Order::create(user.id, OrderTypes::Cart)
         .commit(db.get_connection())

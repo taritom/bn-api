@@ -225,9 +225,12 @@ impl Event {
         &self,
         name: String,
         quantity: u32,
+        start_date: NaiveDateTime,
+        end_date: NaiveDateTime,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
-        let ticket_type = TicketType::create(self.id, name.clone()).commit(conn)?;
+        let ticket_type =
+            TicketType::create(self.id, name.clone(), start_date, end_date).commit(conn)?;
         let asset =
             Asset::create(ticket_type.id, format!("{}.{}", self.name, &name)).commit(conn)?;
         TicketInstance::create_multiple(asset.id, quantity, conn)?;

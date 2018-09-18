@@ -1,9 +1,11 @@
+use chrono::prelude::*;
 use chrono::NaiveDate;
 use chrono::NaiveDateTime;
 use dev::builders::*;
 use diesel::prelude::*;
 use models::*;
 use rand::prelude::*;
+use time::Duration;
 use uuid::Uuid;
 
 pub struct EventBuilder<'a> {
@@ -76,16 +78,39 @@ impl<'a> EventBuilder<'a> {
         .unwrap();
 
         if self.with_tickets {
+            let early_bird_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));
+            let early_bird_end = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
+            let standard_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
+            let standard_end = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
+
+            let event_start = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
+            let event_end = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(4));
+
             event
-                .add_ticket_type("General Admission".to_string(), 100, self.connection)
-                .unwrap();
+                .add_ticket_type(
+                    "General Admission".to_string(),
+                    100,
+                    event_start,
+                    event_end,
+                    self.connection,
+                ).unwrap();
 
             if self.with_ticket_pricing {
                 for t in event.ticket_types(self.connection).unwrap() {
-                    t.add_ticket_pricing("Early bird".to_string(), 100, self.connection)
-                        .unwrap();
-                    t.add_ticket_pricing("Standard".to_string(), 200, self.connection)
-                        .unwrap();
+                    t.add_ticket_pricing(
+                        "Early bird".to_string(),
+                        early_bird_start,
+                        early_bird_end,
+                        100,
+                        self.connection,
+                    ).unwrap();
+                    t.add_ticket_pricing(
+                        "Standard".to_string(),
+                        standard_start,
+                        standard_end,
+                        150,
+                        self.connection,
+                    ).unwrap();
                 }
             }
         }
