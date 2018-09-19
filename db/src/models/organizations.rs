@@ -99,8 +99,6 @@ impl Organization {
         owner_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
-        let old_owner_id = self.owner_user_id;
-
         diesel::update(self)
             .set((
                 organizations::owner_user_id.eq(owner_user_id),
@@ -277,7 +275,6 @@ impl Organization {
         conn: &PgConnection,
     ) -> Result<OrganizationUser, DatabaseError> {
         let org_user = OrganizationUser::create(self.id, user_id).commit(conn)?;
-        let user = User::find(user_id, conn)?;
         Ok(org_user)
     }
 

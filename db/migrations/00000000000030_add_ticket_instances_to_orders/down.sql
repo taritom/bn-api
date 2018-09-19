@@ -4,9 +4,6 @@ DROP INDEX IF EXISTS index_order_items_parent_id;
 
 
 ALTER TABLE order_items
- DROP COLUMN ticket_instance_id;
-
-ALTER TABLE order_items
  DROP COLUMN ticket_pricing_id;
 
 ALTER TABLE order_items

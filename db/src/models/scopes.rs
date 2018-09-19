@@ -1,6 +1,4 @@
 use std::fmt;
-use std::time::{SystemTime, UNIX_EPOCH};
-use uuid::Uuid;
 
 #[derive(PartialEq, Debug)]
 pub enum Scopes {

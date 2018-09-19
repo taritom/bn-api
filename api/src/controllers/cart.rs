@@ -9,15 +9,15 @@ use errors::BigNeonError;
 use helpers::application;
 use uuid::Uuid;
 
+#[derive(Serialize)]
+pub struct CartResponse {
+    pub cart_id: Uuid,
+}
+
 #[derive(Deserialize)]
 pub struct AddToCartRequest {
     pub ticket_type_id: Uuid,
     pub quantity: i64,
-}
-
-#[derive(Serialize)]
-pub struct AddToCartResponse {
-    pub cart_id: Uuid,
 }
 
 pub fn add(
@@ -38,7 +38,32 @@ pub fn add(
     // Add the item
     cart.add_tickets(json.ticket_type_id, json.quantity, connection)?;
 
-    Ok(HttpResponse::Created().json(&AddToCartResponse { cart_id: cart.id }))
+    Ok(HttpResponse::Created().json(&CartResponse { cart_id: cart.id }))
+}
+
+#[derive(Deserialize)]
+pub struct RemoveCartRequest {
+    pub cart_item_id: Uuid,
+    pub quantity: Option<i64>,
+}
+
+pub fn remove(
+    (connection, json, user): (Connection, Json<RemoveCartRequest>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    // Find the current cart of the user, if it exists.
+    let current_cart = Order::find_cart_for_user(user.id(), connection).optional()?;
+
+    match current_cart {
+        Some(cart) => match cart.find_item(json.cart_item_id, connection).optional()? {
+            Some(mut order_item) => {
+                cart.remove_tickets(order_item, json.quantity, connection)?;
+                Ok(HttpResponse::Ok().json(&CartResponse { cart_id: cart.id }))
+            }
+            None => application::unprocessable("Cart does not contain order item"),
+        },
+        None => application::unprocessable("No cart exists for user"),
+    }
 }
 
 #[derive(Deserialize)]

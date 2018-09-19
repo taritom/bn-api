@@ -3,22 +3,22 @@ use diesel;
 use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::sql_types::Bigint;
-use models::orders::{Order, OrderItem};
+use models::OrderItem;
 use schema::ticket_instances;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(Identifiable, Deserialize, Serialize, Queryable, QueryableByName)]
+#[derive(Debug, Identifiable, PartialEq, Deserialize, Serialize, Queryable, QueryableByName)]
 #[table_name = "ticket_instances"]
 pub struct TicketInstance {
-    id: Uuid,
+    pub id: Uuid,
     asset_id: Uuid,
     token_id: i32,
     ticket_holding_id: Option<Uuid>,
-    order_item_id: Option<Uuid>,
-    reserved_until: Option<NaiveDateTime>,
+    pub order_item_id: Option<Uuid>,
+    pub reserved_until: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -69,6 +69,32 @@ impl TicketInstance {
                 ErrorCode::QueryError,
                 Some("Could not reserve the correct amount of tickets"),
             ));
+        }
+
+        Ok(ids)
+    }
+
+    pub fn release_tickets(
+        order_item: &OrderItem,
+        quantity: Option<i64>,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        let query = include_str!("../queries/release_tickets.sql");
+        let q = diesel::sql_query(query)
+            .bind::<sql_types::Uuid, _>(order_item.id)
+            .bind::<sql_types::Nullable<Bigint>, _>(quantity);
+        let ids: Vec<TicketInstance> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not release tickets")?;
+
+        // Quantity was specified so number removed should equal amount returned
+        if let Some(quantity) = quantity {
+            if ids.len() as i64 != quantity {
+                return Err(DatabaseError::new(
+                    ErrorCode::QueryError,
+                    Some("Could not release the correct amount of tickets"),
+                ));
+            }
         }
 
         Ok(ids)

@@ -42,6 +42,13 @@ impl TicketPricing {
         }
     }
 
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<TicketPricing, DatabaseError> {
+        ticket_pricing::table
+            .find(id)
+            .first::<TicketPricing>(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading ticket pricing")
+    }
+
     pub fn status(&self) -> TicketPricingStatus {
         TicketPricingStatus::parse(&self.status).unwrap()
     }

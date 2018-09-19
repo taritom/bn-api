@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
+use models::{FeeScheduleRange, NewFeeScheduleRange};
 use schema::{fee_schedule_ranges, fee_schedules};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -14,24 +15,6 @@ pub struct FeeSchedule {
     pub version: i16,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-}
-
-#[derive(Queryable, Serialize, Deserialize, Clone)]
-pub struct FeeScheduleRange {
-    #[allow(dead_code)]
-    pub id: Uuid,
-    #[allow(dead_code)]
-    fee_schedule_id: Uuid,
-    pub min_price: i64,
-    pub fee: i64,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct NewFeeScheduleRange {
-    pub min_price: i64,
-    pub fee: i64,
 }
 
 impl FeeSchedule {

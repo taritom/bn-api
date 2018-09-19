@@ -29,6 +29,23 @@ fn create() {
 }
 
 #[test]
+fn find() {
+    let project = TestProject::new();
+    let event = project.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(project.get_connection()).unwrap()[0];
+    let sd1 = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let ed1 = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
+    let ticket_pricing =
+        TicketPricing::create(ticket_type.id, "Early Bird".to_string(), sd1, ed1, 100)
+            .commit(project.get_connection())
+            .unwrap();
+    let found_ticket_pricing =
+        TicketPricing::find(ticket_pricing.id, project.get_connection()).unwrap();
+
+    assert_eq!(found_ticket_pricing, ticket_pricing);
+}
+
+#[test]
 fn get_current_ticket_pricing() {
     let db = TestProject::new();
 

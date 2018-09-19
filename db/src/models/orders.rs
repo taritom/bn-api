@@ -2,13 +2,8 @@ use chrono::prelude::*;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use models::payments::Payment;
-use models::PaymentMethods;
-use models::{
-    Event, FeeSchedule, FeeScheduleRange, OrderItemTypes, OrderStatus, OrderTypes, Organization,
-    TicketInstance, TicketPricing, TicketType, User,
-};
-use schema::{order_items, orders};
+use models::*;
+use schema::orders;
 use time::Duration;
 use utils::errors;
 use utils::errors::ConvertToDatabaseError;
@@ -97,9 +92,8 @@ impl Order {
         )?;
 
         let fee_schedule_range = FeeSchedule::find(organization.fee_schedule_id, conn)?
-            .get_range(ticket_pricing.price_in_cents, conn)?;
-
-        let fee_schedule_range = fee_schedule_range.unwrap();
+            .get_range(ticket_pricing.price_in_cents, conn)?
+            .unwrap();
 
         let order_item = NewTicketsOrderItem {
             order_id: self.id,
@@ -109,13 +103,7 @@ impl Order {
             fee_schedule_range_id: fee_schedule_range.id,
             cost: ticket_pricing.price_in_cents * quantity,
         }.commit(conn)?;
-
-        let fee_item = NewFeesOrderItem {
-            order_id: self.id,
-            item_type: OrderItemTypes::Fees.to_string(),
-            cost: fee_schedule_range.fee * quantity,
-            parent_id: order_item.id,
-        }.commit(conn)?;
+        order_item.update_fees(conn)?;
 
         TicketInstance::reserve_tickets(
             &order_item,
@@ -127,8 +115,37 @@ impl Order {
         )
     }
 
+    pub fn remove_tickets(
+        &self,
+        mut order_item: OrderItem,
+        quantity: Option<i64>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        TicketInstance::release_tickets(&order_item, quantity, conn)?;
+        let calculated_quantity = order_item.calculate_quantity(conn)?;
+
+        if calculated_quantity == 0 {
+            order_item.destroy(conn)
+        } else {
+            let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), conn)?;
+            order_item.quantity = Some(calculated_quantity);
+            order_item.cost = ticket_pricing.price_in_cents * calculated_quantity;
+            order_item.update(conn)?;
+
+            order_item.update_fees(conn)
+        }
+    }
+
     pub fn items(&self, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
         OrderItem::find_for_order(self.id, conn)
+    }
+
+    pub fn find_item(
+        &self,
+        cart_item_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<OrderItem, DatabaseError> {
+        OrderItem::find_in_order(self.id, cart_item_id, conn)
     }
 
     pub fn add_external_payment(
@@ -178,131 +195,5 @@ impl Order {
         }
 
         Ok(total)
-    }
-}
-
-#[derive(Identifiable, Associations, Queryable, AsChangeset)]
-#[belongs_to(Order)]
-#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
-pub struct OrderItem {
-    pub id: Uuid,
-    order_id: Uuid,
-    item_type: String,
-    pub quantity: Option<i64>,
-    pub cost: i64,
-    created_at: NaiveDateTime,
-    updated_at: NaiveDateTime,
-    ticket_pricing_id: Option<Uuid>,
-    fee_schedule_range_id: Option<Uuid>,
-    parent_id: Option<Uuid>,
-}
-
-impl OrderItem {
-    fn create_tickets(order_id: Uuid, ticket_type_id: Uuid, quantity: u32) -> NewTicketsOrderItem {
-        unimplemented!()
-
-        //        NewTicketsOrderItem {
-        //            order_id,
-        //            ticket_type_id,
-        //            item_type: OrderItemTypes::Tickets.to_string(),
-        //            quantity: quantity as i64,
-        //        }
-    }
-
-    pub fn item_type(&self) -> OrderItemTypes {
-        OrderItemTypes::parse(&self.item_type).unwrap()
-    }
-
-    fn find(
-        order_id: Uuid,
-        ticket_type_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Option<OrderItem>, errors::DatabaseError> {
-        unimplemented!()
-        //        order_items::table
-        //            .filter(order_items::order_id.eq(order_id))
-        //            .filter(order_items::ticket_type_id.eq(ticket_type_id))
-        //            .first(conn)
-        //            .optional()
-        //            .to_db_error(
-        //                errors::ErrorCode::QueryError,
-        //                "Could not retrieve order item",
-        //            )
-    }
-
-    fn update(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        unimplemented!()
-        //        diesel::update(self)
-        //            .set((
-        //                order_items::quantity.eq(self.quantity),
-        //                order_items::updated_at.eq(dsl::now),
-        //            ))
-        //            .execute(conn)
-        //            .map(|_| ())
-        //            .to_db_error(
-        //                errors::ErrorCode::UpdateError,
-        //                "Could not update order item",
-        //            )
-    }
-
-    //    fn delete(self, conn: &PgConnection) -> Result<(), DatabaseError> {
-    //        diesel::delete(&self).execute(conn).map(|_| ()).to_db_error(
-    //            errors::ErrorCode::DeleteError,
-    //            "Could not delete order item",
-    //        )
-    //    }
-
-    fn find_for_order(
-        order_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<OrderItem>, DatabaseError> {
-        order_items::table
-            .filter(order_items::order_id.eq(order_id))
-            .load(conn)
-            .to_db_error(errors::ErrorCode::QueryError, "Could not load order items")
-    }
-}
-
-#[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
-#[table_name = "order_items"]
-struct NewTicketsOrderItem {
-    order_id: Uuid,
-    item_type: String,
-    quantity: i64,
-    cost: i64,
-    ticket_pricing_id: Uuid,
-    fee_schedule_range_id: Uuid,
-}
-
-impl NewTicketsOrderItem {
-    fn commit(self, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
-        diesel::insert_into(order_items::table)
-            .values(self)
-            .get_result(conn)
-            .to_db_error(
-                errors::ErrorCode::InsertError,
-                "Could not create order item",
-            )
-    }
-}
-
-#[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
-#[table_name = "order_items"]
-struct NewFeesOrderItem {
-    order_id: Uuid,
-    item_type: String,
-    cost: i64,
-    parent_id: Uuid,
-}
-
-impl NewFeesOrderItem {
-    fn commit(self, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
-        diesel::insert_into(order_items::table)
-            .values(self)
-            .get_result(conn)
-            .to_db_error(
-                errors::ErrorCode::InsertError,
-                "Could not create order item",
-            )
     }
 }
