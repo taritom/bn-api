@@ -111,6 +111,14 @@ fn set_privacy() {
 fn all() {
     let project = TestProject::new();
     let name = "Name";
+    let owner = project.create_user().finish();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_owner(&owner)
+        .with_user(&user)
+        .finish();
+
     let artist = project.create_artist().with_name(name.into()).finish();
     assert_eq!(name, artist.name);
     assert_eq!(artist.id.to_string().is_empty(), false);
@@ -121,16 +129,28 @@ fn all() {
     assert_eq!(found_artists[0].name, artist.name);
 
     let name2 = "Name 2";
-    let artist2 = project.create_artist().with_name(name2.into()).finish();
+    let artist2 = project
+        .create_artist()
+        .with_name(name2.into())
+        .with_organization(&organization)
+        .make_private()
+        .finish();
     assert_eq!(name2, artist2.name);
     assert_eq!(artist2.id.to_string().is_empty(), false);
 
     let found_artists = Artist::all(None, project.get_connection()).unwrap();
-    assert_eq!(2, found_artists.len());
+    assert_eq!(1, found_artists.len());
     assert_eq!(found_artists[0].id, artist.id);
     assert_eq!(found_artists[0].name, artist.name);
-    assert_eq!(found_artists[1].id, artist2.id);
-    assert_eq!(found_artists[1].name, artist2.name);
+
+    let found_artists_owner = Artist::all(Some(owner.id), project.get_connection()).unwrap();
+    let found_artists_user = Artist::all(Some(user.id), project.get_connection()).unwrap();
+    assert_eq!(found_artists_user, found_artists_owner);
+    assert_eq!(2, found_artists_user.len());
+    assert_eq!(found_artists_user[0].id, artist.id);
+    assert_eq!(found_artists_user[0].name, artist.name);
+    assert_eq!(found_artists_user[1].id, artist2.id);
+    assert_eq!(found_artists_user[1].name, artist2.name);
 }
 
 #[test]

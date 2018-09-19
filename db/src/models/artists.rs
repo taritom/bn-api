@@ -3,7 +3,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::Organization;
-use schema::{artists, organization_users};
+use schema::{artists, organization_users, organizations};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -87,9 +87,13 @@ impl Artist {
                     organization_users::table.on(artists::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u))),
+                ).left_join(
+                    organizations::table
+                        .on(artists::organization_id.eq(organizations::id.nullable())),
                 ).filter(
                     organization_users::user_id
                         .eq(u)
+                        .or(organizations::owner_user_id.eq(u))
                         .or(artists::is_private.eq(false)),
                 ).order_by(artists::name)
                 .select(artists::all_columns)

@@ -85,6 +85,9 @@ fn all() {
     all_venues.push(venue3.unwrap());
     let all_found_venues = Venue::all(Some(user.id), &project.get_connection()).unwrap();
     assert_eq!(all_venues, all_found_venues);
+    let all_found_venues =
+        Venue::all(Some(organization.owner_user_id), &project.get_connection()).unwrap();
+    assert_eq!(all_venues, all_found_venues);
 }
 
 #[test]
