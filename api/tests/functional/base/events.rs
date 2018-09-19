@@ -1,12 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
-use bigneon_api::controllers::events::{
-    self, AddArtistRequest, CreateEventRequest, CreateTicketTypeRequest, PagingSearchParameters,
-    PathParameters, UpdateArtistsRequest,
-};
-use bigneon_db::models::{
-    DisplayEventInterestedUser, DisplayEventInterestedUserList, Event, EventArtist,
-    EventEditableAttributes, EventInterest, Organization, Roles, Venue,
-};
+use bigneon_api::controllers::events;
+use bigneon_api::controllers::events::*;
+use bigneon_db::models::*;
 use chrono::prelude::*;
 use diesel::PgConnection;
 use serde_json;
@@ -360,7 +355,7 @@ pub fn update_artists(role: Roles, should_test_succeed: bool, same_organization:
     }
 }
 
-pub fn create_tickets(role: Roles, should_succeed: bool) {
+pub fn create_tickets(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = if role != Roles::User {
@@ -372,31 +367,46 @@ pub fn create_tickets(role: Roles, should_succeed: bool) {
         .create_event()
         .with_organization(&organization)
         .finish();
-
     let user = support::create_auth_user_from_user(&user, role, &database);
-
+    //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
-
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
-    let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
-    let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
-    let data = CreateTicketTypeRequest {
+    let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
+    let start_date = NaiveDate::from_ymd(2018, 5, 1).and_hms(6, 20, 21);
+    let middle_date = NaiveDate::from_ymd(2018, 6, 2).and_hms(7, 45, 31);
+    let end_date = NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23);
+    ticket_pricing.push(CreateTicketPricingRequest {
+        name: String::from("Early bird"),
+        price_in_cents: 10000,
+        start_date,
+        end_date: middle_date,
+    });
+    ticket_pricing.push(CreateTicketPricingRequest {
+        name: String::from("Base"),
+        price_in_cents: 20000,
+        start_date: middle_date,
+        end_date,
+    });
+    let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
-        capacity: 100,
-        start_date: sd,
-        end_date: ed,
+        capacity: 1000,
+        start_date,
+        end_date,
+        ticket_pricing,
     };
     let response: HttpResponse =
-        events::create_tickets((database.connection.into(), path, Json(data), user)).into();
+        events::create_tickets((database.connection.into(), path, Json(request_data), user)).into();
 
-    let _body = support::unwrap_body_to_string(&response).unwrap();
-    if should_succeed {
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
-        return;
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+        let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, updated_event);
     }
-
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
 fn expected_show_json(

@@ -2,7 +2,7 @@ use actix_web::Query;
 use actix_web::{HttpResponse, Json, Path};
 use auth::user::User;
 use bigneon_db::models::*;
-use chrono::NaiveDateTime;
+use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
@@ -395,11 +395,25 @@ pub fn update_artists(
 }
 
 #[derive(Deserialize)]
+pub struct CreateTicketPricingRequest {
+    pub name: String,
+    pub price_in_cents: i64,
+    pub start_date: NaiveDateTime,
+    pub end_date: NaiveDateTime,
+}
+
+#[derive(Deserialize)]
 pub struct CreateTicketTypeRequest {
     pub name: String,
     pub capacity: u32,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
+    pub ticket_pricing: Vec<CreateTicketPricingRequest>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DisplayCreatedTicket {
+    pub id: Uuid,
 }
 
 pub fn create_tickets(
@@ -413,13 +427,13 @@ pub fn create_tickets(
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
     if !user.has_scope(
-        Scopes::TicketAdmin,
+        Scopes::EventWrite,
         Some(&event.organization(connection)?),
         connection,
     )? {
         return application::unauthorized();
     }
-
+    //Add new ticket type
     let ticket_type = event.add_ticket_type(
         data.name.clone(),
         data.capacity,
@@ -427,7 +441,16 @@ pub fn create_tickets(
         data.end_date,
         connection,
     )?;
-
+    //Add each ticket pricing entry for newly created ticket type
+    for curr_pricing_entry in &data.ticket_pricing {
+        let _pricing_result = ticket_type.add_ticket_pricing(
+            curr_pricing_entry.name.clone(),
+            curr_pricing_entry.start_date,
+            curr_pricing_entry.end_date,
+            curr_pricing_entry.price_in_cents,
+            connection,
+        )?;
+    }
     //    let mut allocation =
     //        TicketAllocation::create(path.id, data.tickets_delta).commit(connection)?;
     //
@@ -459,7 +482,7 @@ pub fn create_tickets(
     //    allocation.set_asset_id(asset_id);
     //
     //    let updated_allocation = allocation.update(connection)?;
-    Ok(HttpResponse::Created().json(json!({"ticket_type_id": ticket_type.id})))
+    Ok(HttpResponse::Created().json(DisplayCreatedTicket { id: ticket_type.id }))
 }
 
 pub fn list_ticket_types(
