@@ -96,15 +96,15 @@ pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigN
     struct DisplayCart {
         id: Uuid,
         items: Vec<DisplayCartItem>,
-        total: i64,
+        total_in_cents: i64,
     }
 
     #[derive(Serialize)]
     struct DisplayCartItem {
         id: Uuid,
         item_type: String,
-        quantity: u32,
-        cost: i64,
+        quantity: i64,
+        unit_price_in_cents: i64,
     }
 
     let items: Vec<DisplayCartItem> = order
@@ -113,13 +113,13 @@ pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigN
         .map(|i| DisplayCartItem {
             id: i.id,
             item_type: i.item_type().to_string(),
-            quantity: i.quantity.unwrap_or_default() as u32,
-            cost: i.cost,
+            quantity: i.quantity,
+            unit_price_in_cents: i.unit_price_in_cents,
         }).collect();
     let r = DisplayCart {
         id: order.id,
         items,
-        total: order.calculate_total(connection)?,
+        total_in_cents: order.calculate_total(connection)?,
     };
 
     Ok(HttpResponse::Ok().json(r))

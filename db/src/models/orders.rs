@@ -101,7 +101,7 @@ impl Order {
             quantity,
             ticket_pricing_id: ticket_pricing.id,
             fee_schedule_range_id: fee_schedule_range.id,
-            cost: ticket_pricing.price_in_cents * quantity,
+            unit_price_in_cents: ticket_pricing.price_in_cents,
         }.commit(conn)?;
         order_item.update_fees(conn)?;
 
@@ -128,8 +128,8 @@ impl Order {
             order_item.destroy(conn)
         } else {
             let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), conn)?;
-            order_item.quantity = Some(calculated_quantity);
-            order_item.cost = ticket_pricing.price_in_cents * calculated_quantity;
+            order_item.quantity = calculated_quantity;
+            order_item.unit_price_in_cents = ticket_pricing.price_in_cents;
             order_item.update(conn)?;
 
             order_item.update_fees(conn)
@@ -191,7 +191,7 @@ impl Order {
         let mut total = 0;
 
         for item in &order_items {
-            total += item.cost;
+            total += item.unit_price_in_cents * item.quantity;
         }
 
         Ok(total)

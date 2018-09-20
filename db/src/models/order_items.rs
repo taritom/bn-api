@@ -16,8 +16,8 @@ pub struct OrderItem {
     pub id: Uuid,
     pub order_id: Uuid,
     pub item_type: String,
-    pub quantity: Option<i64>,
-    pub cost: i64,
+    pub quantity: i64,
+    pub unit_price_in_cents: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub ticket_pricing_id: Option<Uuid>,
@@ -63,14 +63,15 @@ impl OrderItem {
 
         match fee_item {
             Some(mut fee_item) => {
-                fee_item.cost = fee_schedule_range.fee * self.quantity.unwrap();
+                fee_item.unit_price_in_cents = fee_schedule_range.fee * self.quantity;
                 fee_item.update(conn)
             }
             None => {
                 NewFeesOrderItem {
                     order_id: self.order_id,
                     item_type: OrderItemTypes::Fees.to_string(),
-                    cost: fee_schedule_range.fee * self.quantity.unwrap(),
+                    unit_price_in_cents: fee_schedule_range.fee * self.quantity,
+                    quantity: 1,
                     parent_id: self.id,
                 }.commit(conn)?;
 
@@ -82,7 +83,7 @@ impl OrderItem {
     pub(crate) fn update(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         diesel::update(self)
             .set((
-                order_items::cost.eq(self.cost),
+                order_items::unit_price_in_cents.eq(self.unit_price_in_cents),
                 order_items::quantity.eq(self.quantity),
                 order_items::updated_at.eq(dsl::now),
             )).execute(conn)
@@ -145,7 +146,7 @@ pub(crate) struct NewTicketsOrderItem {
     pub order_id: Uuid,
     pub item_type: String,
     pub quantity: i64,
-    pub cost: i64,
+    pub unit_price_in_cents: i64,
     pub ticket_pricing_id: Uuid,
     pub fee_schedule_range_id: Uuid,
 }
@@ -167,7 +168,8 @@ impl NewTicketsOrderItem {
 pub(crate) struct NewFeesOrderItem {
     pub order_id: Uuid,
     pub item_type: String,
-    pub cost: i64,
+    pub quantity: i64,
+    pub unit_price_in_cents: i64,
     pub parent_id: Uuid,
 }
 

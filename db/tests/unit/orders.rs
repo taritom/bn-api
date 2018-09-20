@@ -48,12 +48,15 @@ fn add_tickets() {
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.calculate_quantity(connection), Ok(10));
-    assert_eq!(order_item.cost, ticket_pricing.price_in_cents * 10);
+    assert_eq!(
+        order_item.unit_price_in_cents,
+        ticket_pricing.price_in_cents
+    );
 
     let fee_schedule_range =
         FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    assert_eq!(fee_item.cost, fee_schedule_range.fee * 10);
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee * 10);
 }
 
 #[test]
@@ -75,21 +78,27 @@ fn remove_tickets() {
     let order_item = cart.items(connection).unwrap().remove(0);
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
-    assert_eq!(order_item.quantity, Some(10));
-    assert_eq!(order_item.cost, ticket_pricing.price_in_cents * 10);
+    assert_eq!(order_item.quantity, 10);
+    assert_eq!(
+        order_item.unit_price_in_cents,
+        ticket_pricing.price_in_cents
+    );
 
     let fee_schedule_range =
         FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    assert_eq!(fee_item.cost, fee_schedule_range.fee * 10);
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee * 10);
 
     // Remove tickets
     assert!(cart.remove_tickets(order_item, Some(4), connection).is_ok());
     let order_item = cart.items(connection).unwrap().remove(0);
-    assert_eq!(order_item.quantity, Some(6));
-    assert_eq!(order_item.cost, ticket_pricing.price_in_cents * 6);
+    assert_eq!(order_item.quantity, 6);
+    assert_eq!(
+        order_item.unit_price_in_cents,
+        ticket_pricing.price_in_cents
+    );
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    assert_eq!(fee_item.cost, fee_schedule_range.fee * 6);
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee * 6);
 
     project
         .get_connection()
