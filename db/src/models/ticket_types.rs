@@ -1,9 +1,9 @@
 use chrono::NaiveDateTime;
 use diesel;
+use diesel::expression::dsl::count;
 use diesel::prelude::*;
-use models::TicketPricing;
-use models::{Event, TicketTypeStatus};
-use schema::{ticket_pricing, ticket_types};
+use models::{Event, TicketInstance, TicketPricing, TicketTypeStatus};
+use schema::{assets, ticket_instances, ticket_pricing, ticket_types};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -17,8 +17,8 @@ pub struct TicketType {
     pub event_id: Uuid,
     pub name: String,
     status: String,
-    start_date: NaiveDateTime,
-    end_date: NaiveDateTime,
+    pub start_date: NaiveDateTime,
+    pub end_date: NaiveDateTime,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -69,6 +69,17 @@ impl TicketType {
                 ErrorCode::QueryError,
                 "Could not load ticket pricing for ticket type",
             )
+    }
+
+    pub fn ticket_capacity(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
+        //Calculate capacity by counting the number of ticket instances for event
+        let ticket_capacity: i64 = assets::table
+            .filter(assets::ticket_type_id.eq(self.id))
+            .inner_join(ticket_instances::table)
+            .select(count(ticket_instances::id))
+            .first(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load ticket instances")?;
+        Ok(ticket_capacity as u32)
     }
 
     pub fn add_ticket_pricing(

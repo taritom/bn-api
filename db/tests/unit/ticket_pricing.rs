@@ -66,3 +66,25 @@ fn get_current_ticket_pricing() {
 
     assert_eq!(ticket_pricing.name, "Standard".to_string())
 }
+
+#[test]
+fn get_current_ticket_capacity() {
+    let db = TestProject::new();
+
+    let organization = db
+        .create_organization()
+        .with_fee_schedule(&db.create_fee_schedule().finish())
+        .finish();
+    let event = db
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = TicketType::find_by_event_id(event.id, db.get_connection()).unwrap();
+    assert_eq!(ticket_types.len(), 1);
+
+    let ticket_capacity = ticket_types[0]
+        .ticket_capacity(db.get_connection())
+        .unwrap();
+    assert_eq!(ticket_capacity, 100);
+}
