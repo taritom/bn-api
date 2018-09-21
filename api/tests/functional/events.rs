@@ -2,8 +2,10 @@ use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events::SearchParameters;
 use bigneon_api::controllers::events::{self, PathParameters};
+use bigneon_api::models::UserDisplayTicketType;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
+use diesel::PgConnection;
 use functional::base;
 use serde_json;
 use support;
@@ -155,25 +157,41 @@ pub fn index_search_returns_only_one_event() {
     assert_eq!(body, events_expected_json);
 }
 
-#[cfg(test)]
-mod show_tests {
-    use super::*;
-    #[test]
-    fn show_org_member() {
-        base::events::show(Roles::OrgMember);
-    }
-    #[test]
-    fn show_admin() {
-        base::events::show(Roles::Admin);
-    }
-    #[test]
-    fn show_user() {
-        base::events::show(Roles::User);
-    }
-    #[test]
-    fn show_org_owner() {
-        base::events::show(Roles::OrgOwner);
-    }
+#[test]
+fn show() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_ticket_pricing()
+        .finish();
+    let event_id = event.id;
+
+    let artist1 = database.create_artist().finish();
+    let artist2 = database.create_artist().finish();
+
+    event.add_artist(artist1.id, &database.connection).unwrap();
+    event.add_artist(artist2.id, &database.connection).unwrap();
+
+    let _event_interest = EventInterest::create(event.id, user.id).commit(&database.connection);
+    let event_expected_json = expected_show_json(event, organization, venue, &database.connection);
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event_id;
+
+    let response: HttpResponse =
+        events::show((database.connection.into(), path, Some(auth_user))).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, event_expected_json);
 }
 
 #[cfg(test)]
@@ -520,17 +538,123 @@ mod create_tickets_tests {
     }
 }
 
-#[test]
-fn list_ticket_types() {
-    let database = TestDatabase::new();
-    let event = database.create_event().with_ticket_pricing().finish();
-    let request = TestRequest::create();
+#[cfg(test)]
+mod list_ticket_types_tests {
+    use super::*;
+    #[test]
+    fn list_ticket_types_org_member() {
+        base::events::list_ticket_types(Roles::OrgMember, true, true);
+    }
+    #[test]
+    fn list_ticket_types_admin() {
+        base::events::list_ticket_types(Roles::Admin, true, true);
+    }
+    #[test]
+    fn list_ticket_types_user() {
+        base::events::list_ticket_types(Roles::User, false, true);
+    }
+    #[test]
+    fn list_ticket_types_org_owner() {
+        base::events::list_ticket_types(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn list_ticket_types_other_organization_org_member() {
+        base::events::list_ticket_types(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn list_ticket_types_other_organization_admin() {
+        base::events::list_ticket_types(Roles::Admin, true, false);
+    }
+    #[test]
+    fn list_ticket_types_other_organization_user() {
+        base::events::list_ticket_types(Roles::User, false, false);
+    }
+    #[test]
+    fn list_ticket_types_other_organization_org_owner() {
+        base::events::list_ticket_types(Roles::OrgOwner, false, false);
+    }
+}
 
-    let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
-    path.id = event.id;
+fn expected_show_json(
+    event: Event,
+    organization: Organization,
+    venue: Venue,
+    connection: &PgConnection,
+) -> String {
+    #[derive(Serialize)]
+    struct ShortOrganization {
+        id: Uuid,
+        name: String,
+    }
+    #[derive(Serialize)]
+    struct DisplayEventArtist {
+        event_id: Uuid,
+        artist_id: Uuid,
+        rank: i32,
+        set_time: Option<NaiveDateTime>,
+    }
+    #[derive(Serialize)]
+    struct R {
+        id: Uuid,
+        name: String,
+        organization_id: Uuid,
+        venue_id: Option<Uuid>,
+        created_at: NaiveDateTime,
+        event_start: Option<NaiveDateTime>,
+        door_time: Option<NaiveDateTime>,
+        status: String,
+        publish_date: Option<NaiveDateTime>,
+        promo_image_url: Option<String>,
+        additional_info: Option<String>,
+        age_limit: Option<i32>,
+        organization: ShortOrganization,
+        venue: Venue,
+        artists: Vec<DisplayEventArtist>,
+        ticket_types: Vec<UserDisplayTicketType>,
+        total_interest: u32,
+        user_is_interested: bool,
+    }
 
-    let response = events::list_ticket_types((database.connection.into(), path)).unwrap();
+    let event_artists = EventArtist::find_all_from_event(event.id, connection).unwrap();
 
-    let _body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    let display_event_artists: Vec<DisplayEventArtist> = event_artists
+        .iter()
+        .map(|e| DisplayEventArtist {
+            event_id: e.event_id,
+            artist_id: e.artist_id,
+            rank: e.rank,
+            set_time: e.set_time,
+        }).collect();
+
+    let display_ticket_types: Vec<UserDisplayTicketType> = event
+        .ticket_types(connection)
+        .unwrap()
+        .iter()
+        .map(|ticket_type| {
+            UserDisplayTicketType::from_ticket_type(ticket_type, connection).unwrap()
+        }).collect();
+
+    serde_json::to_string(&R {
+        id: event.id,
+        name: event.name,
+        organization_id: event.organization_id,
+        venue_id: event.venue_id,
+        created_at: event.created_at,
+        event_start: event.event_start,
+        door_time: event.door_time,
+        status: event.status,
+        publish_date: event.publish_date,
+        promo_image_url: event.promo_image_url,
+        additional_info: event.additional_info,
+        age_limit: event.age_limit,
+        organization: ShortOrganization {
+            id: organization.id,
+            name: organization.name,
+        },
+        venue: venue,
+        artists: display_event_artists,
+        ticket_types: display_ticket_types,
+        total_interest: 1,
+        user_is_interested: true,
+    }).unwrap()
 }

@@ -43,4 +43,4 @@ string_enum! { OrderItemTypes [Tickets, Fees]}
 string_enum! { OrderTypes [Cart, BackOffice] }
 string_enum! { PaymentMethods [External] }
 string_enum! { TicketPricingStatus [Published] }
-string_enum! { TicketTypeStatus [Published] }
+string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut] }

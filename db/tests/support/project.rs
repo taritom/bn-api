@@ -54,6 +54,10 @@ impl TestProject {
         EventBuilder::new(&self.connection)
     }
 
+    pub fn create_order(&self) -> OrderBuilder {
+        OrderBuilder::new(&self.connection)
+    }
+
     pub fn create_organization(&self) -> OrganizationBuilder {
         OrganizationBuilder::new(&self.connection)
     }

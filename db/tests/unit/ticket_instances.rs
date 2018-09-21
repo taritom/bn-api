@@ -1,4 +1,4 @@
-use bigneon_db::models::{FeeScheduleRange, Order, OrderTypes, TicketInstance};
+use bigneon_db::models::{Order, OrderTypes, TicketInstance};
 use chrono::prelude::*;
 use chrono::NaiveDateTime;
 use diesel::result::Error;

@@ -1,14 +1,13 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::*;
+use bigneon_api::models::AdminDisplayTicketType;
 use bigneon_db::models::*;
 use chrono::prelude::*;
-use diesel::PgConnection;
 use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
-use uuid::Uuid;
 
 pub fn create(role: Roles, should_test_succeed: bool, same_organization: bool) {
     let database = TestDatabase::new();
@@ -81,46 +80,6 @@ pub fn update(role: Roles, should_test_succeed: bool, same_organization: bool) {
     }
 }
 
-pub fn show(role: Roles) {
-    let database = TestDatabase::new();
-    let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-
-    let organization = if role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
-
-    let venue = database.create_venue().finish();
-    let event = database
-        .create_event()
-        .with_name("NewEvent".to_string())
-        .with_organization(&organization)
-        .with_venue(&venue)
-        .finish();
-    let event_id = event.id;
-
-    let artist1 = database.create_artist().finish();
-    let artist2 = database.create_artist().finish();
-
-    event.add_artist(artist1.id, &database.connection).unwrap();
-    event.add_artist(artist2.id, &database.connection).unwrap();
-
-    let _event_interest = EventInterest::create(event.id, user.id).commit(&database.connection);
-    let event_expected_json = expected_show_json(event, organization, venue, &database.connection);
-
-    let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = event_id;
-
-    let response: HttpResponse =
-        events::show((database.connection.into(), path, Some(auth_user))).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, event_expected_json);
-}
-
 pub fn cancel(role: Roles, should_test_succeed: bool, same_organization: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
@@ -140,12 +99,48 @@ pub fn cancel(role: Roles, should_test_succeed: bool, same_organization: bool) {
     path.id = event.id;
 
     let response: HttpResponse =
-        events::cancel((database.connection.into(), path, auth_user.clone())).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
+        events::cancel((database.connection.into(), path, auth_user)).into();
     if should_test_succeed {
+        let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let updated_event: Event = serde_json::from_str(&body).unwrap();
         assert!(!updated_event.cancelled_at.is_none());
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
+pub fn list_ticket_types(role: Roles, should_test_succeed: bool, same_organization: bool) {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let request = TestRequest::create();
+    let organization = if same_organization && role != Roles::User {
+        database.create_organization_with_user(&user, role == Roles::OrgOwner)
+    } else {
+        database.create_organization()
+    }.finish();
+
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, &database);
+
+    let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
+    path.id = event.id;
+
+    let response =
+        events::list_ticket_types((database.connection.clone().into(), path, auth_user)).unwrap();
+    if should_test_succeed {
+        let body = support::unwrap_body_to_string(&response).unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
+        let expected_ticket_types = vec![
+            AdminDisplayTicketType::from_ticket_type(ticket_type, &database.connection).unwrap(),
+        ];
+        let ticket_types_response: TicketTypesResponse = serde_json::from_str(&body).unwrap();
+        assert_eq!(ticket_types_response.ticket_types, expected_ticket_types);
     } else {
         support::expects_unauthorized(&response);
     }
@@ -407,78 +402,4 @@ pub fn create_tickets(role: Roles, should_test_succeed: bool) {
         let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
         assert_eq!(body, updated_event);
     }
-}
-
-fn expected_show_json(
-    event: Event,
-    organization: Organization,
-    venue: Venue,
-    connection: &PgConnection,
-) -> String {
-    #[derive(Serialize)]
-    struct ShortOrganization {
-        id: Uuid,
-        name: String,
-    }
-    #[derive(Serialize)]
-    struct DisplayEventArtist {
-        event_id: Uuid,
-        artist_id: Uuid,
-        rank: i32,
-        set_time: Option<NaiveDateTime>,
-    }
-    #[derive(Serialize)]
-    struct R {
-        id: Uuid,
-        name: String,
-        organization_id: Uuid,
-        venue_id: Option<Uuid>,
-        created_at: NaiveDateTime,
-        event_start: Option<NaiveDateTime>,
-        door_time: Option<NaiveDateTime>,
-        status: String,
-        publish_date: Option<NaiveDateTime>,
-        promo_image_url: Option<String>,
-        additional_info: Option<String>,
-        age_limit: Option<i32>,
-        organization: ShortOrganization,
-        venue: Venue,
-        artists: Vec<DisplayEventArtist>,
-        total_interest: u32,
-        user_is_interested: bool,
-    }
-
-    let event_artists = EventArtist::find_all_from_event(event.id, connection).unwrap();
-
-    let display_event_artists: Vec<DisplayEventArtist> = event_artists
-        .iter()
-        .map(|e| DisplayEventArtist {
-            event_id: e.event_id,
-            artist_id: e.artist_id,
-            rank: e.rank,
-            set_time: e.set_time,
-        }).collect();
-
-    serde_json::to_string(&R {
-        id: event.id,
-        name: event.name,
-        organization_id: event.organization_id,
-        venue_id: event.venue_id,
-        created_at: event.created_at,
-        event_start: event.event_start,
-        door_time: event.door_time,
-        status: event.status,
-        publish_date: event.publish_date,
-        promo_image_url: event.promo_image_url,
-        additional_info: event.additional_info,
-        age_limit: event.age_limit,
-        organization: ShortOrganization {
-            id: organization.id,
-            name: organization.name,
-        },
-        venue: venue,
-        artists: display_event_artists,
-        total_interest: 1,
-        user_is_interested: true,
-    }).unwrap()
 }

@@ -1,8 +1,4 @@
 use bigneon_db::models::*;
-use bigneon_db::schema::ticket_instances;
-use chrono::NaiveDate;
-use diesel;
-use diesel::prelude::*;
 use support::project::TestProject;
 
 #[test]
@@ -52,7 +48,7 @@ fn calculate_quantity() {
         .commit(connection)
         .unwrap();
     let ticket = &event.ticket_types(connection).unwrap()[0];
-    let tickets = cart.add_tickets(ticket.id, 10, connection).unwrap();
+    cart.add_tickets(ticket.id, 10, connection).unwrap();
 
     let order_item = cart.items(connection).unwrap().remove(0);
     assert_eq!(order_item.calculate_quantity(connection), Ok(10));

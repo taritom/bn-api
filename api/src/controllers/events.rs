@@ -6,7 +6,7 @@ use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::DisplayTicketType;
+use models::{AdminDisplayTicketType, UserDisplayTicketType};
 use tari::tariclient::*;
 use uuid::Uuid;
 use validator::Validate;
@@ -129,6 +129,15 @@ pub fn show(
         None => false,
     };
 
+    let ticket_types = TicketType::find_by_event_id(parameters.id, connection)?;
+    let mut display_ticket_types = Vec::new();
+    for ticket_type in ticket_types {
+        display_ticket_types.push(UserDisplayTicketType::from_ticket_type(
+            &ticket_type,
+            connection,
+        )?);
+    }
+
     //This struct is used to just contain the id and name of the org
     #[derive(Serialize)]
     struct ShortOrganization {
@@ -159,11 +168,12 @@ pub fn show(
         organization: ShortOrganization,
         venue: Option<Venue>,
         artists: Vec<DisplayEventArtist>,
+        ticket_types: Vec<UserDisplayTicketType>,
         total_interest: u32,
         user_is_interested: bool,
     }
 
-    let display_event_artists: Vec<DisplayEventArtist> = event_artists
+    let display_event_artists = event_artists
         .iter()
         .map(|e| DisplayEventArtist {
             event_id: e.event_id,
@@ -191,6 +201,7 @@ pub fn show(
         },
         venue: venue,
         artists: display_event_artists,
+        ticket_types: display_ticket_types,
         total_interest: total_interest,
         user_is_interested: user_interest,
     }))
@@ -485,22 +496,31 @@ pub fn create_tickets(
     Ok(HttpResponse::Created().json(DisplayCreatedTicket { id: ticket_type.id }))
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct TicketTypesResponse {
+    pub ticket_types: Vec<AdminDisplayTicketType>,
+}
+
 pub fn list_ticket_types(
-    (connection, path): (Connection, Path<PathParameters>),
+    (connection, path, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let ticket_types = TicketType::find_by_event_id(path.id, connection)?;
-    let mut encoded_ticket_types = Vec::<DisplayTicketType>::new();
-    for t in ticket_types {
-        encoded_ticket_types.push(DisplayTicketType::from_ticket_type(&t, connection)?);
+    let event = Event::find(path.id, connection)?;
+    if !user.has_scope(
+        Scopes::EventWrite,
+        Some(&event.organization(connection)?),
+        connection,
+    )? {
+        return application::unauthorized();
     }
 
-    #[derive(Serialize)]
-    struct R {
-        ticket_types: Vec<DisplayTicketType>,
-    };
+    let ticket_types = TicketType::find_by_event_id(path.id, connection)?;
+    let mut encoded_ticket_types = Vec::new();
+    for t in ticket_types {
+        encoded_ticket_types.push(AdminDisplayTicketType::from_ticket_type(&t, connection)?);
+    }
 
-    Ok(HttpResponse::Ok().json(R {
+    Ok(HttpResponse::Ok().json(TicketTypesResponse {
         ticket_types: encoded_ticket_types,
     }))
 }
