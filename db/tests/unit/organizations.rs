@@ -14,7 +14,7 @@ fn create() {
         format!("Zero fees",).into(),
         vec![NewFeeScheduleRange {
             min_price: 0,
-            fee: 0,
+            fee_in_cents: 0,
         }],
     ).commit(connection)
     .unwrap();
@@ -375,7 +375,7 @@ fn change_owner() {
         format!("Zero fees",).into(),
         vec![NewFeeScheduleRange {
             min_price: 0,
-            fee: 0,
+            fee_in_cents: 0,
         }],
     ).commit(connection)
     .unwrap();

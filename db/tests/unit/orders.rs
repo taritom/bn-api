@@ -56,7 +56,10 @@ fn add_tickets() {
     let fee_schedule_range =
         FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee * 10);
+    assert_eq!(
+        fee_item.unit_price_in_cents,
+        fee_schedule_range.fee_in_cents * 10
+    );
 }
 
 #[test]
@@ -87,7 +90,10 @@ fn remove_tickets() {
     let fee_schedule_range =
         FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee * 10);
+    assert_eq!(
+        fee_item.unit_price_in_cents,
+        fee_schedule_range.fee_in_cents * 10
+    );
 
     // Remove tickets
     assert!(cart.remove_tickets(order_item, Some(4), connection).is_ok());
@@ -98,7 +104,10 @@ fn remove_tickets() {
         ticket_pricing.price_in_cents
     );
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee * 6);
+    assert_eq!(
+        fee_item.unit_price_in_cents,
+        fee_schedule_range.fee_in_cents * 6
+    );
 
     project
         .get_connection()

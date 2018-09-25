@@ -97,7 +97,7 @@ impl NewFeeSchedule {
                 .values((
                     fee_schedule_ranges::fee_schedule_id.eq(result.id),
                     fee_schedule_ranges::min_price.eq(range.min_price),
-                    fee_schedule_ranges::fee.eq(range.fee),
+                    fee_schedule_ranges::fee_in_cents.eq(range.fee_in_cents),
                 )).execute(conn)
                 .to_db_error(
                     ErrorCode::InsertError,

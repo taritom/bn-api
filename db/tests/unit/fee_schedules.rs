@@ -9,11 +9,11 @@ fn fee_schedule_create() {
         vec![
             NewFeeScheduleRange {
                 min_price: 20,
-                fee: 10,
+                fee_in_cents: 10,
             },
             NewFeeScheduleRange {
                 min_price: 1000,
-                fee: 100,
+                fee_in_cents: 100,
             },
         ],
     ).commit(project.get_connection())
@@ -24,18 +24,21 @@ fn fee_schedule_create() {
         vec![ranges[0].min_price, ranges[1].min_price],
         vec![20, 1000]
     );
-    assert_eq!(vec![ranges[0].fee, ranges[1].fee], vec![10, 100]);
+    assert_eq!(
+        vec![ranges[0].fee_in_cents, ranges[1].fee_in_cents],
+        vec![10, 100]
+    );
 
     let fee_schedule2 = FeeSchedule::create(
         "default".to_string(),
         vec![
             NewFeeScheduleRange {
                 min_price: 20,
-                fee: 10,
+                fee_in_cents: 10,
             },
             NewFeeScheduleRange {
                 min_price: 1000,
-                fee: 100,
+                fee_in_cents: 100,
             },
         ],
     ).commit(project.get_connection())
@@ -52,11 +55,11 @@ fn get_fee_schedule_range() {
         vec![
             NewFeeScheduleRange {
                 min_price: 20,
-                fee: 10,
+                fee_in_cents: 10,
             },
             NewFeeScheduleRange {
                 min_price: 100,
-                fee: 20,
+                fee_in_cents: 20,
             },
         ],
     ).commit(project.get_connection())
@@ -74,7 +77,7 @@ fn get_fee_schedule_range() {
         .get_range(10, project.get_connection())
         .unwrap();
 
-    assert_eq!(fee_schedule_range1.fee, 10);
-    assert_eq!(fee_schedule_range2.fee, 20);
+    assert_eq!(fee_schedule_range1.fee_in_cents, 10);
+    assert_eq!(fee_schedule_range2.fee_in_cents, 20);
     assert!(fee_schedule_range3.is_none());
 }

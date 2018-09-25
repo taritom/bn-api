@@ -60,7 +60,7 @@ impl<'a> OrganizationBuilder<'a> {
                 format!("{} zero fees", self.name).into(),
                 vec![NewFeeScheduleRange {
                     min_price: 0,
-                    fee: 0,
+                    fee_in_cents: 0,
                 }],
             ).commit(self.connection);
             self.fee_schedule = Some(fee_schedule.unwrap());

@@ -63,14 +63,14 @@ impl OrderItem {
 
         match fee_item {
             Some(mut fee_item) => {
-                fee_item.unit_price_in_cents = fee_schedule_range.fee * self.quantity;
+                fee_item.unit_price_in_cents = fee_schedule_range.fee_in_cents * self.quantity;
                 fee_item.update(conn)
             }
             None => {
                 NewFeesOrderItem {
                     order_id: self.order_id,
                     item_type: OrderItemTypes::Fees.to_string(),
-                    unit_price_in_cents: fee_schedule_range.fee * self.quantity,
+                    unit_price_in_cents: fee_schedule_range.fee_in_cents * self.quantity,
                     quantity: 1,
                     parent_id: self.id,
                 }.commit(conn)?;

@@ -87,7 +87,7 @@ pub fn create(
         format!("{} default fees", new_organization.name).into(),
         vec![NewFeeScheduleRange {
             min_price: 0,
-            fee: 0,
+            fee_in_cents: 0,
         }],
     ).commit(connection)?;
 

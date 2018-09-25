@@ -129,7 +129,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         format!("Zero fees",).into(),
         vec![NewFeeScheduleRange {
             min_price: 0,
-            fee: 0,
+            fee_in_cents: 0,
         }],
     ).commit(&*database.connection)
     .unwrap();
@@ -478,11 +478,11 @@ pub fn add_fee_schedule(role: Roles, should_succeed: bool) {
         ranges: vec![
             NewFeeScheduleRange {
                 min_price: 20,
-                fee: 10,
+                fee_in_cents: 10,
             },
             NewFeeScheduleRange {
                 min_price: 1000,
-                fee: 100,
+                fee_in_cents: 100,
             },
         ],
     });
