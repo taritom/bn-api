@@ -5,13 +5,9 @@ use chrono::NaiveDateTime;
 use db::Connection;
 use errors::*;
 use helpers::application;
+use models::PathParameters;
 use uuid::Uuid;
 use validator::Validate;
-
-#[derive(Deserialize)]
-pub struct PathParameters {
-    pub id: Uuid,
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct UpdateOwnerRequest {

@@ -6,15 +6,10 @@ use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{AdminDisplayTicketType, UserDisplayTicketType};
+use models::{AdminDisplayTicketType, PathParameters, UserDisplayTicketType};
 use tari::tariclient::*;
 use uuid::Uuid;
 use validator::Validate;
-
-#[derive(Deserialize)]
-pub struct PathParameters {
-    pub id: Uuid,
-}
 
 #[derive(Deserialize)]
 pub struct SearchParameters {

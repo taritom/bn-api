@@ -1,5 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
-use bigneon_api::controllers::artists::{self, PathParameters};
+use bigneon_api::controllers::artists;
+use bigneon_api::models::PathParameters;
 use bigneon_db::models::Roles;
 use functional::base;
 use serde_json;

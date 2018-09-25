@@ -6,6 +6,7 @@ use db::Connection;
 use errors::*;
 use helpers::application;
 use mail::mailers;
+use models::PathParameters;
 use server::AppState;
 use uuid::Uuid;
 
@@ -13,11 +14,6 @@ use uuid::Uuid;
 pub struct Info {
     pub token: Uuid,
     pub user_id: Uuid,
-}
-
-#[derive(Deserialize)]
-pub struct PathParameters {
-    pub id: Uuid,
 }
 
 #[derive(Deserialize)]

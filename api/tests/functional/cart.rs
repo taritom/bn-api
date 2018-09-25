@@ -1,8 +1,8 @@
 use actix_web::FromRequest;
 use actix_web::{http::StatusCode, HttpResponse, Json, Path};
 use bigneon_api::controllers::cart;
-use bigneon_api::controllers::cart::PathParameters;
 use bigneon_api::controllers::cart::PaymentRequest;
+use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use support;
 use support::database::TestDatabase;

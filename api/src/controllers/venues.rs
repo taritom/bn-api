@@ -4,13 +4,7 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::AddVenueToOrganizationRequest;
-use uuid::Uuid;
-
-#[derive(Deserialize)]
-pub struct PathParameters {
-    pub id: Uuid,
-}
+use models::{AddVenueToOrganizationRequest, PathParameters};
 
 pub fn index((connection, user): (Connection, Option<User>)) -> Result<HttpResponse, BigNeonError> {
     let venues = match user {

@@ -4,13 +4,8 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use uuid::Uuid;
+use models::PathParameters;
 use validator::Validate;
-
-#[derive(Deserialize)]
-pub struct PathParameters {
-    pub id: Uuid,
-}
 
 pub fn index((connection, user): (Connection, Option<User>)) -> Result<HttpResponse, BigNeonError> {
     let artists = match user {

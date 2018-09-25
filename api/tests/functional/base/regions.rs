@@ -1,5 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
-use bigneon_api::controllers::regions::{self, PathParameters};
+use bigneon_api::controllers::regions;
+use bigneon_api::models::PathParameters;
 use bigneon_db::models::{NewRegion, Region, RegionEditableAttributes, Roles};
 use serde_json;
 use support;

@@ -4,12 +4,7 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use uuid::Uuid;
-
-#[derive(Deserialize)]
-pub struct PathParameters {
-    pub id: Uuid,
-}
+use models::PathParameters;
 
 pub fn index(connection: Connection) -> Result<HttpResponse, BigNeonError> {
     let regions = Region::all(connection.get())?;

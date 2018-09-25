@@ -1,8 +1,8 @@
 use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::SearchParameters;
-use bigneon_api::controllers::events::{self, PathParameters};
-use bigneon_api::models::UserDisplayTicketType;
+use bigneon_api::models::{PathParameters, UserDisplayTicketType};
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use diesel::PgConnection;

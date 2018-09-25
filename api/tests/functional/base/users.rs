@@ -1,6 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::users;
-use bigneon_api::controllers::users::{PathParameters, SearchUserByEmail};
+use bigneon_api::controllers::users::SearchUserByEmail;
+use bigneon_api::models::PathParameters;
 use bigneon_db::models::{DisplayUser, Roles};
 use serde_json;
 use support;

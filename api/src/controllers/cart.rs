@@ -7,6 +7,7 @@ use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
+use models::PathParameters;
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -64,11 +65,6 @@ pub fn remove(
         },
         None => application::unprocessable("No cart exists for user"),
     }
-}
-
-#[derive(Deserialize)]
-pub struct PathParameters {
-    pub id: Uuid,
 }
 
 #[derive(Deserialize)]

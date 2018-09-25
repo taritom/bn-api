@@ -7,15 +7,10 @@ use db::Connection;
 use diesel::PgConnection;
 use errors::*;
 use helpers::application;
-use models::{RegisterRequest, UserProfileAttributes};
+use models::{PathParameters, RegisterRequest, UserProfileAttributes};
 use std::collections::HashMap;
 use uuid::Uuid;
 use validator::Validate;
-
-#[derive(Deserialize)]
-pub struct PathParameters {
-    pub id: Uuid,
-}
 
 #[derive(Deserialize)]
 pub struct SearchUserByEmail {

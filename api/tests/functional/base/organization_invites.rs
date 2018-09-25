@@ -1,5 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::organization_invites::{self, *};
+use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use lettre::SendableEmail;
 use serde_json;
