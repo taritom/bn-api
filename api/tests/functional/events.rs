@@ -539,6 +539,27 @@ mod create_tickets_tests {
 }
 
 #[cfg(test)]
+mod update_tickets_tests {
+    use super::*;
+    #[test]
+    fn update_tickets_org_member() {
+        base::events::update_tickets(Roles::OrgMember, true);
+    }
+    #[test]
+    fn update_tickets_admin() {
+        base::events::update_tickets(Roles::Admin, true);
+    }
+    #[test]
+    fn update_tickets_user() {
+        base::events::update_tickets(Roles::User, false);
+    }
+    #[test]
+    fn update_tickets_org_owner() {
+        base::events::update_tickets(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod list_ticket_types_tests {
     use super::*;
     #[test]

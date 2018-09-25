@@ -25,7 +25,7 @@ impl AdminDisplayTicketType {
         let quantity = ticket_type.remaining_ticket_count(conn)?;
         let capacity = ticket_type.ticket_capacity(conn)?;
         let ticket_pricing: Vec<DisplayTicketPricing> = ticket_type
-            .ticket_pricing(conn)?
+            .valid_ticket_pricing(conn)?
             .into_iter()
             .map(|p| p.into())
             .collect();

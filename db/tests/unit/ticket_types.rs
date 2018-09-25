@@ -1,4 +1,4 @@
-use bigneon_db::models::TicketType;
+use bigneon_db::models::{TicketType, TicketTypeEditableAttributes};
 use chrono::NaiveDate;
 use support::project::TestProject;
 
@@ -35,6 +35,28 @@ pub fn remaining_ticket_count() {
             .is_ok()
     );
     assert_eq!(84, ticket_type.remaining_ticket_count(connection).unwrap());
+}
+
+#[test]
+fn update() {
+    let db = TestProject::new();
+    let connection = db.get_connection();
+    let event = db.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    //Change editable parameter and submit ticket type update request
+    let update_name = String::from("updated_event_name");
+    let update_start_date = NaiveDate::from_ymd(2018, 4, 23).and_hms(5, 14, 18);
+    let update_end_date = NaiveDate::from_ymd(2018, 6, 1).and_hms(8, 5, 34);
+    let update_parameters = TicketTypeEditableAttributes {
+        name: Some(update_name.clone()),
+        start_date: Some(update_start_date),
+        end_date: Some(update_end_date),
+    };
+    let updated_ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+    assert_eq!(updated_ticket_type.id, ticket_type.id);
+    assert_eq!(updated_ticket_type.name, update_name);
+    assert_eq!(updated_ticket_type.start_date, update_start_date);
+    assert_eq!(updated_ticket_type.end_date, update_end_date);
 }
 
 #[test]

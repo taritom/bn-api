@@ -12,5 +12,4 @@ CREATE TABLE ticket_pricing (
 
 -- Indices
 CREATE INDEX index_ticket_pricing_ticket_type_id ON ticket_pricing(ticket_type_id);
-CREATE UNIQUE INDEX index_ticket_pricing_ticket_type_id_name ON ticket_pricing(ticket_type_id, name)
 

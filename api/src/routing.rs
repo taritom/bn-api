@@ -41,6 +41,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     }).resource("/events/{id}/tickets", |r| {
         r.method(Method::GET).with(events::list_ticket_types);
         r.method(Method::POST).with(events::create_tickets);
+    }).resource("/events/{event_id}/tickets/{ticket_type_id}", |r| {
+        r.method(Method::PATCH).with(events::update_tickets);
     }).resource("/external/facebook/web_login", |r| {
         r.method(Method::POST).with(external::facebook::web_login)
     }).resource("/invitations", |r| {

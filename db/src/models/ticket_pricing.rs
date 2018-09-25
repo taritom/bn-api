@@ -3,7 +3,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::{TicketPricingStatus, TicketType};
-use schema::ticket_pricing;
+use schema::{order_items, ticket_pricing};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -24,6 +24,15 @@ pub struct TicketPricing {
     updated_at: NaiveDateTime,
 }
 
+#[derive(AsChangeset, Default, Deserialize)]
+#[table_name = "ticket_pricing"]
+pub struct TicketPricingEditableAttributes {
+    pub name: Option<String>,
+    pub price_in_cents: Option<i64>,
+    pub start_date: Option<NaiveDateTime>,
+    pub end_date: Option<NaiveDateTime>,
+}
+
 impl TicketPricing {
     pub fn create(
         ticket_type_id: Uuid,
@@ -39,6 +48,48 @@ impl TicketPricing {
             start_date,
             end_date,
             price_in_cents,
+        }
+    }
+
+    pub fn update(
+        &self,
+        attributes: TicketPricingEditableAttributes,
+        conn: &PgConnection,
+    ) -> Result<TicketPricing, DatabaseError> {
+        diesel::update(self)
+            .set((attributes, ticket_pricing::updated_at.eq(dsl::now)))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing")
+    }
+
+    pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
+        //Check if there is any order items linked to this ticket pricing
+        let affected_order_count: i64 = order_items::table
+            .filter(order_items::ticket_pricing_id.eq(self.id))
+            .select(dsl::count(order_items::id))
+            .first(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load order_items")?;
+        if affected_order_count == 0 as i64 {
+            //Ticket pricing is unused -> delete
+            diesel::delete(self)
+                .execute(conn)
+                .to_db_error(ErrorCode::DeleteError, "Error removing ticket pricing")
+        } else {
+            //Ticket pricing is used -> mark status for deletion
+            #[derive(AsChangeset)]
+            #[table_name = "ticket_pricing"]
+            struct R {
+                pub status: String,
+            }
+            let status_attribute = R {
+                status: TicketPricingStatus::Deleted.to_string(),
+            };
+            diesel::update(self)
+                .set((status_attribute, ticket_pricing::updated_at.eq(dsl::now)))
+                //.get_result(conn)
+                .execute(conn)
+                .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing status")?;
+            Ok(0 as usize)
         }
     }
 

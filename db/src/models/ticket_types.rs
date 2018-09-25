@@ -23,6 +23,14 @@ pub struct TicketType {
     updated_at: NaiveDateTime,
 }
 
+#[derive(AsChangeset, Default, Deserialize)]
+#[table_name = "ticket_types"]
+pub struct TicketTypeEditableAttributes {
+    pub name: Option<String>,
+    pub start_date: Option<NaiveDateTime>,
+    pub end_date: Option<NaiveDateTime>,
+}
+
 impl TicketType {
     pub fn create(
         event_id: Uuid,
@@ -37,6 +45,17 @@ impl TicketType {
             start_date,
             end_date,
         }
+    }
+
+    pub fn update(
+        &self,
+        attributes: TicketTypeEditableAttributes,
+        conn: &PgConnection,
+    ) -> Result<TicketType, DatabaseError> {
+        diesel::update(self)
+            .set((attributes, ticket_types::updated_at.eq(dsl::now)))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update ticket_types")
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
@@ -87,6 +106,21 @@ impl TicketType {
     pub fn ticket_pricing(&self, conn: &PgConnection) -> Result<Vec<TicketPricing>, DatabaseError> {
         ticket_pricing::table
             .filter(ticket_pricing::ticket_type_id.eq(self.id))
+            .order_by(ticket_pricing::name)
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load ticket pricing for ticket type",
+            )
+    }
+
+    pub fn valid_ticket_pricing(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketPricing>, DatabaseError> {
+        ticket_pricing::table
+            .filter(ticket_pricing::ticket_type_id.eq(self.id))
+            .filter(ticket_pricing::status.ne(TicketPricingStatus::Deleted.to_string()))
             .order_by(ticket_pricing::name)
             .load(conn)
             .to_db_error(

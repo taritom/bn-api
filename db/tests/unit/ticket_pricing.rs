@@ -1,4 +1,4 @@
-use bigneon_db::models::{TicketPricing, TicketType};
+use bigneon_db::models::{TicketPricing, TicketPricingEditableAttributes, TicketType};
 use chrono::NaiveDate;
 use support::project::TestProject;
 
@@ -26,6 +26,80 @@ fn create() {
         .ticket_pricing(project.get_connection())
         .unwrap();
     assert_eq!(pricing, vec![ticket_pricing, pricing2]);
+}
+
+#[test]
+fn update() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let start_date = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let end_date = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
+    let ticket_pricing = TicketPricing::create(
+        ticket_type.id,
+        "Early Bird".to_string(),
+        start_date,
+        end_date,
+        100,
+    ).commit(connection)
+    .unwrap();
+    //Change editable parameter and submit ticket pricing update request
+    let update_name = String::from("updated_event_name");
+    let update_price_in_cents: i64 = 200;
+    let update_start_date = NaiveDate::from_ymd(2018, 4, 23).and_hms(5, 14, 18);
+    let update_end_date = NaiveDate::from_ymd(2018, 6, 1).and_hms(8, 5, 34);
+    let update_parameters = TicketPricingEditableAttributes {
+        name: Some(update_name.clone()),
+        price_in_cents: Some(update_price_in_cents),
+        start_date: Some(update_start_date),
+        end_date: Some(update_end_date),
+    };
+    let updated_ticket_pricing = ticket_pricing
+        .update(update_parameters, connection)
+        .unwrap();
+    assert_eq!(updated_ticket_pricing.id, ticket_pricing.id);
+    assert_eq!(updated_ticket_pricing.name, update_name);
+    assert_eq!(updated_ticket_pricing.price_in_cents, update_price_in_cents);
+    assert_eq!(updated_ticket_pricing.start_date, update_start_date);
+    assert_eq!(updated_ticket_pricing.end_date, update_end_date);
+}
+
+#[test]
+fn remove() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let start_date = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let end_date = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
+    let ticket_pricing1 = TicketPricing::create(
+        ticket_type.id,
+        "Early Bird".to_string(),
+        start_date,
+        end_date,
+        100,
+    ).commit(connection)
+    .unwrap();
+    let ticket_pricing2 = TicketPricing::create(
+        ticket_type.id,
+        "Standard".to_string(),
+        start_date,
+        end_date,
+        200,
+    ).commit(connection)
+    .unwrap();
+    //Remove ticket pricing and check if it is still available
+    ticket_pricing1.destroy(connection).unwrap();
+    let ticket_pricings = ticket_type.ticket_pricing(connection).unwrap();
+    let found_index1 = ticket_pricings
+        .iter()
+        .position(|ref r| r.id == ticket_pricing1.id);
+    let found_index2 = ticket_pricings
+        .iter()
+        .position(|ref r| r.id == ticket_pricing2.id);
+    assert!(found_index1.is_none());
+    assert!(found_index2.is_some());
 }
 
 #[test]
