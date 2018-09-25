@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
 use auth::user::User as AuthUser;
-use bigneon_db::models::scopes;
+
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
 use db::Connection;

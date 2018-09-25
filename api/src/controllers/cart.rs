@@ -2,7 +2,7 @@ use actix_web::HttpResponse;
 use actix_web::Json;
 use actix_web::Path;
 use auth::user::User;
-use bigneon_db::models::{Order, OrderStatus, OrderTypes, Scopes};
+use bigneon_db::models::{DisplayOrderItem, Order, OrderStatus, OrderTypes, Scopes};
 use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::BigNeonError;
@@ -91,27 +91,11 @@ pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigN
     #[derive(Serialize)]
     struct DisplayCart {
         id: Uuid,
-        items: Vec<DisplayCartItem>,
+        items: Vec<DisplayOrderItem>,
         total_in_cents: i64,
     }
 
-    #[derive(Serialize)]
-    struct DisplayCartItem {
-        id: Uuid,
-        item_type: String,
-        quantity: i64,
-        unit_price_in_cents: i64,
-    }
-
-    let items: Vec<DisplayCartItem> = order
-        .items(connection)?
-        .iter()
-        .map(|i| DisplayCartItem {
-            id: i.id,
-            item_type: i.item_type().to_string(),
-            quantity: i.quantity,
-            unit_price_in_cents: i.unit_price_in_cents,
-        }).collect();
+    let items = order.items_for_display(connection)?;
     let r = DisplayCart {
         id: order.id,
         items,

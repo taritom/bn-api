@@ -140,6 +140,13 @@ impl Order {
         OrderItem::find_for_order(self.id, conn)
     }
 
+    pub fn items_for_display(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Vec<DisplayOrderItem>, DatabaseError> {
+        OrderItem::find_for_display(self.id, conn)
+    }
+
     pub fn find_item(
         &self,
         cart_item_id: Uuid,

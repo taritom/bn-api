@@ -2,6 +2,8 @@ use chrono::prelude::*;
 use diesel;
 use diesel::dsl;
 use diesel::prelude::*;
+use diesel::sql_types;
+use diesel::sql_types::{BigInt, Nullable, Text, Uuid as dUuid};
 use models::*;
 use schema::{order_items, ticket_instances};
 use utils::errors;
@@ -113,6 +115,35 @@ impl OrderItem {
             )
     }
 
+    pub(crate) fn find_for_display(
+        order_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<DisplayOrderItem>, DatabaseError> {
+        diesel::sql_query(
+            r#"
+        SELECT oi.id,
+           oi.parent_id,
+           tt.id                      AS ticket_type_id,
+           tp.id                      AS ticket_pricing_id,
+           oi.quantity,
+           oi.unit_price_in_cents,
+           oi.item_type,
+           CASE
+             WHEN item_type = 'Fees' THEN 'Fees'
+             ELSE e.name || ' - ' || tt.name END AS description
+        FROM order_items oi
+           LEFT JOIN ticket_pricing tp
+           INNER JOIN ticket_types tt
+           INNER JOIN events e ON tt.event_id = e.id
+            ON tp.ticket_type_id = tt.id
+            ON oi.ticket_pricing_id = tp.id
+        WHERE oi.order_id = $1
+        "#,
+        ).bind::<sql_types::Uuid, _>(order_id)
+        .load(conn)
+        .to_db_error(errors::ErrorCode::QueryError, "Could not load order items")
+    }
+
     pub(crate) fn find_for_order(
         order_id: Uuid,
         conn: &PgConnection,
@@ -183,4 +214,24 @@ impl NewFeesOrderItem {
                 "Could not create order item",
             )
     }
+}
+
+#[derive(Queryable, QueryableByName, Serialize)]
+pub struct DisplayOrderItem {
+    #[sql_type = "dUuid"]
+    pub id: Uuid,
+    #[sql_type = "Nullable<dUuid>"]
+    pub parent_id: Option<Uuid>,
+    #[sql_type = "Nullable<dUuid>"]
+    pub ticket_type_id: Option<Uuid>,
+    #[sql_type = "Nullable<dUuid>"]
+    pub ticket_pricing_id: Option<Uuid>,
+    #[sql_type = "BigInt"]
+    pub quantity: i64,
+    #[sql_type = "BigInt"]
+    pub unit_price_in_cents: i64,
+    #[sql_type = "Text"]
+    pub item_type: String,
+    #[sql_type = "Text"]
+    pub description: String,
 }
