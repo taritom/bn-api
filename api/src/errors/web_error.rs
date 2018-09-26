@@ -9,6 +9,7 @@ use serde_json::Error as SerdeError;
 use std::error::Error;
 use std::fmt::Debug;
 use std::string::ToString;
+use stripe::StripeError;
 
 pub trait ConvertToWebError: Debug + Error + ToString {
     fn create_http_error(&self) -> web_error;
@@ -28,6 +29,13 @@ impl ConvertToWebError for DieselError {
 impl ConvertToWebError for ReqwestError {
     fn create_http_error(&self) -> web_error {
         error!("Reqwest Error: {}", self.description());
+        error::ErrorInternalServerError("Internal error")
+    }
+}
+
+impl ConvertToWebError for StripeError {
+    fn create_http_error(&self) -> web_error {
+        error!("Stripe Error: {}", self.description());
         error::ErrorInternalServerError("Internal error")
     }
 }

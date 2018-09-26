@@ -24,6 +24,7 @@ extern crate chrono;
 extern crate log4rs;
 extern crate reqwest;
 extern crate rustc_serialize;
+extern crate stripe;
 #[macro_use]
 extern crate validator_derive;
 extern crate validator;

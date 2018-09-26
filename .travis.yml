@@ -17,7 +17,7 @@ addons:
 env:
   FRONT_END_URL: "http://localhost"
   BIGNEON_DB: bigneon
-  DATABASE_URL: postgres://postgres@localhost/bigneon
+  DATABASE_URL: postgres://postgres:password123@localhost/bigneon
   TEST_DATABASE_URL: postgres://postgres:password123@localhost/bigneon_test
   TEST_DATABASE_ADMIN_URL: postgres://postgres:password123@localhost/bigneon_test
   TOKEN_SECRET: travis_secret
@@ -27,13 +27,21 @@ env:
   MAIL_SMTP_HOST: "localhost"
   MAIL_SMTP_USER_NAME: "user"
   MAIL_SMTP_PASSWORD: "password"
+  MAIL_SMTP_PORT: 1025
   BUILD_DIR: "api"
+  STRIPE_SECRET_KEY: "sk_test_iGn9c6EJyuF3Gx0QH6uitQlb"
 
 # matrix:
 #   include:
 #     - env: BUILD_DIR: "api"
 #   include:
 #     - env: BUILD_DIR: "db"
+before_install:
+  - sudo apt-get install nodejs
+  - sudo apt-get install npm
+  # Workaround for invalid NPM certificate
+  - npm config set strict-ssl false
+  - sudo npm install -g newman
 
 before_script:
   - export PATH="$PATH:$HOME/.cargo/bin"
@@ -41,12 +49,16 @@ before_script:
   - cd db
   - scripts/init-test.sh
   - cd ..
- # - bndb_cli create -c postgres://postgres:password123@localhost/bigneon_test -e superuser@bigneon.com -p password1 -m 55555555
 
 script:
+  - cargo fmt --all -- --check
+  - cargo test
   - cd db
-  - cargo fmt --all -- --check
-  - cargo test
+  - cargo run create -c $DATABASE_URL -f -e superuser@test.com -p password -m 8883
   - cd ../api
-  - cargo fmt --all -- --check
-  - cargo test
+  - |
+    cargo run &
+    SERVER_PID=$!
+
+  - newman run ../integration-tests/bigneon-tests.postman_collection.json -e ../integration-tests/travis.postman_environment.json
+  - kill -s SIGTERM $SERVER_PID

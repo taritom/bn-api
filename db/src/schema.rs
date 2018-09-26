@@ -178,9 +178,12 @@ table! {
         id -> Uuid,
         order_id -> Uuid,
         created_by -> Uuid,
+        status -> Text,
         payment_method -> Text,
         amount -> Int8,
+        provider -> Text,
         external_reference -> Text,
+        raw_data -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

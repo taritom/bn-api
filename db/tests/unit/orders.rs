@@ -227,7 +227,14 @@ fn add_external_payment() {
     let ticket = &event.ticket_types(project.get_connection()).unwrap()[0];
     cart.add_tickets(ticket.id, 10, project.get_connection())
         .unwrap();
-    cart.add_external_payment("test".to_string(), user.id, 100, project.get_connection())
+    assert_eq!(
+        cart.calculate_total(project.get_connection()).unwrap(),
+        1500
+    );
+    cart.add_external_payment("test".to_string(), user.id, 1000, project.get_connection())
+        .unwrap();
+    assert_eq!(cart.status(), OrderStatus::PartiallyPaid);
+    cart.add_external_payment("test2".to_string(), user.id, 500, project.get_connection())
         .unwrap();
     assert_eq!(cart.status(), OrderStatus::Paid);
 }

@@ -37,10 +37,10 @@ macro_rules! string_enum {
 
 string_enum! { AssetStatus [Unsynced] }
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
-string_enum! { OrderStatus [Draft, Paid, Cancelled] }
-// Potentially there will also be shipping or other items on an order
+string_enum! { OrderStatus [Draft, PartiallyPaid, Paid, Cancelled] }
 string_enum! { OrderItemTypes [Tickets, Fees]}
 string_enum! { OrderTypes [Cart, BackOffice] }
-string_enum! { PaymentMethods [External] }
+string_enum! { PaymentMethods [External, CreditCard] }
+string_enum! { PaymentStatus [Authorized, Completed] }
 string_enum! { TicketPricingStatus [Published, Deleted] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut] }

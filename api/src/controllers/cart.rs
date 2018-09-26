@@ -1,13 +1,16 @@
 use actix_web::HttpResponse;
 use actix_web::Json;
 use actix_web::Path;
+use actix_web::State;
 use auth::user::User;
-use bigneon_db::models::{DisplayOrderItem, Order, OrderStatus, OrderTypes, Scopes};
+use bigneon_db::models::{DisplayOrderItem, Order, OrderStatus, OrderTypes, PaymentStatus, Scopes};
 use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
 use models::PathParameters;
+use server::AppState;
+use stripe::{StripeClient, StripeError};
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -67,18 +70,6 @@ pub fn remove(
     }
 }
 
-#[derive(Deserialize)]
-pub struct CheckoutCartRequest {
-    pub amount: i64,
-    pub method: PaymentRequest,
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "type")]
-pub enum PaymentRequest {
-    External { reference: String },
-}
-
 pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let order = Order::find_cart_for_user(user.id(), connection).optional()?;
@@ -105,12 +96,26 @@ pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigN
     Ok(HttpResponse::Ok().json(r))
 }
 
+#[derive(Deserialize)]
+pub struct CheckoutCartRequest {
+    pub amount: i64,
+    pub method: PaymentRequest,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type")]
+pub enum PaymentRequest {
+    External { reference: String },
+    Stripe { token: String },
+}
+
 pub fn checkout(
-    (connection, json, path, user): (
+    (connection, json, path, user, state): (
         Connection,
         Json<CheckoutCartRequest>,
         Path<PathParameters>,
         User,
+        State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let req = json.into_inner();
@@ -118,6 +123,15 @@ pub fn checkout(
         PaymentRequest::External { reference } => {
             checkout_external(connection, path.id, reference, &req, user)
         }
+        PaymentRequest::Stripe { token } => checkout_stripe(
+            connection,
+            path.id,
+            &token,
+            &req,
+            user,
+            &state.config.primary_currency,
+            &state.config.stripe_secret_key,
+        ),
         _ => unimplemented!(),
     }
 }
@@ -152,4 +166,65 @@ fn checkout_external(
     )?;
 
     Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id})))
+}
+
+fn checkout_stripe(
+    conn: Connection,
+    order_id: Uuid,
+    token: &str,
+    req: &CheckoutCartRequest,
+    user: User,
+    currency: &str,
+    stripe_api_key: &str,
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = conn.get();
+
+    let mut order = Order::find(order_id, connection)?;
+
+    if order.user_id != user.id() {
+        return application::forbidden("This cart does not belong to you");
+    }
+
+    if order.status() != OrderStatus::Draft {
+        return application::unprocessable(
+            "Could not complete this cart because it is not in the correct status",
+        );
+    }
+
+    let client = StripeClient::new(stripe_api_key.to_string());
+    let auth_result = client.auth(
+        token,
+        req.amount,
+        currency,
+        "Tickets from Bigneon",
+        vec![("order_id".to_string(), order_id.to_string())],
+    )?;
+
+    let payment = match order.add_credit_card_payment(
+        user.id(),
+        req.amount,
+        "Stripe".to_string(),
+        auth_result.id.clone(),
+        PaymentStatus::Authorized,
+        auth_result.to_json(),
+        connection,
+    ) {
+        Ok(p) => p,
+        Err(e) => {
+            client.refund(&auth_result.id);
+            return Err(e.into());
+        }
+    };
+
+    conn.commit_transaction()?;
+    conn.begin_transaction()?;
+
+    let charge_result = client.complete(&auth_result.id)?;
+    match payment.mark_complete(charge_result.to_json(), connection) {
+        Ok(_) => Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id}))),
+        Err(e) => {
+            client.refund(&auth_result.id);
+            return Err(e.into());
+        }
+    }
 }

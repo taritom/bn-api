@@ -8,6 +8,7 @@ use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
 use std::error::Error;
 use std::fmt;
+use stripe::StripeError;
 
 #[derive(Debug)]
 pub struct BigNeonError(Box<ConvertToWebError + Send + Sync>);
@@ -21,6 +22,12 @@ impl From<DatabaseError> for BigNeonError {
 impl From<ReqwestError> for BigNeonError {
     fn from(e: ReqwestError) -> Self {
         BigNeonError(Box::new(e))
+    }
+}
+
+impl From<StripeError> for BigNeonError {
+    fn from(se: StripeError) -> Self {
+        BigNeonError(Box::new(se))
     }
 }
 

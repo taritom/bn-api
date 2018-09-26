@@ -1,5 +1,6 @@
 use actix_web::{FromRequest, HttpRequest, Result};
 use db::*;
+use diesel;
 use diesel::connection::TransactionManager;
 use diesel::Connection as DieselConnection;
 use diesel::PgConnection;
@@ -32,6 +33,18 @@ impl Connection {
             ConnectionType::Pg(ref connection) => &*connection,
             ConnectionType::R2D2(ref connection) => &**connection,
         }
+    }
+
+    pub fn commit_transaction(&self) -> Result<(), diesel::result::Error> {
+        self.get()
+            .transaction_manager()
+            .commit_transaction(self.get())
+    }
+
+    pub fn begin_transaction(&self) -> Result<(), diesel::result::Error> {
+        self.get()
+            .transaction_manager()
+            .begin_transaction(self.get())
     }
 }
 

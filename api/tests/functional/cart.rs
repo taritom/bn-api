@@ -281,6 +281,12 @@ fn checkout_external() {
     // Must be admin to check out external
     let user = support::create_auth_user_from_user(&user, Roles::Admin, &database);
 
-    let response = cart::checkout((database.connection.into(), input, path, user)).unwrap();
+    let response = cart::checkout((
+        database.connection.into(),
+        input,
+        path,
+        user,
+        request.extract_state(),
+    )).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 }

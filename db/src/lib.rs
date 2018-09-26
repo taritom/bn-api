@@ -1,3 +1,4 @@
+extern crate num;
 #[macro_use]
 extern crate diesel;
 extern crate argon2rs;

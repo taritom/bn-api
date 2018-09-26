@@ -25,6 +25,8 @@ pub struct Config {
     pub mail_from_email: String,
     pub mail_from_name: String,
     pub mail_transport: Box<Transport + Send + Sync>,
+    pub primary_currency: String,
+    pub stripe_secret_key: String,
     pub token_secret: String,
     pub token_issuer: String,
 }
@@ -38,6 +40,8 @@ const DOMAIN: &str = "DOMAIN";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
 const GOOGLE_RECAPTCHA_SECRET_KEY: &str = "GOOGLE_RECAPTCHA_SECRET_KEY";
+const PRIMARY_CURRENCY: &str = "PRIMARY_CURRENCY";
+const STRIPE_SECRET_KEY: &str = "STRIPE_SECRET_KEY";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
 const TOKEN_SECRET: &str = "TOKEN_SECRET";
 const TOKEN_ISSUER: &str = "TOKEN_ISSUER";
@@ -90,6 +94,9 @@ impl Config {
         let api_url = env::var(&API_URL).unwrap_or("127.0.0.1".to_string());
         let api_port = env::var(&API_PORT).unwrap_or("8088".to_string());
 
+        let primary_currency = env::var(&PRIMARY_CURRENCY).unwrap_or("usd".to_string());
+        let stripe_secret_key =
+            env::var(&STRIPE_SECRET_KEY).unwrap_or("<stripe not enabled>".to_string());
         let token_secret =
             env::var(&TOKEN_SECRET).expect(&format!("{} must be defined.", TOKEN_SECRET));
 
@@ -119,6 +126,8 @@ impl Config {
             mail_from_name,
             mail_from_email,
             mail_transport,
+            primary_currency,
+            stripe_secret_key,
             token_secret,
             token_issuer,
             front_end_url,

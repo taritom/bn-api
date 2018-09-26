@@ -2,6 +2,7 @@ use chrono::prelude::*;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use diesel::sql_types::{BigInt, Nullable};
 use models::*;
 use schema::orders;
 use time::Duration;
@@ -162,23 +163,57 @@ impl Order {
         amount: i64,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
-        diesel::update(&*self)
-            .set((
-                orders::status.eq(&self.status),
-                orders::updated_at.eq(dsl::now),
-            )).execute(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
+        self.update_status(OrderStatus::PartiallyPaid, conn)?;
 
         let payment = Payment::create(
             self.id,
             current_user_id,
+            PaymentStatus::Completed,
             PaymentMethods::External,
+            "External".to_string(),
             external_reference,
             amount,
+            None,
         ).commit(conn)?;
 
-        // TODO: Check if total paid is equal to total amount
-        self.status = OrderStatus::Paid.to_string();
+        self.complete_if_fully_paid(conn)?;
+
+        Ok(payment)
+    }
+
+    pub fn add_credit_card_payment(
+        &mut self,
+        current_user_id: Uuid,
+        amount: i64,
+        provider: String,
+        external_reference: String,
+        status: PaymentStatus,
+        result_as_json: String,
+        conn: &PgConnection,
+    ) -> Result<Payment, DatabaseError> {
+        self.update_status(OrderStatus::PartiallyPaid, conn)?;
+
+        let payment = Payment::create(
+            self.id,
+            current_user_id,
+            status,
+            PaymentMethods::CreditCard,
+            provider,
+            external_reference,
+            amount,
+            Some(result_as_json),
+        ).commit(conn)?;
+
+        self.complete_if_fully_paid(conn)?;
+
+        Ok(payment)
+    }
+
+    fn complete_if_fully_paid(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        if self.total_paid(conn)? >= self.calculate_total(conn)? {
+            self.update_status(OrderStatus::Paid, conn)?;
+        }
+        Ok(())
 
         // TODO: Move the tickets to the user's wallet.
         //        let target_wallet_id = self.target_wallet_id(conn)?;
@@ -189,8 +224,40 @@ impl Order {
         //                }
         //            }
         //        }
+    }
 
-        Ok(payment)
+    pub fn total_paid(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
+        use schema::*;
+        #[derive(QueryableByName)]
+        struct ResultForSum {
+            #[sql_type = "Nullable<BigInt>"]
+            s: Option<i64>,
+        };
+        let query = diesel::sql_query(
+            "SELECT CAST(SUM(amount) as BigInt) as s FROM payments where order_id = $1;",
+        ).bind::<diesel::sql_types::Uuid, _>(self.id);
+
+        let sum: ResultForSum = query.get_result(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not get total payments for order",
+        )?;
+        Ok(sum.s.unwrap_or(0))
+    }
+
+    fn update_status(
+        &mut self,
+        status: OrderStatus,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        self.status = status.to_string();
+        diesel::update(&*self)
+            .set((
+                orders::status.eq(&self.status),
+                orders::updated_at.eq(dsl::now),
+            )).execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
+
+        Ok(())
     }
 
     pub fn calculate_total(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {

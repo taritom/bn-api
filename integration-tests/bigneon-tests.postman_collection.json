@@ -347,15 +347,14 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/tickets",
+							"raw": "http://{{server}}/events/{{last_event_id}}",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
 								"events",
-								"{{last_event_id}}",
-								"tickets"
+								"{{last_event_id}}"
 							]
 						}
 					},
@@ -743,7 +742,7 @@
 					"response": []
 				},
 				{
-					"name": "Admin - checkout",
+					"name": "User - checkout",
 					"event": [
 						{
 							"listen": "test",
