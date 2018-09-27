@@ -72,17 +72,13 @@ impl NewFeeSchedule {
             .filter(fee_schedules::name.eq(&self.name))
             .order_by(fee_schedules::id.desc())
             .first::<FeeSchedule>(conn)
-            .to_db_error(ErrorCode::QueryError, "Error loading Fee Schedule");
+            .optional()
+            .to_db_error(ErrorCode::QueryError, "Error loading Fee Schedule")?;
 
         let next_version = match previous_version {
-            Err(e) => {
-                if e.code == 2000 {
-                    0
-                } else {
-                    return Err(e);
-                }
-            }
-            Ok(pv) => pv.version + 1,
+            None => 0,
+
+            Some(pv) => pv.version + 1,
         };
 
         let result: FeeSchedule = diesel::insert_into(fee_schedules::table)
@@ -92,18 +88,28 @@ impl NewFeeSchedule {
             )).get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create fee schedule")?;
 
-        for range in &self.ranges {
-            diesel::insert_into(fee_schedule_ranges::table)
-                .values((
-                    fee_schedule_ranges::fee_schedule_id.eq(result.id),
-                    fee_schedule_ranges::min_price.eq(range.min_price),
-                    fee_schedule_ranges::fee_in_cents.eq(range.fee_in_cents),
-                )).execute(conn)
-                .to_db_error(
-                    ErrorCode::InsertError,
-                    "Could not create fee schedule range",
-                )?;
+        #[derive(Insertable)]
+        #[table_name = "fee_schedule_ranges"]
+        struct I {
+            fee_schedule_id: Uuid,
+            min_price: i64,
+            fee_in_cents: i64,
         }
+        let mut ranges = Vec::<I>::new();
+        for range in &self.ranges {
+            ranges.push(I {
+                fee_schedule_id: result.id,
+                min_price: range.min_price,
+                fee_in_cents: range.fee_in_cents,
+            })
+        }
+        diesel::insert_into(fee_schedule_ranges::table)
+            .values(ranges)
+            .execute(conn)
+            .to_db_error(
+                ErrorCode::InsertError,
+                "Could not create fee schedule range",
+            )?;
 
         Ok(result)
     }

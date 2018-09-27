@@ -1,3 +1,9 @@
+// Force these as errors so that they are not lost in all the diesel warnings
+#![deny(unreachable_patterns)]
+#![deny(unused_variables)]
+#![deny(unused_imports)]
+// Unused results is more often than not an error
+#![deny(unused_must_use)]
 extern crate reqwest;
 extern crate serde;
 extern crate serde_json;

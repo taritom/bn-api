@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl;
 use diesel::prelude::*;
-use models::{Event, TicketInstance, TicketPricing, TicketPricingStatus, TicketTypeStatus};
+use models::{Event, TicketPricing, TicketPricingStatus, TicketTypeStatus};
 use schema::{assets, ticket_instances, ticket_pricing, ticket_types};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;

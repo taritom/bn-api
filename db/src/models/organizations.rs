@@ -283,10 +283,17 @@ impl Organization {
             return Ok(true);
         }
 
-        select(exists(
-            OrganizationUser::belonging_to(self).filter(organization_users::user_id.eq(user.id)),
-        )).get_result(conn)
-        .to_db_error(ErrorCode::QueryError, "Could not check user member status")
+        let query = select(exists(
+            organization_users::table
+                .filter(
+                    organization_users::user_id
+                        .eq(user.id)
+                        .and(organization_users::organization_id.eq(self.id)),
+                ).select(organization_users::organization_id),
+        ));
+        query
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not check user member status")
     }
 
     pub fn add_fee_schedule(

@@ -29,9 +29,9 @@ pub struct OrderItem {
 
 impl OrderItem {
     pub(crate) fn create_tickets(
-        order_id: Uuid,
-        ticket_type_id: Uuid,
-        quantity: u32,
+        _order_id: Uuid,
+        _ticket_type_id: Uuid,
+        _quantity: u32,
     ) -> NewTicketsOrderItem {
         unimplemented!()
 

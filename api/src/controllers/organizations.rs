@@ -293,8 +293,7 @@ pub fn add_fee_schedule(
         fee_schedule_id: Some(fee_schedule.id),
     };
 
-    let organization = Organization::find(parameters.id, connection)?
-        .update(update_fee_schedule_id, connection)?;
+    Organization::find(parameters.id, connection)?.update(update_fee_schedule_id, connection)?;
 
     Ok(HttpResponse::Created().json(FeeScheduleWithRanges {
         id: fee_schedule.id,

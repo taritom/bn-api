@@ -10,7 +10,7 @@ use errors::BigNeonError;
 use helpers::application;
 use models::PathParameters;
 use server::AppState;
-use stripe::{StripeClient, StripeError};
+use stripe::StripeClient;
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -132,7 +132,6 @@ pub fn checkout(
             &state.config.primary_currency,
             &state.config.stripe_secret_key,
         ),
-        _ => unimplemented!(),
     }
 }
 
@@ -211,7 +210,7 @@ fn checkout_stripe(
     ) {
         Ok(p) => p,
         Err(e) => {
-            client.refund(&auth_result.id);
+            client.refund(&auth_result.id)?;
             return Err(e.into());
         }
     };
@@ -223,7 +222,7 @@ fn checkout_stripe(
     match payment.mark_complete(charge_result.to_json(), connection) {
         Ok(_) => Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id}))),
         Err(e) => {
-            client.refund(&auth_result.id);
+            client.refund(&auth_result.id)?;
             return Err(e.into());
         }
     }

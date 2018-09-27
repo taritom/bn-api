@@ -41,9 +41,11 @@ before_install:
   - sudo apt-get install npm
   # Workaround for invalid NPM certificate
   - npm config set strict-ssl false
-  - sudo npm install -g newman
 
 before_script:
+  # putting the npm install here, because it fails erratically on travis. If it
+  # fails during `before_install` you can't retry it
+  - sudo npm install -g newman
   - export PATH="$PATH:$HOME/.cargo/bin"
   - rustup component add rustfmt-preview
   - cd db

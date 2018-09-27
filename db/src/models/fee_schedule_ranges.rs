@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use diesel;
 use diesel::prelude::*;
 use schema::fee_schedule_ranges;
 use utils::errors::ConvertToDatabaseError;

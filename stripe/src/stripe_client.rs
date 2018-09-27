@@ -1,5 +1,4 @@
 use reqwest;
-use serde_json;
 use ChargeResult;
 use RefundResult;
 use StripeError;

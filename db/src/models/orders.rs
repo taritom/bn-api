@@ -163,8 +163,6 @@ impl Order {
         amount: i64,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
-        self.update_status(OrderStatus::PartiallyPaid, conn)?;
-
         let payment = Payment::create(
             self.id,
             current_user_id,
@@ -174,11 +172,8 @@ impl Order {
             external_reference,
             amount,
             None,
-        ).commit(conn)?;
-
-        self.complete_if_fully_paid(conn)?;
-
-        Ok(payment)
+        );
+        self.add_payment(payment, conn)
     }
 
     pub fn add_credit_card_payment(
@@ -191,8 +186,6 @@ impl Order {
         result_as_json: String,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
-        self.update_status(OrderStatus::PartiallyPaid, conn)?;
-
         let payment = Payment::create(
             self.id,
             current_user_id,
@@ -202,14 +195,78 @@ impl Order {
             external_reference,
             amount,
             Some(result_as_json),
-        ).commit(conn)?;
+        );
 
-        self.complete_if_fully_paid(conn)?;
-
-        Ok(payment)
+        self.add_payment(payment, conn)
     }
 
-    fn complete_if_fully_paid(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    fn add_payment(
+        &mut self,
+        payment: NewPayment,
+        conn: &PgConnection,
+    ) -> Result<Payment, DatabaseError> {
+        if self.status() == OrderStatus::Paid {
+            return DatabaseError::business_process_error("This order has already been paid");
+        }
+        // orders can only expire if the order is in draft
+        if self.status() == OrderStatus::Draft {
+            self.mark_partially_paid(conn)?;
+        } else {
+            if self.status() != OrderStatus::PartiallyPaid {
+                return DatabaseError::business_process_error(&format!(
+                    "Order was in unexpected state when trying to make a payment: {}",
+                    self.status()
+                ));
+            }
+        }
+
+        let p = payment.commit(conn)?;
+
+        self.complete_if_fully_paid(conn)?;
+        Ok(p)
+    }
+
+    fn mark_partially_paid(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        // TODO: The multiple queries in this method could probably be combined into a single query
+        let result = diesel::update(
+            orders::table.filter(
+                orders::id
+                    .eq(self.id)
+                    .and(orders::updated_at.eq(self.updated_at))
+                    .and(orders::expires_at.gt(dsl::now)),
+            ),
+        ).set((
+            orders::status.eq(OrderStatus::PartiallyPaid.to_string()),
+            orders::updated_at.eq(dsl::now),
+        )).execute(conn)
+        .to_db_error(ErrorCode::UpdateError, "Could not update order status")?;
+
+        let db_record = Order::find(self.id, conn)?;
+
+        if result == 0 {
+            if db_record.updated_at != self.updated_at {
+                return DatabaseError::concurrency_error(
+                    "Could not update order because it has been updated by another process",
+                );
+            }
+
+            // Unfortunately, it's quite hard to work out what the current dsl::now() time is
+            // So assume that the order has expired.
+            return DatabaseError::business_process_error(
+                "Could not update order because it has expired",
+            );
+        }
+
+        self.updated_at = db_record.updated_at;
+        self.status = db_record.status;
+
+        Ok(())
+    }
+
+    pub(crate) fn complete_if_fully_paid(
+        &mut self,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         if self.total_paid(conn)? >= self.calculate_total(conn)? {
             self.update_status(OrderStatus::Paid, conn)?;
         }
@@ -227,14 +284,13 @@ impl Order {
     }
 
     pub fn total_paid(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
-        use schema::*;
         #[derive(QueryableByName)]
         struct ResultForSum {
             #[sql_type = "Nullable<BigInt>"]
             s: Option<i64>,
         };
         let query = diesel::sql_query(
-            "SELECT CAST(SUM(amount) as BigInt) as s FROM payments where order_id = $1;",
+            "SELECT CAST(SUM(amount) as BigInt) as s FROM payments WHERE order_id = $1 AND status='Completed';",
         ).bind::<diesel::sql_types::Uuid, _>(self.id);
 
         let sum: ResultForSum = query.get_result(conn).to_db_error(

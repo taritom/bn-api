@@ -20,26 +20,38 @@ pub enum ErrorCode {
     InternalError,
     AccessError,
     BusinessProcessError,
+    ConcurrencyError,
     Unknown,
     MultipleResultsWhenOneExpected,
 }
 
 pub fn get_error_message(code: ErrorCode) -> (i32, String) {
     use self::ErrorCode::*;
+    // In general, these errors try to match the HTTP status codes
     let (code, msg) = match code {
+        // Input errors - 1000 range
         InvalidInput => (1000, "Invalid input"),
         MissingInput => (1100, "Missing input"),
+        // No results - 2000 range. Query was successful, but the wrong amount of rows was returned
         NoResults => (2000, "No results"),
         MultipleResultsWhenOneExpected => (2100, "Multiple results when one was expected"),
+        // Query errors - 3000 range. Something went wrong during the query
         QueryError => (3000, "Query Error"),
         InsertError => (3100, "Could not insert record"),
         UpdateError => (3200, "Could not update record"),
         DeleteError => (3300, "Could not delete record"),
+        // TODO - This should probably move to the 2000 range
         DuplicateKeyError => (3400, "Duplicate key error"),
-        ConnectionError => (4000, "Connection Error"),
+        ConnectionError => (4000, "Connection error"),
+        // Internal server error - 5000, similar to the HTTP 500 errors
         InternalError => (5000, "Internal error"),
+        // TODO - This should probably move to the 4000 range
         AccessError => (6000, "Access error"),
+        // Logical/Business errors - 7000 range. These represent errors
+        // that arise from an invalid setup in the database
         BusinessProcessError => (7000, "Business Process error"),
+        ConcurrencyError => (7100, "Concurrency error"),
+        // Try not to use this error
         Unknown => (10, "Unknown database error"),
     };
     (code, msg.to_string())
@@ -128,6 +140,20 @@ impl DatabaseError {
                 }
             }
         }
+    }
+
+    pub fn business_process_error<T>(message: &str) -> Result<T, DatabaseError> {
+        Err(DatabaseError::new(
+            ErrorCode::BusinessProcessError,
+            Some(message),
+        ))
+    }
+
+    pub fn concurrency_error<T>(message: &str) -> Result<T, DatabaseError> {
+        Err(DatabaseError::new(
+            ErrorCode::ConcurrencyError,
+            Some(message),
+        ))
     }
 }
 

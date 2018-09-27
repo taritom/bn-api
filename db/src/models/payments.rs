@@ -3,6 +3,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use models::orders::Order;
 use models::{PaymentMethods, PaymentStatus};
 use schema::payments;
 use utils::errors::ConvertToDatabaseError;
@@ -26,7 +27,7 @@ pub struct Payment {
 }
 
 impl Payment {
-    pub fn create(
+    pub(crate) fn create(
         order_id: Uuid,
         created_by: Uuid,
         status: PaymentStatus,
@@ -50,18 +51,35 @@ impl Payment {
 
     pub fn mark_complete(
         &self,
-        raw_data: String,
+        _raw_data: String,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        diesel::update(self)
-            .set((
-                payments::status.eq(PaymentStatus::Completed.to_string()),
-                payments::updated_at.eq(dsl::now),
-            )).execute(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not change the status of payment to completed.",
-            ).map(|_| ())
+        diesel::update(
+            payments::table.filter(
+                payments::id
+                    .eq(self.id)
+                    .and(payments::updated_at.eq(self.updated_at)),
+            ),
+        ).set((
+            payments::status.eq(PaymentStatus::Completed.to_string()),
+            payments::updated_at.eq(dsl::now),
+        )).execute(conn)
+        .to_db_error(
+            ErrorCode::UpdateError,
+            "Could not change the status of payment to completed.",
+        )?;
+
+        self.order(conn)?.complete_if_fully_paid(conn)?;
+
+        Ok(())
+    }
+
+    fn order(&self, conn: &PgConnection) -> Result<Order, DatabaseError> {
+        use schema::*;
+        orders::table
+            .find(self.order_id)
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve order")
     }
 }
 
@@ -79,7 +97,7 @@ pub struct NewPayment {
 }
 
 impl NewPayment {
-    pub fn commit(self, conn: &PgConnection) -> Result<Payment, DatabaseError> {
+    pub(crate) fn commit(self, conn: &PgConnection) -> Result<Payment, DatabaseError> {
         diesel::insert_into(payments::table)
             .values(self)
             .get_result(conn)
