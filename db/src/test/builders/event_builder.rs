@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 pub struct EventBuilder<'a> {
     name: String,
+    status: EventStatus,
     organization_id: Option<Uuid>,
     venue_id: Option<Uuid>,
     event_start: Option<NaiveDateTime>,
@@ -23,6 +24,7 @@ impl<'a> EventBuilder<'a> {
         let x: u16 = random();
         EventBuilder {
             name: format!("Event {}", x).into(),
+            status: EventStatus::Published,
             organization_id: None,
             venue_id: None,
             event_start: None,
@@ -34,6 +36,11 @@ impl<'a> EventBuilder<'a> {
 
     pub fn with_name(mut self, name: String) -> Self {
         self.name = name;
+        self
+    }
+
+    pub fn with_status(mut self, status: EventStatus) -> Self {
+        self.status = status;
         self
     }
 
@@ -66,6 +73,7 @@ impl<'a> EventBuilder<'a> {
     pub fn finish(&mut self) -> Event {
         let event = Event::create(
             &self.name,
+            self.status,
             self.organization_id
                 .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
                 .unwrap(),

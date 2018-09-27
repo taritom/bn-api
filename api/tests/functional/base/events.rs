@@ -22,23 +22,27 @@ pub fn create(role: Roles, should_test_succeed: bool, same_organization: bool) {
     let auth_user = support::create_auth_user_from_user(&user, role, &database);
 
     let name = "event Example";
-    let new_event = CreateEventRequest {
+    let new_event = NewEvent {
         name: name.clone().to_string(),
         organization_id: organization.id,
         venue_id: Some(venue.id),
         event_start: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
         door_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(8, 11, 12)),
         publish_date: Some(NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11)),
-        additional_info: None,
-        age_limit: None,
-        promo_image_url: None,
+        ..Default::default()
     };
+    // Emulate serialization for default serde behavior
+    let new_event: NewEvent =
+        serde_json::from_str(&serde_json::to_string(&new_event).unwrap()).unwrap();
     let json = Json(new_event);
 
     let response: HttpResponse =
         events::create((database.connection.into(), json, auth_user.clone())).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
+        let body = support::unwrap_body_to_string(&response).unwrap();
+        let event: Event = serde_json::from_str(&body).unwrap();
+        assert_eq!(event.status, EventStatus::Draft.to_string());
     } else {
         support::expects_unauthorized(&response);
     }

@@ -152,7 +152,7 @@ impl TicketType {
     }
 
     pub fn status(&self) -> TicketTypeStatus {
-        TicketTypeStatus::parse(&self.status).unwrap()
+        self.status.parse::<TicketTypeStatus>().unwrap()
     }
 }
 

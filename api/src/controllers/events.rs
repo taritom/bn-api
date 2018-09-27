@@ -9,6 +9,7 @@ use helpers::application;
 use models::{
     AdminDisplayTicketType, EventTicketPathParameters, PathParameters, UserDisplayTicketType,
 };
+use serde_with::{self, CommaSeparator};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -16,6 +17,11 @@ use validator::Validate;
 pub struct SearchParameters {
     query: Option<String>,
     region_id: Option<Uuid>,
+    #[serde(
+        default,
+        with = "serde_with::rust::StringWithSeparator::<CommaSeparator>"
+    )]
+    status: Vec<EventStatus>,
     start_utc: Option<NaiveDateTime>,
     end_utc: Option<NaiveDateTime>,
 }
@@ -31,20 +37,6 @@ pub struct AddArtistRequest {
     pub artist_id: Uuid,
     pub rank: i32,
     pub set_time: Option<NaiveDateTime>,
-}
-
-#[derive(Deserialize, Validate)]
-pub struct CreateEventRequest {
-    pub name: String,
-    pub organization_id: Uuid,
-    pub venue_id: Option<Uuid>,
-    pub event_start: Option<NaiveDateTime>,
-    pub door_time: Option<NaiveDateTime>,
-    pub publish_date: Option<NaiveDateTime>,
-    #[validate(url)]
-    pub promo_image_url: Option<String>,
-    pub additional_info: Option<String>,
-    pub age_limit: Option<i32>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -63,6 +55,11 @@ pub fn index(
         parameters.region_id,
         parameters.start_utc,
         parameters.end_utc,
+        if parameters.status.is_empty() {
+            None
+        } else {
+            Some(parameters.status)
+        },
         connection,
     )?;
 
@@ -218,7 +215,7 @@ pub fn show_from_venues(
 }
 
 pub fn create(
-    (connection, new_event, user): (Connection, Json<CreateEventRequest>, User),
+    (connection, new_event, user): (Connection, Json<NewEvent>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     if !user.has_scope(Scopes::EventWrite, None, connection)? {
@@ -233,15 +230,8 @@ pub fn create(
 
     match new_event.validate() {
         Ok(_) => {
-            let event_response = Event::create(
-                new_event.name.as_str(),
-                new_event.organization_id,
-                new_event.venue_id,
-                new_event.event_start,
-                new_event.door_time,
-                new_event.publish_date,
-            ).commit(connection)?;
-            Ok(HttpResponse::Created().json(&event_response))
+            let event = new_event.commit(connection)?;
+            Ok(HttpResponse::Created().json(&event))
         }
         Err(e) => application::validation_error_response(e),
     }

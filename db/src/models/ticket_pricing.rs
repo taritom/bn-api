@@ -101,7 +101,7 @@ impl TicketPricing {
     }
 
     pub fn status(&self) -> TicketPricingStatus {
-        TicketPricingStatus::parse(&self.status).unwrap()
+        self.status.parse::<TicketPricingStatus>().unwrap()
     }
 
     pub fn get_current_ticket_pricing(

@@ -41,12 +41,26 @@ pub struct NewEvent {
     pub venue_id: Option<Uuid>,
     pub event_start: Option<NaiveDateTime>,
     pub door_time: Option<NaiveDateTime>,
+    #[serde(default = "NewEvent::default_status", skip_deserializing)]
     pub status: String,
     pub publish_date: Option<NaiveDateTime>,
     #[validate(url)]
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
+}
+
+impl NewEvent {
+    pub fn commit(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+        diesel::insert_into(events::table)
+            .values(self)
+            .get_result(conn)
+            .to_db_error(ErrorCode::InsertError, "Could not create new event")
+    }
+
+    pub fn default_status() -> String {
+        EventStatus::Draft.to_string()
+    }
 }
 
 #[derive(AsChangeset, Default, Deserialize, Validate)]
@@ -64,18 +78,10 @@ pub struct EventEditableAttributes {
     pub cancelled_at: Option<NaiveDateTime>,
 }
 
-impl NewEvent {
-    pub fn commit(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
-        diesel::insert_into(events::table)
-            .values(self)
-            .get_result(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not create new event")
-    }
-}
-
 impl Event {
     pub fn create(
         name: &str,
+        status: EventStatus,
         organization_id: Uuid,
         venue_id: Option<Uuid>,
         event_start: Option<NaiveDateTime>,
@@ -84,11 +90,11 @@ impl Event {
     ) -> NewEvent {
         NewEvent {
             name: name.into(),
+            status: status.to_string(),
             organization_id,
             venue_id,
             event_start,
             door_time,
-            status: EventStatus::Draft.to_string(),
             publish_date,
             ..Default::default()
         }
@@ -154,6 +160,7 @@ impl Event {
         region_id: Option<Uuid>,
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
+        status_filter: Option<Vec<EventStatus>>,
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
         let query_like = match query_filter {
@@ -183,14 +190,23 @@ impl Event {
                     .or(venues::id
                         .is_not_null()
                         .and(venues::name.ilike(query_like.clone()))).or(artists::id.is_not_null()),
-            ).select(events::all_columns)
+            ).filter(events::status.ne(EventStatus::Draft.to_string()))
+            .select(events::all_columns)
             .distinct()
             .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
             .into_boxed();
 
-        if region_id.is_some() {
-            query = query.filter(venues::region_id.eq(region_id.unwrap()));
+        if let Some(statuses) = status_filter {
+            let statuses: Vec<String> = statuses
+                .into_iter()
+                .map(|status| status.to_string())
+                .collect();
+            query = query.filter(events::status.eq_any(statuses));
+        }
+
+        if let Some(region_id) = region_id {
+            query = query.filter(venues::region_id.eq(region_id));
         }
 
         let result = query.load(conn);

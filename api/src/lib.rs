@@ -16,6 +16,7 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate crypto;
 extern crate jwt;
+extern crate serde_with;
 extern crate url;
 extern crate uuid;
 #[macro_use]

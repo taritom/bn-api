@@ -44,7 +44,7 @@ impl OrderItem {
     }
 
     pub fn item_type(&self) -> OrderItemTypes {
-        OrderItemTypes::parse(&self.item_type).unwrap()
+        self.item_type.parse::<OrderItemTypes>().unwrap()
     }
 
     pub fn find_fee_item(&self, conn: &PgConnection) -> Result<Option<OrderItem>, DatabaseError> {

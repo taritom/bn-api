@@ -1,9 +1,11 @@
+use std::error::Error;
 use std::fmt;
+use std::str::FromStr;
 
 macro_rules! string_enum {
     ($name:ident [$($value:ident),+]) => {
 
-            #[derive(Serialize, Deserialize, PartialEq, Debug)]
+            #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
             pub enum $name {
                 $(
                     $value,
@@ -21,14 +23,15 @@ macro_rules! string_enum {
                 }
             }
 
-            impl $name {
-                #[allow(dead_code)]
-                pub fn parse(s: &str) -> Result<$name, &'static str> {
-                  match s {
-                      $(
-                        stringify!($value) => Ok($name::$value),
-                       )*
-                        _ => Err("Could not parse value")
+            impl FromStr for $name {
+                type Err = &'static str;
+
+                fn from_str(s: &str) -> Result<Self, &'static str> {
+                    match s {
+                        $(
+                          stringify!($value) => Ok($name::$value),
+                         )*
+                          _ => Err("Could not parse value")
                     }
                 }
             }
@@ -42,5 +45,22 @@ string_enum! { OrderItemTypes [Tickets, Fees]}
 string_enum! { OrderTypes [Cart, BackOffice] }
 string_enum! { PaymentMethods [External, CreditCard] }
 string_enum! { PaymentStatus [Authorized, Completed] }
+string_enum! { Roles [Admin, OrgMember, OrgOwner, User] }
 string_enum! { TicketPricingStatus [Published, Deleted] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut] }
+
+#[test]
+fn display() {
+    assert_eq!(Roles::Admin.to_string(), "Admin");
+    assert_eq!(Roles::OrgMember.to_string(), "OrgMember");
+    assert_eq!(Roles::OrgOwner.to_string(), "OrgOwner");
+    assert_eq!(Roles::User.to_string(), "User");
+}
+
+#[test]
+fn parse() {
+    assert_eq!(Roles::Admin, "Admin".parse::<Roles>().unwrap());
+    assert_eq!(Roles::OrgMember, "OrgMember".parse::<Roles>().unwrap());
+    assert_eq!(Roles::OrgOwner, "OrgOwner".parse::<Roles>().unwrap());
+    assert!("Invalid Role".parse::<Roles>().is_err());
+}

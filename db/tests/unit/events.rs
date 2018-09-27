@@ -126,6 +126,7 @@ fn search() {
     let organization = project.create_organization().with_owner(&user).finish();
     let event = project
         .create_event()
+        .with_status(EventStatus::Published)
         .with_name("OldEvent".into())
         .with_organization(&organization)
         .with_venue(&venue1)
@@ -142,6 +143,7 @@ fn search() {
     //find more than one event
     let event2 = project
         .create_event()
+        .with_status(EventStatus::Closed)
         .with_name("NewEvent".into())
         .with_organization(&organization)
         .with_venue(&venue2)
@@ -152,17 +154,28 @@ fn search() {
         .add_artist(artist1.id, project.get_connection())
         .unwrap();
 
-    //find more than one event
     let event3 = project
         .create_event()
         .with_name("NewEvent2".into())
+        .with_status(EventStatus::Offline)
+        .with_organization(&organization)
+        .with_venue(&venue2)
+        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .finish();
+
+    // Event draft, not returned
+    let _event4 = project
+        .create_event()
+        .with_name("NewEvent2".into())
+        .with_status(EventStatus::Draft)
         .with_organization(&organization)
         .with_venue(&venue2)
         .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     let all_events = vec![event, event2, event3];
-    let all_found_events = Event::search(None, None, None, None, project.get_connection()).unwrap();
+    let all_found_events =
+        Event::search(None, None, None, None, None, project.get_connection()).unwrap();
     assert_eq!(all_events, all_found_events);
 
     let all_found_events = Event::search(
@@ -170,13 +183,40 @@ fn search() {
         None,
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_events, all_found_events);
 
+    // Limited by just Published and Offline events
+    let all_found_events = Event::search(
+        Some("".to_string()),
+        None,
+        None,
+        None,
+        Some(vec![EventStatus::Published, EventStatus::Offline]),
+        project.get_connection(),
+    ).unwrap();
+    assert_eq!(all_found_events.len(), 2);
+    assert_eq!(all_events[0], all_found_events[0]);
+    assert_eq!(all_events[2], all_found_events[1]);
+
+    // Limited by just Closed events
+    let all_found_events = Event::search(
+        Some("".to_string()),
+        None,
+        None,
+        None,
+        Some(vec![EventStatus::Closed]),
+        project.get_connection(),
+    ).unwrap();
+    assert_eq!(all_found_events.len(), 1);
+    assert_eq!(all_events[1], all_found_events[0]);
+
     // Event name search
     let all_found_events = Event::search(
         Some("New".to_string()),
+        None,
         None,
         None,
         None,
@@ -192,6 +232,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 1);
@@ -200,6 +241,7 @@ fn search() {
     // Artist name search for artist in both events
     let all_found_events = Event::search(
         Some("Artist1".to_string()),
+        None,
         None,
         None,
         None,
@@ -215,14 +257,16 @@ fn search() {
         None,
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 
-    // Match names Venue2 and Artist2 returning both events
+    // Match names Venue2 and Artist2 returning all events
     let all_found_events = Event::search(
         Some("2".to_string()),
+        None,
         None,
         None,
         None,
@@ -236,6 +280,7 @@ fn search() {
         Some(region1.id.into()),
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 1);
@@ -245,6 +290,7 @@ fn search() {
     let all_found_events = Event::search(
         None,
         Some(region2.id.into()),
+        None,
         None,
         None,
         project.get_connection(),
@@ -259,6 +305,7 @@ fn search() {
         Some(region2.id.into()),
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 0);
@@ -267,6 +314,7 @@ fn search() {
     let all_found_events = Event::search(
         Some("Artist2".to_string()),
         Some(region1.id.into()),
+        None,
         None,
         None,
         project.get_connection(),
@@ -279,6 +327,7 @@ fn search() {
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 2);
@@ -290,6 +339,7 @@ fn search() {
         None,
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 1);

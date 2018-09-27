@@ -57,7 +57,7 @@ impl Order {
     }
 
     pub fn status(&self) -> OrderStatus {
-        return OrderStatus::parse(&self.status).unwrap();
+        self.status.parse::<OrderStatus>().unwrap()
     }
 
     pub fn find_cart_for_user(user_id: Uuid, conn: &PgConnection) -> Result<Order, DatabaseError> {
