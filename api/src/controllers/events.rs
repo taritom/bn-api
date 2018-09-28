@@ -1,5 +1,5 @@
 use actix_web::Query;
-use actix_web::{HttpResponse, Json, Path};
+use actix_web::{HttpResponse, Json, Path, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -10,6 +10,8 @@ use models::{
     AdminDisplayTicketType, EventTicketPathParameters, PathParameters, UserDisplayTicketType,
 };
 use serde_with::{self, CommaSeparator};
+use server::AppState;
+use tari_client::tari_messages::NewAsset as TariNewAsset;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -433,11 +435,12 @@ pub struct DisplayCreatedTicket {
 }
 
 pub fn create_tickets(
-    (connection, path, data, user): (
+    (connection, path, data, user, state): (
         Connection,
         Path<PathParameters>,
         Json<CreateTicketTypeRequest>,
         User,
+        State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -467,37 +470,25 @@ pub fn create_tickets(
             connection,
         )?;
     }
-    //    let mut allocation =
-    //        TicketAllocation::create(path.id, data.tickets_delta).commit(connection)?;
-    //
-    //    // TODO: move this to an async processor...
-    //    let tari_client = state.get_tari_client();
-    //
-    //    let asset_id = match tari_client.create_asset(Asset {
-    //        id: data.name.clone(),
-    //        name: data.name.clone(),
-    //        symbol: "sym".into(), //TODO remove symbol from asset spec
-    //        decimals: 0,
-    //        total_supply: data.tickets_delta,
-    //        authorised_signers: vec!["896asudh9872ty4".into()], //TODO add bn-api pub key here
-    //        issuer: "BigNeonAddress".into(),
-    //        valid: true,
-    //        rule_flags: 0,
-    //        rule_metadata: "".into(),
-    //        expire_date: 10,
-    //    }) {
-    //        Ok(a) => a,
-    //        Err(e) => {
-    //            return application::internal_server_error(&format!(
-    //                "Could not create tari asset:{}",
-    //                e.to_string()
-    //            ))
-    //        }
-    //    };
-    //
-    //    allocation.set_asset_id(asset_id);
-    //
-    //    let updated_allocation = allocation.update(connection)?;
+
+    // TODO: move this to an async processor...
+
+    let tari_asset_id = state.config.tari_client.create_asset(TariNewAsset {
+        name: format!("{}.{}", event.name, data.name),
+        symbol: "sym".into(), //TODO remove symbol from asset spec,
+        decimals: 0,
+        total_supply: data.capacity as i64,
+        authorised_signers: vec![user.id().hyphenated().to_string()],
+        issuer: user.id().hyphenated().to_string(),
+        valid: true,
+        rule_flags: 0,
+        rule_metadata: "".to_string(),
+        expiry_date: data.end_date.timestamp(),
+    })?;
+
+    let asset = Asset::find_by_ticket_type(&ticket_type.id, connection)?;
+    let _asset = asset.update_blockchain_id(tari_asset_id, connection)?;
+
     Ok(HttpResponse::Created().json(DisplayCreatedTicket { id: ticket_type.id }))
 }
 

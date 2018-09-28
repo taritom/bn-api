@@ -24,6 +24,7 @@ extern crate serde_json;
 extern crate crypto;
 extern crate jwt;
 extern crate serde_with;
+extern crate tari_client;
 extern crate url;
 extern crate uuid;
 #[macro_use]
@@ -48,4 +49,3 @@ pub mod middleware;
 pub mod models;
 mod routing;
 pub mod server;
-pub mod tari;

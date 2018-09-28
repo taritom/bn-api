@@ -369,6 +369,7 @@ pub fn create_tickets(role: Roles, should_test_succeed: bool) {
     let user = support::create_auth_user_from_user(&user, role, &database);
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
+    let state = test_request.extract_state();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
     let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
@@ -394,8 +395,13 @@ pub fn create_tickets(role: Roles, should_test_succeed: bool) {
         end_date,
         ticket_pricing,
     };
-    let response: HttpResponse =
-        events::create_tickets((database.connection.into(), path, Json(request_data), user)).into();
+    let response: HttpResponse = events::create_tickets((
+        database.connection.into(),
+        path,
+        Json(request_data),
+        user,
+        state,
+    )).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {

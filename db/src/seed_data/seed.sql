@@ -1,7 +1,10 @@
 INSERT INTO public.users (id, first_name, last_name, email, phone, hashed_pw, password_modified_at, created_at, last_used, active, role, password_reset_token, password_reset_requested_at) VALUES ('4d72ddc1-fabf-4ac3-af9d-d6267ff57924', 'Mike', 'Berry', 'mike@tari.com', '555', '$argon2i$m=4096,t=3,p=1$akJ0Y1lJU0hWSVR2dWdyT3NoWWtBYlVjQ1doTlFHN3A$cfrrhqCbmmEtOC5/kOi7DC6LKrfTJ1YYeKM/k/CezWo', '2018-08-22 10:01:59.338182', '2018-08-22 10:01:59.338182', null, true, '{Guest,Admin}', null, null);
 INSERT INTO public.users (id, first_name, last_name, email, phone, hashed_pw, password_modified_at, created_at, last_used, active, role, password_reset_token, password_reset_requested_at) VALUES ('7ce5fbe5-b0ba-486a-b6a1-6cf478ffdd8f', 'super', 'user', 'super@test.com', '555', '$argon2i$m=4096,t=3,p=1$R2tPUkFXVnhlVWhUeVFaZzJyNXYwTldJY1paVURIS1E$irQHarAoMVVqjMbE2aEik7RNoIIH03xQVqsIsVR5tcU', '2018-08-24 09:36:26.070084', '2018-08-24 09:36:26.070084', null, true, '{User,Admin}', null, null);
 
-INSERT INTO public.organizations (id, owner_user_id, name, address, city, state, country, postal_code, phone) VALUES ('ac1e48f2-6765-4a18-b43c-d3c9836bc4c3', '4d72ddc1-fabf-4ac3-af9d-d6267ff57924', 'Jazzy', null, null, null, null, null, null);
+INSERT INTO public.fee_schedules (id, name, version, created_at, updated_at) VALUES ('7730da06-b35c-4e7b-8608-baec34041fc2', 'Zero', 1, '2018-09-27 12:15:47.841257', '2018-09-27 12:15:47.841257');
+INSERT INTO public.fee_schedule_ranges(fee_schedule_id, min_price, fee_in_cents) VALUES ('7730da06-b35c-4e7b-8608-baec34041fc2',0,0);
+
+INSERT INTO public.organizations (id, owner_user_id, name, address, city, state, country, postal_code, phone, fee_schedule_id) VALUES ('ac1e48f2-6765-4a18-b43c-d3c9836bc4c3', '4d72ddc1-fabf-4ac3-af9d-d6267ff57924', 'Jazzy', null, null, null, null, null, null, '7730da06-b35c-4e7b-8608-baec34041fc2');
 
 INSERT INTO public.venues (id, name, address, city, state, country, postal_code, phone) VALUES ('bd24baee-c074-46a7-b5c9-8bdfefb10ef5', 'Test venue 2', null, null, null, null, null, null);
 INSERT INTO public.venues (id, name, address, city, state, country, postal_code, phone) VALUES ('0eb7fa9d-6a80-4c21-ac5c-d0682ab7dae6', 'Test venue 1', null, null, null, null, null, null);

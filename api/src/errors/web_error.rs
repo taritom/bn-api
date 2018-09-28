@@ -10,6 +10,7 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::string::ToString;
 use stripe::StripeError;
+use tari_client::TariError;
 
 pub trait ConvertToWebError: Debug + Error + ToString {
     fn create_http_error(&self) -> web_error;
@@ -43,6 +44,13 @@ impl ConvertToWebError for StripeError {
 impl ConvertToWebError for SerdeError {
     fn create_http_error(&self) -> web_error {
         error!("SerdeError Error: {}", self.description());
+        error::ErrorInternalServerError("Internal error")
+    }
+}
+
+impl ConvertToWebError for TariError {
+    fn create_http_error(&self) -> web_error {
+        error!("TariError Error: {}", self.description());
         error::ErrorInternalServerError("Internal error")
     }
 }

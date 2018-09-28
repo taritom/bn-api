@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::AssetStatus;
 use schema::assets;
@@ -8,13 +9,14 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(Queryable, Identifiable)]
+#[derive(Queryable, Identifiable, AsChangeset, Debug)]
+#[table_name = "assets"]
 pub struct Asset {
     pub id: Uuid,
     ticket_type_id: Uuid,
     blockchain_name: String,
     // TODO: This will be populated after it is created on the blockchain.
-    blockchain_asset_id: Option<String>,
+    pub blockchain_asset_id: Option<String>,
     status: String,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
@@ -27,6 +29,32 @@ impl Asset {
             ticket_type_id,
             status: AssetStatus::Unsynced.to_string(),
         }
+    }
+
+    pub fn find_by_ticket_type(
+        ticket_type_id: &Uuid,
+        conn: &PgConnection,
+    ) -> Result<Asset, DatabaseError> {
+        assets::table
+            .filter(assets::ticket_type_id.eq(ticket_type_id))
+            .first::<Asset>(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading asset")
+    }
+
+    pub fn update_blockchain_id(
+        &self,
+        id: String,
+        conn: &PgConnection,
+    ) -> Result<Asset, DatabaseError> {
+        diesel::update(self)
+            .set((
+                assets::blockchain_asset_id.eq(id),
+                assets::updated_at.eq(dsl::now),
+            )).get_result(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not update asset blockchain id",
+            )
     }
 }
 

@@ -30,6 +30,7 @@ env:
   MAIL_SMTP_PORT: 1025
   BUILD_DIR: "api"
   STRIPE_SECRET_KEY: "sk_test_iGn9c6EJyuF3Gx0QH6uitQlb"
+  TARI_URL: "TEST"
 
 # matrix:
 #   include:

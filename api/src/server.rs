@@ -6,19 +6,12 @@ use config::Config;
 use db::*;
 use middleware::*;
 use routing;
-use tari::tariclient::*;
 
 pub struct AppState {
     pub config: Config,
     pub database: Database,
     pub token_secret: String,
     pub token_issuer: String,
-}
-
-impl AppState {
-    pub fn get_tari_client(&self) -> TariClient {
-        TariClient {}
-    }
 }
 
 pub struct Server {

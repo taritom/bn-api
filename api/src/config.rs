@@ -1,6 +1,7 @@
 use dotenv::dotenv;
 use mail::transports::{SmtpTransport, TestTransport, Transport};
 use std::env;
+use tari_client::{HttpTariClient, TariClient, TariTestClient};
 
 #[derive(Clone, PartialEq)]
 pub enum Environment {
@@ -29,6 +30,7 @@ pub struct Config {
     pub stripe_secret_key: String,
     pub token_secret: String,
     pub token_issuer: String,
+    pub tari_client: Box<TariClient + Send + Sync>,
 }
 
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
@@ -42,6 +44,7 @@ const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
 const GOOGLE_RECAPTCHA_SECRET_KEY: &str = "GOOGLE_RECAPTCHA_SECRET_KEY";
 const PRIMARY_CURRENCY: &str = "PRIMARY_CURRENCY";
 const STRIPE_SECRET_KEY: &str = "STRIPE_SECRET_KEY";
+const TARI_URL: &str = "TARI_URL";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
 const TOKEN_SECRET: &str = "TOKEN_SECRET";
 const TOKEN_ISSUER: &str = "TOKEN_ISSUER";
@@ -110,6 +113,22 @@ impl Config {
         let front_end_url =
             env::var(&FRONT_END_URL).expect(&format!("Front end url must be defined"));
 
+        let tari_client = match environment {
+            Environment::Test => Box::new(TariTestClient::new(
+                env::var(&TARI_URL).expect(&format!("{} must be defined.", TARI_URL)),
+            )) as Box<TariClient + Send + Sync>,
+            _ => if env::var(&TARI_URL).expect(&format!("{} must be defined.", TARI_URL)) == "TEST"
+            {
+                Box::new(TariTestClient::new(
+                    env::var(&TARI_URL).expect(&format!("{} must be defined.", TARI_URL)),
+                )) as Box<TariClient + Send + Sync>
+            } else {
+                Box::new(HttpTariClient::new(
+                    env::var(&TARI_URL).expect(&format!("{} must be defined.", TARI_URL)),
+                )) as Box<TariClient + Send + Sync>
+            },
+        };
+
         let google_recapatcha_secret_key = env::var(&GOOGLE_RECAPTCHA_SECRET_KEY).ok();
 
         Config {
@@ -131,6 +150,7 @@ impl Config {
             token_secret,
             token_issuer,
             front_end_url,
+            tari_client,
         }
     }
 }
