@@ -16,7 +16,12 @@ pub trait ConvertToWebError: Debug + Error + ToString {
     fn create_http_error(&self) -> web_error;
 
     fn to_response(&self) -> HttpResponse {
-        HttpResponse::from_error(self.create_http_error())
+        let err = self.create_http_error();
+        let mesg = err.as_response_error().to_string();
+        let resp = HttpResponse::from(err);
+        HttpResponse::new(resp.status())
+            .into_builder()
+            .json(json!({ "error": mesg }))
     }
 }
 
@@ -51,7 +56,7 @@ impl ConvertToWebError for SerdeError {
 impl ConvertToWebError for TariError {
     fn create_http_error(&self) -> web_error {
         error!("TariError Error: {}", self.description());
-        error::ErrorInternalServerError("Internal error")
+        error::ErrorInternalServerError("Internal error: Problem with Tari client.")
     }
 }
 
