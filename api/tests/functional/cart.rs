@@ -268,9 +268,6 @@ fn checkout_external() {
         .finish();
     let request = TestRequest::create();
 
-    let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
-    path.id = order.id;
-
     let input = Json(cart::CheckoutCartRequest {
         amount: 100,
         method: PaymentRequest::External {
@@ -284,7 +281,6 @@ fn checkout_external() {
     let response = cart::checkout((
         database.connection.into(),
         input,
-        path,
         user,
         request.extract_state(),
     )).unwrap();

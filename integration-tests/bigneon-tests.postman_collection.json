@@ -870,14 +870,13 @@
 							"raw": "{\n\t\"amount\": 6000,\n\t\"method\": {\n\t\t\"type\" : \"Stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\"\n\t}\n}"
 						},
 						"url": {
-							"raw": "http://{{server}}/carts/{{last_cart_id}}/checkout",
+							"raw": "http://{{server}}/carts/checkout",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
 								"carts",
-								"{{last_cart_id}}",
 								"checkout"
 							]
 						}

@@ -1,6 +1,5 @@
 use actix_web::HttpResponse;
 use actix_web::Json;
-use actix_web::Path;
 use actix_web::State;
 use auth::user::User;
 use bigneon_db::models::{DisplayOrderItem, Order, OrderStatus, OrderTypes, PaymentStatus, Scopes};
@@ -8,7 +7,6 @@ use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
-use models::PathParameters;
 use server::AppState;
 use stripe::StripeClient;
 use uuid::Uuid;
@@ -110,22 +108,17 @@ pub enum PaymentRequest {
 }
 
 pub fn checkout(
-    (connection, json, path, user, state): (
-        Connection,
-        Json<CheckoutCartRequest>,
-        Path<PathParameters>,
-        User,
-        State<AppState>,
-    ),
+    (connection, json, user, state): (Connection, Json<CheckoutCartRequest>, User, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let req = json.into_inner();
+    let mut order = Order::find_cart_for_user(user.id(), connection.get())?;
     match &req.method {
         PaymentRequest::External { reference } => {
-            checkout_external(connection, path.id, reference, &req, user)
+            checkout_external(connection, &mut order, reference, &req, user)
         }
         PaymentRequest::Stripe { token } => checkout_stripe(
             connection,
-            path.id,
+            &mut order,
             &token,
             &req,
             user,
@@ -139,7 +132,7 @@ pub fn checkout(
 // user will not be calling this.
 fn checkout_external(
     conn: Connection,
-    order_id: Uuid,
+    order: &mut Order,
     reference: &String,
     checkout_request: &CheckoutCartRequest,
     user: User,
@@ -148,8 +141,6 @@ fn checkout_external(
     if !user.has_scope(Scopes::OrderMakeExternalPayment, None, connection)? {
         return application::unauthorized();
     }
-
-    let mut order = Order::find(order_id, connection)?;
 
     if order.status() != OrderStatus::Draft {
         return application::unprocessable(
@@ -169,7 +160,7 @@ fn checkout_external(
 
 fn checkout_stripe(
     conn: Connection,
-    order_id: Uuid,
+    order: &mut Order,
     token: &str,
     req: &CheckoutCartRequest,
     user: User,
@@ -177,8 +168,6 @@ fn checkout_stripe(
     stripe_api_key: &str,
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
-
-    let mut order = Order::find(order_id, connection)?;
 
     if order.user_id != user.id() {
         return application::forbidden("This cart does not belong to you");
@@ -196,7 +185,7 @@ fn checkout_stripe(
         req.amount,
         currency,
         "Tickets from Bigneon",
-        vec![("order_id".to_string(), order_id.to_string())],
+        vec![("order_id".to_string(), order.id.to_string())],
     )?;
 
     let payment = match order.add_credit_card_payment(
