@@ -338,6 +338,7 @@ pub fn get_scopes_for_user() {
             "artist:write",
             "event:interest",
             "event:write",
+            "order:read",
             "org:read",
             "org:write",
             "ticket:admin",
@@ -353,6 +354,7 @@ pub fn get_scopes_for_user() {
             "artist:write",
             "event:interest",
             "event:write",
+            "order:read",
             "org:read",
             "ticket:admin",
             "venue:write"

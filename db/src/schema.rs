@@ -126,6 +126,7 @@ table! {
         user_id -> Uuid,
         status -> Text,
         order_type -> Text,
+        order_date -> Timestamp,
         expires_at -> Timestamp,
         created_at -> Timestamp,
         updated_at -> Timestamp,

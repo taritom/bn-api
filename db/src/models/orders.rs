@@ -19,6 +19,7 @@ pub struct Order {
     pub user_id: Uuid,
     status: String,
     order_type: String,
+    order_date: NaiveDateTime,
     pub expires_at: NaiveDateTime,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
@@ -137,8 +138,43 @@ impl Order {
         }
     }
 
+    pub fn find_for_user_for_display(
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<DisplayOrder>, DatabaseError> {
+        use schema::*;
+        let orders: Vec<Order> = orders::table
+            .filter(orders::user_id.eq(user_id))
+            .order_by(orders::order_date.desc())
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
+        let mut r = Vec::<DisplayOrder>::new();
+        for order in orders {
+            r.push(DisplayOrder {
+                id: order.id,
+                status: order.status.clone(),
+                date: order.order_date,
+                items: order.items_for_display(conn)?,
+                total_in_cents: order.calculate_total(conn)?,
+            });
+        }
+        Ok(r)
+    }
+
     pub fn items(&self, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
         OrderItem::find_for_order(self.id, conn)
+    }
+
+    pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayOrder, DatabaseError> {
+        let items = self.items_for_display(conn)?;
+
+        Ok(DisplayOrder {
+            id: self.id,
+            status: self.status.clone(),
+            date: self.order_date,
+            items,
+            total_in_cents: self.calculate_total(conn)?,
+        })
     }
 
     pub fn items_for_display(
@@ -326,4 +362,13 @@ impl Order {
 
         Ok(total)
     }
+}
+
+#[derive(Serialize)]
+pub struct DisplayOrder {
+    pub id: Uuid,
+    pub date: NaiveDateTime,
+    pub status: String,
+    pub items: Vec<DisplayOrderItem>,
+    pub total_in_cents: i64,
 }

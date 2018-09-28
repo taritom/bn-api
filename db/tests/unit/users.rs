@@ -321,6 +321,7 @@ pub fn get_scopes_by_organization() {
             "artist:write",
             "event:interest",
             "event:write",
+            "order:read",
             "org:read",
             "org:write",
             "ticket:admin",
@@ -336,6 +337,7 @@ pub fn get_scopes_by_organization() {
             "artist:write",
             "event:interest",
             "event:write",
+            "order:read",
             "org:read",
             "ticket:admin",
             "venue:write",
@@ -364,8 +366,14 @@ pub fn get_global_scopes() {
         .finish();
     user3 = user3.add_role(Roles::Admin, connection).unwrap();
 
-    assert_eq!(user.get_global_scopes(), vec!["event:interest"]);
-    assert_eq!(user2.get_global_scopes(), vec!["event:interest"]);
+    assert_eq!(
+        user.get_global_scopes(),
+        vec!["event:interest", "order:read"]
+    );
+    assert_eq!(
+        user2.get_global_scopes(),
+        vec!["event:interest", "order:read"]
+    );
     assert_eq!(
         user3.get_global_scopes(),
         vec![
@@ -373,6 +381,7 @@ pub fn get_global_scopes() {
             "event:interest",
             "event:write",
             "order::make-external-payment",
+            "order:read",
             "org:admin",
             "org:read",
             "org:write",

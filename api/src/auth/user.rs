@@ -53,6 +53,15 @@ impl User {
 
         Ok(false)
     }
+
+    pub fn requires_scope(&self, scope: Scopes) -> Result<(), AuthError> {
+        if self.global_scopes.contains(&scope.to_string()) {
+            return Ok(());
+        }
+        Err(AuthError::new(
+            "User does not have the required permissions".to_string(),
+        ))
+    }
 }
 
 impl FromRequest<AppState> for User {

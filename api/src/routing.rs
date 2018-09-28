@@ -51,6 +51,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             .with(organization_invites::accept_request);
         r.method(Method::DELETE)
             .with(organization_invites::decline_request);
+    }).resource("/orders", |r| {
+        r.method(Method::GET).with(orders::index);
     }).resource("/organizations/{id}/artists", |r| {
         r.method(Method::GET).with(artists::show_from_organizations);
         r.method(Method::POST).with(organizations::add_artist);

@@ -193,7 +193,7 @@ fn current_user() {
     let current_user: CurrentUser = serde_json::from_str(&body).unwrap();
     let user = current_user.user;
     assert_eq!(user.id, user.id);
-    assert_eq!(vec!["event:interest"], current_user.scopes);
+    assert_eq!(vec!["event:interest", "order:read"], current_user.scopes);
     assert!(current_user.organization_scopes.is_empty());
 }
 
@@ -216,6 +216,7 @@ fn current_user_admin() {
             "event:interest",
             "event:write",
             "order::make-external-payment",
+            "order:read",
             "org:admin",
             "org:read",
             "org:write",
@@ -244,7 +245,7 @@ fn current_user_organization_owner() {
     let current_user: CurrentUser = serde_json::from_str(&body).unwrap();
     let user = current_user.user;
     assert_eq!(user.id, user.id);
-    assert_eq!(vec!["event:interest"], current_user.scopes);
+    assert_eq!(vec!["event:interest", "order:read"], current_user.scopes);
     let mut expected_results = HashMap::new();
     expected_results.insert(
         organization.id.clone(),
@@ -252,6 +253,7 @@ fn current_user_organization_owner() {
             "artist:write",
             "event:interest",
             "event:write",
+            "order:read",
             "org:read",
             "org:write",
             "ticket:admin",
@@ -288,7 +290,7 @@ fn current_user_organization_member() {
     let current_user: CurrentUser = serde_json::from_str(&body).unwrap();
     let user = current_user.user;
     assert_eq!(user.id, user.id);
-    assert_eq!(vec!["event:interest"], current_user.scopes);
+    assert_eq!(vec!["event:interest", "order:read"], current_user.scopes);
     let mut expected_scopes = HashMap::new();
     expected_scopes.insert(
         organization.id.clone(),
@@ -296,6 +298,7 @@ fn current_user_organization_member() {
             "artist:write",
             "event:interest",
             "event:write",
+            "order:read",
             "org:read",
             "ticket:admin",
             "venue:write",

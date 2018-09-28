@@ -238,3 +238,19 @@ fn add_external_payment() {
         .unwrap();
     assert_eq!(cart.status(), OrderStatus::Paid);
 }
+
+#[test]
+fn list_for_display() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let order1 = project.create_order().for_user(&user).finish();
+    let order2 = project.create_order().for_user(&user).finish();
+
+    let display_orders =
+        Order::find_for_user_for_display(user.id, project.get_connection()).unwrap();
+    let ids: Vec<Uuid> = display_orders.iter().map(|o| o.id).collect();
+    assert_eq!(vec![order1.id, order2.id], ids);
+}
+
+#[test]
+fn for_display() {}
