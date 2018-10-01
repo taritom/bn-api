@@ -7,6 +7,7 @@ extern crate diesel;
 extern crate argon2rs;
 extern crate chrono;
 extern crate dotenv;
+extern crate itertools;
 extern crate log;
 extern crate rand;
 extern crate uuid;

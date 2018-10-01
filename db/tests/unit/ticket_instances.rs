@@ -1,10 +1,133 @@
-use bigneon_db::models::{Order, OrderTypes, TicketInstance};
+use bigneon_db::models::{DisplayTicket, DisplayUser, Order, OrderTypes, TicketInstance};
 use chrono::prelude::*;
 use chrono::NaiveDateTime;
 use diesel::result::Error;
 use diesel::Connection;
 use support::project::TestProject;
 use time::Duration;
+use uuid::Uuid;
+
+#[test]
+pub fn find_for_user() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let mut cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(connection)
+        .unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let ticket_type2 = &event2.ticket_types(connection).unwrap()[0];
+    let mut ticket_ids: Vec<Uuid> = cart
+        .add_tickets(ticket_type.id, 2, connection)
+        .unwrap()
+        .into_iter()
+        .map(|t| t.id)
+        .collect();
+    ticket_ids.sort();
+    let mut ticket_ids2: Vec<Uuid> = cart
+        .add_tickets(ticket_type2.id, 2, connection)
+        .unwrap()
+        .into_iter()
+        .map(|t| t.id)
+        .collect();
+    ticket_ids2.sort();
+
+    // Order is not paid so tickets are not accessible
+    assert!(
+        TicketInstance::find_for_user(user.id, Some(event.id), connection)
+            .unwrap()
+            .is_empty()
+    );
+
+    // Order is paid, tickets returned
+    let total = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment("test".to_string(), user.id, total, connection)
+        .unwrap();
+
+    let mut found_ticket_ids: Vec<Uuid> =
+        TicketInstance::find_for_user(user.id, Some(event.id), connection)
+            .unwrap()
+            .iter()
+            .flat_map(move |(_, tickets)| tickets.iter())
+            .map(|t| t.id)
+            .collect();
+    found_ticket_ids.sort();
+    assert_eq!(found_ticket_ids, ticket_ids);
+
+    // other event
+    let mut found_ticket_ids: Vec<Uuid> =
+        TicketInstance::find_for_user(user.id, Some(event2.id), connection)
+            .unwrap()
+            .iter()
+            .flat_map(move |(_, tickets)| tickets.iter())
+            .map(|t| t.id)
+            .collect();
+    found_ticket_ids.sort();
+    assert_eq!(found_ticket_ids, ticket_ids2);
+
+    // no event specified
+    ticket_ids.append(&mut ticket_ids2);
+    ticket_ids.sort();
+    let mut found_ticket_ids: Vec<Uuid> = TicketInstance::find_for_user(user.id, None, connection)
+        .unwrap()
+        .iter()
+        .flat_map(move |(_, tickets)| tickets.iter())
+        .map(|t| t.id)
+        .collect();
+    found_ticket_ids.sort();
+    assert_eq!(found_ticket_ids, ticket_ids);
+}
+
+#[test]
+pub fn find() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user: DisplayUser = project.create_user().finish().into();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(connection)
+        .unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let display_event = event.for_display(connection).unwrap();
+    let ticket = cart
+        .add_tickets(ticket_type.id, 1, connection)
+        .unwrap()
+        .remove(0);
+    let expected_ticket = DisplayTicket {
+        id: ticket.id,
+        ticket_type_name: ticket_type.name.clone(),
+    };
+    assert_eq!(
+        (display_event, user, expected_ticket),
+        TicketInstance::find(ticket.id, connection).unwrap()
+    );
+    assert!(TicketInstance::find(Uuid::new_v4(), connection).is_err());
+}
 
 #[test]
 pub fn reserve_tickets() {

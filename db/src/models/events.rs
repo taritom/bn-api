@@ -256,4 +256,30 @@ impl Event {
     pub fn ticket_types(&self, conn: &PgConnection) -> Result<Vec<TicketType>, DatabaseError> {
         TicketType::find_by_event_id(self.id, conn)
     }
+
+    pub fn for_display(self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {
+        let venue: Option<DisplayVenue> =
+            self.venue(conn)?.map_or(None, |venue| Some(venue.into()));
+
+        Ok(DisplayEvent {
+            id: self.id,
+            name: self.name,
+            event_start: self.event_start,
+            door_time: self.door_time,
+            promo_image_url: self.promo_image_url,
+            additional_info: self.additional_info,
+            venue,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct DisplayEvent {
+    pub id: Uuid,
+    pub name: String,
+    pub event_start: Option<NaiveDateTime>,
+    pub door_time: Option<NaiveDateTime>,
+    pub promo_image_url: Option<String>,
+    pub additional_info: Option<String>,
+    pub venue: Option<DisplayVenue>,
 }

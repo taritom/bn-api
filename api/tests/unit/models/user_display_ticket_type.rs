@@ -7,6 +7,9 @@ fn from_ticket_type() {
     let database = TestDatabase::new();
     let event = database.create_event().with_ticket_pricing().finish();
     let ticket_type = event.ticket_types(&database.connection).unwrap().remove(0);
+    let ticket_pricing = ticket_type
+        .current_ticket_pricing(&database.connection)
+        .unwrap();
 
     // New event nothing sold
     let display_ticket_type =
@@ -15,6 +18,10 @@ fn from_ticket_type() {
     assert_eq!(
         display_ticket_type.status,
         TicketTypeStatus::Published.to_string()
+    );
+    assert_eq!(
+        Some(ticket_pricing.into()),
+        display_ticket_type.ticket_pricing,
     );
 
     // 10 tickets sold / reserved (via create_order for_event)

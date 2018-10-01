@@ -2,9 +2,10 @@ use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
 use diesel::sql_types;
-use diesel::sql_types::Bigint;
-use models::OrderItem;
-use schema::ticket_instances;
+use diesel::sql_types::{Bigint, Nullable, Text, Uuid as dUuid};
+use itertools::Itertools;
+use models::*;
+use schema::{assets, events, order_items, orders, ticket_instances, ticket_types};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -24,6 +25,78 @@ pub struct TicketInstance {
 }
 
 impl TicketInstance {
+    pub fn find(
+        id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(DisplayEvent, DisplayUser, DisplayTicket), DatabaseError> {
+        let ticket_intermediary = ticket_instances::table
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .filter(ticket_instances::id.eq(id))
+            .select((
+                ticket_instances::id,
+                ticket_types::name,
+                orders::user_id,
+                events::id,
+                events::venue_id,
+            )).first::<DisplayTicketIntermediary>(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
+        let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
+        let user: DisplayUser = User::find(ticket_intermediary.user_id, conn)?.into();
+        Ok((event, user, ticket_intermediary.into()))
+    }
+
+    pub fn find_for_user(
+        user_id: Uuid,
+        event_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Vec<(DisplayEvent, Vec<DisplayTicket>)>, DatabaseError> {
+        let mut query = ticket_instances::table
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .filter(
+                orders::user_id
+                    .eq(user_id)
+                    .and(orders::status.eq(OrderStatus::Paid.to_string())),
+            ).into_boxed();
+
+        if let Some(event_id) = event_id {
+            query = query.filter(events::id.eq(event_id));
+        }
+
+        let tickets = query
+            .select((
+                ticket_instances::id,
+                ticket_types::name,
+                orders::user_id,
+                events::id,
+                events::venue_id,
+            )).order_by(events::event_start.asc())
+            .then_order_by(events::name.asc())
+            .load::<DisplayTicketIntermediary>(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load user tickets")?;
+
+        let mut grouped_display_tickets = Vec::new();
+        for (key, group) in &tickets.into_iter().group_by(|ticket| ticket.event_id) {
+            let event = Event::find(key, conn)?.for_display(conn)?;
+            let display_tickets: Vec<DisplayTicket> =
+                group.into_iter().map(|ticket| ticket.into()).collect();
+            grouped_display_tickets.push((event, display_tickets));
+        }
+
+        Ok(grouped_display_tickets)
+    }
+
     pub fn create_multiple(
         asset_id: Uuid,
         quantity: u32,
@@ -98,6 +171,35 @@ impl TicketInstance {
         }
 
         Ok(ids)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct DisplayTicket {
+    pub id: Uuid,
+    pub ticket_type_name: String,
+}
+
+#[derive(Queryable, QueryableByName)]
+pub struct DisplayTicketIntermediary {
+    #[sql_type = "dUuid"]
+    pub id: Uuid,
+    #[sql_type = "Text"]
+    pub name: String,
+    #[sql_type = "dUuid"]
+    pub user_id: Uuid,
+    #[sql_type = "dUuid"]
+    pub event_id: Uuid,
+    #[sql_type = "Nullable<dUuid>"]
+    pub venue_id: Option<Uuid>,
+}
+
+impl From<DisplayTicketIntermediary> for DisplayTicket {
+    fn from(ticket_intermediary: DisplayTicketIntermediary) -> Self {
+        DisplayTicket {
+            id: ticket_intermediary.id.clone(),
+            ticket_type_name: ticket_intermediary.name.clone(),
+        }
     }
 }
 

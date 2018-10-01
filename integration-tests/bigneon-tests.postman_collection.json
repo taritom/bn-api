@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "034da42a-dd1a-463e-aef6-be284b6326cb",
+		"_postman_id": "ea8afb73-5a85-41ba-bdc1-fa05992331fd",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -360,7 +360,7 @@
 							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}]\n}"
 						},
 						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/tickets",
+							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
@@ -368,7 +368,7 @@
 							"path": [
 								"events",
 								"{{last_event_id}}",
-								"tickets"
+								"ticket_types"
 							]
 						}
 					},
@@ -936,6 +936,57 @@
 							],
 							"path": [
 								"cart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - get tickets for event",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "349b049f-9282-49db-b669-7227c0128831",
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"tickets should be present\", function(){",
+									"    pm.expect(json.length).to.equal(2);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/tickets",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"tickets"
 							]
 						}
 					},

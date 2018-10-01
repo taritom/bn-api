@@ -46,7 +46,7 @@ pub struct User {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct DisplayUser {
     pub id: Uuid,
     pub first_name: String,

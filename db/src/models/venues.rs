@@ -203,3 +203,30 @@ impl Venue {
         }
     }
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct DisplayVenue {
+    pub id: Uuid,
+    pub name: String,
+    pub address: Option<String>,
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub country: Option<String>,
+    pub postal_code: Option<String>,
+    pub phone: Option<String>,
+}
+
+impl From<Venue> for DisplayVenue {
+    fn from(venue: Venue) -> Self {
+        DisplayVenue {
+            id: venue.id,
+            name: venue.name,
+            address: venue.address,
+            city: venue.city,
+            state: venue.state,
+            country: venue.country,
+            postal_code: venue.postal_code,
+            phone: venue.phone,
+        }
+    }
+}

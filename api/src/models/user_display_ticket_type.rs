@@ -25,11 +25,10 @@ impl UserDisplayTicketType {
         let mut status = ticket_type_status.to_string();
         let quantity = ticket_type.remaining_ticket_count(conn)?;
 
-        let mut ticket_pricing: Option<DisplayTicketPricing> = None;
-        let current_ticket_pricing = ticket_type.current_ticket_pricing(conn).optional()?;
-        if let Some(current) = current_ticket_pricing {
-            ticket_pricing = Some(current.into());
-        }
+        let ticket_pricing: Option<DisplayTicketPricing> = ticket_type
+            .current_ticket_pricing(conn)
+            .optional()?
+            .map_or(None, |ticket_pricing| Some(ticket_pricing.into()));
 
         if ticket_type_status == TicketTypeStatus::Published {
             if quantity == 0 {
