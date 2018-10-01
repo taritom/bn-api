@@ -16,7 +16,6 @@ use uuid::Uuid;
 #[test]
 pub fn index() {
     let database = TestDatabase::new();
-
     let organization = database.create_organization().finish();
     let venue = database.create_venue().finish();
     let event = database
@@ -28,6 +27,44 @@ pub fn index() {
     let event2 = database
         .create_event()
         .with_name("NewEvent2".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
+    let expected_results = vec![
+        event_venue_entry(&event, &venue),
+        event_venue_entry(&event2, &venue),
+    ];
+    let events_expected_json = serde_json::to_string(&expected_results).unwrap();
+
+    let test_request = TestRequest::create_with_uri("/events?query=New");
+    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse =
+        events::index((database.connection.into(), parameters, None)).into();
+
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, events_expected_json);
+}
+
+#[test]
+pub fn index_with_draft_for_organization_user() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgMember, &database);
+    let organization = database.create_organization().with_user(&user).finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent1".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    let event2 = database
+        .create_event()
+        .with_name("NewEvent2".to_string())
+        .with_status(EventStatus::Draft)
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
@@ -51,44 +88,15 @@ pub fn index() {
     }
 
     let expected_results = vec![
-        EventVenueEntry {
-            id: event.id,
-            name: event.name,
-            organization_id: event.organization_id,
-            venue_id: event.venue_id,
-            created_at: event.created_at,
-            event_start: event.event_start,
-            door_time: event.door_time,
-            status: event.status,
-            publish_date: event.publish_date,
-            promo_image_url: event.promo_image_url,
-            additional_info: event.additional_info,
-            age_limit: event.age_limit,
-            cancelled_at: event.cancelled_at,
-            venue: Some(venue.clone()),
-        },
-        EventVenueEntry {
-            id: event2.id,
-            name: event2.name,
-            organization_id: event2.organization_id,
-            venue_id: event2.venue_id,
-            created_at: event2.created_at,
-            event_start: event2.event_start,
-            door_time: event2.door_time,
-            status: event2.status,
-            publish_date: event2.publish_date,
-            promo_image_url: event2.promo_image_url,
-            additional_info: event2.additional_info,
-            age_limit: event2.age_limit,
-            cancelled_at: event2.cancelled_at,
-            venue: Some(venue),
-        },
+        event_venue_entry(&event, &venue),
+        event_venue_entry(&event2, &venue),
     ];
     let events_expected_json = serde_json::to_string(&expected_results).unwrap();
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
-    let response: HttpResponse = events::index((database.connection.into(), parameters)).into();
+    let response: HttpResponse =
+        events::index((database.connection.into(), parameters, Some(auth_user))).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -97,7 +105,42 @@ pub fn index() {
 }
 
 #[test]
-pub fn index_search_returns_only_one_event() {
+pub fn index_with_draft_for_user_ignores_drafts() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent1".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    let _event2 = database
+        .create_event()
+        .with_name("NewEvent2".to_string())
+        .with_status(EventStatus::Draft)
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
+    let expected_results = vec![event_venue_entry(&event, &venue)];
+    let events_expected_json = serde_json::to_string(&expected_results).unwrap();
+
+    let test_request = TestRequest::create_with_uri("/events?query=New");
+    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse =
+        events::index((database.connection.into(), parameters, Some(auth_user))).into();
+
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, events_expected_json);
+}
+
+#[test]
+pub fn index_search_with_filter() {
     let database = TestDatabase::new();
     let organization = database.create_organization().finish();
     let event = database
@@ -110,24 +153,6 @@ pub fn index_search_returns_only_one_event() {
         .with_name("NewEvent2".to_string())
         .with_organization(&organization)
         .finish();
-
-    #[derive(Serialize)]
-    struct EventVenueEntry {
-        id: Uuid,
-        name: String,
-        organization_id: Uuid,
-        venue_id: Option<Uuid>,
-        created_at: NaiveDateTime,
-        event_start: Option<NaiveDateTime>,
-        door_time: Option<NaiveDateTime>,
-        status: String,
-        publish_date: Option<NaiveDateTime>,
-        promo_image_url: Option<String>,
-        additional_info: Option<String>,
-        age_limit: Option<i32>,
-        cancelled_at: Option<NaiveDateTime>,
-        venue: Option<Venue>,
-    }
 
     let expected_events = vec![EventVenueEntry {
         id: event.id,
@@ -149,7 +174,8 @@ pub fn index_search_returns_only_one_event() {
 
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
-    let response: HttpResponse = events::index((database.connection.into(), parameters)).into();
+    let response: HttpResponse =
+        events::index((database.connection.into(), parameters, None)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -599,4 +625,41 @@ fn expected_show_json(
         total_interest: 1,
         user_is_interested: true,
     }).unwrap()
+}
+
+#[derive(Serialize)]
+struct EventVenueEntry {
+    id: Uuid,
+    name: String,
+    organization_id: Uuid,
+    venue_id: Option<Uuid>,
+    created_at: NaiveDateTime,
+    event_start: Option<NaiveDateTime>,
+    door_time: Option<NaiveDateTime>,
+    status: String,
+    publish_date: Option<NaiveDateTime>,
+    promo_image_url: Option<String>,
+    additional_info: Option<String>,
+    age_limit: Option<i32>,
+    cancelled_at: Option<NaiveDateTime>,
+    venue: Option<Venue>,
+}
+
+fn event_venue_entry(event: &Event, venue: &Venue) -> EventVenueEntry {
+    EventVenueEntry {
+        id: event.id,
+        name: event.name.clone(),
+        organization_id: event.organization_id,
+        venue_id: event.venue_id,
+        created_at: event.created_at,
+        event_start: event.event_start,
+        door_time: event.door_time,
+        status: event.status.clone(),
+        publish_date: event.publish_date,
+        promo_image_url: event.promo_image_url.clone(),
+        additional_info: event.additional_info.clone(),
+        age_limit: event.age_limit,
+        cancelled_at: event.cancelled_at,
+        venue: Some(venue.clone()),
+    }
 }

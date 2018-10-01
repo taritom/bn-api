@@ -4,7 +4,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::*;
-use schema::{artists, event_artists, events, venues};
+use schema::{artists, event_artists, events, organization_users, organizations, venues};
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
@@ -161,6 +161,7 @@ impl Event {
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
         status_filter: Option<Vec<EventStatus>>,
+        user: Option<User>,
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
         let query_like = match query_filter {
@@ -168,16 +169,12 @@ impl Event {
             None => "%".to_string(),
         };
         let mut query = events::table
-            .filter(
-                events::event_start
-                    .gt(start_time
-                        .unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0))),
-            ).filter(
-                events::event_start
-                    .lt(end_time
-                        .unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))),
-            ).left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
+            .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
+            .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
             .left_join(
+                organization_users::table
+                    .on(organization_users::organization_id.eq(organizations::id)),
+            ).left_join(
                 event_artists::table
                     .inner_join(
                         artists::table.on(event_artists::artist_id
@@ -190,12 +187,39 @@ impl Event {
                     .or(venues::id
                         .is_not_null()
                         .and(venues::name.ilike(query_like.clone()))).or(artists::id.is_not_null()),
-            ).filter(events::status.ne(EventStatus::Draft.to_string()))
-            .select(events::all_columns)
+            ).filter(
+                events::event_start
+                    .gt(start_time
+                        .unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0))),
+            ).filter(
+                events::event_start
+                    .lt(end_time
+                        .unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))),
+            ).select(events::all_columns)
             .distinct()
             .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
             .into_boxed();
+
+        match user {
+            Some(user) => {
+                // Admin results include all drafts across organizations
+                if !user
+                    .get_global_scopes()
+                    .contains(&Scopes::OrgAdmin.to_string())
+                {
+                    query = query.filter(
+                        events::status
+                            .ne(EventStatus::Draft.to_string())
+                            .or(organizations::owner_user_id.eq(user.id))
+                            .or(organization_users::user_id.eq(user.id)),
+                    );
+                }
+            }
+            None => {
+                query = query.filter(events::status.ne(EventStatus::Draft.to_string()));
+            }
+        }
 
         if let Some(statuses) = status_filter {
             let statuses: Vec<String> = statuses

@@ -43,10 +43,12 @@ pub struct UpdateArtistsRequest {
 }
 
 pub fn index(
-    (connection, parameters): (Connection, Query<SearchParameters>),
+    (connection, parameters, auth_user): (Connection, Query<SearchParameters>, Option<User>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let parameters = parameters.into_inner();
+
+    let user = auth_user.map_or(None, |auth_user| Some(auth_user.user));
     let events = Event::search(
         parameters.query,
         parameters.region_id,
@@ -57,6 +59,7 @@ pub fn index(
         } else {
             Some(parameters.status)
         },
+        user,
         connection,
     )?;
 

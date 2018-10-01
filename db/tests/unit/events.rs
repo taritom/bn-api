@@ -122,8 +122,19 @@ fn search() {
         .finish();
     let artist1 = project.create_artist().with_name("Artist1".into()).finish();
     let artist2 = project.create_artist().with_name("Artist2".into()).finish();
+    let organization_owner = project.create_user().finish();
+    let organization_user = project.create_user().finish();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let admin = project
+        .create_user()
+        .finish()
+        .add_role(Roles::Admin, project.get_connection())
+        .unwrap();
+    let organization = project
+        .create_organization()
+        .with_owner(&organization_owner)
+        .with_user(&organization_user)
+        .finish();
     let event = project
         .create_event()
         .with_status(EventStatus::Published)
@@ -163,23 +174,87 @@ fn search() {
         .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .finish();
 
-    // Event draft, not returned
-    let _event4 = project
+    // Event draft, not returned except for organization user or owner
+    let event4 = project
         .create_event()
-        .with_name("NewEvent2".into())
+        .with_name("NewEventDraft".into())
         .with_status(EventStatus::Draft)
         .with_organization(&organization)
         .with_venue(&venue2)
         .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .finish();
 
+    // Event draft belonging to other organization
+    let event5 = project
+        .create_event()
+        .with_name("NewEventDraft2".into())
+        .with_status(EventStatus::Draft)
+        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .finish();
+
     let all_events = vec![event, event2, event3];
+    let mut all_events_for_organization = all_events.clone();
+    all_events_for_organization.push(event4);
+    let mut all_events_for_admin = all_events_for_organization.clone();
+    all_events_for_admin.push(event5);
+
+    // All events unauthorized user
     let all_found_events =
-        Event::search(None, None, None, None, None, project.get_connection()).unwrap();
+        Event::search(None, None, None, None, None, None, project.get_connection()).unwrap();
     assert_eq!(all_events, all_found_events);
 
+    // All events organization owner
+    let all_found_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(organization_owner),
+        project.get_connection(),
+    ).unwrap();
+    assert_eq!(all_events_for_organization, all_found_events);
+
+    // All events organization user
+    let all_found_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(organization_user),
+        project.get_connection(),
+    ).unwrap();
+    assert_eq!(all_events_for_organization, all_found_events);
+
+    // All events normal user not part of event organization
+    let all_found_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(user),
+        project.get_connection(),
+    ).unwrap();
+    assert_eq!(all_events, all_found_events);
+
+    // All events for admin
+    let all_found_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(admin),
+        project.get_connection(),
+    ).unwrap();
+    assert_eq!(all_events_for_admin, all_found_events);
+
+    // No name specified
     let all_found_events = Event::search(
         Some("".to_string()),
+        None,
         None,
         None,
         None,
@@ -195,6 +270,7 @@ fn search() {
         None,
         None,
         Some(vec![EventStatus::Published, EventStatus::Offline]),
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 2);
@@ -208,6 +284,7 @@ fn search() {
         None,
         None,
         Some(vec![EventStatus::Closed]),
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 1);
@@ -216,6 +293,7 @@ fn search() {
     // Event name search
     let all_found_events = Event::search(
         Some("New".to_string()),
+        None,
         None,
         None,
         None,
@@ -233,6 +311,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 1);
@@ -241,6 +320,7 @@ fn search() {
     // Artist name search for artist in both events
     let all_found_events = Event::search(
         Some("Artist1".to_string()),
+        None,
         None,
         None,
         None,
@@ -258,6 +338,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 1);
@@ -266,6 +347,7 @@ fn search() {
     // Match names Venue2 and Artist2 returning all events
     let all_found_events = Event::search(
         Some("2".to_string()),
+        None,
         None,
         None,
         None,
@@ -281,6 +363,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 1);
@@ -290,6 +373,7 @@ fn search() {
     let all_found_events = Event::search(
         None,
         Some(region2.id.into()),
+        None,
         None,
         None,
         None,
@@ -306,6 +390,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 0);
@@ -314,6 +399,7 @@ fn search() {
     let all_found_events = Event::search(
         Some("Artist2".to_string()),
         Some(region1.id.into()),
+        None,
         None,
         None,
         None,
@@ -328,6 +414,7 @@ fn search() {
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
         None,
+        None,
         project.get_connection(),
     ).unwrap();
     assert_eq!(all_found_events.len(), 2);
@@ -339,6 +426,7 @@ fn search() {
         None,
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
+        None,
         None,
         project.get_connection(),
     ).unwrap();

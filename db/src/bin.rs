@@ -1,3 +1,6 @@
+// Quiet diesel warnings https://github.com/diesel-rs/diesel/issues/1785
+#![allow(proc_macro_derive_resolution_fallback)]
+
 #[macro_use]
 extern crate diesel_migrations;
 extern crate clap;
