@@ -1,7 +1,6 @@
-extern crate chrono;
 use bigneon_db::models::*;
+use chrono::prelude::*;
 use support::project::TestProject;
-use unit::events::chrono::prelude::*;
 
 #[test]
 fn create() {

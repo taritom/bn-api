@@ -18,12 +18,14 @@ pub fn find_for_user() {
     let event = project
         .create_event()
         .with_organization(&organization)
+        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .with_tickets()
         .with_ticket_pricing()
         .finish();
     let event2 = project
         .create_event()
         .with_organization(&organization)
+        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .with_tickets()
         .with_ticket_pricing()
         .finish();
@@ -50,7 +52,7 @@ pub fn find_for_user() {
 
     // Order is not paid so tickets are not accessible
     assert!(
-        TicketInstance::find_for_user(user.id, Some(event.id), connection)
+        TicketInstance::find_for_user(user.id, Some(event.id), None, None, connection)
             .unwrap()
             .is_empty()
     );
@@ -61,7 +63,7 @@ pub fn find_for_user() {
         .unwrap();
 
     let mut found_ticket_ids: Vec<Uuid> =
-        TicketInstance::find_for_user(user.id, Some(event.id), connection)
+        TicketInstance::find_for_user(user.id, Some(event.id), None, None, connection)
             .unwrap()
             .iter()
             .flat_map(move |(_, tickets)| tickets.iter())
@@ -72,7 +74,7 @@ pub fn find_for_user() {
 
     // other event
     let mut found_ticket_ids: Vec<Uuid> =
-        TicketInstance::find_for_user(user.id, Some(event2.id), connection)
+        TicketInstance::find_for_user(user.id, Some(event2.id), None, None, connection)
             .unwrap()
             .iter()
             .flat_map(move |(_, tickets)| tickets.iter())
@@ -82,14 +84,61 @@ pub fn find_for_user() {
     assert_eq!(found_ticket_ids, ticket_ids2);
 
     // no event specified
-    ticket_ids.append(&mut ticket_ids2);
-    ticket_ids.sort();
-    let mut found_ticket_ids: Vec<Uuid> = TicketInstance::find_for_user(user.id, None, connection)
-        .unwrap()
-        .iter()
-        .flat_map(move |(_, tickets)| tickets.iter())
-        .map(|t| t.id)
-        .collect();
+    let mut all_ticket_ids = ticket_ids.clone();
+    all_ticket_ids.append(&mut ticket_ids2.clone());
+    all_ticket_ids.sort();
+    let mut found_ticket_ids: Vec<Uuid> =
+        TicketInstance::find_for_user(user.id, None, None, None, connection)
+            .unwrap()
+            .iter()
+            .flat_map(move |(_, tickets)| tickets.iter())
+            .map(|t| t.id)
+            .collect();
+    found_ticket_ids.sort();
+    assert_eq!(found_ticket_ids, all_ticket_ids);
+
+    // start date prior to both event starts
+    let mut found_ticket_ids: Vec<Uuid> = TicketInstance::find_for_user(
+        user.id,
+        None,
+        Some(NaiveDate::from_ymd(2015, 7, 8).and_hms(9, 0, 11)),
+        None,
+        connection,
+    ).unwrap()
+    .iter()
+    .flat_map(move |(_, tickets)| tickets.iter())
+    .map(|t| t.id)
+    .collect();
+    found_ticket_ids.sort();
+    assert_eq!(found_ticket_ids, all_ticket_ids);
+
+    // start date filters out event
+    let mut found_ticket_ids: Vec<Uuid> = TicketInstance::find_for_user(
+        user.id,
+        None,
+        Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
+        None,
+        connection,
+    ).unwrap()
+    .iter()
+    .flat_map(move |(_, tickets)| tickets.iter())
+    .map(|t| t.id)
+    .collect();
+    found_ticket_ids.sort();
+    assert_eq!(found_ticket_ids, ticket_ids2);
+
+    // end date filters out event
+    let mut found_ticket_ids: Vec<Uuid> = TicketInstance::find_for_user(
+        user.id,
+        None,
+        None,
+        Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
+        connection,
+    ).unwrap()
+    .iter()
+    .flat_map(move |(_, tickets)| tickets.iter())
+    .map(|t| t.id)
+    .collect();
     found_ticket_ids.sort();
     assert_eq!(found_ticket_ids, ticket_ids);
 }

@@ -54,21 +54,28 @@ impl TicketInstance {
     pub fn find_for_user(
         user_id: Uuid,
         event_id: Option<Uuid>,
+        start_time: Option<NaiveDateTime>,
+        end_time: Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<Vec<(DisplayEvent, Vec<DisplayTicket>)>, DatabaseError> {
-        let mut query = ticket_instances::table
-            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
-            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .inner_join(
-                order_items::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
-            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-            .filter(
-                orders::user_id
-                    .eq(user_id)
-                    .and(orders::status.eq(OrderStatus::Paid.to_string())),
-            ).into_boxed();
+        let mut query =
+            ticket_instances::table
+                .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+                .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+                .inner_join(
+                    order_items::table
+                        .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+                ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+                .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+                .filter(events::event_start.gt(
+                    start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
+                )).filter(events::event_start.lt(
+                    end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
+                )).filter(
+                    orders::user_id
+                        .eq(user_id)
+                        .and(orders::status.eq(OrderStatus::Paid.to_string())),
+                ).into_boxed();
 
         if let Some(event_id) = event_id {
             query = query.filter(events::id.eq(event_id));

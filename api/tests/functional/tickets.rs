@@ -1,7 +1,8 @@
-use actix_web::{http::StatusCode, FromRequest, Path};
-use bigneon_api::controllers::tickets::{self, ShowTicketResponse};
+use actix_web::{http::StatusCode, FromRequest, Path, Query};
+use bigneon_api::controllers::tickets::{self, SearchParameters, ShowTicketResponse};
 use bigneon_api::models::{OptionalPathParameters, PathParameters};
 use bigneon_db::models::*;
+use chrono::prelude::*;
 use functional::base;
 use serde_json;
 use support;
@@ -12,12 +13,13 @@ use support::test_request::TestRequest;
 pub fn index() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let request = TestRequest::create();
+    let test_request = TestRequest::create();
     let organization = database.create_organization().finish();
     let venue = database.create_venue().finish();
     let event = database
         .create_event()
         .with_name("Event1".into())
+        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .with_venue(&venue)
         .with_organization(&organization)
         .with_ticket_pricing()
@@ -27,6 +29,7 @@ pub fn index() {
     let event2 = database
         .create_event()
         .with_name("Event2".into())
+        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
@@ -51,10 +54,15 @@ pub fn index() {
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
 
     // Test with specified event
-    let mut path = Path::<OptionalPathParameters>::extract(&request.request).unwrap();
+    let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
     path.id = Some(event.id);
-    let response =
-        tickets::index((database.connection.clone().into(), path, auth_user.clone())).unwrap();
+    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let response = tickets::index((
+        database.connection.clone().into(),
+        path,
+        parameters,
+        auth_user.clone(),
+    )).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_tickets: Vec<DisplayTicket> = serde_json::from_str(&body).unwrap();
@@ -65,9 +73,15 @@ pub fn index() {
     assert_eq!(vec![expected_ticket.clone()], found_tickets);
 
     // Test without specified event
-    let mut path = Path::<OptionalPathParameters>::extract(&request.request).unwrap();
+    let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
     path.id = None;
-    let response = tickets::index((database.connection.clone().into(), path, auth_user)).unwrap();
+    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let response = tickets::index((
+        database.connection.clone().into(),
+        path,
+        parameters,
+        auth_user.clone(),
+    )).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_tickets: Vec<(DisplayEvent, Vec<DisplayTicket>)> =
@@ -80,13 +94,37 @@ pub fn index() {
         vec![
             (
                 event.for_display(&database.connection).unwrap(),
-                vec![expected_ticket]
+                vec![expected_ticket.clone()]
             ),
             (
-                event2.for_display(&database.connection).unwrap(),
-                vec![expected_ticket2]
+                event2.clone().for_display(&database.connection).unwrap(),
+                vec![expected_ticket2.clone()]
             )
         ],
+        found_tickets
+    );
+
+    // Test with search parameter
+    let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
+    path.id = None;
+    let mut parameters =
+        Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    parameters.start_utc = Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11));
+    let response = tickets::index((
+        database.connection.clone().into(),
+        path,
+        parameters,
+        auth_user,
+    )).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let found_tickets: Vec<(DisplayEvent, Vec<DisplayTicket>)> =
+        serde_json::from_str(&body).unwrap();
+    assert_eq!(
+        vec![(
+            event2.for_display(&database.connection).unwrap(),
+            vec![expected_ticket2.clone()]
+        )],
         found_tickets
     );
 }
