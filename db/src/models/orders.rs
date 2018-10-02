@@ -150,13 +150,7 @@ impl Order {
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
         let mut r = Vec::<DisplayOrder>::new();
         for order in orders {
-            r.push(DisplayOrder {
-                id: order.id,
-                status: order.status.clone(),
-                date: order.order_date,
-                items: order.items_for_display(conn)?,
-                total_in_cents: order.calculate_total(conn)?,
-            });
+            r.push(order.for_display(conn)?);
         }
         Ok(r)
     }
@@ -166,14 +160,22 @@ impl Order {
     }
 
     pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayOrder, DatabaseError> {
-        let items = self.items_for_display(conn)?;
+        let now = Utc::now().naive_utc();
+        let seconds_until_expiry = if self.expires_at >= now {
+            let duration = self.expires_at.signed_duration_since(now);
+            duration.num_seconds() as u32
+        } else {
+            0
+        };
 
         Ok(DisplayOrder {
             id: self.id,
             status: self.status.clone(),
             date: self.order_date,
-            items,
+            expires_at: self.expires_at,
+            items: self.items_for_display(conn)?,
             total_in_cents: self.calculate_total(conn)?,
+            seconds_until_expiry,
         })
     }
 
@@ -368,6 +370,8 @@ impl Order {
 pub struct DisplayOrder {
     pub id: Uuid,
     pub date: NaiveDateTime,
+    pub expires_at: NaiveDateTime,
+    pub seconds_until_expiry: u32,
     pub status: String,
     pub items: Vec<DisplayOrderItem>,
     pub total_in_cents: i64,

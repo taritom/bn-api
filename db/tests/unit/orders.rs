@@ -1,7 +1,12 @@
 use bigneon_db::models::*;
+use bigneon_db::schema::orders;
+use chrono::prelude::*;
+use diesel;
+use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::Connection;
 use support::project::TestProject;
+use time::Duration;
 use uuid::Uuid;
 
 #[test]
@@ -253,4 +258,25 @@ fn list_for_display() {
 }
 
 #[test]
-fn for_display() {}
+fn for_display() {
+    let project = TestProject::new();
+    let order = project.create_order().finish();
+
+    // 1 minute from now expires
+    let one_minute_from_now = NaiveDateTime::from(Utc::now().naive_utc() + Duration::minutes(1));
+    let order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set(orders::expires_at.eq(one_minute_from_now))
+        .get_result::<Order>(project.get_connection())
+        .unwrap();
+    let display_order = order.for_display(project.get_connection()).unwrap();
+    assert!(display_order.seconds_until_expiry <= 60 && display_order.seconds_until_expiry >= 59);
+
+    // 1 minute ago expires
+    let one_minute_from_now = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
+    let order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set(orders::expires_at.eq(one_minute_from_now))
+        .get_result::<Order>(project.get_connection())
+        .unwrap();
+    let display_order = order.for_display(project.get_connection()).unwrap();
+    assert_eq!(0, display_order.seconds_until_expiry);
+}
