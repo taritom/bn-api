@@ -1060,7 +1060,7 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "63553540-ff55-44fd-92bf-d4267a7e9ba3",
+								"id": "9f69f3a0-d8e6-439d-a830-1ed7453baa77",
 								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
@@ -1073,7 +1073,11 @@
 									"pm.test(\"tickets should be present\", function(){",
 									"    pm.expect(json[0].items[0].item_type).to.equal(\"Tickets\");",
 									"    pm.expect(json[0].items[0].unit_price_in_cents).to.equal(3000);",
-									"});"
+									"});",
+									"",
+									"",
+									"pm.environment.set(\"last_order_id\", json[0].id);",
+									""
 								]
 							}
 						}
@@ -1108,6 +1112,66 @@
 							],
 							"path": [
 								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - Order Details",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3a10ac6c-523b-43ac-b5d4-5bea60b5618b",
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"",
+									"pm.test(\"tickets should be present\", function(){",
+									"    pm.expect(json.items[0].item_type).to.equal(\"Tickets\");",
+									"    pm.expect(json.items[0].unit_price_in_cents).to.equal(3000);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/orders/{{last_order_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"orders",
+								"{{last_order_id}}"
 							]
 						}
 					},
