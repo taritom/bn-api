@@ -65,3 +65,7 @@ script:
 
   - newman run ../integration-tests/bigneon-tests.postman_collection.json -e ../integration-tests/travis.postman_environment.json
   - kill -s SIGTERM $SERVER_PID
+  # force in case it is already installed, make sure we have the latest
+  - cargo install cargo-audit --force
+  - cd ..
+  - cargo audit
