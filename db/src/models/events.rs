@@ -100,6 +100,9 @@ impl Event {
         }
     }
 
+    pub fn status(&self) -> EventStatus {
+        self.status.parse::<EventStatus>().unwrap()
+    }
     pub fn update(
         &self,
         attributes: EventEditableAttributes,
@@ -112,6 +115,21 @@ impl Event {
                 .set((attributes, events::updated_at.eq(dsl::now)))
                 .get_result(conn),
         )
+    }
+
+    pub fn publish(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+        if self.status() == EventStatus::Published {
+            return Event::find(self.id, conn);
+        }
+        diesel::update(&self)
+            .set((
+                events::status.eq(EventStatus::Published.to_string()),
+                events::publish_date.eq(dsl::now.nullable()),
+                events::updated_at.eq(dsl::now),
+            )).execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not publish record")?;
+
+        Event::find(self.id, conn)
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<Event, DatabaseError> {

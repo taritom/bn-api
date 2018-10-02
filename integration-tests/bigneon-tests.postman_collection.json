@@ -268,6 +268,60 @@
 					"response": []
 				},
 				{
+					"name": "Admin  - Publish Event",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "eb3a6777-ebf6-4bf1-b552-6781e6245890",
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									""
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/publish",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"publish"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Admin - search for events",
 					"event": [
 						{
@@ -976,7 +1030,10 @@
 						},
 						"method": "GET",
 						"header": [],
-						"body": {},
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/tickets",
 							"protocol": "http",

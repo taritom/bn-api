@@ -192,12 +192,25 @@ pub fn show(
             id: organization.id,
             name: organization.name,
         },
-        venue: venue,
+        venue,
         artists: display_event_artists,
         ticket_types: display_ticket_types,
-        total_interest: total_interest,
+        total_interest,
         user_is_interested: user_interest,
     }))
+}
+
+pub fn publish(
+    (connection, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let event = Event::find(path.id, connection.get())?;
+    user.requires_scope_for_organization(
+        Scopes::EventWrite,
+        event.organization_id,
+        connection.get(),
+    )?;
+    event.publish(connection.get())?;
+    Ok(HttpResponse::Ok().finish())
 }
 
 pub fn show_from_organizations(

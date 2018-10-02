@@ -62,6 +62,22 @@ impl User {
             "User does not have the required permissions".to_string(),
         ))
     }
+
+    pub fn requires_scope_for_organization(
+        &self,
+        scope: Scopes,
+        organization_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), BigNeonError> {
+        if self.has_scope(
+            scope,
+            Some(&Organization::find(organization_id, conn)?),
+            conn,
+        )? {
+            return Ok(());
+        }
+        Err(AuthError::new("User does not have the required permissions".to_string()).into())
+    }
 }
 
 impl FromRequest<AppState> for User {

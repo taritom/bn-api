@@ -81,7 +81,7 @@ impl<'a> EventBuilder<'a> {
             self.event_start
                 .or_else(|| Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))),
             Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10)),
-            Some(NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11)),
+            None,
         ).commit(self.connection)
         .unwrap();
 

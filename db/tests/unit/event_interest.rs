@@ -136,7 +136,7 @@ fn list_interested_users() {
         //Test2 - Partial out-of-bounds and switched "from" and "to" query of list of interested users for event, excluding primary user
         let n_primary_interests = desired_user_id_completelist.len();
         let request_from_index: usize = n_primary_interests + 5;
-        let request_to_index: usize = n_primary_interests - 5;
+        let request_to_index: usize = n_primary_interests;
         let result = EventInterest::list_interested_users(
             primary_event.id,
             primary_user.id,

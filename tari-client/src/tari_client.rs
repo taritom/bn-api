@@ -38,6 +38,7 @@ impl TariClient for HttpTariClient {
         let mut resp = client.post(&self.tari_url).json(&rpc_req).send()?;
 
         let raw: String = resp.text()?;
+        println!("Response from create asset:{}", &raw);
         let result: CreateAssetResponse = serde_json::from_str(&raw)?;
 
         Ok(result.result.id)

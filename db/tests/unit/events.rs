@@ -48,6 +48,28 @@ fn update() {
 }
 
 #[test]
+fn publish() {
+    //create event
+    let project = TestProject::new();
+    let venue = project.create_venue().finish();
+
+    let user = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+    let event = project
+        .create_event()
+        .with_status(EventStatus::Draft)
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
+    assert_eq!(event.status(), EventStatus::Draft);
+    let event = event.publish(project.get_connection()).unwrap();
+    assert_eq!(event.status(), EventStatus::Published);
+    assert!(event.publish_date.is_some());
+}
+
+#[test]
 fn cancel() {
     //create event
     let project = TestProject::new();
