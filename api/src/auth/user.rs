@@ -114,10 +114,10 @@ impl FromRequest<AppState> for User {
                                 Err(e) => Err(ConvertToWebError::create_http_error(&e)),
                             }
                         } else {
-                            return Err(error::ErrorUnauthorized("Invalid token"));
+                            Err(error::ErrorUnauthorized("Invalid token"))
                         }
                     }
-                    _ => return Err(error::ErrorUnauthorized("Invalid token")),
+                    _ => Err(error::ErrorUnauthorized("Invalid token")),
                 }
             }
             None => Err(error::ErrorUnauthorized("Missing auth token")),

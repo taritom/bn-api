@@ -18,11 +18,11 @@ impl Mailer {
         body: String,
     ) -> Mailer {
         Mailer {
-            config: config,
-            to: to,
-            from: from,
-            subject: subject,
-            body: body,
+            config,
+            to,
+            from,
+            subject,
+            body,
         }
     }
 

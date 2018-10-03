@@ -114,7 +114,7 @@ fn token_refresh_invalid_refresh_token_secret() {
     let refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
     let header: Header = Default::default();
     let refresh_token = Token::new(header, refresh_token_claims)
-        .signed("incorrect-secret".as_bytes(), Sha256::new())
+        .signed(b"incorrect-secret", Sha256::new())
         .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 

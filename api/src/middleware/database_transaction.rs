@@ -32,30 +32,27 @@ impl Middleware<AppState> for DatabaseTransaction {
         request: &HttpRequest<AppState>,
         response: HttpResponse,
     ) -> Result<Response> {
-        match request.extensions().get::<Connection>() {
-            Some(connection) => {
-                let connection_object = connection.get();
+        if let Some(connection) = request.extensions().get::<Connection>() {
+            let connection_object = connection.get();
 
-                let transaction_response = match response.error() {
-                    Some(_) => connection_object
-                        .transaction_manager()
-                        .rollback_transaction(connection_object),
-                    None => connection_object
-                        .transaction_manager()
-                        .commit_transaction(connection_object),
-                };
+            let transaction_response = match response.error() {
+                Some(_) => connection_object
+                    .transaction_manager()
+                    .rollback_transaction(connection_object),
+                None => connection_object
+                    .transaction_manager()
+                    .commit_transaction(connection_object),
+            };
 
-                match transaction_response {
-                    Ok(_) => (),
-                    Err(e) => {
-                        error!("Diesel Error: {}", e.description());
-                        let error: BigNeonError = e.into();
-                        return Ok(Response::Done(error.error_response()));
-                    }
+            match transaction_response {
+                Ok(_) => (),
+                Err(e) => {
+                    error!("Diesel Error: {}", e.description());
+                    let error: BigNeonError = e.into();
+                    return Ok(Response::Done(error.error_response()));
                 }
             }
-            None => (),
-        }
+        };
 
         Ok(Response::Done(response))
     }

@@ -80,7 +80,7 @@ pub fn create(
     }
 
     let fee_schedule = FeeSchedule::create(
-        format!("{} default fees", new_organization.name).into(),
+        format!("{} default fees", new_organization.name),
         vec![NewFeeScheduleRange {
             min_price: 0,
             fee_in_cents: 0,
@@ -88,7 +88,7 @@ pub fn create(
     ).commit(connection)?;
 
     let new_organization_with_fee_schedule = NewOrganization {
-        owner_user_id: new_organization.owner_user_id.clone(),
+        owner_user_id: new_organization.owner_user_id,
         name: new_organization.name.clone(),
         fee_schedule_id: fee_schedule.id,
         address: new_organization.address.clone(),

@@ -78,12 +78,12 @@ pub fn create(
         connection,
     )?;
     //Add each ticket pricing entry for newly created ticket type
-    for curr_pricing_entry in &data.ticket_pricing {
+    for current_pricing_entry in &data.ticket_pricing {
         let _pricing_result = ticket_type.add_ticket_pricing(
-            curr_pricing_entry.name.clone(),
-            curr_pricing_entry.start_date,
-            curr_pricing_entry.end_date,
-            curr_pricing_entry.price_in_cents,
+            current_pricing_entry.name.clone(),
+            current_pricing_entry.start_date,
+            current_pricing_entry.end_date,
+            current_pricing_entry.price_in_cents,
             connection,
         )?;
     }
@@ -155,69 +155,67 @@ pub fn update(
     //Update the editable attributes of the ticket type
     let update_parameters = TicketTypeEditableAttributes {
         name: data.name.clone(),
-        start_date: data.start_date.clone(),
-        end_date: data.end_date.clone(),
+        start_date: data.start_date,
+        end_date: data.end_date,
     };
     let ticket_type = TicketType::find(path.ticket_type_id, connection)?;
     let updated_ticket_type = ticket_type.update(update_parameters, connection)?;
 
     if data.ticket_pricing.is_some() {
-        let data_ticket_pricings = data.into_inner().ticket_pricing.unwrap();
-        //Retrieve the current list of pricings associated with this ticket_type and remove unwanted pricings
-        let ticket_pricings = updated_ticket_type.ticket_pricing(connection)?;
-        for curr_ticket_pricing in &ticket_pricings {
+        let data_ticket_pricing = data.into_inner().ticket_pricing.unwrap();
+        //Retrieve the current list of pricing associated with this ticket_type and remove unwanted pricing
+        let ticket_pricing = updated_ticket_type.ticket_pricing(connection)?;
+        for current_ticket_pricing in &ticket_pricing {
             let mut found_flag = false;
-            for request_ticket_pricing in &data_ticket_pricings {
-                if request_ticket_pricing.id.is_some() {
-                    if curr_ticket_pricing.id == request_ticket_pricing.id.unwrap() {
-                        found_flag = true;
-                        break;
-                    }
+            for request_ticket_pricing in &data_ticket_pricing {
+                if request_ticket_pricing.id.is_some()
+                    && current_ticket_pricing.id == request_ticket_pricing.id.unwrap()
+                {
+                    found_flag = true;
+                    break;
                 }
             }
             if !found_flag {
-                curr_ticket_pricing.destroy(connection)?;
+                current_ticket_pricing.destroy(connection)?;
             }
         }
 
-        //Update the editable attributes for remaining ticket pricings
-        for curr_ticket_pricing in &data_ticket_pricings {
-            if curr_ticket_pricing.id.is_some() {
+        //Update the editable attributes for remaining ticket pricing
+        for current_ticket_pricing in &data_ticket_pricing {
+            if current_ticket_pricing.id.is_some() {
                 //Update the ticket pricing
                 let update_parameters = TicketPricingEditableAttributes {
-                    name: curr_ticket_pricing.name.clone(),
-                    price_in_cents: curr_ticket_pricing.price_in_cents,
-                    start_date: curr_ticket_pricing.start_date,
-                    end_date: curr_ticket_pricing.end_date,
+                    name: current_ticket_pricing.name.clone(),
+                    price_in_cents: current_ticket_pricing.price_in_cents,
+                    start_date: current_ticket_pricing.start_date,
+                    end_date: current_ticket_pricing.end_date,
                 };
-                let curr_ticket_pricing_id = curr_ticket_pricing.id.unwrap();
-                let found_index = ticket_pricings
+                let current_ticket_pricing_id = current_ticket_pricing.id.unwrap();
+                let found_index = ticket_pricing
                     .iter()
-                    .position(|ref r| r.id == curr_ticket_pricing_id);
+                    .position(|ref r| r.id == current_ticket_pricing_id);
                 if found_index.is_some() {
-                    ticket_pricings[found_index.unwrap()].update(update_parameters, connection)?;
+                    ticket_pricing[found_index.unwrap()].update(update_parameters, connection)?;
                 }
-            } else {
+            } else if current_ticket_pricing.name.is_some()
+                && current_ticket_pricing.price_in_cents.is_some()
+                && current_ticket_pricing.start_date.is_some()
+                && current_ticket_pricing.end_date.is_some()
+            {
                 //Only create a new pricing entry if all of its required data was provided
-                if curr_ticket_pricing.name.is_some()
-                    && curr_ticket_pricing.price_in_cents.is_some()
-                    && curr_ticket_pricing.start_date.is_some()
-                    && curr_ticket_pricing.end_date.is_some()
-                {
-                    let curr_ticket_pricing_name = curr_ticket_pricing.name.clone().unwrap();
+                let current_ticket_pricing_name = current_ticket_pricing.name.clone().unwrap();
 
-                    //Add new ticket pricing
-                    let _pricing_result = updated_ticket_type.add_ticket_pricing(
-                        curr_ticket_pricing_name,
-                        curr_ticket_pricing.start_date.unwrap(),
-                        curr_ticket_pricing.end_date.unwrap(),
-                        curr_ticket_pricing.price_in_cents.unwrap(),
-                        connection,
-                    )?;
-                } else {
-                    //TODO send error when all data was not specified
+                //Add new ticket pricing
+                let _pricing_result = updated_ticket_type.add_ticket_pricing(
+                    current_ticket_pricing_name,
+                    current_ticket_pricing.start_date.unwrap(),
+                    current_ticket_pricing.end_date.unwrap(),
+                    current_ticket_pricing.price_in_cents.unwrap(),
+                    connection,
+                )?;
+            } else {
+                //TODO send error when all data was not specified
 
-                }
             }
         }
     }

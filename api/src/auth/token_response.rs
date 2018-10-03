@@ -35,36 +35,36 @@ impl TokenResponse {
         }
     }
 
-    pub fn create_from_user(token_secret: &String, token_issuer: &String, user: &User) -> Self {
-        let access_token_claims = AccessToken::new(&user.id, token_issuer.clone());
+    pub fn create_from_user(token_secret: &str, token_issuer: &str, user: &User) -> Self {
+        let access_token_claims = AccessToken::new(&user.id, token_issuer.to_string());
         let access_token = Token::new(Default::default(), access_token_claims);
 
-        let refresh_token_claims = RefreshToken::new(&user.id, token_issuer.clone());
+        let refresh_token_claims = RefreshToken::new(&user.id, token_issuer.to_string());
         let refresh_token = Token::new(Default::default(), refresh_token_claims);
 
         TokenResponse {
-            access_token: sign_token(&token_secret, &access_token),
-            refresh_token: sign_token(&token_secret, &refresh_token),
+            access_token: sign_token(token_secret, &access_token),
+            refresh_token: sign_token(token_secret, &refresh_token),
         }
     }
 
     pub fn create_from_refresh_token(
-        token_secret: &String,
-        token_issuer: &String,
+        token_secret: &str,
+        token_issuer: &str,
         user_id: &Uuid,
         signed_refresh_token: &str,
     ) -> Self {
-        let access_token_claims = AccessToken::new(&user_id, token_issuer.clone());
+        let access_token_claims = AccessToken::new(&user_id, token_issuer.to_string());
         let access_token = Token::new(Default::default(), access_token_claims);
 
         TokenResponse {
-            access_token: sign_token(&token_secret, &access_token),
+            access_token: sign_token(token_secret, &access_token),
             refresh_token: String::from(signed_refresh_token),
         }
     }
 }
 
-fn sign_token<T: Component>(token_secret: &String, token: &Token<Header, T>) -> String {
+fn sign_token<T: Component>(token_secret: &str, token: &Token<Header, T>) -> String {
     token
         .signed(token_secret.as_bytes(), Sha256::new())
         .unwrap()

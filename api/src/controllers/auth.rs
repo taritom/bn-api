@@ -11,8 +11,7 @@ use serde_json;
 use server::AppState;
 use std::collections::HashMap;
 
-const GOOGLE_RECAPTCHA_SITE_VERIFY_URL: &'static str =
-    "https://www.google.com/recaptcha/api/siteverify";
+const GOOGLE_RECAPTCHA_SITE_VERIFY_URL: &str = "https://www.google.com/recaptcha/api/siteverify";
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
@@ -63,13 +62,13 @@ pub fn token(
     let connection_info = http_request.connection_info();
     let remote_ip = connection_info.remote();
 
-    if let Some(ref google_recapatcha_secret_key) = state.config.google_recapatcha_secret_key {
+    if let Some(ref google_recaptcha_secret_key) = state.config.google_recaptcha_secret_key {
         match login_request.captcha_response {
             Some(ref captcha_response) => {
                 if !verify_google_captcha_response(
-                    google_recapatcha_secret_key,
+                    google_recaptcha_secret_key,
                     captcha_response,
-                    remote_ip.map(str::to_string),
+                    remote_ip,
                 )? {
                     return application::unauthorized_with_message("Captcha value invalid");
                 }
@@ -126,17 +125,17 @@ pub fn token_refresh(
 }
 
 fn verify_google_captcha_response(
-    google_recapatcha_secret_key: &String,
-    captcha_response: &String,
-    remote_ip: Option<String>,
+    google_recaptcha_secret_key: &str,
+    captcha_response: &str,
+    remote_ip: Option<&str>,
 ) -> Result<bool, BigNeonError> {
     let client = reqwest::Client::new();
     let mut params = HashMap::new();
-    params.insert("secret", google_recapatcha_secret_key);
+    params.insert("secret", google_recaptcha_secret_key);
     params.insert("response", captcha_response);
 
-    if let Some(ref remote_ip) = remote_ip {
-        params.insert("remoteip", remote_ip);
+    if let Some(val) = remote_ip {
+        params.insert("remoteip", val);
     }
 
     let response = client

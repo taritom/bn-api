@@ -48,7 +48,7 @@ pub fn index(
     let connection = connection.get();
     let parameters = parameters.into_inner();
 
-    let user = auth_user.map_or(None, |auth_user| Some(auth_user.user));
+    let user = auth_user.and_then(|auth_user| Some(auth_user.user));
     let events = Event::search(
         parameters.query,
         parameters.region_id,
@@ -231,14 +231,13 @@ pub fn create(
     (connection, new_event, user): (Connection, Json<NewEvent>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    if !user.has_scope(Scopes::EventWrite, None, connection)? {
-        if !user.has_scope(
-            Scopes::EventWrite,
-            Some(&Organization::find(new_event.organization_id, connection)?),
-            connection,
-        )? {
-            return application::unauthorized();
-        }
+
+    if !user.has_scope(Scopes::EventWrite, None, connection)? && !user.has_scope(
+        Scopes::EventWrite,
+        Some(&Organization::find(new_event.organization_id, connection)?),
+        connection,
+    )? {
+        return application::unauthorized();
     }
 
     match new_event.validate() {

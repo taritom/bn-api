@@ -28,14 +28,13 @@ pub fn add(
     let connection = connection.get();
     // Find the current cart of the user, if it exists.
     let current_cart = Order::find_cart_for_user(user.id(), connection).optional()?;
-    let cart: Order;
 
     // Create it if there isn't one
-    if current_cart.is_none() {
-        cart = Order::create(user.id(), OrderTypes::Cart).commit(connection)?;
+    let cart = if current_cart.is_none() {
+        Order::create(user.id(), OrderTypes::Cart).commit(connection)?
     } else {
-        cart = current_cart.unwrap();
-    }
+        current_cart.unwrap()
+    };
 
     // Add the item
     cart.add_tickets(json.ticket_type_id, json.quantity, connection)?;
@@ -100,14 +99,14 @@ pub fn checkout(
     let mut order = Order::find_cart_for_user(user.id(), connection.get())?;
     match &req.method {
         PaymentRequest::External { reference } => {
-            checkout_external(connection, &mut order, reference, &req, user)
+            checkout_external(&connection, &mut order, reference, &req, &user)
         }
         PaymentRequest::Stripe { token } => checkout_stripe(
-            connection,
+            &connection,
             &mut order,
             &token,
             &req,
-            user,
+            &user,
             &state.config.primary_currency,
             &state.config.stripe_secret_key,
         ),
@@ -117,11 +116,11 @@ pub fn checkout(
 // TODO: This should actually probably move to an `orders` controller, since the
 // user will not be calling this.
 fn checkout_external(
-    conn: Connection,
+    conn: &Connection,
     order: &mut Order,
-    reference: &String,
+    reference: &str,
     checkout_request: &CheckoutCartRequest,
-    user: User,
+    user: &User,
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     if !user.has_scope(Scopes::OrderMakeExternalPayment, None, connection)? {
@@ -145,11 +144,11 @@ fn checkout_external(
 }
 
 fn checkout_stripe(
-    conn: Connection,
+    conn: &Connection,
     order: &mut Order,
     token: &str,
     req: &CheckoutCartRequest,
-    user: User,
+    user: &User,
     currency: &str,
     stripe_api_key: &str,
 ) -> Result<HttpResponse, BigNeonError> {
@@ -198,7 +197,7 @@ fn checkout_stripe(
         Ok(_) => Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id}))),
         Err(e) => {
             client.refund(&auth_result.id)?;
-            return Err(e.into());
+            Err(e.into())
         }
     }
 }

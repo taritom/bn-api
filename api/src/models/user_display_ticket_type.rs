@@ -28,7 +28,7 @@ impl UserDisplayTicketType {
         let ticket_pricing: Option<DisplayTicketPricing> = ticket_type
             .current_ticket_pricing(conn)
             .optional()?
-            .map_or(None, |ticket_pricing| Some(ticket_pricing.into()));
+            .and_then(|ticket_pricing| Some(ticket_pricing.into()));
 
         if ticket_type_status == TicketTypeStatus::Published {
             if quantity == 0 {

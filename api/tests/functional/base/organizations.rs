@@ -126,8 +126,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
     let auth_user = support::create_auth_user(role, &database);
 
-    let fee_schedule = FeeSchedule::create(
-        format!("Zero fees",).into(),
+    FeeSchedule::create(
+        "Zero fees".to_string(),
         vec![NewFeeScheduleRange {
             min_price: 0,
             fee_in_cents: 0,
@@ -137,7 +137,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
     let json = Json(NewOrganizationRequest {
         owner_user_id: user.id,
-        name: name.clone().to_string(),
+        name: name.to_string(),
         address: None,
         city: None,
         state: None,
@@ -176,7 +176,7 @@ pub fn update(role: Roles, should_succeed: bool, same_organization: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let json = Json(OrganizationEditableAttributes {
-        name: Some(new_name.clone().to_string()),
+        name: Some(new_name.to_string()),
         address: Some("address".to_string()),
         city: Some("city".to_string()),
         state: Some("state".to_string()),
@@ -270,7 +270,7 @@ pub fn add_venue(role: Roles, should_test_succeed: bool, same_organization: bool
     let test_request = TestRequest::create();
     let name = "Venue";
     let json = Json(NewVenue {
-        name: name.clone().to_string(),
+        name: name.to_string(),
         ..Default::default()
     });
 
@@ -397,7 +397,7 @@ pub fn list_organization_members(role: Roles, should_succeed: bool, same_organiz
         } else {
             DisplayUser::from(organization.owner(&database.connection).unwrap())
         },
-        organization_members: organization_members,
+        organization_members,
     };
 
     let expected_json = serde_json::to_string(&expected_data).unwrap();

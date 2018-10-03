@@ -17,11 +17,11 @@ pub trait ConvertToWebError: Debug + Error + ToString {
 
     fn to_response(&self) -> HttpResponse {
         let err = self.create_http_error();
-        let mesg = err.as_response_error().to_string();
+        let message = err.as_response_error().to_string();
         let resp = HttpResponse::from(err);
         HttpResponse::new(resp.status())
             .into_builder()
-            .json(json!({ "error": mesg }))
+            .json(json!({ "error": message }))
     }
 }
 

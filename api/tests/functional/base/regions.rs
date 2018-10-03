@@ -13,7 +13,7 @@ pub fn create(role: Roles, should_succeed: bool) {
 
     let user = support::create_auth_user(role, &database);
     let json = Json(NewRegion {
-        name: name.clone().to_string(),
+        name: name.to_string(),
     });
 
     let response: HttpResponse = regions::create((database.connection.into(), json, user)).into();

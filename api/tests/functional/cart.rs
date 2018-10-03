@@ -1,8 +1,6 @@
-use actix_web::FromRequest;
-use actix_web::{http::StatusCode, HttpResponse, Json, Path};
+use actix_web::{http::StatusCode, HttpResponse, Json};
 use bigneon_api::controllers::cart;
 use bigneon_api::controllers::cart::PaymentRequest;
-use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use support;
 use support::database::TestDatabase;
@@ -23,7 +21,7 @@ fn add() {
     let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
 
     let input = Json(cart::AddToCartRequest {
-        ticket_type_id: ticket_type_id,
+        ticket_type_id,
         quantity: 2,
     });
 
@@ -66,7 +64,7 @@ fn add_with_existing_cart() {
         .unwrap();
 
     let input = Json(cart::AddToCartRequest {
-        ticket_type_id: ticket_type_id,
+        ticket_type_id,
         quantity: 2,
     });
 
@@ -261,7 +259,7 @@ fn checkout_external() {
 
     let user = database.create_user().finish();
 
-    let order = database
+    let _order = database
         .create_cart()
         .for_user(&user)
         .for_event(&event)

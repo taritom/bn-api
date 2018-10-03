@@ -41,8 +41,8 @@ pub fn create(role: Roles, should_succeed: bool) {
 
     let user = support::create_auth_user(role, &database);
     let json = Json(NewVenue {
-        name: name.clone().to_string(),
-        region_id: Some(region.id.clone()),
+        name: name.to_string(),
+        region_id: Some(region.id),
         ..Default::default()
     });
 
@@ -71,8 +71,8 @@ pub fn create_with_organization(role: Roles, should_succeed: bool, same_organiza
 
     let name = "Venue Example";
     let json = Json(NewVenue {
-        name: name.clone().to_string(),
-        organization_id: Some(organization.id.clone()),
+        name: name.to_string(),
+        organization_id: Some(organization.id),
         ..Default::default()
     });
 
@@ -211,11 +211,11 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let mut user = None;
-
-    if role.is_some() {
-        user = Some(support::create_auth_user(role.unwrap(), &database));
-    }
+    let user = if role.is_some() {
+        Some(support::create_auth_user(role.unwrap(), &database))
+    } else {
+        None
+    };
 
     let response: HttpResponse =
         venues::show_from_organizations((database.connection.into(), path, user)).into();

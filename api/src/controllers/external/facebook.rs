@@ -8,8 +8,8 @@ use reqwest::{self, header::*};
 use serde_json;
 use server::AppState;
 
-const FACEBOOK_GRAPH_URL: &'static str = "https://graph.facebook.com";
-const SITE: &'static str = "facebook.com";
+const FACEBOOK_GRAPH_URL: &str = "https://graph.facebook.com";
+const SITE: &str = "facebook.com";
 
 #[derive(Deserialize)]
 struct FacebookGraphResponse {

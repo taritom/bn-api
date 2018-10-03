@@ -45,7 +45,7 @@ impl Server {
                 })
             }
         }).bind(&bind_addr)
-        .expect(&format!("Can not bind to {}", bind_addr))
+        .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
         .run();
     }
 }

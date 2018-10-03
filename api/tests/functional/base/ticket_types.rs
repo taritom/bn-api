@@ -90,7 +90,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let created_ticket_capacity = created_ticket_type
         .ticket_capacity(&database.connection)
         .unwrap();
-    let created_ticket_pricings = created_ticket_type
+    let created_ticket_pricing = created_ticket_type
         .ticket_pricing(&database.connection)
         .unwrap();
 
@@ -100,20 +100,20 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
 
-    let mut request_ticket_pricings: Vec<UpdateTicketPricingRequest> = Vec::new();
+    let mut request_ticket_pricing: Vec<UpdateTicketPricingRequest> = Vec::new();
     let start_date = Some(NaiveDate::from_ymd(2018, 5, 1).and_hms(6, 20, 21));
     let middle_date = Some(NaiveDate::from_ymd(2018, 6, 2).and_hms(7, 45, 31));
     let end_date = Some(NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23));
     let new_pricing_name = String::from("Online");
     //Remove 1st pricing, modify 2nd pricing and add new additional pricing
-    request_ticket_pricings.push(UpdateTicketPricingRequest {
-        id: Some(created_ticket_pricings[1].id),
+    request_ticket_pricing.push(UpdateTicketPricingRequest {
+        id: Some(created_ticket_pricing[1].id),
         name: Some(String::from("Base")),
         start_date: middle_date,
         end_date,
         price_in_cents: Some(20000),
     });
-    request_ticket_pricings.push(UpdateTicketPricingRequest {
+    request_ticket_pricing.push(UpdateTicketPricingRequest {
         id: None,
         name: Some(new_pricing_name.clone()),
         start_date,
@@ -125,7 +125,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         capacity: Some(created_ticket_capacity),
         start_date,
         end_date,
-        ticket_pricing: Some(request_ticket_pricings),
+        ticket_pricing: Some(request_ticket_pricing),
     };
     let request_json = serde_json::to_string(&request_data).unwrap();
 
@@ -142,23 +142,25 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let updated_ticket_capacity = updated_ticket_type
         .ticket_capacity(&database.connection)
         .unwrap();
-    let updated_ticket_pricings = updated_ticket_type
+    let updated_ticket_pricing = updated_ticket_type
         .ticket_pricing(&database.connection)
         .unwrap();
-    let mut updated_ticket_pricing: Vec<UpdateTicketPricingRequest> = Vec::new();
-    updated_ticket_pricing.reserve(updated_ticket_pricings.len());
-    for curr_ticket_pricing in &updated_ticket_pricings {
+    let mut new_ticket_pricing: Vec<UpdateTicketPricingRequest> = Vec::new();
+    new_ticket_pricing.reserve(updated_ticket_pricing.len());
+    for current_ticket_pricing in &updated_ticket_pricing {
         //Replace the id of the new additional pricing with None so we can compare it with the request json
-        let mut option_pricing_id = Some(curr_ticket_pricing.id);
-        if curr_ticket_pricing.name == new_pricing_name {
-            option_pricing_id = None;
-        }
-        updated_ticket_pricing.push(UpdateTicketPricingRequest {
+        let option_pricing_id = if current_ticket_pricing.name == new_pricing_name {
+            None
+        } else {
+            Some(current_ticket_pricing.id)
+        };
+
+        new_ticket_pricing.push(UpdateTicketPricingRequest {
             id: option_pricing_id,
-            name: Some(curr_ticket_pricing.name.clone()),
-            start_date: Some(curr_ticket_pricing.start_date),
-            end_date: Some(curr_ticket_pricing.end_date),
-            price_in_cents: Some(curr_ticket_pricing.price_in_cents),
+            name: Some(current_ticket_pricing.name.clone()),
+            start_date: Some(current_ticket_pricing.start_date),
+            end_date: Some(current_ticket_pricing.end_date),
+            price_in_cents: Some(current_ticket_pricing.price_in_cents),
         });
     }
     let updated_data = UpdateTicketTypeRequest {
@@ -166,7 +168,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         capacity: Some(updated_ticket_capacity),
         start_date: Some(updated_ticket_type.start_date),
         end_date: Some(updated_ticket_type.end_date),
-        ticket_pricing: Some(updated_ticket_pricing),
+        ticket_pricing: Some(new_ticket_pricing),
     };
     let updated_json = serde_json::to_string(&updated_data).unwrap();
 

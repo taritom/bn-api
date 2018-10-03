@@ -15,10 +15,12 @@ impl TestDatabase {
     pub fn new() -> TestDatabase {
         let config = Config::new(Environment::Test);
 
-        let connection = PgConnection::establish(&config.database_url).expect(&format!(
-            "Connection to {} could not be established.",
-            config.database_url
-        ));
+        let connection = PgConnection::establish(&config.database_url).unwrap_or_else(|_| {
+            panic!(
+                "Connection to {} could not be established.",
+                config.database_url
+            )
+        });
 
         connection.begin_test_transaction().unwrap();
 

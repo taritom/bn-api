@@ -33,9 +33,9 @@ impl Transport for SmtpTransport {
 impl SmtpTransport {
     pub fn new(domain: &str, host: &str, port: u16) -> Self {
         SmtpTransport {
-            domain: domain.clone().to_string(),
-            host: host.clone().to_string(),
-            port: port.clone(),
+            domain: domain.to_string(),
+            host: host.to_string(),
+            port,
         }
     }
 

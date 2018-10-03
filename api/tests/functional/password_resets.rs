@@ -36,7 +36,7 @@ fn create() {
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(CreatePasswordResetParameters {
-        email: email.clone().to_string(),
+        email: email.to_string(),
     });
     let response: HttpResponse = password_resets::create((state, connection_object, json)).into();
 
@@ -78,7 +78,7 @@ fn create_fake_email() {
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(CreatePasswordResetParameters {
-        email: email.clone().to_string(),
+        email: email.to_string(),
     });
     let response: HttpResponse =
         password_resets::create((state, database.connection.into(), json)).into();
@@ -110,7 +110,7 @@ fn update() {
     let state = test_request.extract_state();
     let token_secret = state.config.token_secret.clone();
     let json = Json(UpdatePasswordResetParameters {
-        password_reset_token: user.password_reset_token.unwrap().clone(),
+        password_reset_token: user.password_reset_token.unwrap(),
         password: new_password.to_string(),
     });
     let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
@@ -144,7 +144,7 @@ fn update_expired_token() {
     let token = Uuid::new_v4();
     let user: User = diesel::update(users.filter(id.eq(user.id)))
         .set(PasswordReset {
-            password_reset_token: Some(token.clone()),
+            password_reset_token: Some(token),
             password_reset_requested_at: Some(Utc::now().naive_utc() - Duration::days(3)),
         }).get_result(&*database.connection)
         .unwrap();
@@ -154,7 +154,7 @@ fn update_expired_token() {
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(UpdatePasswordResetParameters {
-        password_reset_token: token.clone(),
+        password_reset_token: token,
         password: new_password.to_string(),
     });
     let response: HttpResponse = password_resets::update((state, connection_object, json)).into();

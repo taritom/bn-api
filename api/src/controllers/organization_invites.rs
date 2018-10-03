@@ -98,7 +98,7 @@ pub fn create(
         inviter_id: auth_user.id(),
         user_email: email.clone(),
         security_token: None,
-        user_id: user_id,
+        user_id,
     };
 
     let invite = invite.commit(connection)?;
@@ -152,5 +152,5 @@ pub fn decline_request(
         OrganizationInvite::get_invite_details(&query_struct.security_token, connection)?;
 
     invite_details.change_invite_status(0, connection)?;
-    return Ok(HttpResponse::Ok().json(json!({})));
+    Ok(HttpResponse::Ok().json(json!({})))
 }

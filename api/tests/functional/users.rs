@@ -248,7 +248,7 @@ fn current_user_organization_owner() {
     assert_eq!(vec!["event:interest", "order:read"], current_user.scopes);
     let mut expected_results = HashMap::new();
     expected_results.insert(
-        organization.id.clone(),
+        organization.id,
         vec![
             "artist:write",
             "event:interest",
@@ -267,7 +267,7 @@ fn current_user_organization_owner() {
 
     let mut expected_roles = HashMap::new();
     expected_roles.insert(
-        organization.id.clone(),
+        organization.id,
         vec!["OrgOwner".to_string(), "OrgMember".to_string()],
     );
     assert_eq!(expected_roles, current_user.organization_roles);
@@ -293,7 +293,7 @@ fn current_user_organization_member() {
     assert_eq!(vec!["event:interest", "order:read"], current_user.scopes);
     let mut expected_scopes = HashMap::new();
     expected_scopes.insert(
-        organization.id.clone(),
+        organization.id,
         vec![
             "artist:write",
             "event:interest",
@@ -309,7 +309,7 @@ fn current_user_organization_member() {
     assert_eq!(expected_scopes, current_user.organization_scopes);
 
     let mut expected_roles = HashMap::new();
-    expected_roles.insert(organization.id.clone(), vec!["OrgMember".to_string()]);
+    expected_roles.insert(organization.id, vec!["OrgMember".to_string()]);
     assert_eq!(expected_roles, current_user.organization_roles);
 }
 
@@ -319,7 +319,7 @@ pub fn update_current_user() {
     let user = support::create_auth_user(Roles::User, &database);
     let email = "new-email@tari.com";
     let mut attributes: UserProfileAttributes = Default::default();
-    attributes.email = Some(email.clone().into());
+    attributes.email = Some(email.to_string());
     let json = Json(attributes);
 
     let response: HttpResponse =

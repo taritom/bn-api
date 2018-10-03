@@ -69,24 +69,6 @@ pub fn index_with_draft_for_organization_user() {
         .with_venue(&venue)
         .finish();
 
-    #[derive(Serialize)]
-    struct EventVenueEntry {
-        id: Uuid,
-        name: String,
-        organization_id: Uuid,
-        venue_id: Option<Uuid>,
-        created_at: NaiveDateTime,
-        event_start: Option<NaiveDateTime>,
-        door_time: Option<NaiveDateTime>,
-        status: String,
-        publish_date: Option<NaiveDateTime>,
-        promo_image_url: Option<String>,
-        additional_info: Option<String>,
-        age_limit: Option<i32>,
-        cancelled_at: Option<NaiveDateTime>,
-        venue: Option<Venue>,
-    }
-
     let expected_results = vec![
         event_venue_entry(&event, &venue),
         event_venue_entry(&event2, &venue),
@@ -619,7 +601,7 @@ fn expected_show_json(
             id: organization.id,
             name: organization.name,
         },
-        venue: venue,
+        venue,
         artists: display_event_artists,
         ticket_types: display_ticket_types,
         total_interest: 1,

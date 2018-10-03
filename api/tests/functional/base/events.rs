@@ -23,7 +23,7 @@ pub fn create(role: Roles, should_test_succeed: bool, same_organization: bool) {
 
     let name = "event Example";
     let new_event = NewEvent {
-        name: name.clone().to_string(),
+        name: name.to_string(),
         organization_id: organization.id,
         venue_id: Some(venue.id),
         event_start: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
@@ -66,7 +66,7 @@ pub fn update(role: Roles, should_test_succeed: bool, same_organization: bool) {
     let test_request = TestRequest::create();
 
     let json = Json(EventEditableAttributes {
-        name: Some(new_name.clone().to_string()),
+        name: Some(new_name.to_string()),
         ..Default::default()
     });
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -166,17 +166,17 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     let mut secondary_users: Vec<DisplayEventInterestedUser> = Vec::new();
     secondary_users.reserve(n_secondary_users);
     for _u_id in 0..n_secondary_users {
-        let curr_secondary_user = database.create_user().finish();
-        EventInterest::create(event.id, curr_secondary_user.id)
+        let current_secondary_user = database.create_user().finish();
+        EventInterest::create(event.id, current_secondary_user.id)
             .commit(&database.connection)
             .unwrap();
-        let curr_user_entry = DisplayEventInterestedUser {
-            user_id: curr_secondary_user.id,
-            first_name: curr_secondary_user.first_name.clone(),
-            last_name: curr_secondary_user.last_name.clone(),
+        let current_user_entry = DisplayEventInterestedUser {
+            user_id: current_secondary_user.id,
+            first_name: current_secondary_user.first_name.clone(),
+            last_name: current_secondary_user.last_name.clone(),
             thumb_profile_pic_url: None,
         };
-        secondary_users.push(curr_user_entry);
+        secondary_users.push(current_user_entry);
     }
     secondary_users.sort_by_key(|x| x.user_id); //Sort results for testing purposes
                                                 //Construct api query
