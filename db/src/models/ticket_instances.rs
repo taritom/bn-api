@@ -16,13 +16,13 @@ use uuid::Uuid;
 #[table_name = "ticket_instances"]
 pub struct TicketInstance {
     pub id: Uuid,
-    asset_id: Uuid,
-    token_id: i32,
+    pub asset_id: Uuid,
+    pub token_id: i32,
     ticket_holding_id: Option<Uuid>,
     pub order_item_id: Option<Uuid>,
+    wallet_id: Option<Uuid>,
     pub reserved_until: Option<NaiveDateTime>,
     pub status: String,
-    wallet_id: Option<Uuid>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -181,6 +181,16 @@ impl TicketInstance {
         }
 
         Ok(ids)
+    }
+
+    pub fn find_for_order_item(
+        order_item_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        ticket_instances::table
+            .filter(ticket_instances::order_item_id.eq(order_item_id))
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load Ticket Instances")
     }
 
     pub fn update_reserved_time(

@@ -41,6 +41,13 @@ impl Asset {
             .to_db_error(ErrorCode::QueryError, "Error loading asset")
     }
 
+    pub fn find(id: &Uuid, conn: &PgConnection) -> Result<Asset, DatabaseError> {
+        assets::table
+            .find(id)
+            .first::<Asset>(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading asset")
+    }
+
     pub fn update_blockchain_id(
         &self,
         id: String,

@@ -8,7 +8,9 @@ use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
 use server::AppState;
+use std::collections::HashMap;
 use stripe::StripeClient;
+//use tari_client::tari_messages::AssetInfoResult;
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -96,9 +98,33 @@ pub fn checkout(
     (connection, json, user, state): (Connection, Json<CheckoutCartRequest>, User, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let req = json.into_inner();
+
     let mut order = Order::find_cart_for_user(user.id(), connection.get())?;
 
-    match &req.method {
+    let order_items = order.items(connection.get())?;
+
+    //Assemble token ids for each asset in the order
+    let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
+    for oi in &order_items {
+        let tickets = TicketInstance::find_for_order_item(oi.id, connection.get())?;
+        for ticket in &tickets {
+            tokens_per_asset
+                .entry(ticket.asset_id)
+                .or_insert(vec![ticket.token_id as u64])
+                .push(ticket.token_id as u64);
+        }
+    }
+    //Just confirming that the asset is setup correctly before proceeding to payment.
+    for (asset_id, _token_ids) in tokens_per_asset.iter() {
+        let asset = Asset::find(asset_id, connection.get())?;
+        if asset.blockchain_asset_id.is_none() {
+            return application::internal_server_error(
+                "Could not complete this checkout because the asset has not been assigned on the blockchain",
+            );
+        }
+    }
+
+    let payment_response = match &req.method {
         PaymentRequest::External { reference } => {
             checkout_external(&connection, &mut order, reference, &req, &user)
         }
@@ -111,7 +137,23 @@ pub fn checkout(
             &state.config.primary_currency,
             &state.config.stripe_secret_key,
         ),
+    };
+
+    for (asset_id, token_ids) in tokens_per_asset.iter() {
+        let asset = Asset::find(asset_id, connection.get())?;
+        match asset.blockchain_asset_id {
+            Some(a) => state.config.tari_client.transfer_tokens(
+                &a,
+                token_ids.clone(),
+                user.id().hyphenated().to_string(),
+            )?,
+            None => return application::internal_server_error(
+                "Could not complete this checkout because the asset has not been assigned on the blockchain",
+            ),
+        }
     }
+
+    payment_response
 }
 
 // TODO: This should actually probably move to an `orders` controller, since the

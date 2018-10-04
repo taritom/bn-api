@@ -94,7 +94,7 @@ impl<'a> EventBuilder<'a> {
             let event_start = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
             let event_end = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(4));
 
-            event
+            let ticket_type = event
                 .add_ticket_type(
                     "General Admission".to_string(),
                     100,
@@ -121,6 +121,13 @@ impl<'a> EventBuilder<'a> {
                     ).unwrap();
                 }
             }
+
+            let asset = Asset::find_by_ticket_type(&ticket_type.id, self.connection).unwrap();
+            let _ = asset
+                .update_blockchain_id(
+                    format!("{}.{}", event.name, ticket_type.name).to_string(),
+                    self.connection,
+                ).unwrap();
         }
 
         event

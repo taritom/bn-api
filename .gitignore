@@ -12,6 +12,7 @@ log/
 .vs/
 *.userprefs
 .vscode/
+*.code-workspace
 
 # Ignore OS files
 .DS_Store

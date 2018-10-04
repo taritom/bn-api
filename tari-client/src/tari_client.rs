@@ -6,6 +6,15 @@ use serde_json;
 
 pub trait TariClient {
     fn create_asset(&self, asset: NewAsset) -> Result<String, TariError>;
+    fn transfer_tokens(
+        &self,
+        asset_id: &String,
+        token_ids: Vec<u64>,
+        new_owner: String,
+    ) -> Result<(), TariError>;
+
+    fn get_asset_info(&self, asset_id: &String) -> Result<AssetInfoResult, TariError>;
+
     fn box_clone(&self) -> Box<TariClient + Send + Sync>;
 }
 
@@ -38,29 +47,82 @@ impl TariClient for HttpTariClient {
         let mut resp = client.post(&self.tari_url).json(&rpc_req).send()?;
 
         let raw: String = resp.text()?;
-        println!("Response from create asset:{}", &raw);
+
+        println!("Response from create_asset:{}", &raw);
+
         let result: CreateAssetResponse = serde_json::from_str(&raw)?;
 
-        Ok(result.result.id)
+        if result.result.success {
+            Ok(result.result.id)
+        } else {
+            Err(TariError {
+                description: "Failed to create Asset on Tari".to_string(),
+                cause: None,
+            })
+        }
+    }
+
+    fn transfer_tokens(
+        &self,
+        asset_id: &String,
+        token_ids: Vec<u64>,
+        new_owner: String,
+    ) -> Result<(), TariError> {
+        let client = reqwest::Client::new();
+
+        let token_params = TransferTokenParams {
+            asset_id: asset_id.clone(),
+            token_ids,
+            new_owner,
+        };
+
+        let rpc_req = TransferTokenRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "transfer_token".to_string(),
+            params: token_params,
+            id: 1,
+        };
+        let mut resp = client.post(&self.tari_url).json(&rpc_req).send()?;
+
+        let raw: String = resp.text()?;
+        println!("Response from transfer_token: {}", raw);
+        let result: ApiResponse = serde_json::from_str(&raw)?;
+
+        if result.result.success {
+            Ok(())
+        } else {
+            Err(TariError {
+                description: "Failed to transfer tokens on Tari".to_string(),
+                cause: None,
+            })
+        }
+    }
+
+    fn get_asset_info(&self, asset_id: &String) -> Result<AssetInfoResult, TariError> {
+        let client = reqwest::Client::new();
+
+        let rpc_req = ReadAssetRPCRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "read_asset".to_string(),
+            params: ReadAssetRequest {
+                request_type: 0,
+                asset_id: asset_id.clone(),
+                user: None,
+                token_ids: None,
+            },
+            id: 1,
+        };
+
+        let mut resp = client.post(&self.tari_url).json(&rpc_req).send()?;
+
+        let raw: String = resp.text()?;
+        println!("Response from read_asset: {}", raw);
+        let result: ReadAsset0Response = serde_json::from_str(&raw)?;
+
+        Ok(result.result)
     }
 
     fn box_clone(&self) -> Box<TariClient + Send + Sync> {
         Box::new((*self).clone())
     }
-
-    //    pub fn get_asset_info(&self, asset_id: String) -> Result<Asset, TariError> {
-    //        Ok(Asset {
-    //            id: "TCdf4jksdhff4f".to_string(),
-    //            name: "bigneon.events.doors.20180931.1".to_string(),
-    //            symbol: "BNE111".to_string(),
-    //            decimals: 0,
-    //            total_supply: 500,
-    //            authorised_signers: vec!["Tdg345gsa".to_string(), "Taa234565".to_string()],
-    //            issuer: "Thds459sch".to_string(),
-    //            expiry_date: 9999999,
-    //            valid: true,
-    //            rule_flags: 0,
-    //            rule_metadata: "00000000000000000000000000000000".to_string(),
-    //        })
-    //    }
 }

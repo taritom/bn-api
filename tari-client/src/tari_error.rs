@@ -37,7 +37,7 @@ impl From<reqwest::Error> for TariError {
 impl From<serde_json::Error> for TariError {
     fn from(r: serde_json::Error) -> Self {
         TariError {
-            description: format!("Error deserializing response:{}", r),
+            description: format!("Error deserializing response: {}", r),
             cause: Some(Arc::new(r)),
         }
     }
