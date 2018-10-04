@@ -1,3 +1,9 @@
+#![deny(unreachable_patterns)]
+#![deny(unknown_lints)]
+#![deny(unused_variables)]
+#![deny(unused_imports)]
+// Unused results is more often than not an error
+#![deny(unused_must_use)]
 extern crate actix_web;
 extern crate bigneon_api;
 extern crate bigneon_db;

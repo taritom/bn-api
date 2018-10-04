@@ -65,6 +65,13 @@ fn add_tickets() {
         fee_item.unit_price_in_cents,
         fee_schedule_range.fee_in_cents * 10
     );
+
+    // Add some more
+    let tickets = cart.add_tickets(ticket.id, 5, connection).unwrap();
+    assert_eq!(tickets.len(), 5);
+    let items = cart.items(connection).unwrap();
+    assert_eq!(items.len(), 2);
+    assert_eq!(items[0].calculate_quantity(connection), Ok(15));
 }
 
 #[test]
@@ -215,6 +222,11 @@ fn calculate_cart_total() {
 
     let total = cart.calculate_total(project.get_connection()).unwrap();
     assert_eq!(total, 1700);
+
+    cart.add_tickets(ticket.id, 20, project.get_connection())
+        .unwrap();
+    let total = cart.calculate_total(project.get_connection()).unwrap();
+    assert_eq!(total, 5100);
 }
 
 #[test]

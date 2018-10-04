@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "ea8afb73-5a85-41ba-bdc1-fa05992331fd",
+		"_postman_id": "cee9b9d9-6c71-415a-a26c-2b3e353476ba",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -664,12 +664,68 @@
 					"response": []
 				},
 				{
+					"name": "User - add some more to cart",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "aadca825-5dbc-4d09-8fb8-6b9d7cbe9350",
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.environment.set(\"last_cart_id\", json.cart_id);",
+									""
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/cart",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"cart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "User - view cart",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
-								"id": "518ed84b-b928-42fd-8269-d4a63ff6dc7d",
+								"id": "5631a4d6-d4ae-4d22-8919-d51cdf511d27",
 								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
@@ -690,7 +746,7 @@
 									"});",
 									"",
 									"pm.test(\"total should be correct\", function() {",
-									"    pm.expect(json.total_in_cents).to.equal(6000);",
+									"    pm.expect(json.total_in_cents).to.equal(12000);",
 									"})",
 									""
 								]
@@ -921,7 +977,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 6000,\n\t\"method\": {\n\t\t\"type\" : \"Stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\"\n\t}\n}"
+							"raw": "{\n\t\"amount\": 12000,\n\t\"method\": {\n\t\t\"type\" : \"Stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\"\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/carts/checkout",
@@ -1001,7 +1057,7 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "349b049f-9282-49db-b669-7227c0128831",
+								"id": "6231a347-7d0d-4e52-9df5-3e0dd47eb022",
 								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
@@ -1011,7 +1067,7 @@
 									"let json = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"tickets should be present\", function(){",
-									"    pm.expect(json.length).to.equal(2);",
+									"    pm.expect(json.length).to.equal(4);",
 									"});"
 								]
 							}

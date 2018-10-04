@@ -169,6 +169,22 @@ impl OrderItem {
                 "Could not retrieve order item",
             )
     }
+
+    pub(crate) fn find_for_ticket_pricing(
+        order_id: Uuid,
+        ticket_pricing_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<OrderItem, DatabaseError> {
+        order_items::table
+            .filter(order_items::order_id.eq(order_id))
+            .filter(order_items::ticket_pricing_id.eq(ticket_pricing_id))
+            .filter(order_items::item_type.eq(OrderItemTypes::Tickets.to_string()))
+            .first(conn)
+            .to_db_error(
+                errors::ErrorCode::QueryError,
+                "Could not retrieve order item",
+            )
+    }
 }
 
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]

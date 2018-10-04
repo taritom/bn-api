@@ -1,9 +1,6 @@
 use super::tari_messages::*;
 use tari_client::TariClient;
 use tari_error::TariError;
-
-use reqwest;
-use serde_json;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -18,7 +15,7 @@ impl TariTestClient {
 }
 
 impl TariClient for TariTestClient {
-    fn create_asset(&self, asset: NewAsset) -> Result<String, TariError> {
+    fn create_asset(&self, _asset: NewAsset) -> Result<String, TariError> {
         Ok(Uuid::new_v4().to_string())
     }
 

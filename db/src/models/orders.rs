@@ -7,9 +7,7 @@ use models::*;
 use schema::orders;
 use time::Duration;
 use utils::errors;
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
+use utils::errors::*;
 use uuid::Uuid;
 
 #[derive(Associations, Identifiable, Queryable)]
@@ -97,14 +95,24 @@ impl Order {
             .get_range(ticket_pricing.price_in_cents, conn)?
             .unwrap();
 
-        let order_item = NewTicketsOrderItem {
-            order_id: self.id,
-            item_type: OrderItemTypes::Tickets.to_string(),
-            quantity,
-            ticket_pricing_id: ticket_pricing.id,
-            fee_schedule_range_id: fee_schedule_range.id,
-            unit_price_in_cents: ticket_pricing.price_in_cents,
-        }.commit(conn)?;
+        let order_item = match OrderItem::find_for_ticket_pricing(self.id, ticket_pricing.id, conn)
+            .optional()?
+        {
+            Some(mut o) => {
+                o.quantity = o.quantity + quantity;
+                o.update(conn)?;
+                o
+            }
+            None => NewTicketsOrderItem {
+                order_id: self.id,
+                item_type: OrderItemTypes::Tickets.to_string(),
+                quantity,
+                ticket_pricing_id: ticket_pricing.id,
+                fee_schedule_range_id: fee_schedule_range.id,
+                unit_price_in_cents: ticket_pricing.price_in_cents,
+            }.commit(conn)?,
+        };
+
         order_item.update_fees(conn)?;
 
         TicketInstance::reserve_tickets(

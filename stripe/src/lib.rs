@@ -1,4 +1,3 @@
-// Force these as errors so that they are not lost in all the diesel warnings
 #![deny(unreachable_patterns)]
 #![deny(unused_variables)]
 #![deny(unused_imports)]
