@@ -24,7 +24,7 @@ pub struct TicketPricing {
     updated_at: NaiveDateTime,
 }
 
-#[derive(AsChangeset, Default, Deserialize)]
+#[derive(AsChangeset, Clone, Default, Deserialize)]
 #[table_name = "ticket_pricing"]
 pub struct TicketPricingEditableAttributes {
     pub name: Option<String>,
@@ -134,15 +134,15 @@ impl TicketPricing {
     }
 }
 
-#[derive(Insertable)]
+#[derive(Clone, Insertable)]
 #[table_name = "ticket_pricing"]
 pub struct NewTicketPricing {
     ticket_type_id: Uuid,
     name: String,
     status: String,
     price_in_cents: i64,
-    start_date: NaiveDateTime,
-    end_date: NaiveDateTime,
+    pub start_date: NaiveDateTime,
+    pub end_date: NaiveDateTime,
 }
 
 impl NewTicketPricing {

@@ -1,0 +1,4 @@
+ALTER TABLE ticket_pricing DROP CONSTRAINT ticket_pricing_start_date_prior_to_end_date;
+ALTER TABLE ticket_pricing DROP CONSTRAINT ticket_pricing_no_overlapping_periods;
+
+DROP FUNCTION ticket_pricing_no_overlapping_periods;

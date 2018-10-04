@@ -1,5 +1,8 @@
 use bigneon_db::models::{TicketPricing, TicketPricingEditableAttributes, TicketType};
+use bigneon_db::utils::errors::{self, *};
 use chrono::NaiveDate;
+use diesel::result::Error;
+use diesel::Connection;
 use support::project::TestProject;
 
 #[test]
@@ -26,6 +29,200 @@ fn create() {
         .ticket_pricing(project.get_connection())
         .unwrap();
     assert_eq!(pricing, vec![ticket_pricing, pricing2]);
+}
+
+#[test]
+fn validate_new() {
+    let project = TestProject::new();
+    let event = project.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(project.get_connection()).unwrap()[0];
+    let start_date1 = NaiveDate::from_ymd(2016, 7, 6).and_hms(4, 10, 11);
+    let end_date1 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
+    let start_date2 = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
+    let end_date2 = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    TicketPricing::create(
+        ticket_type.id,
+        "Early Bird".to_string(),
+        start_date1,
+        end_date1,
+        100,
+    ).commit(project.get_connection())
+    .unwrap();
+
+    // Existing record in time period and invalid start date validation
+    let mut ticket_pricing = TicketPricing::create(
+        ticket_type.id,
+        "Early Bird".to_string(),
+        start_date2,
+        end_date2,
+        100,
+    );
+
+    project
+        .get_connection()
+        .transaction::<(), Error, _>(|| {
+            let result = ticket_pricing.clone().commit(project.get_connection());
+            assert!(result.is_err());
+            let errors = result.unwrap_err();
+            assert_eq!(
+                errors.code,
+                errors::get_error_message(ErrorCode::InsertError).0
+            );
+            assert_eq!(
+                errors.cause,
+                Some("Could not create ticket pricing, new row for relation \"ticket_pricing\" violates check constraint \"ticket_pricing_no_overlapping_periods\"".into())
+            );
+            Err(Error::RollbackTransaction)
+        }).unwrap_err();
+
+    // Only overlapping period
+    project
+        .get_connection()
+        .transaction::<(), Error, _>(|| {
+            ticket_pricing.start_date = NaiveDate::from_ymd(2016, 7, 7).and_hms(4, 10, 11);
+            let result = ticket_pricing.clone().commit(project.get_connection());
+            assert!(result.is_err());
+            let errors = result.unwrap_err();
+            assert_eq!(
+                errors.code,
+                errors::get_error_message(ErrorCode::InsertError).0
+            );
+            assert_eq!(
+                errors.cause,
+                Some("Could not create ticket pricing, new row for relation \"ticket_pricing\" violates check constraint \"ticket_pricing_no_overlapping_periods\"".into())
+            );
+            Err(Error::RollbackTransaction)
+        }).unwrap_err();
+
+    // Only invalid start after end
+    project
+        .get_connection()
+        .transaction::<(), Error, _>(|| {
+            ticket_pricing.start_date = NaiveDate::from_ymd(2017, 7, 15).and_hms(4, 10, 11);
+            ticket_pricing.end_date = NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11);
+            let result = ticket_pricing.clone().commit(project.get_connection());
+            assert!(result.is_err());
+            let errors = result.unwrap_err();
+            assert_eq!(
+                errors.code,
+                errors::get_error_message(ErrorCode::InsertError).0
+            );
+            assert_eq!(
+                errors.cause,
+                Some("Could not create ticket pricing, new row for relation \"ticket_pricing\" violates check constraint \"ticket_pricing_start_date_prior_to_end_date\"".into())
+            );
+            Err(Error::RollbackTransaction)
+        }).unwrap_err();
+
+    // Period adjusted to not overlap (after existing record)
+    ticket_pricing.start_date = end_date1;
+    ticket_pricing.end_date = NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11);
+    let result = ticket_pricing.clone().commit(project.get_connection());
+    assert!(result.is_ok());
+
+    // Period adjusted to not overlap (prior to existing record)
+    ticket_pricing.start_date = NaiveDate::from_ymd(2016, 7, 4).and_hms(4, 10, 11);
+    ticket_pricing.end_date = NaiveDate::from_ymd(2016, 7, 6).and_hms(4, 10, 10);
+    let result = ticket_pricing.commit(project.get_connection());
+    assert!(result.is_ok());
+}
+
+#[test]
+fn validate_existing() {
+    let project = TestProject::new();
+    let event = project.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(project.get_connection()).unwrap()[0];
+    let start_date1 = NaiveDate::from_ymd(2016, 7, 6).and_hms(4, 10, 11);
+    let end_date1 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
+    let start_date2 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
+    let end_date2 = NaiveDate::from_ymd(2016, 7, 11).and_hms(4, 10, 11);
+    TicketPricing::create(
+        ticket_type.id,
+        "Early Bird".to_string(),
+        start_date1,
+        end_date1,
+        100,
+    ).commit(project.get_connection())
+    .unwrap();
+    let ticket_pricing = TicketPricing::create(
+        ticket_type.id,
+        "Regular".to_string(),
+        start_date2,
+        end_date2,
+        100,
+    ).commit(project.get_connection())
+    .unwrap();
+    let mut ticket_pricing_parameters: TicketPricingEditableAttributes = Default::default();
+
+    project
+        .get_connection()
+        .transaction::<(), Error, _>(|| {
+            ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11));
+            ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11));
+            let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
+            assert!(result.is_err());
+            let errors = result.unwrap_err();
+            assert_eq!(
+                errors.code,
+                errors::get_error_message(ErrorCode::UpdateError).0
+            );
+            assert_eq!(
+                errors.cause,
+                Some("Could not update ticket_pricing, new row for relation \"ticket_pricing\" violates check constraint \"ticket_pricing_no_overlapping_periods\"".into())
+            );
+            Err(Error::RollbackTransaction)
+        }).unwrap_err();
+
+    // Only overlapping period
+    project
+        .get_connection()
+        .transaction::<(), Error, _>(|| {
+            ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 7).and_hms(4, 10, 11));
+            let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
+            assert!(result.is_err());
+            let errors = result.unwrap_err();
+            assert_eq!(
+                errors.code,
+                errors::get_error_message(ErrorCode::UpdateError).0
+            );
+            assert_eq!(
+                errors.cause,
+                Some("Could not update ticket_pricing, new row for relation \"ticket_pricing\" violates check constraint \"ticket_pricing_no_overlapping_periods\"".into())
+            );
+            Err(Error::RollbackTransaction)
+        }).unwrap_err();
+
+    // Only invalid start after end
+    project
+        .get_connection()
+        .transaction::<(), Error, _>(|| {
+            ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2017, 7, 15).and_hms(4, 10, 11));
+            ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
+            let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
+            assert!(result.is_err());
+            let errors = result.unwrap_err();
+            assert_eq!(
+                errors.code,
+                errors::get_error_message(ErrorCode::UpdateError).0
+            );
+            assert_eq!(
+                errors.cause,
+                Some("Could not update ticket_pricing, new row for relation \"ticket_pricing\" violates check constraint \"ticket_pricing_start_date_prior_to_end_date\"".into())
+            );
+            Err(Error::RollbackTransaction)
+        }).unwrap_err();
+
+    // Period adjusted to not overlap (after existing record)
+    ticket_pricing_parameters.start_date = Some(end_date1);
+    ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
+    let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
+    assert!(result.is_ok());
+
+    // Period adjusted to not overlap (prior to existing record)
+    ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 4).and_hms(4, 10, 11));
+    ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 6).and_hms(4, 10, 10));
+    let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -81,6 +278,9 @@ fn remove() {
         100,
     ).commit(connection)
     .unwrap();
+
+    let start_date = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
+    let end_date = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
     let ticket_pricing2 = TicketPricing::create(
         ticket_type.id,
         "Standard".to_string(),
