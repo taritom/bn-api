@@ -2,6 +2,7 @@ UPDATE ticket_instances
 SET
     order_item_id = NULL,
     reserved_until = NULL,
+    status = 'Available',
     updated_at = now()
 WHERE id IN (SELECT t.id
              FROM ticket_instances AS t
@@ -14,6 +15,8 @@ WHERE id IN (SELECT t.id
       token_id,
       ticket_holding_id,
       order_item_id,
+      wallet_id,
       reserved_until,
+      status,
       created_at,
       updated_at;

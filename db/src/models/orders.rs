@@ -249,13 +249,11 @@ impl Order {
         // orders can only expire if the order is in draft
         if self.status() == OrderStatus::Draft {
             self.mark_partially_paid(conn)?;
-        } else {
-            if self.status() != OrderStatus::PartiallyPaid {
-                return DatabaseError::business_process_error(&format!(
-                    "Order was in unexpected state when trying to make a payment: {}",
-                    self.status()
-                ));
-            }
+        } else if self.status() != OrderStatus::PartiallyPaid {
+            return DatabaseError::business_process_error(&format!(
+                "Order was in unexpected state when trying to make a payment: {}",
+                self.status()
+            ));
         }
 
         let p = payment.commit(conn)?;
@@ -266,6 +264,8 @@ impl Order {
 
     fn mark_partially_paid(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
         // TODO: The multiple queries in this method could probably be combined into a single query
+        let now_plus_one_day = Utc::now().naive_utc() + Duration::days(1);
+
         let result = diesel::update(
             orders::table.filter(
                 orders::id
@@ -275,6 +275,7 @@ impl Order {
             ),
         ).set((
             orders::status.eq(OrderStatus::PartiallyPaid.to_string()),
+            orders::expires_at.eq(now_plus_one_day),
             orders::updated_at.eq(dsl::now),
         )).execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update order status")?;
@@ -298,6 +299,13 @@ impl Order {
         self.updated_at = db_record.updated_at;
         self.status = db_record.status;
 
+        //Extend the reserved_until time for tickets associated with this order
+        let order_items = OrderItem::find_for_order(db_record.id, conn)?;
+
+        for item in &order_items {
+            TicketInstance::update_reserved_time(item, now_plus_one_day, conn)?;
+        }
+
         Ok(())
     }
 
@@ -307,18 +315,13 @@ impl Order {
     ) -> Result<(), DatabaseError> {
         if self.total_paid(conn)? >= self.calculate_total(conn)? {
             self.update_status(OrderStatus::Paid, conn)?;
+            //Mark tickets as Purchased
+            let order_items = OrderItem::find_for_order(self.id, conn)?;
+            for item in &order_items {
+                TicketInstance::mark_as_purchased(item, self.user_id, conn)?;
+            }
         }
         Ok(())
-
-        // TODO: Move the tickets to the user's wallet.
-        //        let target_wallet_id = self.target_wallet_id(conn)?;
-        //        for order_item in self.order_items(conn)? {
-        //            if order_item.item_type() == OrderItemTypes::Tickets {
-        //                for ticket in order_item.tickets(conn)? {
-        //                    ticket.move_to_wallet(target_wallet_id, conn)?;
-        //                }
-        //            }
-        //        }
     }
 
     pub fn total_paid(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {

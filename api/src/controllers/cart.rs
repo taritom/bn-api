@@ -97,6 +97,7 @@ pub fn checkout(
 ) -> Result<HttpResponse, BigNeonError> {
     let req = json.into_inner();
     let mut order = Order::find_cart_for_user(user.id(), connection.get())?;
+
     match &req.method {
         PaymentRequest::External { reference } => {
             checkout_external(&connection, &mut order, reference, &req, &user)

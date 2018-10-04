@@ -216,7 +216,9 @@ table! {
         token_id -> Int4,
         ticket_holding_id -> Nullable<Uuid>,
         order_item_id -> Nullable<Uuid>,
+        wallet_id -> Nullable<Uuid>,
         reserved_until -> Nullable<Timestamp>,
+        status -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -325,6 +327,7 @@ joinable!(ticket_holdings -> assets (asset_id));
 joinable!(ticket_instances -> assets (asset_id));
 joinable!(ticket_instances -> order_items (order_item_id));
 joinable!(ticket_instances -> ticket_holdings (ticket_holding_id));
+joinable!(ticket_instances -> wallets (wallet_id));
 joinable!(ticket_pricing -> ticket_types (ticket_type_id));
 joinable!(ticket_types -> events (event_id));
 joinable!(venues -> organizations (organization_id));

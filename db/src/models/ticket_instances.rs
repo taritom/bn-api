@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::sql_types::{Bigint, Nullable, Text, Uuid as dUuid};
@@ -20,6 +21,8 @@ pub struct TicketInstance {
     ticket_holding_id: Option<Uuid>,
     pub order_item_id: Option<Uuid>,
     pub reserved_until: Option<NaiveDateTime>,
+    pub status: String,
+    wallet_id: Option<Uuid>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -178,6 +181,52 @@ impl TicketInstance {
         }
 
         Ok(ids)
+    }
+
+    pub fn update_reserved_time(
+        order_item: &OrderItem,
+        reserved_time: NaiveDateTime,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        diesel::update(
+            ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
+        ).set((
+            ticket_instances::reserved_until.eq(reserved_time),
+            ticket_instances::updated_at.eq(dsl::now),
+        )).execute(conn)
+        .to_db_error(
+            ErrorCode::UpdateError,
+            "Could not update ticket_instance reserved time.",
+        )?;
+        Ok(())
+    }
+
+    pub fn mark_as_purchased(
+        order_item: &OrderItem,
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let wallet = Wallet::find_for_user(user_id, conn)?;
+
+        if wallet.len() < 1 {
+            return Err(DatabaseError::new(
+                ErrorCode::InternalError,
+                Some("User does not have a wallet associated with them"),
+            ));
+        }
+
+        diesel::update(
+            ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
+        ).set((
+            ticket_instances::wallet_id.eq(wallet[0].id()),
+            ticket_instances::status.eq(TicketInstanceStatus::Purchased.to_string()),
+            ticket_instances::updated_at.eq(dsl::now),
+        )).execute(conn)
+        .to_db_error(
+            ErrorCode::UpdateError,
+            "Could not update ticket_instance status to purchased.",
+        )?;
+        Ok(())
     }
 }
 
