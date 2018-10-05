@@ -1,6 +1,6 @@
-use actix_web::HttpResponse;
 use actix_web::Json;
 use actix_web::State;
+use actix_web::{http::StatusCode, HttpResponse};
 use auth::user::User;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
@@ -137,11 +137,12 @@ pub fn checkout(
             &state.config.primary_currency,
             &state.config.stripe_secret_key,
         ),
-    };
+    }?;
 
-    for (asset_id, token_ids) in tokens_per_asset.iter() {
-        let asset = Asset::find(asset_id, connection.get())?;
-        match asset.blockchain_asset_id {
+    if payment_response.status() == StatusCode::OK {
+        for (asset_id, token_ids) in tokens_per_asset.iter() {
+            let asset = Asset::find(asset_id, connection.get())?;
+            match asset.blockchain_asset_id {
             Some(a) => state.config.tari_client.transfer_tokens(
                 &a,
                 token_ids.clone(),
@@ -151,9 +152,10 @@ pub fn checkout(
                 "Could not complete this checkout because the asset has not been assigned on the blockchain",
             ),
         }
+        }
     }
 
-    payment_response
+    Ok(payment_response)
 }
 
 // TODO: This should actually probably move to an `orders` controller, since the

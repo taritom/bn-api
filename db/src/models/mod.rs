@@ -15,6 +15,7 @@ pub use self::organizations::*;
 pub use self::payments::*;
 pub use self::regions::*;
 pub use self::scopes::*;
+pub use self::ticket_instances::RedeemResults;
 pub use self::ticket_instances::*;
 pub use self::ticket_pricing::*;
 pub use self::ticket_types::*;

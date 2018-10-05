@@ -218,6 +218,7 @@ table! {
         order_item_id -> Nullable<Uuid>,
         wallet_id -> Nullable<Uuid>,
         reserved_until -> Nullable<Timestamp>,
+        redeem_key -> Nullable<Text>,
         status -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,

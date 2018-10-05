@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, Path, Query};
+use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -11,6 +11,11 @@ use models::{OptionalPathParameters, PathParameters};
 pub struct SearchParameters {
     pub start_utc: Option<NaiveDateTime>,
     pub end_utc: Option<NaiveDateTime>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct TicketRedeemRequest {
+    pub redeem_key: String,
 }
 
 pub fn index(
@@ -49,7 +54,7 @@ pub fn show(
     (connection, parameters, auth_user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let (event, user, ticket) = TicketInstance::find(parameters.id, connection)?;
+    let (event, user, ticket) = TicketInstance::find_for_display(parameters.id, connection)?;
     let db_event = Event::find(event.id, connection)?;
     let organization = db_event.organization(connection)?;
 
@@ -66,4 +71,38 @@ pub fn show(
     };
 
     Ok(HttpResponse::Ok().json(&ticket_response))
+}
+
+pub fn redeem(
+    (connection, parameters, redeem_parameters, auth_user): (
+        Connection,
+        Path<PathParameters>,
+        Json<TicketRedeemRequest>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let (event, user, ticket) = TicketInstance::find_for_display(parameters.id, connection)?;
+    let db_event = Event::find(event.id, connection)?;
+    let organization = db_event.organization(connection)?;
+
+    if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)?
+        && user.id != auth_user.id()
+    {
+        return application::unauthorized();
+    }
+
+    let result =
+        TicketInstance::redeem_ticket(ticket.id, redeem_parameters.redeem_key.clone(), connection);
+
+    match result {
+        Ok(r) => match r {
+                RedeemResults::TicketRedeemSuccess => Ok(HttpResponse::Ok().json(json!({"success": true,}))),
+                RedeemResults::TicketAlreadyRedeemed => Ok(HttpResponse::Ok().json(json!({"success": false, "message": "Ticket has already been redeemed.".to_string()}))),
+                RedeemResults::TicketInvalid => Ok(HttpResponse::Ok().json(json!({"success": false, "message": "Ticket is invalid.".to_string()}))),
+            },
+        Err(e) => Ok(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
+            .into_builder()
+            .json(json!({"error": e.cause.unwrap().to_string(),}))),
+    }
 }

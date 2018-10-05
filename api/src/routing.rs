@@ -97,6 +97,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     }).resource("/status", |r| r.get().f(|_| HttpResponse::Ok()))
     .resource("/tickets/{id}", |r| {
         r.method(Method::GET).with(tickets::show);
+        r.method(Method::POST).with(tickets::redeem);
     }).resource("/tickets", |r| {
         r.method(Method::GET).with(tickets::index);
     }).resource("/users/me", |r| {

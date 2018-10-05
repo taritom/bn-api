@@ -6,6 +6,8 @@ use diesel::sql_types;
 use diesel::sql_types::{Bigint, Nullable, Text, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
+use rand;
+use rand::Rng;
 use schema::{assets, events, order_items, orders, ticket_instances, ticket_types};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -22,13 +24,21 @@ pub struct TicketInstance {
     pub order_item_id: Option<Uuid>,
     wallet_id: Option<Uuid>,
     pub reserved_until: Option<NaiveDateTime>,
+    pub redeem_key: Option<String>,
     pub status: String,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
 
 impl TicketInstance {
-    pub fn find(
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<TicketInstance, DatabaseError> {
+        ticket_instances::table
+            .find(id)
+            .first(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load ticket")
+    }
+
+    pub fn find_for_display(
         id: Uuid,
         conn: &PgConnection,
     ) -> Result<(DisplayEvent, DisplayUser, DisplayTicket), DatabaseError> {
@@ -218,25 +228,61 @@ impl TicketInstance {
     ) -> Result<(), DatabaseError> {
         let wallet = Wallet::find_for_user(user_id, conn)?;
 
-        if wallet.len() < 1 {
+        if wallet.is_empty() {
             return Err(DatabaseError::new(
                 ErrorCode::InternalError,
                 Some("User does not have a wallet associated with them"),
             ));
         }
 
-        diesel::update(
+        let tickets = diesel::update(
             ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
         ).set((
             ticket_instances::wallet_id.eq(wallet[0].id()),
             ticket_instances::status.eq(TicketInstanceStatus::Purchased.to_string()),
             ticket_instances::updated_at.eq(dsl::now),
-        )).execute(conn)
+        )).get_results::<TicketInstance>(conn)
         .to_db_error(
             ErrorCode::UpdateError,
             "Could not update ticket_instance status to purchased.",
         )?;
+
+        //Generate redeem codes for the tickets
+        for t in &tickets {
+            let key = generate_redeem_key(9);
+
+            diesel::update(t)
+                .set(ticket_instances::redeem_key.eq(key))
+                .execute(conn)
+                .to_db_error(ErrorCode::InternalError, "Could not write redeem key")?;
+        }
         Ok(())
+    }
+
+    pub fn redeem_ticket(
+        ticket_id: Uuid,
+        redeem_key: String,
+        conn: &PgConnection,
+    ) -> Result<RedeemResults, DatabaseError> {
+        let ticket: TicketInstance = ticket_instances::table
+            .find(ticket_id)
+            .first(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
+
+        if ticket.status == TicketInstanceStatus::Purchased.to_string()
+            && ticket.redeem_key.is_some()
+            && ticket.redeem_key.unwrap() == redeem_key
+        {
+            diesel::update(ticket_instances::table.filter(ticket_instances::id.eq(ticket_id)))
+                .set(ticket_instances::status.eq(TicketInstanceStatus::Redeemed.to_string()))
+                .execute(conn)
+                .to_db_error(ErrorCode::UpdateError, "Could not set ticket to Redeemed")?;
+        } else if ticket.status == TicketInstanceStatus::Redeemed.to_string() {
+            return Ok(RedeemResults::TicketAlreadyRedeemed);
+        } else {
+            return Ok(RedeemResults::TicketInvalid);
+        }
+        Ok(RedeemResults::TicketRedeemSuccess)
     }
 }
 
@@ -274,4 +320,21 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
 struct NewTicketInstance {
     asset_id: Uuid,
     token_id: i32,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RedeemResults {
+    TicketRedeemSuccess,
+    TicketAlreadyRedeemed,
+    TicketInvalid,
+}
+
+fn generate_redeem_key(len: u32) -> String {
+    let hash_char_list = vec![
+        '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+        'K', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    ];
+    (0..len)
+        .map(|_| hash_char_list[rand::thread_rng().gen_range(0, hash_char_list.len())])
+        .collect()
 }

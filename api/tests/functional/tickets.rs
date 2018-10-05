@@ -207,3 +207,40 @@ mod show_other_user_ticket_tests {
         base::tickets::show_other_user_ticket(Roles::OrgOwner, false, false);
     }
 }
+
+#[cfg(test)]
+mod redeem_ticket {
+    use super::*;
+    #[test]
+    fn redeem_ticket_org_member() {
+        base::tickets::redeem_ticket(Roles::OrgMember, true, true);
+    }
+    #[test]
+    fn redeem_ticket_admin() {
+        base::tickets::redeem_ticket(Roles::Admin, true, true);
+    }
+    #[test]
+    fn redeem_ticket_user() {
+        base::tickets::redeem_ticket(Roles::User, false, true);
+    }
+    #[test]
+    fn redeem_ticket_org_owner() {
+        base::tickets::redeem_ticket(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn redeem_ticket_other_organization_org_member() {
+        base::tickets::redeem_ticket(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn redeem_ticket_other_organization_admin() {
+        base::tickets::redeem_ticket(Roles::Admin, true, false);
+    }
+    #[test]
+    fn redeem_ticket_other_organization_user() {
+        base::tickets::redeem_ticket(Roles::User, false, false);
+    }
+    #[test]
+    fn redeem_ticket_other_organization_org_owner() {
+        base::tickets::redeem_ticket(Roles::OrgOwner, false, false);
+    }
+}
