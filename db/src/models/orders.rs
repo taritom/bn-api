@@ -15,7 +15,7 @@ use uuid::Uuid;
 pub struct Order {
     pub id: Uuid,
     pub user_id: Uuid,
-    status: String,
+    pub status: String,
     order_type: String,
     order_date: NaiveDateTime,
     pub expires_at: NaiveDateTime,
@@ -153,6 +153,7 @@ impl Order {
         use schema::*;
         let orders: Vec<Order> = orders::table
             .filter(orders::user_id.eq(user_id))
+            .filter(orders::status.ne(OrderStatus::Draft.to_string()))
             .order_by(orders::order_date.desc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
@@ -377,7 +378,7 @@ impl Order {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct DisplayOrder {
     pub id: Uuid,
     pub date: NaiveDateTime,

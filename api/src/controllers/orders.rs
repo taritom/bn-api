@@ -18,7 +18,7 @@ pub fn show(
     user.requires_scope(Scopes::OrderRead)?;
     let order = Order::find(path.id, conn.get())?;
 
-    if order.user_id != user.id() {
+    if order.user_id != user.id() || order.status == OrderStatus::Draft.to_string() {
         return application::forbidden("You do not have access to this order");
     }
 

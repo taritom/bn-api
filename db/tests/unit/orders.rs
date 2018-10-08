@@ -257,11 +257,22 @@ fn add_external_payment() {
 }
 
 #[test]
-fn list_for_display() {
+fn find_for_user_for_display() {
     let project = TestProject::new();
     let user = project.create_user().finish();
-    let order1 = project.create_order().for_user(&user).finish();
-    let order2 = project.create_order().for_user(&user).finish();
+    let mut order1 = project.create_order().for_user(&user).finish();
+    order1
+        .add_external_payment("test".to_string(), user.id, 1500, project.get_connection())
+        .unwrap();
+    let mut order2 = project.create_order().for_user(&user).finish();
+    order2
+        .add_external_payment("test".to_string(), user.id, 500, project.get_connection())
+        .unwrap();
+    let order3 = project.create_order().for_user(&user).finish();
+
+    assert_eq!(order1.status, OrderStatus::Paid.to_string());
+    assert_eq!(order2.status, OrderStatus::PartiallyPaid.to_string());
+    assert_eq!(order3.status, OrderStatus::Draft.to_string());
 
     let display_orders =
         Order::find_for_user_for_display(user.id, project.get_connection()).unwrap();

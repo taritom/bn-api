@@ -37,3 +37,15 @@ pub fn expects_unauthorized(response: &HttpResponse) {
     let body = unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_text);
 }
+
+pub fn expects_forbidden(response: &HttpResponse, message: Option<&str>) {
+    let expected_json: HttpResponse;
+    expected_json = HttpResponse::Forbidden().json(json!({
+        "error": message.unwrap_or("You do not have access to this order")
+    }));
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    let expected_text = unwrap_body_to_string(&expected_json).unwrap();
+    let body = unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, expected_text);
+}

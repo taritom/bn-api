@@ -232,7 +232,7 @@ impl NewFeesOrderItem {
     }
 }
 
-#[derive(Queryable, QueryableByName, Serialize)]
+#[derive(Deserialize, Queryable, QueryableByName, Serialize)]
 pub struct DisplayOrderItem {
     #[sql_type = "dUuid"]
     pub id: Uuid,
