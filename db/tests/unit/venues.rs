@@ -56,6 +56,30 @@ fn find() {
 }
 
 #[test]
+fn find_by_ids() {
+    let project = TestProject::new();
+    let venue = project
+        .create_venue()
+        .with_name("Venue1".to_string())
+        .finish();
+    let venue2 = project
+        .create_venue()
+        .with_name("Venue2".to_string())
+        .finish();
+    let venue3 = project
+        .create_venue()
+        .with_name("Venue3".to_string())
+        .finish();
+
+    let mut expected_venues = vec![venue.clone(), venue3.clone()];
+    expected_venues.sort_by_key(|v| v.id);
+
+    let found_venues =
+        Venue::find_by_ids(vec![venue.id, venue3.id], &project.get_connection()).unwrap();
+    assert_eq!(expected_venues, found_venues);
+}
+
+#[test]
 fn all() {
     let project = TestProject::new();
     let venue = project

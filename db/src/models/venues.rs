@@ -109,6 +109,19 @@ impl Venue {
         )
     }
 
+    pub fn find_by_ids(
+        venue_ids: Vec<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Vec<Venue>, DatabaseError> {
+        venues::table
+            .filter(venues::id.eq_any(venue_ids))
+            .order_by(venues::name)
+            .select(venues::all_columns)
+            .order_by(venues::id.asc())
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load venues by ids")
+    }
+
     pub fn all(user_id: Option<Uuid>, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
         let query = match user_id {
             Some(u) => venues::table

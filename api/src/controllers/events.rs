@@ -7,6 +7,7 @@ use errors::*;
 use helpers::application;
 use models::{PathParameters, UserDisplayTicketType};
 use serde_with::{self, CommaSeparator};
+use std::collections::HashMap;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -81,28 +82,39 @@ pub fn index(
         venue: Option<Venue>,
     }
 
-    let mut results: Vec<EventVenueEntry> = Vec::new();
-    for e in events {
+    let mut venue_ids: Vec<Uuid> = events
+        .iter()
+        .filter(|e| e.venue_id.is_some())
+        .map(|e| e.venue_id.unwrap())
+        .collect();
+    venue_ids.sort();
+    venue_ids.dedup();
+
+    let venues = Venue::find_by_ids(venue_ids, connection)?;
+    let venue_map = venues.into_iter().fold(HashMap::new(), |mut map, v| {
+        map.insert(v.id, v.clone());
+        map
+    });
+
+    let results = events.into_iter().fold(Vec::new(), |mut results, event| {
         results.push(EventVenueEntry {
-            venue: match e.venue_id {
-                Some(v) => Some(Venue::find(v, connection)?),
-                None => None,
-            },
-            id: e.id,
-            name: e.name,
-            organization_id: e.organization_id,
-            venue_id: e.venue_id,
-            created_at: e.created_at,
-            event_start: e.event_start,
-            door_time: e.door_time,
-            status: e.status,
-            publish_date: e.publish_date,
-            promo_image_url: e.promo_image_url,
-            additional_info: e.additional_info,
-            age_limit: e.age_limit,
-            cancelled_at: e.cancelled_at,
-        })
-    }
+            venue: event.venue_id.map_or(None, |v| Some(venue_map[&v].clone())),
+            id: event.id,
+            name: event.name,
+            organization_id: event.organization_id,
+            venue_id: event.venue_id,
+            created_at: event.created_at,
+            event_start: event.event_start,
+            door_time: event.door_time,
+            status: event.status,
+            publish_date: event.publish_date,
+            promo_image_url: event.promo_image_url,
+            additional_info: event.additional_info,
+            age_limit: event.age_limit,
+            cancelled_at: event.cancelled_at,
+        });
+        results
+    });
 
     Ok(HttpResponse::Ok().json(&results))
 }
