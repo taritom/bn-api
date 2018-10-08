@@ -3,7 +3,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
-use diesel::sql_types::{Bigint, Nullable, Text, Uuid as dUuid};
+use diesel::sql_types::{Bigint, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use rand;
@@ -284,6 +284,35 @@ impl TicketInstance {
         }
         Ok(RedeemResults::TicketRedeemSuccess)
     }
+
+    pub fn show_redeem_key(
+        ticket_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Option<String>, DatabaseError> {
+        let ticket_event = ticket_instances::table
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .filter(ticket_instances::id.eq(ticket_id))
+            .select((
+                ticket_instances::id,
+                ticket_instances::redeem_key,
+                events::redeem_date,
+            )).first::<RedeemKeyQuery>(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
+
+        if ticket_event.redeem_date.is_some()
+            && ticket_event.redeem_date.unwrap() > Utc::now().naive_utc()
+        {
+            return Ok(None); //Redeem key not available yet. Should this be an error?
+        }
+
+        Ok(ticket_event.redeem_key)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -320,6 +349,16 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
 struct NewTicketInstance {
     asset_id: Uuid,
     token_id: i32,
+}
+
+#[derive(Queryable, QueryableByName)]
+pub struct RedeemKeyQuery {
+    #[sql_type = "dUuid"]
+    pub id: Uuid,
+    #[sql_type = "Nullable<Text>"]
+    pub redeem_key: Option<String>,
+    #[sql_type = "Nullable<Timestamp>"]
+    pub redeem_date: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, PartialEq)]

@@ -64,6 +64,7 @@ table! {
         door_time -> Nullable<Timestamp>,
         status -> Text,
         publish_date -> Nullable<Timestamp>,
+        redeem_date -> Nullable<Timestamp>,
         promo_image_url -> Nullable<Text>,
         additional_info -> Nullable<Text>,
         age_limit -> Nullable<Int4>,

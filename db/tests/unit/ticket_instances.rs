@@ -1,5 +1,6 @@
 use bigneon_db::models::{
-    DisplayTicket, DisplayUser, Order, OrderTypes, RedeemResults, TicketInstance,
+    DisplayTicket, DisplayUser, EventEditableAttributes, Order, OrderTypes, RedeemResults,
+    TicketInstance,
 };
 use chrono::prelude::*;
 use chrono::NaiveDateTime;
@@ -331,4 +332,60 @@ fn redeem_ticket() {
     let result2 =
         TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), connection).unwrap();
     assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
+}
+
+#[test]
+fn show_redeem_key() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let mut cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(connection)
+        .unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let ticket = cart
+        .add_tickets(ticket_type.id, 1, connection)
+        .unwrap()
+        .remove(0);
+    let total = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment("test".to_string(), user.id, total, connection)
+        .unwrap();
+
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+
+    //make redeem date in the future
+    let new_event_redeem_date = EventEditableAttributes {
+        redeem_date: Some(NaiveDateTime::from(
+            Utc::now().naive_utc() + Duration::days(2),
+        )),
+        ..Default::default()
+    };
+
+    event.update(new_event_redeem_date, connection).unwrap();
+
+    let result = TicketInstance::show_redeem_key(ticket.id, connection).unwrap();
+    assert!(result.is_none());
+
+    //make redeem date in the past
+    let new_event_redeem_date = EventEditableAttributes {
+        redeem_date: Some(NaiveDateTime::from(
+            Utc::now().naive_utc() - Duration::days(2),
+        )),
+        ..Default::default()
+    };
+
+    event.update(new_event_redeem_date, connection).unwrap();
+
+    let result = TicketInstance::show_redeem_key(ticket.id, connection).unwrap();
+    assert!(result.is_some());
 }

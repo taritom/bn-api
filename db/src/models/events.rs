@@ -26,6 +26,7 @@ pub struct Event {
     pub door_time: Option<NaiveDateTime>,
     pub status: String,
     pub publish_date: Option<NaiveDateTime>,
+    pub redeem_date: Option<NaiveDateTime>,
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
@@ -44,6 +45,7 @@ pub struct NewEvent {
     #[serde(default = "NewEvent::default_status", skip_deserializing)]
     pub status: String,
     pub publish_date: Option<NaiveDateTime>,
+    pub redeem_date: Option<NaiveDateTime>,
     #[validate(url)]
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
@@ -71,6 +73,7 @@ pub struct EventEditableAttributes {
     pub event_start: Option<NaiveDateTime>,
     pub door_time: Option<NaiveDateTime>,
     pub publish_date: Option<NaiveDateTime>,
+    pub redeem_date: Option<NaiveDateTime>,
     #[validate(url)]
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,

@@ -244,3 +244,40 @@ mod redeem_ticket {
         base::tickets::redeem_ticket(Roles::OrgOwner, false, false);
     }
 }
+
+#[cfg(test)]
+mod show_redeem_key {
+    use super::*;
+    #[test]
+    fn show_redeem_key_org_member() {
+        base::tickets::show_redeem_key(Roles::OrgMember, true, true);
+    }
+    #[test]
+    fn show_redeem_key_admin() {
+        base::tickets::show_redeem_key(Roles::Admin, true, true);
+    }
+    #[test]
+    fn show_redeem_key_user() {
+        base::tickets::show_redeem_key(Roles::User, false, true);
+    }
+    #[test]
+    fn show_redeem_key_org_owner() {
+        base::tickets::show_redeem_key(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn show_redeem_key_other_organization_org_member() {
+        base::tickets::show_redeem_key(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn show_redeem_key_other_organization_admin() {
+        base::tickets::show_redeem_key(Roles::Admin, true, false);
+    }
+    #[test]
+    fn show_redeem_key_other_organization_user() {
+        base::tickets::show_redeem_key(Roles::User, false, false);
+    }
+    #[test]
+    fn show_redeem_key_other_organization_org_owner() {
+        base::tickets::show_redeem_key(Roles::OrgOwner, false, false);
+    }
+}

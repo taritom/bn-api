@@ -137,3 +137,56 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool, same_organization: 
         support::expects_unauthorized(&response);
     }
 }
+
+pub fn show_redeem_key(role: Roles, should_test_succeed: bool, same_organization: bool) {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let request = TestRequest::create();
+    let organization = if same_organization && role != Roles::User {
+        database.create_organization_with_user(&user, role == Roles::OrgOwner)
+    } else {
+        database.create_organization()
+    }.finish();
+
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user2 = database.create_user().finish();
+    let mut cart = Order::create(user2.id, OrderTypes::Cart)
+        .commit(&database.connection)
+        .unwrap();
+    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
+    let ticket = cart
+        .add_tickets(ticket_type.id, 1, &database.connection)
+        .unwrap()
+        .remove(0);
+    let total = cart.calculate_total(&database.connection).unwrap();
+    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
+        .unwrap();
+
+    let ticket = TicketInstance::find(ticket.id, &database.connection).unwrap();
+
+    let auth_user = support::create_auth_user_from_user(&user, role, &database);
+    let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
+    path.id = ticket.id;
+
+    let response =
+        tickets::show_redeem_key((database.connection.clone().into(), path, auth_user.clone()))
+            .unwrap();
+
+    #[derive(Deserialize)]
+    struct success_message {
+        success: bool,
+        redeem_key: String,
+    }
+
+    if should_test_succeed {
+        let body = support::unwrap_body_to_string(&response).unwrap();
+        let ticket_response: success_message = serde_json::from_str(&body).unwrap();
+        assert_eq!(ticket_response.success, true);
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}

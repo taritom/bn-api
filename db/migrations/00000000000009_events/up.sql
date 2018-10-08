@@ -9,6 +9,7 @@ CREATE TABLE events (
   door_time TIMESTAMP NULL,
   status TEXT NOT NULL,
   publish_date TIMESTAMP NULL,
+  redeem_date TIMESTAMP NULL,
   promo_image_url TEXT NULL,
   additional_info TEXT NULL,
   age_limit INTEGER NULL,

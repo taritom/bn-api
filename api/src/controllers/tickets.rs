@@ -82,13 +82,11 @@ pub fn redeem(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let (event, user, ticket) = TicketInstance::find_for_display(parameters.id, connection)?;
+    let (event, _user, ticket) = TicketInstance::find_for_display(parameters.id, connection)?;
     let db_event = Event::find(event.id, connection)?;
     let organization = db_event.organization(connection)?;
 
-    if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)?
-        && user.id != auth_user.id()
-    {
+    if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)? {
         return application::unauthorized();
     }
 
@@ -104,5 +102,29 @@ pub fn redeem(
         Err(e) => Ok(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
             .into_builder()
             .json(json!({"error": e.cause.unwrap().to_string(),}))),
+    }
+}
+
+pub fn show_redeem_key(
+    (connection, parameters, auth_user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let (event, user, _ticket) = TicketInstance::find_for_display(parameters.id, connection)?;
+    let db_event = Event::find(event.id, connection)?;
+    let organization = db_event.organization(connection)?;
+
+    if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)?
+        && user.id != auth_user.id()
+    {
+        return application::unauthorized();
+    }
+
+    let redeem_key = TicketInstance::show_redeem_key(parameters.id, connection)?;
+
+    if redeem_key.is_some() {
+        Ok(HttpResponse::Ok().json(json!({"success": true,"redeem_key": redeem_key.unwrap(),})))
+    } else {
+        Ok(HttpResponse::Ok()
+            .json(json!({"success": false, "message": "Redeem key is not available".to_string()})))
     }
 }
