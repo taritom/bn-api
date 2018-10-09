@@ -541,7 +541,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"first_name\":\"Mike\",\n\t\"last_name\":\"Berry\",\n\t\"email\":\"{{last_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
+							"raw": "{\n\t\"first_name\":\"Mike\",\n\t\"last_name\":\"Surname\",\n\t\"email\":\"{{last_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/users/register",
@@ -977,7 +977,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 12000,\n\t\"method\": {\n\t\t\"type\" : \"Stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\"\n\t}\n}"
+							"raw": "{\n\t\"amount\": 12000,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": true\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/carts/checkout",
@@ -1234,6 +1234,10 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Check In",
+			"item": []
 		}
 	]
 }

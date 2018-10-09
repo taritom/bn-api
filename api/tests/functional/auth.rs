@@ -86,7 +86,7 @@ fn token_refresh() {
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
-    let refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
+    let refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
     let header: Header = Default::default();
     let refresh_token = Token::new(header, refresh_token_claims)
         .signed(state.config.token_secret.as_bytes(), Sha256::new())
@@ -111,7 +111,7 @@ fn token_refresh_invalid_refresh_token_secret() {
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
-    let refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
+    let refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
     let header: Header = Default::default();
     let refresh_token = Token::new(header, refresh_token_claims)
         .signed(b"incorrect-secret", Sha256::new())
@@ -152,7 +152,7 @@ fn token_refresh_user_does_not_exist() {
     let test_request = TestRequest::create();
 
     let state = test_request.extract_state();
-    let mut refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
+    let mut refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
     refresh_token_claims.sub = Uuid::new_v4().to_string();
 
     let header: Header = Default::default();
@@ -177,7 +177,7 @@ fn token_refresh_password_reset_since_issued() {
     let test_request = TestRequest::create();
 
     let state = test_request.extract_state();
-    let mut refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
+    let mut refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
 
     // Issued a second prior to the latest password
     refresh_token_claims.issued = password_modified_timestamp - 1;
@@ -205,7 +205,7 @@ fn token_refreshed_after_password_change() {
     let test_request = TestRequest::create();
 
     let state = test_request.extract_state();
-    let mut refresh_token_claims = RefreshToken::new(&user.id, state.token_issuer.clone());
+    let mut refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
 
     // Issued a second after the latest password
     refresh_token_claims.issued = password_modified_timestamp + 1;

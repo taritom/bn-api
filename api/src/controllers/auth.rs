@@ -91,7 +91,11 @@ pub fn token(
         return application::unauthorized_with_message(login_failure_messaging);
     }
 
-    let response = TokenResponse::create_from_user(&state.token_secret, &state.token_issuer, &user);
+    let response = TokenResponse::create_from_user(
+        &state.config.token_secret,
+        &state.config.token_issuer,
+        &user,
+    );
     Ok(HttpResponse::Ok().json(response))
 }
 
@@ -110,8 +114,8 @@ pub fn token_refresh(
         let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
         if password_modified_timestamp <= token.claims.issued {
             let response = TokenResponse::create_from_refresh_token(
-                &state.token_secret,
-                &state.token_issuer,
+                &state.config.token_secret,
+                &state.config.token_issuer,
                 &user.id,
                 &refresh_request.refresh_token,
             );

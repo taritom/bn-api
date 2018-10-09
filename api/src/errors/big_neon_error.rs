@@ -4,11 +4,11 @@ use bigneon_db::utils::errors::DatabaseError;
 use diesel::result::Error as DieselError;
 use errors::AuthError;
 use errors::*;
+use payments::PaymentProcessorError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
 use std::error::Error;
 use std::fmt;
-use stripe::StripeError;
 use tari_client::TariError;
 
 #[derive(Debug)]
@@ -26,9 +26,9 @@ impl From<ReqwestError> for BigNeonError {
     }
 }
 
-impl From<StripeError> for BigNeonError {
-    fn from(se: StripeError) -> Self {
-        BigNeonError(Box::new(se))
+impl From<PaymentProcessorError> for BigNeonError {
+    fn from(pe: PaymentProcessorError) -> Self {
+        BigNeonError(Box::new(pe))
     }
 }
 

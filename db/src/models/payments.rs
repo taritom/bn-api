@@ -4,11 +4,10 @@ use diesel::expression::dsl;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use models::orders::Order;
-use models::{PaymentMethods, PaymentStatus};
+use models::*;
 use schema::payments;
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
+use serde_json;
+use utils::errors::*;
 use uuid::Uuid;
 
 #[derive(Identifiable, Queryable)]
@@ -21,7 +20,7 @@ pub struct Payment {
     amount: i64,
     provider: String,
     external_reference: String,
-    raw_data: Option<String>,
+    raw_data: Option<serde_json::Value>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -35,7 +34,7 @@ impl Payment {
         provider: String,
         external_reference: String,
         amount: i64,
-        raw_data: Option<String>,
+        raw_data: Option<serde_json::Value>,
     ) -> NewPayment {
         NewPayment {
             order_id,
@@ -51,7 +50,7 @@ impl Payment {
 
     pub fn mark_complete(
         &self,
-        _raw_data: String,
+        raw_data: serde_json::Value,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         diesel::update(
@@ -68,6 +67,14 @@ impl Payment {
             ErrorCode::UpdateError,
             "Could not change the status of payment to completed.",
         )?;
+
+        DomainEvent::create(
+            DomainEventTypes::PaymentCompleted,
+            "Payment was completed".to_string(),
+            Tables::Payments,
+            Some(self.id),
+            Some(raw_data),
+        );
 
         self.order(conn)?.complete_if_fully_paid(conn)?;
 
@@ -93,14 +100,23 @@ pub struct NewPayment {
     external_reference: String,
     amount: i64,
     provider: String,
-    raw_data: Option<String>,
+    raw_data: Option<serde_json::Value>,
 }
 
 impl NewPayment {
     pub(crate) fn commit(self, conn: &PgConnection) -> Result<Payment, DatabaseError> {
-        diesel::insert_into(payments::table)
-            .values(self)
+        let res: Payment = diesel::insert_into(payments::table)
+            .values(&self)
             .get_result(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not create payment")
+            .to_db_error(ErrorCode::InsertError, "Could not create payment")?;
+
+        DomainEvent::create(
+            DomainEventTypes::PaymentCreated,
+            "Payment created".to_string(),
+            Tables::Payments,
+            Some(res.id),
+            self.raw_data,
+        ).commit(conn)?;
+        Ok(res)
     }
 }

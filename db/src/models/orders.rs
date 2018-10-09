@@ -5,6 +5,7 @@ use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Nullable};
 use models::*;
 use schema::orders;
+use serde_json;
 use time::Duration;
 use utils::errors;
 use utils::errors::*;
@@ -230,7 +231,7 @@ impl Order {
         provider: String,
         external_reference: String,
         status: PaymentStatus,
-        result_as_json: String,
+        provider_data: serde_json::Value,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
         let payment = Payment::create(
@@ -241,7 +242,7 @@ impl Order {
             provider,
             external_reference,
             amount,
-            Some(result_as_json),
+            Some(provider_data),
         );
 
         self.add_payment(payment, conn)

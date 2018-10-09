@@ -62,8 +62,8 @@ pub fn update(
     )?;
 
     Ok(HttpResponse::Ok().json(&TokenResponse::create_from_user(
-        &state.token_secret,
-        &state.token_issuer,
+        &state.config.token_secret,
+        &state.config.token_issuer,
         &user,
     )))
 }

@@ -83,6 +83,10 @@ pub fn web_login(
         }
     };
     info!("Saving access token");
-    let response = TokenResponse::create_from_user(&state.token_secret, &state.token_issuer, &user);
+    let response = TokenResponse::create_from_user(
+        &state.config.token_secret,
+        &state.config.token_issuer,
+        &user,
+    );
     Ok(HttpResponse::Ok().json(response))
 }

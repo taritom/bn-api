@@ -46,5 +46,7 @@ pub mod helpers;
 pub mod mail;
 pub mod middleware;
 pub mod models;
+mod payments;
 mod routing;
 pub mod server;
+pub mod utils;

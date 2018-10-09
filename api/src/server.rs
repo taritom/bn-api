@@ -6,14 +6,23 @@ use config::Config;
 use db::*;
 use middleware::*;
 use routing;
+use utils::ServiceLocator;
 
 pub struct AppState {
     pub config: Config,
     pub database: Database,
-    pub token_secret: String,
-    pub token_issuer: String,
+    pub service_locator: ServiceLocator,
 }
 
+impl AppState {
+    pub fn new(config: Config) -> AppState {
+        AppState {
+            database: Database::from_config(&config),
+            service_locator: ServiceLocator::new(&config),
+            config,
+        }
+    }
+}
 pub struct Server {
     pub config: Config,
 }
@@ -24,25 +33,21 @@ impl Server {
         info!("Listening on {}", bind_addr);
         server::new({
             move || {
-                App::with_state(AppState {
-                    config: config.clone(),
-                    database: Database::from_config(&config),
-                    token_secret: config.token_secret.clone(),
-                    token_issuer: config.token_issuer.clone(),
-                }).middleware(DatabaseTransaction::new())
-                .middleware(Logger::default())
-                .configure(|a| {
-                    routing::routes(
-                        Cors::for_app(a)
-                            .allowed_origin(&config.allowed_origins)
-                            .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
-                            .allowed_headers(vec![
-                                http::header::AUTHORIZATION,
-                                http::header::ACCEPT,
-                            ]).allowed_header(http::header::CONTENT_TYPE)
-                            .max_age(3600),
-                    )
-                })
+                App::with_state(AppState::new(config.clone()))
+                    .middleware(DatabaseTransaction::new())
+                    .middleware(Logger::default())
+                    .configure(|a| {
+                        routing::routes(
+                            Cors::for_app(a)
+                                .allowed_origin(&config.allowed_origins)
+                                .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
+                                .allowed_headers(vec![
+                                    http::header::AUTHORIZATION,
+                                    http::header::ACCEPT,
+                                ]).allowed_header(http::header::CONTENT_TYPE)
+                                .max_age(3600),
+                        )
+                    })
             }
         }).bind(&bind_addr)
         .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))

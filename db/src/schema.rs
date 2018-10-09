@@ -32,6 +32,19 @@ table! {
 }
 
 table! {
+    domain_events (id) {
+        id -> Uuid,
+        event_type -> Text,
+        display_text -> Text,
+        event_data -> Nullable<Json>,
+        main_table -> Text,
+        main_id -> Nullable<Uuid>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     event_artists (id) {
         id -> Uuid,
         event_id -> Uuid,
@@ -176,6 +189,19 @@ table! {
 }
 
 table! {
+    payment_methods (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        name -> Text,
+        is_default -> Bool,
+        provider -> Text,
+        provider_data -> Json,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     payments (id) {
         id -> Uuid,
         order_id -> Uuid,
@@ -185,7 +211,7 @@ table! {
         amount -> Int8,
         provider -> Text,
         external_reference -> Text,
-        raw_data -> Nullable<Text>,
+        raw_data -> Nullable<Json>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -323,6 +349,7 @@ joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
 joinable!(organizations -> fee_schedules (fee_schedule_id));
 joinable!(organizations -> users (owner_user_id));
+joinable!(payment_methods -> users (user_id));
 joinable!(payments -> orders (order_id));
 joinable!(payments -> users (created_by));
 joinable!(ticket_holdings -> assets (asset_id));
@@ -340,6 +367,7 @@ joinable!(wallets -> users (user_id));
 allow_tables_to_appear_in_same_query!(
     artists,
     assets,
+    domain_events,
     event_artists,
     event_interest,
     events,
@@ -351,6 +379,7 @@ allow_tables_to_appear_in_same_query!(
     organization_invites,
     organizations,
     organization_users,
+    payment_methods,
     payments,
     regions,
     ticket_holdings,

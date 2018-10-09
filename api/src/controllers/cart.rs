@@ -7,9 +7,10 @@ use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
+use payments::PaymentProcessor;
 use server::AppState;
 use std::collections::HashMap;
-use stripe::StripeClient;
+use utils::ServiceLocator;
 //use tari_client::tari_messages::AssetInfoResult;
 use uuid::Uuid;
 
@@ -90,8 +91,15 @@ pub struct CheckoutCartRequest {
 #[derive(Deserialize)]
 #[serde(tag = "type")]
 pub enum PaymentRequest {
-    External { reference: String },
-    Stripe { token: String },
+    External {
+        reference: String,
+    },
+    Card {
+        token: String,
+        provider: String,
+        save_payment_method: bool,
+        set_default: bool,
+    },
 }
 
 pub fn checkout(
@@ -128,14 +136,22 @@ pub fn checkout(
         PaymentRequest::External { reference } => {
             checkout_external(&connection, &mut order, reference, &req, &user)
         }
-        PaymentRequest::Stripe { token } => checkout_stripe(
+        PaymentRequest::Card {
+            token,
+            provider,
+            save_payment_method,
+            set_default,
+        } => checkout_payment_processor(
             &connection,
             &mut order,
             &token,
             &req,
             &user,
             &state.config.primary_currency,
-            &state.config.stripe_secret_key,
+            provider,
+            *save_payment_method,
+            *set_default,
+            &state.service_locator,
         ),
     }?;
 
@@ -188,14 +204,17 @@ fn checkout_external(
     Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id})))
 }
 
-fn checkout_stripe(
+fn checkout_payment_processor(
     conn: &Connection,
     order: &mut Order,
     token: &str,
     req: &CheckoutCartRequest,
     user: &User,
     currency: &str,
-    stripe_api_key: &str,
+    provider_name: &str,
+    save_payment_method: bool,
+    set_default: bool,
+    service_locator: &ServiceLocator,
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
 
@@ -209,9 +228,30 @@ fn checkout_stripe(
         );
     }
 
-    let client = StripeClient::new(stripe_api_key.to_string());
+    if order.status() != OrderStatus::Draft {
+        return application::unprocessable(
+            "Could not complete this cart because it is not in the correct status",
+        );
+    }
+
+    let client = service_locator.create_payment_processor(provider_name);
+
+    let token = if save_payment_method {
+        let repeat_token = client.create_token_for_repeat_charges(token, "Big Neon something")?;
+        let _payment_method = PaymentMethod::create(
+            user.id(),
+            provider_name.to_string(),
+            set_default,
+            repeat_token.token.clone(),
+            repeat_token.to_json()?,
+        ).commit(connection)?;
+        repeat_token.token.clone()
+    } else {
+        token.to_string()
+    };
+
     let auth_result = client.auth(
-        token,
+        &token,
         req.amount,
         currency,
         "Tickets from Bigneon",
@@ -221,10 +261,10 @@ fn checkout_stripe(
     let payment = match order.add_credit_card_payment(
         user.id(),
         req.amount,
-        "Stripe".to_string(),
+        provider_name.to_string(),
         auth_result.id.clone(),
         PaymentStatus::Authorized,
-        auth_result.to_json(),
+        auth_result.to_json()?,
         connection,
     ) {
         Ok(p) => p,
@@ -237,8 +277,8 @@ fn checkout_stripe(
     conn.commit_transaction()?;
     conn.begin_transaction()?;
 
-    let charge_result = client.complete(&auth_result.id)?;
-    match payment.mark_complete(charge_result.to_json(), connection) {
+    let charge_result = client.complete_authed_charge(&auth_result.id)?;
+    match payment.mark_complete(charge_result.to_json()?, connection) {
         Ok(_) => Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id}))),
         Err(e) => {
             client.refund(&auth_result.id)?;

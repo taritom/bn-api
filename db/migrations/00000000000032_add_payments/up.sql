@@ -7,7 +7,7 @@ CREATE TABLE payments (
   amount BIGINT NOT NULL,
   provider TEXT NOT NULL,
   external_reference TEXT NOT NULL,
-  raw_data TEXT NULL,
+  raw_data json NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );

@@ -1,5 +1,6 @@
 use reqwest;
 use ChargeResult;
+use Customer;
 use RefundResult;
 use StripeError;
 
@@ -97,6 +98,34 @@ impl StripeClient {
         match resp.status() {
             reqwest::StatusCode::OK => {
                 return ChargeResult::from_response(resp);
+            }
+            _ => return Err(StripeError::from_response(&mut resp)),
+        }
+    }
+
+    pub fn create_customer(
+        &self,
+        description: &str,
+        source: &str,
+        metadata: Vec<(String, String)>,
+    ) -> Result<Customer, StripeError> {
+        let mut params = vec![
+            ("description".to_string(), description.to_string()),
+            ("source".to_string(), source.to_string()),
+        ];
+
+        for key_value in metadata {
+            params.push((format!("metadata[{}]", key_value.0), key_value.1));
+        }
+        let client = reqwest::Client::new();
+        let mut resp = client
+            .post("https://api.stripe.com/v1/customers")
+            .basic_auth(&self.api_key, Some(""))
+            .form(&params)
+            .send()?;
+        match resp.status() {
+            reqwest::StatusCode::OK => {
+                return Customer::from_response(resp);
             }
             _ => return Err(StripeError::from_response(&mut resp)),
         }
