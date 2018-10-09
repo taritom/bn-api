@@ -118,13 +118,13 @@ pub fn checkout(
         for ticket in &tickets {
             tokens_per_asset
                 .entry(ticket.asset_id)
-                .or_insert(vec![ticket.token_id as u64])
+                .or_insert_with(|| vec![ticket.token_id as u64])
                 .push(ticket.token_id as u64);
         }
     }
     //Just confirming that the asset is setup correctly before proceeding to payment.
-    for (asset_id, _token_ids) in tokens_per_asset.iter() {
-        let asset = Asset::find(asset_id, connection.get())?;
+    for asset_id in tokens_per_asset.keys() {
+        let asset = Asset::find(*asset_id, connection.get())?;
         if asset.blockchain_asset_id.is_none() {
             return application::internal_server_error(
                 "Could not complete this checkout because the asset has not been assigned on the blockchain",
@@ -156,8 +156,8 @@ pub fn checkout(
     }?;
 
     if payment_response.status() == StatusCode::OK {
-        for (asset_id, token_ids) in tokens_per_asset.iter() {
-            let asset = Asset::find(asset_id, connection.get())?;
+        for (asset_id, token_ids) in &tokens_per_asset {
+            let asset = Asset::find(*asset_id, connection.get())?;
             match asset.blockchain_asset_id {
             Some(a) => state.config.tari_client.transfer_tokens(
                 &a,

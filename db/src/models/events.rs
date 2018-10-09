@@ -3,6 +3,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use diesel::sql_types;
 use models::*;
 use schema::{artists, event_artists, events, organization_users, organizations, venues};
 use utils::errors::DatabaseError;
@@ -176,6 +177,20 @@ impl Event {
         )
     }
 
+    pub fn guest_list(
+        &self,
+        query: &str,
+        conn: &PgConnection,
+    ) -> Result<Vec<RedeemableTicket>, DatabaseError> {
+        let q = include_str!("../queries/retrieve_guest_list.sql");
+
+        diesel::sql_query(q)
+            .bind::<sql_types::Uuid, _>(self.id)
+            .bind::<sql_types::Text, _>(query)
+            .load::<RedeemableTicket>(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load guest list")
+    }
+
     pub fn search(
         query_filter: Option<String>,
         region_id: Option<Uuid>,
@@ -290,10 +305,9 @@ impl Event {
         end_date: NaiveDateTime,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
-        let ticket_type =
-            TicketType::create(self.id, name.clone(), start_date, end_date).commit(conn)?;
-        let asset =
-            Asset::create(ticket_type.id, format!("{}.{}", self.name, &name)).commit(conn)?;
+        let asset_name = format!("{}.{}", self.name, &name);
+        let ticket_type = TicketType::create(self.id, name, start_date, end_date).commit(conn)?;
+        let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;
         TicketInstance::create_multiple(asset.id, quantity, conn)?;
         Ok(ticket_type)
     }
@@ -303,8 +317,7 @@ impl Event {
     }
 
     pub fn for_display(self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {
-        let venue: Option<DisplayVenue> =
-            self.venue(conn)?.map_or(None, |venue| Some(venue.into()));
+        let venue: Option<DisplayVenue> = self.venue(conn)?.and_then(|venue| Some(venue.into()));
 
         Ok(DisplayEvent {
             id: self.id,

@@ -337,6 +337,7 @@ pub fn get_scopes_for_user() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order:read",
             "org:read",
@@ -353,6 +354,7 @@ pub fn get_scopes_for_user() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order:read",
             "org:read",

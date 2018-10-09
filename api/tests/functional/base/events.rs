@@ -317,3 +317,40 @@ pub fn update_artists(role: Roles, should_test_succeed: bool, same_organization:
         support::expects_unauthorized(&response);
     }
 }
+
+pub fn guest_list(role: Roles, should_test_succeed: bool, same_organization: bool) {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, &database);
+    let organization = if same_organization && role != Roles::User {
+        database.create_organization_with_user(&user, role == Roles::OrgOwner)
+    } else {
+        database.create_organization()
+    }.finish();
+
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    database.create_order().for_event(&event).is_paid().finish();
+    database.create_order().for_event(&event).is_paid().finish();
+
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}/guest?query=", event.id,));
+    let query_parameters =
+        Query::<GuestListQueryParameters>::from_request(&test_request.request, &()).unwrap();
+    let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path_parameters.id = event.id;
+    let response: HttpResponse = events::guest_list((
+        database.connection.into(),
+        query_parameters,
+        path_parameters,
+        auth_user,
+    )).into();
+
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}

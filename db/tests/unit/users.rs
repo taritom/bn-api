@@ -320,6 +320,7 @@ pub fn get_scopes_by_organization() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order:read",
             "org:read",
@@ -336,6 +337,7 @@ pub fn get_scopes_by_organization() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order:read",
             "org:read",
@@ -379,6 +381,7 @@ pub fn get_global_scopes() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order::make-external-payment",
             "order:read",

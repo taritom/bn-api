@@ -34,6 +34,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     }).resource("/events/{id}/artists", |r| {
         r.method(Method::POST).with(events::add_artist);
         r.method(Method::PUT).with(events::update_artists);
+    }).resource("/events/{id}/guests", |r| {
+        r.method(Method::GET).with(events::guest_list);
     }).resource("/events/{id}/interest", |r| {
         r.method(Method::GET).with(events::list_interested_users);
         r.method(Method::POST).with(events::add_interest);

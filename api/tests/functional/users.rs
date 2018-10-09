@@ -214,6 +214,7 @@ fn current_user_admin() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order::make-external-payment",
             "order:read",
@@ -252,6 +253,7 @@ fn current_user_organization_owner() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order:read",
             "org:read",
@@ -297,6 +299,7 @@ fn current_user_organization_member() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order:read",
             "org:read",

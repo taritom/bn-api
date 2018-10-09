@@ -1236,8 +1236,66 @@
 			]
 		},
 		{
-			"name": "Check In",
-			"item": []
+			"name": "Redeeming",
+			"item": [
+				{
+					"name": "Admin - Get Guest List",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d45f9b99-03d0-43cc-9394-ec61d6f955b3",
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"guests should be present\", function(){",
+									"    pm.expect(json.length).to.equal(4);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/guests?query=",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"guests"
+							],
+							"query": [
+								{
+									"key": "query",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
 		}
 	]
 }

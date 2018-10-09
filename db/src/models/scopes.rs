@@ -5,6 +5,7 @@ pub enum Scopes {
     ArtistWrite,
     EventWrite,
     EventInterest,
+    EventViewGuests,
     OrderMakeExternalPayment,
     OrderRead,
     OrgAdmin,
@@ -22,6 +23,7 @@ impl fmt::Display for Scopes {
             Scopes::ArtistWrite => "artist:write",
             Scopes::EventWrite => "event:write",
             Scopes::EventInterest => "event:interest",
+            Scopes::EventViewGuests => "event:view-guests",
             Scopes::OrderRead => "order:read",
             Scopes::OrderMakeExternalPayment => "order::make-external-payment",
             Scopes::OrgAdmin => "org:admin",
@@ -54,6 +56,7 @@ fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
         "OrgMember" => {
             let mut roles = vec![
                 Scopes::ArtistWrite,
+                Scopes::EventViewGuests,
                 Scopes::EventWrite,
                 Scopes::OrgRead,
                 Scopes::TicketAdmin,
@@ -69,6 +72,7 @@ fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
         }
         "Admin" => {
             let mut roles = vec![
+                Scopes::EventViewGuests,
                 Scopes::OrderMakeExternalPayment,
                 Scopes::OrgAdmin,
                 Scopes::RegionWrite,
@@ -88,6 +92,7 @@ fn get_scopes_for_role_test() {
             Scopes::OrgWrite,
             Scopes::UserRead,
             Scopes::ArtistWrite,
+            Scopes::EventViewGuests,
             Scopes::EventWrite,
             Scopes::OrgRead,
             Scopes::TicketAdmin,
@@ -112,6 +117,7 @@ fn get_scopes_test() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order:read",
             "org:read",
@@ -128,6 +134,7 @@ fn get_scopes_test() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order::make-external-payment",
             "order:read",
@@ -147,6 +154,7 @@ fn get_scopes_test() {
         vec![
             "artist:write",
             "event:interest",
+            "event:view-guests",
             "event:write",
             "order::make-external-payment",
             "order:read",

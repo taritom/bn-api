@@ -8,6 +8,7 @@ pub struct OrderBuilder<'a> {
     user_id: Option<Uuid>,
     ticket_type_id: Option<Uuid>,
     connection: &'a PgConnection,
+    is_paid: bool,
 }
 
 impl<'a> OrderBuilder<'a> {
@@ -16,6 +17,7 @@ impl<'a> OrderBuilder<'a> {
             connection,
             user_id: None,
             ticket_type_id: None,
+            is_paid: false,
         }
     }
 
@@ -26,6 +28,11 @@ impl<'a> OrderBuilder<'a> {
 
     pub fn for_event(mut self, event: &Event) -> OrderBuilder<'a> {
         self.ticket_type_id = Some(event.ticket_types(&self.connection).unwrap()[0].id);
+        self
+    }
+
+    pub fn is_paid(mut self) -> OrderBuilder<'a> {
+        self.is_paid = true;
         self
     }
 
@@ -46,6 +53,17 @@ impl<'a> OrderBuilder<'a> {
 
         cart.add_tickets(self.ticket_type_id.unwrap(), 10, self.connection)
             .unwrap();
+        let total = cart.calculate_total(self.connection).unwrap();
+
+        let mut cart = cart;
+        if self.is_paid {
+            cart.add_external_payment(
+                "blah".to_string(),
+                self.user_id.unwrap(),
+                total,
+                self.connection,
+            ).unwrap();
+        }
 
         cart
     }

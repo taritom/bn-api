@@ -2,10 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use models::scopes;
-use models::wallets::Wallet;
-use models::ExternalLogin;
-use models::{Organization, OrganizationUser, Roles};
+use models::*;
 use schema::{organization_users, organizations, users};
 use std::collections::HashMap;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
@@ -25,7 +22,8 @@ pub struct NewUser {
     role: Vec<String>,
 }
 
-#[derive(Queryable, Identifiable, PartialEq, Debug, Clone)]
+#[derive(Queryable, Identifiable, PartialEq, Debug, Clone, QueryableByName)]
+#[table_name = "users"]
 pub struct User {
     pub id: Uuid,
     pub first_name: String,
@@ -324,5 +322,11 @@ impl From<User> for DisplayUser {
             thumb_profile_pic_url: user.thumb_profile_pic_url,
             cover_photo_url: user.cover_photo_url,
         }
+    }
+}
+
+impl ForDisplay<DisplayUser> for User {
+    fn for_display(self) -> Result<DisplayUser, DatabaseError> {
+        Ok(self.into())
     }
 }

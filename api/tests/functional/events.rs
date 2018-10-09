@@ -453,6 +453,43 @@ mod update_artists_tests {
     }
 }
 
+#[cfg(test)]
+mod guest_list_tests {
+    use super::*;
+    #[test]
+    fn guest_list_org_member() {
+        base::events::guest_list(Roles::OrgMember, true, true);
+    }
+    #[test]
+    fn guest_list_admin() {
+        base::events::guest_list(Roles::Admin, true, true);
+    }
+    #[test]
+    fn guest_list_user() {
+        base::events::guest_list(Roles::User, false, true);
+    }
+    #[test]
+    fn guest_list_org_owner() {
+        base::events::guest_list(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn guest_list_other_organization_org_member() {
+        base::events::guest_list(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn guest_list_other_organization_admin() {
+        base::events::guest_list(Roles::Admin, true, false);
+    }
+    #[test]
+    fn guest_list_other_organization_user() {
+        base::events::guest_list(Roles::User, false, false);
+    }
+    #[test]
+    fn guest_list_other_organization_org_owner() {
+        base::events::guest_list(Roles::OrgOwner, false, false);
+    }
+}
+
 #[test]
 pub fn show_from_organizations() {
     let database = TestDatabase::new();

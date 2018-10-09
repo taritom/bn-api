@@ -28,21 +28,6 @@ pub struct OrderItem {
 }
 
 impl OrderItem {
-    pub(crate) fn create_tickets(
-        _order_id: Uuid,
-        _ticket_type_id: Uuid,
-        _quantity: u32,
-    ) -> NewTicketsOrderItem {
-        unimplemented!()
-
-        //        NewTicketsOrderItem {
-        //            order_id,
-        //            ticket_type_id,
-        //            item_type: OrderItemTypes::Tickets.to_string(),
-        //            quantity: quantity as i64,
-        //        }
-    }
-
     pub fn item_type(&self) -> OrderItemTypes {
         self.item_type.parse::<OrderItemTypes>().unwrap()
     }

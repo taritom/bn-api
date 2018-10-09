@@ -177,14 +177,14 @@ pub fn show_redeem_key(role: Roles, should_test_succeed: bool, same_organization
             .unwrap();
 
     #[derive(Deserialize)]
-    struct success_message {
+    struct SuccessMessage {
         success: bool,
         redeem_key: String,
     }
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
-        let ticket_response: success_message = serde_json::from_str(&body).unwrap();
+        let ticket_response: SuccessMessage = serde_json::from_str(&body).unwrap();
         assert_eq!(ticket_response.success, true);
     } else {
         support::expects_unauthorized(&response);

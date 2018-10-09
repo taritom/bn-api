@@ -98,7 +98,7 @@ pub fn index(
 
     let results = events.into_iter().fold(Vec::new(), |mut results, event| {
         results.push(EventVenueEntry {
-            venue: event.venue_id.map_or(None, |v| Some(venue_map[&v].clone())),
+            venue: event.venue_id.and_then(|v| Some(venue_map[&v].clone())),
             id: event.id,
             name: event.name,
             organization_id: event.organization_id,
@@ -413,4 +413,28 @@ pub fn update_artists(
     }
 
     Ok(HttpResponse::Ok().json(&added_artists))
+}
+
+#[derive(Deserialize)]
+pub struct GuestListQueryParameters {
+    pub query: String,
+}
+
+pub fn guest_list(
+    (connection, query, path, user): (
+        Connection,
+        Query<GuestListQueryParameters>,
+        Path<PathParameters>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let event = Event::find(path.id, connection.get())?;
+    user.requires_scope_for_organization(
+        Scopes::EventViewGuests,
+        event.organization_id,
+        connection.get(),
+    )?;
+
+    let tickets = event.guest_list(&query.query, connection.get())?;
+    Ok(HttpResponse::Ok().json(tickets))
 }

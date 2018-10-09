@@ -7,6 +7,7 @@ use diesel::expression::dsl::count;
 use diesel::prelude::*;
 use models::{Event, User};
 use schema::{event_interest, users};
+use std::mem;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
@@ -59,10 +60,7 @@ impl NewEventInterest {
 
 impl EventInterest {
     pub fn create(event_id: Uuid, user_id: Uuid) -> NewEventInterest {
-        NewEventInterest {
-            event_id: event_id,
-            user_id: user_id,
-        }
+        NewEventInterest { event_id, user_id }
     }
 
     pub fn remove(
@@ -101,7 +99,7 @@ impl EventInterest {
             .load::<EventInterest>(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading event interest")?;
 
-        Ok(result.len() > 0)
+        Ok(!result.is_empty())
     }
 
     pub fn list_interested_users(
@@ -125,11 +123,8 @@ impl EventInterest {
             let mut from_clamped_index = clamp(from_index as i64, min_index, max_index);
             let mut to_clamped_index = clamp(to_index as i64, min_index, max_index);
             if from_clamped_index > to_clamped_index {
-                //swap
-                let temp = from_clamped_index;
-                from_clamped_index = to_clamped_index;
-                to_clamped_index = temp;
-            }
+                mem::swap(&mut from_clamped_index, &mut to_clamped_index);
+            };
             //Request a pageable list of users with an interest for a specific event
             let event_interest_list = event_interest::table
                 .filter(event_interest::event_id.eq(event_id))
