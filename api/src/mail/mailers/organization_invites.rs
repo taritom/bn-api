@@ -26,7 +26,7 @@ pub fn invite_user_to_organization_email(
             config.mail_from_email.clone(),
             config.mail_from_name.clone(),
         ),
-        format!("{}:Invite to ", org.name.clone()),
+        format!("Invite to join :{}", org.name.clone()),
         format!(
             " Hi {} \r\nThis invite link is valid for 7 days. \r\nIf you want accept the invitation please click this link: {} \r\nIf want to decline please click this link: {}",
             recipient_name,
