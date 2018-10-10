@@ -37,16 +37,20 @@ impl Server {
                     .middleware(DatabaseTransaction::new())
                     .middleware(Logger::default())
                     .configure(|a| {
-                        routing::routes(
-                            Cors::for_app(a)
-                                .allowed_origin(&config.allowed_origins)
-                                .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
-                                .allowed_headers(vec![
-                                    http::header::AUTHORIZATION,
-                                    http::header::ACCEPT,
-                                ]).allowed_header(http::header::CONTENT_TYPE)
-                                .max_age(3600),
-                        )
+                        let mut cors_config = Cors::for_app(a);
+                        match config.allowed_origins.as_ref() {
+                            "*" => cors_config.send_wildcard(),
+                            _ => cors_config.allowed_origin(&config.allowed_origins),
+                        };
+                        cors_config
+                            .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
+                            .allowed_headers(vec![
+                                http::header::AUTHORIZATION,
+                                http::header::ACCEPT,
+                            ]).allowed_header(http::header::CONTENT_TYPE)
+                            .max_age(3600);
+
+                        routing::routes(&mut cors_config)
                     })
             }
         }).bind(&bind_addr)

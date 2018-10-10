@@ -980,13 +980,13 @@
 							"raw": "{\n\t\"amount\": 12000,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": true\n\t}\n}"
 						},
 						"url": {
-							"raw": "http://{{server}}/carts/checkout",
+							"raw": "http://{{server}}/cart/checkout",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
-								"carts",
+								"cart",
 								"checkout"
 							]
 						}
@@ -1273,7 +1273,10 @@
 						},
 						"method": "GET",
 						"header": [],
-						"body": {},
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/guests?query=",
 							"protocol": "http",
