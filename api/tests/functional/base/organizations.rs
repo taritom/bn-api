@@ -1,7 +1,7 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::organizations;
 use bigneon_api::controllers::organizations::*;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use serde_json;
@@ -360,7 +360,7 @@ pub fn update_owner(role: Roles, should_succeed: bool) {
 
 pub fn list_organization_members(role: Roles, should_succeed: bool, same_organization: bool) {
     let database = TestDatabase::new();
-    let user1 = database
+    let mut user1 = database
         .create_user()
         .with_last_name("User1".into())
         .finish();
@@ -368,7 +368,6 @@ pub fn list_organization_members(role: Roles, should_succeed: bool, same_organiz
         .create_user()
         .with_last_name("User2".into())
         .finish();
-
     let organization = if same_organization && role != Roles::User {
         database.create_organization_with_user(&user1, role == Roles::OrgOwner)
     } else {
@@ -377,37 +376,47 @@ pub fn list_organization_members(role: Roles, should_succeed: bool, same_organiz
     .finish();
 
     let mut organization_members = Vec::new();
-
-    if role != Roles::OrgOwner && same_organization {
+    if role == Roles::OrgOwner && same_organization {
         organization_members.push(DisplayUser::from(user1.clone()));
-    }
-    organization_members.push(DisplayUser::from(user2.clone()));
+        organization_members.push(DisplayUser::from(user2.clone()));
+        organization_members[0].is_org_owner = true;
+    } else {
+        organization_members.push(DisplayUser::from(
+            organization.owner(&database.connection).unwrap(),
+        ));
+        if same_organization {
+            organization_members.push(DisplayUser::from(user1.clone()));
+        }
+        organization_members.push(DisplayUser::from(user2.clone()));
+        organization_members[0].is_org_owner = true;
+    };
 
     let auth_user = support::create_auth_user_from_user(&user1, role, &database);
 
-    #[derive(Serialize)]
-    struct OrgOwnerMembers {
-        organization_owner: DisplayUser,
-        organization_members: Vec<DisplayUser>,
-    }
-
-    let expected_data = OrgOwnerMembers {
-        organization_owner: if role == Roles::OrgOwner {
-            DisplayUser::from(user1)
-        } else {
-            DisplayUser::from(organization.owner(&database.connection).unwrap())
+    let count = organization_members.len();
+    let wrapped_expected_date = Payload {
+        data: organization_members,
+        paging: Paging {
+            page: 0,
+            limit: 100,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: count as u64,
+            tags: Vec::new(),
         },
-        organization_members,
     };
+    let expected_json = serde_json::to_string(&wrapped_expected_date).unwrap();
 
-    let expected_json = serde_json::to_string(&expected_data).unwrap();
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     let response: HttpResponse = organizations::list_organization_members((
         database.connection.into(),
         path,
+        query_parameters,
         auth_user.clone(),
     )).into();
 

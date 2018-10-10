@@ -1,11 +1,11 @@
-use actix_web::{HttpResponse, Json, Path};
+use actix_web::{HttpResponse, Json, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::PathParameters;
+use models::{Paging, PagingParameters, PathParameters, Payload};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -217,10 +217,16 @@ pub fn remove_user(
 }
 
 pub fn list_organization_members(
-    (connection, parameters, user): (Connection, Path<PathParameters>, User),
+    (connection, path_parameters, query_parameters, user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+        User,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let organization = Organization::find(parameters.id, connection)?;
+    //TODO refactor Organization::find to use limits as in PagingParameters
+    let organization = Organization::find(path_parameters.id, connection)?;
     if !user.has_scope(Scopes::OrgRead, Some(&organization), connection)? {
         return application::unauthorized();
     }
@@ -230,19 +236,14 @@ pub fn list_organization_members(
         .iter()
         .map(|u| DisplayUser::from(u.clone()))
         .collect();
-
-    #[derive(Serialize)]
-    struct OrgOwnerMembers {
-        organization_owner: DisplayUser,
-        organization_members: Vec<DisplayUser>,
-    }
-
-    let org_owner_members = OrgOwnerMembers {
-        organization_owner: members.remove(0),
-        organization_members: members,
+    let query_parameters = Paging::new(&query_parameters.into_inner());
+    members[0].is_org_owner = true;
+    let member_count = members.len();
+    let payload = Payload {
+        data: members,
+        paging: Paging::clone_with_new_total(&query_parameters, member_count as u64),
     };
-
-    Ok(HttpResponse::Ok().json(org_owner_members))
+    Ok(HttpResponse::Ok().json(payload))
 }
 
 pub fn show_fee_schedule(

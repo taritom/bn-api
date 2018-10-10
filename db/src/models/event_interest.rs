@@ -42,7 +42,7 @@ pub struct DisplayEventInterestedUser {
 
 #[derive(Serialize)]
 pub struct DisplayEventInterestedUserList {
-    pub total_interests: usize,
+    pub total_interests: u64,
     pub users: Vec<DisplayEventInterestedUser>,
 }
 
@@ -105,8 +105,8 @@ impl EventInterest {
     pub fn list_interested_users(
         event_id: Uuid,
         user_id: Uuid,
-        from_index: usize,
-        to_index: usize,
+        from_index: u64,
+        to_index: u64,
         conn: &PgConnection,
     ) -> Result<DisplayEventInterestedUserList, DatabaseError> {
         //Request the total count of users with an interest for a specific event
@@ -149,7 +149,7 @@ impl EventInterest {
                 users.push(curr_entry);
             }
             let result = DisplayEventInterestedUserList {
-                total_interests: total_interests as usize,
+                total_interests: total_interests as u64,
                 users,
             };
             Ok(result)

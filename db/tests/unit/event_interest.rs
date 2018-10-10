@@ -108,18 +108,18 @@ fn list_interested_users() {
         let max_index: usize = desired_user_id_completelist.len() - 1;
 
         //Test1 - Normal Query of list of interested users for event, excluding primary user
-        let request_from_index: usize = 0;
-        let request_to_index: usize = request_from_index + 9;
+        let request_from_page: usize = 0;
+        let request_limit: usize = request_from_page + 9;
         let result = EventInterest::list_interested_users(
             primary_event.id,
             primary_user.id,
-            request_from_index,
-            request_to_index,
+            request_from_page as u64,
+            request_limit as u64,
             project.get_connection(),
         ).unwrap();
         //Comparison to ground truth
-        let mut true_from_index = clamp(request_from_index, min_index, max_index);
-        let mut true_to_index = clamp(request_to_index, min_index, max_index);
+        let mut true_from_index = clamp(request_from_page, min_index, max_index);
+        let mut true_to_index = clamp(request_limit, min_index, max_index);
         if true_from_index > true_to_index {
             //swap if needed
             let temp = true_from_index;
@@ -140,8 +140,8 @@ fn list_interested_users() {
         let result = EventInterest::list_interested_users(
             primary_event.id,
             primary_user.id,
-            request_from_index,
-            request_to_index,
+            request_from_index as u64,
+            request_to_index as u64,
             project.get_connection(),
         ).unwrap();
         //Comparison to ground truth

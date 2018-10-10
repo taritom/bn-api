@@ -54,6 +54,7 @@ pub struct DisplayUser {
     pub profile_pic_url: Option<String>,
     pub thumb_profile_pic_url: Option<String>,
     pub cover_photo_url: Option<String>,
+    pub is_org_owner: bool,
 }
 
 #[derive(AsChangeset, Default, Deserialize, Validate)]
@@ -321,6 +322,7 @@ impl From<User> for DisplayUser {
             profile_pic_url: user.profile_pic_url,
             thumb_profile_pic_url: user.thumb_profile_pic_url,
             cover_photo_url: user.cover_photo_url,
+            is_org_owner: false,
         }
     }
 }

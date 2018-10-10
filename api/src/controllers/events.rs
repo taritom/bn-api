@@ -5,7 +5,7 @@ use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{PathParameters, UserDisplayTicketType};
+use models::{Paging, PagingParameters, PathParameters, Payload, UserDisplayTicketType};
 use serde_with::{self, CommaSeparator};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -22,12 +22,6 @@ pub struct SearchParameters {
     status: Vec<EventStatus>,
     start_utc: Option<NaiveDateTime>,
     end_utc: Option<NaiveDateTime>,
-}
-
-#[derive(Deserialize)]
-pub struct PagingSearchParameters {
-    pub from_index: usize,
-    pub to_index: usize,
 }
 
 #[derive(Deserialize, Debug)]
@@ -311,7 +305,7 @@ pub fn list_interested_users(
     (connection, path_parameters, query_parameters, user): (
         Connection,
         Path<PathParameters>,
-        Query<PagingSearchParameters>,
+        Query<PagingParameters>,
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -320,15 +314,22 @@ pub fn list_interested_users(
         return application::unauthorized();
     }
 
-    let query_parameters = query_parameters.into_inner();
+    let query_parameters = Paging::new(&query_parameters.into_inner());
     let event_interested_users = EventInterest::list_interested_users(
         path_parameters.id,
         user.id(),
-        query_parameters.from_index,
-        query_parameters.to_index,
+        query_parameters.page * query_parameters.limit,
+        (query_parameters.page * query_parameters.limit) + query_parameters.limit,
         connection,
     )?;
-    Ok(HttpResponse::Ok().json(&event_interested_users))
+    let payload = Payload {
+        data: event_interested_users.users,
+        paging: Paging::clone_with_new_total(
+            &query_parameters,
+            event_interested_users.total_interests,
+        ),
+    };
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn add_interest(

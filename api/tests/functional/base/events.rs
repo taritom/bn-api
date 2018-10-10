@@ -2,6 +2,7 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::*;
 use bigneon_api::models::PathParameters;
+use bigneon_api::models::*;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use serde_json;
@@ -180,15 +181,15 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     }
     secondary_users.sort_by_key(|x| x.user_id); //Sort results for testing purposes
                                                 //Construct api query
-    let from_index: usize = 0;
-    let to_index: usize = 10;
+    let page: usize = 0;
+    let limit: usize = 10;
     let test_request = TestRequest::create_with_uri(&format!(
-        "/interest?from_index={}&to_index={}",
-        from_index.to_string(),
-        to_index.to_string()
+        "/interest?page={}&limit={}",
+        page.to_string(),
+        limit.to_string()
     ));
     let query_parameters =
-        Query::<PagingSearchParameters>::from_request(&test_request.request, &()).unwrap();
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path_parameters.id = event.id;
     let response: HttpResponse = events::list_interested_users((
@@ -200,10 +201,21 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     let response_body = support::unwrap_body_to_string(&response).unwrap();
     //Construct expected output
     let expected_data = DisplayEventInterestedUserList {
-        total_interests: secondary_users.len(),
+        total_interests: secondary_users.len() as u64,
         users: secondary_users,
     };
-    let expected_json_body = serde_json::to_string(&expected_data).unwrap();
+    let wrapped_expected_date = Payload {
+        data: expected_data.users,
+        paging: Paging {
+            page: 0,
+            limit: 10,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: expected_data.total_interests,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json_body = serde_json::to_string(&wrapped_expected_date).unwrap();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
