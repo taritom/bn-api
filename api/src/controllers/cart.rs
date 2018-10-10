@@ -14,7 +14,7 @@ use utils::ServiceLocator;
 //use tari_client::tari_messages::AssetInfoResult;
 use uuid::Uuid;
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct CartResponse {
     pub cart_id: Uuid,
 }
@@ -62,7 +62,13 @@ pub fn remove(
         Some(cart) => match cart.find_item(json.cart_item_id, connection).optional()? {
             Some(mut order_item) => {
                 cart.remove_tickets(order_item, json.quantity, connection)?;
-                Ok(HttpResponse::Ok().json(&CartResponse { cart_id: cart.id }))
+
+                if cart.has_items(connection)? {
+                    Ok(HttpResponse::Ok().json(&CartResponse { cart_id: cart.id }))
+                } else {
+                    cart.destroy(connection)?;
+                    Ok(HttpResponse::Ok().json(json!({})))
+                }
             }
             None => application::unprocessable("Cart does not contain order item"),
         },

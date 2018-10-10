@@ -1,17 +1,18 @@
 use chrono::prelude::*;
 use diesel;
+use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Nullable};
 use models::*;
-use schema::orders;
+use schema::{order_items, orders};
 use serde_json;
 use time::Duration;
 use utils::errors;
 use utils::errors::*;
 use uuid::Uuid;
 
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Associations, Debug, Identifiable, PartialEq, Queryable)]
 #[belongs_to(User)]
 pub struct Order {
     pub id: Uuid,
@@ -56,6 +57,14 @@ impl Order {
         }
     }
 
+    pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::DeleteError,
+            "Failed to destroy order record",
+            diesel::delete(self).execute(conn),
+        )
+    }
+
     pub fn status(&self) -> OrderStatus {
         self.status.parse::<OrderStatus>().unwrap()
     }
@@ -65,6 +74,7 @@ impl Order {
             .filter(orders::user_id.eq(user_id))
             .filter(orders::status.eq("Draft"))
             .filter(orders::order_type.eq("Cart"))
+            .filter(orders::expires_at.ge(dsl::now))
             .first(conn)
             .to_db_error(
                 errors::ErrorCode::QueryError,
@@ -123,6 +133,16 @@ impl Order {
             None,
             quantity,
             conn,
+        )
+    }
+
+    pub fn has_items(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        select(exists(
+            order_items::table.filter(order_items::order_id.eq(self.id)),
+        )).get_result(conn)
+        .to_db_error(
+            errors::ErrorCode::QueryError,
+            "Could not check if order items exist",
         )
     }
 

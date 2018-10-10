@@ -1,11 +1,66 @@
 use actix_web::{http::StatusCode, HttpResponse, Json};
 use bigneon_api::controllers::cart;
-use bigneon_api::controllers::cart::PaymentRequest;
+use bigneon_api::controllers::cart::{CartResponse, PaymentRequest};
 use bigneon_db::models::*;
+use bigneon_db::schema::orders;
+use chrono::prelude::*;
+use chrono::Duration;
+use diesel;
+use diesel::prelude::*;
+use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 use uuid::Uuid;
+
+#[test]
+fn show() {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let user = database.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(&connection)
+        .unwrap();
+
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let response: HttpResponse = cart::show((database.connection.into(), auth_user)).into();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let cart_response: DisplayOrder = serde_json::from_str(&body).unwrap();
+    assert_eq!(cart.id, cart_response.id);
+}
+
+#[test]
+fn show_no_cart() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let response: HttpResponse = cart::show((database.connection.into(), auth_user)).into();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, "{}");
+}
+
+#[test]
+fn show_expired_cart() {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let user = database.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(&connection)
+        .unwrap();
+    let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
+    diesel::update(&cart)
+        .set(orders::expires_at.eq(one_minute_ago))
+        .get_result::<Order>(&*connection)
+        .unwrap();
+
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let response: HttpResponse = cart::show((database.connection.into(), auth_user)).into();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, "{}");
+}
 
 #[test]
 fn add() {
@@ -129,6 +184,11 @@ fn remove() {
     let response = cart::remove((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
+    // Contains additional item quantity so cart response still includes cart object
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let cart_response: CartResponse = serde_json::from_str(&body).unwrap();
+    assert_eq!(cart.id, cart_response.cart_id);
+
     let order_item = cart.items(&connection).unwrap().remove(0);
     assert_eq!(order_item.quantity, 6);
     let fee_item = order_item.find_fee_item(&connection).unwrap().unwrap();
@@ -166,8 +226,11 @@ fn remove_with_no_specified_quantity() {
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
     let response = cart::remove((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-
     assert!(cart.items(&connection).unwrap().is_empty());
+
+    // Cart empty so was deleted
+    let cart_result = Order::find_cart_for_user(user.id, &connection);
+    assert_eq!(cart_result.err().unwrap().code, 2000);
 }
 
 #[test]

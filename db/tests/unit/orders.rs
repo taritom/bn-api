@@ -192,10 +192,67 @@ fn find_item() {
 }
 
 #[test]
-fn find_by_user_when_cart_does_not_exist() {
+fn find_cart_for_user() {
     let project = TestProject::new();
     let user = project.create_user().finish();
+
+    // No cart
     let cart_result = Order::find_cart_for_user(user.id, project.get_connection());
+    assert_eq!(cart_result.err().unwrap().code, 2000);
+
+    // Cart exists, is not expired
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(project.get_connection())
+        .unwrap();
+    let cart_result = Order::find_cart_for_user(user.id, project.get_connection());
+    assert_eq!(cart_result.unwrap(), cart);
+
+    // Expired cart
+    let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
+    diesel::update(&cart)
+        .set(orders::expires_at.eq(one_minute_ago))
+        .get_result::<Order>(project.get_connection())
+        .unwrap();
+    let cart_result = Order::find_cart_for_user(user.id, project.get_connection());
+    assert_eq!(cart_result.err().unwrap().code, 2000);
+}
+
+#[test]
+fn has_items() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(connection)
+        .unwrap();
+
+    // Without items
+    assert!(!cart.has_items(connection).unwrap());
+
+    // With items
+    let event = project
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    cart.add_tickets(ticket_type.id, 10, connection).unwrap();
+    assert!(cart.has_items(connection).unwrap());
+}
+
+#[test]
+fn destroy() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(connection)
+        .unwrap();
+    let cart_result = Order::find_cart_for_user(user.id, connection);
+    assert_eq!(cart_result.unwrap(), cart);
+
+    cart.destroy(connection).unwrap();
+    let cart_result = Order::find_cart_for_user(user.id, connection);
     assert_eq!(cart_result.err().unwrap().code, 2000);
 }
 
@@ -295,9 +352,9 @@ fn for_display() {
     assert!(display_order.seconds_until_expiry <= 60 && display_order.seconds_until_expiry >= 59);
 
     // 1 minute ago expires
-    let one_minute_from_now = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
+    let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
     let order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
-        .set(orders::expires_at.eq(one_minute_from_now))
+        .set(orders::expires_at.eq(one_minute_ago))
         .get_result::<Order>(project.get_connection())
         .unwrap();
     let display_order = order.for_display(project.get_connection()).unwrap();
