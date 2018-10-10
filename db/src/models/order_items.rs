@@ -18,6 +18,7 @@ pub struct OrderItem {
     pub id: Uuid,
     pub order_id: Uuid,
     pub item_type: String,
+    pub event_id: Option<Uuid>,
     pub quantity: i64,
     pub unit_price_in_cents: i64,
     pub created_at: NaiveDateTime,
@@ -28,6 +29,13 @@ pub struct OrderItem {
 }
 
 impl OrderItem {
+    pub(crate) fn find(id: Uuid, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
+        order_items::table
+            .filter(order_items::id.eq(id))
+            .first(conn)
+            .to_db_error(errors::ErrorCode::QueryError, "Could not find order item")
+    }
+
     pub fn item_type(&self) -> OrderItemTypes {
         self.item_type.parse::<OrderItemTypes>().unwrap()
     }
@@ -35,7 +43,7 @@ impl OrderItem {
     pub fn find_fee_item(&self, conn: &PgConnection) -> Result<Option<OrderItem>, DatabaseError> {
         order_items::table
             .filter(order_items::parent_id.eq(self.id))
-            .filter(order_items::item_type.eq(OrderItemTypes::Fees.to_string()))
+            .filter(order_items::item_type.eq(OrderItemTypes::PerUnitFees.to_string()))
             .first(conn)
             .optional()
             .to_db_error(
@@ -56,10 +64,11 @@ impl OrderItem {
             None => {
                 NewFeesOrderItem {
                     order_id: self.order_id,
-                    item_type: OrderItemTypes::Fees.to_string(),
+                    item_type: OrderItemTypes::PerUnitFees.to_string(),
+                    event_id: self.event_id,
                     unit_price_in_cents: fee_schedule_range.fee_in_cents * self.quantity,
                     quantity: 1,
-                    parent_id: self.id,
+                    parent_id: Some(self.id),
                 }.commit(conn)?;
 
                 Ok(())
@@ -104,6 +113,7 @@ impl OrderItem {
         order_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<DisplayOrderItem>, DatabaseError> {
+        println!("Finding");
         diesel::sql_query(
             r#"
         SELECT oi.id,
@@ -114,22 +124,24 @@ impl OrderItem {
            oi.unit_price_in_cents,
            oi.item_type,
            CASE
-             WHEN item_type = 'Fees' THEN 'Fees'
+             WHEN item_type = 'PerUnitFees' THEN 'Ticket Fees'
+             WHEN item_type = 'EventFees' THEN 'Event Fees - ' || e.name
              ELSE e.name || ' - ' || tt.name END AS description
         FROM order_items oi
+           LEFT JOIN events e ON event_id = e.id
            LEFT JOIN ticket_pricing tp
            INNER JOIN ticket_types tt
-           INNER JOIN events e ON tt.event_id = e.id
             ON tp.ticket_type_id = tt.id
             ON oi.ticket_pricing_id = tp.id
         WHERE oi.order_id = $1
+        ORDER BY oi.item_type DESC
         "#,
         ).bind::<sql_types::Uuid, _>(order_id)
         .load(conn)
         .to_db_error(errors::ErrorCode::QueryError, "Could not load order items")
     }
 
-    pub(crate) fn find_for_order(
+    pub fn find_for_order(
         order_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<OrderItem>, DatabaseError> {
@@ -177,6 +189,7 @@ impl OrderItem {
 pub(crate) struct NewTicketsOrderItem {
     pub order_id: Uuid,
     pub item_type: String,
+    pub event_id: Option<Uuid>,
     pub quantity: i64,
     pub unit_price_in_cents: i64,
     pub ticket_pricing_id: Uuid,
@@ -200,9 +213,10 @@ impl NewTicketsOrderItem {
 pub(crate) struct NewFeesOrderItem {
     pub order_id: Uuid,
     pub item_type: String,
+    pub event_id: Option<Uuid>,
     pub quantity: i64,
     pub unit_price_in_cents: i64,
-    pub parent_id: Uuid,
+    pub parent_id: Option<Uuid>,
 }
 
 impl NewFeesOrderItem {

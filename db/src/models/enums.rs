@@ -41,7 +41,7 @@ string_enum! { AssetStatus [Unsynced] }
 string_enum! { DomainEventTypes [PaymentCreated, PaymentCompleted]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { OrderStatus [Draft, PartiallyPaid, Paid, Cancelled] }
-string_enum! { OrderItemTypes [Tickets, Fees]}
+string_enum! { OrderItemTypes [Tickets, PerUnitFees, EventFees]}
 string_enum! { OrderTypes [Cart, BackOffice] }
 string_enum! { PaymentMethods [External, CreditCard] }
 string_enum! { PaymentStatus [Authorized, Completed] }

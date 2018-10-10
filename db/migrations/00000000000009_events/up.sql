@@ -10,6 +10,7 @@ CREATE TABLE events (
   status TEXT NOT NULL,
   publish_date TIMESTAMP NULL,
   redeem_date TIMESTAMP NULL,
+  fee_in_cents BIGINT NULL,
   promo_image_url TEXT NULL,
   additional_info TEXT NULL,
   age_limit INTEGER NULL,

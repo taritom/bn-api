@@ -78,6 +78,7 @@ table! {
         status -> Text,
         publish_date -> Nullable<Timestamp>,
         redeem_date -> Nullable<Timestamp>,
+        fee_in_cents -> Nullable<Int8>,
         promo_image_url -> Nullable<Text>,
         additional_info -> Nullable<Text>,
         age_limit -> Nullable<Int4>,
@@ -124,6 +125,7 @@ table! {
         id -> Uuid,
         order_id -> Uuid,
         item_type -> Text,
+        event_id -> Nullable<Uuid>,
         quantity -> Int8,
         unit_price_in_cents -> Int8,
         created_at -> Timestamp,
@@ -340,6 +342,7 @@ joinable!(events -> organizations (organization_id));
 joinable!(events -> venues (venue_id));
 joinable!(external_logins -> users (user_id));
 joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
+joinable!(order_items -> events (event_id));
 joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
 joinable!(order_items -> orders (order_id));
 joinable!(order_items -> ticket_pricing (ticket_pricing_id));

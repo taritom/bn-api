@@ -26,7 +26,7 @@ fn find_fee_item() {
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
 
     assert_eq!(fee_item.parent_id, Some(order_item.id));
-    assert_eq!(fee_item.item_type, OrderItemTypes::Fees.to_string());
+    assert_eq!(fee_item.item_type, OrderItemTypes::PerUnitFees.to_string());
 }
 
 #[test]

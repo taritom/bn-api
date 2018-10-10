@@ -124,7 +124,7 @@ pub fn checkout(
         for ticket in &tickets {
             tokens_per_asset
                 .entry(ticket.asset_id)
-                .or_insert_with(|| vec![ticket.token_id as u64])
+                .or_insert_with(|| Vec::new())
                 .push(ticket.token_id as u64);
         }
     }

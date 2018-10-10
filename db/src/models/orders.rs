@@ -7,6 +7,7 @@ use diesel::sql_types::{BigInt, Nullable};
 use models::*;
 use schema::{order_items, orders};
 use serde_json;
+use std::collections::HashMap;
 use time::Duration;
 use utils::errors;
 use utils::errors::*;
@@ -96,11 +97,8 @@ impl Order {
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let ticket_pricing = TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
-
-        let organization = Organization::find(
-            Event::find(TicketType::find(ticket_type_id, conn)?.event_id, conn)?.organization_id,
-            conn,
-        )?;
+        let event = Event::find(TicketType::find(ticket_type_id, conn)?.event_id, conn)?;
+        let organization = Organization::find(event.organization_id, conn)?;
 
         let fee_schedule_range = FeeSchedule::find(organization.fee_schedule_id, conn)?
             .get_range(ticket_pricing.price_in_cents, conn)?
@@ -119,13 +117,14 @@ impl Order {
                 item_type: OrderItemTypes::Tickets.to_string(),
                 quantity,
                 ticket_pricing_id: ticket_pricing.id,
+                event_id: Some(event.id),
                 fee_schedule_range_id: fee_schedule_range.id,
                 unit_price_in_cents: ticket_pricing.price_in_cents,
             }.commit(conn)?,
         };
 
         order_item.update_fees(conn)?;
-
+        self.update_event_fees(conn)?;
         TicketInstance::reserve_tickets(
             &order_item,
             &self.expires_at,
@@ -156,15 +155,61 @@ impl Order {
         let calculated_quantity = order_item.calculate_quantity(conn)?;
 
         if calculated_quantity == 0 {
-            order_item.destroy(conn)
+            order_item.destroy(conn)?;
         } else {
             let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), conn)?;
             order_item.quantity = calculated_quantity;
             order_item.unit_price_in_cents = ticket_pricing.price_in_cents;
             order_item.update(conn)?;
 
-            order_item.update_fees(conn)
+            order_item.update_fees(conn)?;
         }
+
+        self.update_event_fees(conn)?;
+
+        Ok(())
+    }
+
+    pub fn update_event_fees(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let order_items = OrderItem::find_for_order(self.id, conn)?;
+        let mut order_items_per_event: HashMap<Uuid, Vec<OrderItem>> = HashMap::new();
+
+        for o in order_items {
+            if o.event_id.is_some() {
+                order_items_per_event
+                    .entry(o.event_id.unwrap())
+                    .or_insert_with(|| Vec::new())
+                    .push(o);
+            }
+        }
+        for k in order_items_per_event.keys() {
+            let mut has_event_fee = false;
+            let event = Event::find(*k, conn)?;
+            let mut item_count = 0;
+            for o in order_items_per_event.get(k).unwrap() {
+                item_count += 1;
+                if o.item_type == OrderItemTypes::EventFees.to_string() {
+                    has_event_fee = true;
+                }
+            }
+            //If there is an event fee but it is the only order_item left for this event then
+            //delete the event fee.
+            if has_event_fee && item_count == 1 {
+                let event_fee = &order_items_per_event.get(k).unwrap()[0];
+                OrderItem::find(event_fee.id, conn)?.destroy(conn)?;
+            } else if !has_event_fee && event.fee_in_cents.is_some() {
+                NewFeesOrderItem {
+                    order_id: self.id,
+                    item_type: OrderItemTypes::EventFees.to_string(),
+                    event_id: Some(event.id),
+                    unit_price_in_cents: event.fee_in_cents.unwrap(),
+                    quantity: 1,
+                    parent_id: None,
+                }.commit(conn)?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn find_for_user_for_display(

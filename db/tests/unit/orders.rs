@@ -334,7 +334,13 @@ fn find_for_user_for_display() {
     let display_orders =
         Order::find_for_user_for_display(user.id, project.get_connection()).unwrap();
     let ids: Vec<Uuid> = display_orders.iter().map(|o| o.id).collect();
-    assert_eq!(vec![order1.id, order2.id], ids);
+    //The order of the ids is not certain so this test fails from time to time.
+    //It is ordered by updated_at which is the same for the two orders
+
+    assert!(
+        (order1.id == ids[0] && order2.id == ids[1])
+            || (order1.id == ids[1] && order2.id == ids[0])
+    );
 }
 
 #[test]
@@ -359,4 +365,80 @@ fn for_display() {
         .unwrap();
     let display_order = order.for_display(project.get_connection()).unwrap();
     assert_eq!(0, display_order.seconds_until_expiry);
+}
+
+#[test]
+fn adding_event_fees() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event1 = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .with_event_fee()
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .with_event_fee()
+        .finish();
+    let event3 = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(connection)
+        .unwrap();
+    let ticket1 = &event1.ticket_types(connection).unwrap()[0];
+    let ticket2 = &event2.ticket_types(connection).unwrap()[0];
+    let ticket3 = &event3.ticket_types(connection).unwrap()[0];
+    let _tickets = cart.add_tickets(ticket1.id, 10, connection).unwrap();
+
+    let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
+
+    let mut event_fees_count = 0;
+    for o in &order_items {
+        if o.item_type == OrderItemTypes::EventFees.to_string() {
+            event_fees_count += 1;
+        }
+    }
+    assert_eq!(event_fees_count, 1);
+
+    //Add some more of the same event and some of a second event
+    let _tickets = cart.add_tickets(ticket1.id, 5, connection).unwrap();
+    let _tickets = cart.add_tickets(ticket2.id, 5, connection).unwrap();
+
+    let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
+
+    let mut event_fees_count = 0;
+    for o in &order_items {
+        if o.item_type == OrderItemTypes::EventFees.to_string() {
+            event_fees_count += 1;
+        }
+    }
+    assert_eq!(event_fees_count, 2);
+
+    //Add tickets with null event fee
+
+    let _tickets = cart.add_tickets(ticket3.id, 5, connection).unwrap();
+
+    let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
+
+    let mut event_fees_count = 0;
+    for o in &order_items {
+        if o.item_type == OrderItemTypes::EventFees.to_string() {
+            event_fees_count += 1;
+        }
+    }
+    assert_eq!(event_fees_count, 2);
 }
