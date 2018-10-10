@@ -105,7 +105,7 @@ pub fn redeem(
     }
 }
 
-pub fn show_redeem_key(
+pub fn show_redeemable_ticket(
     (connection, parameters, auth_user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -119,12 +119,7 @@ pub fn show_redeem_key(
         return application::unauthorized();
     }
 
-    let redeem_key = TicketInstance::show_redeem_key(parameters.id, connection)?;
+    let redeemable_ticket = TicketInstance::show_redeemable_ticket(parameters.id, connection)?;
 
-    if redeem_key.is_some() {
-        Ok(HttpResponse::Ok().json(json!({"success": true,"redeem_key": redeem_key.unwrap(),})))
-    } else {
-        Ok(HttpResponse::Ok()
-            .json(json!({"success": false, "message": "Redeem key is not available".to_string()})))
-    }
+    Ok(HttpResponse::Ok().json(&redeemable_ticket))
 }

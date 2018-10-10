@@ -3,12 +3,12 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
-use diesel::sql_types::{Bigint, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{Bigint, Nullable, Text, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use rand;
 use rand::Rng;
-use schema::{assets, events, order_items, orders, ticket_instances, ticket_types};
+use schema::{assets, events, order_items, orders, ticket_instances, ticket_types, users, venues};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -285,11 +285,11 @@ impl TicketInstance {
         Ok(RedeemResults::TicketRedeemSuccess)
     }
 
-    pub fn show_redeem_key(
+    pub fn show_redeemable_ticket(
         ticket_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<Option<String>, DatabaseError> {
-        let ticket_event = ticket_instances::table
+    ) -> Result<RedeemableTicket, DatabaseError> {
+        let mut ticket_data = ticket_instances::table
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(
@@ -297,21 +297,36 @@ impl TicketInstance {
                     .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
             ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .inner_join(users::table.on(orders::user_id.eq(users::id)))
+            .inner_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
             .filter(ticket_instances::id.eq(ticket_id))
             .select((
                 ticket_instances::id,
+                ticket_types::name,
+                orders::user_id,
+                users::first_name,
+                users::last_name,
+                users::email,
+                users::phone,
                 ticket_instances::redeem_key,
                 events::redeem_date,
-            )).first::<RedeemKeyQuery>(conn)
+                ticket_instances::status,
+                events::id,
+                events::name,
+                events::door_time,
+                events::event_start,
+                events::venue_id,
+                venues::name,
+            )).first::<RedeemableTicket>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
 
-        if ticket_event.redeem_date.is_some()
-            && ticket_event.redeem_date.unwrap() > Utc::now().naive_utc()
+        if ticket_data.redeem_date.is_some()
+            && ticket_data.redeem_date.unwrap() > Utc::now().naive_utc()
         {
-            return Ok(None); //Redeem key not available yet. Should this be an error?
+            ticket_data.redeem_key = None; //Redeem key not available yet. Should this be an error?
         }
 
-        Ok(ticket_event.redeem_key)
+        Ok(ticket_data)
     }
 }
 
@@ -349,16 +364,6 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
 struct NewTicketInstance {
     asset_id: Uuid,
     token_id: i32,
-}
-
-#[derive(Queryable, QueryableByName)]
-pub struct RedeemKeyQuery {
-    #[sql_type = "dUuid"]
-    pub id: Uuid,
-    #[sql_type = "Nullable<Text>"]
-    pub redeem_key: Option<String>,
-    #[sql_type = "Nullable<Timestamp>"]
-    pub redeem_date: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, PartialEq)]

@@ -138,7 +138,7 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool, same_organization: 
     }
 }
 
-pub fn show_redeem_key(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool, same_organization: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let request = TestRequest::create();
@@ -147,11 +147,12 @@ pub fn show_redeem_key(role: Roles, should_test_succeed: bool, same_organization
     } else {
         database.create_organization()
     }.finish();
-
+    let venue = database.create_venue().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
         .with_ticket_pricing()
+        .with_venue(&venue)
         .finish();
     let user2 = database.create_user().finish();
     let mut cart = Order::create(user2.id, OrderTypes::Cart)
@@ -172,20 +173,16 @@ pub fn show_redeem_key(role: Roles, should_test_succeed: bool, same_organization
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;
 
-    let response =
-        tickets::show_redeem_key((database.connection.clone().into(), path, auth_user.clone()))
-            .unwrap();
-
-    #[derive(Deserialize)]
-    struct SuccessMessage {
-        success: bool,
-        redeem_key: String,
-    }
+    let response = tickets::show_redeemable_ticket((
+        database.connection.clone().into(),
+        path,
+        auth_user.clone(),
+    )).unwrap();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
-        let ticket_response: SuccessMessage = serde_json::from_str(&body).unwrap();
-        assert_eq!(ticket_response.success, true);
+        let ticket_response: RedeemableTicket = serde_json::from_str(&body).unwrap();
+        assert!(ticket_response.redeem_key.is_some());
     } else {
         support::expects_unauthorized(&response);
     }

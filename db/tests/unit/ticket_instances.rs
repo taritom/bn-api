@@ -335,7 +335,7 @@ fn redeem_ticket() {
 }
 
 #[test]
-fn show_redeem_key() {
+fn show_redeemable_ticket() {
     let project = TestProject::new();
     let connection = project.get_connection();
 
@@ -343,10 +343,12 @@ fn show_redeem_key() {
         .create_organization()
         .with_fee_schedule(&project.create_fee_schedule().finish())
         .finish();
+    let venue = project.create_venue().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
         .with_ticket_pricing()
+        .with_venue(&venue)
         .finish();
     let user = project.create_user().finish();
     let mut cart = Order::create(user.id, OrderTypes::Cart)
@@ -373,8 +375,8 @@ fn show_redeem_key() {
 
     event.update(new_event_redeem_date, connection).unwrap();
 
-    let result = TicketInstance::show_redeem_key(ticket.id, connection).unwrap();
-    assert!(result.is_none());
+    let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
+    assert!(result.redeem_key.is_none());
 
     //make redeem date in the past
     let new_event_redeem_date = EventEditableAttributes {
@@ -386,6 +388,6 @@ fn show_redeem_key() {
 
     event.update(new_event_redeem_date, connection).unwrap();
 
-    let result = TicketInstance::show_redeem_key(ticket.id, connection).unwrap();
-    assert!(result.is_some());
+    let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
+    assert!(result.redeem_key.is_some());
 }

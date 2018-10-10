@@ -103,7 +103,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     }).resource("/tickets", |r| {
         r.method(Method::GET).with(tickets::index);
     }).resource("/tickets/{id}/redeem", |r| {
-        r.method(Method::GET).with(tickets::show_redeem_key);
+        r.method(Method::GET).with(tickets::show_redeemable_ticket);
         r.method(Method::POST).with(tickets::redeem);
     }).resource("/users/me", |r| {
         r.method(Method::GET).with(users::current_user);
