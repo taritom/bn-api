@@ -1,6 +1,6 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::regions;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
 use bigneon_db::models::Roles;
 use functional::base;
 use serde_json;
@@ -21,13 +21,26 @@ fn index() {
         .finish();
 
     let expected_regions = vec![region, region2];
-    let region_expected_json = serde_json::to_string(&expected_regions).unwrap();
-
-    let response: HttpResponse = regions::index(database.connection.into()).into();
-
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse =
+        regions::index((database.connection.into(), query_parameters)).into();
+    let wrapped_expected_regions = Payload {
+        data: expected_regions,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_regions).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, region_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 #[test]
