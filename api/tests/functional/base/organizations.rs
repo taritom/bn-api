@@ -398,7 +398,7 @@ pub fn list_organization_members(role: Roles, should_succeed: bool, same_organiz
         data: organization_members,
         paging: Paging {
             page: 0,
-            limit: 100,
+            limit: count as u64,
             sort: "".to_string(),
             dir: SortingDir::None,
             total: count as u64,

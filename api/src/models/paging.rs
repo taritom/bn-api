@@ -31,7 +31,7 @@ pub struct Payload<T> {
     pub paging: Paging,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 ///struct used to indicate paging information and search query information
 pub struct PagingParameters {
     pub page: Option<u64>,

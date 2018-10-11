@@ -239,10 +239,11 @@ pub fn list_organization_members(
     let query_parameters = Paging::new(&query_parameters.into_inner());
     members[0].is_org_owner = true;
     let member_count = members.len();
-    let payload = Payload {
+    let mut payload = Payload {
         data: members,
         paging: Paging::clone_with_new_total(&query_parameters, member_count as u64),
     };
+    payload.paging.limit = member_count as u64;
     Ok(HttpResponse::Ok().json(payload))
 }
 

@@ -1,6 +1,7 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::artists;
-use bigneon_api::models::PathParameters;
+
+use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
 use bigneon_db::models::Roles;
 use functional::base;
 use serde_json;
@@ -21,12 +22,27 @@ fn index() {
         .finish();
 
     let expected_artists = vec![artist, artist2];
-    let artist_expected_json = serde_json::to_string(&expected_artists).unwrap();
-    let response: HttpResponse = artists::index((database.connection.into(), None)).into();
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse =
+        artists::index((database.connection.into(), query_parameters, None)).into();
 
+    let wrapped_expected_artists = Payload {
+        data: expected_artists,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_artists).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, artist_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 #[test]
@@ -55,33 +71,66 @@ fn index_with_org_linked_and_private_venues() {
         .with_organization(&org1)
         .finish();
 
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     //first try with no user
-    let response: HttpResponse = artists::index((database.connection.clone().into(), None)).into();
+    let response: HttpResponse =
+        artists::index((database.connection.clone().into(), query_parameters, None)).into();
 
     let mut expected_artists = vec![artist, artist2, artist3];
-    let artist_expected_json = serde_json::to_string(&expected_artists).unwrap();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, artist_expected_json);
+    let wrapped_expected_artists = Payload {
+        data: expected_artists.clone(),
+        paging: Paging {
+            page: 0,
+            limit: 3,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 3,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_artists).unwrap();
+    assert_eq!(body, expected_json);
 
     //now try with user that does not belong to org
     let user = support::create_auth_user(Roles::OrgOwner, &database);
     let user_id = user.id();
-    let response: HttpResponse =
-        artists::index((database.connection.clone().into(), Some(user.clone()))).into();
-
-    let artist_expected_json = serde_json::to_string(&expected_artists).unwrap();
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse = artists::index((
+        database.connection.clone().into(),
+        query_parameters,
+        Some(user.clone()),
+    )).into();
+;
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, artist_expected_json);
+    assert_eq!(body, expected_json);
 
     //now with user that DOES belong to org
     let _ = org1.add_user(user_id, &database.connection.clone());
     expected_artists.push(artist4);
-    let response: HttpResponse = artists::index((database.connection.into(), Some(user))).into();
-    let artist_expected_json = serde_json::to_string(&expected_artists).unwrap();
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse =
+        artists::index((database.connection.into(), query_parameters, Some(user))).into();
+    let wrapped_expected_artists = Payload {
+        data: expected_artists,
+        paging: Paging {
+            page: 0,
+            limit: 4,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 4,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_artists).unwrap();
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, artist_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 #[test]
@@ -121,21 +170,37 @@ pub fn show_from_organizations_private_artist_same_org() {
     let _ = organization.add_user(user2.id, &database.connection);
 
     let all_artists = vec![artist, artist2];
-    let artist_expected_json = serde_json::to_string(&all_artists).unwrap();
-
+    let wrapped_expected_artists = Payload {
+        data: all_artists,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_artists).unwrap();
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
     let user = support::create_auth_user_from_user(&user2, Roles::OrgOwner, &database);
-
-    let response: HttpResponse =
-        artists::show_from_organizations((database.connection.into(), path, Some(user))).into();
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse = artists::show_from_organizations((
+        database.connection.into(),
+        path,
+        query_parameters,
+        Some(user),
+    )).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(artist_expected_json, body);
+    assert_eq!(expected_json, body);
 }
 
 #[cfg(test)]

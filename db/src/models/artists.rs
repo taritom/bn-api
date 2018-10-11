@@ -11,7 +11,7 @@ use uuid::Uuid;
 use validator::Validate;
 use validators;
 
-#[derive(Associations, Deserialize, Identifiable, Queryable, Serialize, Debug, PartialEq)]
+#[derive(Associations, Deserialize, Identifiable, Queryable, Serialize, Debug, PartialEq, Clone)]
 pub struct Artist {
     pub id: Uuid,
     pub organization_id: Option<Uuid>,
