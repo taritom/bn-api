@@ -14,6 +14,7 @@ CREATE TABLE events (
   promo_image_url TEXT NULL,
   additional_info TEXT NULL,
   age_limit INTEGER NULL,
+  top_line_info VARCHAR(100) NULL,
   cancelled_at TIMESTAMP NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );

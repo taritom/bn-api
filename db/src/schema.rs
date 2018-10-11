@@ -82,6 +82,7 @@ table! {
         promo_image_url -> Nullable<Text>,
         additional_info -> Nullable<Text>,
         age_limit -> Nullable<Int4>,
+        top_line_info -> Nullable<Varchar>,
         cancelled_at -> Nullable<Timestamp>,
         updated_at -> Timestamp,
     }
@@ -164,6 +165,16 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         owner_user_id -> Uuid,
@@ -177,16 +188,6 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Uuid,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -383,8 +384,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     payment_methods,
     payments,
     regions,

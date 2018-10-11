@@ -32,6 +32,7 @@ pub struct Event {
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
+    pub top_line_info: Option<String>,
     pub cancelled_at: Option<NaiveDateTime>,
     pub updated_at: NaiveDateTime,
 }
@@ -53,6 +54,8 @@ pub struct NewEvent {
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
+    #[validate(length(max = "100"))]
+    pub top_line_info: Option<String>,
 }
 
 impl NewEvent {
@@ -83,6 +86,8 @@ pub struct EventEditableAttributes {
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
     pub cancelled_at: Option<NaiveDateTime>,
+    #[validate(length(max = "100"))]
+    pub top_line_info: Option<String>,
 }
 
 impl Event {
@@ -163,6 +168,7 @@ impl Event {
             "Error loading event via venue",
             events::table
                 .filter(events::venue_id.eq(venue_id))
+                .order_by(events::name)
                 .load(conn),
         )
     }
@@ -176,6 +182,7 @@ impl Event {
             "Error loading events via organization",
             events::table
                 .filter(events::organization_id.eq(organization_id))
+                .order_by(events::name)
                 .load(conn),
         )
     }
@@ -330,6 +337,7 @@ impl Event {
             door_time: self.door_time,
             promo_image_url: self.promo_image_url,
             additional_info: self.additional_info,
+            top_line_info: self.top_line_info,
             venue,
         })
     }
@@ -343,5 +351,6 @@ pub struct DisplayEvent {
     pub door_time: Option<NaiveDateTime>,
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
+    pub top_line_info: Option<String>,
     pub venue: Option<DisplayVenue>,
 }
