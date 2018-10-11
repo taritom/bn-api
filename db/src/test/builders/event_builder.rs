@@ -111,10 +111,8 @@ impl<'a> EventBuilder<'a> {
             let event_start = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
             let event_end = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(4));
 
-            let wallet_id =
-                Wallet::find_default_for_organization(event.organization_id, self.connection)
-                    .unwrap()
-                    .id;
+            let wallet_id = event.issuer_wallet(self.connection).unwrap().id;
+
             let ticket_type = event
                 .add_ticket_type(
                     "General Admission".to_string(),

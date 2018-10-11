@@ -541,11 +541,9 @@ fn venue() {
 #[test]
 fn add_ticket_type() {
     let project = TestProject::new();
+    let conn = project.get_connection();
     let event = project.create_event().finish();
-    let wallet_id =
-        Wallet::find_default_for_organization(event.organization_id, &project.get_connection())
-            .unwrap()
-            .id;
+    let wallet_id = event.issuer_wallet(conn).unwrap().id;
     let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
     let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type = event
@@ -555,7 +553,7 @@ fn add_ticket_type() {
             sd,
             ed,
             wallet_id,
-            project.get_connection(),
+            conn,
         ).unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
@@ -565,11 +563,9 @@ fn add_ticket_type() {
 #[test]
 fn ticket_types() {
     let project = TestProject::new();
+    let conn = project.get_connection();
     let event = project.create_event().finish();
-    let wallet_id =
-        Wallet::find_default_for_organization(event.organization_id, &project.get_connection())
-            .unwrap()
-            .id;
+    let wallet_id = event.issuer_wallet(conn).unwrap().id;
     let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
     let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type_ga = event
@@ -579,19 +575,13 @@ fn ticket_types() {
             sd,
             ed,
             wallet_id,
-            project.get_connection(),
+            conn,
         ).unwrap();
     let ticket_type_vip = event
-        .add_ticket_type(
-            "VIP".to_string(),
-            100,
-            sd,
-            ed,
-            wallet_id,
-            project.get_connection(),
-        ).unwrap();
+        .add_ticket_type("VIP".to_string(), 100, sd, ed, wallet_id, conn)
+        .unwrap();
 
-    let ticket_types = event.ticket_types(project.get_connection()).unwrap();
+    let ticket_types = event.ticket_types(conn).unwrap();
 
     assert_eq!(ticket_types, vec![ticket_type_ga, ticket_type_vip]);
 }

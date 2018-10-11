@@ -327,6 +327,10 @@ impl Event {
         TicketType::find_by_event_id(self.id, conn)
     }
 
+    pub fn issuer_wallet(&self, conn: &PgConnection) -> Result<Wallet, DatabaseError> {
+        Wallet::find_default_for_organization(self.organization_id, conn)
+    }
+
     pub fn for_display(self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {
         let venue: Option<DisplayVenue> = self.venue(conn)?.and_then(|venue| Some(venue.into()));
 

@@ -101,8 +101,7 @@ impl<'a> OrganizationBuilder<'a> {
             organization.id,
             String::from("Default wallet"),
             self.connection,
-        ).commit(self.connection)
-        .unwrap();
+        ).unwrap();
 
         if self.use_address {
             let mut attrs: OrganizationEditableAttributes = Default::default();

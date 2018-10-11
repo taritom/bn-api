@@ -3,7 +3,7 @@ use diesel;
 use diesel::prelude::*;
 use schema::wallets;
 use std::default::Default;
-use tari_client;
+use tari_client::{convert_bytes_to_hexstring, cryptographic_keypair};
 use utils::errors;
 use utils::errors::*;
 use uuid::Uuid;
@@ -29,50 +29,50 @@ impl Wallet {
             .to_db_error(errors::ErrorCode::QueryError, "Could not find wallet")
     }
 
-    pub fn create_for_user(user_id: Uuid, name: String, conn: &PgConnection) -> NewWallet {
-        let (secret_key, public_key) = tari_client::cryptographic_keypair();
+    pub fn create_for_user(
+        user_id: Uuid,
+        name: String,
+        conn: &PgConnection,
+    ) -> Result<Wallet, DatabaseError> {
+        let (secret_key, public_key) = cryptographic_keypair();
+        let wallets = Wallet::find_for_user(user_id, conn)?;
         let default_flag: bool;
-        match Wallet::find_for_user(user_id, conn) {
-            Ok(v) => if v.len() == 0 {
-                default_flag = true;
-            } else {
-                default_flag = false;
-            },
-            Err(_e) => default_flag = true,
+        if wallets.len() == 0 {
+            default_flag = true;
+        } else {
+            default_flag = false;
         };
-        NewWallet {
+        (NewWallet {
             user_id: Some(user_id),
             name,
-            secret_key: tari_client::convert_bytes_to_hexstring(&secret_key),
-            public_key: tari_client::convert_bytes_to_hexstring(&public_key),
+            secret_key: convert_bytes_to_hexstring(&secret_key),
+            public_key: convert_bytes_to_hexstring(&public_key),
             default_flag,
             ..Default::default()
-        }
+        }.commit(conn))
     }
 
     pub fn create_for_organization(
         organization_id: Uuid,
         name: String,
         conn: &PgConnection,
-    ) -> NewWallet {
-        let (secret_key, public_key) = tari_client::cryptographic_keypair();
+    ) -> Result<Wallet, DatabaseError> {
+        let (secret_key, public_key) = cryptographic_keypair();
+        let wallets = Wallet::find_for_organization(organization_id, conn)?;
         let default_flag: bool;
-        match Wallet::find_for_organization(organization_id, conn) {
-            Ok(v) => if v.len() == 0 {
-                default_flag = true;
-            } else {
-                default_flag = false;
-            },
-            Err(_e) => default_flag = true,
+        if wallets.len() == 0 {
+            default_flag = true;
+        } else {
+            default_flag = false;
         };
-        NewWallet {
+        (NewWallet {
             organization_id: Some(organization_id),
             name,
-            secret_key: tari_client::convert_bytes_to_hexstring(&secret_key),
-            public_key: tari_client::convert_bytes_to_hexstring(&public_key),
+            secret_key: convert_bytes_to_hexstring(&secret_key),
+            public_key: convert_bytes_to_hexstring(&public_key),
             default_flag,
             ..Default::default()
-        }
+        }.commit(conn))
     }
 
     pub fn find_for_user(user_id: Uuid, conn: &PgConnection) -> Result<Vec<Wallet>, DatabaseError> {
@@ -108,8 +108,7 @@ impl Wallet {
             }
         } else {
             //Create default wallet for user
-            result_wallet =
-                Wallet::create_for_user(user_id, String::from("Default"), conn).commit(conn)?;
+            result_wallet = Wallet::create_for_user(user_id, "Default".to_string(), conn)?;
         }
         Ok(result_wallet)
     }
@@ -131,8 +130,7 @@ impl Wallet {
         } else {
             //Create default wallet for org
             result_wallet =
-                Wallet::create_for_organization(organization_id, String::from("Default"), conn)
-                    .commit(conn)?;
+                Wallet::create_for_organization(organization_id, "Default".to_string(), conn)?;
         }
         Ok(result_wallet)
     }
