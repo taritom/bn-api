@@ -96,7 +96,7 @@ fn index_with_org_linked_and_private_venues() {
     assert_eq!(body, expected_json);
 
     //now try with user that does not belong to org
-    let user = support::create_auth_user(Roles::OrgOwner, &database);
+    let user = support::create_auth_user(Roles::User, None, &database);
     let user_id = user.id();
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
@@ -167,7 +167,6 @@ pub fn show_from_organizations_private_artist_same_org() {
         .finish();
 
     let user2 = database.create_user().finish();
-    let _ = organization.add_user(user2.id, &database.connection);
 
     let all_artists = vec![artist, artist2];
     let wrapped_expected_artists = Payload {
@@ -187,7 +186,13 @@ pub fn show_from_organizations_private_artist_same_org() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let user = support::create_auth_user_from_user(&user2, Roles::OrgOwner, &database);
+    let user = support::create_auth_user_from_user(
+        &user2,
+        Roles::OrgOwner,
+        Some(&organization),
+        &database,
+    );
+
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
@@ -224,35 +229,19 @@ mod create_tests {
     }
     #[test]
     fn create_with_organization_org_member() {
-        base::artists::create_with_organization(Roles::OrgMember, true, true);
+        base::artists::create_with_organization(Roles::OrgMember, true);
     }
     #[test]
     fn create_with_organization_admin() {
-        base::artists::create_with_organization(Roles::Admin, true, true);
+        base::artists::create_with_organization(Roles::Admin, true);
     }
     #[test]
     fn create_with_organization_user() {
-        base::artists::create_with_organization(Roles::User, false, true);
+        base::artists::create_with_organization(Roles::User, false);
     }
     #[test]
     fn create_with_organization_org_owner() {
-        base::artists::create_with_organization(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn create_with_organization_other_organization_org_member() {
-        base::artists::create_with_organization(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn create_with_organization_other_organization_admin() {
-        base::artists::create_with_organization(Roles::Admin, true, false);
-    }
-    #[test]
-    fn create_with_organization_other_organization_user() {
-        base::artists::create_with_organization(Roles::User, false, false);
-    }
-    #[test]
-    fn create_with_organization_other_organization_org_owner() {
-        base::artists::create_with_organization(Roles::OrgOwner, false, false);
+        base::artists::create_with_organization(Roles::OrgOwner, true);
     }
 }
 
@@ -319,51 +308,35 @@ mod update_tests {
     }
     #[test]
     fn update_with_organization_org_member() {
-        base::artists::update_with_organization(Roles::OrgMember, true, true, true);
+        base::artists::update_with_organization(Roles::OrgMember, true, true);
     }
     #[test]
     fn update_with_organization_admin() {
-        base::artists::update_with_organization(Roles::Admin, true, true, true);
+        base::artists::update_with_organization(Roles::Admin, true, true);
     }
     #[test]
     fn update_with_organization_user() {
-        base::artists::update_with_organization(Roles::User, false, true, true);
+        base::artists::update_with_organization(Roles::User, false, true);
     }
     #[test]
     fn update_with_organization_org_owner() {
-        base::artists::update_with_organization(Roles::OrgOwner, true, true, true);
+        base::artists::update_with_organization(Roles::OrgOwner, true, true);
     }
     #[test]
     fn update_public_artist_with_organization_org_member() {
-        base::artists::update_with_organization(Roles::OrgMember, false, true, false);
+        base::artists::update_with_organization(Roles::OrgMember, false, false);
     }
     #[test]
     fn update_public_artist_with_organization_admin() {
-        base::artists::update_with_organization(Roles::Admin, true, true, false);
+        base::artists::update_with_organization(Roles::Admin, true, false);
     }
     #[test]
     fn update_public_artist_with_organization_user() {
-        base::artists::update_with_organization(Roles::User, false, true, false);
+        base::artists::update_with_organization(Roles::User, false, false);
     }
     #[test]
     fn update_public_artist_with_organization_org_owner() {
-        base::artists::update_with_organization(Roles::OrgOwner, false, true, false);
-    }
-    #[test]
-    fn update_with_organization_other_organization_org_member() {
-        base::artists::update_with_organization(Roles::OrgMember, false, false, true);
-    }
-    #[test]
-    fn update_with_organization_other_organization_admin() {
-        base::artists::update_with_organization(Roles::Admin, true, false, true);
-    }
-    #[test]
-    fn update_with_organization_other_organization_user() {
-        base::artists::update_with_organization(Roles::User, false, false, true);
-    }
-    #[test]
-    fn update_with_organization_other_organization_org_owner() {
-        base::artists::update_with_organization(Roles::OrgOwner, false, false, true);
+        base::artists::update_with_organization(Roles::OrgOwner, false, false);
     }
 }
 

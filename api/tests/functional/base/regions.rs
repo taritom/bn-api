@@ -11,7 +11,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let name = "Region Example";
 
-    let user = support::create_auth_user(role, &database);
+    let user = support::create_auth_user(role, None, &database);
     let json = Json(NewRegion {
         name: name.to_string(),
     });
@@ -33,7 +33,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let region = database.create_region().finish();
     let new_name = "New Name";
 
-    let user = support::create_auth_user(role, &database);
+    let user = support::create_auth_user(role, None, &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = region.id;

@@ -7,15 +7,13 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
-pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let request = TestRequest::create();
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let event = database
         .create_event()
@@ -35,7 +33,6 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool, same_organ
     cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
         .unwrap();
 
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;
 
@@ -60,15 +57,13 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool, same_organ
     }
 }
 
-pub fn redeem_ticket(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let request = TestRequest::create();
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let event = database
         .create_event()
@@ -90,7 +85,6 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool, same_organization: 
 
     let ticket = TicketInstance::find(ticket.id, &database.connection).unwrap();
 
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;
     let mut path2 = Path::<PathParameters>::extract(&request.request).unwrap();
@@ -138,15 +132,13 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool, same_organization: 
     }
 }
 
-pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let request = TestRequest::create();
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let venue = database.create_venue().finish();
     let event = database
         .create_event()
@@ -169,7 +161,6 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool, same_organ
 
     let ticket = TicketInstance::find(ticket.id, &database.connection).unwrap();
 
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;
 

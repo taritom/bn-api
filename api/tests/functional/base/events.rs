@@ -10,17 +10,13 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
-pub fn create(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
-
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let venue = database.create_venue().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
 
     let name = "event Example";
     let new_event = NewEvent {
@@ -49,15 +45,12 @@ pub fn create(role: Roles, should_test_succeed: bool, same_organization: bool) {
     }
 }
 
-pub fn update(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -85,20 +78,17 @@ pub fn update(role: Roles, should_test_succeed: bool, same_organization: bool) {
     }
 }
 
-pub fn cancel(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn cancel(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let event = database
         .create_event()
         .with_organization(&organization)
         .finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
@@ -115,15 +105,12 @@ pub fn cancel(role: Roles, should_test_succeed: bool, same_organization: bool) {
     }
 }
 
-pub fn add_artist(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn add_artist(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let event = database
         .create_event()
@@ -159,7 +146,7 @@ pub fn add_artist(role: Roles, should_test_succeed: bool, same_organization: boo
 pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let event = database.create_event().finish();
-    let primary_user = support::create_auth_user(role, &database);
+    let primary_user = support::create_auth_user(role, None, &database);
     EventInterest::create(event.id, primary_user.id())
         .commit(&database.connection)
         .unwrap();
@@ -232,7 +219,7 @@ pub fn add_interest(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let event = database.create_event().finish();
 
-    let user = support::create_auth_user(role, &database);
+    let user = support::create_auth_user(role, None, &database);
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -260,7 +247,7 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
         .commit(&database.connection)
         .unwrap();
 
-    let user = support::create_auth_user_from_user(&user, role, &database);
+    let user = support::create_auth_user_from_user(&user, role, None, &database);
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -281,15 +268,12 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
     }
 }
 
-pub fn update_artists(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn update_artists(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let event = database
         .create_event()
@@ -330,15 +314,12 @@ pub fn update_artists(role: Roles, should_test_succeed: bool, same_organization:
     }
 }
 
-pub fn guest_list(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn guest_list(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let event = database
         .create_event()

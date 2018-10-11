@@ -20,13 +20,14 @@ fn index_with_org_linked_and_private_venues() {
         .with_name("Venue2".to_string())
         .finish();
 
-    let org1 = database.create_organization().finish();
+    let organization = database.create_organization().finish();
+    let auth_user = support::create_auth_user(Roles::User, Some(&organization), &database);
     let venue3 = database
         .create_venue()
         .with_name("Venue3".to_string())
         .finish();
     let venue3 = venue3
-        .add_to_organization(&org1.id, &database.connection)
+        .add_to_organization(&organization.id, &database.connection)
         .unwrap();
 
     let venue4 = database
@@ -35,7 +36,7 @@ fn index_with_org_linked_and_private_venues() {
         .with_name("Venue4".to_string())
         .finish();
     let venue4 = venue4
-        .add_to_organization(&org1.id, &database.connection)
+        .add_to_organization(&organization.id, &database.connection)
         .unwrap();
 
     //first try with no user
@@ -48,10 +49,8 @@ fn index_with_org_linked_and_private_venues() {
     assert_eq!(body, venue_expected_json);
 
     //now try with user that does not belong to org
-    let user = support::create_auth_user(Roles::OrgOwner, &database);
-    let user_id = user.id();
     let response: HttpResponse =
-        venues::index((database.connection.clone().into(), Some(user.clone()))).into();
+        venues::index((database.connection.clone().into(), Some(auth_user.clone()))).into();
 
     let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
 
@@ -59,9 +58,10 @@ fn index_with_org_linked_and_private_venues() {
     assert_eq!(body, venue_expected_json);
 
     //now with user that DOES belong to org
-    let _ = org1.add_user(user_id, &database.connection.clone());
+    let _ = organization.add_user(auth_user.id(), &database.connection.clone());
     expected_venues.push(venue4);
-    let response: HttpResponse = venues::index((database.connection.into(), Some(user))).into();
+    let response: HttpResponse =
+        venues::index((database.connection.into(), Some(auth_user))).into();
     let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, venue_expected_json);
@@ -125,35 +125,19 @@ mod create_tests {
     }
     #[test]
     fn create_with_organization_org_member() {
-        base::venues::create_with_organization(Roles::OrgMember, true, true);
+        base::venues::create_with_organization(Roles::OrgMember, true);
     }
     #[test]
     fn create_with_organization_admin() {
-        base::venues::create_with_organization(Roles::Admin, true, true);
+        base::venues::create_with_organization(Roles::Admin, true);
     }
     #[test]
     fn create_with_organization_user() {
-        base::venues::create_with_organization(Roles::User, false, true);
+        base::venues::create_with_organization(Roles::User, false);
     }
     #[test]
     fn create_with_organization_org_owner() {
-        base::venues::create_with_organization(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn create_with_other_organization_org_member() {
-        base::venues::create_with_organization(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn create_with_other_organization_admin() {
-        base::venues::create_with_organization(Roles::Admin, true, false);
-    }
-    #[test]
-    fn create_with_other_organization_user() {
-        base::venues::create_with_organization(Roles::User, false, false);
-    }
-    #[test]
-    fn create_with_other_organization_org_owner() {
-        base::venues::create_with_organization(Roles::OrgOwner, false, false);
+        base::venues::create_with_organization(Roles::OrgOwner, true);
     }
 }
 
@@ -199,51 +183,35 @@ mod update_tests {
     }
     #[test]
     fn update_with_organization_org_member() {
-        base::venues::update_with_organization(Roles::OrgMember, true, true, true);
+        base::venues::update_with_organization(Roles::OrgMember, true, true);
     }
     #[test]
     fn update_with_organization_admin() {
-        base::venues::update_with_organization(Roles::Admin, true, true, true);
+        base::venues::update_with_organization(Roles::Admin, true, true);
     }
     #[test]
     fn update_with_organization_user() {
-        base::venues::update_with_organization(Roles::User, false, true, true);
+        base::venues::update_with_organization(Roles::User, false, true);
     }
     #[test]
     fn update_with_organization_org_owner() {
-        base::venues::update_with_organization(Roles::OrgOwner, true, true, true);
+        base::venues::update_with_organization(Roles::OrgOwner, true, true);
     }
     #[test]
     fn update_public_venue_with_organization_org_member() {
-        base::venues::update_with_organization(Roles::OrgMember, false, true, false);
+        base::venues::update_with_organization(Roles::OrgMember, false, false);
     }
     #[test]
     fn update_public_venue_with_organization_admin() {
-        base::venues::update_with_organization(Roles::Admin, true, true, false);
+        base::venues::update_with_organization(Roles::Admin, true, false);
     }
     #[test]
     fn update_public_venue_with_organization_user() {
-        base::venues::update_with_organization(Roles::User, false, true, false);
+        base::venues::update_with_organization(Roles::User, false, false);
     }
     #[test]
     fn update_public_venue_with_organization_org_owner() {
-        base::venues::update_with_organization(Roles::OrgOwner, false, true, false);
-    }
-    #[test]
-    fn update_with_other_organization_org_member() {
-        base::venues::update_with_organization(Roles::OrgMember, false, false, true);
-    }
-    #[test]
-    fn update_with_other_organization_admin() {
-        base::venues::update_with_organization(Roles::Admin, true, false, true);
-    }
-    #[test]
-    fn update_with_other_organization_user() {
-        base::venues::update_with_organization(Roles::User, false, false, true);
-    }
-    #[test]
-    fn update_with_other_organization_org_owner() {
-        base::venues::update_with_organization(Roles::OrgOwner, false, false, true);
+        base::venues::update_with_organization(Roles::OrgOwner, false, false);
     }
 }
 
@@ -294,7 +262,12 @@ pub fn show_from_organizations_private_venue_same_org() {
         .unwrap();
 
     let user2 = database.create_user().finish();
-    let _ = organization.add_user(user2.id, &database.connection);
+    let auth_user = support::create_auth_user_from_user(
+        &user2,
+        Roles::OrgOwner,
+        Some(&organization),
+        &database,
+    );
 
     let all_venues = vec![venue, venue2];
     let venue_expected_json = serde_json::to_string(&all_venues).unwrap();
@@ -304,10 +277,8 @@ pub fn show_from_organizations_private_venue_same_org() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let user = support::create_auth_user_from_user(&user2, Roles::OrgOwner, &database);
-
     let response: HttpResponse =
-        venues::show_from_organizations((database.connection.into(), path, Some(user))).into();
+        venues::show_from_organizations((database.connection.into(), path, Some(auth_user))).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

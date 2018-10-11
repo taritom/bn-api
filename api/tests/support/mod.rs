@@ -3,7 +3,7 @@ pub mod test_request;
 
 use actix_web::{http::StatusCode, Body::Binary, HttpResponse};
 use bigneon_api::auth::user::User as AuthUser;
-use bigneon_db::models::{Roles, User};
+use bigneon_db::models::{Organization, Roles, User};
 use std::str;
 use support::database::TestDatabase;
 
@@ -14,16 +14,40 @@ pub fn unwrap_body_to_string(response: &HttpResponse) -> Result<&str, &'static s
     }
 }
 
-pub fn create_auth_user(role: Roles, database: &TestDatabase) -> AuthUser {
+pub fn create_auth_user(
+    role: Roles,
+    organization: Option<&Organization>,
+    database: &TestDatabase,
+) -> AuthUser {
     let user_for_auth = database.create_user().finish();
-    create_auth_user_from_user(&user_for_auth, role, database)
+    create_auth_user_from_user(&user_for_auth, role, organization, database)
 }
 
-pub fn create_auth_user_from_user(user: &User, role: Roles, database: &TestDatabase) -> AuthUser {
-    if role == Roles::Admin || role == Roles::User {
+pub fn create_auth_user_from_user(
+    user: &User,
+    role: Roles,
+    organization: Option<&Organization>,
+    database: &TestDatabase,
+) -> AuthUser {
+    if [Roles::Admin, Roles::User].contains(&role) {
         let user = user.add_role(role, &database.connection).unwrap();
         AuthUser::new(user)
     } else {
+        let organization = match organization {
+            Some(organization) => (*organization).clone(),
+            None => database.create_organization().finish(),
+        };
+
+        if role == Roles::OrgOwner {
+            organization
+                .set_owner(user.id, &database.connection)
+                .unwrap();
+        } else {
+            organization
+                .add_user(user.id, &database.connection)
+                .unwrap();
+        }
+
         AuthUser::new(user.clone())
     }
 }

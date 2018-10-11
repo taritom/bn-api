@@ -22,7 +22,7 @@ pub fn index(role: Roles, should_succeed: bool) {
     let expected_venues = vec![venue, venue2];
     let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
 
-    let user = support::create_auth_user(role, &database);
+    let user = support::create_auth_user(role, None, &database);
     let response: HttpResponse = venues::index((database.connection.into(), Some(user))).into();
 
     if !should_succeed {
@@ -39,7 +39,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let name = "Venue Example";
     let region = database.create_region().finish();
 
-    let user = support::create_auth_user(role, &database);
+    let user = support::create_auth_user(role, None, &database);
     let json = Json(NewVenue {
         name: name.to_string(),
         region_id: Some(region.id),
@@ -59,15 +59,12 @@ pub fn create(role: Roles, should_succeed: bool) {
     assert_eq!(venue.region_id, Some(region.id));
 }
 
-pub fn create_with_organization(role: Roles, should_succeed: bool, same_organization: bool) {
+pub fn create_with_organization(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let name = "Venue Example";
     let json = Json(NewVenue {
@@ -96,7 +93,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let venue = database.create_venue().finish();
     let new_name = "New Name";
 
-    let user = support::create_auth_user(role, &database);
+    let user = support::create_auth_user(role, None, &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
@@ -121,7 +118,7 @@ pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let venue = database.create_venue().finish();
 
-    let auth_user = support::create_auth_user(role, &database);
+    let auth_user = support::create_auth_user(role, None, &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
@@ -139,20 +136,12 @@ pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
     }
 }
 
-pub fn update_with_organization(
-    role: Roles,
-    should_succeed: bool,
-    same_organization: bool,
-    is_private: bool,
-) {
+pub fn update_with_organization(role: Roles, should_succeed: bool, is_private: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let mut venue = database
         .create_venue()
@@ -212,7 +201,7 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
     path.id = organization.id;
 
     let user = if role.is_some() {
-        Some(support::create_auth_user(role.unwrap(), &database))
+        Some(support::create_auth_user(role.unwrap(), None, &database))
     } else {
         None
     };
@@ -232,9 +221,10 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
 pub fn add_to_organization(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user).finish();
     let venue = database.create_venue().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
@@ -259,13 +249,14 @@ pub fn add_to_organization(role: Roles, should_succeed: bool) {
 pub fn add_to_organization_where_link_already_exists(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user).finish();
     let venue = database.create_venue().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let venue = venue
         .add_to_organization(&organization.id, &database.connection)
         .unwrap();
 
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;

@@ -22,7 +22,7 @@ fn show() {
         .commit(&connection)
         .unwrap();
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse = cart::show((database.connection.into(), auth_user)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -34,7 +34,7 @@ fn show() {
 fn show_no_cart() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse = cart::show((database.connection.into(), auth_user)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -55,7 +55,7 @@ fn show_expired_cart() {
         .get_result::<Order>(&*connection)
         .unwrap();
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse = cart::show((database.connection.into(), auth_user)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -80,7 +80,7 @@ fn add() {
         quantity: 2,
     });
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response = cart::add((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
 
@@ -123,7 +123,7 @@ fn add_with_existing_cart() {
         quantity: 2,
     });
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response = cart::add((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
     let order_item = cart.items(&connection).unwrap().remove(0);
@@ -180,7 +180,7 @@ fn remove() {
         quantity: Some(4),
     });
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response = cart::remove((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -223,7 +223,7 @@ fn remove_with_no_specified_quantity() {
         quantity: None,
     });
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response = cart::remove((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert!(cart.items(&connection).unwrap().is_empty());
@@ -244,7 +244,7 @@ fn remove_with_cart_item_not_belonging_to_current_cart() {
         .finish();
     let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
     // Cart item belongs to user2, not user
     let user2 = database.create_user().finish();
@@ -278,7 +278,7 @@ fn remove_with_no_cart() {
         quantity: None,
     });
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response = cart::remove((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
@@ -305,7 +305,7 @@ fn remove_more_tickets_than_user_has() {
         quantity: Some(14),
     });
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse =
         cart::remove((database.connection.into(), input, auth_user)).into();
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -337,7 +337,7 @@ fn checkout_external() {
     });
 
     // Must be admin to check out external
-    let user = support::create_auth_user_from_user(&user, Roles::Admin, &database);
+    let user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
 
     let response = cart::checkout((
         database.connection.into(),

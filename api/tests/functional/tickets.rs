@@ -51,7 +51,7 @@ pub fn index() {
     cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
         .unwrap();
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
     // Test with specified event
     let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
@@ -151,7 +151,7 @@ pub fn show() {
     let total = cart.calculate_total(&database.connection).unwrap();
     cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
         .unwrap();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;
     let response = tickets::show((database.connection.clone().into(), path, auth_user)).unwrap();
@@ -176,35 +176,19 @@ mod show_other_user_ticket_tests {
     use super::*;
     #[test]
     fn show_other_user_ticket_org_member() {
-        base::tickets::show_other_user_ticket(Roles::OrgMember, true, true);
+        base::tickets::show_other_user_ticket(Roles::OrgMember, true);
     }
     #[test]
     fn show_other_user_ticket_admin() {
-        base::tickets::show_other_user_ticket(Roles::Admin, true, true);
+        base::tickets::show_other_user_ticket(Roles::Admin, true);
     }
     #[test]
     fn show_other_user_ticket_user() {
-        base::tickets::show_other_user_ticket(Roles::User, false, true);
+        base::tickets::show_other_user_ticket(Roles::User, false);
     }
     #[test]
     fn show_other_user_ticket_org_owner() {
-        base::tickets::show_other_user_ticket(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn show_other_user_ticket_other_organization_org_member() {
-        base::tickets::show_other_user_ticket(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn show_other_user_ticket_other_organization_admin() {
-        base::tickets::show_other_user_ticket(Roles::Admin, true, false);
-    }
-    #[test]
-    fn show_other_user_ticket_other_organization_user() {
-        base::tickets::show_other_user_ticket(Roles::User, false, false);
-    }
-    #[test]
-    fn show_other_user_ticket_other_organization_org_owner() {
-        base::tickets::show_other_user_ticket(Roles::OrgOwner, false, false);
+        base::tickets::show_other_user_ticket(Roles::OrgOwner, true);
     }
 }
 
@@ -213,35 +197,19 @@ mod redeem_ticket {
     use super::*;
     #[test]
     fn redeem_ticket_org_member() {
-        base::tickets::redeem_ticket(Roles::OrgMember, true, true);
+        base::tickets::redeem_ticket(Roles::OrgMember, true);
     }
     #[test]
     fn redeem_ticket_admin() {
-        base::tickets::redeem_ticket(Roles::Admin, true, true);
+        base::tickets::redeem_ticket(Roles::Admin, true);
     }
     #[test]
     fn redeem_ticket_user() {
-        base::tickets::redeem_ticket(Roles::User, false, true);
+        base::tickets::redeem_ticket(Roles::User, false);
     }
     #[test]
     fn redeem_ticket_org_owner() {
-        base::tickets::redeem_ticket(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn redeem_ticket_other_organization_org_member() {
-        base::tickets::redeem_ticket(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn redeem_ticket_other_organization_admin() {
-        base::tickets::redeem_ticket(Roles::Admin, true, false);
-    }
-    #[test]
-    fn redeem_ticket_other_organization_user() {
-        base::tickets::redeem_ticket(Roles::User, false, false);
-    }
-    #[test]
-    fn redeem_ticket_other_organization_org_owner() {
-        base::tickets::redeem_ticket(Roles::OrgOwner, false, false);
+        base::tickets::redeem_ticket(Roles::OrgOwner, true);
     }
 }
 
@@ -250,34 +218,18 @@ mod show_redeem_key {
     use super::*;
     #[test]
     fn show_redeemable_ticket_org_member() {
-        base::tickets::show_redeemable_ticket(Roles::OrgMember, true, true);
+        base::tickets::show_redeemable_ticket(Roles::OrgMember, true);
     }
     #[test]
     fn show_redeemable_ticket_admin() {
-        base::tickets::show_redeemable_ticket(Roles::Admin, true, true);
+        base::tickets::show_redeemable_ticket(Roles::Admin, true);
     }
     #[test]
     fn show_redeemable_ticket_user() {
-        base::tickets::show_redeemable_ticket(Roles::User, false, true);
+        base::tickets::show_redeemable_ticket(Roles::User, false);
     }
     #[test]
     fn show_redeemable_ticket_org_owner() {
-        base::tickets::show_redeemable_ticket(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn show_redeemable_ticket_other_organization_org_member() {
-        base::tickets::show_redeemable_ticket(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn show_redeemable_ticket_other_organization_admin() {
-        base::tickets::show_redeemable_ticket(Roles::Admin, true, false);
-    }
-    #[test]
-    fn show_redeemable_ticket_other_organization_user() {
-        base::tickets::show_redeemable_ticket(Roles::User, false, false);
-    }
-    #[test]
-    fn show_redeemable_ticket_other_organization_org_owner() {
-        base::tickets::show_redeemable_ticket(Roles::OrgOwner, false, false);
+        base::tickets::show_redeemable_ticket(Roles::OrgOwner, true);
     }
 }

@@ -127,9 +127,13 @@ impl Artist {
                     organization_users::table.on(artists::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u))),
+                ).left_join(
+                    organizations::table
+                        .on(artists::organization_id.eq(organizations::id.nullable())),
                 ).filter(
                     organization_users::user_id
                         .eq(u)
+                        .or(organizations::owner_user_id.eq(u))
                         .or(artists::is_private.eq(false)),
                 ).filter(artists::organization_id.eq(organization_id))
                 .order_by(artists::name)

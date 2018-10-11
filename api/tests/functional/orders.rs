@@ -26,7 +26,7 @@ pub fn show() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = order.id;
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse = orders::show((database.connection.into(), path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -45,7 +45,7 @@ pub fn show_for_draft_returns_forbidden() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = order.id;
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse = orders::show((database.connection.into(), path, auth_user)).into();
     support::expects_forbidden(&response, Some("You do not have access to this order"));
 }
@@ -78,7 +78,7 @@ pub fn index() {
     assert_eq!(order2.status, OrderStatus::PartiallyPaid.to_string());
     assert_eq!(order3.status, OrderStatus::Draft.to_string());
 
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse =
         orders::index((database.connection.clone().into(), auth_user)).into();
     assert_eq!(response.status(), StatusCode::OK);

@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 #[derive(Identifiable, Associations, Queryable, AsChangeset)]
 #[belongs_to(User, foreign_key = "owner_user_id")]
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "organizations"]
 pub struct Organization {
     pub id: Uuid,

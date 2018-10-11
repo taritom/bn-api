@@ -68,8 +68,13 @@ pub fn index() {
 pub fn index_with_draft_for_organization_user() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgMember, &database);
-    let organization = database.create_organization().with_user(&user).finish();
+    let organization = database.create_organization().finish();
+    let auth_user = support::create_auth_user_from_user(
+        &user,
+        Roles::OrgMember,
+        Some(&organization),
+        &database,
+    );
     let venue = database.create_venue().finish();
     let event = database
         .create_event()
@@ -120,7 +125,7 @@ pub fn index_with_draft_for_organization_user() {
 pub fn index_with_draft_for_user_ignores_drafts() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let organization = database.create_organization().finish();
     let venue = database.create_venue().finish();
     let event = database
@@ -225,7 +230,7 @@ pub fn index_search_with_filter() {
 fn show() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
     let organization = database.create_organization().finish();
     let venue = database.create_venue().finish();
@@ -263,35 +268,19 @@ mod create_tests {
     use super::*;
     #[test]
     fn create_org_member() {
-        base::events::create(Roles::OrgMember, true, true);
+        base::events::create(Roles::OrgMember, true);
     }
     #[test]
     fn create_admin() {
-        base::events::create(Roles::Admin, true, true);
+        base::events::create(Roles::Admin, true);
     }
     #[test]
     fn create_user() {
-        base::events::create(Roles::User, false, true);
+        base::events::create(Roles::User, false);
     }
     #[test]
     fn create_org_owner() {
-        base::events::create(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn create_other_organization_org_member() {
-        base::events::create(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn create_other_organization_admin() {
-        base::events::create(Roles::Admin, true, false);
-    }
-    #[test]
-    fn create_other_organization_user() {
-        base::events::create(Roles::User, false, false);
-    }
-    #[test]
-    fn create_other_organization_org_owner() {
-        base::events::create(Roles::OrgOwner, false, false);
+        base::events::create(Roles::OrgOwner, true);
     }
 }
 
@@ -300,35 +289,19 @@ mod update_tests {
     use super::*;
     #[test]
     fn update_org_member() {
-        base::events::update(Roles::OrgMember, true, true);
+        base::events::update(Roles::OrgMember, true);
     }
     #[test]
     fn update_admin() {
-        base::events::update(Roles::Admin, true, true);
+        base::events::update(Roles::Admin, true);
     }
     #[test]
     fn update_user() {
-        base::events::update(Roles::User, false, true);
+        base::events::update(Roles::User, false);
     }
     #[test]
     fn update_org_owner() {
-        base::events::update(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn update_other_organization_org_member() {
-        base::events::update(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn update_other_organization_admin() {
-        base::events::update(Roles::Admin, true, false);
-    }
-    #[test]
-    fn update_other_organization_user() {
-        base::events::update(Roles::User, false, false);
-    }
-    #[test]
-    fn update_other_organization_org_owner() {
-        base::events::update(Roles::OrgOwner, false, false);
+        base::events::update(Roles::OrgOwner, true);
     }
 }
 
@@ -337,35 +310,19 @@ mod cancel_tests {
     use super::*;
     #[test]
     fn cancel_org_member() {
-        base::events::cancel(Roles::OrgMember, true, true);
+        base::events::cancel(Roles::OrgMember, true);
     }
     #[test]
     fn cancel_admin() {
-        base::events::cancel(Roles::Admin, true, true);
+        base::events::cancel(Roles::Admin, true);
     }
     #[test]
     fn cancel_user() {
-        base::events::cancel(Roles::User, false, true);
+        base::events::cancel(Roles::User, false);
     }
     #[test]
     fn cancel_org_owner() {
-        base::events::cancel(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn cancel_other_organization_org_member() {
-        base::events::cancel(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn cancel_other_organization_admin() {
-        base::events::cancel(Roles::Admin, true, false);
-    }
-    #[test]
-    fn cancel_other_organization_user() {
-        base::events::cancel(Roles::User, false, false);
-    }
-    #[test]
-    fn cancel_other_organization_org_owner() {
-        base::events::cancel(Roles::OrgOwner, false, false);
+        base::events::cancel(Roles::OrgOwner, true);
     }
 }
 
@@ -374,35 +331,19 @@ mod add_artist_tests {
     use super::*;
     #[test]
     fn add_artist_org_member() {
-        base::events::add_artist(Roles::OrgMember, true, true);
+        base::events::add_artist(Roles::OrgMember, true);
     }
     #[test]
     fn add_artist_admin() {
-        base::events::add_artist(Roles::Admin, true, true);
+        base::events::add_artist(Roles::Admin, true);
     }
     #[test]
     fn add_artist_user() {
-        base::events::add_artist(Roles::User, false, true);
+        base::events::add_artist(Roles::User, false);
     }
     #[test]
     fn add_artist_org_owner() {
-        base::events::add_artist(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn add_artist_other_organization_org_member() {
-        base::events::add_artist(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn add_artist_other_organization_admin() {
-        base::events::add_artist(Roles::Admin, true, false);
-    }
-    #[test]
-    fn add_artist_other_organization_user() {
-        base::events::add_artist(Roles::User, false, false);
-    }
-    #[test]
-    fn add_artist_other_organization_org_owner() {
-        base::events::add_artist(Roles::OrgOwner, false, false);
+        base::events::add_artist(Roles::OrgOwner, true);
     }
 }
 
@@ -477,35 +418,19 @@ mod update_artists_tests {
     use super::*;
     #[test]
     fn update_artists_org_member() {
-        base::events::update_artists(Roles::OrgMember, true, true);
+        base::events::update_artists(Roles::OrgMember, true);
     }
     #[test]
     fn update_artists_admin() {
-        base::events::update_artists(Roles::Admin, true, true);
+        base::events::update_artists(Roles::Admin, true);
     }
     #[test]
     fn update_artists_user() {
-        base::events::update_artists(Roles::User, false, true);
+        base::events::update_artists(Roles::User, false);
     }
     #[test]
     fn update_artists_org_owner() {
-        base::events::update_artists(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn update_artists_other_organization_org_member() {
-        base::events::update_artists(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn update_artists_other_organization_admin() {
-        base::events::update_artists(Roles::Admin, true, false);
-    }
-    #[test]
-    fn update_artists_other_organization_user() {
-        base::events::update_artists(Roles::User, false, false);
-    }
-    #[test]
-    fn update_artists_other_organization_org_owner() {
-        base::events::update_artists(Roles::OrgOwner, false, false);
+        base::events::update_artists(Roles::OrgOwner, true);
     }
 }
 
@@ -514,35 +439,19 @@ mod guest_list_tests {
     use super::*;
     #[test]
     fn guest_list_org_member() {
-        base::events::guest_list(Roles::OrgMember, true, true);
+        base::events::guest_list(Roles::OrgMember, true);
     }
     #[test]
     fn guest_list_admin() {
-        base::events::guest_list(Roles::Admin, true, true);
+        base::events::guest_list(Roles::Admin, true);
     }
     #[test]
     fn guest_list_user() {
-        base::events::guest_list(Roles::User, false, true);
+        base::events::guest_list(Roles::User, false);
     }
     #[test]
     fn guest_list_org_owner() {
-        base::events::guest_list(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn guest_list_other_organization_org_member() {
-        base::events::guest_list(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn guest_list_other_organization_admin() {
-        base::events::guest_list(Roles::Admin, true, false);
-    }
-    #[test]
-    fn guest_list_other_organization_user() {
-        base::events::guest_list(Roles::User, false, false);
-    }
-    #[test]
-    fn guest_list_other_organization_org_owner() {
-        base::events::guest_list(Roles::OrgOwner, false, false);
+        base::events::guest_list(Roles::OrgOwner, true);
     }
 }
 

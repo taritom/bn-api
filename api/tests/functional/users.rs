@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, HttpResponse, Json};
 use bigneon_api::controllers::users::{self, CurrentUser};
 use bigneon_api::models::{RegisterRequest, UserProfileAttributes};
-use bigneon_db::models::{Roles, User};
+use bigneon_db::models::Roles;
 use functional::base;
 use serde_json;
 use std::collections::HashMap;
@@ -13,35 +13,19 @@ mod user_list_organizations_tests {
     use super::*;
     #[test]
     fn list_organizations_org_member() {
-        base::users::list_organizations(Roles::OrgMember, false, true);
+        base::users::list_organizations(Roles::OrgMember, false);
     }
     #[test]
     fn list_organizations_admin() {
-        base::users::list_organizations(Roles::Admin, true, true);
+        base::users::list_organizations(Roles::Admin, true);
     }
     #[test]
     fn list_organizations_user() {
-        base::users::list_organizations(Roles::User, false, true);
+        base::users::list_organizations(Roles::User, false);
     }
     #[test]
     fn list_organizations_org_owner() {
-        base::users::list_organizations(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn list_organizations_other_organization_org_member() {
-        base::users::list_organizations(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn list_organizations_other_organization_admin() {
-        base::users::list_organizations(Roles::Admin, true, false);
-    }
-    #[test]
-    fn list_organizations_other_organization_user() {
-        base::users::list_organizations(Roles::User, false, false);
-    }
-    #[test]
-    fn list_organizations_other_organization_org_owner() {
-        base::users::list_organizations(Roles::OrgOwner, false, false);
+        base::users::list_organizations(Roles::OrgOwner, true);
     }
 }
 
@@ -50,35 +34,19 @@ mod find_by_email_tests {
     use super::*;
     #[test]
     fn find_by_email_org_member() {
-        base::users::find_by_email(Roles::OrgMember, false, true);
+        base::users::find_by_email(Roles::OrgMember, false);
     }
     #[test]
     fn find_by_email_admin() {
-        base::users::find_by_email(Roles::Admin, true, true);
+        base::users::find_by_email(Roles::Admin, true);
     }
     #[test]
     fn find_by_email_user() {
-        base::users::find_by_email(Roles::User, false, true);
+        base::users::find_by_email(Roles::User, false);
     }
     #[test]
     fn find_by_email_org_owner() {
-        base::users::find_by_email(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn find_by_email_other_organization_org_member() {
-        base::users::find_by_email(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn find_by_email_other_organization_admin() {
-        base::users::find_by_email(Roles::Admin, true, false);
-    }
-    #[test]
-    fn find_by_email_other_organization_user() {
-        base::users::find_by_email(Roles::User, false, false);
-    }
-    #[test]
-    fn find_by_email_other_organization_org_owner() {
-        base::users::find_by_email(Roles::OrgOwner, false, false);
+        base::users::find_by_email(Roles::OrgOwner, true);
     }
 }
 
@@ -87,35 +55,19 @@ mod users_show_tests {
     use super::*;
     #[test]
     fn show_org_member() {
-        base::users::show(Roles::OrgMember, false, true);
+        base::users::show(Roles::OrgMember, false);
     }
     #[test]
     fn show_admin() {
-        base::users::show(Roles::Admin, true, true);
+        base::users::show(Roles::Admin, true);
     }
     #[test]
     fn show_user() {
-        base::users::show(Roles::User, false, true);
+        base::users::show(Roles::User, false);
     }
     #[test]
     fn show_org_owner() {
-        base::users::show(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn show_other_organization_org_member() {
-        base::users::show(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn show_other_organization_admin() {
-        base::users::show(Roles::Admin, true, false);
-    }
-    #[test]
-    fn show_other_organization_user() {
-        base::users::show(Roles::User, false, false);
-    }
-    #[test]
-    fn show_other_organization_org_owner() {
-        base::users::show(Roles::OrgOwner, false, false);
+        base::users::show(Roles::OrgOwner, true);
     }
 }
 
@@ -184,7 +136,7 @@ fn register_with_validation_errors() {
 fn current_user() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::User, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
     let response: HttpResponse =
         users::current_user((database.connection.into(), auth_user)).into();
@@ -201,7 +153,7 @@ fn current_user() {
 fn current_user_admin() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
 
     let response: HttpResponse =
         users::current_user((database.connection.into(), auth_user)).into();
@@ -235,9 +187,9 @@ fn current_user_admin() {
 fn current_user_organization_owner() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = database.create_organization_with_user(&user, true).finish();
-    let user = User::find(user.id, &database.connection).unwrap();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, &database);
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
     let response: HttpResponse =
         users::current_user((database.connection.clone().into(), auth_user)).into();
@@ -279,11 +231,13 @@ fn current_user_organization_owner() {
 fn current_user_organization_member() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = database
-        .create_organization_with_user(&user, false)
-        .finish();
-    let user = User::find(user.id, &database.connection).unwrap();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgMember, &database);
+    let organization = database.create_organization().finish();
+    let auth_user = support::create_auth_user_from_user(
+        &user,
+        Roles::OrgMember,
+        Some(&organization),
+        &database,
+    );
 
     let response: HttpResponse =
         users::current_user((database.connection.clone().into(), auth_user)).into();
@@ -319,7 +273,7 @@ fn current_user_organization_member() {
 #[test]
 pub fn update_current_user() {
     let database = TestDatabase::new();
-    let user = support::create_auth_user(Roles::User, &database);
+    let user = support::create_auth_user(Roles::User, None, &database);
     let email = "new-email@tari.com";
     let mut attributes: UserProfileAttributes = Default::default();
     attributes.email = Some(email.to_string());
@@ -336,7 +290,7 @@ pub fn update_current_user() {
 #[test]
 pub fn update_current_user_with_validation_errors() {
     let database = TestDatabase::new();
-    let user = support::create_auth_user(Roles::User, &database);
+    let user = support::create_auth_user(Roles::User, None, &database);
     let mut attributes: UserProfileAttributes = Default::default();
     attributes.email = Some("bad-email".into());
     let json = Json(attributes);
@@ -359,7 +313,7 @@ fn update_current_user_address_exists() {
     let database = TestDatabase::new();
     let existing_user = database.create_user().finish();
 
-    let user = support::create_auth_user(Roles::User, &database);
+    let user = support::create_auth_user(Roles::User, None, &database);
     let mut attributes: UserProfileAttributes = Default::default();
     attributes.email = existing_user.email;
     let json = Json(attributes);

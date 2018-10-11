@@ -27,35 +27,19 @@ mod show_tests {
     use super::*;
     #[test]
     fn show_org_member() {
-        organizations::show(Roles::OrgMember, true, true);
+        organizations::show(Roles::OrgMember, true);
     }
     #[test]
     fn show_admin() {
-        organizations::show(Roles::Admin, true, true);
+        organizations::show(Roles::Admin, true);
     }
     #[test]
     fn show_user() {
-        organizations::show(Roles::User, false, true);
+        organizations::show(Roles::User, false);
     }
     #[test]
     fn show_org_owner() {
-        organizations::show(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn show_other_organization_org_member() {
-        organizations::show(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn show_other_organization_admin() {
-        organizations::show(Roles::Admin, true, false);
-    }
-    #[test]
-    fn show_other_organization_user() {
-        organizations::show(Roles::User, false, false);
-    }
-    #[test]
-    fn show_other_organization_org_owner() {
-        organizations::show(Roles::OrgOwner, false, false);
+        organizations::show(Roles::OrgOwner, true);
     }
 }
 
@@ -106,35 +90,19 @@ mod remove_user_tests {
     use super::*;
     #[test]
     fn remove_user_org_member() {
-        organizations::remove_user(Roles::OrgMember, false, true);
+        organizations::remove_user(Roles::OrgMember, false);
     }
     #[test]
     fn remove_user_admin() {
-        organizations::remove_user(Roles::Admin, true, true);
+        organizations::remove_user(Roles::Admin, true);
     }
     #[test]
     fn remove_user_user() {
-        organizations::remove_user(Roles::User, false, true);
+        organizations::remove_user(Roles::User, false);
     }
     #[test]
     fn remove_user_org_owner() {
-        organizations::remove_user(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn remove_user_other_organization_org_member() {
-        organizations::remove_user(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn remove_user_other_organization_admin() {
-        organizations::remove_user(Roles::Admin, true, false);
-    }
-    #[test]
-    fn remove_user_other_organization_user() {
-        organizations::remove_user(Roles::User, false, false);
-    }
-    #[test]
-    fn remove_user_other_organization_org_owner() {
-        organizations::remove_user(Roles::OrgOwner, false, false);
+        organizations::remove_user(Roles::OrgOwner, true);
     }
 }
 
@@ -143,35 +111,19 @@ mod add_user_tests {
     use super::*;
     #[test]
     fn add_user_org_member() {
-        organizations::add_user(Roles::OrgMember, false, true);
+        organizations::add_user(Roles::OrgMember, false);
     }
     #[test]
     fn add_user_admin() {
-        organizations::add_user(Roles::Admin, true, true);
+        organizations::add_user(Roles::Admin, true);
     }
     #[test]
     fn add_user_user() {
-        organizations::add_user(Roles::User, false, true);
+        organizations::add_user(Roles::User, false);
     }
     #[test]
     fn add_user_org_owner() {
-        organizations::add_user(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn add_user_other_organization_org_member() {
-        organizations::add_user(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn add_user_other_organization_admin() {
-        organizations::add_user(Roles::Admin, true, false);
-    }
-    #[test]
-    fn add_user_other_organization_user() {
-        organizations::add_user(Roles::User, false, false);
-    }
-    #[test]
-    fn add_user_other_organization_org_owner() {
-        organizations::add_user(Roles::OrgOwner, false, false);
+        organizations::add_user(Roles::OrgOwner, true);
     }
 }
 
@@ -180,35 +132,19 @@ mod add_venue_tests {
     use super::*;
     #[test]
     fn add_venue_org_member() {
-        organizations::add_venue(Roles::OrgMember, false, true);
+        organizations::add_venue(Roles::OrgMember, false);
     }
     #[test]
     fn add_venue_admin() {
-        organizations::add_venue(Roles::Admin, true, true);
+        organizations::add_venue(Roles::Admin, true);
     }
     #[test]
     fn add_venue_user() {
-        organizations::add_venue(Roles::User, false, true);
+        organizations::add_venue(Roles::User, false);
     }
     #[test]
     fn add_venue_org_owner() {
-        organizations::add_venue(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn add_venue_other_organization_org_member() {
-        organizations::add_venue(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn add_venue_other_organization_admin() {
-        organizations::add_venue(Roles::Admin, true, false);
-    }
-    #[test]
-    fn add_venue_other_organization_user() {
-        organizations::add_venue(Roles::User, false, false);
-    }
-    #[test]
-    fn add_venue_other_organization_org_owner() {
-        organizations::add_venue(Roles::OrgOwner, false, false);
+        organizations::add_venue(Roles::OrgOwner, true);
     }
 }
 
@@ -217,35 +153,19 @@ mod add_artist_tests {
     use super::*;
     #[test]
     fn add_artist_org_member() {
-        organizations::add_artist(Roles::OrgMember, false, true);
+        organizations::add_artist(Roles::OrgMember, false);
     }
     #[test]
     fn add_artist_admin() {
-        organizations::add_artist(Roles::Admin, true, true);
+        organizations::add_artist(Roles::Admin, true);
     }
     #[test]
     fn add_artist_user() {
-        organizations::add_artist(Roles::User, false, true);
+        organizations::add_artist(Roles::User, false);
     }
     #[test]
     fn add_artist_org_owner() {
-        organizations::add_artist(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn add_artist_other_organization_org_member() {
-        organizations::add_artist(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn add_artist_other_organization_admin() {
-        organizations::add_artist(Roles::Admin, true, false);
-    }
-    #[test]
-    fn add_artist_other_organization_user() {
-        organizations::add_artist(Roles::User, false, false);
-    }
-    #[test]
-    fn add_artist_other_organization_org_owner() {
-        organizations::add_artist(Roles::OrgOwner, false, false);
+        organizations::add_artist(Roles::OrgOwner, true);
     }
 }
 
@@ -254,35 +174,19 @@ mod update_tests {
     use super::*;
     #[test]
     fn update_org_member() {
-        organizations::update(Roles::OrgMember, false, true);
+        organizations::update(Roles::OrgMember, false);
     }
     #[test]
     fn update_admin() {
-        organizations::update(Roles::Admin, true, true);
+        organizations::update(Roles::Admin, true);
     }
     #[test]
     fn update_user() {
-        organizations::update(Roles::User, false, true);
+        organizations::update(Roles::User, false);
     }
     #[test]
     fn update_org_owner() {
-        organizations::update(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn update_other_organization_org_member() {
-        organizations::update(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn update_other_organization_admin() {
-        organizations::update(Roles::Admin, true, false);
-    }
-    #[test]
-    fn update_other_organization_user() {
-        organizations::update(Roles::User, false, false);
-    }
-    #[test]
-    fn update_other_organization_org_owner() {
-        organizations::update(Roles::OrgOwner, false, false);
+        organizations::update(Roles::OrgOwner, true);
     }
 }
 
@@ -312,35 +216,19 @@ mod list_organization_members_tests {
     use super::*;
     #[test]
     fn list_organization_members_org_member() {
-        organizations::list_organization_members(Roles::OrgMember, true, true);
+        organizations::list_organization_members(Roles::OrgMember, true);
     }
     #[test]
     fn list_organization_members_admin() {
-        organizations::list_organization_members(Roles::Admin, true, true);
+        organizations::list_organization_members(Roles::Admin, true);
     }
     #[test]
     fn list_organization_members_user() {
-        organizations::list_organization_members(Roles::User, false, true);
+        organizations::list_organization_members(Roles::User, false);
     }
     #[test]
     fn list_organization_members_org_owner() {
-        organizations::list_organization_members(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn list_organization_members_other_organization_org_member() {
-        organizations::list_organization_members(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn list_organization_members_other_organization_admin() {
-        organizations::list_organization_members(Roles::Admin, true, false);
-    }
-    #[test]
-    fn list_organization_members_other_organization_user() {
-        organizations::list_organization_members(Roles::User, false, false);
-    }
-    #[test]
-    fn list_organization_members_other_organization_org_owner() {
-        organizations::list_organization_members(Roles::OrgOwner, false, false);
+        organizations::list_organization_members(Roles::OrgOwner, true);
     }
 }
 
@@ -349,35 +237,19 @@ mod show_fee_schedule_tests {
     use super::*;
     #[test]
     fn show_fee_schedule_org_member() {
-        organizations::show_fee_schedule(Roles::OrgMember, false, true);
+        organizations::show_fee_schedule(Roles::OrgMember, false);
     }
     #[test]
     fn show_fee_schedule_admin() {
-        organizations::show_fee_schedule(Roles::Admin, true, true);
+        organizations::show_fee_schedule(Roles::Admin, true);
     }
     #[test]
     fn show_fee_schedule_user() {
-        organizations::show_fee_schedule(Roles::User, false, true);
+        organizations::show_fee_schedule(Roles::User, false);
     }
     #[test]
     fn show_fee_schedule_org_owner() {
-        organizations::show_fee_schedule(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn show_fee_schedule_other_organization_org_member() {
-        organizations::show_fee_schedule(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn show_fee_schedule_other_organization_admin() {
-        organizations::show_fee_schedule(Roles::Admin, true, false);
-    }
-    #[test]
-    fn show_fee_schedule_other_organization_user() {
-        organizations::show_fee_schedule(Roles::User, false, false);
-    }
-    #[test]
-    fn show_fee_schedule_other_organization_org_owner() {
-        organizations::show_fee_schedule(Roles::OrgOwner, false, false);
+        organizations::show_fee_schedule(Roles::OrgOwner, true);
     }
 }
 

@@ -10,7 +10,7 @@ use support::test_request::TestRequest;
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, None, &database);
 
     let name = "Artist Example";
     let bio = "Bio";
@@ -38,16 +38,12 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     }
 }
 
-pub fn create_with_organization(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn create_with_organization(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let name = "Artist Example";
     let bio = "Bio";
@@ -89,7 +85,7 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
         ..Default::default()
     });
 
-    let user = support::create_auth_user(role, &database);
+    let user = support::create_auth_user(role, None, &database);
     let response: HttpResponse = artists::create((database.connection.into(), json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -113,7 +109,7 @@ pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let artist = database.create_artist().finish();
 
-    let auth_user = support::create_auth_user(role, &database);
+    let auth_user = support::create_auth_user(role, None, &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
@@ -138,7 +134,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let bio = "New Bio";
     let website_url = "http://www.example2.com";
 
-    let auth_user = support::create_auth_user(role, &database);
+    let auth_user = support::create_auth_user(role, None, &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
@@ -163,22 +159,13 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     }
 }
 
-pub fn update_with_organization(
-    role: Roles,
-    should_test_succeed: bool,
-    same_organization: bool,
-    is_private: bool,
-) {
+pub fn update_with_organization(role: Roles, should_test_succeed: bool, is_private: bool) {
     let database = TestDatabase::new();
 
     let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let mut artist = database
         .create_artist()
@@ -223,7 +210,7 @@ pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let bio = "New Bio";
     let website_url = "invalid-format.com";
 
-    let user = support::create_auth_user(role, &database);
+    let user = support::create_auth_user(role, None, &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;

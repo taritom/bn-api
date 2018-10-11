@@ -6,35 +6,19 @@ mod create_tests {
     use super::*;
     #[test]
     fn create_org_member() {
-        organization_invites::create(Roles::OrgMember, false, true);
+        organization_invites::create(Roles::OrgMember, false);
     }
     #[test]
     fn create_admin() {
-        organization_invites::create(Roles::Admin, true, true);
+        organization_invites::create(Roles::Admin, true);
     }
     #[test]
     fn create_user() {
-        organization_invites::create(Roles::User, false, true);
+        organization_invites::create(Roles::User, false);
     }
     #[test]
     fn create_org_owner() {
-        organization_invites::create(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn create_other_organization_org_member() {
-        organization_invites::create(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn create_other_organization_admin() {
-        organization_invites::create(Roles::Admin, true, false);
-    }
-    #[test]
-    fn create_other_organization_user() {
-        organization_invites::create(Roles::User, false, false);
-    }
-    #[test]
-    fn create_other_organization_org_owner() {
-        organization_invites::create(Roles::OrgOwner, false, false);
+        organization_invites::create(Roles::OrgOwner, true);
     }
 }
 

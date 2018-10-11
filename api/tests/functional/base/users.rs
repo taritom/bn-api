@@ -9,18 +9,13 @@ use support::database::TestDatabase;
 use support::test_request::TestRequest;
 use uuid::Uuid;
 
-pub fn list_organizations(role: Roles, should_test_true: bool, same_organization: bool) {
+pub fn list_organizations(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.with_user(&user2)
-    .finish();
+    let organization = database.create_organization().with_user(&user2).finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -55,7 +50,7 @@ pub fn list_organizations(role: Roles, should_test_true: bool, same_organization
     assert_eq!(true, true);
 }
 
-pub fn find_by_email(role: Roles, should_test_true: bool, same_organization: bool) {
+pub fn find_by_email(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let email = "test@test.com";
 
@@ -64,14 +59,9 @@ pub fn find_by_email(role: Roles, should_test_true: bool, same_organization: boo
         .create_user()
         .with_email(email.to_string())
         .finish();
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
-
-    let _organization = if same_organization {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.with_user(&user2)
-    .finish();
+    let organization = database.create_organization().with_user(&user2).finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri(&format!("/?email={}", email));
     let data = Query::<SearchUserByEmail>::from_request(&test_request.request, &()).unwrap();
@@ -89,21 +79,16 @@ pub fn find_by_email(role: Roles, should_test_true: bool, same_organization: boo
     }
 }
 
-pub fn show(role: Roles, should_test_true: bool, same_organization: bool) {
+pub fn show(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
 
-    let _organization = if same_organization {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.with_user(&user2)
-    .finish();
+    let organization = database.create_organization().with_user(&user2).finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let display_user = user2.for_display();
-
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();

@@ -9,14 +9,12 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
-pub fn create(role: Roles, should_test_succeed: bool, same_organization: bool) {
+pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = if same_organization && role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let email = "jeff2@tari.com";
     let invited_user = database
@@ -24,7 +22,6 @@ pub fn create(role: Roles, should_test_succeed: bool, same_organization: bool) {
         .with_email(email.to_string())
         .finish();
 
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(NewOrgInviteRequest {
@@ -81,19 +78,15 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
     let database = TestDatabase::new();
     let email = "test@tari.com";
     let user = database.create_user().finish();
-
-    let organization = if role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let invited_user = database
         .create_user()
         .with_email(email.to_string())
         .finish();
 
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let json = Json(NewOrgInviteRequest {
@@ -148,14 +141,9 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
 pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-
-    let organization = if role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
-
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -210,14 +198,9 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
 pub fn create_failure_missing_required_parameters(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-
-    let organization = if role != Roles::User {
-        database.create_organization_with_user(&user, role == Roles::OrgOwner)
-    } else {
-        database.create_organization()
-    }.finish();
-
-    let auth_user = support::create_auth_user_from_user(&user, role, &database);
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -257,19 +240,19 @@ pub fn create_failure_missing_required_parameters(role: Roles, should_test_succe
 
 pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let owner = database.create_user().finish();
-    let organization = database.create_organization().with_owner(&owner).finish();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     database.create_user().finish();
 
     let invite = database
         .create_organization_invite()
         .with_org(&organization)
-        .with_invitee(&owner)
-        .with_email(&owner.email.clone().unwrap())
+        .with_invitee(&user)
+        .with_email(&user.email.clone().unwrap())
         .with_security_token(None)
         .finish();
-
-    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
 
     OrganizationInvite::get_invite_details(&invite.security_token.unwrap(), &database.connection)
         .unwrap();
@@ -302,8 +285,10 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
 pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let email = "test@tari.com";
-    let owner = database.create_user().finish();
-    let organization = database.create_organization().with_owner(&owner).finish();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     database
         .create_user()
         .with_email(email.to_string())
@@ -311,11 +296,9 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
     let invite = database
         .create_organization_invite()
         .with_org(&organization)
-        .with_invitee(&owner)
+        .with_invitee(&user)
         .with_security_token(None)
         .finish();
-
-    let auth_user = support::create_auth_user_from_user(&owner, role, &database);
 
     OrganizationInvite::get_invite_details(&invite.security_token.unwrap(), &database.connection)
         .unwrap();

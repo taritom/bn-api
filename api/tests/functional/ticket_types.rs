@@ -48,34 +48,18 @@ mod index_tests {
     use super::*;
     #[test]
     fn index_org_member() {
-        ticket_types::index(Roles::OrgMember, true, true);
+        ticket_types::index(Roles::OrgMember, true);
     }
     #[test]
     fn index_admin() {
-        ticket_types::index(Roles::Admin, true, true);
+        ticket_types::index(Roles::Admin, true);
     }
     #[test]
     fn index_user() {
-        ticket_types::index(Roles::User, false, true);
+        ticket_types::index(Roles::User, false);
     }
     #[test]
     fn index_org_owner() {
-        ticket_types::index(Roles::OrgOwner, true, true);
-    }
-    #[test]
-    fn index_other_organization_org_member() {
-        ticket_types::index(Roles::OrgMember, false, false);
-    }
-    #[test]
-    fn index_other_organization_admin() {
-        ticket_types::index(Roles::Admin, true, false);
-    }
-    #[test]
-    fn index_other_organization_user() {
-        ticket_types::index(Roles::User, false, false);
-    }
-    #[test]
-    fn index_other_organization_org_owner() {
-        ticket_types::index(Roles::OrgOwner, false, false);
+        ticket_types::index(Roles::OrgOwner, true);
     }
 }

@@ -203,39 +203,72 @@ fn organization() {
 }
 
 #[test]
-fn find_via_org() {
+fn find_for_organization() {
     let project = TestProject::new();
-    let org1 = project.create_organization().finish();
+    let owner = project.create_user().finish();
+    let member = project.create_user().finish();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_owner(&owner)
+        .with_user(&member)
+        .finish();
     let artist1 = project
         .create_artist()
         .with_name("Artist1".to_string())
-        .with_organization(&org1)
+        .with_organization(&organization)
         .finish();
 
     let artist2 = project
         .create_artist()
         .with_name("Artist2".to_string())
-        .with_organization(&org1)
+        .with_organization(&organization)
+        .finish();
+
+    let artist3 = project
+        .create_artist()
+        .with_name("Artist3".to_string())
+        .with_organization(&organization)
+        .make_private()
+        .finish();
+
+    // Add another artist for another org to make sure it isn't included
+    let organization2 = project.create_organization().with_owner(&user).finish();
+    let artist4 = project
+        .create_artist()
+        .with_name("Artist4".to_string())
+        .with_organization(&organization2)
         .finish();
 
     let user = project.create_user().finish();
 
-    let all_artists = vec![artist1, artist2];
+    let mut all_artists = vec![artist1, artist2];
 
     let found_artists =
-        Artist::find_for_organization(None, org1.id, project.get_connection()).unwrap();
+        Artist::find_for_organization(None, organization.id, project.get_connection()).unwrap();
     assert_eq!(found_artists, all_artists);
 
-    // Add another venue for another org to make sure it isn't included
-    let org2 = project.create_organization().with_owner(&user).finish();
-    let artist3 = project
-        .create_artist()
-        .with_name("Artist3".to_string())
-        .with_organization(&org2)
-        .finish();
-
     let found_artists =
-        Artist::find_for_organization(None, org1.id, project.get_connection()).unwrap();
+        Artist::find_for_organization(None, organization.id, project.get_connection()).unwrap();
     assert_eq!(found_artists, all_artists);
     assert!(!found_artists.contains(&artist3));
+    assert!(!found_artists.contains(&artist4));
+
+    // Private artist is not shown for users
+    let found_artists =
+        Artist::find_for_organization(Some(user.id), organization.id, project.get_connection())
+            .unwrap();
+    assert_eq!(found_artists, all_artists);
+
+    // Private artist is shown for owners and members
+    all_artists.push(artist3);
+    let found_artists =
+        Artist::find_for_organization(Some(owner.id), organization.id, project.get_connection())
+            .unwrap();
+    assert_eq!(found_artists, all_artists);
+
+    let found_artists =
+        Artist::find_for_organization(Some(member.id), organization.id, project.get_connection())
+            .unwrap();
+    assert_eq!(found_artists, all_artists);
 }
