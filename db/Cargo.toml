@@ -36,8 +36,9 @@ validator = "0.7"
 validator_derive = "0.7"
 time="0.1"
 num="0.2.0"
+tari-client= {path="../tari-client"}
+
 
 [dev-dependencies]
 fake = { version = "1.2" }
 url = "1.7.1"
-rand = "0.5"

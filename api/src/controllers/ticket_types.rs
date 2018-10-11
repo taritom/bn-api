@@ -7,7 +7,7 @@ use errors::*;
 use helpers::application;
 use models::{AdminDisplayTicketType, EventTicketPathParameters, PathParameters};
 use server::AppState;
-use tari_client::tari_messages::NewAsset as TariNewAsset;
+use tari_client::MessagePayloadCreateAsset as TariNewAsset;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -69,12 +69,16 @@ pub fn create(
     )? {
         return application::unauthorized();
     }
+    //Retrieve default wallet
+    let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
+
     //Add new ticket type
     let ticket_type = event.add_ticket_type(
         data.name.clone(),
         data.capacity,
         data.start_date,
         data.end_date,
+        org_wallet.id,
         connection,
     )?;
     //Add each ticket pricing entry for newly created ticket type
@@ -88,18 +92,19 @@ pub fn create(
         )?;
     }
     // TODO: move this to an async processor...
-    let tari_asset_id = state.config.tari_client.create_asset(TariNewAsset {
-        name: format!("{}.{}", event.name, data.name),
-        symbol: "sym".into(), //TODO remove symbol from asset spec,
-        decimals: 0,
-        total_supply: data.capacity as i64,
-        authorised_signers: vec![user.id().hyphenated().to_string()],
-        issuer: user.id().hyphenated().to_string(),
-        valid: true,
-        rule_flags: 0,
-        rule_metadata: "".to_string(),
-        expiry_date: data.end_date.timestamp(),
-    })?;
+
+    let tari_asset_id = state.config.tari_client.create_asset(
+        &org_wallet.secret_key,
+        &org_wallet.public_key,
+        TariNewAsset {
+            name: format!("{}.{}", event.name, data.name),
+            total_supply: data.capacity as i64,
+            authorised_signers: Vec::new(),
+            rule_flags: 0,
+            rule_metadata: "".to_string(),
+            expiry_date: data.end_date.timestamp(),
+        },
+    )?;
     let asset = Asset::find_by_ticket_type(&ticket_type.id, connection)?;
     let _asset = asset.update_blockchain_id(tari_asset_id, connection)?;
     Ok(HttpResponse::Created().json(DisplayCreatedTicket { id: ticket_type.id }))

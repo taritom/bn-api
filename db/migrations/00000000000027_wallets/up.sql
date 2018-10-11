@@ -3,6 +3,9 @@ CREATE TABLE wallets (
   user_id uuid NULL REFERENCES users(id),
   organization_id uuid NULL REFERENCES organizations(id),
   name TEXT NOT NULL,
+  secret_key TEXT NOT NULL,
+  public_key TEXT NOT NULL,
+  default_flag BOOLEAN NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now(),
   CHECK (user_id IS NOT NULL OR organization_id IS NOT NULL)

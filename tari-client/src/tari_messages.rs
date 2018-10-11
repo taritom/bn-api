@@ -1,71 +1,93 @@
-#[derive(Deserialize, Serialize)]
-pub struct Asset {
-    pub id: String,
-    pub name: String,
-    pub symbol: String,
-    pub decimals: i16,
-    pub total_supply: i64,
-    pub authorised_signers: Vec<String>,
-    pub issuer: String,
+use cryptographic::*;
+use jsonrpc_core::Value;
+use jsonrpc_core::*;
+use serde_json;
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct Token {
+    pub id: u64,
+    pub asset_id: String,
+    pub owner: String,
+    pub used: bool,
     pub valid: bool,
-    pub rule_flags: i64,
-    pub rule_metadata: String,
-    pub expiry_date: i64,
+    pub metadata: u64,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct NewAsset {
-    pub name: String,
-    pub symbol: String,
-    pub decimals: i16,
-    pub total_supply: i64,
-    pub authorised_signers: Vec<String>,
-    pub issuer: String,
-    pub valid: bool,
-    pub rule_flags: i64,
-    pub rule_metadata: String,
-    pub expiry_date: i64,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct CreateAssetRequest {
+pub struct RPCRequest {
     pub jsonrpc: String,
     pub method: String,
-    pub params: NewAsset,
+    pub params: Value,
     pub id: i64,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct CreateAssetResult {
-    pub id: String,
-    pub success: bool,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct CreateAssetResponse {
+pub struct RPCResponse {
     pub jsonrpc: String,
-    pub result: CreateAssetResult,
+    pub result: Value,
     pub id: i64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ReadAssetRequest {
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct MessageHeader {
+    pub command: String,
+    pub asset_class_id: String,
+    pub version: String,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct MessageSignature {
+    pub public_key: String,
+    pub data_signature: String,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct MessageRequest {
+    pub header: MessageHeader,
+    pub payload: Value,
+    pub signature: MessageSignature,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct MessagePayloadCreateAsset {
+    pub name: String,
+    pub total_supply: i64,
+    pub authorised_signers: Vec<String>,
+    pub rule_flags: i64,
+    pub rule_metadata: String,
+    pub expiry_date: i64,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct MessagePayloadReadAsset {
     pub request_type: i8,
     pub user: Option<String>,
     pub asset_id: String,
     pub token_ids: Option<Vec<u64>>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ReadAssetRPCRequest {
-    pub jsonrpc: String,
-    pub method: String,
-    pub params: ReadAssetRequest,
-    pub id: i64,
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct MessagePayloadTransferAsset {
+    pub asset_id: String,
+    pub new_issuer: String,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct MessagePayloadModifyAsset {
+    pub asset_id: String,
+    pub request_type: i8,
+    pub authorised_signer: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct MessagePayloadTransferToken {
+    pub asset_id: String,
+    pub token_ids: Vec<u64>,
+    pub new_owner: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, PartialEq)]
-pub struct AssetInfoResult {
+pub struct ResponsePayloadReadAsset {
     pub id: String,
     pub name: String,
     pub symbol: String,
@@ -78,37 +100,73 @@ pub struct AssetInfoResult {
     pub expired: bool,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ReadAsset0Response {
-    pub jsonrpc: String,
-    pub result: AssetInfoResult,
-    pub id: i64,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct TransferTokenParams {
-    pub asset_id: String,
-    pub token_ids: Vec<u64>,
-    pub new_owner: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct TransferTokenRequest {
-    pub jsonrpc: String,
-    pub method: String,
-    pub params: TransferTokenParams,
-    pub id: i64,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ApiResponseResult {
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
+pub struct ResponsePayloadSuccess {
     pub success: bool,
-    pub message: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
+pub struct ResponsePayloadSuccessId {
+    pub success: bool,
+    pub id: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct ApiResponse {
-    pub jsonrpc: String,
-    pub result: ApiResponseResult,
-    pub id: i64,
+pub struct ResponsePayloadSuccessIssuer {
+    pub success: bool,
+    pub issuer: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ResponsePayloadSuccessTokens {
+    pub success: bool,
+    pub tokens: Option<Vec<Token>>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
+pub struct ResponsePayloadSuccessCode {
+    pub success: bool,
+    pub code: u64,
+    pub reason: String,
+}
+
+pub fn construct_request_message(
+    header_command: String,
+    msg_payload: Value,
+    secret_key: &Vec<u8>,
+    public_key: &Vec<u8>,
+) -> Value {
+    let msg_header = MessageHeader {
+        command: header_command.clone(),
+        asset_class_id: String::from("0"),
+        version: String::from("0.0.1"),
+    };
+    let msg_signature = MessageSignature {
+        public_key: convert_bytes_to_hexstring(&public_key),
+        data_signature: message_data_signature(
+            &msg_header,
+            &to_value(&msg_payload).unwrap().to_string(),
+            &secret_key,
+        ),
+    };
+    let request_message = MessageRequest {
+        header: msg_header,
+        payload: msg_payload,
+        signature: msg_signature,
+    };
+    (serde_json::to_value(&request_message).unwrap())
+}
+
+pub fn construct_jsonrpc_request(
+    header_command: String,
+    msg_payload: Value,
+    secret_key: &Vec<u8>,
+    public_key: &Vec<u8>,
+) -> RPCRequest {
+    (RPCRequest {
+        jsonrpc: String::from("2.0"),
+        method: header_command.clone(),
+        params: construct_request_message(header_command, msg_payload, &secret_key, &public_key),
+        id: 1,
+    })
 }

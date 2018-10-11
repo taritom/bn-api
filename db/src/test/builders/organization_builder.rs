@@ -2,7 +2,7 @@ use dev::builders::*;
 use diesel::prelude::*;
 use models::{
     FeeSchedule, NewFeeScheduleRange, Organization, OrganizationEditableAttributes,
-    OrganizationUser, User,
+    OrganizationUser, User, Wallet,
 };
 use rand::prelude::*;
 use uuid::Uuid;
@@ -80,6 +80,13 @@ impl<'a> OrganizationBuilder<'a> {
                 .commit(self.connection)
                 .unwrap();
         }
+
+        Wallet::create_for_organization(
+            organization.id,
+            String::from("Default wallet"),
+            self.connection,
+        ).commit(self.connection)
+        .unwrap();
 
         if self.use_address {
             let mut attrs: OrganizationEditableAttributes = Default::default();

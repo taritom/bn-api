@@ -4,7 +4,7 @@ CREATE TABLE ticket_instances (
   token_id INT NOT NULL,
   ticket_holding_id Uuid NULL REFERENCES ticket_holdings(id),
   order_item_id Uuid NULL REFERENCES order_items(id),
-  wallet_id Uuid NULL REFERENCES wallets(id),
+  wallet_id Uuid NOT NULL REFERENCES wallets(id),
   reserved_until TIMESTAMP NULL,
   redeem_key Text NULL,
   status TEXT NOT NULL DEFAULT 'Available',

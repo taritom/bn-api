@@ -22,7 +22,7 @@ pub struct TicketInstance {
     pub token_id: i32,
     ticket_holding_id: Option<Uuid>,
     pub order_item_id: Option<Uuid>,
-    wallet_id: Option<Uuid>,
+    pub wallet_id: Uuid,
     pub reserved_until: Option<NaiveDateTime>,
     pub redeem_key: Option<String>,
     pub status: String,
@@ -120,6 +120,7 @@ impl TicketInstance {
     pub fn create_multiple(
         asset_id: Uuid,
         quantity: u32,
+        wallet_id: Uuid,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         let mut new_rows = Vec::<NewTicketInstance>::new();
@@ -127,6 +128,7 @@ impl TicketInstance {
             new_rows.push(NewTicketInstance {
                 asset_id,
                 token_id: x as i32,
+                wallet_id,
             });
         }
 
@@ -364,6 +366,7 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
 struct NewTicketInstance {
     asset_id: Uuid,
     token_id: i32,
+    wallet_id: Uuid,
 }
 
 #[derive(Debug, PartialEq)]

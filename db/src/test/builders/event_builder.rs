@@ -79,12 +79,14 @@ impl<'a> EventBuilder<'a> {
     }
 
     pub fn finish(&mut self) -> Event {
+        let organization_id = self
+            .organization_id
+            .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
+            .unwrap();
         let event = Event::create(
             &self.name,
             self.status,
-            self.organization_id
-                .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
-                .unwrap(),
+            organization_id,
             self.venue_id,
             self.event_start
                 .or_else(|| Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))),
@@ -109,12 +111,17 @@ impl<'a> EventBuilder<'a> {
             let event_start = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
             let event_end = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(4));
 
+            let wallet_id =
+                Wallet::find_default_for_organization(event.organization_id, self.connection)
+                    .unwrap()
+                    .id;
             let ticket_type = event
                 .add_ticket_type(
                     "General Admission".to_string(),
                     100,
                     event_start,
                     event_end,
+                    wallet_id,
                     self.connection,
                 ).unwrap();
 

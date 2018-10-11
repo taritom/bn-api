@@ -24,6 +24,8 @@ extern crate bigneon_db;
 extern crate time;
 extern crate validator;
 
+extern crate tari_client;
+
 mod models;
 mod schema;
 mod utils;

@@ -82,7 +82,7 @@ impl NewUser {
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new user")?;
 
-        Wallet::create_for_user(user.id, "Default".to_string()).commit(conn)?;
+        Wallet::create_for_user(user.id, "Default".to_string(), conn).commit(conn)?;
 
         Ok(user)
     }

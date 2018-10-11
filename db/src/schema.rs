@@ -245,7 +245,7 @@ table! {
         token_id -> Int4,
         ticket_holding_id -> Nullable<Uuid>,
         order_item_id -> Nullable<Uuid>,
-        wallet_id -> Nullable<Uuid>,
+        wallet_id -> Uuid,
         reserved_until -> Nullable<Timestamp>,
         redeem_key -> Nullable<Text>,
         status -> Text,
@@ -327,6 +327,9 @@ table! {
         user_id -> Nullable<Uuid>,
         organization_id -> Nullable<Uuid>,
         name -> Text,
+        secret_key -> Text,
+        public_key -> Text,
+        default_flag -> Bool,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

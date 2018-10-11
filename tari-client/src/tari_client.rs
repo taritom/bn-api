@@ -1,19 +1,32 @@
 use super::tari_messages::*;
 use tari_error::TariError;
 
+use cryptographic::*;
 use reqwest;
 use serde_json;
 
 pub trait TariClient {
-    fn create_asset(&self, asset: NewAsset) -> Result<String, TariError>;
+    fn create_asset(
+        &self,
+        secret_key: &String,
+        public_key: &String,
+        asset: MessagePayloadCreateAsset,
+    ) -> Result<String, TariError>;
     fn transfer_tokens(
         &self,
+        secret_key: &String,
+        public_key: &String,
         asset_id: &String,
         token_ids: Vec<u64>,
         new_owner: String,
     ) -> Result<(), TariError>;
 
-    fn get_asset_info(&self, asset_id: &String) -> Result<AssetInfoResult, TariError>;
+    fn get_asset_info(
+        &self,
+        secret_key: &String,
+        public_key: &String,
+        asset_id: &String,
+    ) -> Result<ResponsePayloadReadAsset, TariError>;
 
     fn box_clone(&self) -> Box<TariClient + Send + Sync>;
 }
@@ -36,24 +49,29 @@ impl HttpTariClient {
 }
 
 impl TariClient for HttpTariClient {
-    fn create_asset(&self, asset: NewAsset) -> Result<String, TariError> {
+    fn create_asset(
+        &self,
+        secret_key: &String,
+        public_key: &String,
+        asset: MessagePayloadCreateAsset,
+    ) -> Result<String, TariError> {
+        let header_command = String::from("create_asset");
+        let msg_payload = serde_json::to_value(asset).unwrap();
+        let secret_key = convert_hexstring_to_bytes(&secret_key);
+        let public_key = convert_hexstring_to_bytes(&public_key);
+        let jsonrpc_request =
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+
         let client = reqwest::Client::new();
-        let rpc_req = CreateAssetRequest {
-            jsonrpc: "2.0".to_string(),
-            method: "create_asset".to_string(),
-            params: asset,
-            id: 1,
-        };
-        let mut resp = client.post(&self.tari_url).json(&rpc_req).send()?;
-
+        let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
         let raw: String = resp.text()?;
-
         println!("Response from create_asset:{}", &raw);
+        let response_message: RPCResponse = serde_json::from_str(&raw)?;
+        let response_message_result: ResponsePayloadSuccessId =
+            serde_json::from_value(response_message.result).unwrap();
 
-        let result: CreateAssetResponse = serde_json::from_str(&raw)?;
-
-        if result.result.success {
-            Ok(result.result.id)
+        if response_message_result.success {
+            Ok(response_message_result.id)
         } else {
             Err(TariError {
                 description: "Failed to create Asset on Tari".to_string(),
@@ -64,31 +82,32 @@ impl TariClient for HttpTariClient {
 
     fn transfer_tokens(
         &self,
+        secret_key: &String,
+        public_key: &String,
         asset_id: &String,
         token_ids: Vec<u64>,
         new_owner: String,
     ) -> Result<(), TariError> {
-        let client = reqwest::Client::new();
-
-        let token_params = TransferTokenParams {
+        let header_command = String::from("transfer_token");
+        let msg_payload = serde_json::to_value(MessagePayloadTransferToken {
             asset_id: asset_id.clone(),
             token_ids,
             new_owner,
-        };
+        }).unwrap();
+        let secret_key = convert_hexstring_to_bytes(&secret_key);
+        let public_key = convert_hexstring_to_bytes(&public_key);
+        let jsonrpc_request =
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
 
-        let rpc_req = TransferTokenRequest {
-            jsonrpc: "2.0".to_string(),
-            method: "transfer_token".to_string(),
-            params: token_params,
-            id: 1,
-        };
-        let mut resp = client.post(&self.tari_url).json(&rpc_req).send()?;
-
+        let client = reqwest::Client::new();
+        let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
         let raw: String = resp.text()?;
         println!("Response from transfer_token: {}", raw);
-        let result: ApiResponse = serde_json::from_str(&raw)?;
+        let response_message: RPCResponse = serde_json::from_str(&raw)?;
+        let response_message_result: ResponsePayloadSuccess =
+            serde_json::from_value(response_message.result).unwrap();
 
-        if result.result.success {
+        if response_message_result.success {
             Ok(())
         } else {
             Err(TariError {
@@ -98,28 +117,33 @@ impl TariClient for HttpTariClient {
         }
     }
 
-    fn get_asset_info(&self, asset_id: &String) -> Result<AssetInfoResult, TariError> {
+    fn get_asset_info(
+        &self,
+        secret_key: &String,
+        public_key: &String,
+        asset_id: &String,
+    ) -> Result<ResponsePayloadReadAsset, TariError> {
+        let header_command = String::from("read_asset");
+        let msg_payload = serde_json::to_value(MessagePayloadReadAsset {
+            request_type: 0,
+            user: None,
+            asset_id: asset_id.clone(),
+            token_ids: None,
+        }).unwrap();
+        let secret_key = convert_hexstring_to_bytes(&secret_key);
+        let public_key = convert_hexstring_to_bytes(&public_key);
+        let jsonrpc_request =
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+
         let client = reqwest::Client::new();
-
-        let rpc_req = ReadAssetRPCRequest {
-            jsonrpc: "2.0".to_string(),
-            method: "read_asset".to_string(),
-            params: ReadAssetRequest {
-                request_type: 0,
-                asset_id: asset_id.clone(),
-                user: None,
-                token_ids: None,
-            },
-            id: 1,
-        };
-
-        let mut resp = client.post(&self.tari_url).json(&rpc_req).send()?;
-
+        let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
         let raw: String = resp.text()?;
         println!("Response from read_asset: {}", raw);
-        let result: ReadAsset0Response = serde_json::from_str(&raw)?;
+        let response_message: RPCResponse = serde_json::from_str(&raw)?;
+        let response_message_result: ResponsePayloadReadAsset =
+            serde_json::from_value(response_message.result).unwrap();
 
-        Ok(result.result)
+        Ok(response_message_result)
     }
 
     fn box_clone(&self) -> Box<TariClient + Send + Sync> {

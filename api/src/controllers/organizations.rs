@@ -100,6 +100,10 @@ pub fn create(
     };
 
     let organization = new_organization_with_fee_schedule.commit(connection)?;
+
+    Wallet::create_for_organization(organization.id, String::from("Default"), connection)
+        .commit(connection)?;
+
     Ok(HttpResponse::Created().json(&organization))
 }
 

@@ -3,19 +3,27 @@
 #![deny(unused_imports)]
 // Unused results is more often than not an error
 #![deny(unused_must_use)]
+extern crate jsonrpc_core;
 extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate crypto;
+extern crate hex;
+extern crate rand;
+extern crate secp256k1;
 extern crate uuid;
 
-pub mod tari_client;
-pub mod tari_error;
-pub mod tari_messages;
-pub mod tari_test_client;
+mod cryptographic;
+mod tari_client;
+mod tari_error;
+mod tari_messages;
+mod tari_test_client;
 
+pub use cryptographic::*;
 pub use tari_client::HttpTariClient;
 pub use tari_client::TariClient;
 pub use tari_error::TariError;
+pub use tari_messages::*;
 pub use tari_test_client::TariTestClient;

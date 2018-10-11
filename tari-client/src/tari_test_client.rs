@@ -15,12 +15,19 @@ impl TariTestClient {
 }
 
 impl TariClient for TariTestClient {
-    fn create_asset(&self, _asset: NewAsset) -> Result<String, TariError> {
+    fn create_asset(
+        &self,
+        _secret_key: &String,
+        _public_key: &String,
+        _asset: MessagePayloadCreateAsset,
+    ) -> Result<String, TariError> {
         Ok(Uuid::new_v4().to_string())
     }
 
     fn transfer_tokens(
         &self,
+        _secret_key: &String,
+        _public_key: &String,
         _asset_id: &String,
         _token_ids: Vec<u64>,
         _new_owner: String,
@@ -28,8 +35,13 @@ impl TariClient for TariTestClient {
         Ok(())
     }
 
-    fn get_asset_info(&self, _asset_id: &String) -> Result<AssetInfoResult, TariError> {
-        Ok(AssetInfoResult {
+    fn get_asset_info(
+        &self,
+        _secret_key: &String,
+        _public_key: &String,
+        _asset_id: &String,
+    ) -> Result<ResponsePayloadReadAsset, TariError> {
+        Ok(ResponsePayloadReadAsset {
             id: Uuid::new_v4().to_string(),
             name: "Awesome Asset".to_string(),
             symbol: "A".to_string(),

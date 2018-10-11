@@ -117,8 +117,9 @@ pub fn checkout(
 
     let order_items = order.items(connection.get())?;
 
-    //Assemble token ids for each asset in the order
+    //Assemble token ids and ticket instance ids for each asset in the order
     let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
+    let mut walletid_per_asset: HashMap<Uuid, Uuid> = HashMap::new();
     for oi in &order_items {
         let tickets = TicketInstance::find_for_order_item(oi.id, connection.get())?;
         for ticket in &tickets {
@@ -126,6 +127,9 @@ pub fn checkout(
                 .entry(ticket.asset_id)
                 .or_insert_with(|| Vec::new())
                 .push(ticket.token_id as u64);
+            walletid_per_asset
+                .entry(ticket.asset_id)
+                .or_insert(ticket.wallet_id);
         }
     }
     //Just confirming that the asset is setup correctly before proceeding to payment.
@@ -140,7 +144,7 @@ pub fn checkout(
 
     let payment_response = match &req.method {
         PaymentRequest::External { reference } => {
-            checkout_external(&connection, &mut order, reference, &req, &user)
+            checkout_external(&connection, &mut order, reference, &req, &user)?
         }
         PaymentRequest::Card {
             token,
@@ -158,18 +162,22 @@ pub fn checkout(
             *save_payment_method,
             *set_default,
             &state.service_locator,
-        ),
-    }?;
+        )?,
+    };
 
     if payment_response.status() == StatusCode::OK {
         for (asset_id, token_ids) in &tokens_per_asset {
             let asset = Asset::find(*asset_id, connection.get())?;
             match asset.blockchain_asset_id {
-            Some(a) => state.config.tari_client.transfer_tokens(
-                &a,
-                token_ids.clone(),
-                user.id().hyphenated().to_string(),
-            )?,
+            Some(a) => {
+                let wallet_id=walletid_per_asset.get(asset_id).unwrap().clone();
+                let org_wallet = Wallet::find(wallet_id, connection.get())?;
+                state.config.tari_client.transfer_tokens(&org_wallet.secret_key, &org_wallet.public_key,
+                                                         &a,
+                                                         token_ids.clone(),
+                                                         user.id().hyphenated().to_string(),
+                )?
+            },
             None => return application::internal_server_error(
                 "Could not complete this checkout because the asset has not been assigned on the blockchain",
             ),

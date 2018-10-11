@@ -306,12 +306,13 @@ impl Event {
         quantity: u32,
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
+        wallet_id: Uuid,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         let asset_name = format!("{}.{}", self.name, &name);
         let ticket_type = TicketType::create(self.id, name, start_date, end_date).commit(conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;
-        TicketInstance::create_multiple(asset.id, quantity, conn)?;
+        TicketInstance::create_multiple(asset.id, quantity, wallet_id, conn)?;
         Ok(ticket_type)
     }
 
