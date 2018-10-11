@@ -32,6 +32,7 @@ pub struct FeeScheduleWithRanges {
 pub struct NewOrganizationRequest {
     pub owner_user_id: Uuid,
     pub name: String,
+    pub event_fee_in_cents: Option<i64>,
     pub address: Option<String>,
     pub city: Option<String>,
     pub state: Option<String>,
@@ -91,6 +92,7 @@ pub fn create(
         owner_user_id: new_organization.owner_user_id,
         name: new_organization.name.clone(),
         fee_schedule_id: fee_schedule.id,
+        event_fee_in_cents: new_organization.event_fee_in_cents.clone(),
         address: new_organization.address.clone(),
         city: new_organization.city.clone(),
         state: new_organization.state.clone(),
@@ -120,9 +122,12 @@ pub fn update(
     if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
         return application::unauthorized();
     }
-
-    let updated_organization =
-        organization.update(organization_parameters.into_inner(), connection)?;
+    //The fee_schedule_id should only be able to be changed by an Admin
+    let mut organization_update = organization_parameters.into_inner();
+    if !user.has_scope(Scopes::OrgAdmin, Some(&organization), connection)? {
+        organization_update.fee_schedule_id = None;
+    }
+    let updated_organization = organization.update(organization_update, connection)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
 
@@ -289,14 +294,8 @@ pub fn add_fee_schedule(
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;
 
     let update_fee_schedule_id = OrganizationEditableAttributes {
-        name: None,
-        address: None,
-        city: None,
-        state: None,
-        country: None,
-        postal_code: None,
-        phone: None,
         fee_schedule_id: Some(fee_schedule.id),
+        ..Default::default()
     };
 
     Organization::find(parameters.id, connection)?.update(update_fee_schedule_id, connection)?;

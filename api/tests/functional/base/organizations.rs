@@ -138,6 +138,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let json = Json(NewOrganizationRequest {
         owner_user_id: user.id,
         name: name.to_string(),
+        event_fee_in_cents: None,
         address: None,
         city: None,
         state: None,
@@ -184,6 +185,7 @@ pub fn update(role: Roles, should_succeed: bool, same_organization: bool) {
         postal_code: Some("postal_code".to_string()),
         phone: Some("phone".to_string()),
         fee_schedule_id: None,
+        event_fee_in_cents: Some(100),
     });
 
     let response: HttpResponse =

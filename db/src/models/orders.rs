@@ -197,15 +197,23 @@ impl Order {
             if has_event_fee && item_count == 1 {
                 let event_fee = &order_items_per_event.get(k).unwrap()[0];
                 OrderItem::find(event_fee.id, conn)?.destroy(conn)?;
-            } else if !has_event_fee && event.fee_in_cents.is_some() {
-                NewFeesOrderItem {
+            } else if !has_event_fee {
+                let mut new_event_fee = NewFeesOrderItem {
                     order_id: self.id,
                     item_type: OrderItemTypes::EventFees.to_string(),
                     event_id: Some(event.id),
-                    unit_price_in_cents: event.fee_in_cents.unwrap(),
+                    unit_price_in_cents: 0,
                     quantity: 1,
                     parent_id: None,
-                }.commit(conn)?;
+                };
+                let organization = Organization::find(event.organization_id, conn)?;
+                if event.fee_in_cents.is_some() {
+                    new_event_fee.unit_price_in_cents = event.fee_in_cents.unwrap();
+                    new_event_fee.commit(conn)?;
+                } else if organization.event_fee_in_cents.is_some() {
+                    new_event_fee.unit_price_in_cents = organization.event_fee_in_cents.unwrap();
+                    new_event_fee.commit(conn)?;
+                }
             }
         }
 

@@ -185,6 +185,7 @@ table! {
         country -> Nullable<Text>,
         postal_code -> Nullable<Text>,
         phone -> Nullable<Text>,
+        event_fee_in_cents -> Nullable<Int8>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Uuid,

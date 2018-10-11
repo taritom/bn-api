@@ -13,6 +13,7 @@ pub struct OrganizationBuilder<'a> {
     members: Vec<Uuid>,
     connection: &'a PgConnection,
     fee_schedule: Option<FeeSchedule>,
+    event_fee_in_cents: Option<i64>,
     use_address: bool,
 }
 
@@ -26,6 +27,7 @@ impl<'a> OrganizationBuilder<'a> {
             fee_schedule: None,
             connection,
             use_address: false,
+            event_fee_in_cents: None,
         }
     }
 
@@ -54,6 +56,11 @@ impl<'a> OrganizationBuilder<'a> {
         self
     }
 
+    pub fn with_event_fee(mut self) -> Self {
+        self.event_fee_in_cents = Some(250);
+        self
+    }
+
     pub fn finish(mut self) -> Organization {
         if self.fee_schedule.is_none() {
             let fee_schedule = FeeSchedule::create(
@@ -74,6 +81,15 @@ impl<'a> OrganizationBuilder<'a> {
             self.fee_schedule.unwrap().id,
         ).commit(self.connection)
         .unwrap();
+
+        let event_fee_update = OrganizationEditableAttributes {
+            event_fee_in_cents: self.event_fee_in_cents,
+            ..Default::default()
+        };
+
+        let _ = organization
+            .update(event_fee_update, self.connection)
+            .unwrap();
 
         for user_id in self.members.clone() {
             OrganizationUser::create(organization.id, user_id)
@@ -97,6 +113,7 @@ impl<'a> OrganizationBuilder<'a> {
             attrs.country = Some(<String>::from("Test country"));
             attrs.postal_code = Some(<String>::from("0124"));
             attrs.phone = Some(<String>::from("+27123456789"));
+
             organization = organization.update(attrs, self.connection).unwrap();
         }
         organization

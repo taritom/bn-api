@@ -9,6 +9,7 @@ CREATE TABLE organizations (
   country TEXT,
   postal_code TEXT,
   phone TEXT,
+  event_fee_in_cents BIGINT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );

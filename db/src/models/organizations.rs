@@ -23,6 +23,7 @@ pub struct Organization {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
+    pub event_fee_in_cents: Option<i64>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub fee_schedule_id: Uuid,
@@ -41,6 +42,7 @@ pub struct NewOrganization {
     pub owner_user_id: Uuid,
     pub name: String,
     pub fee_schedule_id: Uuid,
+    pub event_fee_in_cents: Option<i64>,
     pub address: Option<String>,
     pub city: Option<String>,
     pub state: Option<String>,
@@ -71,6 +73,7 @@ pub struct OrganizationEditableAttributes {
     pub postal_code: Option<String>,
     pub phone: Option<String>,
     pub fee_schedule_id: Option<Uuid>,
+    pub event_fee_in_cents: Option<i64>,
 }
 
 impl Organization {

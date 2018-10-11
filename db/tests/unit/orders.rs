@@ -395,6 +395,17 @@ fn adding_event_fees() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
+    let organization2 = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_event_fee()
+        .finish();
+    let event4 = project
+        .create_event()
+        .with_organization(&organization2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
     let user = project.create_user().finish();
     let cart = Order::create(user.id, OrderTypes::Cart)
         .commit(connection)
@@ -402,6 +413,7 @@ fn adding_event_fees() {
     let ticket1 = &event1.ticket_types(connection).unwrap()[0];
     let ticket2 = &event2.ticket_types(connection).unwrap()[0];
     let ticket3 = &event3.ticket_types(connection).unwrap()[0];
+    let ticket4 = &event4.ticket_types(connection).unwrap()[0];
     let _tickets = cart.add_tickets(ticket1.id, 10, connection).unwrap();
 
     let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
@@ -428,7 +440,7 @@ fn adding_event_fees() {
     }
     assert_eq!(event_fees_count, 2);
 
-    //Add tickets with null event fee
+    //Add tickets with null event fee and null organization event_fee
 
     let _tickets = cart.add_tickets(ticket3.id, 5, connection).unwrap();
 
@@ -441,4 +453,18 @@ fn adding_event_fees() {
         }
     }
     assert_eq!(event_fees_count, 2);
+
+    //Add tickets with null event fee and but default organization event_fee
+
+    let _tickets = cart.add_tickets(ticket4.id, 5, connection).unwrap();
+
+    let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
+
+    let mut event_fees_count = 0;
+    for o in &order_items {
+        if o.item_type == OrderItemTypes::EventFees.to_string() {
+            event_fees_count += 1;
+        }
+    }
+    assert_eq!(event_fees_count, 3);
 }
