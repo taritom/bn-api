@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "bf03da00-e9e4-45d8-bd29-5035de4d0f7a",
+		"_postman_id": "2479e780-54bc-45d1-8e76-8ad2c46c0dce",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -381,15 +381,18 @@
 						{
 							"listen": "test",
 							"script": {
-								"id": "947e2cc1-0d92-4d1b-b5ab-c1a599ea3bd4",
+								"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
 								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
 									"})",
 									"",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
 									"pm.test(\"should be one result\", function(){",
-									"    pm.expect(JSON.parse(responseBody).length).to.equal(1);",
+									"    pm.expect(r.data.length).to.equal(1);",
 									"})"
 								]
 							}
@@ -1314,7 +1317,7 @@
 									"let json = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"guests should be present\", function(){",
-									"    pm.expect(json.length).to.equal(4);",
+									"    pm.expect(json.data.length).to.equal(4);",
 									"});"
 								]
 							}

@@ -14,12 +14,12 @@ pub struct Paging {
     pub sort: String,
     pub dir: SortingDir,
     pub total: u64,
-    pub tags: Vec<SearchParams>,
+    pub tags: Vec<SearchParam>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 ///Struct used to store search object names and values
-pub struct SearchParams {
+pub struct SearchParam {
     pub name: String,
     pub values: Vec<String>,
 }
@@ -38,7 +38,7 @@ pub struct PagingParameters {
     pub limit: Option<u64>,
     pub sort: Option<String>,
     pub dir: Option<SortingDir>,
-    pub tags: Option<Vec<SearchParams>>,
+    pub tags: Option<Vec<SearchParam>>,
 }
 
 impl Paging {

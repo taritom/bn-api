@@ -5,7 +5,10 @@ use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{Paging, PagingParameters, PathParameters, Payload, UserDisplayTicketType};
+use models::{
+    Paging, PagingParameters, PathParameters, Payload, SearchParam, SortingDir,
+    UserDisplayTicketType,
+};
 use serde_with::{self, CommaSeparator};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -22,6 +25,57 @@ pub struct SearchParameters {
     status: Vec<EventStatus>,
     start_utc: Option<NaiveDateTime>,
     end_utc: Option<NaiveDateTime>,
+}
+//TODO remove this when search parameters has been switched over
+impl SearchParameters {
+    pub fn create_paging_struct(&self) -> Paging {
+        let mut default_tags = Vec::new();
+        if let Some(ref i) = self.query {
+            let new_value = SearchParam {
+                name: "query".to_owned(),
+                values: vec![i.clone()],
+            };
+            default_tags.push(new_value);
+        }
+        if let Some(ref i) = self.region_id {
+            let new_value = SearchParam {
+                name: "region_id".to_owned(),
+                values: vec![i.to_string()],
+            };
+            default_tags.push(new_value);
+        }
+
+        for event_status in self.status.clone().into_iter() {
+            let new_value = SearchParam {
+                name: "status".to_owned(),
+                values: vec![event_status.to_string()],
+            };
+            default_tags.push(new_value);
+        }
+
+        if let Some(ref i) = self.start_utc {
+            let new_value = SearchParam {
+                name: "start_utc".to_owned(),
+                values: vec![i.to_string()],
+            };
+            default_tags.push(new_value);
+        }
+        if let Some(ref i) = self.end_utc {
+            let new_value = SearchParam {
+                name: "end_utc".to_owned(),
+                values: vec![i.to_string()],
+            };
+            default_tags.push(new_value);
+        }
+        Paging {
+            page: 0,
+            limit: 100,
+            sort: "".to_owned(),
+            dir: SortingDir::None,
+            total: 0,
+            tags: default_tags,
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -43,7 +97,9 @@ pub fn index(
     let connection = connection.get();
     let parameters = parameters.into_inner();
 
+    let queryparms = parameters.create_paging_struct();
     let user = auth_user.and_then(|auth_user| Some(auth_user.user));
+    //TODO remap query to use paging info
     let events = Event::search(
         parameters.query,
         parameters.region_id,
@@ -109,8 +165,13 @@ pub fn index(
         });
         results
     });
-
-    Ok(HttpResponse::Ok().json(&results))
+    let event_count = results.len();
+    let mut payload = Payload {
+        data: results,
+        paging: Paging::clone_with_new_total(&queryparms, event_count as u64),
+    };
+    payload.paging.limit = event_count as u64;
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn show(
@@ -220,17 +281,39 @@ pub fn publish(
 }
 
 pub fn show_from_organizations(
-    (connection, organization_id): (Connection, Path<PathParameters>),
+    (connection, organization_id, query_parameters): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let events = Event::find_all_events_from_organization(&organization_id.id, connection.get())?;
-    Ok(HttpResponse::Ok().json(&events))
+    let query_parameters = Paging::new(&query_parameters.into_inner());
+    let event_count = events.len();
+    let mut payload = Payload {
+        data: events,
+        paging: Paging::clone_with_new_total(&query_parameters, event_count as u64),
+    };
+    payload.paging.limit = event_count as u64;
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn show_from_venues(
-    (connection, venue_id): (Connection, Path<PathParameters>),
+    (connection, venue_id, query_parameters): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let events = Event::find_all_events_from_venue(&venue_id.id, connection.get())?;
-    Ok(HttpResponse::Ok().json(&events))
+    let query_parameters = Paging::new(&query_parameters.into_inner());
+    let event_count = events.len();
+    let mut payload = Payload {
+        data: events,
+        paging: Paging::clone_with_new_total(&query_parameters, event_count as u64),
+    };
+    payload.paging.limit = event_count as u64;
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn create(
@@ -420,7 +503,26 @@ pub fn update_artists(
 pub struct GuestListQueryParameters {
     pub query: String,
 }
+impl GuestListQueryParameters {
+    pub fn create_paging_struct(&self) -> Paging {
+        let mut default_tags = Vec::new();
 
+        let new_value = SearchParam {
+            name: "query".to_owned(),
+            values: vec![self.query.clone()],
+        };
+        default_tags.push(new_value);
+
+        Paging {
+            page: 0,
+            limit: 100,
+            sort: "".to_owned(),
+            dir: SortingDir::None,
+            total: 0,
+            tags: default_tags,
+        }
+    }
+}
 pub fn guest_list(
     (connection, query, path, user): (
         Connection,
@@ -429,13 +531,20 @@ pub fn guest_list(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
+    //TODO refactor GuestListQueryParameters to PagingParameters
+    let queryparms = query.create_paging_struct();
     let event = Event::find(path.id, connection.get())?;
     user.requires_scope_for_organization(
         Scopes::EventViewGuests,
         event.organization_id,
         connection.get(),
     )?;
-
     let tickets = event.guest_list(&query.query, connection.get())?;
-    Ok(HttpResponse::Ok().json(tickets))
+    let tickets_count = tickets.len();
+    let mut payload = Payload {
+        data: tickets,
+        paging: Paging::clone_with_new_total(&queryparms, tickets_count as u64),
+    };
+    payload.paging.limit = tickets_count as u64;
+    Ok(HttpResponse::Ok().json(payload))
 }

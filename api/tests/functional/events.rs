@@ -2,7 +2,10 @@ use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::SearchParameters;
-use bigneon_api::models::{PathParameters, UserDisplayTicketType};
+use bigneon_api::models::{
+    Paging, PagingParameters, PathParameters, Payload, SearchParam, SortingDir,
+    UserDisplayTicketType,
+};
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use diesel::PgConnection;
@@ -35,7 +38,6 @@ pub fn index() {
         event_venue_entry(&event, &venue),
         event_venue_entry(&event2, &venue),
     ];
-    let events_expected_json = serde_json::to_string(&expected_results).unwrap();
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
@@ -43,9 +45,23 @@ pub fn index() {
         events::index((database.connection.into(), parameters, None)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-
+    let wrapped_expected_events = Payload {
+        data: expected_results,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: vec![SearchParam {
+                name: "query".to_string(),
+                values: vec!["New".to_string()],
+            }],
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, events_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 #[test]
@@ -73,7 +89,6 @@ pub fn index_with_draft_for_organization_user() {
         event_venue_entry(&event, &venue),
         event_venue_entry(&event2, &venue),
     ];
-    let events_expected_json = serde_json::to_string(&expected_results).unwrap();
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
@@ -81,9 +96,24 @@ pub fn index_with_draft_for_organization_user() {
         events::index((database.connection.into(), parameters, Some(auth_user))).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
+    let wrapped_expected_events = Payload {
+        data: expected_results,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: vec![SearchParam {
+                name: "query".to_string(),
+                values: vec!["New".to_string()],
+            }],
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, events_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 #[test]
@@ -108,7 +138,6 @@ pub fn index_with_draft_for_user_ignores_drafts() {
         .finish();
 
     let expected_results = vec![event_venue_entry(&event, &venue)];
-    let events_expected_json = serde_json::to_string(&expected_results).unwrap();
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
@@ -116,9 +145,23 @@ pub fn index_with_draft_for_user_ignores_drafts() {
         events::index((database.connection.into(), parameters, Some(auth_user))).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-
+    let wrapped_expected_events = Payload {
+        data: expected_results,
+        paging: Paging {
+            page: 0,
+            limit: 1,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 1,
+            tags: vec![SearchParam {
+                name: "query".to_string(),
+                values: vec!["New".to_string()],
+            }],
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, events_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 #[test]
@@ -152,7 +195,6 @@ pub fn index_search_with_filter() {
         cancelled_at: event.cancelled_at,
         venue: None,
     }];
-    let events_expected_json = serde_json::to_string(&expected_events).unwrap();
 
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
     let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
@@ -160,9 +202,23 @@ pub fn index_search_with_filter() {
         events::index((database.connection.into(), parameters, None)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-
+    let wrapped_expected_events = Payload {
+        data: expected_events,
+        paging: Paging {
+            page: 0,
+            limit: 1,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 1,
+            tags: vec![SearchParam {
+                name: "query".to_string(),
+                values: vec!["NewEvent1".to_string()],
+            }],
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, events_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 #[test]
@@ -507,17 +563,32 @@ pub fn show_from_organizations() {
         .finish();
 
     let all_events = vec![event, event2];
-    let event_expected_json = serde_json::to_string(&all_events).unwrap();
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     let response: HttpResponse =
-        events::show_from_organizations((database.connection.into(), path)).into();
+        events::show_from_organizations((database.connection.into(), path, query_parameters))
+            .into();
 
+    let wrapped_expected_events = Payload {
+        data: all_events,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, event_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 #[test]
@@ -548,18 +619,31 @@ pub fn show_from_venues() {
         .finish();
 
     let all_events = vec![event, event2];
-    let event_expected_json = serde_json::to_string(&all_events).unwrap();
     //find venue from organization
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     let response: HttpResponse =
-        events::show_from_venues((database.connection.into(), path)).into();
-
+        events::show_from_venues((database.connection.into(), path, query_parameters)).into();
+    let wrapped_expected_events = Payload {
+        data: all_events,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, event_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 fn expected_show_json(
