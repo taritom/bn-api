@@ -1,6 +1,6 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::venues;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
 use bigneon_db::models::Roles;
 use functional::base;
 use serde_json;
@@ -38,33 +38,66 @@ fn index_with_org_linked_and_private_venues() {
     let venue4 = venue4
         .add_to_organization(&organization.id, &database.connection)
         .unwrap();
-
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     //first try with no user
-    let response: HttpResponse = venues::index((database.connection.clone().into(), None)).into();
+    let response: HttpResponse =
+        venues::index((database.connection.clone().into(), query_parameters, None)).into();
 
     let mut expected_venues = vec![venue, venue2, venue3];
-    let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
+    let wrapped_expected_venues = Payload {
+        data: expected_venues.clone(),
+        paging: Paging {
+            page: 0,
+            limit: 3,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 3,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, venue_expected_json);
-
+    assert_eq!(body, expected_json);
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     //now try with user that does not belong to org
-    let response: HttpResponse =
-        venues::index((database.connection.clone().into(), Some(auth_user.clone()))).into();
-
-    let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
+    let response: HttpResponse = venues::index((
+        database.connection.clone().into(),
+        query_parameters,
+        Some(auth_user.clone()),
+    )).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, venue_expected_json);
+    assert_eq!(body, expected_json);
 
     //now with user that DOES belong to org
     let _ = organization.add_user(auth_user.id(), &database.connection.clone());
     expected_venues.push(venue4);
-    let response: HttpResponse =
-        venues::index((database.connection.into(), Some(auth_user))).into();
-    let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
+
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse = venues::index((
+        database.connection.into(),
+        query_parameters,
+        Some(auth_user),
+    )).into();
+    let wrapped_expected_venues = Payload {
+        data: expected_venues,
+        paging: Paging {
+            page: 0,
+            limit: 4,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 4,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, venue_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 #[test]
@@ -270,19 +303,37 @@ pub fn show_from_organizations_private_venue_same_org() {
     );
 
     let all_venues = vec![venue, venue2];
-    let venue_expected_json = serde_json::to_string(&all_venues).unwrap();
+    let wrapped_expected_venues = Payload {
+        data: all_venues,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();
 
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let response: HttpResponse =
-        venues::show_from_organizations((database.connection.into(), path, Some(auth_user))).into();
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse = venues::show_from_organizations((
+        database.connection.into(),
+        path,
+        query_parameters,
+        Some(auth_user),
+    )).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(venue_expected_json, body);
+    assert_eq!(expected_json, body);
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::venues;
 use bigneon_api::models::AddVenueToOrganizationRequest;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
 use bigneon_db::models::*;
 use serde_json;
 use support;
@@ -20,10 +20,26 @@ pub fn index(role: Roles, should_succeed: bool) {
         .finish();
 
     let expected_venues = vec![venue, venue2];
-    let venue_expected_json = serde_json::to_string(&expected_venues).unwrap();
+    let wrapped_expected_venues = Payload {
+        data: expected_venues,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();
+
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
 
     let user = support::create_auth_user(role, None, &database);
-    let response: HttpResponse = venues::index((database.connection.into(), Some(user))).into();
+    let response: HttpResponse =
+        venues::index((database.connection.into(), query_parameters, Some(user))).into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -31,7 +47,7 @@ pub fn index(role: Roles, should_succeed: bool) {
     }
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, venue_expected_json);
+    assert_eq!(body, expected_json);
 }
 
 pub fn create(role: Roles, should_succeed: bool) {
@@ -193,7 +209,18 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
         .unwrap();
 
     let all_venues = vec![venue, venue2];
-    let venue_expected_json = serde_json::to_string(&all_venues).unwrap();
+    let wrapped_expected_venues = Payload {
+        data: all_venues,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();
 
     let test_request = TestRequest::create();
 
@@ -206,8 +233,12 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
         None
     };
 
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     let response: HttpResponse =
-        venues::show_from_organizations((database.connection.into(), path, user)).into();
+        venues::show_from_organizations((database.connection.into(), path, query_parameters, user))
+            .into();
 
     if !should_succeed {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -215,7 +246,7 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
     }
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(venue_expected_json, body);
+    assert_eq!(expected_json, body);
 }
 
 pub fn add_to_organization(role: Roles, should_succeed: bool) {

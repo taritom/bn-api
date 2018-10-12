@@ -1,18 +1,27 @@
-use actix_web::{HttpResponse, Json, Path};
+use actix_web::{HttpResponse, Json, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{AddVenueToOrganizationRequest, PathParameters};
+use models::{AddVenueToOrganizationRequest, Paging, PagingParameters, PathParameters, Payload};
 
-pub fn index((connection, user): (Connection, Option<User>)) -> Result<HttpResponse, BigNeonError> {
+pub fn index(
+    (connection, query_parameters, user): (Connection, Query<PagingParameters>, Option<User>),
+) -> Result<HttpResponse, BigNeonError> {
+    //TODO implement proper paging on db
+    let query_parameters = Paging::new(&query_parameters.into_inner());
     let venues = match user {
         Some(u) => Venue::all(Some(u.id()), connection.get())?,
         None => Venue::all(None, connection.get())?,
     };
-
-    Ok(HttpResponse::Ok().json(&venues))
+    let venues_count = venues.len();
+    let mut payload = Payload {
+        data: venues,
+        paging: Paging::clone_with_new_total(&query_parameters, venues_count as u64),
+    };
+    payload.paging.limit = venues_count as u64;
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn show(
@@ -25,15 +34,28 @@ pub fn show(
 }
 
 pub fn show_from_organizations(
-    (connection, organization_id, user): (Connection, Path<PathParameters>, Option<User>),
+    (connection, organization_id, query_parameters, user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+        Option<User>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
+    //TODO implement proper paging on db
+    let query_parameters = Paging::new(&query_parameters.into_inner());
     let venues = match user {
         Some(u) => {
             Venue::find_for_organization(Some(u.id()), organization_id.id, connection.get())?
         }
         None => Venue::find_for_organization(None, organization_id.id, connection.get())?,
     };
-    Ok(HttpResponse::Ok().json(&venues))
+    let venues_count = venues.len();
+    let mut payload = Payload {
+        data: venues,
+        paging: Paging::clone_with_new_total(&query_parameters, venues_count as u64),
+    };
+    payload.paging.limit = venues_count as u64;
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn create(
