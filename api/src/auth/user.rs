@@ -111,7 +111,7 @@ impl FromRequest<AppState> for User {
                             let connection = req.connection()?;
                             match DbUser::find(token.claims.get_id(), connection.get()) {
                                 Ok(user) => Ok(User::new(user)),
-                                Err(e) => Err(ConvertToWebError::create_http_error(&e)),
+                                Err(e) => Err(error::ErrorInternalServerError(e)),
                             }
                         } else {
                             Err(error::ErrorUnauthorized("Invalid token"))

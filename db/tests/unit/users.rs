@@ -45,7 +45,7 @@ fn commit_duplicate_email() {
     assert_eq!(result.is_err(), true);
     assert_eq!(
         result.err().unwrap().code,
-        errors::get_error_message(ErrorCode::DuplicateKeyError).0
+        errors::get_error_message(&ErrorCode::DuplicateKeyError).0
     );
 }
 
@@ -201,7 +201,7 @@ fn new_user_validate() {
     );
     let result = user.validate();
     assert!(result.is_err());
-    let errors = result.unwrap_err().inner();
+    let errors = result.unwrap_err().field_errors();
 
     assert!(errors.contains_key("email"));
     assert_eq!(errors["email"].len(), 1);
@@ -215,7 +215,7 @@ fn user_editable_attributes_validate() {
 
     let result = user_parameters.validate();
     assert!(result.is_err());
-    let errors = result.unwrap_err().inner();
+    let errors = result.unwrap_err().field_errors();
 
     assert!(errors.contains_key("email"));
     assert_eq!(errors["email"].len(), 1);

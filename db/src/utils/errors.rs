@@ -3,10 +3,12 @@ use diesel::result::DatabaseErrorKind;
 use diesel::result::Error as DieselError;
 use diesel::result::QueryResult;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use validator::{ValidationError, ValidationErrors};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ErrorCode {
     InvalidInput,
     MissingInput,
@@ -21,40 +23,45 @@ pub enum ErrorCode {
     AccessError,
     BusinessProcessError,
     ConcurrencyError,
+    ValidationError {
+        errors: HashMap<&'static str, Vec<ValidationError>>,
+    },
     Unknown,
     MultipleResultsWhenOneExpected,
 }
 
-pub fn get_error_message(code: ErrorCode) -> (i32, String) {
+pub fn get_error_message(code: &ErrorCode) -> (i32, String) {
     use self::ErrorCode::*;
     // In general, these errors try to match the HTTP status codes
-    let (code, msg) = match code {
+    match code {
         // Input errors - 1000 range
-        InvalidInput => (1000, "Invalid input"),
-        MissingInput => (1100, "Missing input"),
+        InvalidInput => (1000, "Invalid input".to_string()),
+        MissingInput => (1100, "Missing input".to_string()),
         // No results - 2000 range. Query was successful, but the wrong amount of rows was returned
-        NoResults => (2000, "No results"),
-        MultipleResultsWhenOneExpected => (2100, "Multiple results when one was expected"),
+        NoResults => (2000, "No results".to_string()),
+        MultipleResultsWhenOneExpected => {
+            (2100, "Multiple results when one was expected".to_string())
+        }
         // Query errors - 3000 range. Something went wrong during the query
-        QueryError => (3000, "Query Error"),
-        InsertError => (3100, "Could not insert record"),
-        UpdateError => (3200, "Could not update record"),
-        DeleteError => (3300, "Could not delete record"),
+        QueryError => (3000, "Query Error".to_string()),
+        InsertError => (3100, "Could not insert record".to_string()),
+        UpdateError => (3200, "Could not update record".to_string()),
+        DeleteError => (3300, "Could not delete record".to_string()),
         // TODO - This should probably move to the 2000 range
-        DuplicateKeyError => (3400, "Duplicate key error"),
-        ConnectionError => (4000, "Connection error"),
+        DuplicateKeyError => (3400, "Duplicate key error".to_string()),
+        ConnectionError => (4000, "Connection error".to_string()),
         // Internal server error - 5000, similar to the HTTP 500 errors
-        InternalError => (5000, "Internal error"),
+        InternalError => (5000, "Internal error".to_string()),
         // TODO - This should probably move to the 4000 range
-        AccessError => (6000, "Access error"),
+        AccessError => (6000, "Access error".to_string()),
         // Logical/Business errors - 7000 range. These represent errors
         // that arise from an invalid setup in the database
-        BusinessProcessError => (7000, "Business Process error"),
-        ConcurrencyError => (7100, "Concurrency error"),
+        BusinessProcessError => (7000, "Business Process error".to_string()),
+        ConcurrencyError => (7100, "Concurrency error".to_string()),
+        ValidationError { errors: _ } => (7200, "Validation failed:".to_string()),
         // Try not to use this error
-        Unknown => (10, "Unknown database error"),
-    };
-    (code, msg.to_string())
+        Unknown => (10, "Unknown database error".to_string()),
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -62,6 +69,7 @@ pub struct DatabaseError {
     pub code: i32,
     pub message: String,
     pub cause: Option<String>,
+    pub error_code: ErrorCode,
 }
 
 impl fmt::Display for DatabaseError {
@@ -95,16 +103,14 @@ impl Serialize for DatabaseError {
 }
 
 impl DatabaseError {
-    pub fn new(error_code: ErrorCode, cause: Option<&str>) -> DatabaseError {
-        let (code, message) = get_error_message(error_code);
-        let description = match cause {
-            Some(err) => Some(String::from(err)),
-            None => None,
-        };
+    pub fn new(error_code: ErrorCode, cause: Option<String>) -> DatabaseError {
+        let (code, message) = get_error_message(&error_code);
+
         DatabaseError {
             code,
             message,
-            cause: description,
+            cause,
+            error_code,
         }
     }
 
@@ -121,21 +127,21 @@ impl DatabaseError {
                 match e {
                     DieselError::NotFound => Err(DatabaseError::new(
                         ErrorCode::NoResults,
-                        Some(&format!("{}, {}", message, e.to_string())),
+                        Some(format!("{}, {}", message, e.to_string())),
                     )),
                     DieselError::DatabaseError(kind, _) => match kind {
                         DatabaseErrorKind::UniqueViolation => Err(DatabaseError::new(
                             ErrorCode::DuplicateKeyError,
-                            Some(&format!("{}, {}", message, e.to_string())),
+                            Some(format!("{}, {}", message, e.to_string())),
                         )),
                         _ => Err(DatabaseError::new(
                             error_code,
-                            Some(&format!("{}, {}", message, e.to_string())),
+                            Some(format!("{}, {}", message, e.to_string())),
                         )),
                     },
                     _ => Err(DatabaseError::new(
                         error_code,
-                        Some(&format!("{}, {}", message, e.to_string())),
+                        Some(format!("{}, {}", message, e.to_string())),
                     )),
                 }
             }
@@ -145,21 +151,33 @@ impl DatabaseError {
     pub fn business_process_error<T>(message: &str) -> Result<T, DatabaseError> {
         Err(DatabaseError::new(
             ErrorCode::BusinessProcessError,
-            Some(message),
+            Some(message.to_string()),
         ))
     }
 
     pub fn concurrency_error<T>(message: &str) -> Result<T, DatabaseError> {
         Err(DatabaseError::new(
             ErrorCode::ConcurrencyError,
-            Some(message),
+            Some(message.to_string()),
         ))
     }
 }
 
 impl From<ConnectionError> for DatabaseError {
     fn from(e: ConnectionError) -> Self {
-        DatabaseError::new(ErrorCode::ConnectionError, Some(&e.to_string()))
+        DatabaseError::new(ErrorCode::ConnectionError, Some(e.to_string()))
+    }
+}
+
+impl From<ValidationErrors> for DatabaseError {
+    fn from(e: ValidationErrors) -> Self {
+        let message = e.to_string();
+        DatabaseError::new(
+            ErrorCode::ValidationError {
+                errors: e.field_errors(),
+            },
+            Some(message),
+        )
     }
 }
 
@@ -184,7 +202,7 @@ impl<U> OptionalToDatabaseError<U> for Result<Option<U>, DatabaseError> {
                 Some(j) => Ok(j),
                 None => Err(DatabaseError::new(
                     ErrorCode::NoResults,
-                    Some("No results returned when results were expected"),
+                    Some("No results returned when results were expected".to_string()),
                 )),
             },
             Err(e) => Err(e),
@@ -229,7 +247,10 @@ fn error_with_known_code() {
 #[test]
 fn unknown_error_with_cause() {
     let cause = DatabaseError::new(ErrorCode::Unknown, None);
-    let err = DatabaseError::new(ErrorCode::InvalidInput, Some(cause.description()));
+    let err = DatabaseError::new(
+        ErrorCode::InvalidInput,
+        Some(cause.description().to_string()),
+    );
     assert_eq!(err.description(), "Invalid input");
     assert_eq!(err.code, 1000);
     assert!(err.cause.is_some());
@@ -244,8 +265,8 @@ Caused by: Unknown database error"
 #[test]
 fn nested_causes() {
     let cause1 = DatabaseError::new(ErrorCode::Unknown, None);
-    let cause2 = DatabaseError::new(ErrorCode::NoResults, Some(&format!("{}", cause1)));
-    let err = DatabaseError::new(ErrorCode::InvalidInput, Some(&format!("{}", cause2)));
+    let cause2 = DatabaseError::new(ErrorCode::NoResults, Some(format!("{}", cause1)));
+    let err = DatabaseError::new(ErrorCode::InvalidInput, Some(format!("{}", cause2)));
     assert_eq!(err.code, 1000);
     assert!(err.cause.is_some());
     assert_eq!(

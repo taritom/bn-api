@@ -26,7 +26,7 @@ impl PasswordHash {
             Ok(hash) => Ok(PasswordHash { hash }),
             Err(e) => Err(DatabaseError::new(
                 ErrorCode::InvalidInput,
-                Some(e.description()),
+                Some(e.description().to_string()),
             )),
         }
     }

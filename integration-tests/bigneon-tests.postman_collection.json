@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "562a7003-4e26-4d94-83a3-2ba58a96c05c",
+		"_postman_id": "6c41ed7a-9ab0-45e6-b0cf-8fbb1fade11d",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -322,17 +322,134 @@
 					"response": []
 				},
 				{
-					"name": "Admin  - Publish Event",
+					"name": "Admin  - Publish Event (fails Validation)",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
-								"id": "eb3a6777-ebf6-4bf1-b552-6781e6245890",
+								"id": "785225a1-b667-443b-8425-50d81430a04f",
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"should be 422 Unprocessable\", function() {",
+									"    pm.response.to.have.status(422);",
+									"})",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should have 4 errors\", function() {",
+									"    pm.expect(r.fields[\"venue.address\"][0].code).to.equal(\"Address is required before publishing\");",
+									"    pm.expect(r.fields[\"venue.city\"][0].code).to.equal(\"City is required before publishing\");",
+									"    pm.expect(r.fields[\"venue.country\"][0].code).to.equal(\"Country is required before publishing\");",
+									"    pm.expect(r.fields[\"venue.postal_code\"][0].code).to.equal(\"Postal code is required before publishing\");",
+									"    pm.expect(r.fields[\"venue.state\"][0].code).to.equal(\"State is required before publishing\");",
+									"})"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/publish",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"publish"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin  - Update Venue",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c91d2787-44e0-489c-9b8c-69a7f118f457",
 								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
 									"})",
+									""
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"address\": \"address\",\n    \"city\":\"city\",\n    \"country\" : \"the best country\",\n    \"postal_code\" : \"2222\",\n    \"state\":\"CA\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/venues/{{last_venue_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"venues",
+								"{{last_venue_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin  - Publish Event (succeeds)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
 									""
 								]
 							}

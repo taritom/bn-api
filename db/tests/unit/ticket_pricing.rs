@@ -66,7 +66,7 @@ fn validate_new() {
             let errors = result.unwrap_err();
             assert_eq!(
                 errors.code,
-                errors::get_error_message(ErrorCode::InsertError).0
+                errors::get_error_message(&ErrorCode::InsertError).0
             );
             assert_eq!(
                 errors.cause,
@@ -85,7 +85,7 @@ fn validate_new() {
             let errors = result.unwrap_err();
             assert_eq!(
                 errors.code,
-                errors::get_error_message(ErrorCode::InsertError).0
+                errors::get_error_message(&ErrorCode::InsertError).0
             );
             assert_eq!(
                 errors.cause,
@@ -105,7 +105,7 @@ fn validate_new() {
             let errors = result.unwrap_err();
             assert_eq!(
                 errors.code,
-                errors::get_error_message(ErrorCode::InsertError).0
+                errors::get_error_message(&ErrorCode::InsertError).0
             );
             assert_eq!(
                 errors.cause,
@@ -164,7 +164,7 @@ fn validate_existing() {
             let errors = result.unwrap_err();
             assert_eq!(
                 errors.code,
-                errors::get_error_message(ErrorCode::UpdateError).0
+                errors::get_error_message(&ErrorCode::UpdateError).0
             );
             assert_eq!(
                 errors.cause,
@@ -183,7 +183,7 @@ fn validate_existing() {
             let errors = result.unwrap_err();
             assert_eq!(
                 errors.code,
-                errors::get_error_message(ErrorCode::UpdateError).0
+                errors::get_error_message(&ErrorCode::UpdateError).0
             );
             assert_eq!(
                 errors.cause,
@@ -203,7 +203,7 @@ fn validate_existing() {
             let errors = result.unwrap_err();
             assert_eq!(
                 errors.code,
-                errors::get_error_message(ErrorCode::UpdateError).0
+                errors::get_error_message(&ErrorCode::UpdateError).0
             );
             assert_eq!(
                 errors.cause,

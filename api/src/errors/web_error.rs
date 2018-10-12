@@ -1,7 +1,6 @@
-use actix_web::error;
-use actix_web::Error as web_error;
-use actix_web::HttpResponse;
+use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_db::utils::errors::DatabaseError;
+use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use diesel::result::Error as DieselError;
 use errors::AuthError;
 use payments::PaymentProcessorError;
@@ -14,90 +13,104 @@ use stripe::StripeError;
 use tari_client::TariError;
 
 pub trait ConvertToWebError: Debug + Error + ToString {
-    fn create_http_error(&self) -> web_error;
+    fn to_response(&self) -> HttpResponse;
+}
 
-    fn to_response(&self) -> HttpResponse {
-        let err = self.create_http_error();
-        let message = err.as_response_error().to_string();
-        let resp = HttpResponse::from(err);
-        HttpResponse::new(resp.status())
-            .into_builder()
-            .json(json!({ "error": message }))
-    }
+fn internal_error(message: &str) -> HttpResponse {
+    status_code_and_message(StatusCode::INTERNAL_SERVER_ERROR, message)
+}
+
+fn unauthorized(message: &str) -> HttpResponse {
+    status_code_and_message(StatusCode::UNAUTHORIZED, message)
+}
+
+fn status_code_and_message(code: StatusCode, message: &str) -> HttpResponse {
+    HttpResponse::new(code)
+        .into_builder()
+        .json(json!({"error": message.to_string()}))
 }
 
 impl ConvertToWebError for Error {
-    fn create_http_error(&self) -> web_error {
+    fn to_response(&self) -> HttpResponse {
         error!("General error: {}", self.description());
-        error::ErrorInternalServerError("Internal error")
+        internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for DieselError {
-    fn create_http_error(&self) -> web_error {
-        error!("Diesel Error: {}", self.description());
-        error::ErrorInternalServerError("Internal error")
+    fn to_response(&self) -> HttpResponse {
+        error!("Diesel error: {}", self.description());
+        internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for ReqwestError {
-    fn create_http_error(&self) -> web_error {
-        error!("Reqwest Error: {}", self.description());
-        error::ErrorInternalServerError("Internal error")
+    fn to_response(&self) -> HttpResponse {
+        error!("Reqwest error: {}", self.description());
+        internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for PaymentProcessorError {
-    fn create_http_error(&self) -> web_error {
-        error!("Payment Error: {}", self.description());
-        error::ErrorInternalServerError("Internal error")
+    fn to_response(&self) -> HttpResponse {
+        error!("Payment Processor error: {}", self.description());
+        internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for StripeError {
-    fn create_http_error(&self) -> web_error {
-        error!("Stripe Error: {}", self.description());
-        error::ErrorInternalServerError("Internal error")
+    fn to_response(&self) -> HttpResponse {
+        error!("Stripe error: {}", self.description());
+        internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for SerdeError {
-    fn create_http_error(&self) -> web_error {
-        error!("SerdeError Error: {}", self.description());
-        error::ErrorInternalServerError("Internal error")
+    fn to_response(&self) -> HttpResponse {
+        error!("Serde error: {}", self.description());
+        internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for TariError {
-    fn create_http_error(&self) -> web_error {
-        error!("TariError Error: {}", self.description());
-        error::ErrorInternalServerError("Internal error: Problem with Tari client.")
+    fn to_response(&self) -> HttpResponse {
+        error!("Tari error: {}", self.description());
+        internal_error("Internal error: Problem with the Tari client")
     }
 }
 
 impl ConvertToWebError for AuthError {
-    fn create_http_error(&self) -> web_error {
-        error!("AuthError Error: {}", self.reason);
-        error::ErrorUnauthorized(self.reason.clone())
+    fn to_response(&self) -> HttpResponse {
+        error!("AuthError error: {}", self.reason);
+        unauthorized(&self.reason)
     }
 }
 
 impl ConvertToWebError for DatabaseError {
-    fn create_http_error(&self) -> web_error {
-        let new_web_error: web_error = match self.code {
-            1000 => error::ErrorBadRequest("Invalid input"),
-            1100 => error::ErrorBadRequest("Missing input"),
-            2000 => error::ErrorNotFound("No results"),
-            3000 => error::ErrorInternalServerError("Query error"),
-            3100 => error::ErrorInternalServerError("Could not insert record"),
-            3200 => error::ErrorInternalServerError("Could not update record"),
-            3300 => error::ErrorInternalServerError("Could not delete record"),
-            3400 => error::ErrorConflict("Duplicate record exists"),
-            4000 => error::ErrorInternalServerError("Connection error"),
-            5000 => error::ErrorInternalServerError("Internal error"),
-            7000 => error::ErrorInternalServerError("Business process error"),
-            _ => error::ErrorInternalServerError("Unknown error"),
-        };
-        new_web_error
+    fn to_response(&self) -> HttpResponse {
+        match self.code {
+            1000 => status_code_and_message(StatusCode::BAD_REQUEST, "Invalid input"),
+            1100 => status_code_and_message(StatusCode::BAD_REQUEST, "Missing input"),
+            2000 => status_code_and_message(StatusCode::NOT_FOUND, "No results"),
+            3000 => internal_error("Query error"),
+            3100 => internal_error("Could not insert record"),
+            3200 => internal_error("Could not update record"),
+            3300 => internal_error("Could not delete record"),
+            3400 => status_code_and_message(StatusCode::CONFLICT, "Duplicate record exists"),
+            4000 => internal_error("Connection error"),
+            5000 => internal_error("Internal error"),
+            7000 => {
+                status_code_and_message(StatusCode::UNPROCESSABLE_ENTITY, "Business process error")
+            }
+            7200 => match &self.error_code {
+                ValidationError { errors } => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY)
+                    .into_builder()
+                    .json(json!({"error": "Validation error".to_string(), "fields": errors})),
+                _ => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY)
+                    .into_builder()
+                    .json(json!({"error": "Validation error".to_string()})),
+            },
+            _ => internal_error("Unknown error"),
+        }
     }
 }

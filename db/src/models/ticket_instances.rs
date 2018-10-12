@@ -162,7 +162,7 @@ impl TicketInstance {
         if ids.len() as i64 != quantity {
             return Err(DatabaseError::new(
                 ErrorCode::QueryError,
-                Some("Could not reserve the correct amount of tickets"),
+                Some("Could not reserve the correct amount of tickets".to_string()),
             ));
         }
 
@@ -187,7 +187,7 @@ impl TicketInstance {
             if ids.len() as i64 != quantity {
                 return Err(DatabaseError::new(
                     ErrorCode::QueryError,
-                    Some("Could not release the correct amount of tickets"),
+                    Some("Could not release the correct amount of tickets".to_string()),
                 ));
             }
         }
@@ -233,7 +233,7 @@ impl TicketInstance {
         if wallet.is_empty() {
             return Err(DatabaseError::new(
                 ErrorCode::InternalError,
-                Some("User does not have a wallet associated with them"),
+                Some("User does not have a wallet associated with them".to_string()),
             ));
         }
 

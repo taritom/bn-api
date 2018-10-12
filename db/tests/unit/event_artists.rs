@@ -1,4 +1,3 @@
-extern crate chrono;
 use bigneon_db::models::EventArtist;
 use support::project::TestProject;
 

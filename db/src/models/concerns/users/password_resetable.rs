@@ -64,7 +64,7 @@ impl PasswordResetable for User {
                 } else {
                     Err(DatabaseError::new(
                         ErrorCode::InternalError,
-                        Some("Password reset token is expired"),
+                        Some("Password reset token is expired".to_string()),
                     ))
                 }
             }

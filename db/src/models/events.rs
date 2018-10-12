@@ -10,7 +10,7 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
-use validator::Validate;
+use validator::{Validate, ValidationError, ValidationErrors};
 
 #[derive(Associations, Identifiable, Queryable, AsChangeset)]
 #[belongs_to(Organization)]
@@ -133,6 +133,23 @@ impl Event {
         if self.status() == EventStatus::Published {
             return Event::find(self.id, conn);
         }
+
+        let mut errors = ValidationErrors::new();
+
+        if self.venue_id.is_none() {
+            errors.add(
+                "venue_id",
+                ValidationError::new("Event can't be published without a venue"),
+            );
+        } else {
+            let venue = self.venue(conn)?.unwrap();
+            venue.validate_for_publish()?;
+        }
+
+        if !errors.is_empty() {
+            return Err(errors.into());
+        }
+
         diesel::update(&self)
             .set((
                 events::status.eq(EventStatus::Published.to_string()),

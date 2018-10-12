@@ -1,10 +1,6 @@
-extern crate chrono;
-extern crate num;
-extern crate rand;
-
-use self::num::clamp;
-use self::rand::prelude::*;
 use bigneon_db::models::{EventInterest, User};
+use bigneon_db::utils::clamp;
+use rand::prelude::*;
 use support::project::TestProject;
 use uuid::Uuid;
 

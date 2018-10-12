@@ -7,15 +7,15 @@
 #![deny(unused_imports)]
 // Unused results is more often than not an error
 #![deny(unused_must_use)]
-extern crate num;
+#![deny(unused_extern_crates)]
+
 #[macro_use]
 extern crate diesel;
 extern crate argon2rs;
 extern crate chrono;
-extern crate dotenv;
 extern crate itertools;
-extern crate log;
-extern crate log4rs;
+//extern crate log;
+//extern crate log4rs;
 extern crate rand;
 extern crate time;
 extern crate uuid;

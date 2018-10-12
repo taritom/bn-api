@@ -1,3 +1,4 @@
+//#![deny(unused_extern_crates)]
 extern crate bigneon_api;
 extern crate dotenv;
 extern crate log;

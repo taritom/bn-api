@@ -34,7 +34,7 @@ fn new_artist_validate() {
 
     let result = artist.validate();
     assert!(result.is_err());
-    let errors = result.unwrap_err().inner();
+    let errors = result.unwrap_err().field_errors();
 
     assert!(errors.contains_key("image_url"));
     assert_eq!(errors["image_url"].len(), 1);
@@ -63,7 +63,7 @@ fn artist_editable_attributes_validate() {
 
     let result = artist_parameters.validate();
     assert!(result.is_err());
-    let errors = result.unwrap_err().inner();
+    let errors = result.unwrap_err().field_errors();
 
     assert!(errors.contains_key("website_url"));
     assert_eq!(errors["website_url"].len(), 1);

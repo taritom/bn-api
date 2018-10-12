@@ -118,18 +118,18 @@ impl TicketPricing {
         if price_points.len() > 1 {
             return Err(DatabaseError::new(
                 ErrorCode::MultipleResultsWhenOneExpected,
-                Some("Expected a single ticket pricing period but multiple were found"),
+                Some("Expected a single ticket pricing period but multiple were found".to_string()),
             ));
         } else if price_points.len() == 0 {
             return Err(DatabaseError::new(
                 ErrorCode::NoResults,
-                Some("No ticket pricing found"),
+                Some("No ticket pricing found".to_string()),
             ));
         }
 
         price_points.pop().ok_or(DatabaseError::new(
             ErrorCode::NoResults,
-            Some("No ticket pricing found"),
+            Some("No ticket pricing found".to_string()),
         ))
     }
 }

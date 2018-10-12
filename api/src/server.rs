@@ -53,7 +53,8 @@ impl Server {
                         routing::routes(&mut cors_config)
                     })
             }
-        }).bind(&bind_addr)
+        }).keep_alive(server::KeepAlive::Tcp(10))
+        .bind(&bind_addr)
         .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
         .run();
     }

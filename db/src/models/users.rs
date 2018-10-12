@@ -237,7 +237,7 @@ impl User {
         if payment_methods.is_empty() {
             Err(DatabaseError::new(
                 ErrorCode::NoResults,
-                Some("No payment method found for user"),
+                Some("No payment method found for user".to_string()),
             ))
         } else {
             Ok(payment_methods.remove(0))

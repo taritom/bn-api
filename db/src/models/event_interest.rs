@@ -1,6 +1,3 @@
-extern crate num;
-
-use self::num::clamp;
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl::count;
@@ -8,6 +5,7 @@ use diesel::prelude::*;
 use models::{Event, User};
 use schema::{event_interest, users};
 use std::mem;
+use utils::clamp;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;

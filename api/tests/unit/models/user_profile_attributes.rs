@@ -12,7 +12,7 @@ fn user_profile_attributes_validate() {
 
     let result = user_parameters.validate();
     assert!(result.is_err());
-    let errors = result.unwrap_err().inner();
+    let errors = result.unwrap_err().field_errors();
 
     assert!(errors.contains_key("email"));
     assert_eq!(errors["email"].len(), 1);

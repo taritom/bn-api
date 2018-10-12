@@ -8,6 +8,7 @@ use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
+use validator::{ValidationError, ValidationErrors};
 
 #[derive(
     Clone,
@@ -218,6 +219,45 @@ impl Venue {
             Some(organization_id) => Ok(Some(Organization::find(organization_id, conn)?)),
             None => Ok(None),
         }
+    }
+
+    pub fn validate_for_publish(&self) -> Result<(), ValidationErrors> {
+        let mut res = ValidationErrors::new();
+
+        if self.address.is_none() {
+            res.add(
+                "venue.address",
+                ValidationError::new("Address is required before publishing"),
+            );
+        }
+        if self.city.is_none() {
+            res.add(
+                "venue.city",
+                ValidationError::new("City is required before publishing"),
+            );
+        }
+        if self.country.is_none() {
+            res.add(
+                "venue.country",
+                ValidationError::new("Country is required before publishing"),
+            );
+        }
+        if self.postal_code.is_none() {
+            res.add(
+                "venue.postal_code",
+                ValidationError::new("Postal code is required before publishing"),
+            );
+        }
+        if self.state.is_none() {
+            res.add(
+                "venue.state",
+                ValidationError::new("State is required before publishing"),
+            );
+        }
+        if !res.is_empty() {
+            return Err(res);
+        }
+        Ok(())
     }
 }
 

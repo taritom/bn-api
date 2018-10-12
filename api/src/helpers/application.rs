@@ -33,7 +33,7 @@ pub fn internal_server_error(message: &str) -> Result<HttpResponse, BigNeonError
 
 pub fn validation_error_response(errors: ValidationErrors) -> Result<HttpResponse, BigNeonError> {
     Ok(HttpResponse::BadRequest()
-        .json(json!({"error": "Validation error".to_string(), "fields": errors.inner()})))
+        .json(json!({"error": "Validation error".to_string(), "fields": errors.field_errors()})))
 }
 
 pub fn no_content() -> Result<HttpResponse, BigNeonError> {
