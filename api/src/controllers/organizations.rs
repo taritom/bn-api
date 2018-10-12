@@ -41,23 +41,42 @@ pub struct NewOrganizationRequest {
     pub phone: Option<String>,
 }
 
-pub fn index((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
+pub fn index(
+    (connection, query_parameters, user): (Connection, Query<PagingParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
     if user.has_scope(Scopes::OrgAdmin, None, connection.get())? {
-        return index_for_all_orgs((connection, user));
+        return index_for_all_orgs((connection, query_parameters, user));
     }
+
+    let queryparms = Paging::new(&query_parameters.into_inner());
+    //TODO remap query to use paging info
     let organizations = Organization::all_linked_to_user(user.id(), connection.get())?;
-    Ok(HttpResponse::Ok().json(&organizations))
+
+    let org_count = organizations.len();
+    let mut payload = Payload {
+        data: organizations,
+        paging: Paging::clone_with_new_total(&queryparms, org_count as u64),
+    };
+    payload.paging.limit = org_count as u64;
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn index_for_all_orgs(
-    (connection, user): (Connection, User),
+    (connection, query_parameters, user): (Connection, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
         return application::unauthorized();
     }
+    let queryparms = Paging::new(&query_parameters.into_inner());
     let organizations = Organization::all(connection)?;
-    Ok(HttpResponse::Ok().json(&organizations))
+    let org_count = organizations.len();
+    let mut payload = Payload {
+        data: organizations,
+        paging: Paging::clone_with_new_total(&queryparms, org_count as u64),
+    };
+    payload.paging.limit = org_count as u64;
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn show(

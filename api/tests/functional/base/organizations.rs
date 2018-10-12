@@ -34,18 +34,35 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     } else {
         Vec::new()
     };
-    let organization_expected_json = serde_json::to_string(&expected_organizations).unwrap();
 
-    let response: HttpResponse = organizations::index((database.connection.into(), user)).into();
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse =
+        organizations::index((database.connection.into(), query_parameters, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
+    let counter = expected_organizations.len() as u64;
+    let wrapped_expected_orgs = Payload {
+        data: expected_organizations,
+        paging: Paging {
+            page: 0,
+            limit: counter,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: counter,
+            tags: Vec::new(),
+        },
+    };
+
+    let expected_json = serde_json::to_string(&wrapped_expected_orgs).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(body, organization_expected_json);
+        assert_eq!(body, expected_json);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, organization_expected_json);
+        let expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, expected_json);
     }
 }
 
@@ -101,21 +118,42 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
             .unwrap();
         expected_organizations.remove(index);
     }
-    let organization_expected_json = serde_json::to_string(&expected_organizations).unwrap();
 
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
-    let response: HttpResponse =
-        organizations::index_for_all_orgs((database.connection.into(), auth_user)).into();
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse = organizations::index_for_all_orgs((
+        database.connection.into(),
+        query_parameters,
+        auth_user,
+    )).into();
+
     let body = support::unwrap_body_to_string(&response).unwrap();
+
+    let counter = expected_organizations.len() as u64;
+    let wrapped_expected_orgs = Payload {
+        data: expected_organizations,
+        paging: Paging {
+            page: 0,
+            limit: counter,
+            sort: "".to_string(),
+            dir: SortingDir::None,
+            total: counter,
+            tags: Vec::new(),
+        },
+    };
+
+    let expected_json = serde_json::to_string(&wrapped_expected_orgs).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(body, organization_expected_json);
+        assert_eq!(body, expected_json);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, organization_expected_json);
+        let expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
+        assert_eq!(body, expected_json);
     }
 }
 
