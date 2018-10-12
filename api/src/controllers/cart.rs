@@ -106,6 +106,9 @@ pub enum PaymentRequest {
         save_payment_method: bool,
         set_default: bool,
     },
+    PaymentMethod {
+        provider: Option<String>,
+    },
 }
 
 pub fn checkout(
@@ -146,6 +149,37 @@ pub fn checkout(
         PaymentRequest::External { reference } => {
             checkout_external(&connection, &mut order, reference, &req, &user)?
         }
+        PaymentRequest::PaymentMethod { provider } => {
+            let provider = match provider {
+                Some(provider) => provider.clone(),
+                None => match user
+                    .user
+                    .default_payment_method(connection.get())
+                    .optional()?
+                {
+                    Some(payment_method) => payment_method.name,
+                    None => {
+                        return application::unprocessable(
+                            "Could not complete this cart because user has no default payment method",
+                        );
+                    }
+                },
+            };
+
+            checkout_payment_processor(
+                &connection,
+                &mut order,
+                None,
+                &req,
+                &user,
+                &state.config.primary_currency,
+                &provider,
+                true,
+                false,
+                false,
+                &state.service_locator,
+            )?
+        }
         PaymentRequest::Card {
             token,
             provider,
@@ -154,11 +188,12 @@ pub fn checkout(
         } => checkout_payment_processor(
             &connection,
             &mut order,
-            &token,
+            Some(&token),
             &req,
             &user,
             &state.config.primary_currency,
             provider,
+            false,
             *save_payment_method,
             *set_default,
             &state.service_locator,
@@ -222,28 +257,21 @@ fn checkout_external(
 fn checkout_payment_processor(
     conn: &Connection,
     order: &mut Order,
-    token: &str,
+    token: Option<&str>,
     req: &CheckoutCartRequest,
-    user: &User,
+    auth_user: &User,
     currency: &str,
     provider_name: &str,
+    use_stored_payment: bool,
     save_payment_method: bool,
     set_default: bool,
     service_locator: &ServiceLocator,
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
 
-    if order.user_id != user.id() {
+    if order.user_id != auth_user.id() {
         return application::forbidden("This cart does not belong to you");
-    }
-
-    if order.status() != OrderStatus::Draft {
-        return application::unprocessable(
-            "Could not complete this cart because it is not in the correct status",
-        );
-    }
-
-    if order.status() != OrderStatus::Draft {
+    } else if order.status() != OrderStatus::Draft {
         return application::unprocessable(
             "Could not complete this cart because it is not in the correct status",
         );
@@ -251,18 +279,62 @@ fn checkout_payment_processor(
 
     let client = service_locator.create_payment_processor(provider_name);
 
-    let token = if save_payment_method {
-        let repeat_token = client.create_token_for_repeat_charges(token, "Big Neon something")?;
-        let _payment_method = PaymentMethod::create(
-            user.id(),
-            provider_name.to_string(),
-            set_default,
-            repeat_token.token.clone(),
-            repeat_token.to_json()?,
-        ).commit(connection)?;
-        repeat_token.token.clone()
+    let token = if use_stored_payment {
+        match auth_user
+            .user
+            .payment_method(provider_name.to_string(), connection)
+            .optional()?
+        {
+            Some(payment_method) => payment_method.provider,
+            None => {
+                return application::unprocessable(
+                    "Could not complete this cart because stored provider does not exist",
+                )
+            }
+        }
     } else {
-        token.to_string()
+        if token.is_none() {
+            return application::unprocessable(
+                "Could not complete this cart because no token provided",
+            );
+        }
+
+        let token = token.unwrap();
+        if save_payment_method {
+            match auth_user
+                .user
+                .payment_method(provider_name.to_string(), connection)
+                .optional()?
+            {
+                Some(payment_method) => {
+                    let client_response = client.update_repeat_token(
+                        &payment_method.provider,
+                        token,
+                        "Big Neon something",
+                    )?;
+                    let payment_method_parameters = PaymentMethodEditableAttributes {
+                        provider_data: Some(client_response.to_json()?),
+                    };
+                    payment_method.update(&payment_method_parameters, connection)?;
+
+                    payment_method.provider
+                }
+                None => {
+                    let repeat_token =
+                        client.create_token_for_repeat_charges(token, "Big Neon something")?;
+                    let _payment_method = PaymentMethod::create(
+                        auth_user.id(),
+                        provider_name.to_string(),
+                        set_default,
+                        repeat_token.token.clone(),
+                        repeat_token.to_json()?,
+                    ).commit(connection)?;
+                    repeat_token.token
+                }
+            }
+        } else {
+            token.to_string()
+        }
     };
 
     let auth_result = client.auth(
@@ -274,7 +346,7 @@ fn checkout_payment_processor(
     )?;
 
     let payment = match order.add_credit_card_payment(
-        user.id(),
+        auth_user.id(),
         req.amount,
         provider_name.to_string(),
         auth_result.id.clone(),

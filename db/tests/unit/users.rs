@@ -1,4 +1,4 @@
-use bigneon_db::models::{ExternalLogin, Roles, User, UserEditableAttributes};
+use bigneon_db::models::{ExternalLogin, ForDisplay, Roles, User, UserEditableAttributes};
 use bigneon_db::utils::errors;
 use bigneon_db::utils::errors::ErrorCode;
 use std::collections::HashMap;
@@ -64,6 +64,83 @@ fn find() {
             Err(_e) => true,
         },
         "User incorrectly returned when id invalid"
+    );
+}
+
+#[test]
+fn payment_method() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    assert!(
+        user.payment_method("Nothing".into(), project.get_connection())
+            .is_err()
+    );
+
+    let payment_method = project
+        .create_payment_method()
+        .with_name("Method1".into())
+        .with_user(&user)
+        .finish();
+    assert_eq!(
+        payment_method,
+        user.payment_method(payment_method.name.clone(), project.get_connection())
+            .unwrap(),
+    );
+}
+
+#[test]
+fn default_payment_method() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+
+    // No payment methods set
+    assert!(user.default_payment_method(connection).is_err());
+
+    // Payment method exists but not default
+    let payment_method = project
+        .create_payment_method()
+        .with_name("Method1".into())
+        .with_user(&user)
+        .finish();
+    assert!(user.default_payment_method(connection).is_err());
+
+    // Default set
+    let payment_method2 = project
+        .create_payment_method()
+        .with_name("Method2".into())
+        .with_user(&user)
+        .make_default()
+        .finish();
+    let default_payment_method = user.default_payment_method(connection).unwrap();
+    assert_eq!(payment_method2, default_payment_method);
+}
+
+#[test]
+fn payment_methods() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    assert!(user.payment_methods(connection).unwrap().is_empty());
+
+    let payment_method = project
+        .create_payment_method()
+        .with_name("Method1".into())
+        .with_user(&user)
+        .finish();
+    assert_eq!(
+        vec![payment_method.clone()],
+        user.payment_methods(connection).unwrap(),
+    );
+
+    let payment_method2 = project
+        .create_payment_method()
+        .with_name("Method2".into())
+        .with_user(&user)
+        .finish();
+    assert_eq!(
+        vec![payment_method, payment_method2],
+        user.payment_methods(connection).unwrap(),
     );
 }
 
@@ -184,7 +261,7 @@ fn for_display() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let user_id = user.id.clone();
-    let display_user = user.for_display();
+    let display_user = user.for_display().unwrap();
 
     assert_eq!(display_user.id, user_id);
 }

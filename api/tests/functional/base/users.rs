@@ -2,7 +2,7 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::users;
 use bigneon_api::controllers::users::SearchUserByEmail;
 use bigneon_api::models::PathParameters;
-use bigneon_db::models::{DisplayUser, Roles};
+use bigneon_db::models::{DisplayUser, ForDisplay, Roles};
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -88,7 +88,7 @@ pub fn show(role: Roles, should_test_true: bool) {
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
-    let display_user = user2.for_display();
+    let display_user = user2.for_display().unwrap();
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();

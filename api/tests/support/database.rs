@@ -62,6 +62,10 @@ impl TestDatabase {
         OrgInviteBuilder::new(&self.connection)
     }
 
+    pub fn create_payment_method(&self) -> PaymentMethodBuilder {
+        PaymentMethodBuilder::new(&self.connection)
+    }
+
     pub fn create_region(&self) -> RegionBuilder {
         RegionBuilder::new(&self.connection)
     }

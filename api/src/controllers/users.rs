@@ -1,6 +1,5 @@
 use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
 use auth::user::User as AuthUser;
-
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
 use db::Connection;
@@ -59,7 +58,7 @@ pub fn show(
         return application::unauthorized();
     }
 
-    Ok(HttpResponse::Ok().json(&user.for_display()))
+    Ok(HttpResponse::Ok().json(&user.for_display()?))
 }
 
 pub fn list_organizations(
@@ -88,7 +87,7 @@ pub fn find_by_email(
         return application::unauthorized();
     }
 
-    Ok(HttpResponse::Ok().json(&user.for_display()))
+    Ok(HttpResponse::Ok().json(&user.for_display()?))
 }
 
 pub fn register(
@@ -115,7 +114,7 @@ fn current_user_from_user(
     }
 
     Ok(CurrentUser {
-        user: user.clone().for_display(),
+        user: user.clone().for_display()?,
         roles: user.role.clone(),
         scopes: user.get_global_scopes(),
         organization_roles: roles_by_organization,

@@ -90,6 +90,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     }).resource("/password_reset", |r| {
         r.method(Method::POST).with(password_resets::create);
         r.method(Method::PUT).with(password_resets::update);
+    }).resource("/payment_methods", |r| {
+        r.method(Method::GET).with(payment_methods::index);
     }).resource("/regions/{id}", |r| {
         r.method(Method::GET).with(regions::show);
         r.method(Method::PUT).with(regions::update);

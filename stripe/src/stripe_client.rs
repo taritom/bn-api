@@ -48,7 +48,14 @@ impl StripeClient {
             ("currency".to_string(), currency.to_string()),
             ("amount".to_string(), amount.to_string()),
             ("description".to_string(), description.to_string()),
-            ("source".to_string(), token.to_string()),
+            (
+                if token.starts_with("tok_") {
+                    "source".to_string()
+                } else {
+                    "customer".to_string()
+                },
+                token.to_string(),
+            ),
             ("capture".to_string(), capture.to_string()),
         ];
 
@@ -70,7 +77,7 @@ impl StripeClient {
     }
 
     pub fn refund(&self, charge_id: &str) -> Result<RefundResult, StripeError> {
-        let mut params = vec![("charge".to_string(), charge_id.to_string())];
+        let params = vec![("charge".to_string(), charge_id.to_string())];
 
         let client = reqwest::Client::new();
         let mut resp = client
@@ -98,6 +105,37 @@ impl StripeClient {
         match resp.status() {
             reqwest::StatusCode::OK => {
                 return ChargeResult::from_response(resp);
+            }
+            _ => return Err(StripeError::from_response(&mut resp)),
+        }
+    }
+
+    pub fn update_customer(
+        &self,
+        client_id: &str,
+        description: &str,
+        source: &str,
+        metadata: Vec<(String, String)>,
+    ) -> Result<Customer, StripeError> {
+        let mut params = vec![
+            ("description".to_string(), description.to_string()),
+            ("source".to_string(), source.to_string()),
+        ];
+
+        for key_value in metadata {
+            params.push((format!("metadata[{}]", key_value.0), key_value.1));
+        }
+        let client = reqwest::Client::new();
+        let mut resp = client
+            .post(&format!(
+                "https://api.stripe.com/v1/customers/{}",
+                client_id,
+            )).basic_auth(&self.api_key, Some(""))
+            .form(&params)
+            .send()?;
+        match resp.status() {
+            reqwest::StatusCode::OK => {
+                return Customer::from_response(resp);
             }
             _ => return Err(StripeError::from_response(&mut resp)),
         }

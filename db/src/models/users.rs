@@ -214,6 +214,36 @@ impl User {
             )
     }
 
+    pub fn payment_methods(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Vec<PaymentMethod>, DatabaseError> {
+        PaymentMethod::find_for_user(self.id, None, conn)
+    }
+
+    pub fn default_payment_method(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<PaymentMethod, DatabaseError> {
+        PaymentMethod::find_default_for_user(self.id, conn)
+    }
+
+    pub fn payment_method(
+        &self,
+        name: String,
+        conn: &PgConnection,
+    ) -> Result<PaymentMethod, DatabaseError> {
+        let mut payment_methods = PaymentMethod::find_for_user(self.id, Some(name), conn)?;
+        if payment_methods.is_empty() {
+            Err(DatabaseError::new(
+                ErrorCode::NoResults,
+                Some("No payment method found for user"),
+            ))
+        } else {
+            Ok(payment_methods.remove(0))
+        }
+    }
+
     fn update_role(
         &self,
         new_roles: Vec<String>,
@@ -226,10 +256,6 @@ impl User {
                 .set((users::role.eq(new_roles), users::updated_at.eq(dsl::now)))
                 .get_result(conn),
         )
-    }
-
-    pub fn for_display(self) -> DisplayUser {
-        self.into()
     }
 
     pub fn full_name(&self) -> String {

@@ -74,7 +74,7 @@ impl Payment {
             Tables::Payments,
             Some(self.id),
             Some(raw_data),
-        );
+        ).commit(conn)?;
 
         self.order(conn)?.complete_if_fully_paid(conn)?;
 

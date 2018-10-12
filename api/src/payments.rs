@@ -10,6 +10,13 @@ pub trait PaymentProcessor: Sized {
         description: &str,
     ) -> Result<RepeatChargeToken, PaymentProcessorError>;
 
+    fn update_repeat_token(
+        &self,
+        repeat_token: &str,
+        token: &str,
+        description: &str,
+    ) -> Result<RepeatChargeToken, PaymentProcessorError>;
+
     fn auth(
         &self,
         token: &str,
@@ -117,6 +124,25 @@ impl PaymentProcessor for StripePaymentProcessor {
             .client
             .create_customer(description, token, Vec::<(String, String)>::new())
             .map(|r| RepeatChargeToken {
+                token: r.id,
+                raw: r.raw_data,
+            })?)
+    }
+
+    fn update_repeat_token(
+        &self,
+        repeat_token: &str,
+        token: &str,
+        description: &str,
+    ) -> Result<RepeatChargeToken, PaymentProcessorError> {
+        Ok(self
+            .client
+            .update_customer(
+                repeat_token,
+                description,
+                token,
+                Vec::<(String, String)>::new(),
+            ).map(|r| RepeatChargeToken {
                 token: r.id,
                 raw: r.raw_data,
             })?)
