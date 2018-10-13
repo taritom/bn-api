@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::users;
 use bigneon_api::controllers::users::SearchUserByEmail;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
 use bigneon_db::models::{DisplayUser, ForDisplay, Roles};
 use serde_json;
 use support;
@@ -20,9 +20,15 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = user2.id;
-
-    let response: HttpResponse =
-        users::list_organizations((database.connection.into(), path, auth_user.clone())).into();
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse = users::list_organizations((
+        database.connection.into(),
+        path,
+        query_parameters,
+        auth_user.clone(),
+    )).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {
@@ -39,11 +45,19 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
             name: organization.name,
             role: role_owner_string,
         };
-        let expected_json_string = format!(
-            "[{}]",
-            serde_json::to_string(&expected_data).unwrap().to_string()
-        );
-        assert_eq!(body, expected_json_string);
+        let wrapped_expected_links = Payload {
+            data: vec![expected_data],
+            paging: Paging {
+                page: 0,
+                limit: 1,
+                sort: "".to_string(),
+                dir: SortingDir::None,
+                total: 1,
+                tags: Vec::new(),
+            },
+        };
+        let expected_json = serde_json::to_string(&wrapped_expected_links).unwrap();
+        assert_eq!(body, expected_json);
     } else {
         support::expects_unauthorized(&response);
     }

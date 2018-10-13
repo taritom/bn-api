@@ -6,7 +6,9 @@ use db::Connection;
 use diesel::PgConnection;
 use errors::*;
 use helpers::application;
-use models::{PathParameters, RegisterRequest, UserProfileAttributes};
+use models::{
+    Paging, PagingParameters, PathParameters, Payload, RegisterRequest, UserProfileAttributes,
+};
 use std::collections::HashMap;
 use uuid::Uuid;
 use validator::Validate;
@@ -62,16 +64,28 @@ pub fn show(
 }
 
 pub fn list_organizations(
-    (connection, parameters, auth_user): (Connection, Path<PathParameters>, AuthUser),
+    (connection, parameters, query_parameters, auth_user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+        AuthUser,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
     if !auth_user.user.can_read_user(&user, connection)? {
         return application::unauthorized();
     }
-
+    //TODO implement proper paging on db.
+    let query_parameters = Paging::new(&query_parameters.into_inner());
     let organization_links = Organization::all_org_names_linked_to_user(parameters.id, connection)?;
-    Ok(HttpResponse::Ok().json(&organization_links))
+    let links_count = organization_links.len();
+    let mut payload = Payload {
+        data: organization_links,
+        paging: Paging::clone_with_new_total(&query_parameters, links_count as u64),
+    };
+    payload.paging.limit = links_count as u64;
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn find_by_email(
