@@ -1,7 +1,9 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::ticket_types;
 use bigneon_api::controllers::ticket_types::*;
-use bigneon_api::models::{AdminDisplayTicketType, EventTicketPathParameters, PathParameters};
+use bigneon_api::models::{
+    AdminDisplayTicketType, EventTicketPathParameters, PagingParameters, PathParameters, Payload,
+};
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use serde_json;
@@ -190,9 +192,15 @@ pub fn index(role: Roles, should_test_succeed: bool) {
 
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = event.id;
-
-    let response =
-        ticket_types::index((database.connection.clone().into(), path, auth_user)).unwrap();
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response = ticket_types::index((
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        auth_user,
+    )).unwrap();
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
@@ -200,8 +208,9 @@ pub fn index(role: Roles, should_test_succeed: bool) {
         let expected_ticket_types = vec![
             AdminDisplayTicketType::from_ticket_type(ticket_type, &database.connection).unwrap(),
         ];
-        let ticket_types_response: TicketTypesResponse = serde_json::from_str(&body).unwrap();
-        assert_eq!(ticket_types_response.ticket_types, expected_ticket_types);
+        let ticket_types_response: Payload<AdminDisplayTicketType> =
+            serde_json::from_str(&body).unwrap();
+        assert_eq!(ticket_types_response.data, expected_ticket_types);
     } else {
         support::expects_unauthorized(&response);
     }

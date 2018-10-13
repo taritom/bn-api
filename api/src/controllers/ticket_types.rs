@@ -1,11 +1,14 @@
-use actix_web::{HttpResponse, Json, Path, State};
+use actix_web::{HttpResponse, Json, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{AdminDisplayTicketType, EventTicketPathParameters, PathParameters};
+use models::{
+    AdminDisplayTicketType, EventTicketPathParameters, Paging, PagingParameters, PathParameters,
+    Payload,
+};
 use server::AppState;
 use tari_client::MessagePayloadCreateAsset as TariNewAsset;
 use uuid::Uuid;
@@ -116,7 +119,12 @@ pub struct TicketTypesResponse {
 }
 
 pub fn index(
-    (connection, path, user): (Connection, Path<PathParameters>, User),
+    (connection, path, query_parameters, user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+        User,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
@@ -127,16 +135,21 @@ pub fn index(
     )? {
         return application::unauthorized();
     }
-
+    //TODO refactor using paging params
     let ticket_types = TicketType::find_by_event_id(path.id, connection)?;
-    let mut encoded_ticket_types = Vec::new();
+    let query_parameters = Paging::new(&query_parameters.into_inner());
+    let mut payload = Payload {
+        data: Vec::new(),
+        paging: Paging::clone_with_new_total(&query_parameters, 0 as u64),
+    };
     for t in ticket_types {
-        encoded_ticket_types.push(AdminDisplayTicketType::from_ticket_type(&t, connection)?);
+        payload
+            .data
+            .push(AdminDisplayTicketType::from_ticket_type(&t, connection)?);
     }
-
-    Ok(HttpResponse::Ok().json(TicketTypesResponse {
-        ticket_types: encoded_ticket_types,
-    }))
+    payload.paging.limit = payload.data.len() as u64;
+    payload.paging.total = payload.data.len() as u64;
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn update(

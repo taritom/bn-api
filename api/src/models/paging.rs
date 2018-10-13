@@ -24,7 +24,7 @@ pub struct SearchParam {
     pub values: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 ///return wrapper struct for returning large lists
 pub struct Payload<T> {
     pub data: Vec<T>,
