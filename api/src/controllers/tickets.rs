@@ -5,12 +5,39 @@ use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{OptionalPathParameters, PathParameters};
+use models::{OptionalPathParameters, Paging, PathParameters, Payload, SearchParam, SortingDir};
 
 #[derive(Deserialize)]
 pub struct SearchParameters {
     pub start_utc: Option<NaiveDateTime>,
     pub end_utc: Option<NaiveDateTime>,
+}
+impl SearchParameters {
+    pub fn create_paging_struct(&self) -> Paging {
+        let mut default_tags = Vec::new();
+        if let Some(ref i) = self.start_utc {
+            let new_value = SearchParam {
+                name: "start_utc".to_owned(),
+                values: vec![i.to_string()],
+            };
+            default_tags.push(new_value);
+        }
+        if let Some(ref i) = self.end_utc {
+            let new_value = SearchParam {
+                name: "end_utc".to_owned(),
+                values: vec![i.to_string()],
+            };
+            default_tags.push(new_value);
+        }
+        Paging {
+            page: 0,
+            limit: 100,
+            sort: "".to_owned(),
+            dir: SortingDir::None,
+            total: 0,
+            tags: default_tags,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -26,7 +53,10 @@ pub fn index(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
+    //todo convert to use pagingparams
+
     let connection = connection.get();
+    let queryparms = parameters.create_paging_struct();
     let tickets = TicketInstance::find_for_user(
         auth_user.id(),
         path.id,
@@ -34,13 +64,24 @@ pub fn index(
         parameters.end_utc,
         connection,
     )?;
-
+    let ticket_count = tickets.len();
+    let mut payload = Payload {
+        data: tickets,
+        paging: Paging::clone_with_new_total(&queryparms, ticket_count as u64),
+    };
+    payload.paging.limit = ticket_count as u64;
     // If specifying event drill into tuple vector to return tickets alone
-    if path.id.is_some() && !tickets.is_empty() {
-        return Ok(HttpResponse::Ok().json(&tickets[0].1));
+    if path.id.is_some() && !payload.data.is_empty() {
+        let mut payload2 = Payload {
+            data: (payload.data[0].1).clone(),
+            paging: Paging::clone_with_new_total(&queryparms, ticket_count as u64),
+        };
+        payload2.paging.limit = payload2.data.len() as u64;
+        payload2.paging.total = payload2.data.len() as u64;
+        return Ok(HttpResponse::Ok().json(&payload2));
     }
 
-    Ok(HttpResponse::Ok().json(&tickets))
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

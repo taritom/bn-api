@@ -1247,7 +1247,7 @@
 									"let json = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"tickets should be present\", function(){",
-									"    pm.expect(json.length).to.equal(4);",
+									"    pm.expect(json.data.length).to.equal(4);",
 									"});"
 								]
 							}
@@ -1758,7 +1758,7 @@
 									"let json = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"tickets should be present\", function(){",
-									"    pm.expect(json.length).to.equal(6);",
+									"    pm.expect(json.data.length).to.equal(6);",
 									"});"
 								]
 							}
@@ -2054,7 +2054,7 @@
 									"let json = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"tickets should be present\", function(){",
-									"    pm.expect(json.length).to.equal(8);",
+									"    pm.expect(json.data.length).to.equal(8);",
 									"});"
 								]
 							}
@@ -2349,7 +2349,7 @@
 									"let json = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"tickets should be present\", function(){",
-									"    pm.expect(json.length).to.equal(10);",
+									"    pm.expect(json.data.length).to.equal(10);",
 									"});"
 								],
 								"type": "text/javascript"

@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, Path, Query};
 use bigneon_api::controllers::tickets::{self, SearchParameters, ShowTicketResponse};
-use bigneon_api::models::{OptionalPathParameters, PathParameters};
+use bigneon_api::models::{OptionalPathParameters, PathParameters, Payload};
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use functional::base;
@@ -24,7 +24,6 @@ pub fn index() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-
     // Other event
     let event2 = database
         .create_event()
@@ -33,7 +32,6 @@ pub fn index() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-
     let mut cart = Order::create(user.id, OrderTypes::Cart)
         .commit(&database.connection)
         .unwrap();
@@ -50,7 +48,6 @@ pub fn index() {
     let total = cart.calculate_total(&database.connection).unwrap();
     cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
         .unwrap();
-
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
     // Test with specified event
@@ -65,13 +62,12 @@ pub fn index() {
     )).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let found_tickets: Vec<DisplayTicket> = serde_json::from_str(&body).unwrap();
+    let found_data: Payload<DisplayTicket> = serde_json::from_str(&body).unwrap();
     let expected_ticket = DisplayTicket {
         id: ticket.id,
         ticket_type_name: ticket_type.name.clone(),
     };
-    assert_eq!(vec![expected_ticket.clone()], found_tickets);
-
+    assert_eq!(vec![expected_ticket.clone()], found_data.data);
     // Test without specified event
     let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
     path.id = None;
@@ -84,8 +80,9 @@ pub fn index() {
     )).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let found_tickets: Vec<(DisplayEvent, Vec<DisplayTicket>)> =
+    let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
         serde_json::from_str(&body).unwrap();
+    let found_tickets = found_data.data;
     let expected_ticket2 = DisplayTicket {
         id: ticket2.id,
         ticket_type_name: ticket_type2.name.clone(),
@@ -118,8 +115,9 @@ pub fn index() {
     )).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let found_tickets: Vec<(DisplayEvent, Vec<DisplayTicket>)> =
+    let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
         serde_json::from_str(&body).unwrap();
+    let found_tickets = found_data.data;
     assert_eq!(
         vec![(
             event2.for_display(&database.connection).unwrap(),
