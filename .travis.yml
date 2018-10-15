@@ -10,62 +10,66 @@ services:
 addons:
   postgresql: "9.6"
 
-#matrix:
-#  allow_failures:
-#    - rust: nightly
-#  fast_finish: true
 env:
-  FRONT_END_URL: "http://localhost"
-  BIGNEON_DB: bigneon
-  DATABASE_URL: postgres://postgres:password123@localhost/bigneon
-  TEST_DATABASE_URL: postgres://postgres:password123@localhost/bigneon_test
-  TEST_DATABASE_ADMIN_URL: postgres://postgres:password123@localhost/bigneon_test
-  TOKEN_SECRET: travis_secret
-  TOKEN_ISSUER: bg-on-travis
-  MAIL_FROM_NAME: "Big Neon Support"
-  MAIL_FROM_EMAIL: "support@bigneon.com"
-  MAIL_SMTP_HOST: "localhost"
-  MAIL_SMTP_USER_NAME: "user"
-  MAIL_SMTP_PASSWORD: "password"
-  MAIL_SMTP_PORT: 1025
-  BUILD_DIR: "api"
-  STRIPE_SECRET_KEY: "sk_test_iGn9c6EJyuF3Gx0QH6uitQlb"
-  TARI_URL: "TEST"
+  global:
+    - FRONT_END_URL="http://localhost"
+    - BIGNEON_DB=bigneon
 
-# matrix:
-#   include:
-#     - env: BUILD_DIR: "api"
-#   include:
-#     - env: BUILD_DIR: "db"
+    - TEST_DATABASE_URL=postgres://postgres:password123@localhost/bigneon_test
+    - TEST_DATABASE_ADMIN_URL=postgres://postgres:password123@localhost/bigneon_test
+    - TOKEN_SECRET=travis_secret
+    - TOKEN_ISSUER=bg-on-travis
+    - MAIL_FROM_NAME="Big Neon Support"
+    - MAIL_FROM_EMAIL="support@bigneon.com"
+    - MAIL_SMTP_HOST="localhost"
+    - MAIL_SMTP_USER_NAME="user"
+    - MAIL_SMTP_PASSWORD="password"
+    - MAIL_SMTP_PORT=1025
+    - BUILD_DIR="api"
+    - STRIPE_SECRET_KEY="sk_test_iGn9c6EJyuF3Gx0QH6uitQlb"
+    - TARI_URL="TEST"
+
+
+
+
+matrix:
+  include:
+    - name: "Test DB"
+      env:
+        - TEST_SCRIPT="run-db-tests.sh"
+        - DATABASE_URL=postgres://postgres:password123@localhost/bigneon_test
+    - name: "Test API"
+      env:
+       - TEST_SCRIPT="run-api-tests.sh"
+       - DATABASE_URL=postgres://postgres:password123@localhost/bigneon_test
+    - name: "Test Postman"
+      env:
+       - TEST_SCRIPT="run-integration-tests.sh"
+       - DATABASE_URL=postgres://postgres:password123@localhost/bigneon_test
+  fast_finish: true
+script:
+  - cd scripts
+  - ./$TEST_SCRIPT
+#
+#    - stage: "Cargo Audit"
+#      script:
+#        # force in case it is already installed, make sure we have the latest
+#        - cargo install cargo-audit --force
+#        - cargo audit
+
+
 before_install:
-  - sudo apt-get install nodejs
-  - sudo apt-get install npm
-  # Workaround for invalid NPM certificate
-  - npm config set strict-ssl false
-
-before_script:
-  # putting the npm install here, because it fails erratically on travis. If it
-  # fails during `before_install` you can't retry it
-  - sudo npm install -g newman
   - export PATH="$PATH:$HOME/.cargo/bin"
   - rustup component add rustfmt-preview
-  - cd db
-  - scripts/init-test.sh
-  - cd ..
-
-script:
   - cargo fmt --all -- --check
-  - cargo test
   - cd db
   - cargo run create -c $DATABASE_URL -f -e superuser@test.com -p password -m 8883
-  - cd ../api
-  - |
-    cargo run &
-    SERVER_PID=$!
-
-  - newman run ../integration-tests/bigneon-tests.postman_collection.json -e ../integration-tests/travis.postman_environment.json
-  - kill -s SIGTERM $SERVER_PID
-  # force in case it is already installed, make sure we have the latest
-  - cargo install cargo-audit --force
   - cd ..
-  - cargo audit
+  #- cargo install cargo-audit --force
+  #- cargo audit
+
+before_script:
+
+after_script:
+
+
