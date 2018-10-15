@@ -85,10 +85,15 @@ pub struct AddArtistRequest {
     pub set_time: Option<NaiveDateTime>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub struct UpdateArtistsRequest {
     pub artist_id: Uuid,
     pub set_time: Option<NaiveDateTime>,
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct UpdateArtistsRequestList {
+    pub artists: Vec<UpdateArtistsRequest>,
 }
 
 pub fn index(
@@ -470,7 +475,7 @@ pub fn update_artists(
     (connection, parameters, artists, user): (
         Connection,
         Path<PathParameters>,
-        Json<Vec<UpdateArtistsRequest>>,
+        Json<UpdateArtistsRequestList>,
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -489,7 +494,7 @@ pub fn update_artists(
     let mut rank = 0;
     let mut added_artists: Vec<EventArtist> = Vec::new();
 
-    for a in &artists.into_inner() {
+    for a in &artists.into_inner().artists {
         added_artists.push(
             EventArtist::create(parameters.id, a.artist_id, rank, a.set_time).commit(connection)?,
         );

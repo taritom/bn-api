@@ -286,16 +286,15 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let mut payload: Vec<UpdateArtistsRequest> = Vec::new();
-    payload.push(UpdateArtistsRequest {
+    let mut payload: UpdateArtistsRequestList = Default::default();
+    payload.artists.push(UpdateArtistsRequest {
         artist_id: artist1.id,
         set_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
     });
-    payload.push(UpdateArtistsRequest {
+    payload.artists.push(UpdateArtistsRequest {
         artist_id: artist2.id,
         set_time: None,
     });
-
     let response: HttpResponse = events::update_artists((
         database.connection.into(),
         path,
