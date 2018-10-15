@@ -48,6 +48,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         start_date,
         end_date,
         ticket_pricing,
+        increment: None,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -122,6 +123,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         start_date,
         end_date,
         ticket_pricing: Some(request_ticket_pricing),
+        increment: None,
     };
     let request_json = serde_json::to_string(&request_data).unwrap();
 
@@ -165,6 +167,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         start_date: Some(updated_ticket_type.start_date),
         end_date: Some(updated_ticket_type.end_date),
         ticket_pricing: Some(new_ticket_pricing),
+        increment: None,
     };
     let updated_json = serde_json::to_string(&updated_data).unwrap();
 

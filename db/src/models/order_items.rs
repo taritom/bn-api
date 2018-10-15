@@ -1,6 +1,6 @@
 use chrono::prelude::*;
 use diesel;
-use diesel::dsl;
+use diesel::dsl::{self, select};
 use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::sql_types::{BigInt, Nullable, Text, Uuid as dUuid};
@@ -10,6 +10,10 @@ use utils::errors;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use uuid::Uuid;
+use validator::*;
+use validators;
+
+sql_function!(fn order_items_quantity_in_increments(item_type: Text, quantity: BigInt, ticket_pricing_id: Nullable<dUuid>) -> Bool);
 
 #[derive(Identifiable, Associations, Queryable, AsChangeset)]
 #[belongs_to(Order)]
@@ -77,6 +81,7 @@ impl OrderItem {
     }
 
     pub(crate) fn update(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        self.validate_record(conn)?;
         diesel::update(self)
             .set((
                 order_items::unit_price_in_cents.eq(self.unit_price_in_cents),
@@ -107,6 +112,50 @@ impl OrderItem {
                 errors::ErrorCode::QueryError,
                 "Could calculate order item quantity",
             )
+    }
+
+    pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let quantity_valid_increment = OrderItem::quantity_valid_increment(
+            false,
+            self.item_type.clone(),
+            self.quantity,
+            self.ticket_pricing_id,
+            conn,
+        )?;
+        Ok(validators::append_validation_error(
+            Ok(()),
+            "quantity",
+            quantity_valid_increment,
+        )?)
+    }
+
+    fn quantity_valid_increment(
+        new_record: bool,
+        item_type: String,
+        quantity: i64,
+        ticket_pricing_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        if item_type != OrderItemTypes::Tickets.to_string() {
+            return Ok(Ok(()));
+        }
+        let result = select(order_items_quantity_in_increments(
+            item_type,
+            quantity,
+            ticket_pricing_id,
+        )).get_result::<bool>(conn)
+        .to_db_error(
+            if new_record {
+                errors::ErrorCode::InsertError
+            } else {
+                errors::ErrorCode::UpdateError
+            },
+            "Could not confirm quantity increment valid",
+        )?;
+        if !result {
+            return Ok(Err(ValidationError::new(&"quantity_invalid_increment")));
+        }
+        Ok(Ok(()))
     }
 
     pub(crate) fn find_for_display(
@@ -198,6 +247,7 @@ pub(crate) struct NewTicketsOrderItem {
 
 impl NewTicketsOrderItem {
     pub(crate) fn commit(self, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
+        self.validate_record(conn)?;
         diesel::insert_into(order_items::table)
             .values(self)
             .get_result(conn)
@@ -205,6 +255,21 @@ impl NewTicketsOrderItem {
                 errors::ErrorCode::InsertError,
                 "Could not create order item",
             )
+    }
+
+    pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let quantity_valid_increment = OrderItem::quantity_valid_increment(
+            true,
+            self.item_type.clone(),
+            self.quantity,
+            Some(self.ticket_pricing_id),
+            conn,
+        )?;
+        Ok(validators::append_validation_error(
+            Ok(()),
+            "quantity",
+            quantity_valid_increment,
+        )?)
     }
 }
 

@@ -1,0 +1,2 @@
+ALTER TABLE order_items DROP CONSTRAINT order_items_quantity_in_increments;
+DROP FUNCTION order_items_quantity_in_increments;

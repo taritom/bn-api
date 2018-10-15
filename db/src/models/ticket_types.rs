@@ -19,6 +19,7 @@ pub struct TicketType {
     status: String,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
+    pub increment: i32,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -29,6 +30,7 @@ pub struct TicketTypeEditableAttributes {
     pub name: Option<String>,
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
+    pub increment: Option<i32>,
 }
 
 impl TicketType {
@@ -37,6 +39,7 @@ impl TicketType {
         name: String,
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
+        increment: Option<i32>,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -44,6 +47,7 @@ impl TicketType {
             status: TicketTypeStatus::Published.to_string(),
             start_date,
             end_date,
+            increment,
         }
     }
 
@@ -164,6 +168,7 @@ pub struct NewTicketType {
     status: String,
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
+    increment: Option<i32>,
 }
 
 impl NewTicketType {

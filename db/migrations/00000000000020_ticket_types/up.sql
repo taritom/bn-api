@@ -5,6 +5,7 @@ CREATE TABLE ticket_types (
   status TEXT NOT NULL,
   start_date TIMESTAMP NOT NULL,
   end_date TIMESTAMP NOT NULL,
+  increment INT NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );

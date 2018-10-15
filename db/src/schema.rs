@@ -278,6 +278,7 @@ table! {
         status -> Text,
         start_date -> Timestamp,
         end_date -> Timestamp,
+        increment -> Int4,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

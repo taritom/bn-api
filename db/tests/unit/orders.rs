@@ -1,5 +1,6 @@
 use bigneon_db::models::*;
 use bigneon_db::schema::orders;
+use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
@@ -75,6 +76,51 @@ fn add_tickets() {
 }
 
 #[test]
+fn add_tickets_with_increment() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(connection)
+        .unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let update_parameters = TicketTypeEditableAttributes {
+        increment: Some(4),
+        ..Default::default()
+    };
+    let ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+
+    let add_tickets_result = cart.add_tickets(ticket_type.id, 10, connection);
+    assert!(add_tickets_result.is_err());
+    let error = add_tickets_result.unwrap_err();
+    match &error.error_code {
+        ValidationError { errors } => {
+            assert!(errors.contains_key("quantity"));
+            assert_eq!(errors["quantity"].len(), 1);
+            assert_eq!(errors["quantity"][0].code, "quantity_invalid_increment");
+        }
+        _ => panic!("Expected validation error"),
+    }
+
+    let add_tickets_result = cart.add_tickets(ticket_type.id, 4, connection);
+    assert!(add_tickets_result.is_ok());
+
+    let add_tickets_result = cart.add_tickets(ticket_type.id, 8, connection);
+    assert!(add_tickets_result.is_ok());
+    assert_eq!(cart.items(connection).unwrap()[0].quantity, 12);
+}
+
+#[test]
 fn remove_tickets() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -138,6 +184,47 @@ fn remove_tickets() {
     assert!(cart.remove_tickets(order_item, None, connection).is_ok());
     // Item removed from cart completely
     assert!(cart.items(connection).unwrap().is_empty());
+}
+
+#[test]
+fn remove_tickets_with_increment() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(connection)
+        .unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let update_parameters = TicketTypeEditableAttributes {
+        increment: Some(4),
+        ..Default::default()
+    };
+    let ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+    let add_tickets_result = cart.add_tickets(ticket_type.id, 8, connection);
+    assert!(add_tickets_result.is_ok());
+    assert_eq!(cart.items(connection).unwrap()[0].quantity, 8);
+    let order_item = cart.items(connection).unwrap().remove(0);
+
+    assert!(cart.remove_tickets(order_item, Some(4), connection).is_ok());
+    let order_item = cart.items(connection).unwrap().remove(0);
+    assert_eq!(order_item.quantity, 4);
+
+    let remove_tickets_result = cart.remove_tickets(order_item.clone(), Some(3), connection);
+    assert!(remove_tickets_result.is_err());
+    let error = remove_tickets_result.unwrap_err();
+    match &error.error_code {
+        ValidationError { errors } => {
+            assert!(errors.contains_key("quantity"));
+            assert_eq!(errors["quantity"].len(), 1);
+            assert_eq!(errors["quantity"][0].code, "quantity_invalid_increment");
+        }
+        _ => panic!("Expected validation error"),
+    }
 }
 
 #[test]

@@ -98,7 +98,7 @@ fn default_payment_method() {
     assert!(user.default_payment_method(connection).is_err());
 
     // Payment method exists but not default
-    let payment_method = project
+    project
         .create_payment_method()
         .with_name("Method1".into())
         .with_user(&user)

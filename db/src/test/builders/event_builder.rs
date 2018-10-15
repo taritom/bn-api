@@ -120,6 +120,7 @@ impl<'a> EventBuilder<'a> {
                     event_start,
                     event_end,
                     wallet_id,
+                    None,
                     self.connection,
                 ).unwrap();
 

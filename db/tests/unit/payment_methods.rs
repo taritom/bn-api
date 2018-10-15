@@ -103,7 +103,7 @@ fn find_default_for_user() {
         .with_user(&user2)
         .make_default()
         .finish();
-    let payment_method4 = project
+    let _payment_method4 = project
         .create_payment_method()
         .with_name("Method1".into())
         .with_user(&user3)

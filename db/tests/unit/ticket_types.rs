@@ -11,7 +11,7 @@ fn create() {
     let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
     let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type = event
-        .add_ticket_type("VIP".to_string(), 100, sd, ed, wallet_id, conn)
+        .add_ticket_type("VIP".to_string(), 100, sd, ed, wallet_id, None, conn)
         .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
@@ -53,6 +53,7 @@ fn update() {
         name: Some(update_name.clone()),
         start_date: Some(update_start_date),
         end_date: Some(update_end_date),
+        ..Default::default()
     };
     let updated_ticket_type = ticket_type.update(update_parameters, connection).unwrap();
     assert_eq!(updated_ticket_type.id, ticket_type.id);

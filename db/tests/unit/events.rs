@@ -577,6 +577,7 @@ fn add_ticket_type() {
             sd,
             ed,
             wallet_id,
+            None,
             conn,
         ).unwrap();
 
@@ -599,10 +600,11 @@ fn ticket_types() {
             sd,
             ed,
             wallet_id,
+            None,
             conn,
         ).unwrap();
     let ticket_type_vip = event
-        .add_ticket_type("VIP".to_string(), 100, sd, ed, wallet_id, conn)
+        .add_ticket_type("VIP".to_string(), 100, sd, ed, wallet_id, None, conn)
         .unwrap();
 
     let ticket_types = event.ticket_types(conn).unwrap();

@@ -97,7 +97,9 @@ impl Order {
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let ticket_pricing = TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
-        let event = Event::find(TicketType::find(ticket_type_id, conn)?.event_id, conn)?;
+        let ticket_type = TicketType::find(ticket_type_id, conn)?;
+
+        let event = Event::find(ticket_type.event_id, conn)?;
         let organization = Organization::find(event.organization_id, conn)?;
 
         let fee_schedule_range = FeeSchedule::find(organization.fee_schedule_id, conn)?

@@ -103,6 +103,90 @@ fn add() {
 }
 
 #[test]
+fn add_with_increment() {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let user = database.create_user().finish();
+    let ticket_type = event.ticket_types(&connection).unwrap().remove(0);
+    let update_parameters = TicketTypeEditableAttributes {
+        increment: Some(4),
+        ..Default::default()
+    };
+    let ticket_type = ticket_type.update(update_parameters, &connection).unwrap();
+    let ticket_type_id = ticket_type.id;
+
+    let input = Json(cart::AddToCartRequest {
+        ticket_type_id,
+        quantity: 4,
+    });
+
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let response = cart::add((database.connection.into(), input, auth_user)).unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let cart = Order::find_cart_for_user(user.id, &connection).unwrap();
+    let order_item = cart.items(&connection).unwrap().remove(0);
+    let ticket_pricing =
+        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), &connection).unwrap();
+    assert_eq!(order_item.quantity, 4);
+    let fee_schedule_range =
+        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), &connection).unwrap();
+    let fee_item = order_item.find_fee_item(&connection).unwrap().unwrap();
+    assert_eq!(
+        fee_item.unit_price_in_cents,
+        fee_schedule_range.fee_in_cents * 4
+    );
+    assert_eq!(
+        order_item.unit_price_in_cents,
+        ticket_pricing.price_in_cents
+    );
+}
+
+#[test]
+fn add_with_increment_failure_invalid_quantity() {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let user = database.create_user().finish();
+    let ticket_type = event.ticket_types(&connection).unwrap().remove(0);
+    let update_parameters = TicketTypeEditableAttributes {
+        increment: Some(4),
+        ..Default::default()
+    };
+    let ticket_type = ticket_type.update(update_parameters, &connection).unwrap();
+    let ticket_type_id = ticket_type.id;
+
+    let input = Json(cart::AddToCartRequest {
+        ticket_type_id,
+        quantity: 2,
+    });
+
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let response: HttpResponse = cart::add((database.connection.into(), input, auth_user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    let expected_json = json!({
+        "error": "Validation error",
+        "fields":{
+            "quantity":[{"code":"quantity_invalid_increment","message":null,"params":{}}]
+        }
+    }).to_string();
+    assert_eq!(body, expected_json);
+}
+
+#[test]
 fn add_with_existing_cart() {
     let database = TestDatabase::new();
     let connection = database.connection.clone();
@@ -200,6 +284,129 @@ fn remove() {
         order_item.unit_price_in_cents,
         ticket_pricing.price_in_cents
     );
+}
+
+#[test]
+fn remove_with_increment() {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = event.ticket_types(&connection).unwrap().remove(0);
+    let update_parameters = TicketTypeEditableAttributes {
+        increment: Some(4),
+        ..Default::default()
+    };
+    let ticket_type = ticket_type.update(update_parameters, &connection).unwrap();
+    let ticket_type_id = ticket_type.id;
+    let user = database.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(&connection)
+        .unwrap();
+    cart.add_tickets(ticket_type_id, 12, &connection).unwrap();
+
+    let order_item = cart.items(&connection).unwrap().remove(0);
+    let ticket_pricing =
+        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), &connection).unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), &connection).unwrap();
+    assert_eq!(order_item.quantity, 12);
+    let fee_item = order_item.find_fee_item(&connection).unwrap().unwrap();
+    assert_eq!(
+        fee_item.unit_price_in_cents,
+        fee_schedule_range.fee_in_cents * 12
+    );
+    assert_eq!(
+        order_item.unit_price_in_cents,
+        ticket_pricing.price_in_cents
+    );
+
+    let input = Json(cart::RemoveCartRequest {
+        cart_item_id: order_item.id,
+        quantity: Some(4),
+    });
+
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let response = cart::remove((database.connection.into(), input, auth_user)).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Contains additional item quantity so cart response still includes cart object
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let cart_response: CartResponse = serde_json::from_str(&body).unwrap();
+    assert_eq!(cart.id, cart_response.cart_id);
+
+    let order_item = cart.items(&connection).unwrap().remove(0);
+    assert_eq!(order_item.quantity, 8);
+    let fee_item = order_item.find_fee_item(&connection).unwrap().unwrap();
+    assert_eq!(
+        fee_item.unit_price_in_cents,
+        fee_schedule_range.fee_in_cents * 8
+    );
+    assert_eq!(
+        order_item.unit_price_in_cents,
+        ticket_pricing.price_in_cents
+    );
+}
+
+#[test]
+fn remove_with_increment_failure_invalid_quantity() {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = event.ticket_types(&connection).unwrap().remove(0);
+    let update_parameters = TicketTypeEditableAttributes {
+        increment: Some(4),
+        ..Default::default()
+    };
+    let ticket_type = ticket_type.update(update_parameters, &connection).unwrap();
+    let ticket_type_id = ticket_type.id;
+    let user = database.create_user().finish();
+    let cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(&connection)
+        .unwrap();
+    cart.add_tickets(ticket_type_id, 12, &connection).unwrap();
+
+    let order_item = cart.items(&connection).unwrap().remove(0);
+    let ticket_pricing =
+        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), &connection).unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), &connection).unwrap();
+    assert_eq!(order_item.quantity, 12);
+    let fee_item = order_item.find_fee_item(&connection).unwrap().unwrap();
+    assert_eq!(
+        fee_item.unit_price_in_cents,
+        fee_schedule_range.fee_in_cents * 12
+    );
+    assert_eq!(
+        order_item.unit_price_in_cents,
+        ticket_pricing.price_in_cents
+    );
+
+    let input = Json(cart::RemoveCartRequest {
+        cart_item_id: order_item.id,
+        quantity: Some(7),
+    });
+
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let response: HttpResponse =
+        cart::remove((database.connection.into(), input, auth_user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    let expected_json = json!({
+        "error": "Validation error",
+        "fields":{
+            "quantity":[{"code":"quantity_invalid_increment","message":null,"params":{}}]
+        }
+    }).to_string();
+    assert_eq!(body, expected_json);
 }
 
 #[test]
