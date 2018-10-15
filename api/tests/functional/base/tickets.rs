@@ -100,13 +100,14 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
         path,
         Json(request_data),
         auth_user.clone(),
+        request.extract_state(),
     )).unwrap();
 
     #[derive(Deserialize)]
 
     struct R {
         success: bool,
-        message: Option<String>,
+        //message: Option<String>,
     }
 
     if should_test_succeed {
@@ -123,6 +124,7 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
             path2,
             Json(request_data),
             auth_user,
+            request.extract_state(),
         )).unwrap();
         let body = support::unwrap_body_to_string(&response).unwrap();
         let ticket_response: R = serde_json::from_str(&body).unwrap();

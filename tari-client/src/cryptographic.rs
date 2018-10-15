@@ -135,6 +135,6 @@ pub fn message_verification(
         convert_bytes_to_hexstring(&cryptographic_signature(&complete_msg_string, &secret_key))
     );
     //temp_stop
-*/
+    */
     cryptographic_verify(&data_signature, &complete_msg_string, &msg_public_key)
 }

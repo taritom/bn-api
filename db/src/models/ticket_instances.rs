@@ -3,7 +3,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
-use diesel::sql_types::{Bigint, Nullable, Text, Uuid as dUuid};
+use diesel::sql_types::{Bigint, Integer, Nullable, Text, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use rand;
@@ -62,6 +62,34 @@ impl TicketInstance {
         let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
         let user: DisplayUser = User::find(ticket_intermediary.user_id, conn)?.into();
         Ok((event, user, ticket_intermediary.into()))
+    }
+
+    pub fn find_for_processing(
+        id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(DisplayEvent, ProcessingTicket), DatabaseError> {
+        let ticket_intermediary = ticket_instances::table
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .filter(ticket_instances::id.eq(id))
+            .select((
+                ticket_instances::id,
+                ticket_instances::asset_id,
+                ticket_instances::token_id,
+                ticket_instances::wallet_id,
+                ticket_types::name,
+                orders::user_id,
+                events::id,
+                events::venue_id,
+            )).first::<ProcessingTicketIntermediary>(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
+        let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
+        Ok((event, ticket_intermediary.into()))
     }
 
     pub fn find_for_user(
@@ -356,6 +384,47 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
     fn from(ticket_intermediary: DisplayTicketIntermediary) -> Self {
         DisplayTicket {
             id: ticket_intermediary.id.clone(),
+            ticket_type_name: ticket_intermediary.name.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProcessingTicket {
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub token_id: i32,
+    pub wallet_id: Uuid,
+    pub ticket_type_name: String,
+}
+
+#[derive(Queryable, QueryableByName)]
+pub struct ProcessingTicketIntermediary {
+    #[sql_type = "dUuid"]
+    pub id: Uuid,
+    #[sql_type = "dUuid"]
+    pub asset_id: Uuid,
+    #[sql_type = "Integer"]
+    pub token_id: i32,
+    #[sql_type = "dUuid"]
+    pub wallet_id: Uuid,
+    #[sql_type = "Text"]
+    pub name: String,
+    #[sql_type = "dUuid"]
+    pub user_id: Uuid,
+    #[sql_type = "dUuid"]
+    pub event_id: Uuid,
+    #[sql_type = "Nullable<dUuid>"]
+    pub venue_id: Option<Uuid>,
+}
+
+impl From<ProcessingTicketIntermediary> for ProcessingTicket {
+    fn from(ticket_intermediary: ProcessingTicketIntermediary) -> Self {
+        ProcessingTicket {
+            id: ticket_intermediary.id.clone(),
+            asset_id: ticket_intermediary.asset_id.clone(),
+            token_id: ticket_intermediary.token_id.clone(),
+            wallet_id: ticket_intermediary.wallet_id.clone(),
             ticket_type_name: ticket_intermediary.name.clone(),
         }
     }

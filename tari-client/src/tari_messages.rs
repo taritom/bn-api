@@ -77,6 +77,8 @@ pub struct MessagePayloadModifyAsset {
     pub asset_id: String,
     pub request_type: i8,
     pub authorised_signer: Option<String>,
+    pub token_ids: Option<Vec<u64>>,
+    pub token_metadata: Option<Vec<u64>>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]

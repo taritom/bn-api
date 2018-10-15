@@ -205,19 +205,19 @@ pub fn checkout(
         for (asset_id, token_ids) in &tokens_per_asset {
             let asset = Asset::find(*asset_id, connection.get())?;
             match asset.blockchain_asset_id {
-            Some(a) => {
-                let wallet_id=wallet_id_per_asset.get(asset_id).unwrap().clone();
-                let org_wallet = Wallet::find(wallet_id, connection.get())?;
-                state.config.tari_client.transfer_tokens(&org_wallet.secret_key, &org_wallet.public_key,
-                                                         &a,
-                                                         token_ids.clone(),
-                                                         new_owner_wallet.public_key.clone(),
-                )?
-            },
-            None => return application::internal_server_error(
-                "Could not complete this checkout because the asset has not been assigned on the blockchain",
-            ),
-        }
+                Some(a) => {
+                    let wallet_id=wallet_id_per_asset.get(asset_id).unwrap().clone();
+                    let org_wallet = Wallet::find(wallet_id, connection.get())?;
+                    state.config.tari_client.transfer_tokens(&org_wallet.secret_key, &org_wallet.public_key,
+                                                             &a,
+                                                             token_ids.clone(),
+                                                             new_owner_wallet.public_key.clone(),
+                    )?
+                },
+                None => return application::internal_server_error(
+                    "Could not complete this checkout because the asset has not been assigned on the blockchain",
+                ),
+            }
         }
     }
 

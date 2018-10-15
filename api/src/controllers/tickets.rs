@@ -1,3 +1,4 @@
+use actix_web::State;
 use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
@@ -6,6 +7,7 @@ use db::Connection;
 use errors::*;
 use helpers::application;
 use models::{OptionalPathParameters, Paging, PathParameters, Payload, SearchParam, SortingDir};
+use server::AppState;
 
 #[derive(Deserialize)]
 pub struct SearchParameters {
@@ -115,15 +117,16 @@ pub fn show(
 }
 
 pub fn redeem(
-    (connection, parameters, redeem_parameters, auth_user): (
+    (connection, parameters, redeem_parameters, auth_user, state): (
         Connection,
         Path<PathParameters>,
         Json<TicketRedeemRequest>,
         User,
+        State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let (event, _user, ticket) = TicketInstance::find_for_display(parameters.id, connection)?;
+    let (event, ticket) = TicketInstance::find_for_processing(parameters.id, connection)?;
     let db_event = Event::find(event.id, connection)?;
     let organization = db_event.organization(connection)?;
 
@@ -136,7 +139,21 @@ pub fn redeem(
 
     match result {
         Ok(r) => match r {
-                RedeemResults::TicketRedeemSuccess => Ok(HttpResponse::Ok().json(json!({"success": true,}))),
+                RedeemResults::TicketRedeemSuccess => {
+                    //Redeem ticket on chain
+                    let asset = Asset::find(ticket.asset_id, connection)?;
+                    match asset.blockchain_asset_id {
+                        Some(a) => {
+                            let wallet = Wallet::find(ticket.wallet_id, connection)?;
+                            state.config.tari_client.modify_asset_redeem_token(&wallet.secret_key, &wallet.public_key,
+                                                                               &a,
+                                                                               vec![ticket.token_id as u64],
+                            )?;
+                            Ok(HttpResponse::Ok().json(json!({"success": true})))
+                        },
+                        None => Ok(HttpResponse::Ok().json(json!({"success": false, "message": "Could not complete this checkout because the asset has not been assigned on the blockchain.".to_string()}))),
+                    }
+                },
                 RedeemResults::TicketAlreadyRedeemed => Ok(HttpResponse::Ok().json(json!({"success": false, "message": "Ticket has already been redeemed.".to_string()}))),
                 RedeemResults::TicketInvalid => Ok(HttpResponse::Ok().json(json!({"success": false, "message": "Ticket is invalid.".to_string()}))),
             },
