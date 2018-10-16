@@ -2,7 +2,7 @@ use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use diesel::result::Error as DieselError;
-use errors::AuthError;
+use errors::*;
 use payments::PaymentProcessorError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
@@ -61,6 +61,13 @@ impl ConvertToWebError for PaymentProcessorError {
 impl ConvertToWebError for StripeError {
     fn to_response(&self) -> HttpResponse {
         error!("Stripe error: {}", self.description());
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for ApplicationError {
+    fn to_response(&self) -> HttpResponse {
+        error!("Application error: {}", self.description());
         internal_error("Internal error")
     }
 }

@@ -8,6 +8,8 @@ use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
+use validator::*;
+use validators;
 
 #[derive(Identifiable, Associations, Queryable, PartialEq, Debug)]
 #[table_name = "ticket_types"]
@@ -67,6 +69,27 @@ impl TicketType {
             .filter(ticket_types::id.eq(id))
             .get_result(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find ticket type")
+    }
+
+    pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let mut validation_errors: Result<(), ValidationErrors> = Ok(());
+        for ticket_pricing in self.ticket_pricing(conn)? {
+            let date_overlap_validation = TicketPricing::ticket_pricing_no_overlapping_periods(
+                ticket_pricing.id,
+                self.id,
+                ticket_pricing.start_date,
+                ticket_pricing.end_date,
+                conn,
+            )?;
+
+            validation_errors = validators::append_validation_error(
+                validation_errors,
+                "ticket_pricing",
+                date_overlap_validation,
+            );
+        }
+
+        Ok(validation_errors?)
     }
 
     pub fn find_by_event_id(

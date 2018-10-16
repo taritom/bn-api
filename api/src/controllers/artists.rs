@@ -5,7 +5,6 @@ use db::Connection;
 use errors::*;
 use helpers::application;
 use models::{Paging, PagingParameters, PathParameters, Payload};
-use validator::Validate;
 
 pub fn index(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, Option<User>),
@@ -48,18 +47,13 @@ pub fn create(
         }
     }
 
-    match new_artist.validate() {
-        Ok(_) => {
-            let mut artist = new_artist.commit(connection)?;
+    let mut artist = new_artist.commit(connection)?;
 
-            // New artists belonging to an organization start private
-            if artist.organization_id.is_some() {
-                artist = artist.set_privacy(true, connection)?;
-            }
-            Ok(HttpResponse::Created().json(&artist))
-        }
-        Err(e) => application::validation_error_response(e),
+    // New artists belonging to an organization start private
+    if artist.organization_id.is_some() {
+        artist = artist.set_privacy(true, connection)?;
     }
+    Ok(HttpResponse::Created().json(&artist))
 }
 
 pub fn show_from_organizations(
@@ -107,13 +101,8 @@ pub fn update(
         }
     }
 
-    match artist_parameters.validate() {
-        Ok(_) => {
-            let updated_artist = artist.update(&artist_parameters, connection)?;
-            Ok(HttpResponse::Ok().json(&updated_artist))
-        }
-        Err(e) => application::validation_error_response(e),
-    }
+    let updated_artist = artist.update(&artist_parameters, connection)?;
+    Ok(HttpResponse::Ok().json(&updated_artist))
 }
 
 pub fn toggle_privacy(

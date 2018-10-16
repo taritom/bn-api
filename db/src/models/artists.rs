@@ -54,6 +54,7 @@ pub struct NewArtist {
 
 impl NewArtist {
     pub fn commit(&self, conn: &PgConnection) -> Result<Artist, DatabaseError> {
+        self.validate()?;
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new artist",
@@ -155,6 +156,7 @@ impl Artist {
         attributes: &ArtistEditableAttributes,
         conn: &PgConnection,
     ) -> Result<Artist, DatabaseError> {
+        attributes.validate()?;
         let query = diesel::update(self).set((attributes, artists::updated_at.eq(dsl::now)));
 
         DatabaseError::wrap(

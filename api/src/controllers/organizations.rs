@@ -7,7 +7,6 @@ use errors::*;
 use helpers::application;
 use models::{Paging, PagingParameters, PathParameters, Payload};
 use uuid::Uuid;
-use validator::Validate;
 
 #[derive(Serialize, Deserialize)]
 pub struct UpdateOwnerRequest {
@@ -204,13 +203,8 @@ pub fn add_artist(
     let mut new_artist = new_artist.into_inner();
     new_artist.organization_id = Some(parameters.id);
 
-    match new_artist.validate() {
-        Ok(_) => {
-            let artist = new_artist.commit(connection)?;
-            Ok(HttpResponse::Created().json(&artist))
-        }
-        Err(e) => application::validation_error_response(e),
-    }
+    let artist = new_artist.commit(connection)?;
+    Ok(HttpResponse::Created().json(&artist))
 }
 
 pub fn add_user(

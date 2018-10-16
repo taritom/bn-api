@@ -11,7 +11,6 @@ use models::{
 };
 use std::collections::HashMap;
 use uuid::Uuid;
-use validator::Validate;
 
 #[derive(Deserialize)]
 pub struct SearchUserByEmail {
@@ -41,14 +40,10 @@ pub fn update_current_user(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(user.id(), connection)?;
-    match user_parameters.validate() {
-        Ok(_) => {
-            let updated_user = user.update(&user_parameters.into_inner().into(), connection)?;
-            let current_user = current_user_from_user(&updated_user, connection)?;
-            Ok(HttpResponse::Ok().json(&current_user))
-        }
-        Err(e) => application::validation_error_response(e),
-    }
+
+    let updated_user = user.update(&user_parameters.into_inner().into(), connection)?;
+    let current_user = current_user_from_user(&updated_user, connection)?;
+    Ok(HttpResponse::Ok().json(&current_user))
 }
 
 pub fn show(
@@ -108,13 +103,8 @@ pub fn register(
     (connection, parameters): (Connection, Json<RegisterRequest>),
 ) -> Result<HttpResponse, BigNeonError> {
     let new_user: NewUser = parameters.into_inner().into();
-    match new_user.validate() {
-        Ok(_) => {
-            new_user.commit(connection.get())?;
-            Ok(HttpResponse::Created().finish())
-        }
-        Err(e) => application::validation_error_response(e),
-    }
+    new_user.commit(connection.get())?;
+    Ok(HttpResponse::Created().finish())
 }
 
 fn current_user_from_user(

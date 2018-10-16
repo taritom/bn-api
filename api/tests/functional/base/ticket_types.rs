@@ -114,7 +114,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         id: None,
         name: Some(new_pricing_name.clone()),
         start_date,
-        end_date,
+        end_date: middle_date,
         price_in_cents: Some(15000),
     });
     let request_data = UpdateTicketTypeRequest {

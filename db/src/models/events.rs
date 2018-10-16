@@ -60,6 +60,8 @@ pub struct NewEvent {
 
 impl NewEvent {
     pub fn commit(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+        self.validate()?;
+
         diesel::insert_into(events::table)
             .values(self)
             .get_result(conn)
@@ -120,6 +122,7 @@ impl Event {
         attributes: EventEditableAttributes,
         conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
+        attributes.validate()?;
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update event",

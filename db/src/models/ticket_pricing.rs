@@ -1,13 +1,16 @@
 use chrono::NaiveDateTime;
 use diesel;
-use diesel::expression::dsl;
+use diesel::dsl::{self, select};
 use diesel::prelude::*;
+use diesel::sql_types::{Timestamp, Uuid as dUuid};
 use models::{TicketPricingStatus, TicketType};
 use schema::{order_items, ticket_pricing};
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
+use std::borrow::Cow;
+use utils::errors::*;
 use uuid::Uuid;
+use validator::*;
+
+sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp) -> Bool);
 
 #[derive(Identifiable, Associations, Queryable, PartialEq, Debug)]
 #[belongs_to(TicketType)]
@@ -60,6 +63,35 @@ impl TicketPricing {
             .set((attributes, ticket_pricing::updated_at.eq(dsl::now)))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing")
+    }
+
+    pub fn ticket_pricing_no_overlapping_periods(
+        id: Uuid,
+        ticket_type_id: Uuid,
+        start_date: NaiveDateTime,
+        end_date: NaiveDateTime,
+        conn: &PgConnection,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        let result = select(ticket_pricing_no_overlapping_periods(
+            id,
+            ticket_type_id,
+            start_date,
+            end_date,
+        )).get_result::<bool>(conn)
+        .to_db_error(
+            ErrorCode::UpdateError,
+            "Could not confirm periods do not overlap",
+        )?;
+        if !result {
+            let mut validation_error = ValidationError::new(&"ticket_pricing_overlapping_periods");
+            validation_error.add_param(Cow::from("id"), &id);
+            validation_error.add_param(Cow::from("ticket_type_id"), &ticket_type_id);
+            validation_error.add_param(Cow::from("start_date"), &start_date);
+            validation_error.add_param(Cow::from("end_date"), &end_date);
+
+            return Ok(Err(validation_error));
+        }
+        Ok(Ok(()))
     }
 
     pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {

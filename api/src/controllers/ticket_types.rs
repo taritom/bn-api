@@ -96,6 +96,9 @@ pub fn create(
             connection,
         )?;
     }
+
+    ticket_type.validate_record(connection)?;
+
     // TODO: move this to an async processor...
 
     let tari_asset_id = state.config.tari_client.create_asset(
@@ -215,9 +218,15 @@ pub fn update(
                 let found_index = ticket_pricing
                     .iter()
                     .position(|ref r| r.id == current_ticket_pricing_id);
-                if found_index.is_some() {
-                    ticket_pricing[found_index.unwrap()].update(update_parameters, connection)?;
-                }
+                match found_index {
+                    Some(index) => ticket_pricing[index].update(update_parameters, connection)?,
+                    None => {
+                        return application::internal_server_error(&format!(
+                            "Unable to find specified ticket pricing with id {}",
+                            current_ticket_pricing_id
+                        ));
+                    }
+                };
             } else if current_ticket_pricing.name.is_some()
                 && current_ticket_pricing.price_in_cents.is_some()
                 && current_ticket_pricing.start_date.is_some()
@@ -239,6 +248,7 @@ pub fn update(
 
             }
         }
+        updated_ticket_type.validate_record(connection)?;
     }
 
     Ok(HttpResponse::Ok().finish())

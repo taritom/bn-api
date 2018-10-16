@@ -121,7 +121,8 @@ fn register_with_validation_errors() {
     ));
 
     let response: HttpResponse = users::register((database.connection.into(), json)).into();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
     let body = support::unwrap_body_to_string(&response).unwrap();
     let expected_json = json!({
         "error": "Validation error",
@@ -298,7 +299,8 @@ pub fn update_current_user_with_validation_errors() {
     let response: HttpResponse =
         users::update_current_user((database.connection.into(), json, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
     let expected_json = json!({
         "error": "Validation error",
         "fields":{

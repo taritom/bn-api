@@ -12,7 +12,6 @@ use models::{
 use serde_with::{self, CommaSeparator};
 use std::collections::HashMap;
 use uuid::Uuid;
-use validator::Validate;
 
 #[derive(Deserialize)]
 pub struct SearchParameters {
@@ -334,13 +333,8 @@ pub fn create(
         return application::unauthorized();
     }
 
-    match new_event.validate() {
-        Ok(_) => {
-            let event = new_event.commit(connection)?;
-            Ok(HttpResponse::Created().json(&event))
-        }
-        Err(e) => application::validation_error_response(e),
-    }
+    let event = new_event.commit(connection)?;
+    Ok(HttpResponse::Created().json(&event))
 }
 
 pub fn update(
@@ -361,13 +355,8 @@ pub fn update(
         return application::unauthorized();
     }
 
-    match event_parameters.validate() {
-        Ok(_) => {
-            let updated_event = event.update(event_parameters.into_inner(), connection)?;
-            Ok(HttpResponse::Ok().json(&updated_event))
-        }
-        Err(e) => application::validation_error_response(e),
-    }
+    let updated_event = event.update(event_parameters.into_inner(), connection)?;
+    Ok(HttpResponse::Ok().json(&updated_event))
 }
 
 pub fn cancel(

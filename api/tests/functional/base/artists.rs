@@ -90,7 +90,8 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(response.error().is_some());
 
         let expected_json = json!({
             "error": "Validation error",
@@ -227,7 +228,8 @@ pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(response.error().is_some());
 
         let expected_json = json!({
             "error": "Validation error",

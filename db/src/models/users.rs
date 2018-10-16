@@ -77,6 +77,7 @@ pub struct UserEditableAttributes {
 
 impl NewUser {
     pub fn commit(&self, conn: &PgConnection) -> Result<User, DatabaseError> {
+        self.validate()?;
         let user: User = diesel::insert_into(users::table)
             .values(self)
             .get_result(conn)
@@ -130,6 +131,7 @@ impl User {
         attributes: &UserEditableAttributes,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
+        attributes.validate()?;
         let query = diesel::update(self).set((attributes, users::updated_at.eq(dsl::now)));
 
         DatabaseError::wrap(

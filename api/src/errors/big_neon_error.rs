@@ -50,6 +50,12 @@ impl From<SerdeError> for BigNeonError {
     }
 }
 
+impl From<ApplicationError> for BigNeonError {
+    fn from(e: ApplicationError) -> Self {
+        BigNeonError(Box::new(e))
+    }
+}
+
 impl From<AuthError> for BigNeonError {
     fn from(e: AuthError) -> Self {
         BigNeonError(Box::new(e))
