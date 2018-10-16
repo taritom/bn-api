@@ -13,6 +13,7 @@ pub struct UserDisplayTicketType {
     pub quantity: u32,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
+    pub increment: i32,
     pub ticket_pricing: Option<DisplayTicketPricing>,
 }
 
@@ -46,6 +47,7 @@ impl UserDisplayTicketType {
             end_date: ticket_type.end_date,
             ticket_pricing,
             quantity,
+            increment: ticket_type.increment,
         })
     }
 }
