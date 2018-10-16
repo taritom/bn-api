@@ -80,16 +80,21 @@ impl Config {
             _ => {
                 let host = env::var(&MAIL_SMTP_HOST)
                     .unwrap_or_else(|_| panic!("{} must be defined.", MAIL_SMTP_HOST));
-                let port = env::var(&MAIL_SMTP_PORT)
-                    .unwrap_or_else(|_| panic!("{} must be defined.", MAIL_SMTP_PORT));
 
-                info!("Mail configured {}:{}", host, port);
+                if host == "test" {
+                    Box::new(TestTransport::new()) as Box<Transport + Send + Sync>
+                } else {
+                    let port = env::var(&MAIL_SMTP_PORT)
+                        .unwrap_or_else(|_| panic!("{} must be defined.", MAIL_SMTP_PORT));
 
-                Box::new(SmtpTransport::new(
-                    &domain,
-                    &host,
-                    port.parse::<u16>().unwrap(),
-                )) as Box<Transport + Send + Sync>
+                    info!("Mail configured {}:{}", host, port);
+
+                    Box::new(SmtpTransport::new(
+                        &domain,
+                        &host,
+                        port.parse::<u16>().unwrap(),
+                    )) as Box<Transport + Send + Sync>
+                }
             }
         };
 

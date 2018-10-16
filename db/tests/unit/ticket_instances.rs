@@ -176,9 +176,10 @@ pub fn find() {
     let expected_ticket = DisplayTicket {
         id: ticket.id,
         ticket_type_name: ticket_type.name.clone(),
+        status: "Reserved".to_string(),
     };
     assert_eq!(
-        (display_event, user, expected_ticket),
+        (display_event, None, expected_ticket),
         TicketInstance::find_for_display(ticket.id, connection).unwrap()
     );
     assert!(TicketInstance::find(Uuid::new_v4(), connection).is_err());

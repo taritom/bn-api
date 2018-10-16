@@ -21,7 +21,7 @@ env:
     - TOKEN_ISSUER=bg-on-travis
     - MAIL_FROM_NAME="Big Neon Support"
     - MAIL_FROM_EMAIL="support@bigneon.com"
-    - MAIL_SMTP_HOST="localhost"
+    - MAIL_SMTP_HOST="test"
     - MAIL_SMTP_USER_NAME="user"
     - MAIL_SMTP_PASSWORD="password"
     - MAIL_SMTP_PORT=1025

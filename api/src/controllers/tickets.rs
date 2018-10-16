@@ -6,6 +6,7 @@ use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
+use mail::mailers;
 use models::{OptionalPathParameters, Paging, PathParameters, Payload, SearchParam, SortingDir};
 use server::AppState;
 use uuid::Uuid;
@@ -91,7 +92,7 @@ pub fn index(
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct ShowTicketResponse {
     pub event: DisplayEvent,
-    pub user: DisplayUser,
+    pub user: Option<DisplayUser>,
     pub ticket: DisplayTicket,
 }
 
@@ -104,7 +105,7 @@ pub fn show(
     let organization = db_event.organization(connection)?;
 
     if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)?
-        && user.id != auth_user.id()
+        && (user.is_none() || user.as_ref().unwrap().id != auth_user.id())
     {
         return application::unauthorized();
     }
@@ -174,7 +175,7 @@ pub fn show_redeemable_ticket(
     let organization = db_event.organization(connection)?;
 
     if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)?
-        && user.id != auth_user.id()
+        && (user.is_none() || user.unwrap().id != auth_user.id())
     {
         return application::unauthorized();
     }
@@ -182,6 +183,50 @@ pub fn show_redeemable_ticket(
     let redeemable_ticket = TicketInstance::show_redeemable_ticket(parameters.id, connection)?;
 
     Ok(HttpResponse::Ok().json(&redeemable_ticket))
+}
+
+pub fn send_via_email(
+    (connection, send_tickets_request, auth_user, state): (
+        Connection,
+        Json<SendTicketsRequest>,
+        User,
+        State<AppState>,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    if !auth_user.has_scope(Scopes::TicketTransfer, None, connection)? {
+        return application::unauthorized();
+    }
+
+    let authorization = TicketInstance::authorize_ticket_transfer(
+        auth_user.id(),
+        send_tickets_request.ticket_ids.clone(),
+        send_tickets_request
+            .validity_period_in_seconds
+            .unwrap_or(604_800) as u32,
+        connection,
+    )?;
+
+    match mailers::tickets::send_tickets(
+        &state.config,
+        &send_tickets_request.email,
+        &authorization.sender_user_id.to_string(),
+        authorization.num_tickets,
+        &authorization.transfer_key.to_string(),
+        &authorization.signature,
+        &auth_user.user,
+    ).deliver()
+    {
+        Ok(_) => Ok(HttpResponse::Ok().finish()),
+        Err(e) => application::internal_server_error(&e),
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct SendTicketsRequest {
+    pub ticket_ids: Vec<Uuid>,
+    pub validity_period_in_seconds: Option<i64>,
+    pub email: String,
 }
 
 pub fn transfer_authorization(

@@ -44,11 +44,12 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
         let expected_ticket = DisplayTicket {
             id: ticket.id,
             ticket_type_name: ticket_type.name.clone(),
+            status: "Purchased".to_string(),
         };
 
         let expected_result = ShowTicketResponse {
             ticket: expected_ticket,
-            user: user2.into(),
+            user: Some(user2.into()),
             event: event.for_display(&database.connection).unwrap(),
         };
         assert_eq!(expected_result, ticket_response);
