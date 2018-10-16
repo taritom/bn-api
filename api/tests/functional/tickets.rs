@@ -1,5 +1,7 @@
-use actix_web::{http::StatusCode, FromRequest, Path, Query};
-use bigneon_api::controllers::tickets::{self, SearchParameters, ShowTicketResponse};
+use actix_web::{http::StatusCode, FromRequest, Json, Path, Query};
+use bigneon_api::controllers::tickets::{
+    self, SearchParameters, ShowTicketResponse, TransferTicketRequest,
+};
 use bigneon_api::models::{OptionalPathParameters, PathParameters, Payload};
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -8,6 +10,7 @@ use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 #[test]
 pub fn index() {
@@ -230,4 +233,122 @@ mod show_redeem_key {
     fn show_redeemable_ticket_org_owner() {
         base::tickets::show_redeemable_ticket(Roles::OrgOwner, true);
     }
+}
+
+#[test]
+fn ticket_transfer_authorization() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("Event1".into())
+        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_venue(&venue)
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+
+    let mut cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(&database.connection)
+        .unwrap();
+    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
+
+    let tickets = cart
+        .add_tickets(ticket_type.id, 5, &database.connection)
+        .unwrap();
+
+    //Try transfer before paying for the tickets
+    let mut ticket_transfer_request = TransferTicketRequest {
+        ticket_ids: vec![tickets[0].id, tickets[1].id],
+        validity_period_in_seconds: 600,
+    };
+
+    let response = tickets::transfer_authorization((
+        database.connection.clone().into(),
+        Json(ticket_transfer_request.clone()),
+        auth_user.clone(),
+    ));
+
+    assert!(response.is_err());
+
+    //Try after paying for the tickets
+    let total = cart.calculate_total(&database.connection).unwrap();
+    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
+        .unwrap();
+
+    let response = tickets::transfer_authorization((
+        database.connection.clone().into(),
+        Json(ticket_transfer_request.clone()),
+        auth_user.clone(),
+    )).unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let transfer_response: TransferAuthorization = serde_json::from_str(&body).unwrap();
+
+    assert_eq!(transfer_response.sender_user_id, user.id);
+
+    //Now lets try add a ticket that the user doesn't own.
+
+    ticket_transfer_request.ticket_ids.push(Uuid::new_v4());
+    let response = tickets::transfer_authorization((
+        database.connection.clone().into(),
+        Json(ticket_transfer_request),
+        auth_user.clone(),
+    ));
+
+    assert!(response.is_err());
+}
+
+#[test]
+fn receive_ticket_transfer() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("Event1".into())
+        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_venue(&venue)
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+
+    let mut cart = Order::create(user.id, OrderTypes::Cart)
+        .commit(&database.connection)
+        .unwrap();
+    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
+
+    let tickets = cart
+        .add_tickets(ticket_type.id, 5, &database.connection)
+        .unwrap();
+
+    let total = cart.calculate_total(&database.connection).unwrap();
+    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
+        .unwrap();
+
+    let transfer_auth = TicketInstance::authorize_ticket_transfer(
+        auth_user.id(),
+        vec![tickets[0].id, tickets[1].id],
+        3600,
+        &database.connection,
+    ).unwrap();
+
+    //Try receive transfer
+    let user2 = database.create_user().finish();
+    let auth_user2 = support::create_auth_user_from_user(&user2, Roles::User, None, &database);
+
+    let response = tickets::receive_transfer((
+        database.connection.clone().into(),
+        Json(transfer_auth.clone()),
+        auth_user2.clone(),
+    )).unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
 }

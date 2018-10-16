@@ -8,6 +8,7 @@ use errors::*;
 use helpers::application;
 use models::{OptionalPathParameters, Paging, PathParameters, Payload, SearchParam, SortingDir};
 use server::AppState;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct SearchParameters {
@@ -58,8 +59,9 @@ pub fn index(
     //todo convert to use pagingparams
 
     let connection = connection.get();
+
     let queryparms = parameters.create_paging_struct();
-    let tickets = TicketInstance::find_for_user(
+    let tickets = TicketInstance::find_for_user_for_display(
         auth_user.id(),
         path.id,
         parameters.start_utc,
@@ -180,4 +182,53 @@ pub fn show_redeemable_ticket(
     let redeemable_ticket = TicketInstance::show_redeemable_ticket(parameters.id, connection)?;
 
     Ok(HttpResponse::Ok().json(&redeemable_ticket))
+}
+
+pub fn transfer_authorization(
+    (connection, transfer_tickets_request, auth_user): (
+        Connection,
+        Json<TransferTicketRequest>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    if !auth_user.has_scope(Scopes::TicketTransfer, None, connection)? {
+        return application::unauthorized();
+    }
+
+    let transfer_authorization = TicketInstance::authorize_ticket_transfer(
+        auth_user.id(),
+        transfer_tickets_request.ticket_ids.clone(),
+        transfer_tickets_request.validity_period_in_seconds as u32,
+        connection,
+    )?;
+
+    Ok(HttpResponse::Ok().json(&transfer_authorization))
+}
+
+pub fn receive_transfer(
+    (connection, transfer_authorization, auth_user): (
+        Connection,
+        Json<TransferAuthorization>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    if !auth_user.has_scope(Scopes::TicketTransfer, None, connection)? {
+        return application::unauthorized();
+    }
+
+    TicketInstance::receive_ticket_transfer(
+        transfer_authorization.into_inner(),
+        auth_user.id(),
+        connection,
+    )?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct TransferTicketRequest {
+    pub ticket_ids: Vec<Uuid>,
+    pub validity_period_in_seconds: i64,
 }

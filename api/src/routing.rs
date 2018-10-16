@@ -99,7 +99,11 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(regions::index);
         r.method(Method::POST).with(regions::create)
     }).resource("/status", |r| r.get().f(|_| HttpResponse::Ok()))
-    .resource("/tickets/{id}", |r| {
+    .resource("/tickets/transfer", |r| {
+        r.method(Method::POST).with(tickets::transfer_authorization);
+    }).resource("/tickets/receive", |r| {
+        r.method(Method::POST).with(tickets::receive_transfer);
+    }).resource("/tickets/{id}", |r| {
         r.method(Method::GET).with(tickets::show);
         r.method(Method::POST).with(tickets::redeem);
     }).resource("/tickets", |r| {

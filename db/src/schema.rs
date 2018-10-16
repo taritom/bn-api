@@ -250,6 +250,8 @@ table! {
         wallet_id -> Uuid,
         reserved_until -> Nullable<Timestamp>,
         redeem_key -> Nullable<Text>,
+        transfer_key -> Nullable<Uuid>,
+        transfer_expiry_date -> Nullable<Timestamp>,
         status -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,

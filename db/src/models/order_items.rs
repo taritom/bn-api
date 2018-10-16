@@ -162,7 +162,6 @@ impl OrderItem {
         order_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<DisplayOrderItem>, DatabaseError> {
-        println!("Finding");
         diesel::sql_query(
             r#"
         SELECT oi.id,

@@ -8,7 +8,14 @@ use itertools::Itertools;
 use models::*;
 use rand;
 use rand::Rng;
-use schema::{assets, events, order_items, orders, ticket_instances, ticket_types, users, venues};
+use schema::{
+    assets, events, order_items, orders, ticket_instances, ticket_types, users, venues, wallets,
+};
+use tari_client::{
+    convert_bytes_to_hexstring, convert_hexstring_to_bytes, cryptographic_signature,
+    cryptographic_verify,
+};
+use time::Duration;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -25,6 +32,8 @@ pub struct TicketInstance {
     pub wallet_id: Uuid,
     pub reserved_until: Option<NaiveDateTime>,
     pub redeem_key: Option<String>,
+    pub transfer_key: Option<Uuid>,
+    pub transfer_expiry_date: Option<NaiveDateTime>,
     pub status: String,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
@@ -92,7 +101,7 @@ impl TicketInstance {
         Ok((event, ticket_intermediary.into()))
     }
 
-    pub fn find_for_user(
+    pub fn find_for_user_for_display(
         user_id: Uuid,
         event_id: Option<Uuid>,
         start_time: Option<NaiveDateTime>,
@@ -143,6 +152,18 @@ impl TicketInstance {
         }
 
         Ok(grouped_display_tickets)
+    }
+
+    pub fn find_for_user(
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        ticket_instances::table
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .filter(wallets::user_id.eq(user_id))
+            .select(ticket_instances::all_columns)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket instances")
     }
 
     pub fn create_multiple(
@@ -358,6 +379,162 @@ impl TicketInstance {
 
         Ok(ticket_data)
     }
+
+    pub fn authorize_ticket_transfer(
+        user_id: Uuid,
+        ticket_ids: Vec<Uuid>,
+        validity_period_in_seconds: u32,
+        conn: &PgConnection,
+    ) -> Result<TransferAuthorization, DatabaseError> {
+        //Confirm that tickets are purchased and owned by user
+
+        let tickets = TicketInstance::find_for_user(user_id, conn)?;
+        let mut ticket_ids_and_updated_at: Vec<(Uuid, NaiveDateTime)> = Vec::new();
+        let mut all_tickets_valid = true;
+        let mut wallet_id = Uuid::nil();
+
+        for ti in &ticket_ids {
+            let mut found_and_purchased = false;
+            for t in &tickets {
+                if t.id == *ti && t.status == TicketInstanceStatus::Purchased.to_string() {
+                    found_and_purchased = true;
+                    ticket_ids_and_updated_at.push((*ti, t.updated_at));
+                    wallet_id = t.wallet_id;
+                    break;
+                }
+            }
+            if !found_and_purchased {
+                all_tickets_valid = false;
+                break;
+            }
+        }
+
+        if !all_tickets_valid || tickets.len() == 0 {
+            return Err(DatabaseError::new(
+                ErrorCode::BusinessProcessError,
+                Some("User does not own all requested tickets".to_string()),
+            ));
+        }
+
+        //Generate transfer_key and store keys and set transfer_expiry date
+        let transfer_key = Uuid::new_v4();
+        let transfer_expiry_date =
+            Utc::now().naive_utc() + Duration::seconds(validity_period_in_seconds as i64);
+
+        let mut update_count = 0;
+        for (t_id, t_updated_at) in &ticket_ids_and_updated_at {
+            update_count += diesel::update(
+                ticket_instances::table
+                    .filter(ticket_instances::id.eq(t_id))
+                    .filter(ticket_instances::updated_at.eq(t_updated_at))
+                    .filter(ticket_instances::wallet_id.eq(wallet_id)),
+            ).set((
+                ticket_instances::transfer_key.eq(&transfer_key),
+                ticket_instances::transfer_expiry_date.eq(&transfer_expiry_date),
+                ticket_instances::updated_at.eq(dsl::now),
+            )).execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
+        }
+
+        if update_count != ticket_ids.len() {
+            return Err(DatabaseError::new(
+                ErrorCode::UpdateError,
+                Some("Could not update ticket instances".to_string()),
+            ));
+        }
+        //Build Authorization message with signature
+        let mut message: String = transfer_key.to_string();
+        message.push_str(user_id.to_string().as_str());
+        message.push_str((ticket_ids.len() as u32).to_string().as_str());
+        let secret_key = Wallet::find_default_for_user(user_id, conn)?.secret_key;
+        Ok(TransferAuthorization {
+            transfer_key: transfer_key,
+            sender_user_id: user_id,
+            num_tickets: ticket_ids.len() as u32,
+            signature: convert_bytes_to_hexstring(&cryptographic_signature(
+                &message,
+                &convert_hexstring_to_bytes(&secret_key),
+            )),
+        })
+    }
+
+    pub fn receive_ticket_transfer(
+        transfer_authorization: TransferAuthorization,
+        receiver_user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        //Validate signature
+        let wallet = Wallet::find_default_for_user(transfer_authorization.sender_user_id, conn)?;
+        let mut header: String = transfer_authorization.transfer_key.to_string();
+        header.push_str(transfer_authorization.sender_user_id.to_string().as_str());
+        header.push_str(transfer_authorization.num_tickets.to_string().as_str());
+        if !cryptographic_verify(
+            &convert_hexstring_to_bytes(&transfer_authorization.signature),
+            &header,
+            &convert_hexstring_to_bytes(&wallet.public_key),
+        ) {
+            return Err(DatabaseError::new(
+                ErrorCode::InternalError,
+                Some("ECDSA Signature is not valid".to_string()),
+            ));
+        }
+        //Confirm that transfer authorization time has not passed and that the sender still owns the tickets
+        //being transfered
+        let tickets: Vec<TicketInstance> = ticket_instances::table
+            .filter(ticket_instances::transfer_key.eq(transfer_authorization.transfer_key))
+            .filter(ticket_instances::transfer_expiry_date.gt(dsl::now.nullable()))
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket instances")?;
+
+        let mut own_all = true;
+        let mut ticket_ids_to_transfer: Vec<(Uuid, NaiveDateTime)> = Vec::new();
+        for t in &tickets {
+            if t.wallet_id != wallet.id {
+                own_all = false;
+                break;
+            }
+            ticket_ids_to_transfer.push((t.id, t.updated_at));
+        }
+
+        if !own_all || tickets.len() != transfer_authorization.num_tickets as usize {
+            return Err(DatabaseError::new(
+                ErrorCode::BusinessProcessError,
+                Some("Cannot transfer tickets.".to_string()),
+            ));
+        }
+        //Perform transfer
+        let receiver_wallet = Wallet::find_default_for_user(receiver_user_id, conn)?;
+        let mut update_count = 0;
+
+        for (t_id, updated_at) in &ticket_ids_to_transfer {
+            update_count += diesel::update(
+                ticket_instances::table
+                    .filter(ticket_instances::id.eq(t_id))
+                    .filter(ticket_instances::updated_at.eq(updated_at)),
+            ).set((
+                ticket_instances::wallet_id.eq(receiver_wallet.id),
+                ticket_instances::updated_at.eq(dsl::now),
+            )).execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
+        }
+
+        if update_count != transfer_authorization.num_tickets as usize {
+            return Err(DatabaseError::new(
+                ErrorCode::UpdateError,
+                Some("Could not update ticket instances".to_string()),
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransferAuthorization {
+    pub transfer_key: Uuid,
+    pub sender_user_id: Uuid,
+    pub num_tickets: u32,
+    pub signature: String,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

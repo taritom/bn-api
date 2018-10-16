@@ -343,6 +343,7 @@ pub fn get_scopes_for_user() {
             "org:read",
             "org:write",
             "ticket:admin",
+            "ticket:transfer",
             "user:read",
             "venue:write"
         ]
@@ -359,7 +360,8 @@ pub fn get_scopes_for_user() {
             "order:read",
             "org:read",
             "ticket:admin",
-            "venue:write"
+            "ticket:transfer",
+            "venue:write",
         ]
     );
     assert!(

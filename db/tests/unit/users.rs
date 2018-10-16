@@ -403,6 +403,7 @@ pub fn get_scopes_by_organization() {
             "org:read",
             "org:write",
             "ticket:admin",
+            "ticket:transfer",
             "user:read",
             "venue:write",
         ].into_iter()
@@ -419,6 +420,7 @@ pub fn get_scopes_by_organization() {
             "order:read",
             "org:read",
             "ticket:admin",
+            "ticket:transfer",
             "venue:write",
         ].into_iter()
         .map(|scope| scope.to_string())
@@ -447,11 +449,11 @@ pub fn get_global_scopes() {
 
     assert_eq!(
         user.get_global_scopes(),
-        vec!["event:interest", "order:read"]
+        vec!["event:interest", "order:read", "ticket:transfer"]
     );
     assert_eq!(
         user2.get_global_scopes(),
-        vec!["event:interest", "order:read"]
+        vec!["event:interest", "order:read", "ticket:transfer"]
     );
     assert_eq!(
         user3.get_global_scopes(),
@@ -467,6 +469,7 @@ pub fn get_global_scopes() {
             "org:write",
             "region:write",
             "ticket:admin",
+            "ticket:transfer",
             "user:read",
             "venue:write"
         ]

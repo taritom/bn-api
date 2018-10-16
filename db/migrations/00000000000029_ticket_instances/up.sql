@@ -7,6 +7,8 @@ CREATE TABLE ticket_instances (
   wallet_id Uuid NOT NULL REFERENCES wallets(id),
   reserved_until TIMESTAMP NULL,
   redeem_key Text NULL,
+  transfer_key Uuid NULL,
+  transfer_expiry_date TIMESTAMP NULL,
   status TEXT NOT NULL DEFAULT 'Available',
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
@@ -19,4 +21,5 @@ CREATE INDEX index_ticket_instances_ticket_holding_id ON ticket_instances(ticket
 CREATE INDEX index_ticket_instances_asset_id_token_id ON ticket_instances(asset_id, token_id);
 CREATE INDEX index_ticket_instances_redeem_key  ON ticket_instances(redeem_key);
 CREATE INDEX index_ticket_instances_wallet_id ON ticket_instances(wallet_id);
+CREATE INDEX index_ticket_instances_transfer_key ON ticket_instances(transfer_key);
 
