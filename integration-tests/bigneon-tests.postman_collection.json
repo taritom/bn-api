@@ -548,7 +548,7 @@
 					"response": []
 				},
 				{
-					"name": "Admin - create tickets",
+					"name": "Admin - create tickets - VIP",
 					"event": [
 						{
 							"listen": "test",
@@ -585,7 +585,62 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}]\n}"
+							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"ticket_types"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - create tickets - GA",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\":\"General Admission\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Standard\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
