@@ -22,7 +22,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::DELETE).with(cart::remove);
     }).resource("/cart/checkout", |r| {
         r.method(Method::POST).with(cart::checkout);
-    }).resource("/carts/{id}", |r| {
+    }).resource("/cart/{id}", |r| {
         r.method(Method::GET).with(cart::show);
     }).resource("/events", |r| {
         r.method(Method::GET).with(events::index);
