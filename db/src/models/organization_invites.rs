@@ -6,6 +6,7 @@ use schema::organization_invites;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::{DatabaseError, ErrorCode};
 use uuid::Uuid;
+use validator::Validate;
 
 const INVITE_EXPIRATION_PERIOD_IN_DAYS: i64 = 7;
 
@@ -35,11 +36,12 @@ pub struct OrganizationInvite {
     pub sent_invite: bool,
 }
 
-#[derive(Insertable, PartialEq, Debug, Deserialize)]
+#[derive(Insertable, PartialEq, Debug, Deserialize, Validate)]
 #[table_name = "organization_invites"]
 pub struct NewOrganizationInvite {
     pub organization_id: Uuid,
     pub inviter_id: Uuid,
+    #[validate(email)]
     pub user_email: String,
     pub security_token: Option<Uuid>,
     pub user_id: Option<Uuid>,
@@ -48,6 +50,7 @@ pub struct NewOrganizationInvite {
 impl NewOrganizationInvite {
     pub fn commit(&mut self, conn: &PgConnection) -> Result<OrganizationInvite, DatabaseError> {
         self.security_token = Some(Uuid::new_v4());
+        self.validate()?;
         let res = diesel::insert_into(organization_invites::table)
             .values(&*self)
             .get_result(conn);
