@@ -22,6 +22,23 @@ fn create() {
 }
 
 #[test]
+fn create_with_validation_errors() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+    let result =
+        OrganizationInvite.create(organization.id, invitee_id: user.id, email: "invalid-email")
+            .commit(project.get_connection());
+
+    assert!(result.is_err());
+    let errors = result.unwrap_err().field_errors();
+
+    assert!(errors.contains_key("email"));
+    assert_eq!(errors["email"].len(), 1);
+    assert_eq!(errors["email"][0].code, "email");
+}
+
+#[test]
 fn change_invite_status_of_invite() {
     let project = TestProject::new();
     let user = project.create_user().finish();
