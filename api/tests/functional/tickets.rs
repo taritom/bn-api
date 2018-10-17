@@ -69,6 +69,7 @@ pub fn index() {
     let expected_ticket = DisplayTicket {
         id: ticket.id,
         ticket_type_name: ticket_type.name.clone(),
+        status: "Purchased".to_string(),
     };
     assert_eq!(vec![expected_ticket.clone()], found_data.data);
     // Test without specified event
@@ -89,6 +90,7 @@ pub fn index() {
     let expected_ticket2 = DisplayTicket {
         id: ticket2.id,
         ticket_type_name: ticket_type2.name.clone(),
+        status: "Purchased".to_string(),
     };
     assert_eq!(
         vec![
@@ -162,11 +164,12 @@ pub fn show() {
     let expected_ticket = DisplayTicket {
         id: ticket.id,
         ticket_type_name: ticket_type.name.clone(),
+        status: "Purchased".to_string(),
     };
 
     let expected_result = ShowTicketResponse {
         ticket: expected_ticket,
-        user: user.into(),
+        user: Some(user.into()),
         event: event.for_display(&database.connection).unwrap(),
     };
     assert_eq!(expected_result, ticket_response);

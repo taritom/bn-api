@@ -14,6 +14,7 @@ pub struct AdminDisplayTicketType {
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub quantity: u32,
+    pub increment: i32,
     pub ticket_pricing: Vec<DisplayTicketPricing>,
 }
 
@@ -39,6 +40,7 @@ impl AdminDisplayTicketType {
             ticket_pricing,
             quantity,
             capacity,
+            increment: ticket_type.increment,
         })
     }
 }

@@ -50,26 +50,27 @@ impl TicketInstance {
     pub fn find_for_display(
         id: Uuid,
         conn: &PgConnection,
-    ) -> Result<(DisplayEvent, DisplayUser, DisplayTicket), DatabaseError> {
+    ) -> Result<(DisplayEvent, Option<DisplayUser>, DisplayTicket), DatabaseError> {
         let ticket_intermediary = ticket_instances::table
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .inner_join(
-                order_items::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
             .filter(ticket_instances::id.eq(id))
             .select((
                 ticket_instances::id,
                 ticket_types::name,
-                orders::user_id,
+                wallets::user_id,
                 events::id,
                 events::venue_id,
+                ticket_instances::status,
             )).first::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
         let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
-        let user: DisplayUser = User::find(ticket_intermediary.user_id, conn)?.into();
+        let user: Option<DisplayUser> = match ticket_intermediary.user_id {
+            Some(uid) => Some(User::find(uid, conn)?.into()),
+            None => None,
+        };
         Ok((event, user, ticket_intermediary.into()))
     }
 
@@ -80,10 +81,7 @@ impl TicketInstance {
         let ticket_intermediary = ticket_instances::table
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .inner_join(
-                order_items::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
             .filter(ticket_instances::id.eq(id))
             .select((
@@ -92,7 +90,7 @@ impl TicketInstance {
                 ticket_instances::token_id,
                 ticket_instances::wallet_id,
                 ticket_types::name,
-                orders::user_id,
+                wallets::user_id,
                 events::id,
                 events::venue_id,
             )).first::<ProcessingTicketIntermediary>(conn)
@@ -112,20 +110,14 @@ impl TicketInstance {
             ticket_instances::table
                 .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
                 .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-                .inner_join(
-                    order_items::table
-                        .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-                ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+                .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
                 .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
                 .filter(events::event_start.gt(
                     start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
                 )).filter(events::event_start.lt(
                     end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
-                )).filter(
-                    orders::user_id
-                        .eq(user_id)
-                        .and(orders::status.eq(OrderStatus::Paid.to_string())),
-                ).into_boxed();
+                )).filter(wallets::user_id.eq(user_id))
+                .into_boxed();
 
         if let Some(event_id) = event_id {
             query = query.filter(events::id.eq(event_id));
@@ -135,9 +127,10 @@ impl TicketInstance {
             .select((
                 ticket_instances::id,
                 ticket_types::name,
-                orders::user_id,
+                wallets::user_id,
                 events::id,
                 events::venue_id,
+                ticket_instances::status,
             )).order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
             .load::<DisplayTicketIntermediary>(conn)
@@ -542,6 +535,7 @@ pub struct TransferAuthorization {
 pub struct DisplayTicket {
     pub id: Uuid,
     pub ticket_type_name: String,
+    pub status: String,
 }
 
 #[derive(Queryable, QueryableByName)]
@@ -550,12 +544,14 @@ pub struct DisplayTicketIntermediary {
     pub id: Uuid,
     #[sql_type = "Text"]
     pub name: String,
-    #[sql_type = "dUuid"]
-    pub user_id: Uuid,
+    #[sql_type = "Nullable<dUuid>"]
+    pub user_id: Option<Uuid>,
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
     #[sql_type = "Nullable<dUuid>"]
     pub venue_id: Option<Uuid>,
+    #[sql_type = "Text"]
+    pub status: String,
 }
 
 impl From<DisplayTicketIntermediary> for DisplayTicket {
@@ -563,6 +559,7 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
         DisplayTicket {
             id: ticket_intermediary.id.clone(),
             ticket_type_name: ticket_intermediary.name.clone(),
+            status: ticket_intermediary.status.clone(),
         }
     }
 }
@@ -588,8 +585,8 @@ pub struct ProcessingTicketIntermediary {
     pub wallet_id: Uuid,
     #[sql_type = "Text"]
     pub name: String,
-    #[sql_type = "dUuid"]
-    pub user_id: Uuid,
+    #[sql_type = "Nullable<dUuid>"]
+    pub user_id: Option<Uuid>,
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
     #[sql_type = "Nullable<dUuid>"]

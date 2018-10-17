@@ -5,6 +5,7 @@ use bigneon_db::models::*;
 use lettre::SendableEmail;
 use serde_json;
 use std::str;
+use std::{thread, time};
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -45,7 +46,9 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
         assert_eq!(org_in.inviter_id, user.id);
-
+        //wait for thread to create email before testing for it
+        let ten_millis = time::Duration::from_millis(1000);
+        thread::sleep(ten_millis);
         let mail_transport = test_request.test_transport();
 
         {
@@ -106,7 +109,9 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
         assert_eq!(org_in.inviter_id, user.id);
-
+        //wait for thread to create email before testing for it
+        let ten_millis = time::Duration::from_millis(1000);
+        thread::sleep(ten_millis);
         let mail_transport = test_request.test_transport();
 
         {
@@ -165,7 +170,9 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
         assert_eq!(org_in.inviter_id, user.id);
-
+        //wait for thread to create email before testing for it
+        let ten_millis = time::Duration::from_millis(1000);
+        thread::sleep(ten_millis);
         let mail_transport = test_request.test_transport();
 
         {

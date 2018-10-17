@@ -86,6 +86,29 @@ fn test_token_validity() {
     }
 }
 
+#[test]
+fn test_sending_status(){
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+    let org_invite = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&user)
+        .link_to_user(&user2)
+        .finish();
+    /*making the assumption that it wont take more than 60 seconds to update the status
+    we cant test for an exact date, as this will depend on the database write delay
+    we will test for a period of 30 seconds
+    */
+    let pre_send_invite = org_invite.clone();
+    let post_send_invite = org_invite.change_sent_status(true,&project.get_connection()).unwrap();
+
+    assert_eq!(pre_send_invite.sent_invite, false);
+    assert_eq!(post_send_invite.sent_invite, true);
+}
+
 // dont want to update the details in the main function, so keeping this in the unit test section
 fn update(
     org_invite: &OrganizationInvite,
