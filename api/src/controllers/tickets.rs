@@ -8,6 +8,7 @@ use errors::*;
 use helpers::application;
 use models::{OptionalPathParameters, Paging, PathParameters, Payload, SearchParam, SortingDir};
 use server::AppState;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -207,10 +208,11 @@ pub fn transfer_authorization(
 }
 
 pub fn receive_transfer(
-    (connection, transfer_authorization, auth_user): (
+    (connection, transfer_authorization, auth_user, state): (
         Connection,
         Json<TransferAuthorization>,
         User,
+        State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -218,11 +220,37 @@ pub fn receive_transfer(
         return application::unauthorized();
     }
 
-    TicketInstance::receive_ticket_transfer(
+    let (sender_wallet, receiver_wallet, tickets) = TicketInstance::receive_ticket_transfer(
         transfer_authorization.into_inner(),
         auth_user.id(),
         connection,
     )?;
+
+    //Assemble token ids and ticket instance ids for each asset in the order
+    let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
+    for ticket in &tickets {
+        tokens_per_asset
+            .entry(ticket.asset_id)
+            .or_insert_with(|| Vec::new())
+            .push(ticket.token_id as u64);
+    }
+
+    //Transfer each ticket on chain in batches per asset
+    for (asset_id, token_ids) in &tokens_per_asset {
+        let asset = Asset::find(*asset_id, connection)?;
+        match asset.blockchain_asset_id {
+            Some(a) => {
+                state.config.tari_client.transfer_tokens(&sender_wallet.secret_key, &sender_wallet.public_key,
+                                                         &a,
+                                                         token_ids.clone(),
+                                                         receiver_wallet.public_key.clone(),
+                )?
+            },
+            None => return application::internal_server_error(
+                "Could not complete ticket transfer because the asset has not been assigned on the blockchain",
+            ),
+        }
+    }
 
     Ok(HttpResponse::Ok().finish())
 }

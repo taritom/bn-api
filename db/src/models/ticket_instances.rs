@@ -462,16 +462,17 @@ impl TicketInstance {
         transfer_authorization: TransferAuthorization,
         receiver_user_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    ) -> Result<(Wallet, Wallet,Vec<TicketInstance>), DatabaseError> {
         //Validate signature
-        let wallet = Wallet::find_default_for_user(transfer_authorization.sender_user_id, conn)?;
+        let sender_wallet =
+            Wallet::find_default_for_user(transfer_authorization.sender_user_id, conn)?;
         let mut header: String = transfer_authorization.transfer_key.to_string();
         header.push_str(transfer_authorization.sender_user_id.to_string().as_str());
         header.push_str(transfer_authorization.num_tickets.to_string().as_str());
         if !cryptographic_verify(
             &convert_hexstring_to_bytes(&transfer_authorization.signature),
             &header,
-            &convert_hexstring_to_bytes(&wallet.public_key),
+            &convert_hexstring_to_bytes(&sender_wallet.public_key),
         ) {
             return Err(DatabaseError::new(
                 ErrorCode::InternalError,
@@ -489,7 +490,7 @@ impl TicketInstance {
         let mut own_all = true;
         let mut ticket_ids_to_transfer: Vec<(Uuid, NaiveDateTime)> = Vec::new();
         for t in &tickets {
-            if t.wallet_id != wallet.id {
+            if t.wallet_id != sender_wallet.id {
                 own_all = false;
                 break;
             }
@@ -525,7 +526,7 @@ impl TicketInstance {
             ));
         }
 
-        Ok(())
+        Ok((sender_wallet, receiver_wallet, tickets))
     }
 }
 
