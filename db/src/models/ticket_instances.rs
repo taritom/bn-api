@@ -455,7 +455,7 @@ impl TicketInstance {
         transfer_authorization: TransferAuthorization,
         receiver_user_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<(Wallet, Wallet,Vec<TicketInstance>), DatabaseError> {
+    ) -> Result<(Wallet, Wallet, Vec<TicketInstance>), DatabaseError> {
         //Validate signature
         let sender_wallet =
             Wallet::find_default_for_user(transfer_authorization.sender_user_id, conn)?;
