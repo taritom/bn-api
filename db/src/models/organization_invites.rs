@@ -32,6 +32,7 @@ pub struct OrganizationInvite {
     pub user_id: Option<Uuid>,
     pub accepted: Option<i16>,
     pub updated_at: NaiveDateTime,
+    pub sent_invite: bool,
 }
 
 #[derive(Insertable, PartialEq, Debug, Deserialize)]
@@ -121,5 +122,19 @@ impl OrganizationInvite {
             .first::<OrganizationInvite>(conn)
             .optional()
             .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
+    }
+
+    pub fn change_sent_status(
+        &self,
+        sent_status: bool,
+        conn: &PgConnection,
+    ) -> Result<OrganizationInvite, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::UpdateError,
+            "Could not update region",
+            diesel::update(self)
+                .set(organization_invites::sent_invite.eq(sent_status))
+                .get_result(conn),
+        )
     }
 }

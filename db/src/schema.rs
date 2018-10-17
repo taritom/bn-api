@@ -161,6 +161,7 @@ table! {
         user_id -> Nullable<Uuid>,
         accepted -> Nullable<Int2>,
         updated_at -> Timestamp,
+        sent_invite -> Bool,
     }
 }
 

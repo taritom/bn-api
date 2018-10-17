@@ -8,7 +8,8 @@ CREATE TABLE organization_invites (
   security_token uuid UNIQUE,
   user_id uuid REFERENCES users (id),
   accepted SMALLINT,
-  updated_at TIMESTAMP NOT NULL DEFAULT now()
+  updated_at TIMESTAMP NOT NULL DEFAULT now(),
+  sent_invite BOOLEAN NOT NULL DEFAULT 'f'
 );
 
 -- Indices

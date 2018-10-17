@@ -3,11 +3,14 @@ use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
 use db::Connection;
+use diesel::Connection as dConnection;
+use diesel::PgConnection;
 use errors::*;
 use helpers::application;
 use mail::mailers;
 use models::PathParameters;
 use server::AppState;
+use std::thread;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -104,16 +107,21 @@ pub fn create(
     let invite = invite.commit(connection)?;
     let organization = Organization::find(invite.organization_id, connection)?;
 
-    match mailers::organization_invites::invite_user_to_organization_email(
-        &state.config,
-        &invite,
-        &organization,
-        &recipient,
-    ).deliver()
-    {
-        Ok(_) => Ok(HttpResponse::Created().json(invite)),
-        Err(e) => application::internal_server_error(&e),
-    }
+    let thread_config = state.config.clone();
+    let thread_invite = invite.clone();
+    thread::spawn(move || {
+        let thread_connection = PgConnection::establish(&thread_config.database_url);
+        if let Ok(_v) = mailers::organization_invites::invite_user_to_organization_email(
+            &thread_config,
+            &thread_invite,
+            &organization,
+            &recipient,
+        ).deliver()
+        {
+            let _unused = thread_invite.change_sent_status(true, &thread_connection.unwrap());
+        }
+    });
+    Ok(HttpResponse::Created().json(invite))
 }
 
 pub fn accept_request(
@@ -139,7 +147,6 @@ pub fn accept_request(
         }
         None => return application::unauthorized(),
     }
-
     Ok(HttpResponse::Ok().json(json!({})))
 }
 
@@ -154,3 +161,12 @@ pub fn decline_request(
     invite_details.change_invite_status(0, connection)?;
     Ok(HttpResponse::Ok().json(json!({})))
 }
+
+/*async fn send_email(config: &Config,
+    invite: OrganizationInvite,
+    org: Organization,
+    recipient_name: str,
+    connection : Connection)
+{
+   
+}*/
