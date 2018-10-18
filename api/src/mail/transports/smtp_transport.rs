@@ -1,5 +1,5 @@
-use lettre::smtp::ConnectionReuseParameters;
-use lettre::smtp::SmtpTransportBuilder;
+use errors::BigNeonError;
+use lettre::smtp::{ConnectionReuseParameters, SmtpTransportBuilder};
 use lettre::{ClientSecurity, EmailTransport, SmtpTransport as LettreSmtpTransport};
 use lettre_email::Email;
 use mail::transports::Transport;
@@ -13,12 +13,10 @@ pub struct SmtpTransport {
 }
 
 impl Transport for SmtpTransport {
-    fn send(&mut self, email: Email) -> Result<String, String> {
+    fn send(&mut self, email: Email) -> Result<(), BigNeonError> {
         let mut transport = self.build_smtp_transport();
-        match transport.send(&email) {
-            Ok(_response) => Ok("Mail has sent successfully".to_string()),
-            Err(e) => Err(format!("Mail failed to send: {}", e)),
-        }
+        transport.send(&email)?;
+        Ok(())
     }
 
     fn box_clone(&self) -> Box<Transport + Send + Sync> {
