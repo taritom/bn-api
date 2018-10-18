@@ -13,6 +13,7 @@ extern crate dotenv;
 //extern crate http;
 //extern crate hyper;
 //extern crate hyper_tls;
+extern crate itertools;
 extern crate lettre;
 extern crate lettre_email;
 extern crate scheduled_thread_pool;

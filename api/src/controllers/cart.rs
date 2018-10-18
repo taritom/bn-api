@@ -7,6 +7,7 @@ use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
+use itertools::Itertools;
 use payments::PaymentProcessor;
 use server::AppState;
 use std::collections::HashMap;
@@ -20,15 +21,25 @@ pub struct CartResponse {
 }
 
 #[derive(Deserialize)]
-pub struct AddToCartRequest {
+pub struct AddToCartRequestItem {
     pub ticket_type_id: Uuid,
     pub quantity: i64,
+}
+
+#[derive(Deserialize)]
+pub struct AddToCartRequest {
+    pub items: Vec<AddToCartRequestItem>,
 }
 
 pub fn add(
     (connection, json, user): (Connection, Json<AddToCartRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
+
+    if json.items.is_empty() {
+        return application::unprocessable("Could not add to cart as no items provided");
+    }
+
     // Find the current cart of the user, if it exists.
     let current_cart = Order::find_cart_for_user(user.id(), connection).optional()?;
 
@@ -39,8 +50,15 @@ pub fn add(
         current_cart.unwrap()
     };
 
-    // Add the item
-    cart.add_tickets(json.ticket_type_id, json.quantity, connection)?;
+    // Add the item (first combining ticket type id to avoid multiple add calls for the same id)
+    for (ticket_type_id, request_items) in &json
+        .items
+        .iter()
+        .group_by(|request_item| request_item.ticket_type_id)
+    {
+        let quantity = request_items.fold(0, |sum, request_item| sum + request_item.quantity);
+        cart.add_tickets(ticket_type_id, quantity, connection)?;
+    }
 
     Ok(HttpResponse::Created().json(&CartResponse { cart_id: cart.id }))
 }
