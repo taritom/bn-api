@@ -1,4 +1,5 @@
 use config::Config;
+use errors::BigNeonError;
 use lettre_email::EmailBuilder;
 
 pub struct Mailer {
@@ -42,7 +43,7 @@ impl Mailer {
         self.body.clone()
     }
 
-    pub fn deliver(&mut self) -> Result<String, String> {
+    pub fn deliver(&mut self) -> Result<(), BigNeonError> {
         let email = EmailBuilder::new()
             .to(self.to())
             .from(self.from())

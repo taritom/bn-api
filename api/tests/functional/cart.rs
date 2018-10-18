@@ -76,8 +76,10 @@ fn add() {
     let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
 
     let input = Json(cart::AddToCartRequest {
-        ticket_type_id,
-        quantity: 2,
+        items: vec![cart::AddToCartRequestItem {
+            ticket_type_id,
+            quantity: 2,
+        }],
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -103,6 +105,80 @@ fn add() {
 }
 
 #[test]
+fn add_multiple() {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_type_count(2)
+        .with_ticket_pricing()
+        .finish();
+
+    let user = database.create_user().finish();
+    let ticket_types = event.ticket_types(&connection).unwrap();
+    let ticket_type_id = ticket_types[0].id;
+    let ticket_type_id2 = ticket_types[1].id;
+
+    let input = Json(cart::AddToCartRequest {
+        items: vec![
+            cart::AddToCartRequestItem {
+                ticket_type_id,
+                quantity: 2,
+            },
+            cart::AddToCartRequestItem {
+                ticket_type_id: ticket_type_id2,
+                quantity: 3,
+            },
+        ],
+    });
+
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let response = cart::add((database.connection.into(), input, auth_user)).unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let cart = Order::find_cart_for_user(user.id, &connection).unwrap();
+    let cart_items = cart
+        .items(&connection)
+        .unwrap()
+        .into_iter()
+        .filter(|c| c.parent_id.is_none())
+        .collect::<Vec<OrderItem>>();
+    let order_item = &cart_items[0];
+    let order_item2 = &cart_items[1];
+
+    let ticket_pricing =
+        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), &connection).unwrap();
+    let ticket_pricing2 =
+        TicketPricing::find(order_item2.ticket_pricing_id.unwrap(), &connection).unwrap();
+
+    assert_eq!(order_item.quantity, 2);
+    assert_eq!(order_item2.quantity, 3);
+    let fee_schedule_range =
+        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), &connection).unwrap();
+    let fee_schedule_range2 =
+        FeeScheduleRange::find(order_item2.fee_schedule_range_id.unwrap(), &connection).unwrap();
+    let fee_item = order_item.find_fee_item(&connection).unwrap().unwrap();
+    let fee_item2 = order_item.find_fee_item(&connection).unwrap().unwrap();
+    assert_eq!(
+        fee_item.unit_price_in_cents,
+        fee_schedule_range.fee_in_cents * 2
+    );
+    assert_eq!(
+        order_item.unit_price_in_cents,
+        ticket_pricing.price_in_cents
+    );
+    assert_eq!(
+        fee_item2.unit_price_in_cents,
+        fee_schedule_range2.fee_in_cents * 3
+    );
+    assert_eq!(
+        order_item2.unit_price_in_cents,
+        ticket_pricing2.price_in_cents
+    );
+}
+
+#[test]
 fn add_with_increment() {
     let database = TestDatabase::new();
     let connection = database.connection.clone();
@@ -122,8 +198,10 @@ fn add_with_increment() {
     let ticket_type_id = ticket_type.id;
 
     let input = Json(cart::AddToCartRequest {
-        ticket_type_id,
-        quantity: 4,
+        items: vec![cart::AddToCartRequestItem {
+            ticket_type_id,
+            quantity: 4,
+        }],
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -168,8 +246,10 @@ fn add_with_increment_failure_invalid_quantity() {
     let ticket_type_id = ticket_type.id;
 
     let input = Json(cart::AddToCartRequest {
-        ticket_type_id,
-        quantity: 2,
+        items: vec![cart::AddToCartRequestItem {
+            ticket_type_id,
+            quantity: 2,
+        }],
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -203,8 +283,10 @@ fn add_with_existing_cart() {
         .unwrap();
 
     let input = Json(cart::AddToCartRequest {
-        ticket_type_id,
-        quantity: 2,
+        items: vec![cart::AddToCartRequestItem {
+            ticket_type_id,
+            quantity: 2,
+        }],
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);

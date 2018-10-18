@@ -1,9 +1,10 @@
+use errors::BigNeonError;
 use lettre_email::Email;
 use std::any::Any;
 
 pub trait Transport {
     fn as_any(&self) -> &Any;
-    fn send(&mut self, email: Email) -> Result<String, String>;
+    fn send(&mut self, email: Email) -> Result<(), BigNeonError>;
     fn box_clone(&self) -> Box<Transport + Send + Sync>;
 }
 

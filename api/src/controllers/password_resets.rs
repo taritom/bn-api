@@ -29,9 +29,6 @@ pub fn create(
     let request_pending_response = Ok(HttpResponse::Created().json(json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", parameters.email)
     })));
-    let error_message = json!({
-        "error": "An error has occurred, please try again later"
-    });
 
     let connection = connection.get();
     let user = match User::find_by_email(&parameters.email, connection) {
@@ -40,12 +37,9 @@ pub fn create(
     };
 
     let user = user.create_password_reset_token(connection)?;
-    let result = mailers::user::password_reset_email(&state.config, &user).deliver();
+    mailers::user::password_reset_email(&state.config, &user).deliver()?;
 
-    match result {
-        Ok(_) => request_pending_response,
-        Err(_) => Ok(HttpResponse::BadRequest().json(error_message)),
-    }
+    request_pending_response
 }
 
 pub fn update(

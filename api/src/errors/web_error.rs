@@ -3,6 +3,7 @@ use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use diesel::result::Error as DieselError;
 use errors::*;
+use lettre::smtp::error::Error as SmtpError;
 use payments::PaymentProcessorError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
@@ -32,56 +33,63 @@ fn status_code_and_message(code: StatusCode, message: &str) -> HttpResponse {
 
 impl ConvertToWebError for Error {
     fn to_response(&self) -> HttpResponse {
-        error!("General error: {}", self.description());
+        error!("General error: {}", self);
         internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for DieselError {
     fn to_response(&self) -> HttpResponse {
-        error!("Diesel error: {}", self.description());
+        error!("Diesel error: {}", self);
         internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for ReqwestError {
     fn to_response(&self) -> HttpResponse {
-        error!("Reqwest error: {}", self.description());
+        error!("Reqwest error: {}", self);
         internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for PaymentProcessorError {
     fn to_response(&self) -> HttpResponse {
-        error!("Payment Processor error: {}", self.description());
+        error!("Payment Processor error: {}", self);
         internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for StripeError {
     fn to_response(&self) -> HttpResponse {
-        error!("Stripe error: {}", self.description());
+        error!("Stripe error: {}", self);
         internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for ApplicationError {
     fn to_response(&self) -> HttpResponse {
-        error!("Application error: {}", self.description());
+        error!("Application error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for SmtpError {
+    fn to_response(&self) -> HttpResponse {
+        error!("SMTP error: {}", self);
         internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for SerdeError {
     fn to_response(&self) -> HttpResponse {
-        error!("Serde error: {}", self.description());
+        error!("Serde error: {}", self);
         internal_error("Internal error")
     }
 }
 
 impl ConvertToWebError for TariError {
     fn to_response(&self) -> HttpResponse {
-        error!("Tari error: {}", self.description());
+        error!("Tari error: {}", self);
         internal_error("Internal error: Problem with the Tari client")
     }
 }

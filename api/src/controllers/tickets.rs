@@ -208,7 +208,7 @@ pub fn send_via_email(
         connection,
     )?;
 
-    match mailers::tickets::send_tickets(
+    mailers::tickets::send_tickets(
         &state.config,
         &send_tickets_request.email,
         &authorization.sender_user_id.to_string(),
@@ -216,11 +216,9 @@ pub fn send_via_email(
         &authorization.transfer_key.to_string(),
         &authorization.signature,
         &auth_user.user,
-    ).deliver()
-    {
-        Ok(_) => Ok(HttpResponse::Ok().finish()),
-        Err(e) => application::internal_server_error(&e),
-    }
+    ).deliver()?;
+
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[derive(Clone, Deserialize, Serialize)]

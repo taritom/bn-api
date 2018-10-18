@@ -1,3 +1,4 @@
+use errors::BigNeonError;
 use lettre_email::Email;
 use mail::transports::Transport;
 use std::any::Any;
@@ -17,12 +18,12 @@ impl TestTransport {
 }
 
 impl Transport for TestTransport {
-    fn send(&mut self, email: Email) -> Result<String, String> {
+    fn send(&mut self, email: Email) -> Result<(), BigNeonError> {
         {
             let mut sent = self.sent.lock().unwrap();
             sent.push(email);
         }
-        Ok("Mail succeeded".to_string())
+        Ok(())
     }
 
     fn box_clone(&self) -> Box<Transport + Send + Sync> {

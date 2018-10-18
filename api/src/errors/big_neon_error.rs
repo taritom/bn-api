@@ -4,6 +4,7 @@ use bigneon_db::utils::errors::DatabaseError;
 use diesel::result::Error as DieselError;
 use errors::AuthError;
 use errors::*;
+use lettre::smtp::error::Error as SmtpError;
 use payments::PaymentProcessorError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
@@ -52,6 +53,12 @@ impl From<SerdeError> for BigNeonError {
 
 impl From<ApplicationError> for BigNeonError {
     fn from(e: ApplicationError) -> Self {
+        BigNeonError(Box::new(e))
+    }
+}
+
+impl From<SmtpError> for BigNeonError {
+    fn from(e: SmtpError) -> Self {
         BigNeonError(Box::new(e))
     }
 }

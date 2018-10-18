@@ -18,6 +18,7 @@ pub struct EventBuilder<'a> {
     with_tickets: bool,
     with_ticket_pricing: bool,
     fee_in_cents: Option<i64>,
+    ticket_type_count: i64,
 }
 
 impl<'a> EventBuilder<'a> {
@@ -33,7 +34,13 @@ impl<'a> EventBuilder<'a> {
             with_tickets: false,
             with_ticket_pricing: false,
             fee_in_cents: None,
+            ticket_type_count: 1,
         }
+    }
+
+    pub fn with_ticket_type_count(mut self, ticket_type_count: i64) -> Self {
+        self.ticket_type_count = ticket_type_count;
+        self
     }
 
     pub fn with_name(mut self, name: String) -> Self {
@@ -113,42 +120,45 @@ impl<'a> EventBuilder<'a> {
 
             let wallet_id = event.issuer_wallet(self.connection).unwrap().id;
 
-            let ticket_type = event
-                .add_ticket_type(
-                    "General Admission".to_string(),
-                    100,
-                    event_start,
-                    event_end,
-                    wallet_id,
-                    None,
-                    self.connection,
-                ).unwrap();
-
-            if self.with_ticket_pricing {
-                for t in event.ticket_types(self.connection).unwrap() {
-                    t.add_ticket_pricing(
-                        "Early bird".to_string(),
-                        early_bird_start,
-                        early_bird_end,
+            for x in 0..self.ticket_type_count {
+                let ticket_type = event
+                    .add_ticket_type(
+                        format!("Ticket Type {}", x).into(),
                         100,
+                        event_start,
+                        event_end,
+                        wallet_id,
+                        None,
                         self.connection,
                     ).unwrap();
-                    t.add_ticket_pricing(
-                        "Standard".to_string(),
-                        standard_start,
-                        standard_end,
-                        150,
-                        self.connection,
-                    ).unwrap();
-                }
-            }
 
-            let asset = Asset::find_by_ticket_type(&ticket_type.id, self.connection).unwrap();
-            let _ = asset
-                .update_blockchain_id(
-                    format!("{}.{}", event.name, ticket_type.name).to_string(),
-                    self.connection,
-                ).unwrap();
+                if self.with_ticket_pricing {
+                    ticket_type
+                        .add_ticket_pricing(
+                            "Early bird".into(),
+                            early_bird_start,
+                            early_bird_end,
+                            100,
+                            self.connection,
+                        ).unwrap();
+
+                    ticket_type
+                        .add_ticket_pricing(
+                            "Standard".into(),
+                            standard_start,
+                            standard_end,
+                            150,
+                            self.connection,
+                        ).unwrap();
+                }
+
+                Asset::find_by_ticket_type(&ticket_type.id, self.connection)
+                    .unwrap()
+                    .update_blockchain_id(
+                        format!("{}.{}", event.name, ticket_type.name).to_string(),
+                        self.connection,
+                    ).unwrap();
+            }
         }
 
         event

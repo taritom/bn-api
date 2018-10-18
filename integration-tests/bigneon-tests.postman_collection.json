@@ -882,7 +882,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}]}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -938,7 +938,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}]}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -1013,7 +1013,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -1276,7 +1276,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -1391,7 +1391,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}]}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -1466,7 +1466,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -1729,7 +1729,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/payment_methods",
@@ -1787,7 +1787,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -1897,7 +1897,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}]}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -1972,7 +1972,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -2083,7 +2083,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -2193,7 +2193,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}]}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -2268,7 +2268,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -2379,7 +2379,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -2501,7 +2501,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/orders",
@@ -2560,7 +2560,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/orders/{{last_order_id}}",
