@@ -453,18 +453,18 @@ impl TicketInstance {
 
     pub fn receive_ticket_transfer(
         transfer_authorization: TransferAuthorization,
-        receiver_user_id: Uuid,
+        sender_wallet: &Wallet,
+        receiver_wallet_id: &Uuid,
         conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
         //Validate signature
-        let wallet = Wallet::find_default_for_user(transfer_authorization.sender_user_id, conn)?;
         let mut header: String = transfer_authorization.transfer_key.to_string();
         header.push_str(transfer_authorization.sender_user_id.to_string().as_str());
         header.push_str(transfer_authorization.num_tickets.to_string().as_str());
         if !cryptographic_verify(
             &convert_hexstring_to_bytes(&transfer_authorization.signature),
             &header,
-            &convert_hexstring_to_bytes(&wallet.public_key),
+            &convert_hexstring_to_bytes(&sender_wallet.public_key),
         ) {
             return Err(DatabaseError::new(
                 ErrorCode::InternalError,
@@ -482,7 +482,7 @@ impl TicketInstance {
         let mut own_all = true;
         let mut ticket_ids_to_transfer: Vec<(Uuid, NaiveDateTime)> = Vec::new();
         for t in &tickets {
-            if t.wallet_id != wallet.id {
+            if t.wallet_id != sender_wallet.id {
                 own_all = false;
                 break;
             }
@@ -496,16 +496,14 @@ impl TicketInstance {
             ));
         }
         //Perform transfer
-        let receiver_wallet = Wallet::find_default_for_user(receiver_user_id, conn)?;
         let mut update_count = 0;
-
         for (t_id, updated_at) in &ticket_ids_to_transfer {
             update_count += diesel::update(
                 ticket_instances::table
                     .filter(ticket_instances::id.eq(t_id))
                     .filter(ticket_instances::updated_at.eq(updated_at)),
             ).set((
-                ticket_instances::wallet_id.eq(receiver_wallet.id),
+                ticket_instances::wallet_id.eq(receiver_wallet_id),
                 ticket_instances::updated_at.eq(dsl::now),
             )).execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
@@ -518,7 +516,7 @@ impl TicketInstance {
             ));
         }
 
-        Ok(())
+        Ok(tickets)
     }
 }
 

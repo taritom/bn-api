@@ -310,6 +310,7 @@ fn ticket_transfer_authorization() {
 #[test]
 fn receive_ticket_transfer() {
     let database = TestDatabase::new();
+    let request = TestRequest::create();
     let user = database.create_user().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let organization = database.create_organization().finish();
@@ -351,6 +352,7 @@ fn receive_ticket_transfer() {
         database.connection.clone().into(),
         Json(transfer_auth.clone()),
         auth_user2.clone(),
+        request.extract_state(),
     )).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
