@@ -531,8 +531,16 @@ pub fn receive_ticket_transfer() {
     .get_results(connection)
     .unwrap();
 
-    let receive_auth2 =
-        TicketInstance::receive_ticket_transfer(transfer_auth, user2.id, connection);
+    let sender_wallet =
+        Wallet::find_default_for_user(transfer_auth.sender_user_id, connection).unwrap();
+    let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
+
+    let receive_auth2 = TicketInstance::receive_ticket_transfer(
+        transfer_auth,
+        &sender_wallet,
+        &receiver_wallet.id,
+        connection,
+    );
 
     assert!(receive_auth2.is_err());
 
@@ -543,12 +551,21 @@ pub fn receive_ticket_transfer() {
 
     let mut wrong_auth = transfer_auth.clone();
     wrong_auth.num_tickets = 4;
-    let receive_auth1 = TicketInstance::receive_ticket_transfer(wrong_auth, user2.id, connection);
+    let receive_auth1 = TicketInstance::receive_ticket_transfer(
+        wrong_auth,
+        &sender_wallet,
+        &receiver_wallet.id,
+        connection,
+    );
     assert!(receive_auth1.is_err());
 
     //legit receive tickets
-    let _receive_auth3 =
-        TicketInstance::receive_ticket_transfer(transfer_auth, user2.id, connection);
+    let _receive_auth3 = TicketInstance::receive_ticket_transfer(
+        transfer_auth,
+        &sender_wallet,
+        &receiver_wallet.id,
+        connection,
+    );
 
     //Look if one of the tickets does have the new wallet_id
     let receive_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
