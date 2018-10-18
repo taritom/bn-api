@@ -131,6 +131,7 @@ pub fn index(
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
         additional_info: Option<String>,
+        top_line_info: Option<String>,
         age_limit: Option<i32>,
         cancelled_at: Option<NaiveDateTime>,
         venue: Option<Venue>,
@@ -164,6 +165,7 @@ pub fn index(
             publish_date: event.publish_date,
             promo_image_url: event.promo_image_url,
             additional_info: event.additional_info,
+            top_line_info: event.top_line_info,
             age_limit: event.age_limit,
             cancelled_at: event.cancelled_at,
         });
@@ -228,6 +230,7 @@ pub fn show(
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
         additional_info: Option<String>,
+        top_line_info: Option<String>,
         age_limit: Option<i32>,
         organization: ShortOrganization,
         venue: Option<Venue>,
@@ -258,6 +261,7 @@ pub fn show(
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url,
         additional_info: event.additional_info,
+        top_line_info: event.top_line_info,
         age_limit: event.age_limit,
         organization: ShortOrganization {
             id: organization.id,
