@@ -265,9 +265,14 @@ pub fn receive_transfer(
         return application::unauthorized();
     }
 
-    let (sender_wallet, receiver_wallet, tickets) = TicketInstance::receive_ticket_transfer(
+    let sender_wallet =
+        Wallet::find_default_for_user(transfer_authorization.sender_user_id, connection)?;
+    let receiver_wallet = Wallet::find_default_for_user(auth_user.id(), connection)?;
+
+    let tickets = TicketInstance::receive_ticket_transfer(
         transfer_authorization.into_inner(),
-        auth_user.id(),
+        &sender_wallet,
+        &receiver_wallet.id,
         connection,
     )?;
 
