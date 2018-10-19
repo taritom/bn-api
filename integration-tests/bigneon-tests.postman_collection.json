@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "87c19401-2cf7-4d4d-ac49-153edbc8bf18",
+		"_postman_id": "164ee0d9-9338-4b16-92c7-e1a8da419e54",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -162,6 +162,140 @@
 					"response": []
 				},
 				{
+					"name": "Admin - Creates Fee Schedule",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should be one result\", function(){",
+									"    pm.expect(r.ranges.length).to.equal(1);",
+									"});",
+									"",
+									"pm.test(\"should have correct min_price\", function(){",
+									"    pm.expect(r.ranges[0].min_price).to.equal(0);",
+									"});",
+									"",
+									"pm.test(\"should have correct fee_in_cents\", function(){",
+									"    pm.expect(r.ranges[0].fee_in_cents).to.equal(10);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\"name\": \"Fee_schedule_{{$timestamp}}\",\n\"ranges\": [\n\t{\n\t\t\"min_price\": 0,\n\t\t\"fee_in_cents\": 10\n\t}\n]\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"organizations",
+								"{{last_org_id}}",
+								"fee_schedule"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Get Fee Schedule",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should be one result\", function(){",
+									"    pm.expect(r.ranges.length).to.equal(1);",
+									"});",
+									"",
+									"pm.test(\"should have correct min_price\", function(){",
+									"    pm.expect(r.ranges[0].min_price).to.equal(0);",
+									"});",
+									"",
+									"pm.test(\"should have correct fee_in_cents\", function(){",
+									"    pm.expect(r.ranges[0].fee_in_cents).to.equal(10);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"organizations",
+								"{{last_org_id}}",
+								"fee_schedule"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Admin - creates venue",
 					"event": [
 						{
@@ -274,14 +408,20 @@
 							"listen": "test",
 							"script": {
 								"id": "1f54eb13-607a-4651-a581-3ce380c3fcbf",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
 									"})",
 									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should have correct fee_in_cents\", function(){",
+									"    pm.expect(r.fee_in_cents).to.equal(100);",
+									"});",
+									"",
 									"pm.environment.set(\"last_event_id\", JSON.parse(responseBody).id);"
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -706,13 +846,22 @@
 							"listen": "test",
 							"script": {
 								"id": "f40a2996-aa1a-4be7-925f-1e55828eb494",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
-									"})",
-									""
-								]
+									"});",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should return event fee_in_cents\", function(){",
+									"    pm.expect(r.fee_in_cents).to.equal(100);",
+									"});",
+									"",
+									"pm.test(\"should have correct ticket_types ticket_pricing fee_in_cents\", function(){",
+									"    pm.expect(r.ticket_types[0].ticket_pricing.fee_in_cents).to.equal(10);",
+									"});"
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -960,7 +1109,6 @@
 							"listen": "test",
 							"script": {
 								"id": "069abb66-557c-4d17-855e-bfc510703605",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
@@ -976,7 +1124,7 @@
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
 									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(0);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(40);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -986,10 +1134,11 @@
 									"});",
 									"",
 									"pm.test(\"total should be correct\", function() {",
-									"    pm.expect(json.total_in_cents).to.equal(12100);",
+									"    pm.expect(json.total_in_cents).to.equal(12140);",
 									"})",
 									""
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -1187,13 +1336,13 @@
 							"listen": "test",
 							"script": {
 								"id": "ecf814e4-aad0-4e95-9a7c-7e0f6ff4f53b",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
 									"})",
 									""
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -1217,7 +1366,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 12100,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": true\n\t}\n}"
+							"raw": "{\n\t\"amount\": 12140,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": true\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",
@@ -1428,7 +1577,7 @@
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
 									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(0);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(20);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -1438,7 +1587,7 @@
 									"});",
 									"",
 									"pm.test(\"total should be correct\", function() {",
-									"    pm.expect(json.total_in_cents).to.equal(6100);",
+									"    pm.expect(json.total_in_cents).to.equal(6120);",
 									"})",
 									""
 								],
@@ -1670,7 +1819,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 6100,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": true,\n\t\t\"set_default\": true\n\t}\n}"
+							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": true,\n\t\t\"set_default\": true\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",
@@ -1934,7 +2083,7 @@
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
 									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(0);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(20);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -1944,7 +2093,7 @@
 									"});",
 									"",
 									"pm.test(\"total should be correct\", function() {",
-									"    pm.expect(json.total_in_cents).to.equal(6100);",
+									"    pm.expect(json.total_in_cents).to.equal(6120);",
 									"})",
 									""
 								],
@@ -2024,7 +2173,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 6100,\n\t\"method\": {\n\t\t\"type\" : \"PaymentMethod\",\n\t\t\"provider\": \"stripe\"\n\t}\n}"
+							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"PaymentMethod\",\n\t\t\"provider\": \"stripe\"\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",
@@ -2230,7 +2379,7 @@
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
 									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(0);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(20);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -2240,7 +2389,7 @@
 									"});",
 									"",
 									"pm.test(\"total should be correct\", function() {",
-									"    pm.expect(json.total_in_cents).to.equal(6100);",
+									"    pm.expect(json.total_in_cents).to.equal(6120);",
 									"})",
 									""
 								],
@@ -2320,7 +2469,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 6100,\n\t\"method\": {\n\t\t\"type\" : \"PaymentMethod\"\n\t}\n}"
+							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"PaymentMethod\"\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",

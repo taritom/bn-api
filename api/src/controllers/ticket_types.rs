@@ -133,13 +133,12 @@ pub fn index(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
-    if !user.has_scope(
-        Scopes::EventWrite,
-        Some(&event.organization(connection)?),
-        connection,
-    )? {
+    let organization = &event.organization(connection)?;
+    if !user.has_scope(Scopes::EventWrite, Some(organization), connection)? {
         return application::unauthorized();
     }
+
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
     //TODO refactor using paging params
     let ticket_types = TicketType::find_by_event_id(path.id, connection)?;
     let query_parameters = Paging::new(&query_parameters.into_inner());
@@ -148,9 +147,11 @@ pub fn index(
         paging: Paging::clone_with_new_total(&query_parameters, 0 as u64),
     };
     for t in ticket_types {
-        payload
-            .data
-            .push(AdminDisplayTicketType::from_ticket_type(&t, connection)?);
+        payload.data.push(AdminDisplayTicketType::from_ticket_type(
+            &t,
+            &fee_schedule,
+            connection,
+        )?);
     }
     payload.paging.limit = payload.data.len() as u64;
     payload.paging.total = payload.data.len() as u64;

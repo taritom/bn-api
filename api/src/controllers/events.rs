@@ -186,6 +186,7 @@ pub fn show(
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
     let organization = event.organization(connection)?;
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
 
     let venue = event.venue(connection)?;
     let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
@@ -200,6 +201,7 @@ pub fn show(
     for ticket_type in ticket_types {
         display_ticket_types.push(UserDisplayTicketType::from_ticket_type(
             &ticket_type,
+            &fee_schedule,
             connection,
         )?);
     }
@@ -226,6 +228,7 @@ pub fn show(
         created_at: NaiveDateTime,
         event_start: Option<NaiveDateTime>,
         door_time: Option<NaiveDateTime>,
+        fee_in_cents: Option<i64>,
         status: String,
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
@@ -257,6 +260,7 @@ pub fn show(
         created_at: event.created_at,
         event_start: event.event_start,
         door_time: event.door_time,
+        fee_in_cents: event.fee_in_cents,
         status: event.status,
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url,

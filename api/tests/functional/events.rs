@@ -583,6 +583,7 @@ fn expected_show_json(
         created_at: NaiveDateTime,
         event_start: Option<NaiveDateTime>,
         door_time: Option<NaiveDateTime>,
+        fee_in_cents: Option<i64>,
         status: String,
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
@@ -597,6 +598,7 @@ fn expected_show_json(
         user_is_interested: bool,
     }
 
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
     let event_artists = EventArtist::find_all_from_event(event.id, connection).unwrap();
 
     let display_event_artists: Vec<DisplayEventArtist> = event_artists
@@ -613,7 +615,7 @@ fn expected_show_json(
         .unwrap()
         .iter()
         .map(|ticket_type| {
-            UserDisplayTicketType::from_ticket_type(ticket_type, connection).unwrap()
+            UserDisplayTicketType::from_ticket_type(ticket_type, &fee_schedule, connection).unwrap()
         }).collect();
 
     serde_json::to_string(&R {
@@ -624,6 +626,7 @@ fn expected_show_json(
         created_at: event.created_at,
         event_start: event.event_start,
         door_time: event.door_time,
+        fee_in_cents: event.fee_in_cents,
         status: event.status,
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url,

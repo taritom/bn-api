@@ -1,4 +1,4 @@
-use bigneon_db::models::{TicketType, TicketTypeStatus};
+use bigneon_db::models::{FeeSchedule, TicketType, TicketTypeStatus};
 use bigneon_db::utils::errors::*;
 use chrono::NaiveDateTime;
 use diesel::PgConnection;
@@ -20,16 +20,21 @@ pub struct UserDisplayTicketType {
 impl UserDisplayTicketType {
     pub fn from_ticket_type(
         ticket_type: &TicketType,
+        fee_schedule: &FeeSchedule,
         conn: &PgConnection,
     ) -> Result<UserDisplayTicketType, DatabaseError> {
         let ticket_type_status = ticket_type.status();
         let mut status = ticket_type_status.to_string();
         let quantity = ticket_type.remaining_ticket_count(conn)?;
 
-        let ticket_pricing: Option<DisplayTicketPricing> = ticket_type
-            .current_ticket_pricing(conn)
-            .optional()?
-            .and_then(|ticket_pricing| Some(ticket_pricing.into()));
+        let ticket_pricing = match ticket_type.current_ticket_pricing(conn).optional()? {
+            Some(ticket_pricing) => Some(DisplayTicketPricing::from_ticket_pricing(
+                &ticket_pricing,
+                fee_schedule,
+                conn,
+            )?),
+            None => None,
+        };
 
         if ticket_type_status == TicketTypeStatus::Published {
             if quantity == 0 {

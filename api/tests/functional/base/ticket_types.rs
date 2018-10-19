@@ -184,6 +184,8 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let user = database.create_user().finish();
     let request = TestRequest::create();
     let organization = database.create_organization().finish();
+    let fee_schedule =
+        FeeSchedule::find(organization.fee_schedule_id, &database.connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -209,7 +211,11 @@ pub fn index(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
         let expected_ticket_types = vec![
-            AdminDisplayTicketType::from_ticket_type(ticket_type, &database.connection).unwrap(),
+            AdminDisplayTicketType::from_ticket_type(
+                ticket_type,
+                &fee_schedule,
+                &database.connection,
+            ).unwrap(),
         ];
         let ticket_types_response: Payload<AdminDisplayTicketType> =
             serde_json::from_str(&body).unwrap();

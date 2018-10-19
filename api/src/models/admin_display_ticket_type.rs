@@ -1,4 +1,4 @@
-use bigneon_db::models::TicketType;
+use bigneon_db::models::{FeeSchedule, TicketType};
 use bigneon_db::utils::errors::DatabaseError;
 use chrono::NaiveDateTime;
 use diesel::PgConnection;
@@ -21,15 +21,19 @@ pub struct AdminDisplayTicketType {
 impl AdminDisplayTicketType {
     pub fn from_ticket_type(
         ticket_type: &TicketType,
+        fee_schedule: &FeeSchedule,
         conn: &PgConnection,
     ) -> Result<AdminDisplayTicketType, DatabaseError> {
         let quantity = ticket_type.remaining_ticket_count(conn)?;
         let capacity = ticket_type.ticket_capacity(conn)?;
-        let ticket_pricing: Vec<DisplayTicketPricing> = ticket_type
-            .valid_ticket_pricing(conn)?
-            .into_iter()
-            .map(|p| p.into())
-            .collect();
+        let mut ticket_pricing_list = Vec::new();
+        for ticket_pricing in ticket_type.valid_ticket_pricing(conn)? {
+            ticket_pricing_list.push(DisplayTicketPricing::from_ticket_pricing(
+                &ticket_pricing,
+                fee_schedule,
+                conn,
+            )?);
+        }
 
         Ok(AdminDisplayTicketType {
             id: ticket_type.id,
@@ -37,7 +41,7 @@ impl AdminDisplayTicketType {
             status: ticket_type.status().to_string(),
             start_date: ticket_type.start_date,
             end_date: ticket_type.end_date,
-            ticket_pricing,
+            ticket_pricing: ticket_pricing_list,
             quantity,
             capacity,
             increment: ticket_type.increment,
