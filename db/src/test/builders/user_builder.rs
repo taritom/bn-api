@@ -1,6 +1,6 @@
 use diesel::prelude::*;
 use models::User;
-use rand::prelude::*;
+use uuid::Uuid;
 
 pub struct UserBuilder<'a> {
     first_name: String,
@@ -13,7 +13,7 @@ pub struct UserBuilder<'a> {
 
 impl<'a> UserBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> Self {
-        let x: u16 = random();
+        let x = Uuid::new_v4();
         UserBuilder {
             first_name: "Jeff".into(),
             last_name: "Wilco".into(),

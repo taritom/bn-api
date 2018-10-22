@@ -122,14 +122,14 @@ impl DatabaseError {
     ) -> Result<T, DatabaseError> {
         match res {
             Ok(val) => Ok(val),
-            Err(e) => {
-                println!("PG Database error:{}", e.to_string());
-                match e {
-                    DieselError::NotFound => Err(DatabaseError::new(
-                        ErrorCode::NoResults,
-                        Some(format!("{}, {}", message, e.to_string())),
-                    )),
-                    DieselError::DatabaseError(kind, _) => match kind {
+            Err(e) => match e {
+                DieselError::NotFound => Err(DatabaseError::new(
+                    ErrorCode::NoResults,
+                    Some(format!("{}, {}", message, e.to_string())),
+                )),
+                DieselError::DatabaseError(kind, _) => {
+                    println!("PG Database error:{}", e.to_string());
+                    match kind {
                         DatabaseErrorKind::UniqueViolation => Err(DatabaseError::new(
                             ErrorCode::DuplicateKeyError,
                             Some(format!("{}, {}", message, e.to_string())),
@@ -138,13 +138,16 @@ impl DatabaseError {
                             error_code,
                             Some(format!("{}, {}", message, e.to_string())),
                         )),
-                    },
-                    _ => Err(DatabaseError::new(
+                    }
+                }
+                _ => {
+                    println!("PG Database error:{}", e.to_string());
+                    Err(DatabaseError::new(
                         error_code,
                         Some(format!("{}, {}", message, e.to_string())),
-                    )),
+                    ))
                 }
-            }
+            },
         }
     }
 

@@ -17,8 +17,9 @@ pub fn show() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let mut order = database.create_order().for_user(&user).finish();
+    let total = order.calculate_total(&database.connection).unwrap();
     order
-        .add_external_payment("test".to_string(), user.id, 1500, &database.connection)
+        .add_external_payment("test".to_string(), user.id, total, &database.connection)
         .unwrap();
     assert_eq!(order.status, OrderStatus::Paid.to_string());
 
@@ -57,17 +58,23 @@ pub fn index() {
     let mut order1 = database.create_order().for_user(&user).finish();
     let date1 = NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11);
     let date2 = NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11);
+    let total = order1.calculate_total(&database.connection).unwrap();
     order1
-        .add_external_payment("test".to_string(), user.id, 1500, &database.connection)
+        .add_external_payment("test".to_string(), user.id, total, &database.connection)
         .unwrap();
     order1 = diesel::update(&order1)
         .set(schema::orders::order_date.eq(date1))
         .get_result(&*database.connection)
         .unwrap();
     let mut order2 = database.create_order().for_user(&user).finish();
+    let total = order2.calculate_total(&database.connection).unwrap();
     order2
-        .add_external_payment("test".to_string(), user.id, 500, &database.connection)
-        .unwrap();
+        .add_external_payment(
+            "test".to_string(),
+            user.id,
+            total - 100,
+            &database.connection,
+        ).unwrap();
     order2 = diesel::update(&order2)
         .set(schema::orders::order_date.eq(date2))
         .get_result(&*database.connection)

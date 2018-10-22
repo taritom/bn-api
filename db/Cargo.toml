@@ -16,6 +16,10 @@ path="src/lib.rs"
 name="bndb_cli"
 path="src/bin.rs"
 
+[[bench]]
+name="main"
+harness=false
+
 [dependencies]
 diesel = { version = "1.3", features = ["postgres", "uuid", "chrono","numeric", "serde_json"] }
 dotenv = "0.13"
@@ -41,3 +45,4 @@ tari-client= {path="../tari-client"}
 [dev-dependencies]
 fake = { version = "1.2" }
 url = "1.7.1"
+criterion = "*"

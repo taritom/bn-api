@@ -1,9 +1,9 @@
-use bigneon_db::dev::builders::*;
 use diesel::dsl::sql;
 use diesel::sql_types::Bool;
 use diesel::{select, Connection, PgConnection, RunQueryDsl};
-use dotenv::dotenv;
 use std::env;
+use test::builders::*;
+use test::dotenv::dotenv;
 
 pub struct TestProject {
     pub connection: PgConnection,
@@ -24,6 +24,19 @@ impl TestProject {
         connection
             .begin_test_transaction()
             .expect("Could not start testing transaction");
+        TestProject { connection, admin }
+    }
+
+    pub fn new_without_rollback() -> Self {
+        dotenv().ok();
+        let conn_str = env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be defined.");
+        let admin_str =
+            env::var("TEST_DATABASE_ADMIN_URL").expect("TEST_DATABASE_ADMIN_URL must be defined.");
+        let connection =
+            PgConnection::establish(&conn_str).expect("Could not get access to test database");
+        let admin = PgConnection::establish(&admin_str)
+            .expect("Could not get admin access to admin test database");
+
         TestProject { connection, admin }
     }
 

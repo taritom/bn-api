@@ -1,3 +1,4 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::{
     DisplayTicket, DisplayUser, EventEditableAttributes, Order, OrderTypes, RedeemResults,
     TicketInstance, Wallet,
@@ -9,7 +10,6 @@ use diesel::result::Error;
 use diesel::sql_types;
 use diesel::Connection;
 use diesel::RunQueryDsl;
-use support::project::TestProject;
 use time::Duration;
 use uuid::Uuid;
 

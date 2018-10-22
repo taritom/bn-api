@@ -1,9 +1,9 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::concerns::users::password_resetable::{PasswordReset, PasswordResetable};
 use bigneon_db::models::User;
 use chrono::{Duration, Utc};
 use diesel;
 use diesel::prelude::*;
-use support::project::TestProject;
 use uuid::Uuid;
 
 #[test]

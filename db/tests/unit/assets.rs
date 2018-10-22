@@ -1,6 +1,6 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::Asset;
 use chrono::NaiveDate;
-use support::project::TestProject;
 use uuid::Uuid;
 
 #[test]

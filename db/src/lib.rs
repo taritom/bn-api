@@ -11,6 +11,7 @@
 
 #[macro_use]
 extern crate diesel;
+
 extern crate argon2rs;
 extern crate chrono;
 extern crate itertools;
@@ -33,8 +34,10 @@ pub mod schema;
 pub mod utils;
 pub mod validators;
 
+//#[cfg(test)]
 mod test;
 
+//#[cfg(test)]
 pub mod dev {
     pub use test::*;
 }

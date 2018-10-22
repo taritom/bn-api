@@ -1,9 +1,9 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::{TicketPricing, TicketPricingEditableAttributes, TicketType};
 use bigneon_db::utils::errors::{self, *};
 use chrono::NaiveDate;
 use diesel::result::Error;
 use diesel::Connection;
-use support::project::TestProject;
 
 #[test]
 fn create() {

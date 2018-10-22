@@ -1,8 +1,8 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::{ExternalLogin, ForDisplay, Roles, User, UserEditableAttributes};
 use bigneon_db::utils::errors;
 use bigneon_db::utils::errors::ErrorCode;
 use std::collections::HashMap;
-use support::project::TestProject;
 use uuid::Uuid;
 use validator::Validate;
 

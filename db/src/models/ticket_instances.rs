@@ -166,19 +166,29 @@ impl TicketInstance {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         let mut new_rows = Vec::<NewTicketInstance>::new();
+        new_rows.reserve(1_000);
         for x in 0..quantity {
             new_rows.push(NewTicketInstance {
                 asset_id,
                 token_id: x as i32,
                 wallet_id,
             });
+
+            if x % 1_000 == 0 {
+                diesel::insert_into(ticket_instances::table)
+                    .values(&new_rows)
+                    .execute(conn)
+                    .to_db_error(ErrorCode::InsertError, "Could not create ticket instances")?;
+                new_rows.truncate(0);
+            }
         }
 
-        diesel::insert_into(ticket_instances::table)
-            .values(new_rows)
-            .execute(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not create ticket instances")?;
-
+        if !new_rows.is_empty() {
+            diesel::insert_into(ticket_instances::table)
+                .values(&new_rows)
+                .execute(conn)
+                .to_db_error(ErrorCode::InsertError, "Could not create ticket instances")?;
+        }
         Ok(())
     }
 

@@ -159,7 +159,7 @@ fn add_multiple() {
     let fee_schedule_range2 =
         FeeScheduleRange::find(order_item2.fee_schedule_range_id.unwrap(), &connection).unwrap();
     let fee_item = order_item.find_fee_item(&connection).unwrap().unwrap();
-    let fee_item2 = order_item.find_fee_item(&connection).unwrap().unwrap();
+    let fee_item2 = order_item2.find_fee_item(&connection).unwrap().unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents,
         fee_schedule_range.fee_in_cents * 2

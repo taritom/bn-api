@@ -32,16 +32,21 @@ impl Wallet {
     pub fn create_for_user(
         user_id: Uuid,
         name: String,
+        force: bool,
         conn: &PgConnection,
     ) -> Result<Wallet, DatabaseError> {
         let (secret_key, public_key) = cryptographic_keypair();
-        let wallets = Wallet::find_for_user(user_id, conn)?;
-        let default_flag: bool;
-        if wallets.len() == 0 {
-            default_flag = true;
-        } else {
-            default_flag = false;
-        };
+        let mut default_flag: bool = true;
+        if !force {
+            let wallets = Wallet::find_for_user(user_id, conn)?;
+
+            if wallets.len() == 0 {
+                default_flag = true;
+            } else {
+                default_flag = false;
+            };
+        }
+
         (NewWallet {
             user_id: Some(user_id),
             name,
@@ -108,7 +113,7 @@ impl Wallet {
             }
         } else {
             //Create default wallet for user
-            result_wallet = Wallet::create_for_user(user_id, "Default".to_string(), conn)?;
+            result_wallet = Wallet::create_for_user(user_id, "Default".to_string(), true, conn)?;
         }
         Ok(result_wallet)
     }

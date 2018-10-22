@@ -1,5 +1,5 @@
 use bigneon_api::config::{Config, Environment};
-use bigneon_db::dev::builders::*;
+use bigneon_db::dev::*;
 use bigneon_db::models::User;
 use diesel::Connection;
 use diesel::PgConnection;

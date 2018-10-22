@@ -1,10 +1,10 @@
-use dev::builders::*;
 use diesel::prelude::*;
 use models::{
     FeeSchedule, NewFeeScheduleRange, Organization, OrganizationEditableAttributes,
     OrganizationUser, User, Wallet,
 };
 use rand::prelude::*;
+use test::builders::*;
 use uuid::Uuid;
 
 pub struct OrganizationBuilder<'a> {
@@ -63,11 +63,12 @@ impl<'a> OrganizationBuilder<'a> {
 
     pub fn finish(mut self) -> Organization {
         if self.fee_schedule.is_none() {
+            let x: u16 = random();
             let fee_schedule = FeeSchedule::create(
-                format!("{} zero fees", self.name).into(),
+                format!("{} fees.{}", self.name, x).into(),
                 vec![NewFeeScheduleRange {
                     min_price: 0,
-                    fee_in_cents: 0,
+                    fee_in_cents: 50,
                 }],
             ).commit(self.connection);
             self.fee_schedule = Some(fee_schedule.unwrap());

@@ -1,10 +1,10 @@
 use chrono::prelude::*;
 use chrono::NaiveDate;
 use chrono::NaiveDateTime;
-use dev::builders::*;
 use diesel::prelude::*;
 use models::*;
 use rand::prelude::*;
+use test::builders::*;
 use time::Duration;
 use uuid::Uuid;
 
@@ -18,6 +18,7 @@ pub struct EventBuilder<'a> {
     with_tickets: bool,
     with_ticket_pricing: bool,
     fee_in_cents: Option<i64>,
+    ticket_quantity: u32,
     ticket_type_count: i64,
 }
 
@@ -34,6 +35,7 @@ impl<'a> EventBuilder<'a> {
             with_tickets: false,
             with_ticket_pricing: false,
             fee_in_cents: None,
+            ticket_quantity: 100,
             ticket_type_count: 1,
         }
     }
@@ -70,6 +72,12 @@ impl<'a> EventBuilder<'a> {
 
     pub fn with_tickets(mut self) -> Self {
         self.with_tickets = true;
+        self
+    }
+
+    pub fn with_a_specific_number_of_tickets(mut self, num: u32) -> Self {
+        self.with_tickets = true;
+        self.ticket_quantity = num;
         self
     }
 
@@ -124,7 +132,7 @@ impl<'a> EventBuilder<'a> {
                 let ticket_type = event
                     .add_ticket_type(
                         format!("Ticket Type {}", x).into(),
-                        100,
+                        self.ticket_quantity,
                         event_start,
                         event_end,
                         wallet_id,

@@ -1,5 +1,5 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::{DomainEvent, DomainEventTypes, Tables};
-use support::project::TestProject;
 use uuid::Uuid;
 
 #[test]

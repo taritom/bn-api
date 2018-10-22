@@ -1,3 +1,4 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::schema::orders;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
@@ -6,7 +7,6 @@ use diesel;
 use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::Connection;
-use support::project::TestProject;
 use time::Duration;
 use uuid::Uuid;
 
@@ -390,9 +390,9 @@ fn add_external_payment() {
         .unwrap();
     assert_eq!(
         cart.calculate_total(project.get_connection()).unwrap(),
-        1500
+        2000
     );
-    cart.add_external_payment("test".to_string(), user.id, 1000, project.get_connection())
+    cart.add_external_payment("test".to_string(), user.id, 1500, project.get_connection())
         .unwrap();
     assert_eq!(cart.status(), OrderStatus::PartiallyPaid);
     cart.add_external_payment("test2".to_string(), user.id, 500, project.get_connection())
@@ -406,7 +406,7 @@ fn find_for_user_for_display() {
     let user = project.create_user().finish();
     let mut order1 = project.create_order().for_user(&user).finish();
     order1
-        .add_external_payment("test".to_string(), user.id, 1500, project.get_connection())
+        .add_external_payment("test".to_string(), user.id, 2000, project.get_connection())
         .unwrap();
     let mut order2 = project.create_order().for_user(&user).finish();
     order2

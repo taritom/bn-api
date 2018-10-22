@@ -1,8 +1,8 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::{
     FeeSchedule, NewFeeScheduleRange, Organization, OrganizationEditableAttributes,
     OrganizationUser, Roles, User,
 };
-use support::project::TestProject;
 use uuid::Uuid;
 
 #[test]

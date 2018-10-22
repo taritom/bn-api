@@ -1,5 +1,5 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::{Region, RegionEditableAttributes};
-use support::project::TestProject;
 
 #[test]
 fn create() {

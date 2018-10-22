@@ -1,5 +1,5 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::{Venue, VenueEditableAttributes};
-use support::project::TestProject;
 
 #[test]
 fn commit() {

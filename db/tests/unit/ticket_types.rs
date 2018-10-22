@@ -1,3 +1,4 @@
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::{
     TicketPricing, TicketPricingEditableAttributes, TicketType, TicketTypeEditableAttributes,
 };
@@ -5,7 +6,6 @@ use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::NaiveDate;
 use diesel::result::Error;
 use diesel::Connection;
-use support::project::TestProject;
 
 #[test]
 fn create() {
@@ -17,6 +17,22 @@ fn create() {
     let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type = event
         .add_ticket_type("VIP".to_string(), 100, sd, ed, wallet_id, None, conn)
+        .unwrap();
+
+    assert_eq!(ticket_type.event_id, event.id);
+    assert_eq!(ticket_type.name, "VIP".to_string())
+}
+
+#[test]
+fn create_large_amount() {
+    let project = TestProject::new();
+    let conn = project.get_connection();
+    let event = project.create_event().finish();
+    let wallet_id = event.issuer_wallet(conn).unwrap().id;
+    let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
+    let ticket_type = event
+        .add_ticket_type("VIP".to_string(), 100_000, sd, ed, wallet_id, None, conn)
         .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
