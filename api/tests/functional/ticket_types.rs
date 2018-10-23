@@ -136,6 +136,7 @@ pub fn create_with_overlapping_periods() {
 #[test]
 pub fn update_with_invalid_id() {
     let database = TestDatabase::new();
+    let request = TestRequest::create();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
@@ -186,6 +187,7 @@ pub fn update_with_invalid_id() {
         path,
         Json(request_data),
         auth_user,
+        request.extract_state(),
     )).into();
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -195,6 +197,7 @@ pub fn update_with_invalid_id() {
 #[test]
 pub fn update_with_overlapping_periods() {
     let database = TestDatabase::new();
+    let request = TestRequest::create();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
@@ -255,6 +258,7 @@ pub fn update_with_overlapping_periods() {
         path,
         Json(request_data),
         auth_user,
+        request.extract_state(),
     )).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();

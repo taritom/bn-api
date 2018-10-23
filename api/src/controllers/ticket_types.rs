@@ -106,7 +106,7 @@ pub fn create(
         &org_wallet.public_key,
         TariNewAsset {
             name: format!("{}.{}", event.id, data.name),
-            total_supply: data.capacity as i64,
+            total_supply: data.capacity as u64,
             authorised_signers: Vec::new(),
             rule_flags: 0,
             rule_metadata: "".to_string(),
@@ -159,11 +159,12 @@ pub fn index(
 }
 
 pub fn update(
-    (connection, path, data, user): (
+    (connection, path, data, user, state): (
         Connection,
         Path<EventTicketPathParameters>,
         Json<UpdateTicketTypeRequest>,
         User,
+        State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -176,6 +177,71 @@ pub fn update(
         return application::unauthorized();
     }
 
+    let ticket_type = TicketType::find(path.ticket_type_id, connection)?;
+    if data.capacity.is_some() {
+        let valid_ticket_count = ticket_type.valid_ticket_count(connection)?;
+        let requested_capacity = data.capacity.unwrap();
+        if valid_ticket_count < requested_capacity {
+            let starting_tari_id = ticket_type.ticket_count(connection)?;
+            let additional_ticket_count = requested_capacity - valid_ticket_count;
+            let asset = Asset::find_by_ticket_type(&ticket_type.id, connection)?;
+            let org_wallet =
+                Wallet::find_default_for_organization(event.organization_id, connection)?;
+            //Issue more tickets locally
+            TicketInstance::create_multiple(
+                asset.id,
+                starting_tari_id,
+                additional_ticket_count,
+                org_wallet.id,
+                connection,
+            )?;
+            //Issue more tickets on chain
+            match asset.blockchain_asset_id {
+                Some(a) => {
+                    state.config.tari_client.modify_asset_increase_supply(&org_wallet.secret_key,
+                                                                          &org_wallet.public_key,
+                                                                          &a,
+                                                                          requested_capacity as u64,
+                    )?
+                },
+                None => return application::internal_server_error(
+                    "Could not complete capacity increase because the asset has not been assigned on the blockchain",
+                ),
+            }
+        } else if valid_ticket_count > requested_capacity {
+            let nullify_ticket_count = valid_ticket_count - requested_capacity;
+            let asset = Asset::find_by_ticket_type(&ticket_type.id, connection)?;
+            let org_wallet =
+                Wallet::find_default_for_organization(event.organization_id, connection)?;
+            //Nullify tickets locally
+            let tickets =
+                TicketInstance::nullify_tickets(asset.id, nullify_ticket_count, connection)?;
+            //Nullify tickets on chain
+            if tickets.len() == nullify_ticket_count as usize {
+                let tari_ids: Vec<u64> = (0..tickets.len())
+                    .map(|i| tickets[i as usize].token_id as u64)
+                    .collect();
+                match asset.blockchain_asset_id {
+                    Some(a) => {
+                        state.config.tari_client.modify_asset_nullify_tokens(&org_wallet.secret_key,
+                                                                             &org_wallet.public_key,
+                                                                             &a,
+                                                                             tari_ids,
+                        )?
+                    },
+                    None => return application::internal_server_error(
+                        "Could not complete capacity increase because the asset has not been assigned on the blockchain",
+                    ),
+                }
+            } else {
+                return application::internal_server_error(&format!(
+                    "Unable to nullify the requested number ({}) of ticket instances",
+                    requested_capacity
+                ));
+            }
+        }
+    }
+
     //Update the editable attributes of the ticket type
     let update_parameters = TicketTypeEditableAttributes {
         name: data.name.clone(),
@@ -183,7 +249,6 @@ pub fn update(
         end_date: data.end_date,
         increment: data.increment,
     };
-    let ticket_type = TicketType::find(path.ticket_type_id, connection)?;
     let updated_ticket_type = ticket_type.update(update_parameters, connection)?;
 
     if data.ticket_pricing.is_some() {

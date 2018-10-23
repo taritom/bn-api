@@ -71,6 +71,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
 pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
+    let request = TestRequest::create();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let auth_user =
@@ -133,6 +134,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         path,
         Json(request_data),
         auth_user,
+        request.extract_state(),
     )).into();
 
     //Check if fields have been updated by retrieving the ticket type and pricing

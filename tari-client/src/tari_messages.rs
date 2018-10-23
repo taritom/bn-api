@@ -51,7 +51,7 @@ pub struct MessageRequest {
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct MessagePayloadCreateAsset {
     pub name: String,
-    pub total_supply: i64,
+    pub total_supply: u64,
     pub authorised_signers: Vec<String>,
     pub rule_flags: i64,
     pub rule_metadata: String,
@@ -79,6 +79,7 @@ pub struct MessagePayloadModifyAsset {
     pub authorised_signer: Option<String>,
     pub token_ids: Option<Vec<u64>>,
     pub token_metadata: Option<Vec<u64>>,
+    pub new_supply: Option<u64>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
@@ -94,7 +95,7 @@ pub struct ResponsePayloadReadAsset {
     pub name: String,
     pub symbol: String,
     pub decimals: i16,
-    pub total_supply: i64,
+    pub total_supply: u64,
     pub authorised_signers: Vec<String>,
     pub issuer: String,
     pub rule_flags: i64,

@@ -13,6 +13,22 @@ pub trait TariClient {
         asset: MessagePayloadCreateAsset,
     ) -> Result<String, TariError>;
 
+    fn modify_asset_increase_supply(
+        &self,
+        secret_key: &String,
+        public_key: &String,
+        asset_id: &String,
+        new_supply: u64,
+    ) -> Result<(), TariError>;
+
+    fn modify_asset_nullify_tokens(
+        &self,
+        secret_key: &String,
+        public_key: &String,
+        asset_id: &String,
+        token_ids: Vec<u64>,
+    ) -> Result<(), TariError>;
+
     fn modify_asset_redeem_token(
         &self,
         secret_key: &String,
@@ -89,6 +105,84 @@ impl TariClient for HttpTariClient {
         }
     }
 
+    fn modify_asset_increase_supply(
+        &self,
+        secret_key: &String,
+        public_key: &String,
+        asset_id: &String,
+        new_supply: u64,
+    ) -> Result<(), TariError> {
+        let header_command = String::from("modify_asset");
+        let msg_payload = serde_json::to_value(MessagePayloadModifyAsset {
+            request_type: 2,
+            asset_id: asset_id.clone(),
+            authorised_signer: None,
+            token_ids: None,
+            token_metadata: None,
+            new_supply: Some(new_supply),
+        }).unwrap();
+        let secret_key = convert_hexstring_to_bytes(&secret_key);
+        let public_key = convert_hexstring_to_bytes(&public_key);
+        let jsonrpc_request =
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+
+        let client = reqwest::Client::new();
+        let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
+        let raw: String = resp.text()?;
+        println!("Response from modify_asset: {}", raw);
+        let response_message: RPCResponse = serde_json::from_str(&raw)?;
+        let response_message_result: ResponsePayloadSuccess =
+            serde_json::from_value(response_message.result).unwrap();
+
+        if response_message_result.success {
+            Ok(())
+        } else {
+            Err(TariError {
+                description: "Failed to increase token supply on Tari".to_string(),
+                cause: None,
+            })
+        }
+    }
+
+    fn modify_asset_nullify_tokens(
+        &self,
+        secret_key: &String,
+        public_key: &String,
+        asset_id: &String,
+        token_ids: Vec<u64>,
+    ) -> Result<(), TariError> {
+        let header_command = String::from("modify_asset");
+        let msg_payload = serde_json::to_value(MessagePayloadModifyAsset {
+            request_type: 4,
+            asset_id: asset_id.clone(),
+            authorised_signer: None,
+            token_ids: Some(token_ids),
+            token_metadata: None,
+            new_supply: None,
+        }).unwrap();
+        let secret_key = convert_hexstring_to_bytes(&secret_key);
+        let public_key = convert_hexstring_to_bytes(&public_key);
+        let jsonrpc_request =
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+
+        let client = reqwest::Client::new();
+        let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
+        let raw: String = resp.text()?;
+        println!("Response from modify_asset: {}", raw);
+        let response_message: RPCResponse = serde_json::from_str(&raw)?;
+        let response_message_result: ResponsePayloadSuccess =
+            serde_json::from_value(response_message.result).unwrap();
+
+        if response_message_result.success {
+            Ok(())
+        } else {
+            Err(TariError {
+                description: "Failed to redeem tokens on Tari".to_string(),
+                cause: None,
+            })
+        }
+    }
+
     fn modify_asset_redeem_token(
         &self,
         secret_key: &String,
@@ -103,6 +197,7 @@ impl TariClient for HttpTariClient {
             authorised_signer: None,
             token_ids: Some(token_ids),
             token_metadata: None,
+            new_supply: None,
         }).unwrap();
         let secret_key = convert_hexstring_to_bytes(&secret_key);
         let public_key = convert_hexstring_to_bytes(&public_key);

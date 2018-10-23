@@ -47,7 +47,7 @@ string_enum! { PaymentMethods [External, CreditCard] }
 string_enum! { PaymentStatus [Authorized, Completed] }
 string_enum! { Roles [Admin, OrgMember, OrgOwner, User] }
 string_enum! { Tables [Payments, PaymentMethods] }
-string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed]}
+string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut] }
 

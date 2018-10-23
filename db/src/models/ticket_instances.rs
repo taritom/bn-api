@@ -160,6 +160,7 @@ impl TicketInstance {
 
     pub fn create_multiple(
         asset_id: Uuid,
+        starting_tari_id: u32,
         quantity: u32,
         wallet_id: Uuid,
         conn: &PgConnection,
@@ -169,7 +170,7 @@ impl TicketInstance {
         for x in 0..quantity {
             new_rows.push(NewTicketInstance {
                 asset_id,
-                token_id: x as i32,
+                token_id: (starting_tari_id + x) as i32,
                 wallet_id,
             });
 
@@ -600,6 +601,22 @@ impl TicketInstance {
         }
 
         Ok(tickets)
+    }
+
+    pub fn nullify_tickets(
+        asset_id: Uuid,
+        quantity: u32,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        let query = include_str!("../queries/nullify_tickets.sql");
+        let q = diesel::sql_query(query)
+            .bind::<sql_types::Uuid, _>(asset_id)
+            .bind::<sql_types::Bigint, _>(quantity as i64);
+        let updated_ticket_instances: Vec<TicketInstance> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not nullify tickets")?;
+
+        Ok(updated_ticket_instances)
     }
 }
 

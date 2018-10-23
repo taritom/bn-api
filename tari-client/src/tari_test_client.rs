@@ -24,6 +24,26 @@ impl TariClient for TariTestClient {
         Ok(Uuid::new_v4().to_string())
     }
 
+    fn modify_asset_increase_supply(
+        &self,
+        _secret_key: &String,
+        _public_key: &String,
+        _asset_id: &String,
+        _new_supply: u64,
+    ) -> Result<(), TariError> {
+        Ok(())
+    }
+
+    fn modify_asset_nullify_tokens(
+        &self,
+        _secret_key: &String,
+        _public_key: &String,
+        _asset_id: &String,
+        _token_ids: Vec<u64>,
+    ) -> Result<(), TariError> {
+        Ok(())
+    }
+
     fn modify_asset_redeem_token(
         &self,
         _secret_key: &String,

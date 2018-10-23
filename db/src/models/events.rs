@@ -341,7 +341,7 @@ impl Event {
         let ticket_type =
             TicketType::create(self.id, name, start_date, end_date, increment).commit(conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;
-        TicketInstance::create_multiple(asset.id, quantity, wallet_id, conn)?;
+        TicketInstance::create_multiple(asset.id, 0, quantity, wallet_id, conn)?;
         Ok(ticket_type)
     }
 

@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl;
 use diesel::prelude::*;
-use models::{Event, TicketPricing, TicketPricingStatus, TicketTypeStatus};
+use models::{Event, TicketInstanceStatus, TicketPricing, TicketPricingStatus, TicketTypeStatus};
 use schema::{assets, ticket_instances, ticket_pricing, ticket_types};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -106,6 +106,19 @@ impl TicketType {
             )
     }
 
+    pub fn ticket_count(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
+        let valid_ticket_count: i64 = ticket_instances::table
+            .inner_join(assets::table)
+            .filter(assets::ticket_type_id.eq(self.id))
+            .select(dsl::count(ticket_instances::id))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load ticket pricing for ticket type",
+            )?;
+        Ok(valid_ticket_count as u32)
+    }
+
     pub fn remaining_ticket_count(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
         let remaining_ticket_count: i64 = ticket_instances::table
             .inner_join(assets::table)
@@ -121,6 +134,20 @@ impl TicketType {
                 "Could not load ticket pricing for ticket type",
             )?;
         Ok(remaining_ticket_count as u32)
+    }
+
+    pub fn valid_ticket_count(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
+        let valid_ticket_count: i64 = ticket_instances::table
+            .inner_join(assets::table)
+            .filter(assets::ticket_type_id.eq(self.id))
+            .filter(ticket_instances::status.ne(TicketInstanceStatus::Nullified.to_string()))
+            .select(dsl::count(ticket_instances::id))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load ticket pricing for ticket type",
+            )?;
+        Ok(valid_ticket_count as u32)
     }
 
     pub fn current_ticket_pricing(
