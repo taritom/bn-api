@@ -66,14 +66,10 @@ impl User {
     pub fn requires_scope_for_organization(
         &self,
         scope: Scopes,
-        organization_id: Uuid,
+        organization: &Organization,
         conn: &PgConnection,
     ) -> Result<(), BigNeonError> {
-        if self.has_scope(
-            scope,
-            Some(&Organization::find(organization_id, conn)?),
-            conn,
-        )? {
+        if self.has_scope(scope, Some(organization), conn)? {
             return Ok(());
         }
         Err(AuthError::new("User does not have the required permissions".to_string()).into())

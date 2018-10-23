@@ -10,6 +10,7 @@ use serde_json;
 use utils::errors::*;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 #[derive(Identifiable, Queryable)]
 pub struct Payment {
     pub id: Uuid,

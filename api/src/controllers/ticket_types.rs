@@ -105,7 +105,7 @@ pub fn create(
         &org_wallet.secret_key,
         &org_wallet.public_key,
         TariNewAsset {
-            name: format!("{}.{}", event.name, data.name),
+            name: format!("{}.{}", event.id, data.name),
             total_supply: data.capacity as i64,
             authorised_signers: Vec::new(),
             rule_flags: 0,

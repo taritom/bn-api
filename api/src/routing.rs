@@ -49,6 +49,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(ticket_types::create);
     }).resource("/events/{event_id}/ticket_types/{ticket_type_id}", |r| {
         r.method(Method::PATCH).with(ticket_types::update);
+    }).resource("/events/{id}/holds", |r| {
+        r.method(Method::POST).with(holds::create);
     }).resource("/external/facebook/web_login", |r| {
         r.method(Method::POST).with(external::facebook::web_login)
     }).resource("/invitations", |r| {
@@ -57,6 +59,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             .with(organization_invites::accept_request);
         r.method(Method::DELETE)
             .with(organization_invites::decline_request);
+    }).resource("/holds/{id}/tickets", |r| {
+        r.method(Method::PUT).with(holds::add_remove_from_hold);
+    }).resource("/holds/{id}", |r| {
+        r.method(Method::PATCH).with(holds::update);
     }).resource("/orders", |r| {
         r.method(Method::GET).with(orders::index);
     }).resource("/orders/{id}", |r| {

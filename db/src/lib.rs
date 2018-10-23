@@ -8,7 +8,7 @@
 // Unused results is more often than not an error
 #![deny(unused_must_use)]
 #![deny(unused_extern_crates)]
-
+#![deny(dead_code)]
 #[macro_use]
 extern crate diesel;
 

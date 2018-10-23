@@ -205,8 +205,7 @@ pub fn find_for_user() {
         .commit(connection)
         .unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 5, connection)
+    cart.add_tickets(ticket_type.id, 5, connection)
         .unwrap()
         .remove(0);
     let total = cart.calculate_total(connection).unwrap();
@@ -450,8 +449,7 @@ pub fn authorize_ticket_transfer() {
         .commit(connection)
         .unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 5, connection)
+    cart.add_tickets(ticket_type.id, 5, connection)
         .unwrap()
         .remove(0);
     let total = cart.calculate_total(connection).unwrap();
@@ -504,8 +502,7 @@ pub fn receive_ticket_transfer() {
         .commit(connection)
         .unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 5, connection)
+    cart.add_tickets(ticket_type.id, 5, connection)
         .unwrap()
         .remove(0);
     let total = cart.calculate_total(connection).unwrap();
@@ -521,7 +518,7 @@ pub fn receive_ticket_transfer() {
         TicketInstance::authorize_ticket_transfer(user.id, ticket_ids.clone(), 0, connection)
             .unwrap();
 
-    let q: Vec<TicketInstance> = diesel::sql_query(
+    let _q: Vec<TicketInstance> = diesel::sql_query(
         r#"
         UPDATE ticket_instances
         SET transfer_expiry_date = '2018-06-06 09:49:09.643207'

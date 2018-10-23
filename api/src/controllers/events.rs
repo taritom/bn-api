@@ -282,13 +282,10 @@ pub fn show(
 pub fn publish(
     (connection, path, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    let event = Event::find(path.id, connection.get())?;
-    user.requires_scope_for_organization(
-        Scopes::EventWrite,
-        event.organization_id,
-        connection.get(),
-    )?;
-    event.publish(connection.get())?;
+    let conn = connection.get();
+    let event = Event::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &event.organization(conn)?, conn)?;
+    event.publish(conn)?;
     Ok(HttpResponse::Ok().finish())
 }
 
@@ -535,13 +532,14 @@ pub fn guest_list(
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO refactor GuestListQueryParameters to PagingParameters
     let queryparms = query.create_paging_struct();
-    let event = Event::find(path.id, connection.get())?;
+    let conn = connection.get();
+    let event = Event::find(path.id, conn)?;
     user.requires_scope_for_organization(
         Scopes::EventViewGuests,
-        event.organization_id,
-        connection.get(),
+        &event.organization(conn)?,
+        conn,
     )?;
-    let tickets = event.guest_list(&query.query, connection.get())?;
+    let tickets = event.guest_list(&query.query, conn)?;
     let tickets_count = tickets.len();
     let mut payload = Payload {
         data: tickets,

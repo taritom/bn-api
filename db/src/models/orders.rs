@@ -93,7 +93,7 @@ impl Order {
     pub fn add_tickets(
         &self,
         ticket_type_id: Uuid,
-        quantity: i64,
+        quantity: u32,
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let ticket_pricing = TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
@@ -110,14 +110,14 @@ impl Order {
             .optional()?
         {
             Some(mut o) => {
-                o.quantity = o.quantity + quantity;
+                o.quantity = o.quantity + quantity as i64;
                 o.update(conn)?;
                 o
             }
             None => NewTicketsOrderItem {
                 order_id: self.id,
                 item_type: OrderItemTypes::Tickets.to_string(),
-                quantity,
+                quantity: quantity as i64,
                 ticket_pricing_id: ticket_pricing.id,
                 event_id: Some(event.id),
                 fee_schedule_range_id: fee_schedule_range.id,
@@ -150,7 +150,7 @@ impl Order {
     pub fn remove_tickets(
         &self,
         mut order_item: OrderItem,
-        quantity: Option<i64>,
+        quantity: Option<u32>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         TicketInstance::release_tickets(&order_item, quantity, conn)?;

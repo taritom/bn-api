@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use diesel;
+use diesel::dsl::*;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
@@ -16,9 +17,7 @@ use tari_client::{
     cryptographic_verify,
 };
 use time::Duration;
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
+use utils::errors::*;
 use uuid::Uuid;
 
 #[derive(Debug, Identifiable, PartialEq, Deserialize, Serialize, Queryable, QueryableByName)]
@@ -27,7 +26,7 @@ pub struct TicketInstance {
     pub id: Uuid,
     pub asset_id: Uuid,
     pub token_id: i32,
-    ticket_holding_id: Option<Uuid>,
+    hold_id: Option<Uuid>,
     pub order_item_id: Option<Uuid>,
     pub wallet_id: Uuid,
     pub reserved_until: Option<NaiveDateTime>,
@@ -197,7 +196,7 @@ impl TicketInstance {
         order_expires_at: &NaiveDateTime,
         ticket_type_id: Uuid,
         ticket_holding_id: Option<Uuid>,
-        quantity: i64,
+        quantity: u32,
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let query = include_str!("../queries/reserve_tickets.sql");
@@ -206,37 +205,37 @@ impl TicketInstance {
             .bind::<sql_types::Timestamp, _>(order_expires_at)
             .bind::<sql_types::Uuid, _>(ticket_type_id)
             .bind::<sql_types::Nullable<sql_types::Uuid>, _>(ticket_holding_id)
-            .bind::<Bigint, _>(quantity);
-        let ids: Vec<TicketInstance> = q
+            .bind::<Bigint, _>(quantity as i64);
+        let tickets: Vec<TicketInstance> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not reserve tickets")?;
 
-        if ids.len() as i64 != quantity {
+        if tickets.len() as u32 != quantity {
             return Err(DatabaseError::new(
                 ErrorCode::QueryError,
                 Some("Could not reserve the correct amount of tickets".to_string()),
             ));
         }
 
-        Ok(ids)
+        Ok(tickets)
     }
 
     pub fn release_tickets(
         order_item: &OrderItem,
-        quantity: Option<i64>,
+        quantity: Option<u32>,
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let query = include_str!("../queries/release_tickets.sql");
         let q = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(order_item.id)
-            .bind::<sql_types::Nullable<Bigint>, _>(quantity);
-        let ids: Vec<TicketInstance> = q
+            .bind::<sql_types::Nullable<Bigint>, _>(quantity.map(|x| x as i64));
+        let tickets: Vec<TicketInstance> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not release tickets")?;
 
         // Quantity was specified so number removed should equal amount returned
         if let Some(quantity) = quantity {
-            if ids.len() as i64 != quantity {
+            if tickets.len() as u32 != quantity {
                 return Err(DatabaseError::new(
                     ErrorCode::QueryError,
                     Some("Could not release the correct amount of tickets".to_string()),
@@ -244,7 +243,81 @@ impl TicketInstance {
             }
         }
 
-        Ok(ids)
+        Ok(tickets)
+    }
+
+    pub fn add_to_hold(
+        hold_id: Uuid,
+        ticket_type_id: Uuid,
+        quantity: u32,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        let query = include_str!("../queries/add_tickets_to_hold.sql");
+        let q = diesel::sql_query(query)
+            .bind::<sql_types::Uuid, _>(hold_id)
+            .bind::<sql_types::Uuid, _>(ticket_type_id)
+            .bind::<Bigint, _>(quantity as i64);
+
+        let tickets: Vec<TicketInstance> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not add tickets to the hold")?;
+
+        if tickets.len() as u32 != quantity {
+            return Err(DatabaseError::new(
+                ErrorCode::QueryError,
+                Some("Could not add the correct amount of tickets to the hold".to_string()),
+            ));
+        }
+
+        Ok(tickets)
+    }
+
+    pub fn release_from_hold(
+        hold_id: Uuid,
+        ticket_type_id: Uuid,
+        quantity: u32,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        let query = include_str!("../queries/release_tickets_from_hold.sql");
+        let q = diesel::sql_query(query)
+            .bind::<sql_types::Uuid, _>(hold_id)
+            .bind::<sql_types::Uuid, _>(ticket_type_id)
+            .bind::<Bigint, _>(quantity as i64);
+
+        let tickets: Vec<TicketInstance> = q.get_results(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not release tickets from the hold",
+        )?;
+
+        if tickets.len() as u32 != quantity {
+            return Err(DatabaseError::new(
+                ErrorCode::QueryError,
+                Some("Could not release the correct amount of tickets from the hold".to_string()),
+            ));
+        }
+
+        Ok(tickets)
+    }
+
+    pub fn count_for_hold(
+        hold_id: Uuid,
+        ticket_type_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<u32, DatabaseError> {
+        match ticket_instances::table
+            .inner_join(assets::table)
+            .filter(ticket_instances::hold_id.eq(hold_id))
+            .filter(assets::ticket_type_id.eq(ticket_type_id))
+            .select(count(ticket_instances::id))
+            .first::<i64>(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve the number of tickets in this hold",
+            ).optional()?
+        {
+            Some(i) => Ok(i as u32),
+            None => Ok(0),
+        }
     }
 
     pub fn find_for_order_item(

@@ -1,15 +1,15 @@
 UPDATE ticket_instances
 SET
-    order_item_id = NULL,
-    reserved_until = NULL,
-    status = 'Available',
+    hold_id   = null,
     updated_at = now()
 WHERE id IN (SELECT t.id
              FROM ticket_instances AS t
                     INNER JOIN assets AS a ON t.asset_id = a.id
-             WHERE t.order_item_id = $1
+             WHERE t.hold_id = $1
+             AND a.ticket_type_id = $2
+             AND (t.status = 'Available' or t.reserved_until < now())
              AND t.status <> 'Purchased'
-             LIMIT $2 FOR UPDATE SKIP LOCKED)
+             LIMIT $3 FOR UPDATE SKIP LOCKED)
     RETURNING
       id,
       asset_id,

@@ -23,7 +23,7 @@ pub struct CartResponse {
 #[derive(Deserialize)]
 pub struct AddToCartRequestItem {
     pub ticket_type_id: Uuid,
-    pub quantity: i64,
+    pub quantity: u32,
 }
 
 #[derive(Deserialize)]
@@ -66,7 +66,7 @@ pub fn add(
 #[derive(Deserialize)]
 pub struct RemoveCartRequest {
     pub cart_item_id: Uuid,
-    pub quantity: Option<i64>,
+    pub quantity: Option<u32>,
 }
 
 pub fn remove(

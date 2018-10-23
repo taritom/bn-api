@@ -122,6 +122,20 @@ table! {
 }
 
 table! {
+    holds (id) {
+        id -> Uuid,
+        name -> Text,
+        event_id -> Uuid,
+        redemption_code -> Text,
+        discount_in_cents -> Int8,
+        end_at -> Nullable<Timestamp>,
+        max_per_order -> Nullable<Int8>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     order_items (id) {
         id -> Uuid,
         order_id -> Uuid,
@@ -232,21 +246,11 @@ table! {
 }
 
 table! {
-    ticket_holdings (id) {
-        id -> Uuid,
-        name -> Text,
-        asset_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     ticket_instances (id) {
         id -> Uuid,
         asset_id -> Uuid,
         token_id -> Int4,
-        ticket_holding_id -> Nullable<Uuid>,
+        hold_id -> Nullable<Uuid>,
         order_item_id -> Nullable<Uuid>,
         wallet_id -> Uuid,
         reserved_until -> Nullable<Timestamp>,
@@ -351,6 +355,7 @@ joinable!(events -> organizations (organization_id));
 joinable!(events -> venues (venue_id));
 joinable!(external_logins -> users (user_id));
 joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
+joinable!(holds -> events (event_id));
 joinable!(order_items -> events (event_id));
 joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
 joinable!(order_items -> orders (order_id));
@@ -364,10 +369,9 @@ joinable!(organizations -> users (owner_user_id));
 joinable!(payment_methods -> users (user_id));
 joinable!(payments -> orders (order_id));
 joinable!(payments -> users (created_by));
-joinable!(ticket_holdings -> assets (asset_id));
 joinable!(ticket_instances -> assets (asset_id));
+joinable!(ticket_instances -> holds (hold_id));
 joinable!(ticket_instances -> order_items (order_item_id));
-joinable!(ticket_instances -> ticket_holdings (ticket_holding_id));
 joinable!(ticket_instances -> wallets (wallet_id));
 joinable!(ticket_pricing -> ticket_types (ticket_type_id));
 joinable!(ticket_types -> events (event_id));
@@ -386,6 +390,7 @@ allow_tables_to_appear_in_same_query!(
     external_logins,
     fee_schedule_ranges,
     fee_schedules,
+    holds,
     order_items,
     orders,
     organization_invites,
@@ -394,7 +399,6 @@ allow_tables_to_appear_in_same_query!(
     payment_methods,
     payments,
     regions,
-    ticket_holdings,
     ticket_instances,
     ticket_pricing,
     ticket_types,
