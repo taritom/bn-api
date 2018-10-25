@@ -1,6 +1,6 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::orders;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{PagingParameters, PathParameters, Payload};
 use bigneon_db::models::{DisplayOrder, OrderStatus, Roles};
 use bigneon_db::schema;
 use chrono::prelude::*;
@@ -86,12 +86,20 @@ pub fn index() {
     assert_eq!(order3.status, OrderStatus::Draft.to_string());
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
-    let response: HttpResponse =
-        orders::index((database.connection.clone().into(), auth_user)).into();
+    let test_request = TestRequest::create_with_uri(&format!("/?"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse = orders::index((
+        database.connection.clone().into(),
+        query_parameters,
+        auth_user,
+    )).into();
+
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let orders: Vec<DisplayOrder> = serde_json::from_str(&body).unwrap();
-    assert_eq!(orders.len(), 2);
-    let order_ids: Vec<Uuid> = orders.iter().map(|o| o.id).collect();
+
+    let orders: Payload<DisplayOrder> = serde_json::from_str(body).unwrap();
+    assert_eq!(orders.data.len(), 2);
+    let order_ids: Vec<Uuid> = orders.data.iter().map(|o| o.id).collect();
     assert_eq!(order_ids, vec![order2.id, order1.id]);
 }

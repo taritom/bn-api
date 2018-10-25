@@ -2779,7 +2779,7 @@
 									"    pm.response.to.have.status(200);",
 									"})",
 									"",
-									"let json = JSON.parse(responseBody);",
+									"let json = JSON.parse(responseBody).data;",
 									"",
 									"",
 									"pm.test(\"tickets should be present\", function(){",
