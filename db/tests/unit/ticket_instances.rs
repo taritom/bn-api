@@ -1,7 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::{
-    DisplayTicket, DisplayUser, EventEditableAttributes, Order, OrderTypes, RedeemResults,
-    TicketInstance, Wallet,
+    DisplayTicket, EventEditableAttributes, Order, RedeemResults, TicketInstance, Wallet,
 };
 use chrono::prelude::*;
 use chrono::NaiveDateTime;
@@ -36,9 +35,7 @@ pub fn find_for_user_for_display() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let ticket_type2 = &event2.ticket_types(connection).unwrap()[0];
     let mut ticket_ids: Vec<Uuid> = cart
@@ -163,10 +160,9 @@ pub fn find() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let user: DisplayUser = project.create_user().finish().into();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let user = project.create_user().finish();
+    //let _d_user: DisplayUser = user.into();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let display_event = event.for_display(connection).unwrap();
     let ticket = cart
@@ -201,9 +197,7 @@ pub fn find_for_user() {
         .finish();
 
     let user = project.create_user().finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     cart.add_tickets(ticket_type.id, 5, connection)
         .unwrap()
@@ -233,9 +227,7 @@ pub fn reserve_tickets() {
         .with_ticket_pricing()
         .finish();
     let user = db.create_user().finish();
-    let order = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let order = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
     let expires = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
     order.add_tickets(ticket_type_id, 0, connection).unwrap();
@@ -274,9 +266,7 @@ pub fn release_tickets() {
     let connection = project.get_connection();
     let event = project.create_event().with_ticket_pricing().finish();
     let user = project.create_user().finish();
-    let order = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let order = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
     order.add_tickets(ticket_type_id, 10, connection).unwrap();
     let order_item = order.items(connection).unwrap().remove(0);
@@ -349,9 +339,7 @@ fn redeem_ticket() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let ticket = cart
         .add_tickets(ticket_type.id, 1, connection)
@@ -388,9 +376,7 @@ fn show_redeemable_ticket() {
         .with_venue(&venue)
         .finish();
     let user = project.create_user().finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let ticket = cart
         .add_tickets(ticket_type.id, 1, connection)
@@ -445,9 +431,7 @@ pub fn authorize_ticket_transfer() {
         .finish();
 
     let user = project.create_user().finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     cart.add_tickets(ticket_type.id, 5, connection)
         .unwrap()
@@ -498,9 +482,7 @@ pub fn receive_ticket_transfer() {
         .finish();
 
     let user = project.create_user().finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     cart.add_tickets(ticket_type.id, 5, connection)
         .unwrap()

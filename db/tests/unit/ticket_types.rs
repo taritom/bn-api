@@ -126,7 +126,7 @@ pub fn remaining_ticket_count() {
     let order_item = order.items(connection).unwrap().remove(0);
     assert!(
         order
-            .remove_tickets(order_item, Some(4), connection)
+            .remove_tickets(order_item.ticket_pricing_id.unwrap(), Some(4), connection)
             .is_ok()
     );
     assert_eq!(84, ticket_type.remaining_ticket_count(connection).unwrap());

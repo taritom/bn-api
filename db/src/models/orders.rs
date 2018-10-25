@@ -3,9 +3,10 @@ use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Nullable};
+use diesel::sql_types;
+use diesel::sql_types::{BigInt, Nullable, Uuid as dUuid};
 use models::*;
-use schema::{order_items, orders};
+use schema::{order_items, orders, users};
 use serde_json;
 use std::collections::HashMap;
 use time::Duration;
@@ -22,6 +23,7 @@ pub struct Order {
     order_type: String,
     order_date: NaiveDateTime,
     pub expires_at: NaiveDateTime,
+    pub version: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -49,19 +51,21 @@ impl NewOrder {
 }
 
 impl Order {
-    pub fn create(user_id: Uuid, order_type: OrderTypes) -> NewOrder {
-        NewOrder {
-            user_id,
-            status: OrderStatus::Draft.to_string(),
-            expires_at: Utc::now().naive_utc() + Duration::minutes(15),
-            order_type: order_type.to_string(),
-        }
-    }
-
     pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
+        let cart_user: Option<User> = users::table
+            .filter(users::last_cart_id.eq(self.id))
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not find user attached to this cart",
+            ).optional()?;
+        if cart_user.is_some() {
+            cart_user.unwrap().update_last_cart(None, conn)?;
+        }
+
         DatabaseError::wrap(
             ErrorCode::DeleteError,
-            "Failed to destroy order record",
+            "Failed to delete order record",
             diesel::delete(self).execute(conn),
         )
     }
@@ -70,17 +74,77 @@ impl Order {
         self.status.parse::<OrderStatus>().unwrap()
     }
 
-    pub fn find_cart_for_user(user_id: Uuid, conn: &PgConnection) -> Result<Order, DatabaseError> {
-        orders::table
+    pub fn find_or_create_cart(user: &User, conn: &PgConnection) -> Result<Order, DatabaseError> {
+        // Do a quick check to find the cart linked to the user.
+        let cart = Order::find_cart_for_user(user.id, conn)?;
+
+        if cart.is_some() {
+            return Ok(cart.unwrap());
+        }
+
+        // Cart either does not exist, expired or was paid up.
+        // A number of threads might reach here at the same time, so we
+        // need to do a bit of concurrency checking.
+
+        let query = r#"
+            INSERT INTO Orders (user_id, status, expires_at, order_type)
+            SELECT $1 as user_id, 'Draft' as status, $2 as expires_at, 'Cart' as order_type
+            WHERE NOT EXISTS
+            ( SELECT o.id FROM orders o
+                WHERE o.user_id = $1
+                AND o.status = 'Draft'
+                AND o.order_type = 'Cart'
+                AND o.expires_at > now())
+            RETURNING id;
+        "#;
+
+        #[derive(QueryableByName)]
+        struct R {
+            #[sql_type = "Nullable<dUuid>"]
+            id: Option<Uuid>,
+        }
+
+        let cart_id: Vec<R> = diesel::sql_query(query)
+            .bind::<sql_types::Uuid, _>(user.id)
+            .bind::<sql_types::Timestamp, _>(Utc::now().naive_utc() + Duration::minutes(15))
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not find or create cart")?;
+
+        if cart_id.is_empty() || cart_id[0].id.is_none() || cart_id.len() > 1 {
+            // Another thread has created a cart
+            return DatabaseError::concurrency_error(&format!(
+                "Possible race condition when creating a cart for a user. Number of carts returned: {}",
+                cart_id.len()
+            ));
+        }
+
+        let cart_id = cart_id[0].id;
+
+        // This will also row lock the user row to detect that another thread has not
+        // created another cart in the mean time
+        user.update_last_cart(cart_id, conn)?;
+
+        // Finally return the actual order
+        Order::find(cart_id.unwrap(), conn)
+    }
+
+    pub fn find_cart_for_user(
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Option<Order>, DatabaseError> {
+        users::table
+            .inner_join(orders::table.on(users::last_cart_id.eq(orders::id.nullable())))
+            .filter(users::id.eq(user_id))
             .filter(orders::user_id.eq(user_id))
             .filter(orders::status.eq("Draft"))
             .filter(orders::order_type.eq("Cart"))
             .filter(orders::expires_at.ge(dsl::now))
+            .select(orders::all_columns)
             .first(conn)
             .to_db_error(
                 errors::ErrorCode::QueryError,
                 "Could not load cart for user",
-            )
+            ).optional()
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<Order, DatabaseError> {
@@ -126,7 +190,7 @@ impl Order {
         };
 
         order_item.update_fees(conn)?;
-        self.update_event_fees(conn)?;
+
         TicketInstance::reserve_tickets(
             &order_item,
             &self.expires_at,
@@ -149,10 +213,12 @@ impl Order {
 
     pub fn remove_tickets(
         &self,
-        mut order_item: OrderItem,
+        ticket_pricing_id: Uuid,
         quantity: Option<u32>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
+        let mut order_item = OrderItem::find_for_ticket_pricing(self.id, ticket_pricing_id, conn)?;
+
         TicketInstance::release_tickets(&order_item, quantity, conn)?;
         let calculated_quantity = order_item.calculate_quantity(conn)?;
 
@@ -355,7 +421,7 @@ impl Order {
             orders::table.filter(
                 orders::id
                     .eq(self.id)
-                    .and(orders::updated_at.eq(self.updated_at))
+                    .and(orders::version.eq(self.version))
                     .and(orders::expires_at.gt(dsl::now)),
             ),
         ).set((
@@ -368,7 +434,7 @@ impl Order {
         let db_record = Order::find(self.id, conn)?;
 
         if result == 0 {
-            if db_record.updated_at != self.updated_at {
+            if db_record.version != self.version {
                 return DatabaseError::concurrency_error(
                     "Could not update order because it has been updated by another process",
                 );
@@ -404,6 +470,17 @@ impl Order {
             let order_items = OrderItem::find_for_order(self.id, conn)?;
             for item in &order_items {
                 TicketInstance::mark_as_purchased(item, self.user_id, conn)?;
+            }
+            let cart_user: Option<User> = users::table
+                .filter(users::last_cart_id.eq(self.id))
+                .get_result(conn)
+                .to_db_error(
+                    ErrorCode::QueryError,
+                    "Could not find user attached to this cart",
+                ).optional()?;
+
+            if cart_user.is_some() {
+                cart_user.unwrap().update_last_cart(None, conn)?;
             }
         }
         Ok(())
@@ -451,6 +528,27 @@ impl Order {
         }
 
         Ok(total)
+    }
+
+    /// Updates the lock version in the database and forces a Concurrency error if
+    /// another process has updated it
+    pub fn lock_version(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let rows_affected = diesel::update(
+            orders::table
+                .filter(orders::id.eq(self.id))
+                .filter(orders::version.eq(self.version)),
+        ).set((
+            orders::version.eq(self.version + 1),
+            orders::updated_at.eq(dsl::now),
+        )).execute(conn)
+        .to_db_error(ErrorCode::UpdateError, "Could not lock order")?;
+        if rows_affected == 0 {
+            return DatabaseError::concurrency_error(
+                "Could not lock order, another process has updated it",
+            );
+        }
+        self.version = self.version + 1;
+        Ok(())
     }
 }
 

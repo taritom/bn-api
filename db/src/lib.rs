@@ -15,8 +15,8 @@ extern crate diesel;
 extern crate argon2rs;
 extern crate chrono;
 extern crate itertools;
+//#[macro_use]
 //extern crate log;
-//extern crate log4rs;
 extern crate rand;
 extern crate time;
 extern crate uuid;
@@ -40,4 +40,9 @@ mod test;
 //#[cfg(test)]
 pub mod dev {
     pub use test::*;
+}
+
+pub mod prelude {
+    pub use models::*;
+    pub use utils::*;
 }

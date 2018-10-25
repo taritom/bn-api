@@ -35,9 +35,7 @@ pub fn index() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&database.connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, &database.connection).unwrap();
     let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
     let ticket_type2 = &event2.ticket_types(&database.connection).unwrap()[0];
     let ticket = cart
@@ -143,9 +141,7 @@ pub fn show() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&database.connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, &database.connection).unwrap();
     let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
     let ticket = cart
         .add_tickets(ticket_type.id, 1, &database.connection)
@@ -254,9 +250,7 @@ fn ticket_transfer_authorization() {
         .with_ticket_pricing()
         .finish();
 
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&database.connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, &database.connection).unwrap();
     let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
 
     let tickets = cart
@@ -324,9 +318,7 @@ fn receive_ticket_transfer() {
         .with_ticket_pricing()
         .finish();
 
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&database.connection)
-        .unwrap();
+    let mut cart = Order::find_or_create_cart(&user, &database.connection).unwrap();
     let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
 
     let tickets = cart

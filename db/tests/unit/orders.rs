@@ -22,9 +22,7 @@ fn create() {
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
-    let order = Order::create(user.id, OrderTypes::Cart)
-        .commit(project.get_connection())
-        .unwrap();
+    let order = Order::find_or_create_cart(&user, project.get_connection()).unwrap();
     assert_eq!(order.user_id, user.id);
     assert_eq!(order.id.to_string().is_empty(), false);
 }
@@ -44,9 +42,7 @@ fn add_tickets() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket = &event.ticket_types(connection).unwrap()[0];
     let tickets = cart.add_tickets(ticket.id, 10, connection).unwrap();
     assert_eq!(tickets.len(), 10);
@@ -90,9 +86,7 @@ fn add_tickets_with_increment() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let update_parameters = TicketTypeEditableAttributes {
         increment: Some(4),
@@ -130,9 +124,7 @@ fn remove_tickets() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let tickets = cart.add_tickets(ticket_type.id, 10, connection).unwrap();
     assert_eq!(tickets.len(), 10);
@@ -154,7 +146,10 @@ fn remove_tickets() {
     );
 
     // Remove tickets
-    assert!(cart.remove_tickets(order_item, Some(4), connection).is_ok());
+    assert!(
+        cart.remove_tickets(ticket_pricing.id, Some(4), connection)
+            .is_ok()
+    );
     let order_item = cart.items(connection).unwrap().remove(0);
     assert_eq!(order_item.quantity, 6);
     assert_eq!(
@@ -171,7 +166,7 @@ fn remove_tickets() {
         .get_connection()
         .transaction::<Vec<TicketInstance>, Error, _>(|| {
             // Release requesting too many tickets
-            let removed_tickets = cart.remove_tickets(order_item.clone(), Some(7), connection);
+            let removed_tickets = cart.remove_tickets(ticket_pricing.id, Some(7), connection);
             assert_eq!(
                 removed_tickets.unwrap_err().cause.unwrap(),
                 "Could not release the correct amount of tickets",
@@ -181,7 +176,10 @@ fn remove_tickets() {
         }).unwrap_err();
 
     // Release remaining tickets (no quantity specified so removes remaining)
-    assert!(cart.remove_tickets(order_item, None, connection).is_ok());
+    assert!(
+        cart.remove_tickets(ticket_pricing.id, None, connection)
+            .is_ok()
+    );
     // Item removed from cart completely
     assert!(cart.items(connection).unwrap().is_empty());
 }
@@ -196,9 +194,7 @@ fn remove_tickets_with_increment() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let update_parameters = TicketTypeEditableAttributes {
         increment: Some(4),
@@ -210,11 +206,15 @@ fn remove_tickets_with_increment() {
     assert_eq!(cart.items(connection).unwrap()[0].quantity, 8);
     let order_item = cart.items(connection).unwrap().remove(0);
 
-    assert!(cart.remove_tickets(order_item, Some(4), connection).is_ok());
+    assert!(
+        cart.remove_tickets(order_item.ticket_pricing_id.unwrap(), Some(4), connection)
+            .is_ok()
+    );
     let order_item = cart.items(connection).unwrap().remove(0);
     assert_eq!(order_item.quantity, 4);
 
-    let remove_tickets_result = cart.remove_tickets(order_item.clone(), Some(3), connection);
+    let remove_tickets_result =
+        cart.remove_tickets(order_item.ticket_pricing_id.unwrap(), Some(3), connection);
     assert!(remove_tickets_result.is_err());
     let error = remove_tickets_result.unwrap_err();
     match &error.error_code {
@@ -239,13 +239,9 @@ fn find_item() {
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let order = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let order = Order::find_or_create_cart(&user, connection).unwrap();
     order.add_tickets(ticket_type.id, 10, connection).unwrap();
-    let order2 = Order::create(user2.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let order2 = Order::find_or_create_cart(&user2, connection).unwrap();
     order2.add_tickets(ticket_type.id, 10, connection).unwrap();
 
     let order_item = order.items(connection).unwrap().remove(0);
@@ -284,24 +280,23 @@ fn find_cart_for_user() {
     let user = project.create_user().finish();
 
     // No cart
-    let cart_result = Order::find_cart_for_user(user.id, project.get_connection());
-    assert_eq!(cart_result.err().unwrap().code, 2000);
+    let conn = project.get_connection();
+    let cart_result = Order::find_cart_for_user(user.id, conn).unwrap();
+    assert!(cart_result.is_none());
 
     // Cart exists, is not expired
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(project.get_connection())
-        .unwrap();
-    let cart_result = Order::find_cart_for_user(user.id, project.get_connection());
-    assert_eq!(cart_result.unwrap(), cart);
+    let cart = Order::find_or_create_cart(&user, conn).unwrap();
+    let cart_result = Order::find_cart_for_user(user.id, conn);
+    assert_eq!(cart_result.unwrap().unwrap(), cart);
 
     // Expired cart
     let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
     diesel::update(&cart)
         .set(orders::expires_at.eq(one_minute_ago))
-        .get_result::<Order>(project.get_connection())
+        .get_result::<Order>(conn)
         .unwrap();
-    let cart_result = Order::find_cart_for_user(user.id, project.get_connection());
-    assert_eq!(cart_result.err().unwrap().code, 2000);
+    let cart_result = Order::find_cart_for_user(user.id, conn).unwrap();
+    assert!(cart_result.is_none());
 }
 
 #[test]
@@ -309,9 +304,7 @@ fn has_items() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
 
     // Without items
     assert!(!cart.has_items(connection).unwrap());
@@ -332,15 +325,13 @@ fn destroy() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
-    let cart_result = Order::find_cart_for_user(user.id, connection);
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let cart_result = Order::find_cart_for_user(user.id, connection).unwrap();
     assert_eq!(cart_result.unwrap(), cart);
 
     cart.destroy(connection).unwrap();
-    let cart_result = Order::find_cart_for_user(user.id, connection);
-    assert_eq!(cart_result.err().unwrap().code, 2000);
+    let cart_result = Order::find_cart_for_user(user.id, connection).unwrap();
+    assert!(cart_result.is_none());
 }
 
 #[test]
@@ -357,19 +348,16 @@ fn calculate_cart_total() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(project.get_connection())
-        .unwrap();
-    let ticket = &event.ticket_types(project.get_connection()).unwrap()[0];
-    cart.add_tickets(ticket.id, 10, project.get_connection())
-        .unwrap();
+    let conn = project.get_connection();
+    let cart = Order::find_or_create_cart(&user, conn).unwrap();
+    let ticket = &event.ticket_types(conn).unwrap()[0];
+    cart.add_tickets(ticket.id, 10, conn).unwrap();
 
-    let total = cart.calculate_total(project.get_connection()).unwrap();
+    let total = cart.calculate_total(conn).unwrap();
     assert_eq!(total, 1700);
 
-    cart.add_tickets(ticket.id, 20, project.get_connection())
-        .unwrap();
-    let total = cart.calculate_total(project.get_connection()).unwrap();
+    cart.add_tickets(ticket.id, 20, conn).unwrap();
+    let total = cart.calculate_total(conn).unwrap();
     assert_eq!(total, 5100);
 }
 
@@ -382,20 +370,15 @@ fn add_external_payment() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let mut cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(project.get_connection())
-        .unwrap();
-    let ticket = &event.ticket_types(project.get_connection()).unwrap()[0];
-    cart.add_tickets(ticket.id, 10, project.get_connection())
-        .unwrap();
-    assert_eq!(
-        cart.calculate_total(project.get_connection()).unwrap(),
-        2000
-    );
-    cart.add_external_payment("test".to_string(), user.id, 1500, project.get_connection())
+    let conn = project.get_connection();
+    let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
+    let ticket = &event.ticket_types(conn).unwrap()[0];
+    cart.add_tickets(ticket.id, 10, conn).unwrap();
+    assert_eq!(cart.calculate_total(conn).unwrap(), 2000);
+    cart.add_external_payment("test".to_string(), user.id, 1500, conn)
         .unwrap();
     assert_eq!(cart.status(), OrderStatus::PartiallyPaid);
-    cart.add_external_payment("test2".to_string(), user.id, 500, project.get_connection())
+    cart.add_external_payment("test2".to_string(), user.id, 500, conn)
         .unwrap();
     assert_eq!(cart.status(), OrderStatus::Paid);
 }
@@ -412,11 +395,9 @@ fn find_for_user_for_display() {
     order2
         .add_external_payment("test".to_string(), user.id, 500, project.get_connection())
         .unwrap();
-    let order3 = project.create_order().for_user(&user).finish();
 
     assert_eq!(order1.status, OrderStatus::Paid.to_string());
     assert_eq!(order2.status, OrderStatus::PartiallyPaid.to_string());
-    assert_eq!(order3.status, OrderStatus::Draft.to_string());
 
     let display_orders =
         Order::find_for_user_for_display(user.id, project.get_connection()).unwrap();
@@ -494,14 +475,13 @@ fn adding_event_fees() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket1 = &event1.ticket_types(connection).unwrap()[0];
     let ticket2 = &event2.ticket_types(connection).unwrap()[0];
     let ticket3 = &event3.ticket_types(connection).unwrap()[0];
     let ticket4 = &event4.ticket_types(connection).unwrap()[0];
     let _tickets = cart.add_tickets(ticket1.id, 10, connection).unwrap();
+    cart.update_event_fees(connection).unwrap();
 
     let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
 
@@ -516,7 +496,7 @@ fn adding_event_fees() {
     //Add some more of the same event and some of a second event
     let _tickets = cart.add_tickets(ticket1.id, 5, connection).unwrap();
     let _tickets = cart.add_tickets(ticket2.id, 5, connection).unwrap();
-
+    cart.update_event_fees(connection).unwrap();
     let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
 
     let mut event_fees_count = 0;
@@ -530,7 +510,7 @@ fn adding_event_fees() {
     //Add tickets with null event fee and null organization event_fee
 
     let _tickets = cart.add_tickets(ticket3.id, 5, connection).unwrap();
-
+    cart.update_event_fees(connection).unwrap();
     let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
 
     let mut event_fees_count = 0;
@@ -544,7 +524,7 @@ fn adding_event_fees() {
     //Add tickets with null event fee and but default organization event_fee
 
     let _tickets = cart.add_tickets(ticket4.id, 5, connection).unwrap();
-
+    cart.update_event_fees(connection).unwrap();
     let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
 
     let mut event_fees_count = 0;

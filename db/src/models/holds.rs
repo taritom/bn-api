@@ -41,7 +41,7 @@ impl Hold {
         NewHold {
             name,
             event_id,
-            redemption_code,
+            redemption_code: redemption_code.to_uppercase(),
             discount_in_cents: discount_in_cents as i64,
             end_at,
             max_per_order: max_per_order.map(|m| m as i64),
@@ -103,6 +103,19 @@ impl Hold {
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not load organization for hold",
+            )
+    }
+
+    pub fn find_by_redemption_code(
+        redemption_code: &str,
+        conn: &PgConnection,
+    ) -> Result<Hold, DatabaseError> {
+        holds::table
+            .filter(holds::redemption_code.eq(redemption_code.to_uppercase()))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load hold with that redeem key",
             )
     }
 }

@@ -75,8 +75,11 @@ fn from_ticket_type() {
     let order_item = order.items(&database.connection).unwrap().remove(0);
     assert!(
         order
-            .remove_tickets(order_item, Some(10), &database.connection)
-            .is_ok()
+            .remove_tickets(
+                order_item.ticket_pricing_id.unwrap(),
+                Some(10),
+                &database.connection
+            ).is_ok()
     );
     let display_ticket_type =
         UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, &database.connection)

@@ -12,7 +12,6 @@ use payments::PaymentProcessor;
 use server::AppState;
 use std::collections::HashMap;
 use utils::ServiceLocator;
-//use tari_client::tari_messages::AssetInfoResult;
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize)]
@@ -37,18 +36,14 @@ pub fn add(
     let connection = connection.get();
 
     if json.items.is_empty() {
-        return application::unprocessable("Could not add to cart as no items provided");
+        return application::unprocessable("Could not update cart as no items provided");
     }
 
     // Find the current cart of the user, if it exists.
-    let current_cart = Order::find_cart_for_user(user.id(), connection).optional()?;
+    let mut cart = Order::find_or_create_cart(&user.user, connection)?;
 
-    // Create it if there isn't one
-    let cart = if current_cart.is_none() {
-        Order::create(user.id(), OrderTypes::Cart).commit(connection)?
-    } else {
-        current_cart.unwrap()
-    };
+    // Force only one thread to update the order at a time.
+    cart.lock_version(connection)?;
 
     // Add the item (first combining ticket type id to avoid multiple add calls for the same id)
     for (ticket_type_id, request_items) in &json
@@ -57,15 +52,18 @@ pub fn add(
         .group_by(|request_item| request_item.ticket_type_id)
     {
         let quantity = request_items.fold(0, |sum, request_item| sum + request_item.quantity);
+
         cart.add_tickets(ticket_type_id, quantity, connection)?;
     }
+
+    cart.update_event_fees(connection)?;
 
     Ok(HttpResponse::Created().json(&CartResponse { cart_id: cart.id }))
 }
 
 #[derive(Deserialize)]
 pub struct RemoveCartRequest {
-    pub cart_item_id: Uuid,
+    pub ticket_pricing_id: Uuid,
     pub quantity: Option<u32>,
 }
 
@@ -74,29 +72,26 @@ pub fn remove(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     // Find the current cart of the user, if it exists.
-    let current_cart = Order::find_cart_for_user(user.id(), connection).optional()?;
+    let mut current_cart = Order::find_cart_for_user(user.id(), connection)?;
 
-    match current_cart {
-        Some(cart) => match cart.find_item(json.cart_item_id, connection).optional()? {
-            Some(mut order_item) => {
-                cart.remove_tickets(order_item, json.quantity, connection)?;
+    match current_cart.as_mut() {
+        Some(cart) => {
+            cart.lock_version(connection)?;
+            cart.remove_tickets(json.ticket_pricing_id, json.quantity, connection)?;
 
-                if cart.has_items(connection)? {
-                    Ok(HttpResponse::Ok().json(&CartResponse { cart_id: cart.id }))
-                } else {
-                    cart.destroy(connection)?;
-                    Ok(HttpResponse::Ok().json(json!({})))
-                }
+            if cart.has_items(connection)? {
+                Ok(HttpResponse::Ok().json(&CartResponse { cart_id: cart.id }))
+            } else {
+                cart.destroy(connection)?;
+                Ok(HttpResponse::Ok().json(json!({})))
             }
-            None => application::unprocessable("Cart does not contain order item"),
-        },
+        }
         None => application::unprocessable("No cart exists for user"),
     }
 }
-
 pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let order = Order::find_cart_for_user(user.id(), connection).optional()?;
+    let order = Order::find_cart_for_user(user.id(), connection)?;
     if order.is_none() {
         return Ok(HttpResponse::Ok().json(json!({})));
     }
@@ -134,7 +129,12 @@ pub fn checkout(
 ) -> Result<HttpResponse, BigNeonError> {
     let req = json.into_inner();
 
-    let mut order = Order::find_cart_for_user(user.id(), connection.get())?;
+    info!("CART: Checking out");
+    let mut order = match Order::find_cart_for_user(user.id(), connection.get())? {
+        Some(o) => o,
+        None => return application::unprocessable("No cart exists for user"),
+    };
+    order.lock_version(connection.get())?;
 
     let order_items = order.items(connection.get())?;
 
@@ -153,6 +153,7 @@ pub fn checkout(
                 .or_insert(ticket.wallet_id);
         }
     }
+    info!("CART: Verifying asset");
     //Just confirming that the asset is setup correctly before proceeding to payment.
     for asset_id in tokens_per_asset.keys() {
         let asset = Asset::find(*asset_id, connection.get())?;
@@ -165,9 +166,11 @@ pub fn checkout(
 
     let payment_response = match &req.method {
         PaymentRequest::External { reference } => {
+            info!("CART: Received external payment");
             checkout_external(&connection, &mut order, reference, &req, &user)?
         }
         PaymentRequest::PaymentMethod { provider } => {
+            info!("CART: Received provider payment");
             let provider = match provider {
                 Some(provider) => provider.clone(),
                 None => match user
@@ -285,6 +288,7 @@ fn checkout_payment_processor(
     set_default: bool,
     service_locator: &ServiceLocator,
 ) -> Result<HttpResponse, BigNeonError> {
+    info!("CART: Executing provider payment");
     let connection = conn.get();
 
     if order.user_id != auth_user.id() {
@@ -298,6 +302,7 @@ fn checkout_payment_processor(
     let client = service_locator.create_payment_processor(provider_name);
 
     let token = if use_stored_payment {
+        info!("CART: Using stored payment");
         match auth_user
             .user
             .payment_method(provider_name.to_string(), connection)
@@ -311,6 +316,7 @@ fn checkout_payment_processor(
             }
         }
     } else {
+        info!("CART: Not using stored payment");
         if token.is_none() {
             return application::unprocessable(
                 "Could not complete this cart because no token provided",
@@ -319,6 +325,7 @@ fn checkout_payment_processor(
 
         let token = token.unwrap();
         if save_payment_method {
+            info!("CART: User has requested to save the payment method");
             match auth_user
                 .user
                 .payment_method(provider_name.to_string(), connection)
@@ -355,6 +362,7 @@ fn checkout_payment_processor(
         }
     };
 
+    info!("CART: Auth'ing to payment provider");
     let auth_result = client.auth(
         &token,
         req.amount,
@@ -363,6 +371,7 @@ fn checkout_payment_processor(
         vec![("order_id".to_string(), order.id.to_string())],
     )?;
 
+    info!("CART: Saving payment to order");
     let payment = match order.add_credit_card_payment(
         auth_user.id(),
         req.amount,
@@ -382,7 +391,9 @@ fn checkout_payment_processor(
     conn.commit_transaction()?;
     conn.begin_transaction()?;
 
+    info!("CART: Completing auth with payment provider");
     let charge_result = client.complete_authed_charge(&auth_result.id)?;
+    info!("CART: Completing payment on order");
     match payment.mark_complete(charge_result.to_json()?, connection) {
         Ok(_) => Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id}))),
         Err(e) => {

@@ -195,17 +195,20 @@ impl<U> ConvertToDatabaseError<U> for QueryResult<U> {
 }
 
 pub trait OptionalToDatabaseError<U> {
-    fn error_if_none(self) -> Result<U, DatabaseError>;
+    fn error_if_none(self, message: &str) -> Result<U, DatabaseError>;
 }
 
 impl<U> OptionalToDatabaseError<U> for Result<Option<U>, DatabaseError> {
-    fn error_if_none(self) -> Result<U, DatabaseError> {
+    fn error_if_none(self, message: &str) -> Result<U, DatabaseError> {
         match self {
             Ok(i) => match i {
                 Some(j) => Ok(j),
                 None => Err(DatabaseError::new(
                     ErrorCode::NoResults,
-                    Some("No results returned when results were expected".to_string()),
+                    Some(format!(
+                        "No results returned when results were expected:{}",
+                        message
+                    )),
                 )),
             },
             Err(e) => Err(e),

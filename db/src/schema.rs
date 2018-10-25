@@ -159,6 +159,7 @@ table! {
         order_type -> Text,
         order_date -> Timestamp,
         expires_at -> Timestamp,
+        version -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -310,6 +311,7 @@ table! {
         password_reset_token -> Nullable<Uuid>,
         password_reset_requested_at -> Nullable<Timestamp>,
         updated_at -> Timestamp,
+        last_cart_id -> Nullable<Uuid>,
     }
 }
 
@@ -360,7 +362,6 @@ joinable!(order_items -> events (event_id));
 joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
 joinable!(order_items -> orders (order_id));
 joinable!(order_items -> ticket_pricing (ticket_pricing_id));
-joinable!(orders -> users (user_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));

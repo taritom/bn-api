@@ -42,6 +42,7 @@ pub struct User {
     pub password_reset_token: Option<Uuid>,
     pub password_reset_requested_at: Option<NaiveDateTime>,
     pub updated_at: NaiveDateTime,
+    pub last_cart_id: Option<Uuid>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
@@ -336,6 +337,43 @@ impl User {
 
     pub fn wallets(&self, conn: &PgConnection) -> Result<Vec<Wallet>, DatabaseError> {
         Wallet::find_for_user(self.id, conn)
+    }
+
+    pub fn update_last_cart(
+        &self,
+        new_cart_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        // diesel does not have any easy way of handling "last_cart_id is null OR last_cart_id = 'x'"
+        let query = if self.last_cart_id.is_none() {
+            diesel::update(
+                users::table
+                    .filter(users::id.eq(self.id))
+                    .filter(users::updated_at.eq(self.updated_at))
+                    .filter(users::last_cart_id.is_null()),
+            ).into_boxed()
+        } else {
+            diesel::update(
+                users::table
+                    .filter(users::id.eq(self.id))
+                    .filter(users::updated_at.eq(self.updated_at))
+                    .filter(users::last_cart_id.eq(self.last_cart_id)),
+            ).into_boxed()
+        };
+        let rows_affected = query
+            .set((
+                users::last_cart_id.eq(new_cart_id),
+                users::updated_at.eq(dsl::now),
+            )).execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update last cart on user")?;
+
+        match rows_affected {
+        1 => {
+           Ok(())
+        },
+
+        _ => DatabaseError::concurrency_error("Could not update last cart on user because the row has been changed by another source")
+    }
     }
 }
 

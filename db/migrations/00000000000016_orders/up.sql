@@ -7,6 +7,7 @@ CREATE TABLE orders (
   order_type TEXT not null,
   order_date TIMESTAMP NOT NULL DEFAULT now(),
   expires_at TIMESTAMP NOT NULL,
+  version BIGINT NOT NULL default 0,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );

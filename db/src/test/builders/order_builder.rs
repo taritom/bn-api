@@ -5,7 +5,7 @@ use test::builders::user_builder::UserBuilder;
 use uuid::Uuid;
 
 pub struct OrderBuilder<'a> {
-    user_id: Option<Uuid>,
+    user: Option<User>,
     ticket_type_id: Option<Uuid>,
     connection: &'a PgConnection,
     is_paid: bool,
@@ -15,14 +15,14 @@ impl<'a> OrderBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> OrderBuilder<'a> {
         OrderBuilder {
             connection,
-            user_id: None,
+            user: None,
             ticket_type_id: None,
             is_paid: false,
         }
     }
 
     pub fn for_user(mut self, user: &User) -> OrderBuilder<'a> {
-        self.user_id = Some(user.id);
+        self.user = Some(user.clone());
         self
     }
 
@@ -37,9 +37,9 @@ impl<'a> OrderBuilder<'a> {
     }
 
     pub fn finish(mut self) -> Order {
-        if self.user_id.is_none() {
+        if self.user.is_none() {
             let user = UserBuilder::new(self.connection).finish();
-            self.user_id = Some(user.id);
+            self.user = Some(user);
         }
         if self.ticket_type_id.is_none() {
             let event = EventBuilder::new(self.connection)
@@ -47,9 +47,9 @@ impl<'a> OrderBuilder<'a> {
                 .finish();
             self.ticket_type_id = Some(event.ticket_types(&self.connection).unwrap()[0].id);
         }
-        let cart = Order::create(self.user_id.unwrap(), OrderTypes::Cart)
-            .commit(self.connection)
-            .unwrap();
+
+        let cart =
+            Order::find_or_create_cart(self.user.as_ref().unwrap(), self.connection).unwrap();
 
         cart.add_tickets(self.ticket_type_id.unwrap(), 10, self.connection)
             .unwrap();
@@ -59,7 +59,7 @@ impl<'a> OrderBuilder<'a> {
         if self.is_paid {
             cart.add_external_payment(
                 "blah".to_string(),
-                self.user_id.unwrap(),
+                self.user.unwrap().id,
                 total,
                 self.connection,
             ).unwrap();

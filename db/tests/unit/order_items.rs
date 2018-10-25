@@ -16,9 +16,7 @@ fn find_fee_item() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket = &event.ticket_types(connection).unwrap()[0];
     cart.add_tickets(ticket.id, 10, connection).unwrap();
 
@@ -44,9 +42,7 @@ fn calculate_quantity() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket = &event.ticket_types(connection).unwrap()[0];
     cart.add_tickets(ticket.id, 10, connection).unwrap();
 

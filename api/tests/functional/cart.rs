@@ -18,9 +18,7 @@ fn show() {
     let database = TestDatabase::new();
     let connection = database.connection.clone();
     let user = database.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, &connection).unwrap();
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse = cart::show((database.connection.into(), auth_user)).into();
@@ -46,9 +44,7 @@ fn show_expired_cart() {
     let database = TestDatabase::new();
     let connection = database.connection.clone();
     let user = database.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, &connection).unwrap();
     let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
     diesel::update(&cart)
         .set(orders::expires_at.eq(one_minute_ago))
@@ -86,7 +82,9 @@ fn add() {
     let response = cart::add((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
 
-    let cart = Order::find_cart_for_user(user.id, &connection).unwrap();
+    let cart = Order::find_cart_for_user(user.id, &connection)
+        .unwrap()
+        .unwrap();
     let order_item = cart.items(&connection).unwrap().remove(0);
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), &connection).unwrap();
@@ -137,7 +135,9 @@ fn add_multiple() {
     let response = cart::add((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
 
-    let cart = Order::find_cart_for_user(user.id, &connection).unwrap();
+    let cart = Order::find_cart_for_user(user.id, &connection)
+        .unwrap()
+        .unwrap();
     let cart_items = cart
         .items(&connection)
         .unwrap()
@@ -208,7 +208,9 @@ fn add_with_increment() {
     let response = cart::add((database.connection.into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
 
-    let cart = Order::find_cart_for_user(user.id, &connection).unwrap();
+    let cart = Order::find_cart_for_user(user.id, &connection)
+        .unwrap()
+        .unwrap();
     let order_item = cart.items(&connection).unwrap().remove(0);
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), &connection).unwrap();
@@ -278,9 +280,7 @@ fn add_with_existing_cart() {
 
     let user = database.create_user().finish();
     let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, &connection).unwrap();
 
     let input = Json(cart::AddToCartRequest {
         items: vec![cart::AddToCartRequestItem {
@@ -320,9 +320,7 @@ fn remove() {
         .finish();
     let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
     let user = database.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, &connection).unwrap();
     cart.add_tickets(ticket_type_id, 10, &connection).unwrap();
 
     let order_item = cart.items(&connection).unwrap().remove(0);
@@ -342,7 +340,7 @@ fn remove() {
     );
 
     let input = Json(cart::RemoveCartRequest {
-        cart_item_id: order_item.id,
+        ticket_pricing_id: ticket_pricing.id,
         quantity: Some(4),
     });
 
@@ -385,9 +383,7 @@ fn remove_with_increment() {
     let ticket_type = ticket_type.update(update_parameters, &connection).unwrap();
     let ticket_type_id = ticket_type.id;
     let user = database.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, &connection).unwrap();
     cart.add_tickets(ticket_type_id, 12, &connection).unwrap();
 
     let order_item = cart.items(&connection).unwrap().remove(0);
@@ -407,7 +403,7 @@ fn remove_with_increment() {
     );
 
     let input = Json(cart::RemoveCartRequest {
-        cart_item_id: order_item.id,
+        ticket_pricing_id: ticket_pricing.id,
         quantity: Some(4),
     });
 
@@ -450,9 +446,7 @@ fn remove_with_increment_failure_invalid_quantity() {
     let ticket_type = ticket_type.update(update_parameters, &connection).unwrap();
     let ticket_type_id = ticket_type.id;
     let user = database.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, &connection).unwrap();
     cart.add_tickets(ticket_type_id, 12, &connection).unwrap();
 
     let order_item = cart.items(&connection).unwrap().remove(0);
@@ -472,7 +466,7 @@ fn remove_with_increment_failure_invalid_quantity() {
     );
 
     let input = Json(cart::RemoveCartRequest {
-        cart_item_id: order_item.id,
+        ticket_pricing_id: ticket_pricing.id,
         quantity: Some(7),
     });
 
@@ -502,13 +496,11 @@ fn remove_with_no_specified_quantity() {
         .finish();
     let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
     let user = database.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, &connection).unwrap();
     cart.add_tickets(ticket_type_id, 10, &connection).unwrap();
     let order_item = cart.items(&connection).unwrap().remove(0);
     let input = Json(cart::RemoveCartRequest {
-        cart_item_id: order_item.id,
+        ticket_pricing_id: order_item.ticket_pricing_id.unwrap(),
         quantity: None,
     });
 
@@ -518,8 +510,8 @@ fn remove_with_no_specified_quantity() {
     assert!(cart.items(&connection).unwrap().is_empty());
 
     // Cart empty so was deleted
-    let cart_result = Order::find_cart_for_user(user.id, &connection);
-    assert_eq!(cart_result.err().unwrap().code, 2000);
+    let cart_result = Order::find_cart_for_user(user.id, &connection).unwrap();
+    assert!(cart_result.is_none());
 }
 
 #[test]
@@ -537,14 +529,12 @@ fn remove_with_cart_item_not_belonging_to_current_cart() {
 
     // Cart item belongs to user2, not user
     let user2 = database.create_user().finish();
-    let cart = Order::create(user2.id, OrderTypes::Cart)
-        .commit(&connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user2, &connection).unwrap();
     cart.add_tickets(ticket_type_id, 10, &connection).unwrap();
     let order_item = cart.items(&connection).unwrap().remove(0);
 
     let input = Json(cart::RemoveCartRequest {
-        cart_item_id: order_item.id,
+        ticket_pricing_id: order_item.ticket_pricing_id.unwrap(),
         quantity: None,
     });
 
@@ -563,7 +553,7 @@ fn remove_with_no_cart() {
     let user = database.create_user().finish();
 
     let input = Json(cart::RemoveCartRequest {
-        cart_item_id: Uuid::new_v4(),
+        ticket_pricing_id: Uuid::new_v4(),
         quantity: None,
     });
 
@@ -583,14 +573,12 @@ fn remove_more_tickets_than_user_has() {
         .finish();
     let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
     let user = database.create_user().finish();
-    let cart = Order::create(user.id, OrderTypes::Cart)
-        .commit(&connection)
-        .unwrap();
+    let cart = Order::find_or_create_cart(&user, &connection).unwrap();
     cart.add_tickets(ticket_type_id, 10, &connection).unwrap();
 
     let order_item = cart.items(&connection).unwrap().remove(0);
     let input = Json(cart::RemoveCartRequest {
-        cart_item_id: order_item.id,
+        ticket_pricing_id: order_item.ticket_pricing_id.unwrap(),
         quantity: Some(14),
     });
 

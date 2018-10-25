@@ -79,11 +79,9 @@ pub fn index() {
         .set(schema::orders::order_date.eq(date2))
         .get_result(&*database.connection)
         .unwrap();
-    let order3 = database.create_order().for_user(&user).finish();
 
     assert_eq!(order1.status, OrderStatus::Paid.to_string());
     assert_eq!(order2.status, OrderStatus::PartiallyPaid.to_string());
-    assert_eq!(order3.status, OrderStatus::Draft.to_string());
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let test_request = TestRequest::create_with_uri(&format!("/?"));
