@@ -89,7 +89,7 @@ fn view_invitation() {
     let user = project.create_user().finish();
     let inviter = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let mut org_invite = project
+    let org_invite = project
         .create_organization_invite()
         .with_org(&organization)
         .with_invitee(&user)

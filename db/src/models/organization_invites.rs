@@ -41,15 +41,6 @@ pub struct OrganizationInvite {
     pub sent_invite: bool,
 }
 
-#[derive(Debug, Queryable, Associations)]
-#[belongs_to(Organization, foreign_key = "organization_id")]
-#[belongs_to(User, foreign_key = "inviter_id")]
-#[table_name = "organization_invites"]
-pub struct DisplayOrganizationInvite {
-    pub organization_id: Option<Uuid>,
-    pub inviter_id: Option<Uuid>,
-}
-
 #[derive(Insertable, PartialEq, Debug, Deserialize, Validate)]
 #[table_name = "organization_invites"]
 pub struct NewOrganizationInvite {
@@ -129,38 +120,40 @@ impl OrganizationInvite {
         conn: &PgConnection,
     ) -> Result<DisplayInvite, DatabaseError> {
         let expiry_date = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
-
-        diesel::sql_query(format!(
-            r#"
+        let query = r#"
                 SELECT
                     CONCAT(users.first_name, ' ',  users.last_name) AS inviter_name,
                     organizations.name AS organization_name,
-                    organization_invites.created_at + INTERVAL '{}' day AS expires_at
+                    organization_invites.created_at + INTERVAL '$1' day AS expires_at
                 FROM organization_invites
                 LEFT JOIN users ON (users.id = organization_invites.inviter_id)
                 LEFT JOIN organizations ON (organizations.id = organization_invites.organization_id)
                 WHERE
-                    organization_invites.security_token = '{}'
-                    AND organization_invites.created_at > '{}'
-                    AND organization_invites.accepted is NULL;"#,
-            INVITE_EXPIRATION_PERIOD_IN_DAYS, token, &expiry_date
-        )).get_result(conn)
-        .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
+                    organization_invites.security_token = $2
+                    AND organization_invites.created_at > $3
+                    AND organization_invites.accepted is NULL;"#;
+
+        diesel::sql_query(query)
+            .bind::<diesel::sql_types::BigInt, _>(INVITE_EXPIRATION_PERIOD_IN_DAYS)
+            .bind::<diesel::sql_types::Uuid, _>(token)
+            .bind::<diesel::sql_types::Timestamp, _>(expiry_date)
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
     }
 
     pub fn get_invite_details(
         token: &Uuid,
         conn: &PgConnection,
     ) -> Result<OrganizationInvite, DatabaseError> {
-        let expiredate = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
-
+        let expiry_date = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
         DatabaseError::wrap(
             ErrorCode::AccessError,
             "No valid token found",
-            diesel::sql_query(format!(
-                "SELECT * FROM organization_invites WHERE security_token = '{}' AND created_at > '{}' AND accepted is NULL;"
-                , token, expiredate //todo convert to use the .bind
-            )).get_result(conn),
+            organization_invites::table
+                .filter(organization_invites::accepted.is_null())
+                .filter(organization_invites::security_token.eq(token))
+                .filter(organization_invites::created_at.gt(expiry_date))
+                .get_result(conn),
         )
     }
 
