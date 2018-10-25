@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub struct OrgInviteBuilder<'a> {
     organization_id: Option<Uuid>,
     invitee_id: Option<Uuid>,
+    inviter_id: Option<Uuid>,
     user_email: String,
     create_at: NaiveDateTime,
     security_token: Option<Uuid>,
@@ -22,6 +23,7 @@ impl<'a> OrgInviteBuilder<'a> {
         OrgInviteBuilder {
             organization_id: None,
             invitee_id: None,
+            inviter_id: None,
             user_email: "test@test.com".into(),
             create_at: NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11),
             security_token: Some(Uuid::new_v4()),
@@ -39,6 +41,11 @@ impl<'a> OrgInviteBuilder<'a> {
 
     pub fn with_invitee(mut self, invitee: &User) -> OrgInviteBuilder<'a> {
         self.invitee_id = Some(invitee.id.clone());
+        self
+    }
+
+    pub fn with_inviter(mut self, inviter: &User) -> OrgInviteBuilder<'a> {
+        self.inviter_id = Some(inviter.id.clone());
         self
     }
 

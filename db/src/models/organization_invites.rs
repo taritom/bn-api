@@ -2,6 +2,8 @@ use chrono::{Duration, NaiveDateTime, Utc};
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use diesel::sql_types::{Text, Timestamp};
+use models::*;
 use schema::organization_invites;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::{DatabaseError, ErrorCode};
@@ -11,6 +13,7 @@ use validator::Validate;
 const INVITE_EXPIRATION_PERIOD_IN_DAYS: i64 = 7;
 
 #[derive(
+    Associations,
     Insertable,
     Queryable,
     Identifiable,
@@ -22,6 +25,8 @@ const INVITE_EXPIRATION_PERIOD_IN_DAYS: i64 = 7;
     AsChangeset,
     QueryableByName,
 )]
+#[belongs_to(Organization, foreign_key = "organization_id")]
+#[belongs_to(User, foreign_key = "inviter_id")]
 #[table_name = "organization_invites"]
 pub struct OrganizationInvite {
     pub id: Uuid,
@@ -36,6 +41,15 @@ pub struct OrganizationInvite {
     pub sent_invite: bool,
 }
 
+#[derive(Debug, Queryable, Associations)]
+#[belongs_to(Organization, foreign_key = "organization_id")]
+#[belongs_to(User, foreign_key = "inviter_id")]
+#[table_name = "organization_invites"]
+pub struct DisplayOrganizationInvite {
+    pub organization_id: Option<Uuid>,
+    pub inviter_id: Option<Uuid>,
+}
+
 #[derive(Insertable, PartialEq, Debug, Deserialize, Validate)]
 #[table_name = "organization_invites"]
 pub struct NewOrganizationInvite {
@@ -45,6 +59,16 @@ pub struct NewOrganizationInvite {
     pub user_email: String,
     pub security_token: Option<Uuid>,
     pub user_id: Option<Uuid>,
+}
+
+#[derive(Debug, Queryable, Serialize, QueryableByName)]
+pub struct DisplayInvite {
+    #[sql_type = "Text"]
+    pub organization_name: String,
+    #[sql_type = "Text"]
+    pub inviter_name: String,
+    #[sql_type = "Timestamp"]
+    pub expires_at: NaiveDateTime,
 }
 
 impl NewOrganizationInvite {
@@ -100,17 +124,42 @@ impl OrganizationInvite {
         self.change_invite_status(0, conn)
     }
 
+    pub fn get_invite_display(
+        token: &Uuid,
+        conn: &PgConnection,
+    ) -> Result<DisplayInvite, DatabaseError> {
+        let expiry_date = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
+
+        diesel::sql_query(format!(
+            r#"
+                SELECT
+                    CONCAT(users.first_name, ' ',  users.last_name) AS inviter_name,
+                    organizations.name AS organization_name,
+                    organization_invites.created_at + INTERVAL '{}' day AS expires_at
+                FROM organization_invites
+                LEFT JOIN users ON (users.id = organization_invites.inviter_id)
+                LEFT JOIN organizations ON (organizations.id = organization_invites.organization_id)
+                WHERE
+                    organization_invites.security_token = '{}'
+                    AND organization_invites.created_at > '{}'
+                    AND organization_invites.accepted is NULL;"#,
+            INVITE_EXPIRATION_PERIOD_IN_DAYS, token, &expiry_date
+        )).get_result(conn)
+        .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
+    }
+
     pub fn get_invite_details(
         token: &Uuid,
         conn: &PgConnection,
     ) -> Result<OrganizationInvite, DatabaseError> {
         let expiredate = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
+
         DatabaseError::wrap(
             ErrorCode::AccessError,
             "No valid token found",
             diesel::sql_query(format!(
                 "SELECT * FROM organization_invites WHERE security_token = '{}' AND created_at > '{}' AND accepted is NULL;"
-                ,token, expiredate //todo convert to use the .bind
+                , token, expiredate //todo convert to use the .bind
             )).get_result(conn),
         )
     }

@@ -87,7 +87,7 @@ pub fn create(
             None => {
                 return Ok(HttpResponse::BadRequest().json(json!({
                         "error": "Missing required parameters, `user_id` or `user_email` required"
-                    })))
+                    })));
             }
         },
     }
@@ -122,6 +122,15 @@ pub fn create(
         }
     });
     Ok(HttpResponse::Created().json(invite))
+}
+
+pub fn view(
+    (connection, path, _user): (Connection, Path<PathParameters>, Option<AuthUser>),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+
+    let invite_details = OrganizationInvite::get_invite_display(&path.id, connection)?;
+    Ok(HttpResponse::Ok().json(json!(invite_details)))
 }
 
 pub fn accept_request(

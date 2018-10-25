@@ -10,6 +10,7 @@ pub mod fee_schedules;
 pub mod holds;
 pub mod order_items;
 pub mod orders;
+pub mod organization_invites;
 pub mod organization_users;
 pub mod organizations;
 pub mod payment_methods;

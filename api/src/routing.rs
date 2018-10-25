@@ -53,8 +53,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(holds::create);
     }).resource("/external/facebook/web_login", |r| {
         r.method(Method::POST).with(external::facebook::web_login)
+    }).resource("/invitations/{id}", |r| {
+        r.method(Method::GET).with(organization_invites::view);
     }).resource("/invitations", |r| {
-        //@TODO Add a Method::GET to view the invitation (who sent it / for what organization name)
         r.method(Method::POST)
             .with(organization_invites::accept_request);
         r.method(Method::DELETE)
