@@ -120,7 +120,10 @@ impl TicketPricing {
                 .set((status_attribute, ticket_pricing::updated_at.eq(dsl::now)))
                 //.get_result(conn)
                 .execute(conn)
-                .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing status")?;
+                .to_db_error(
+                    ErrorCode::UpdateError,
+                    "Could not update ticket_pricing status",
+                )?;
             Ok(0 as usize)
         }
     }

@@ -130,7 +130,7 @@ impl EventInterest {
                 .inner_join(users::table)
                 .select(users::all_columns)
                 .order_by(event_interest::user_id.asc())
-                .limit(to_clamped_index-from_clamped_index+1)
+                .limit(to_clamped_index - from_clamped_index + 1)
                 .offset(from_clamped_index)
                 .load::<User>(conn)
                 .to_db_error(ErrorCode::QueryError, "Error loading event interest")?;
