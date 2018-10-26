@@ -19,7 +19,7 @@ jwt = "0.4"
 lettre = "0.8"
 lettre_email = "0.8"
 log = "0.4"
-log4rs = "0.8"
+logging = {path="../logging"}
 reqwest="0.8.7"
 rust-crypto="0.2"
 rustc-serialize = "0.3"

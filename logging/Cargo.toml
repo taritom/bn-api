@@ -1,0 +1,9 @@
+[package]
+name = "logging"
+version = "0.1.0"
+authors = ["CjS77 <cayle.sharrock@gmail.com>"]
+
+[dependencies]
+log = "0.4"
+serde_json = "1.0"
+fern = "0.5"
