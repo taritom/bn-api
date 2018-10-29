@@ -5,6 +5,7 @@ ADD api ./api/
 ADD db ./db/
 ADD tari-client ./tari-client/
 ADD stripe ./stripe/
+ADD logging ./logging/
 ADD Cargo.lock Cargo.toml ./
 ADD reset-database.sh /usr/bin/
 
