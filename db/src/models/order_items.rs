@@ -153,7 +153,7 @@ impl OrderItem {
             "Could not confirm quantity increment valid",
         )?;
         if !result {
-            return Ok(Err(ValidationError::new(&"quantity_invalid_increment")));
+            return Ok(Err(ValidationError::new("quantity_invalid_increment")));
         }
         Ok(Ok(()))
     }

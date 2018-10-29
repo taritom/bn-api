@@ -83,7 +83,7 @@ impl TicketPricing {
             "Could not confirm periods do not overlap",
         )?;
         if !result {
-            let mut validation_error = ValidationError::new(&"ticket_pricing_overlapping_periods");
+            let mut validation_error = ValidationError::new("ticket_pricing_overlapping_periods");
             validation_error.add_param(Cow::from("id"), &id);
             validation_error.add_param(Cow::from("ticket_type_id"), &ticket_type_id);
             validation_error.add_param(Cow::from("start_date"), &start_date);

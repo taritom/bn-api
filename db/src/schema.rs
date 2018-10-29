@@ -39,6 +39,7 @@ table! {
         email -> Nullable<Text>,
         hold_id -> Uuid,
         quantity -> Int4,
+        redemption_code -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

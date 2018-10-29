@@ -4,6 +4,8 @@ use diesel::dsl::{self, select, sql};
 use diesel::prelude::*;
 use diesel::sql_types::{Bigint, Int4, Nullable, Uuid as dUuid};
 use models::*;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use schema::{comps, holds};
 use std::borrow::Cow;
 use utils::errors::*;
@@ -22,6 +24,7 @@ pub struct Comp {
     pub email: Option<String>,
     pub hold_id: Uuid,
     pub quantity: i32,
+    pub redemption_code: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -48,6 +51,19 @@ impl Comp {
             .to_db_error(ErrorCode::QueryError, "Unable to retrieve comps for hold")
     }
 
+    pub fn find_by_redemption_code(
+        redemption_code: &str,
+        conn: &PgConnection,
+    ) -> Result<Comp, DatabaseError> {
+        comps::table
+            .filter(comps::redemption_code.eq(redemption_code.to_uppercase()))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load comp with that redeem code",
+            )
+    }
+
     pub fn sum_for_hold(hold_id: Uuid, conn: &PgConnection) -> Result<u32, DatabaseError> {
         comps::table
             .inner_join(holds::table.on(holds::id.eq(comps::hold_id)))
@@ -67,14 +83,20 @@ impl Comp {
         hold_id: Uuid,
         email: Option<String>,
         phone: Option<String>,
-        quantity: u32,
+        quantity: u16,
     ) -> NewComp {
+        let redemption_code = thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(10)
+            .collect::<String>()
+            .to_uppercase();
         NewComp {
             name,
             hold_id,
             email,
             phone,
             quantity: quantity as i32,
+            redemption_code,
         }
     }
 
@@ -137,7 +159,7 @@ impl Comp {
         )?;
         if !result {
             let mut validation_error =
-                ValidationError::new(&"comps_quantity_valid_for_hold_quantity");
+                ValidationError::new("comps_quantity_valid_for_hold_quantity");
             validation_error.add_param(Cow::from("id"), &id);
             validation_error.add_param(Cow::from("hold_id"), &hold_id);
             validation_error.add_param(Cow::from("quantity"), &quantity);
@@ -164,7 +186,7 @@ impl Comp {
             )?;
         if !result {
             let mut validation_error =
-                ValidationError::new(&"comps_hold_type_valid_for_comp_creation");
+                ValidationError::new("comps_hold_type_valid_for_comp_creation");
             validation_error.add_param(Cow::from("id"), &id);
             validation_error.add_param(Cow::from("hold_id"), &hold_id);
 
@@ -200,6 +222,7 @@ pub struct NewComp {
     pub email: Option<String>,
     pub phone: Option<String>,
     pub quantity: i32,
+    pub redemption_code: String,
 }
 
 impl NewComp {

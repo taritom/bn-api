@@ -4,5 +4,6 @@ DROP FUNCTION comps_quantity_valid_for_hold_quantity;
 ALTER TABLE comps DROP CONSTRAINT comps_hold_type_valid_for_comp_creation
 DROP FUNCTION comps_hold_type_valid_for_comp_creation;
 
+DROP INDEX index_comps_redemption_code;
 DROP INDEX index_comps_hold_id_name;
 DROP TABLE comps

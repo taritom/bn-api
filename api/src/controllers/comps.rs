@@ -57,13 +57,13 @@ pub fn create(
     let hold = Hold::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::CompWrite, &hold.organization(conn)?, conn)?;
     let new_comp = new_comp.into_inner();
-    let comp = (NewComp {
-        hold_id: hold.id,
-        name: new_comp.name,
-        email: new_comp.email,
-        phone: new_comp.phone,
-        quantity: new_comp.quantity as i32,
-    }).commit(conn)?;
+    let comp = Comp::create(
+        new_comp.name,
+        hold.id,
+        new_comp.email,
+        new_comp.phone,
+        new_comp.quantity,
+    ).commit(conn)?;
 
     application::created(json!(comp))
 }

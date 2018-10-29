@@ -7,7 +7,7 @@ use uuid::Uuid;
 pub struct CompBuilder<'a> {
     name: String,
     hold_id: Option<Uuid>,
-    quantity: u32,
+    quantity: u16,
     connection: &'a PgConnection,
 }
 
@@ -32,7 +32,7 @@ impl<'a> CompBuilder<'a> {
         self
     }
 
-    pub fn with_quantity(mut self, quantity: u32) -> Self {
+    pub fn with_quantity(mut self, quantity: u16) -> Self {
         self.quantity = quantity;
         self
     }

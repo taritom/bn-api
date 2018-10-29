@@ -23,12 +23,12 @@ pub struct Hold {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(AsChangeset, Default, Deserialize)]
+#[derive(AsChangeset, Default)]
 #[table_name = "holds"]
 pub struct UpdateHoldAttributes {
     pub name: Option<String>,
     pub hold_type: Option<String>,
-    pub discount_in_cents: Option<i64>,
+    pub discount_in_cents: Option<Option<i64>>,
     pub end_at: Option<Option<NaiveDateTime>>,
     pub max_per_order: Option<Option<i64>>,
 }
@@ -56,9 +56,13 @@ impl Hold {
 
     pub fn update(
         &self,
-        update_attrs: UpdateHoldAttributes,
+        mut update_attrs: UpdateHoldAttributes,
         conn: &PgConnection,
     ) -> Result<Hold, DatabaseError> {
+        if update_attrs.hold_type == Some(HoldTypes::Comp.to_string()) {
+            update_attrs.discount_in_cents = Some(None);
+        }
+
         self.validate_record(&update_attrs)?;
         diesel::update(
             holds::table
@@ -83,7 +87,7 @@ impl Hold {
                 .clone()
                 .unwrap_or(self.hold_type.clone()),
             if update_attrs.discount_in_cents.is_some() {
-                update_attrs.discount_in_cents
+                update_attrs.discount_in_cents.unwrap()
             } else {
                 self.discount_in_cents
             },
@@ -100,7 +104,7 @@ impl Hold {
         discount_in_cents: Option<i64>,
     ) -> Result<(), ValidationError> {
         if hold_type == HoldTypes::Discount.to_string() && discount_in_cents.is_none() {
-            return Err(ValidationError::new(&"required"));
+            return Err(ValidationError::new("required"));
         }
 
         Ok(())
@@ -200,7 +204,10 @@ pub struct NewHold {
 }
 
 impl NewHold {
-    pub fn commit(self, conn: &PgConnection) -> Result<Hold, DatabaseError> {
+    pub fn commit(mut self, conn: &PgConnection) -> Result<Hold, DatabaseError> {
+        if self.hold_type == HoldTypes::Comp.to_string() {
+            self.discount_in_cents = None
+        }
         self.validate_record()?;
         diesel::insert_into(holds::table)
             .values(self)

@@ -28,6 +28,7 @@ pub use self::ticket_types::*;
 pub use self::users::*;
 pub use self::venues::*;
 pub use self::wallets::*;
+use serde::{Deserialize, Deserializer};
 
 pub mod concerns;
 
@@ -60,3 +61,11 @@ mod ticket_types;
 mod users;
 mod venues;
 mod wallets;
+
+pub fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    Deserialize::deserialize(deserializer).map(Some)
+}

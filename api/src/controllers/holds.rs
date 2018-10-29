@@ -23,7 +23,8 @@ pub struct CreateHoldRequest {
 pub struct UpdateHoldRequest {
     pub name: Option<String>,
     pub hold_type: Option<HoldTypes>,
-    pub discount_in_cents: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    pub discount_in_cents: Option<Option<i64>>,
     pub end_at: Option<Option<NaiveDateTime>>,
     pub max_per_order: Option<Option<i64>>,
 }

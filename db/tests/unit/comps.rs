@@ -106,6 +106,15 @@ pub fn update_with_validation_errors() {
 }
 
 #[test]
+fn find_by_redemption_code() {
+    let db = TestProject::new();
+    let connection = db.get_connection();
+    let comp = db.create_comp().finish();
+    let found_comp = Comp::find_by_redemption_code(&comp.redemption_code, connection).unwrap();
+    assert_eq!(comp, found_comp);
+}
+
+#[test]
 fn find_for_hold() {
     let db = TestProject::new();
     let connection = db.get_connection();
@@ -132,7 +141,7 @@ fn find_for_hold() {
 
     let update_patch = UpdateHoldAttributes {
         hold_type: Some(HoldTypes::Discount.to_string()),
-        discount_in_cents: Some(0),
+        discount_in_cents: Some(Some(0)),
         ..Default::default()
     };
     let hold2 = hold2.update(update_patch, connection).unwrap();

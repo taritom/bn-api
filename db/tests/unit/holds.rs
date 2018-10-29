@@ -53,7 +53,7 @@ pub fn update() {
     let hold = db.create_hold().finish();
 
     let update_patch = UpdateHoldAttributes {
-        discount_in_cents: Some(10),
+        discount_in_cents: Some(Some(10)),
         max_per_order: Some(None),
         end_at: Some(None),
         name: Some("New name".to_string()),
@@ -118,7 +118,7 @@ pub fn comps_and_sum() {
 
     let update_patch = UpdateHoldAttributes {
         hold_type: Some(HoldTypes::Discount.to_string()),
-        discount_in_cents: Some(0),
+        discount_in_cents: Some(Some(0)),
         ..Default::default()
     };
     let hold2 = hold2.update(update_patch, connection).unwrap();

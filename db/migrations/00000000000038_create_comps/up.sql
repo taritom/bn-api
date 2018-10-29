@@ -6,10 +6,12 @@ CREATE TABLE comps
     email TEXT NULL,
     hold_id uuid NOT NULL REFERENCES holds(id),
     quantity INT NOT NULL CHECK (quantity >= 0),
+    redemption_code TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
+CREATE UNIQUE INDEX index_comps_redemption_code ON holds(redemption_code);
 CREATE UNIQUE INDEX index_comps_hold_id_name ON comps (
 	hold_id,
 	name
