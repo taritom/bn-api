@@ -2,6 +2,7 @@ use super::tari_messages::*;
 use tari_error::TariError;
 
 use cryptographic::*;
+use log::Level;
 use reqwest;
 use serde_json;
 
@@ -90,7 +91,7 @@ impl TariClient for HttpTariClient {
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
         let raw: String = resp.text()?;
-        println!("Response from create_asset:{}", &raw);
+        jlog!(Level::Info, "Response from create_asset:{}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccessId =
             serde_json::from_value(response_message.result).unwrap();
@@ -129,7 +130,7 @@ impl TariClient for HttpTariClient {
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
         let raw: String = resp.text()?;
-        println!("Response from modify_asset: {}", raw);
+        jlog!(Level::Info, "Response from modify_asset: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccess =
             serde_json::from_value(response_message.result).unwrap();
@@ -168,7 +169,7 @@ impl TariClient for HttpTariClient {
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
         let raw: String = resp.text()?;
-        println!("Response from modify_asset: {}", raw);
+        jlog!(Level::Info, "Response from modify_asset: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccess =
             serde_json::from_value(response_message.result).unwrap();
@@ -207,7 +208,7 @@ impl TariClient for HttpTariClient {
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
         let raw: String = resp.text()?;
-        println!("Response from modify_asset: {}", raw);
+        jlog!(Level::Info, "Response from modify_asset: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccess =
             serde_json::from_value(response_message.result).unwrap();
@@ -244,7 +245,7 @@ impl TariClient for HttpTariClient {
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
         let raw: String = resp.text()?;
-        println!("Response from transfer_token: {}", raw);
+        jlog!(Level::Info, "Response from transfer_token: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccess =
             serde_json::from_value(response_message.result).unwrap();
@@ -280,7 +281,7 @@ impl TariClient for HttpTariClient {
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
         let raw: String = resp.text()?;
-        println!("Response from read_asset: {}", raw);
+        jlog!(Level::Info, "Response from read_asset: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadReadAsset =
             serde_json::from_value(response_message.result).unwrap();

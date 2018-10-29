@@ -4,8 +4,12 @@
 // Unused results is more often than not an error
 #![deny(unused_must_use)]
 extern crate jsonrpc_core;
+extern crate log;
+#[macro_use]
+extern crate logging;
 extern crate reqwest;
 extern crate serde;
+#[macro_use]
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
