@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
 use models::{Artist, Event};
-use schema::event_artists;
+use schema::{artists, event_artists};
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
@@ -61,13 +61,24 @@ impl EventArtist {
     pub fn find_all_from_event(
         event_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<Vec<EventArtist>, DatabaseError> {
-        let result = event_artists::table
+    ) -> Result<Vec<DisplayEventArtist>, DatabaseError> {
+        let results: Vec<(EventArtist, Artist)> = event_artists::table
+            .inner_join(artists::table)
             .filter(event_artists::event_id.eq(event_id))
+            .select((event_artists::all_columns, artists::all_columns))
             .load(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load event artist")?;
+            .to_db_error(ErrorCode::QueryError, "Could not load artists for event")?;
 
-        Ok(result)
+        let mut display_results = Vec::new();
+        for x in results {
+            display_results.push(DisplayEventArtist {
+                event_id: x.0.event_id,
+                artist: x.1,
+                rank: x.0.rank,
+                set_time: x.0.set_time,
+            })
+        }
+        Ok(display_results)
     }
 
     pub fn clear_all_from_event(event_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -77,4 +88,12 @@ impl EventArtist {
                 .to_db_error(ErrorCode::DeleteError, "Could not delete event artists.")?;
         Ok(())
     }
+}
+
+#[derive(Serialize, PartialEq, Debug)]
+pub struct DisplayEventArtist {
+    pub event_id: Uuid,
+    pub artist: Artist,
+    pub rank: i32,
+    pub set_time: Option<NaiveDateTime>,
 }
