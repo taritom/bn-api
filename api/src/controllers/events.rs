@@ -212,13 +212,7 @@ pub fn show(
         id: Uuid,
         name: String,
     }
-    #[derive(Serialize)]
-    struct DisplayEventArtist {
-        event_id: Uuid,
-        artist_id: Uuid,
-        rank: i32,
-        set_time: Option<NaiveDateTime>,
-    }
+
     #[derive(Serialize)]
     struct R {
         id: Uuid,
@@ -243,15 +237,6 @@ pub fn show(
         user_is_interested: bool,
     }
 
-    let display_event_artists = event_artists
-        .iter()
-        .map(|e| DisplayEventArtist {
-            event_id: e.event_id,
-            artist_id: e.artist_id,
-            rank: e.rank,
-            set_time: e.set_time,
-        }).collect();
-
     Ok(HttpResponse::Ok().json(&R {
         id: event.id,
         name: event.name,
@@ -272,7 +257,7 @@ pub fn show(
             name: organization.name,
         },
         venue,
-        artists: display_event_artists,
+        artists: event_artists,
         ticket_types: display_ticket_types,
         total_interest,
         user_is_interested: user_interest,

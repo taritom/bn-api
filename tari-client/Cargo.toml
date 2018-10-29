@@ -5,6 +5,8 @@ authors = ["Philip Robinson <simian@tari.com>"]
 
 [dependencies]
 jsonrpc-core = "8.0.1"
+log = "0.4"
+logging = {path="../logging"}
 reqwest = "0.9.2"
 serde = "1.0.79"
 serde_json = "1.0"

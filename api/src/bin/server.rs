@@ -12,7 +12,6 @@ use bigneon_api::config::{Config, Environment};
 use bigneon_api::server::Server;
 use dotenv::dotenv;
 use log::Level::*;
-use logging::*;
 
 fn main() {
     logging::setup_logger().unwrap();

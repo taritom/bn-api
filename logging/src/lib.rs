@@ -1,7 +1,8 @@
 extern crate fern;
 #[macro_use]
 extern crate log;
-#[cfg_attr(test, macro_use)]
+#[allow(unused_imports)]
+#[macro_use]
 extern crate serde_json;
 
 /// A convenience wrapper around the log! macro for writing log messages that ElasticSearch can
@@ -20,9 +21,11 @@ extern crate serde_json;
 #[macro_export]
 macro_rules! jlog {
     ($t:path, $msg:expr) => {
+        use $crate::transform_message;
         transform_message($t, $msg, "")
     };
     ($t:path, $msg:expr, $json:tt) => {{
+        use $crate::transform_message;
         let meta = json!($json).to_string();
         transform_message($t, $msg, &meta)
     }};
@@ -69,7 +72,7 @@ mod tests {
     use transform_message;
     #[test]
     fn plain() {
-        jlog!(log::Level::Info, "message");
+        jlog!(Info, "message");
     }
 
     #[test]

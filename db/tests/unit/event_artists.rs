@@ -1,5 +1,5 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::EventArtist;
+use bigneon_db::prelude::*;
 
 #[test]
 fn create() {
@@ -40,5 +40,21 @@ fn find_all_by_event() {
 
     let result = EventArtist::find_all_from_event(event.id, project.get_connection()).unwrap();
 
-    assert_eq!(vec![event_artist1, event_artist2], result);
+    assert_eq!(
+        vec![
+            DisplayEventArtist {
+                artist: artist1,
+                set_time: event_artist1.set_time,
+                event_id: event_artist1.event_id,
+                rank: event_artist1.rank
+            },
+            DisplayEventArtist {
+                artist: artist2,
+                set_time: event_artist2.set_time,
+                event_id: event_artist2.event_id,
+                rank: event_artist2.rank
+            }
+        ],
+        result
+    );
 }

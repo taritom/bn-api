@@ -568,13 +568,6 @@ fn expected_show_json(
         name: String,
     }
     #[derive(Serialize)]
-    struct DisplayEventArtist {
-        event_id: Uuid,
-        artist_id: Uuid,
-        rank: i32,
-        set_time: Option<NaiveDateTime>,
-    }
-    #[derive(Serialize)]
     struct R {
         id: Uuid,
         name: String,
@@ -600,15 +593,6 @@ fn expected_show_json(
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
     let event_artists = EventArtist::find_all_from_event(event.id, connection).unwrap();
-
-    let display_event_artists: Vec<DisplayEventArtist> = event_artists
-        .iter()
-        .map(|e| DisplayEventArtist {
-            event_id: e.event_id,
-            artist_id: e.artist_id,
-            rank: e.rank,
-            set_time: e.set_time,
-        }).collect();
 
     let display_ticket_types: Vec<UserDisplayTicketType> = event
         .ticket_types(connection)
@@ -638,7 +622,7 @@ fn expected_show_json(
             name: organization.name,
         },
         venue,
-        artists: display_event_artists,
+        artists: event_artists,
         ticket_types: display_ticket_types,
         total_interest: 1,
         user_is_interested: true,
