@@ -1,5 +1,6 @@
 pub mod artists;
 pub mod assets;
+pub mod comps;
 pub mod concerns;
 pub mod domain_events;
 pub mod event_artists;

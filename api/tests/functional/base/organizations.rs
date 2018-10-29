@@ -84,7 +84,7 @@ pub fn show(role: Roles, should_succeed: bool) {
         organizations::show((database.connection.into(), path, auth_user.clone())).into();
 
     if !should_succeed {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
         return;
     }
 
@@ -226,7 +226,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let response: HttpResponse =
         organizations::update((database.connection.into(), path, json, auth_user.clone())).into();
     if !should_succeed {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -264,7 +264,7 @@ pub fn remove_user(role: Roles, should_test_succeed: bool) {
         let removed_entries: usize = serde_json::from_str(&body).unwrap();
         assert_eq!(removed_entries, count);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -285,7 +285,7 @@ pub fn add_user(role: Roles, should_test_succeed: bool) {
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -314,7 +314,7 @@ pub fn add_venue(role: Roles, should_test_succeed: bool) {
         let venue: Venue = serde_json::from_str(&body).unwrap();
         assert_eq!(venue.name, name);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -348,7 +348,7 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
         let artist: Artist = serde_json::from_str(&body).unwrap();
         assert_eq!(artist.name, name);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -437,7 +437,7 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
     )).into();
 
     if !should_succeed {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -484,7 +484,7 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
             .into();
 
     if !should_succeed {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);

@@ -46,8 +46,16 @@ impl TestDatabase {
         OrderBuilder::new(&self.connection)
     }
 
+    pub fn create_comp(&self) -> CompBuilder {
+        CompBuilder::new(&self.connection)
+    }
+
     pub fn create_event(&self) -> EventBuilder {
         EventBuilder::new(&self.connection)
+    }
+
+    pub fn create_hold(&self) -> HoldBuilder {
+        HoldBuilder::new(&self.connection)
     }
 
     pub fn create_order(&self) -> OrderBuilder {

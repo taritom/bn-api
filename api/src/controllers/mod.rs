@@ -1,6 +1,7 @@
 pub mod artists;
 pub mod auth;
 pub mod cart;
+pub mod comps;
 pub mod events;
 pub mod external;
 pub mod holds;

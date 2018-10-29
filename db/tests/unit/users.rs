@@ -396,6 +396,7 @@ pub fn get_scopes_by_organization() {
         organization.id.clone(),
         vec![
             "artist:write",
+            "comp:write",
             "event:interest",
             "event:view-guests",
             "event:write",
@@ -415,6 +416,7 @@ pub fn get_scopes_by_organization() {
         organization2.id.clone(),
         vec![
             "artist:write",
+            "comp:write",
             "event:interest",
             "event:view-guests",
             "event:write",
@@ -461,6 +463,7 @@ pub fn get_global_scopes() {
         user3.get_global_scopes(),
         vec![
             "artist:write",
+            "comp:write",
             "event:interest",
             "event:view-guests",
             "event:write",

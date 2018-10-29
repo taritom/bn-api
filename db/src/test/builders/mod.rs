@@ -1,6 +1,8 @@
 pub use self::artist_builder::*;
+pub use self::comp_builder::*;
 pub use self::event_builder::*;
 pub use self::fee_schedule_builder::*;
+pub use self::hold_builder::*;
 pub use self::order_builder::*;
 pub use self::organization_builder::*;
 pub use self::organization_invite_builder::*;
@@ -10,8 +12,10 @@ pub use self::user_builder::*;
 pub use self::venue_builder::*;
 
 mod artist_builder;
+mod comp_builder;
 mod event_builder;
 mod fee_schedule_builder;
+mod hold_builder;
 mod order_builder;
 mod organization_builder;
 mod organization_invite_builder;

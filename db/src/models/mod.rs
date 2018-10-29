@@ -1,5 +1,6 @@
 pub use self::artists::*;
 pub use self::assets::*;
+pub use self::comps::*;
 pub use self::domain_events::*;
 pub use self::enums::*;
 pub use self::event_artists::*;
@@ -32,6 +33,7 @@ pub mod concerns;
 
 mod artists;
 mod assets;
+mod comps;
 mod domain_events;
 mod enums;
 mod event_artists;

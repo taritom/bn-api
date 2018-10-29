@@ -52,9 +52,9 @@ pub fn create_auth_user_from_user(
     }
 }
 
-pub fn expects_unauthorized(response: &HttpResponse) {
-    let expected_json: HttpResponse;
-    expected_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
+pub fn expects_unauthorized(response: &HttpResponse, message: Option<&str>) {
+    let expected_json =
+        HttpResponse::Unauthorized().json(json!({"error": message.unwrap_or("Unauthorized")}));
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     let expected_text = unwrap_body_to_string(&expected_json).unwrap();
@@ -63,8 +63,7 @@ pub fn expects_unauthorized(response: &HttpResponse) {
 }
 
 pub fn expects_forbidden(response: &HttpResponse, message: Option<&str>) {
-    let expected_json: HttpResponse;
-    expected_json = HttpResponse::Forbidden().json(json!({
+    let expected_json = HttpResponse::Forbidden().json(json!({
         "error": message.unwrap_or("You do not have access to this order")
     }));
     assert_eq!(response.status(), StatusCode::FORBIDDEN);

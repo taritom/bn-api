@@ -22,28 +22,10 @@ impl TestRequest {
     }
 
     pub fn create_with_uri(path: &str) -> TestRequest {
-        let mut config = Config::new(Environment::Test);
-        config.token_secret = "test_secret".into();
-        config.token_issuer = "bn-api-test".into();
-
-        config.mail_from_email = "support@bigneon.com".to_string();
-        config.mail_from_name = "Big Neon".to_string();
-
-        let test_request = test::TestRequest::with_state(AppState::new(config.clone()));
-
-        // TODO: actix-web test requests do not allow router customization except
-        // within crate. Forcing an ID here so the extractor can still build the
-        // parameters wrapped in the Path struct. Should refactor when they settle
-        // on a final test request design as the current does not support extractors.
-
-        let request = test_request
-            .param("id", "0f85443e-9e70-45ba-bf28-0f59c183856f")
-            .uri(path)
-            .finish();
-        TestRequest { request, config }
+        TestRequest::create_with_uri_custom_params(path, vec!["id"])
     }
 
-    pub fn create_with_uri_event_ticket(path: &str) -> TestRequest {
+    pub fn create_with_uri_custom_params(path: &str, params: Vec<&'static str>) -> TestRequest {
         let mut config = Config::new(Environment::Test);
         config.token_secret = "test_secret".into();
         config.token_issuer = "bn-api-test".into();
@@ -58,12 +40,16 @@ impl TestRequest {
         // parameters wrapped in the Path struct. Should refactor when they settle
         // on a final test request design as the current does not support extractors.
 
-        let request = test_request
-            .param("event_id", "0f85443e-9e70-45ba-bf28-0f59c183856f")
-            .param("ticket_type_id", "0f85443e-9e70-45ba-bf28-0f59c183856f")
-            .uri(path)
-            .finish();
-        TestRequest { request, config }
+        let mut request = test_request.uri(path);
+
+        for param in params {
+            request = request.param(param, "0f85443e-9e70-45ba-bf28-0f59c183856f");
+        }
+
+        TestRequest {
+            request: request.finish(),
+            config,
+        }
     }
 
     pub fn extract_state(&self) -> State<AppState> {

@@ -3,6 +3,7 @@ use std::fmt;
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum Scopes {
     ArtistWrite,
+    CompWrite,
     EventWrite,
     EventInterest,
     EventViewGuests,
@@ -23,6 +24,7 @@ impl fmt::Display for Scopes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match self {
             Scopes::ArtistWrite => "artist:write",
+            Scopes::CompWrite => "comp:write",
             Scopes::EventWrite => "event:write",
             Scopes::EventInterest => "event:interest",
             Scopes::EventViewGuests => "event:view-guests",
@@ -64,6 +66,7 @@ fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
         "OrgMember" => {
             let mut roles = vec![
                 Scopes::ArtistWrite,
+                Scopes::CompWrite,
                 Scopes::EventViewGuests,
                 Scopes::EventWrite,
                 Scopes::HoldWrite,
@@ -101,6 +104,7 @@ fn get_scopes_for_role_test() {
             Scopes::OrgWrite,
             Scopes::UserRead,
             Scopes::ArtistWrite,
+            Scopes::CompWrite,
             Scopes::EventViewGuests,
             Scopes::EventWrite,
             Scopes::HoldWrite,
@@ -127,6 +131,7 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:write",
+            "comp:write",
             "event:interest",
             "event:view-guests",
             "event:write",
@@ -146,6 +151,7 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:write",
+            "comp:write",
             "event:interest",
             "event:view-guests",
             "event:write",
@@ -168,6 +174,7 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:write",
+            "comp:write",
             "event:interest",
             "event:view-guests",
             "event:write",

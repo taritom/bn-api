@@ -93,7 +93,7 @@ pub fn create_with_organization(role: Roles, should_succeed: bool) {
         venues::create((database.connection.into(), json, auth_user.clone())).into();
 
     if !should_succeed {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
         return;
     }
     assert_eq!(response.status(), StatusCode::CREATED);
@@ -148,7 +148,7 @@ pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
         let updated_venue: Venue = serde_json::from_str(&body).unwrap();
         assert_ne!(updated_venue.is_private, venue.is_private)
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -180,7 +180,7 @@ pub fn update_with_organization(role: Roles, should_succeed: bool, is_private: b
     let response: HttpResponse =
         venues::update((database.connection.into(), path, json, auth_user.clone())).into();
     if !should_succeed {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);

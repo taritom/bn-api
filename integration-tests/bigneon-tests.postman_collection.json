@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "bb4e83ef-da01-4bbc-aa08-a9353a29a5f5",
+		"_postman_id": "a8469d46-39e6-4601-a1b6-bcaeda3b0ddf",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -836,7 +836,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Musician Tickets\",\n\t\"redemption_code\" : \"Yeaaaah{{$timestamp}}\",\n\t\"discount_in_cents\" : 100,\n\t\"end_at\": \"2019-01-01T12:00:00\",\n\t\"max_per_order\" : 10,\n\t\"items\": [\n\t\t{\n\t\t\t\t\t\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 30\n\t\t}]\n\t\n}"
+							"raw": "{\n\t\"name\":\"Musician Tickets\",\n\t\"hold_type\":\"Discount\",\n\t\"redemption_code\" : \"Yeaaaah{{$timestamp}}\",\n\t\"discount_in_cents\" : 100,\n\t\"end_at\": \"2019-01-01T12:00:00\",\n\t\"max_per_order\" : 10,\n\t\"items\": [\n\t\t{\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 30\n\t\t}]\n\t\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/holds",
@@ -860,13 +860,13 @@
 							"listen": "test",
 							"script": {
 								"id": "6deee955-92fc-402a-8ec3-d139822b7776",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
 									"})",
 									""
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -890,7 +890,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"items\": [\n\t\t{\n\t\t\t\t\t\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 10\n\t\t}]\n\t\n}"
+							"raw": "{\n\t\"items\": [\n\t\t{\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 10\n\t\t}]\n\t\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/holds/{{last_hold_id}}/tickets",
@@ -956,6 +956,565 @@
 								"holds",
 								"{{last_hold_id}}",
 								"tickets"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Comp Holds",
+			"item": [
+				{
+					"name": "Admin - create comp hold",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0936a8c3-977f-412b-95de-f9ab1abd5203",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"",
+									"pm.environment.set(\"last_hold_id\", JSON.parse(responseBody).id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\":\"Event Comp Tickets\",\n\t\"hold_type\":\"Comp\",\n\t\"redemption_code\" : \"Comps{{$timestamp}}\",\n\t\"items\": [\n\t\t{\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 30\n\t\t}]\n\t\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/holds",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"holds"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - add comps to comp hold",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6deee955-92fc-402a-8ec3-d139822b7776",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"comp should have correct information\", function(){",
+									"    pm.expect(json.name).to.equal(\"Michael Davidson\");",
+									"    pm.expect(json.phone).to.equal(\"111-111-1111\");",
+									"    pm.expect(json.email).to.equal(\"michael-davidson@tari.com\");",
+									"    pm.expect(json.quantity).to.equal(15);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "ce8bf578-46bd-4ebb-89e0-3e1cd92034b7",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"Michael Davidson\",\n\t\"email\": \"michael-davidson@tari.com\",\n\t\"phone\":\"111-111-1111\",\n\t\"quantity\": 15\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"holds",
+								"{{last_hold_id}}",
+								"comps"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - get comps from comp hold",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6deee955-92fc-402a-8ec3-d139822b7776",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"comp should be present\", function(){",
+									"    pm.expect(json.data.length).to.equal(1);",
+									"});",
+									"",
+									"pm.test(\"comp should have correct information\", function(){",
+									"    pm.expect(json.data[0].name).to.equal(\"Michael Davidson\");",
+									"    pm.expect(json.data[0].phone).to.equal(\"111-111-1111\");",
+									"    pm.expect(json.data[0].email).to.equal(\"michael-davidson@tari.com\");",
+									"    pm.expect(json.data[0].quantity).to.equal(15);",
+									"});",
+									"",
+									"pm.environment.set(\"last_comp_id\", json.data[0].id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"items\": [\n\t\t{\n\t\t\t\t\t\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 10\n\t\t}]\n\t\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"holds",
+								"{{last_hold_id}}",
+								"comps"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - get comp",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6deee955-92fc-402a-8ec3-d139822b7776",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"comp should have correct information\", function(){",
+									"    pm.expect(json.name).to.equal(\"Michael Davidson\");",
+									"    pm.expect(json.phone).to.equal(\"111-111-1111\");",
+									"    pm.expect(json.email).to.equal(\"michael-davidson@tari.com\");",
+									"    pm.expect(json.quantity).to.equal(15);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"items\": [\n\t\t{\n\t\t\t\t\t\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 10\n\t\t}]\n\t\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"holds",
+								"{{last_hold_id}}",
+								"comps",
+								"{{last_comp_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - update comp",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6deee955-92fc-402a-8ec3-d139822b7776",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"comp should have correct information\", function(){",
+									"    pm.expect(json.name).to.equal(\"Michael Robinson\");",
+									"    pm.expect(json.phone).to.equal(\"222-222-2222\");",
+									"    pm.expect(json.email).to.equal(\"michael-robinson@tari.com\");",
+									"    pm.expect(json.quantity).to.equal(5);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"Michael Robinson\",\n\t\"email\": \"michael-robinson@tari.com\",\n\t\"phone\":\"222-222-2222\",\n\t\"quantity\": 5\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"holds",
+								"{{last_hold_id}}",
+								"comps",
+								"{{last_comp_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - get comp after update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6deee955-92fc-402a-8ec3-d139822b7776",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"comp should have correct information\", function(){",
+									"    pm.expect(json.name).to.equal(\"Michael Robinson\");",
+									"    pm.expect(json.phone).to.equal(\"222-222-2222\");",
+									"    pm.expect(json.email).to.equal(\"michael-robinson@tari.com\");",
+									"    pm.expect(json.quantity).to.equal(5);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"items\": [\n\t\t{\n\t\t\t\t\t\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 10\n\t\t}]\n\t\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"holds",
+								"{{last_hold_id}}",
+								"comps",
+								"{{last_comp_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - destroy comp",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6deee955-92fc-402a-8ec3-d139822b7776",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"holds",
+								"{{last_hold_id}}",
+								"comps",
+								"{{last_comp_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - get comp after destroy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6deee955-92fc-402a-8ec3-d139822b7776",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(404);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"items\": [\n\t\t{\n\t\t\t\t\t\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 10\n\t\t}]\n\t\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"holds",
+								"{{last_hold_id}}",
+								"comps",
+								"{{last_comp_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - get comps from comp hold after destroy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6deee955-92fc-402a-8ec3-d139822b7776",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"comp should be present\", function(){",
+									"    pm.expect(json.data.length).to.equal(0);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"items\": [\n\t\t{\n\t\t\t\t\t\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 10\n\t\t}]\n\t\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"holds",
+								"{{last_hold_id}}",
+								"comps"
 							]
 						}
 					},
@@ -1286,8 +1845,6 @@
 									"    pm.expect(json.items[0].unit_price_in_cents).to.equal(3000);",
 									"    ",
 									"    pm.environment.set(\"last_ticket_pricing_id\", json.items[0].ticket_pricing_id);",
-									"",
-									"    ",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",

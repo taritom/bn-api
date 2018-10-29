@@ -52,7 +52,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
         };
         assert_eq!(expected_result, ticket_response);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -127,7 +127,7 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
         let ticket_response: R = serde_json::from_str(&body).unwrap();
         assert_eq!(ticket_response.success, true);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -172,6 +172,6 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
         let ticket_response: RedeemableTicket = serde_json::from_str(&body).unwrap();
         assert!(ticket_response.redeem_key.is_some());
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }

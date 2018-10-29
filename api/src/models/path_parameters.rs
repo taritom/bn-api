@@ -15,3 +15,9 @@ pub struct EventTicketPathParameters {
     pub event_id: Uuid,
     pub ticket_type_id: Uuid,
 }
+
+#[derive(Deserialize)]
+pub struct CompPathParameters {
+    pub hold_id: Uuid,
+    pub comp_id: Uuid,
+}

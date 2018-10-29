@@ -169,6 +169,7 @@ fn current_user_admin() {
     assert_eq!(
         vec![
             "artist:write",
+            "comp:write",
             "event:interest",
             "event:view-guests",
             "event:write",
@@ -213,6 +214,7 @@ fn current_user_organization_owner() {
         organization.id,
         vec![
             "artist:write",
+            "comp:write",
             "event:interest",
             "event:view-guests",
             "event:write",
@@ -266,6 +268,7 @@ fn current_user_organization_member() {
         organization.id,
         vec![
             "artist:write",
+            "comp:write",
             "event:interest",
             "event:view-guests",
             "event:write",

@@ -8,14 +8,38 @@ use helpers::application;
 use models::PathParameters;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct CreateHoldRequest {
     pub name: String,
     pub redemption_code: String,
-    pub discount_in_cents: u32,
+    pub discount_in_cents: Option<u32>,
+    pub hold_type: HoldTypes,
     pub end_at: Option<NaiveDateTime>,
     pub max_per_order: Option<u32>,
     pub items: Vec<HoldItem>,
+}
+
+#[derive(Default, Deserialize, Serialize)]
+pub struct UpdateHoldRequest {
+    pub name: Option<String>,
+    pub hold_type: Option<HoldTypes>,
+    pub discount_in_cents: Option<i64>,
+    pub end_at: Option<Option<NaiveDateTime>>,
+    pub max_per_order: Option<Option<i64>>,
+}
+
+impl From<UpdateHoldRequest> for UpdateHoldAttributes {
+    fn from(attributes: UpdateHoldRequest) -> Self {
+        UpdateHoldAttributes {
+            name: attributes.name,
+            hold_type: attributes
+                .hold_type
+                .and_then(|hold_type| Some(hold_type.to_string())),
+            discount_in_cents: attributes.discount_in_cents,
+            end_at: attributes.end_at,
+            max_per_order: attributes.max_per_order,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -45,6 +69,7 @@ pub fn create(
         req.discount_in_cents,
         req.end_at,
         req.max_per_order,
+        req.hold_type,
     ).commit(conn)?;
 
     for line in &req.items {
@@ -57,7 +82,7 @@ pub fn create(
 pub fn update(
     (conn, req, path, user): (
         Connection,
-        Json<UpdateHoldAttributes>,
+        Json<UpdateHoldRequest>,
         Path<PathParameters>,
         User,
     ),
@@ -66,7 +91,7 @@ pub fn update(
 
     let hold = Hold::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::HoldWrite, &hold.organization(conn)?, conn)?;
-    Ok(HttpResponse::Ok().json(hold.update(req.into_inner(), conn)))
+    Ok(HttpResponse::Ok().json(hold.update(req.into_inner().into(), conn)?))
 }
 
 #[derive(Deserialize)]

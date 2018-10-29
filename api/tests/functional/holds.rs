@@ -1,0 +1,206 @@
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use bigneon_api::controllers::holds::{
+    self, CreateHoldRequest, HoldItem, UpdateHoldItemsRequest, UpdateHoldRequest,
+};
+use bigneon_api::models::PathParameters;
+use bigneon_db::models::*;
+use functional::base;
+use support;
+use support::database::TestDatabase;
+use support::test_request::TestRequest;
+
+#[cfg(test)]
+mod create_tests {
+    use super::*;
+    #[test]
+    fn create_org_member() {
+        base::holds::create(Roles::OrgMember, true);
+    }
+    #[test]
+    fn create_admin() {
+        base::holds::create(Roles::Admin, true);
+    }
+    #[test]
+    fn create_user() {
+        base::holds::create(Roles::User, false);
+    }
+    #[test]
+    fn create_org_owner() {
+        base::holds::create(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod update_tests {
+    use super::*;
+    #[test]
+    fn update_org_member() {
+        base::holds::update(Roles::OrgMember, true);
+    }
+    #[test]
+    fn update_admin() {
+        base::holds::update(Roles::Admin, true);
+    }
+    #[test]
+    fn update_user() {
+        base::holds::update(Roles::User, false);
+    }
+    #[test]
+    fn update_org_owner() {
+        base::holds::update(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod add_remove_from_hold_tests {
+    use super::*;
+    #[test]
+    fn add_remove_from_hold_org_member() {
+        base::holds::add_remove_from_hold(Roles::OrgMember, true);
+    }
+    #[test]
+    fn add_remove_from_hold_admin() {
+        base::holds::add_remove_from_hold(Roles::Admin, true);
+    }
+    #[test]
+    fn add_remove_from_hold_user() {
+        base::holds::add_remove_from_hold(Roles::User, false);
+    }
+    #[test]
+    fn add_remove_from_hold_org_owner() {
+        base::holds::add_remove_from_hold(Roles::OrgOwner, true);
+    }
+}
+
+#[test]
+fn create_with_validation_errors() {
+    let database = TestDatabase::new();
+    let organization = database.create_organization().finish();
+    let user = database.create_user().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+
+    let name = "Hold Example".to_string();
+    let redemption_code = "IHAVEACODE".to_string();
+    let hold_type = HoldTypes::Discount;
+
+    let json = Json(CreateHoldRequest {
+        name: name.clone(),
+        redemption_code: redemption_code,
+        discount_in_cents: None,
+        hold_type,
+        end_at: None,
+        max_per_order: None,
+        items: Vec::new(),
+    });
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+
+    let response: HttpResponse =
+        holds::create((database.connection.into(), json, path, auth_user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
+
+    let expected_json = json!({
+        "error": "Validation error",
+        "fields":{
+            "discount_in_cents":[{"code":"required","message":null,"params":{}}],
+        }
+    }).to_string();
+    assert_eq!(body, expected_json);
+}
+
+#[test]
+fn update_with_validation_errors() {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let user = database.create_user().finish();
+    let hold = database
+        .create_hold()
+        .with_hold_type(HoldTypes::Comp)
+        .finish();
+    let event = Event::find(hold.event_id, &connection).unwrap();
+    let organization = event.organization(&connection).unwrap();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let name = "New Name";
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = hold.id;
+
+    let json = Json(UpdateHoldRequest {
+        name: Some(name.into()),
+        hold_type: Some(HoldTypes::Discount),
+        ..Default::default()
+    });
+
+    let response: HttpResponse =
+        holds::update((database.connection.into(), json, path, auth_user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
+
+    let expected_json = json!({
+        "error": "Validation error",
+        "fields":{
+            "discount_in_cents":[{"code":"required","message":null,"params":{}}],
+        }
+    }).to_string();
+    assert_eq!(body, expected_json);
+}
+
+#[test]
+pub fn add_remove_from_hold_with_validation_errors() {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let user = database.create_user().finish();
+    let hold = database
+        .create_hold()
+        .with_hold_type(HoldTypes::Comp)
+        .finish();
+    // 4 comps exist for this hold so setting the quantity < 4 will trigger validation error
+    database
+        .create_comp()
+        .with_hold(&hold)
+        .with_quantity(4)
+        .finish();
+    let event = Event::find(hold.event_id, &connection).unwrap();
+    let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
+    let organization = event.organization(&connection).unwrap();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    assert_eq!(hold.quantity(ticket_type_id, &connection).unwrap(), 10);
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = hold.id;
+
+    let json = Json(UpdateHoldItemsRequest {
+        items: vec![HoldItem {
+            ticket_type_id: ticket_type_id,
+            quantity: 3,
+        }],
+    });
+
+    let response: HttpResponse =
+        holds::add_remove_from_hold((database.connection.into(), json, path, auth_user)).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
+
+    let expected_json = json!({
+        "error": "Validation error",
+        "fields":{
+            "quantity":[{"code":"assigned_comp_count_greater_than_quantity","message":null,"params":{}}],
+        }
+    }).to_string();
+    assert_eq!(body, expected_json);
+}

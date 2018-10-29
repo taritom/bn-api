@@ -157,7 +157,8 @@ pub fn update_with_invalid_id() {
         .unwrap();
 
     //Construct update request
-    let test_request = TestRequest::create_with_uri_event_ticket("/");
+    let test_request =
+        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
@@ -218,7 +219,8 @@ pub fn update_with_overlapping_periods() {
         .unwrap();
 
     //Construct update request
-    let test_request = TestRequest::create_with_uri_event_ticket("/");
+    let test_request =
+        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;

@@ -32,6 +32,19 @@ table! {
 }
 
 table! {
+    comps (id) {
+        id -> Uuid,
+        name -> Text,
+        phone -> Nullable<Text>,
+        email -> Nullable<Text>,
+        hold_id -> Uuid,
+        quantity -> Int4,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     domain_events (id) {
         id -> Uuid,
         event_type -> Text,
@@ -127,9 +140,10 @@ table! {
         name -> Text,
         event_id -> Uuid,
         redemption_code -> Text,
-        discount_in_cents -> Int8,
+        discount_in_cents -> Nullable<Int8>,
         end_at -> Nullable<Timestamp>,
         max_per_order -> Nullable<Int8>,
+        hold_type -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -181,6 +195,16 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         owner_user_id -> Uuid,
@@ -195,16 +219,6 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Uuid,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -349,6 +363,7 @@ table! {
 
 joinable!(artists -> organizations (organization_id));
 joinable!(assets -> ticket_types (ticket_type_id));
+joinable!(comps -> holds (hold_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
 joinable!(event_interest -> events (event_id));
@@ -384,6 +399,7 @@ joinable!(wallets -> users (user_id));
 allow_tables_to_appear_in_same_query!(
     artists,
     assets,
+    comps,
     domain_events,
     event_artists,
     event_interest,
@@ -395,8 +411,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     payment_methods,
     payments,
     regions,

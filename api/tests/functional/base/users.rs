@@ -59,7 +59,7 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
         let expected_json = serde_json::to_string(&wrapped_expected_links).unwrap();
         assert_eq!(body, expected_json);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
     assert_eq!(true, true);
 }
@@ -89,7 +89,7 @@ pub fn find_by_email(role: Roles, should_test_true: bool) {
         let user: DisplayUser = serde_json::from_str(&body).unwrap();
         assert_eq!(user, display_user);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -115,6 +115,6 @@ pub fn show(role: Roles, should_test_true: bool) {
         let user: DisplayUser = serde_json::from_str(&body).unwrap();
         assert_eq!(user, display_user);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }

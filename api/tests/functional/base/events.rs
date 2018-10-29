@@ -41,7 +41,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         let event: Event = serde_json::from_str(&body).unwrap();
         assert_eq!(event.status, EventStatus::Draft.to_string());
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -74,7 +74,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         let updated_event: Event = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_event.name, new_name);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -101,7 +101,7 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
         let updated_event: Event = serde_json::from_str(&body).unwrap();
         assert!(!updated_event.cancelled_at.is_none());
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -139,7 +139,7 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 
@@ -309,7 +309,7 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
         assert_eq!(returned_event_artists[0].artist_id, artist1.id);
         assert_eq!(returned_event_artists[1].set_time, None);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
 

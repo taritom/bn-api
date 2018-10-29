@@ -93,7 +93,8 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         .unwrap();
 
     //Construct update request
-    let test_request = TestRequest::create_with_uri_event_ticket("/");
+    let test_request =
+        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
@@ -223,6 +224,6 @@ pub fn index(role: Roles, should_test_succeed: bool) {
             serde_json::from_str(&body).unwrap();
         assert_eq!(ticket_types_response.data, expected_ticket_types);
     } else {
-        support::expects_unauthorized(&response);
+        support::expects_unauthorized(&response, None);
     }
 }
