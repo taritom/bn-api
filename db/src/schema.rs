@@ -145,6 +145,7 @@ table! {
         end_at -> Nullable<Timestamp>,
         max_per_order -> Nullable<Int8>,
         hold_type -> Text,
+        ticket_type_id -> Uuid,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -374,6 +375,7 @@ joinable!(events -> venues (venue_id));
 joinable!(external_logins -> users (user_id));
 joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
 joinable!(holds -> events (event_id));
+joinable!(holds -> ticket_types (ticket_type_id));
 joinable!(order_items -> events (event_id));
 joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
 joinable!(order_items -> orders (order_id));

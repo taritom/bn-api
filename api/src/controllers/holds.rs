@@ -14,15 +14,17 @@ pub struct CreateHoldRequest {
     pub redemption_code: String,
     pub discount_in_cents: Option<u32>,
     pub hold_type: HoldTypes,
+    pub quantity: u32,
+    pub ticket_type_id: Uuid,
     pub end_at: Option<NaiveDateTime>,
     pub max_per_order: Option<u32>,
-    pub items: Vec<HoldItem>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct UpdateHoldRequest {
     pub name: Option<String>,
     pub hold_type: Option<HoldTypes>,
+    pub quantity: Option<u32>,
     #[serde(default, deserialize_with = "deserialize_some")]
     pub discount_in_cents: Option<Option<i64>>,
     pub end_at: Option<Option<NaiveDateTime>>,
@@ -41,12 +43,6 @@ impl From<UpdateHoldRequest> for UpdateHoldAttributes {
             max_per_order: attributes.max_per_order,
         }
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct HoldItem {
-    pub ticket_type_id: Uuid,
-    pub quantity: u32,
 }
 
 // add update fields in here as well
@@ -71,11 +67,10 @@ pub fn create(
         req.end_at,
         req.max_per_order,
         req.hold_type,
+        req.ticket_type_id,
     ).commit(conn)?;
 
-    for line in &req.items {
-        hold.set_quantity(line.ticket_type_id, line.quantity, conn)?;
-    }
+    hold.set_quantity(req.quantity, conn)?;
 
     application::created(json!(hold))
 }
@@ -96,14 +91,14 @@ pub fn update(
 }
 
 #[derive(Deserialize)]
-pub struct UpdateHoldItemsRequest {
-    pub items: Vec<HoldItem>,
+pub struct SetQuantityRequest {
+    pub quantity: u32,
 }
 
 pub fn add_remove_from_hold(
     (conn, req, path, user): (
         Connection,
-        Json<UpdateHoldItemsRequest>,
+        Json<SetQuantityRequest>,
         Path<PathParameters>,
         User,
     ),
@@ -111,9 +106,43 @@ pub fn add_remove_from_hold(
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::HoldWrite, &hold.organization(conn)?, conn)?;
-    for line in &req.items {
-        hold.set_quantity(line.ticket_type_id, line.quantity, conn)?;
-    }
+    hold.set_quantity(req.quantity, conn)?;
 
     Ok(HttpResponse::Ok().finish())
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct SplitHoldRequest {
+    pub name: String,
+    pub redemption_code: String,
+    pub discount_in_cents: Option<u32>,
+
+    pub hold_type: HoldTypes,
+    pub quantity: u32,
+    pub end_at: Option<NaiveDateTime>,
+    pub max_per_order: Option<u32>,
+}
+
+pub fn split(
+    (conn, req, path, user): (
+        Connection,
+        Json<SplitHoldRequest>,
+        Path<PathParameters>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    let hold = Hold::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::HoldWrite, &hold.organization(conn)?, conn)?;
+    let new_hold = hold.split(
+        req.name.clone(),
+        req.redemption_code.clone(),
+        req.quantity,
+        req.discount_in_cents,
+        req.hold_type,
+        req.end_at,
+        req.max_per_order,
+        conn,
+    )?;
+    Ok(HttpResponse::Created().json(new_hold))
 }

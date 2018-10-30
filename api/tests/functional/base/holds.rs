@@ -1,7 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
-use bigneon_api::controllers::holds::{
-    self, CreateHoldRequest, HoldItem, UpdateHoldItemsRequest, UpdateHoldRequest,
-};
+use bigneon_api::controllers::holds;
+use bigneon_api::controllers::holds::*;
 use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use serde_json;
@@ -17,6 +16,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let event = database
         .create_event()
+        .with_tickets()
         .with_organization(&organization)
         .finish();
 
@@ -32,7 +32,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         hold_type,
         end_at: None,
         max_per_order: None,
-        items: Vec::new(),
+        quantity: 2,
+        ticket_type_id: event.ticket_types(&database.connection.clone()).unwrap()[0].id,
     });
 
     let test_request = TestRequest::create();
@@ -100,29 +101,23 @@ pub fn add_remove_from_hold(role: Roles, should_test_succeed: bool) {
     let user = database.create_user().finish();
     let hold = database.create_hold().finish();
     let event = Event::find(hold.event_id, &connection).unwrap();
-    let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
     let organization = event.organization(&connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
-    assert_eq!(hold.quantity(ticket_type_id, &connection).unwrap(), 10);
+    assert_eq!(hold.quantity(&connection).unwrap(), 10);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = hold.id;
 
-    let json = Json(UpdateHoldItemsRequest {
-        items: vec![HoldItem {
-            ticket_type_id: ticket_type_id,
-            quantity: 1,
-        }],
-    });
+    let json = Json(SetQuantityRequest { quantity: 1 });
 
     let response: HttpResponse =
         holds::add_remove_from_hold((database.connection.into(), json, path, auth_user)).into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(hold.quantity(ticket_type_id, &connection).unwrap(), 1);
+        assert_eq!(hold.quantity(&connection).unwrap(), 1);
     } else {
         support::expects_unauthorized(
             &response,
