@@ -34,39 +34,32 @@ env:
 
 matrix:
   include:
-    - name: "Test DB"
-      env:
-        - TEST_SCRIPT="run-db-tests.sh"
-        - DATABASE_URL=postgres://postgres:password123@localhost/bigneon_test
     - name: "Test API"
       env:
        - TEST_SCRIPT="run-api-tests.sh"
        - DATABASE_URL=postgres://postgres:password123@localhost/bigneon_test
+    - name: "Test Other"
+      env:
+      - TEST_SCRIPT="run-other-tests.sh"
+      - DATABASE_URL=postgres://postgres:password123@localhost/bigneon_test
     - name: "Test Postman"
       env:
        - TEST_SCRIPT="run-integration-tests.sh"
        - DATABASE_URL=postgres://postgres:password123@localhost/bigneon_test
+    - name: "Cargo Audit"
+      env:
+      - TEST_SCRIPT="run-cargo-audit.sh"
+      - DATABASE_URL=NA
   fast_finish: true
 script:
   - cd scripts
   - ./$TEST_SCRIPT
-#
-#    - stage: "Cargo Audit"
-#      script:
-#        # force in case it is already installed, make sure we have the latest
-#        - cargo install cargo-audit --force
-#        - cargo audit
-
 
 before_install:
   - export PATH="$PATH:$HOME/.cargo/bin"
   - rustup component add rustfmt-preview
   - cargo fmt --all -- --check
-  - cd db
-  - cargo run create -c $DATABASE_URL -f -e superuser@test.com -p password -m 8883
-  - cd ..
-  #- cargo install cargo-audit --force
-  #- cargo audit
+
 
 before_script:
 

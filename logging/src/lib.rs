@@ -70,6 +70,7 @@ pub fn setup_logger() -> Result<(), fern::InitError> {
 mod tests {
     use log::Level::*;
     use transform_message;
+
     #[test]
     fn plain() {
         jlog!(Info, "message");
