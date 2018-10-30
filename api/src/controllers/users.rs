@@ -1,7 +1,9 @@
-use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Json, Path, Query};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
+use controllers::auth;
+use controllers::auth::LoginRequest;
 use db::Connection;
 use diesel::PgConnection;
 use errors::*;
@@ -9,7 +11,9 @@ use helpers::application;
 use models::{
     Paging, PagingParameters, PathParameters, Payload, RegisterRequest, UserProfileAttributes,
 };
+use server::AppState;
 use std::collections::HashMap;
+use std::str;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -105,6 +109,23 @@ pub fn register(
     let new_user: NewUser = parameters.into_inner().into();
     new_user.commit(connection.get())?;
     Ok(HttpResponse::Created().finish())
+}
+
+pub fn register_and_login(
+    (http_request, connection, parameters): (
+        HttpRequest<AppState>,
+        Connection,
+        Json<RegisterRequest>,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let email = parameters.email.clone();
+    let password = parameters.password.clone();
+    let new_user: NewUser = parameters.into_inner().into();
+    new_user.commit(connection.get())?;
+    let json = Json(LoginRequest::new(&email, &password));
+    let token_response = auth::token((http_request, connection, json))?;
+
+    Ok(HttpResponse::Created().json(token_response))
 }
 
 fn current_user_from_user(

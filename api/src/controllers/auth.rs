@@ -57,7 +57,7 @@ pub fn token(
         Connection,
         Json<LoginRequest>,
     ),
-) -> Result<HttpResponse, BigNeonError> {
+) -> Result<TokenResponse, BigNeonError> {
     let state = http_request.state();
     let connection_info = http_request.connection_info();
     let remote_ip = connection_info.remote();
@@ -70,11 +70,11 @@ pub fn token(
                     captcha_response,
                     remote_ip,
                 )? {
-                    return application::unauthorized_with_message("Captcha value invalid");
+                    return Err(AuthError::new("Captcha value invalid".to_string()).into());
                 }
             }
             None => {
-                return application::unauthorized_with_message("Captcha required");
+                return Err(AuthError::new("Captcha required".to_string()).into());
             }
         }
     }
@@ -84,11 +84,11 @@ pub fn token(
 
     let user = match User::find_by_email(&login_request.email, connection.get()) {
         Ok(u) => u,
-        Err(_e) => return application::unauthorized_with_message(login_failure_messaging),
+        Err(_e) => return Err(AuthError::new(login_failure_messaging.to_string()).into()),
     };
 
     if !user.check_password(&login_request.password) {
-        return application::unauthorized_with_message(login_failure_messaging);
+        return Err(AuthError::new(login_failure_messaging.to_string()).into());
     }
 
     let response = TokenResponse::create_from_user(
@@ -96,7 +96,7 @@ pub fn token(
         &state.config.token_issuer,
         &user,
     );
-    Ok(HttpResponse::Ok().json(response))
+    Ok(response)
 }
 
 pub fn token_refresh(

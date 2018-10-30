@@ -134,6 +134,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(users::register)
     }).resource("/users", |r| {
         r.method(Method::GET).with(users::find_by_email);
+        r.method(Method::POST).with(users::register_and_login);
     }).resource("/users/{id}", |r| {
         r.method(Method::GET).with(users::show);
     }).resource("/users/{id}/organizations", |r| {
