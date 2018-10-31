@@ -7,8 +7,8 @@ WHERE id IN (SELECT t.id
                     INNER JOIN assets AS a ON t.asset_id = a.id
              WHERE (t.order_item_id IS NULL OR (t.reserved_until < now() AND t.status <> 'Purchased'))
                AND a.ticket_type_id = $2
-               AND
-                   t.hold_id IS NULL
+               AND coalesce($4, 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11') =
+                   coalesce(t.hold_id, 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11') -- dummy guid
              LIMIT $3 FOR UPDATE SKIP LOCKED)
     RETURNING
       id,

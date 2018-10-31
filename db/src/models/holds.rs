@@ -19,6 +19,7 @@ pub struct Hold {
     pub end_at: Option<NaiveDateTime>,
     pub max_per_order: Option<i64>,
     pub hold_type: String,
+    pub ticket_type_id: Uuid,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -42,6 +43,7 @@ impl Hold {
         end_at: Option<NaiveDateTime>,
         max_per_order: Option<u32>,
         hold_type: HoldTypes,
+        ticket_type_id: Uuid,
     ) -> NewHold {
         NewHold {
             name,
@@ -51,6 +53,7 @@ impl Hold {
             end_at,
             max_per_order: max_per_order.map(|m| m as i64),
             hold_type: hold_type.to_string(),
+            ticket_type_id,
         }
     }
 
@@ -106,6 +109,38 @@ impl Hold {
         )?)
     }
 
+    pub fn split(
+        &self,
+        name: String,
+        redemption_code: String,
+        quantity: u32,
+        discount_in_cents: Option<u32>,
+        hold_type: HoldTypes,
+        end_at: Option<NaiveDateTime>,
+        max_per_order: Option<u32>,
+        conn: &PgConnection,
+    ) -> Result<Hold, DatabaseError> {
+        let new_hold = Hold::create(
+            name,
+            self.event_id,
+            redemption_code,
+            discount_in_cents,
+            end_at,
+            max_per_order,
+            hold_type,
+            self.ticket_type_id,
+        ).commit(conn)?;
+
+        TicketInstance::add_to_hold(
+            new_hold.id,
+            self.ticket_type_id,
+            quantity,
+            Some(self.id),
+            conn,
+        )?;
+        Ok(new_hold)
+    }
+
     pub fn discount_in_cents_valid(
         hold_type: String,
         discount_in_cents: Option<i64>,
@@ -117,12 +152,7 @@ impl Hold {
         Ok(())
     }
 
-    pub fn set_quantity(
-        &self,
-        ticket_type_id: Uuid,
-        quantity: u32,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn set_quantity(&self, quantity: u32, conn: &PgConnection) -> Result<(), DatabaseError> {
         // Validate logic is not releasing already assigned comps
         if self.hold_type == HoldTypes::Comp.to_string() && self.comps_sum(conn)? > quantity {
             validators::append_validation_error(
@@ -134,12 +164,23 @@ impl Hold {
             )?;
         }
 
-        let count = self.quantity(ticket_type_id, conn)?;
+        let count = self.quantity(conn)?;
         if count < quantity {
-            TicketInstance::add_to_hold(self.id, ticket_type_id, quantity - count, conn)?;
+            TicketInstance::add_to_hold(
+                self.id,
+                self.ticket_type_id,
+                quantity - count,
+                None,
+                conn,
+            )?;
         }
         if count > quantity {
-            TicketInstance::release_from_hold(self.id, ticket_type_id, count - quantity, conn)?;
+            TicketInstance::release_from_hold(
+                self.id,
+                self.ticket_type_id,
+                count - quantity,
+                conn,
+            )?;
         }
         Ok(())
     }
@@ -163,12 +204,8 @@ impl Hold {
         }
     }
 
-    pub fn quantity(
-        &self,
-        ticket_type_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<u32, DatabaseError> {
-        TicketInstance::count_for_hold(self.id, ticket_type_id, conn)
+    pub fn quantity(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
+        TicketInstance::count_for_hold(self.id, self.ticket_type_id, conn)
     }
 
     pub fn organization(&self, conn: &PgConnection) -> Result<Organization, DatabaseError> {
@@ -208,6 +245,7 @@ pub struct NewHold {
     pub end_at: Option<NaiveDateTime>,
     pub max_per_order: Option<i64>,
     pub hold_type: String,
+    pub ticket_type_id: Uuid,
 }
 
 impl NewHold {

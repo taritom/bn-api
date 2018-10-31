@@ -50,6 +50,9 @@ impl<'a> HoldBuilder<'a> {
             );
         }
 
+        let event = Event::find(self.event_id.unwrap(), self.connection).unwrap();
+        let ticket_type_id = event.ticket_types(self.connection).unwrap()[0].id;
+
         let hold = Hold::create(
             self.name,
             self.event_id.unwrap(),
@@ -62,13 +65,11 @@ impl<'a> HoldBuilder<'a> {
             None,
             None,
             self.hold_type,
+            ticket_type_id,
         ).commit(self.connection)
         .unwrap();
 
-        let event = Event::find(self.event_id.unwrap(), self.connection).unwrap();
-        let ticket_type_id = event.ticket_types(self.connection).unwrap()[0].id;
-        hold.set_quantity(ticket_type_id, 10, self.connection)
-            .unwrap();
+        hold.set_quantity(10, self.connection).unwrap();
         hold
     }
 }

@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "a4c69573-3574-4b68-9822-5a61c67cb323",
+		"_postman_id": "80fcd3bb-175d-4076-a148-3b9ec0704212",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -796,7 +796,12 @@
 						}
 					},
 					"response": []
-				},
+				}
+			]
+		},
+		{
+			"name": "Holds",
+			"item": [
 				{
 					"name": "Admin - create hold",
 					"event": [
@@ -836,7 +841,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Musician Tickets\",\n\t\"hold_type\":\"Discount\",\n\t\"redemption_code\" : \"Yeaaaah{{$timestamp}}\",\n\t\"discount_in_cents\" : 100,\n\t\"end_at\": \"2019-01-01T12:00:00\",\n\t\"max_per_order\" : 10,\n\t\"items\": [\n\t\t{\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 30\n\t\t}]\n\t\n}"
+							"raw": "{\n\t\"name\":\"Musician Tickets\",\n\t\"hold_type\":\"Discount\",\n\t\"redemption_code\" : \"Yeaaaah{{$timestamp}}\",\n\t\"discount_in_cents\" : 100,\n\t\"end_at\": \"2019-01-01T12:00:00\",\n\t\"max_per_order\" : 10,\n\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\"quantity\" : 30\n\t\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/holds",
@@ -848,6 +853,61 @@
 								"events",
 								"{{last_event_id}}",
 								"holds"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - split hold",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0936a8c3-977f-412b-95de-f9ab1abd5203",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\":\"Musician Tickets2\",\n\t\"hold_type\":\"Discount\",\n\t\"redemption_code\" : \"Yeaaaah2{{$timestamp}}\",\n\t\"discount_in_cents\" : 100,\n\t\"end_at\": \"2019-01-01T12:00:00\",\n\t\"max_per_order\" : 10,\n\t\"quantity\" : 30\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/holds/{{last_hold_id}}/split",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"holds",
+								"{{last_hold_id}}",
+								"split"
 							]
 						}
 					},
@@ -890,7 +950,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"items\": [\n\t\t{\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 10\n\t\t}]\n\t\n}"
+							"raw": "{\n\t\n\t\t\t\"quantity\" : 10\n\t\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/holds/{{last_hold_id}}/tickets",
@@ -914,13 +974,13 @@
 							"listen": "test",
 							"script": {
 								"id": "5c92a6ff-f31d-4dd9-8839-03da430de734",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
 									"})",
 									""
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -944,7 +1004,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"items\": [\n\t\t{\n\t\t\t\t\t\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 5\n\t\t}]\n\t\n}"
+							"raw": "{\n\t\n\t\t\t\"quantity\" : 5\n\t\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/holds/{{last_hold_id}}/tickets",
@@ -1060,7 +1120,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Event Comp Tickets\",\n\t\"hold_type\":\"Comp\",\n\t\"redemption_code\" : \"Comps{{$timestamp}}\",\n\t\"items\": [\n\t\t{\n\t\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\t\"quantity\" : 30\n\t\t}]\n\t\n}"
+							"raw": "{\n\t\"name\":\"Event Comp Tickets\",\n\t\"hold_type\":\"Comp\",\n\t\"redemption_code\" : \"Comps{{$timestamp}}\",\n\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\"quantity\" : 30\n\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/holds",

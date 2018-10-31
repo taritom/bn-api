@@ -247,17 +247,19 @@ impl TicketInstance {
         Ok(tickets)
     }
 
-    pub fn add_to_hold(
+    pub(crate) fn add_to_hold(
         hold_id: Uuid,
         ticket_type_id: Uuid,
         quantity: u32,
+        from_hold_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let query = include_str!("../queries/add_tickets_to_hold.sql");
         let q = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(hold_id)
             .bind::<sql_types::Uuid, _>(ticket_type_id)
-            .bind::<Bigint, _>(quantity as i64);
+            .bind::<Bigint, _>(quantity as i64)
+            .bind::<Nullable<sql_types::Uuid>, _>(from_hold_id);
 
         let tickets: Vec<TicketInstance> = q
             .get_results(conn)

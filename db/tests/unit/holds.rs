@@ -5,7 +5,7 @@ use bigneon_db::utils::errors::ErrorCode::ValidationError;
 #[test]
 pub fn create() {
     let db = TestProject::new();
-    let event = db.create_event().finish();
+    let event = db.create_event().with_tickets().finish();
     Hold::create(
         "test".to_string(),
         event.id,
@@ -14,6 +14,7 @@ pub fn create() {
         None,
         Some(4),
         HoldTypes::Discount,
+        event.ticket_types(db.get_connection()).unwrap()[0].id,
     ).commit(db.get_connection())
     .unwrap();
 }
@@ -21,7 +22,7 @@ pub fn create() {
 #[test]
 pub fn create_with_validation_errors() {
     let db = TestProject::new();
-    let event = db.create_event().finish();
+    let event = db.create_event().with_tickets().finish();
     let result = Hold::create(
         "test".to_string(),
         event.id,
@@ -30,6 +31,7 @@ pub fn create_with_validation_errors() {
         None,
         Some(4),
         HoldTypes::Discount,
+        event.ticket_types(db.get_connection()).unwrap()[0].id,
     ).commit(db.get_connection());
 
     match result {
@@ -137,15 +139,9 @@ pub fn set_quantity() {
     let db = TestProject::new();
     let event = db.create_event().with_tickets().finish();
     let hold = db.create_hold().with_event(&event).finish();
-    let ticket_type_id = event.ticket_types(db.get_connection()).unwrap()[0].id;
+    hold.set_quantity(30, db.get_connection()).unwrap();
 
-    hold.set_quantity(ticket_type_id, 30, db.get_connection())
-        .unwrap();
-
-    assert_eq!(
-        hold.quantity(ticket_type_id, db.get_connection()).unwrap(),
-        30
-    );
+    assert_eq!(hold.quantity(db.get_connection()).unwrap(), 30);
 }
 
 #[test]
@@ -157,27 +153,18 @@ pub fn set_quantity_with_validation_errors() {
         .with_hold_type(HoldTypes::Comp)
         .with_event(&event)
         .finish();
-    let ticket_type_id = event.ticket_types(db.get_connection()).unwrap()[0].id;
-
     // Initial value of 30
-    hold.set_quantity(ticket_type_id, 30, db.get_connection())
-        .unwrap();
-    assert_eq!(
-        hold.quantity(ticket_type_id, db.get_connection()).unwrap(),
-        30
-    );
+    let conn = db.get_connection();
+    hold.set_quantity(30, conn).unwrap();
+    assert_eq!(hold.quantity(conn).unwrap(), 30);
 
     // Comp taking 29 of the hold allows a set quantity of 29 still
     db.create_comp().with_hold(&hold).with_quantity(29).finish();
-    hold.set_quantity(ticket_type_id, 29, db.get_connection())
-        .unwrap();
-    assert_eq!(
-        hold.quantity(ticket_type_id, db.get_connection()).unwrap(),
-        29
-    );
+    hold.set_quantity(29, conn).unwrap();
+    assert_eq!(hold.quantity(conn).unwrap(), 29);
 
     // Fails to set quantity to 28 which would be below comp size
-    let result = hold.set_quantity(ticket_type_id, 28, db.get_connection());
+    let result = hold.set_quantity(28, conn);
     match result {
         Ok(_) => {
             panic!("Expected validation error");

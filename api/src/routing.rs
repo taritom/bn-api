@@ -70,6 +70,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(comps::create);
     }).resource("/holds/{id}/tickets", |r| {
         r.method(Method::PUT).with(holds::add_remove_from_hold);
+    }).resource("/holds/{id}/split", |r| {
+        r.method(Method::POST).with(holds::split);
     }).resource("/holds/{id}", |r| {
         r.method(Method::PATCH).with(holds::update);
     }).resource("/orders", |r| {
