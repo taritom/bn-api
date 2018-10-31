@@ -198,3 +198,55 @@ pub fn add_remove_from_hold_with_validation_errors() {
     }).to_string();
     assert_eq!(body, expected_json);
 }
+
+#[test]
+pub fn read_hold() {
+    let database = TestDatabase::new();
+    let organization = database.create_organization().finish();
+    let user = database.create_user().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_organization(&organization)
+        .finish();
+
+    let name = "Hold Example".to_string();
+    let redemption_code = "IHAVEACODE".to_string();
+    let hold_type = HoldTypes::Discount;
+
+    let json = Json(CreateHoldRequest {
+        name: name.clone(),
+        redemption_code: redemption_code,
+        discount_in_cents: Some(100),
+        hold_type,
+        end_at: None,
+        max_per_order: None,
+        quantity: 2,
+        ticket_type_id: event.ticket_types(&database.connection.clone()).unwrap()[0].id,
+    });
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+
+    let response: HttpResponse = holds::create((
+        database.connection.clone().into(),
+        json,
+        path,
+        auth_user.clone(),
+    )).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let created_hold: Hold = serde_json::from_str(body).unwrap();
+
+    let mut hold_path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+
+    hold_path.id = created_hold.id;
+    let show_response = holds::show((database.connection.into(), hold_path, auth_user)).into();
+    let show_body = support::unwrap_body_to_string(&show_response).unwrap();
+
+    let fetched_hold: Hold = serde_json::from_str(show_body).unwrap();
+
+    assert_eq!(created_hold.id, fetched_hold.id);
+}

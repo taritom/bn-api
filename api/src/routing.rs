@@ -74,6 +74,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(holds::split);
     }).resource("/holds/{id}", |r| {
         r.method(Method::PATCH).with(holds::update);
+        r.method(Method::GET).with(holds::show);
     }).resource("/orders", |r| {
         r.method(Method::GET).with(orders::index);
     }).resource("/orders/{id}", |r| {
