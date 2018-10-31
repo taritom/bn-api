@@ -4,7 +4,7 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{Paging, PagingParameters, PathParameters, Payload};
+use models::PathParameters;
 
 pub fn index(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, Option<User>),
@@ -14,13 +14,7 @@ pub fn index(
         Some(u) => Artist::all(Some(u.id()), connection.get())?,
         None => Artist::all(None, connection.get())?,
     };
-    let query_parameters = Paging::new(&query_parameters.into_inner());
-    let artist_count = artists.len();
-    let mut payload = Payload {
-        data: artists,
-        paging: Paging::clone_with_new_total(&query_parameters, artist_count as u64),
-    };
-    payload.paging.limit = artist_count as u64;
+    let payload = Payload::new(artists, query_parameters.into_inner().into());
     Ok(HttpResponse::Ok().json(&payload))
 }
 
@@ -71,13 +65,7 @@ pub fn show_from_organizations(
         }
         None => Artist::find_for_organization(None, organization_id.id, connection.get())?,
     };
-    let query_parameters = Paging::new(&query_parameters.into_inner());
-    let artist_count = artists.len();
-    let mut payload = Payload {
-        data: artists,
-        paging: Paging::clone_with_new_total(&query_parameters, artist_count as u64),
-    };
-    payload.paging.limit = artist_count as u64;
+    let payload = Payload::new(artists, query_parameters.into_inner().into());
     Ok(HttpResponse::Ok().json(&payload))
 }
 

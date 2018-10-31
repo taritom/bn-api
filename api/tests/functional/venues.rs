@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::venues;
-use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
-use bigneon_db::models::Roles;
+use bigneon_api::models::PathParameters;
+use bigneon_db::models::*;
 use functional::base;
 use serde_json;
 use support;
@@ -52,7 +52,7 @@ fn index_with_org_linked_and_private_venues() {
             page: 0,
             limit: 3,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 3,
             tags: Vec::new(),
         },
@@ -90,7 +90,7 @@ fn index_with_org_linked_and_private_venues() {
             page: 0,
             limit: 4,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 4,
             tags: Vec::new(),
         },
@@ -309,7 +309,7 @@ pub fn show_from_organizations_private_venue_same_org() {
             page: 0,
             limit: 2,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 2,
             tags: Vec::new(),
         },

@@ -1,9 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::ticket_types;
 use bigneon_api::controllers::ticket_types::*;
-use bigneon_api::models::{
-    AdminDisplayTicketType, EventTicketPathParameters, PagingParameters, PathParameters, Payload,
-};
+use bigneon_api::models::{AdminDisplayTicketType, EventTicketPathParameters, PathParameters};
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use serde_json;

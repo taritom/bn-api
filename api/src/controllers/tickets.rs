@@ -7,7 +7,7 @@ use db::Connection;
 use errors::*;
 use helpers::application;
 use mail::mailers;
-use models::{OptionalPathParameters, Paging, PathParameters, Payload, SearchParam, SortingDir};
+use models::{OptionalPathParameters, PathParameters};
 use server::AppState;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -17,17 +17,17 @@ pub struct SearchParameters {
     pub start_utc: Option<NaiveDateTime>,
     pub end_utc: Option<NaiveDateTime>,
 }
-impl SearchParameters {
-    pub fn create_paging_struct(&self) -> Paging {
+impl From<SearchParameters> for Paging {
+    fn from(s: SearchParameters) -> Paging {
         let mut default_tags = Vec::new();
-        if let Some(ref i) = self.start_utc {
+        if let Some(ref i) = s.start_utc {
             let new_value = SearchParam {
                 name: "start_utc".to_owned(),
                 values: vec![i.to_string()],
             };
             default_tags.push(new_value);
         }
-        if let Some(ref i) = self.end_utc {
+        if let Some(ref i) = s.end_utc {
             let new_value = SearchParam {
                 name: "end_utc".to_owned(),
                 values: vec![i.to_string()],
@@ -38,7 +38,7 @@ impl SearchParameters {
             page: 0,
             limit: 100,
             sort: "".to_owned(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 0,
             tags: default_tags,
         }
@@ -51,7 +51,7 @@ pub struct TicketRedeemRequest {
 }
 
 pub fn index(
-    (connection, path, parameters, auth_user): (
+    (connection, path, query, auth_user): (
         Connection,
         Path<OptionalPathParameters>,
         Query<SearchParameters>,
@@ -62,28 +62,19 @@ pub fn index(
 
     let connection = connection.get();
 
-    let queryparms = parameters.create_paging_struct();
     let tickets = TicketInstance::find_for_user_for_display(
         auth_user.id(),
         path.id,
-        parameters.start_utc,
-        parameters.end_utc,
+        query.start_utc,
+        query.end_utc,
         connection,
     )?;
-    let ticket_count = tickets.len();
-    let mut payload = Payload {
-        data: tickets,
-        paging: Paging::clone_with_new_total(&queryparms, ticket_count as u64),
-    };
-    payload.paging.limit = ticket_count as u64;
+    let query: Paging = query.into_inner().into();
+
+    let payload = Payload::new(tickets, query.clone());
     // If specifying event drill into tuple vector to return tickets alone
     if path.id.is_some() && !payload.data.is_empty() {
-        let mut payload2 = Payload {
-            data: (payload.data[0].1).clone(),
-            paging: Paging::clone_with_new_total(&queryparms, ticket_count as u64),
-        };
-        payload2.paging.limit = payload2.data.len() as u64;
-        payload2.paging.total = payload2.data.len() as u64;
+        let payload2 = Payload::new(payload.data[0].1.clone(), query);
         return Ok(HttpResponse::Ok().json(&payload2));
     }
 

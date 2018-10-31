@@ -195,3 +195,25 @@ pub fn set_quantity_with_validation_errors() {
         },
     }
 }
+
+#[test]
+pub fn find() {
+    let db = TestProject::new();
+    let hold = db.create_hold().finish();
+
+    let db_hold = Hold::find(hold.id, db.get_connection()).unwrap();
+
+    assert_eq!(hold, db_hold);
+}
+
+#[test]
+pub fn find_for_event() {
+    let db = TestProject::new();
+    let event = db.create_event().with_ticket_pricing().finish();
+    let hold = db.create_hold().with_event(&event).finish();
+    let hold2 = db.create_hold().with_event(&event).finish();
+
+    let holds = Hold::find_for_event(event.id, db.get_connection()).unwrap();
+
+    assert_eq!(vec![hold, hold2], holds);
+}

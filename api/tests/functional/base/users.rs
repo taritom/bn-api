@@ -1,8 +1,8 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::users;
 use bigneon_api::controllers::users::SearchUserByEmail;
-use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
-use bigneon_db::models::{DisplayUser, ForDisplay, Roles};
+use bigneon_api::models::PathParameters;
+use bigneon_db::models::*;
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -51,7 +51,7 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
                 page: 0,
                 limit: 1,
                 sort: "".to_string(),
-                dir: SortingDir::None,
+                dir: SortingDir::Asc,
                 total: 1,
                 tags: Vec::new(),
             },

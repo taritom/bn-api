@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::venues;
 use bigneon_api::models::AddVenueToOrganizationRequest;
-use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
+use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use serde_json;
 use support;
@@ -26,7 +26,7 @@ pub fn index(role: Roles, should_succeed: bool) {
             page: 0,
             limit: 2,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 2,
             tags: Vec::new(),
         },
@@ -215,7 +215,7 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
             page: 0,
             limit: 2,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 2,
             tags: Vec::new(),
         },

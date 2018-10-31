@@ -1,6 +1,5 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::{EventInterest, User};
-use bigneon_db::utils::clamp;
 use rand::prelude::*;
 use uuid::Uuid;
 
@@ -71,12 +70,11 @@ fn list_interested_users() {
         .map(|_| rng.gen_range(0, 2))
         .collect(); //[0,1]
     let mut secondary_user_list: Vec<User> = Vec::new();
-    secondary_user_list.reserve(n_secondary_users);
     for _u_id in 0..n_secondary_users {
         secondary_user_list.push(project.create_user().finish());
     }
     //Let primary user show interest in primary event
-    let _primary_event_interest = EventInterest::create(primary_event.id, primary_user.id)
+    EventInterest::create(primary_event.id, primary_user.id)
         .commit(project.get_connection())
         .unwrap();
     //Let secondary users show interest in primary or/and secondary event
@@ -100,60 +98,23 @@ fn list_interested_users() {
     }
     desired_user_id_completelist.sort(); //Sort results for testing purposes
     if desired_user_id_completelist.len() > 0 {
-        let min_index: usize = 0;
-        let max_index: usize = desired_user_id_completelist.len() - 1;
-
         //Test1 - Normal Query of list of interested users for event, excluding primary user
         let request_from_page: usize = 0;
         let request_limit: usize = request_from_page + 9;
         let result = EventInterest::list_interested_users(
             primary_event.id,
             primary_user.id,
-            request_from_page as u64,
-            request_limit as u64,
+            request_from_page as u32,
+            request_limit as u32,
             project.get_connection(),
         ).unwrap();
-        //Comparison to ground truth
-        let mut true_from_index = clamp(request_from_page, min_index, max_index);
-        let mut true_to_index = clamp(request_limit, min_index, max_index);
-        if true_from_index > true_to_index {
-            //swap if needed
-            let temp = true_from_index;
-            true_from_index = true_to_index;
-            true_to_index = temp;
-        }
-        let desired_user_id_sublist =
-            &desired_user_id_completelist[true_from_index..=true_to_index];
-        let n_sublist_entries = desired_user_id_sublist.len();
-        for u_id in 0..n_sublist_entries {
-            assert_eq!(desired_user_id_sublist[u_id], result.users[u_id].user_id);
-        }
 
-        //Test2 - Partial out-of-bounds and switched "from" and "to" query of list of interested users for event, excluding primary user
-        let n_primary_interests = desired_user_id_completelist.len();
-        let request_from_index: usize = n_primary_interests + 5;
-        let request_to_index: usize = n_primary_interests;
-        let result = EventInterest::list_interested_users(
-            primary_event.id,
-            primary_user.id,
-            request_from_index as u64,
-            request_to_index as u64,
-            project.get_connection(),
-        ).unwrap();
-        //Comparison to ground truth
-        let mut true_from_index = clamp(request_from_index, min_index, max_index);
-        let mut true_to_index = clamp(request_to_index, min_index, max_index);
-        if true_from_index > true_to_index {
-            //swap if needed
-            let temp = true_from_index;
-            true_from_index = true_to_index;
-            true_to_index = temp;
-        }
-        let desired_user_id_sublist =
-            &desired_user_id_completelist[true_from_index..=true_to_index];
-        let n_sublist_entries = desired_user_id_sublist.len();
+        let n_sublist_entries = desired_user_id_completelist.len();
         for u_id in 0..n_sublist_entries {
-            assert_eq!(desired_user_id_sublist[u_id], result.users[u_id].user_id);
+            assert_eq!(
+                desired_user_id_completelist[u_id],
+                result.data[u_id].user_id
+            );
         }
     }
 }

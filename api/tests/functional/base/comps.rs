@@ -1,8 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::comps::{self, NewCompRequest};
-use bigneon_api::models::{
-    CompPathParameters, Paging, PagingParameters, PathParameters, Payload, SortingDir,
-};
+use bigneon_api::models::{CompPathParameters, PathParameters};
 use bigneon_db::models::*;
 use serde_json;
 use support;
@@ -46,14 +44,14 @@ pub fn index(role: Roles, should_test_succeed: bool) {
         auth_user,
     )).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let counter = expected_comps.len() as u64;
+    let counter = expected_comps.len() as u32;
     let wrapped_expected_orgs = Payload {
         data: expected_comps,
         paging: Paging {
             page: 0,
             limit: counter,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: counter,
             tags: Vec::new(),
         },

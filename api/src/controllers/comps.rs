@@ -4,7 +4,7 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
-use models::{CompPathParameters, Paging, PagingParameters, PathParameters, Payload};
+use models::{CompPathParameters, PathParameters};
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct NewCompRequest {
@@ -28,14 +28,7 @@ pub fn index(
 
     //TODO implement proper paging on db
     let comps = hold.comps(conn)?;
-
-    let query_parameters = Paging::new(&query_parameters.into_inner());
-    let comp_count = comps.len();
-    let mut payload = Payload {
-        data: comps,
-        paging: Paging::clone_with_new_total(&query_parameters, comp_count as u64),
-    };
-    payload.paging.limit = comp_count as u64;
+    let payload = Payload::new(comps, query_parameters.into_inner().into());
     Ok(HttpResponse::Ok().json(&payload))
 }
 

@@ -9,7 +9,7 @@ use uuid::Uuid;
 use validator::*;
 use validators;
 
-#[derive(Deserialize, Identifiable, Queryable, Serialize)]
+#[derive(Deserialize, Identifiable, Queryable, Serialize, PartialEq, Debug)]
 pub struct Hold {
     pub id: Uuid,
     pub name: String,
@@ -78,6 +78,13 @@ impl Hold {
             .filter(holds::id.eq(id))
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve hold")
+    }
+
+    pub fn find_for_event(event_id: Uuid, conn: &PgConnection) -> Result<Vec<Hold>, DatabaseError> {
+        holds::table
+            .filter(holds::event_id.eq(event_id))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve holds for event")
     }
 
     fn validate_record(&self, update_attrs: &UpdateHoldAttributes) -> Result<(), DatabaseError> {

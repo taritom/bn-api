@@ -4,24 +4,17 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
-use models::{Paging, PagingParameters, PathParameters, Payload};
+use models::PathParameters;
 
 pub fn index(
     (conn, query_parameters, user): (Connection, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     //@TODO Implement proper paging on db
-    let query_parameters = Paging::new(&query_parameters.into_inner());
 
     user.requires_scope(Scopes::OrderRead)?;
     let orders = Order::find_for_user_for_display(user.id(), conn.get())?;
-    let orders_count = orders.len();
-    let mut payload = Payload {
-        data: orders,
-        paging: Paging::clone_with_new_total(&query_parameters, orders_count as u64),
-    };
-    payload.paging.limit = orders_count as u64;
 
-    Ok(HttpResponse::Ok().json(&payload))
+    Ok(HttpResponse::Ok().json(&Payload::new(orders, query_parameters.into_inner().into())))
 }
 
 pub fn show(

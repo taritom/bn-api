@@ -8,9 +8,7 @@ use db::Connection;
 use diesel::PgConnection;
 use errors::*;
 use helpers::application;
-use models::{
-    Paging, PagingParameters, PathParameters, Payload, RegisterRequest, UserProfileAttributes,
-};
+use models::{PathParameters, RegisterRequest, UserProfileAttributes};
 use server::AppState;
 use std::collections::HashMap;
 use std::str;
@@ -76,15 +74,12 @@ pub fn list_organizations(
         return application::unauthorized();
     }
     //TODO implement proper paging on db.
-    let query_parameters = Paging::new(&query_parameters.into_inner());
     let organization_links = Organization::all_org_names_linked_to_user(parameters.id, connection)?;
-    let links_count = organization_links.len();
-    let mut payload = Payload {
-        data: organization_links,
-        paging: Paging::clone_with_new_total(&query_parameters, links_count as u64),
-    };
-    payload.paging.limit = links_count as u64;
-    Ok(HttpResponse::Ok().json(&payload))
+
+    Ok(HttpResponse::Ok().json(&Payload::new(
+        organization_links,
+        query_parameters.into_inner().into(),
+    )))
 }
 
 pub fn find_by_email(

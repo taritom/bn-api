@@ -36,6 +36,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::PUT).with(events::update_artists);
     }).resource("/events/{id}/guests", |r| {
         r.method(Method::GET).with(events::guest_list);
+    }).resource("/events/{id}/holds", |r| {
+        r.method(Method::POST).with(holds::create);
+        r.method(Method::GET).with(events::holds);
     }).resource("/events/{id}/interest", |r| {
         r.method(Method::GET).with(events::list_interested_users);
         r.method(Method::POST).with(events::add_interest);
@@ -49,8 +52,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(ticket_types::create);
     }).resource("/events/{event_id}/ticket_types/{ticket_type_id}", |r| {
         r.method(Method::PATCH).with(ticket_types::update);
-    }).resource("/events/{id}/holds", |r| {
-        r.method(Method::POST).with(holds::create);
     }).resource("/external/facebook/web_login", |r| {
         r.method(Method::POST).with(external::facebook::web_login)
     }).resource("/invitations/{id}", |r| {

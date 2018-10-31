@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::regions;
-use bigneon_api::models::{Paging, PagingParameters, PathParameters, Payload, SortingDir};
-use bigneon_db::models::Roles;
+use bigneon_api::models::PathParameters;
+use bigneon_db::models::*;
 use functional::base;
 use serde_json;
 use support;
@@ -32,7 +32,7 @@ fn index() {
             page: 0,
             limit: 2,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 2,
             tags: Vec::new(),
         },
