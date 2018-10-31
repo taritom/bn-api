@@ -1,4 +1,5 @@
 use actix_web::{http::StatusCode, HttpResponse, Json};
+use bigneon_api::auth::TokenResponse;
 use bigneon_api::controllers::users::{self, CurrentUser};
 use bigneon_api::models::{RegisterRequest, UserProfileAttributes};
 use bigneon_db::models::Roles;
@@ -7,6 +8,7 @@ use serde_json;
 use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
+use support::test_request::TestRequest;
 
 #[cfg(test)]
 mod user_list_organizations_tests {
@@ -109,6 +111,29 @@ fn register_succeeds() {
 }
 
 #[test]
+fn register_succeeds_with_login() {
+    let database = TestDatabase::new();
+
+    let json = Json(RegisterRequest::new(
+        &"First",
+        &"Last",
+        &"fake@localhost",
+        &"555",
+        &"not_important",
+    ));
+
+    let test_request = TestRequest::create();
+
+    let response: HttpResponse =
+        users::register_and_login((test_request.request, database.connection.into(), json)).into();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let token_response: TokenResponse = serde_json::from_str(&body).unwrap();
+    assert_eq!(token_response.access_token.is_empty(), false);
+    assert_eq!(token_response.refresh_token.is_empty(), false);
+}
+
+#[test]
 fn register_with_validation_errors() {
     let database = TestDatabase::new();
 
@@ -173,6 +198,7 @@ fn current_user_admin() {
             "event:interest",
             "event:view-guests",
             "event:write",
+            "hold:read",
             "hold:write",
             "order::make-external-payment",
             "order:read",
@@ -218,6 +244,7 @@ fn current_user_organization_owner() {
             "event:interest",
             "event:view-guests",
             "event:write",
+            "hold:read",
             "hold:write",
             "order:read",
             "org:read",
@@ -272,6 +299,7 @@ fn current_user_organization_member() {
             "event:interest",
             "event:view-guests",
             "event:write",
+            "hold:read",
             "hold:write",
             "order:read",
             "org:read",

@@ -5,10 +5,7 @@ use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{
-    AdminDisplayTicketType, EventTicketPathParameters, Paging, PagingParameters, PathParameters,
-    Payload,
-};
+use models::{AdminDisplayTicketType, EventTicketPathParameters, PathParameters};
 use server::AppState;
 use tari_client::MessagePayloadCreateAsset as TariNewAsset;
 use uuid::Uuid;
@@ -141,11 +138,8 @@ pub fn index(
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
     //TODO refactor using paging params
     let ticket_types = TicketType::find_by_event_id(path.id, connection)?;
-    let query_parameters = Paging::new(&query_parameters.into_inner());
-    let mut payload = Payload {
-        data: Vec::new(),
-        paging: Paging::clone_with_new_total(&query_parameters, 0 as u64),
-    };
+    let mut payload = Payload::new(vec![], query_parameters.into_inner().into());
+
     for t in ticket_types {
         payload.data.push(AdminDisplayTicketType::from_ticket_type(
             &t,
@@ -153,8 +147,9 @@ pub fn index(
             connection,
         )?);
     }
-    payload.paging.limit = payload.data.len() as u64;
-    payload.paging.total = payload.data.len() as u64;
+    payload.paging.limit = payload.data.len() as u32;
+    payload.paging.total = payload.data.len() as u32;
+
     Ok(HttpResponse::Ok().json(&payload))
 }
 

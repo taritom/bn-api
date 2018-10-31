@@ -5,10 +5,7 @@ use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{
-    Paging, PagingParameters, PathParameters, Payload, SearchParam, SortingDir,
-    UserDisplayTicketType,
-};
+use models::{PathParameters, UserDisplayTicketType};
 use serde_with::{self, CommaSeparator};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -25,18 +22,18 @@ pub struct SearchParameters {
     start_utc: Option<NaiveDateTime>,
     end_utc: Option<NaiveDateTime>,
 }
-//TODO remove this when search parameters has been switched over
-impl SearchParameters {
-    pub fn create_paging_struct(&self) -> Paging {
+
+impl From<SearchParameters> for Paging {
+    fn from(s: SearchParameters) -> Paging {
         let mut default_tags = Vec::new();
-        if let Some(ref i) = self.query {
+        if let Some(ref i) = s.query {
             let new_value = SearchParam {
                 name: "query".to_owned(),
                 values: vec![i.clone()],
             };
             default_tags.push(new_value);
         }
-        if let Some(ref i) = self.region_id {
+        if let Some(ref i) = s.region_id {
             let new_value = SearchParam {
                 name: "region_id".to_owned(),
                 values: vec![i.to_string()],
@@ -44,7 +41,7 @@ impl SearchParameters {
             default_tags.push(new_value);
         }
 
-        for event_status in self.status.clone().into_iter() {
+        for event_status in s.status.clone().into_iter() {
             let new_value = SearchParam {
                 name: "status".to_owned(),
                 values: vec![event_status.to_string()],
@@ -52,14 +49,14 @@ impl SearchParameters {
             default_tags.push(new_value);
         }
 
-        if let Some(ref i) = self.start_utc {
+        if let Some(ref i) = s.start_utc {
             let new_value = SearchParam {
                 name: "start_utc".to_owned(),
                 values: vec![i.to_string()],
             };
             default_tags.push(new_value);
         }
-        if let Some(ref i) = self.end_utc {
+        if let Some(ref i) = s.end_utc {
             let new_value = SearchParam {
                 name: "end_utc".to_owned(),
                 values: vec![i.to_string()],
@@ -70,7 +67,7 @@ impl SearchParameters {
             page: 0,
             limit: 100,
             sort: "".to_owned(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 0,
             tags: default_tags,
         }
@@ -96,23 +93,22 @@ pub struct UpdateArtistsRequestList {
 }
 
 pub fn index(
-    (connection, parameters, auth_user): (Connection, Query<SearchParameters>, Option<User>),
+    (connection, query, auth_user): (Connection, Query<SearchParameters>, Option<User>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let parameters = parameters.into_inner();
+    let query = query.into_inner();
 
-    let queryparms = parameters.create_paging_struct();
     let user = auth_user.and_then(|auth_user| Some(auth_user.user));
     //TODO remap query to use paging info
     let events = Event::search(
-        parameters.query,
-        parameters.region_id,
-        parameters.start_utc,
-        parameters.end_utc,
-        if parameters.status.is_empty() {
+        query.query.clone(),
+        query.region_id,
+        query.start_utc,
+        query.end_utc,
+        if query.status.is_empty() {
             None
         } else {
-            Some(parameters.status)
+            Some(query.status.clone())
         },
         user,
         connection,
@@ -171,12 +167,7 @@ pub fn index(
         });
         results
     });
-    let event_count = results.len();
-    let mut payload = Payload {
-        data: results,
-        paging: Paging::clone_with_new_total(&queryparms, event_count as u64),
-    };
-    payload.paging.limit = event_count as u64;
+    let payload = Payload::new(results, query.into());
     Ok(HttpResponse::Ok().json(&payload))
 }
 
@@ -282,13 +273,7 @@ pub fn show_from_organizations(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let events = Event::find_all_events_from_organization(&organization_id.id, connection.get())?;
-    let query_parameters = Paging::new(&query_parameters.into_inner());
-    let event_count = events.len();
-    let mut payload = Payload {
-        data: events,
-        paging: Paging::clone_with_new_total(&query_parameters, event_count as u64),
-    };
-    payload.paging.limit = event_count as u64;
+    let payload = Payload::new(events, query_parameters.into_inner().into());
     Ok(HttpResponse::Ok().json(&payload))
 }
 
@@ -300,13 +285,7 @@ pub fn show_from_venues(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let events = Event::find_all_events_from_venue(&venue_id.id, connection.get())?;
-    let query_parameters = Paging::new(&query_parameters.into_inner());
-    let event_count = events.len();
-    let mut payload = Payload {
-        data: events,
-        paging: Paging::clone_with_new_total(&query_parameters, event_count as u64),
-    };
-    payload.paging.limit = event_count as u64;
+    let payload = Payload::new(events, query_parameters.into_inner().into());
     Ok(HttpResponse::Ok().json(&payload))
 }
 
@@ -369,7 +348,7 @@ pub fn cancel(
 }
 
 pub fn list_interested_users(
-    (connection, path_parameters, query_parameters, user): (
+    (connection, path_parameters, query, user): (
         Connection,
         Path<PathParameters>,
         Query<PagingParameters>,
@@ -381,21 +360,15 @@ pub fn list_interested_users(
         return application::unauthorized();
     }
 
-    let query_parameters = Paging::new(&query_parameters.into_inner());
-    let event_interested_users = EventInterest::list_interested_users(
+    let paging: Paging = query.clone().into();
+
+    let payload = EventInterest::list_interested_users(
         path_parameters.id,
         user.id(),
-        query_parameters.page * query_parameters.limit,
-        (query_parameters.page * query_parameters.limit) + query_parameters.limit,
+        paging.page * paging.limit,
+        (paging.page * paging.limit) + paging.limit,
         connection,
     )?;
-    let payload = Payload {
-        data: event_interested_users.users,
-        paging: Paging::clone_with_new_total(
-            &query_parameters,
-            event_interested_users.total_interests,
-        ),
-    };
     Ok(HttpResponse::Ok().json(&payload))
 }
 
@@ -487,13 +460,13 @@ pub fn update_artists(
 pub struct GuestListQueryParameters {
     pub query: String,
 }
-impl GuestListQueryParameters {
-    pub fn create_paging_struct(&self) -> Paging {
+impl From<GuestListQueryParameters> for Paging {
+    fn from(s: GuestListQueryParameters) -> Paging {
         let mut default_tags = Vec::new();
 
         let new_value = SearchParam {
             name: "query".to_owned(),
-            values: vec![self.query.clone()],
+            values: vec![s.query.clone()],
         };
         default_tags.push(new_value);
 
@@ -501,7 +474,7 @@ impl GuestListQueryParameters {
             page: 0,
             limit: 100,
             sort: "".to_owned(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 0,
             tags: default_tags,
         }
@@ -516,7 +489,6 @@ pub fn guest_list(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO refactor GuestListQueryParameters to PagingParameters
-    let queryparms = query.create_paging_struct();
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
     user.requires_scope_for_organization(
@@ -525,11 +497,25 @@ pub fn guest_list(
         conn,
     )?;
     let tickets = event.guest_list(&query.query, conn)?;
-    let tickets_count = tickets.len();
-    let mut payload = Payload {
-        data: tickets,
-        paging: Paging::clone_with_new_total(&queryparms, tickets_count as u64),
-    };
-    payload.paging.limit = tickets_count as u64;
+    let payload = Payload::new(tickets, query.into_inner().into());
     Ok(HttpResponse::Ok().json(payload))
+}
+
+pub fn holds(
+    (conn, query, path, user): (
+        Connection,
+        Query<PagingParameters>,
+        Path<PathParameters>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    user.requires_scope_for_organization(
+        Scopes::HoldRead,
+        &Organization::find_for_event(path.id, conn)?,
+        conn,
+    )?;
+    let holds = Hold::find_for_event(path.id, conn)?;
+
+    Ok(HttpResponse::Ok().json(Payload::new(holds, query.into_inner().into())))
 }

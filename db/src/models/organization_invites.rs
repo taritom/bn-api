@@ -1,10 +1,10 @@
 use chrono::{Duration, NaiveDateTime, Utc};
 use diesel;
-use diesel::expression::dsl;
+use diesel::dsl::{self, sql};
 use diesel::prelude::*;
 use diesel::sql_types::{Text, Timestamp};
 use models::*;
-use schema::organization_invites;
+use schema::{organization_invites, organizations, users};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::{DatabaseError, ErrorCode};
 use uuid::Uuid;
@@ -120,24 +120,21 @@ impl OrganizationInvite {
         conn: &PgConnection,
     ) -> Result<DisplayInvite, DatabaseError> {
         let expiry_date = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
-        let query = r#"
-                SELECT
-                    CONCAT(users.first_name, ' ',  users.last_name) AS inviter_name,
-                    organizations.name AS organization_name,
-                    organization_invites.created_at + INTERVAL '$1' day AS expires_at
-                FROM organization_invites
-                LEFT JOIN users ON (users.id = organization_invites.inviter_id)
-                LEFT JOIN organizations ON (organizations.id = organization_invites.organization_id)
-                WHERE
-                    organization_invites.security_token = $2
-                    AND organization_invites.created_at > $3
-                    AND organization_invites.accepted is NULL;"#;
 
-        diesel::sql_query(query)
-            .bind::<diesel::sql_types::BigInt, _>(INVITE_EXPIRATION_PERIOD_IN_DAYS)
-            .bind::<diesel::sql_types::Uuid, _>(token)
-            .bind::<diesel::sql_types::Timestamp, _>(expiry_date)
-            .get_result(conn)
+        organization_invites::table
+            .inner_join(users::table.on(users::id.eq(organization_invites::inviter_id)))
+            .inner_join(
+                organizations::table
+                    .on(organizations::id.eq(organization_invites::organization_id)),
+            ).filter(organization_invites::accepted.is_null())
+            .filter(organization_invites::security_token.eq(token))
+            .filter(organization_invites::created_at.gt(expiry_date))
+            .select((
+                organizations::name,
+                sql("CONCAT(users.first_name, ' ',  users.last_name) AS inviter_name"),
+                sql::<Timestamp>("organization_invites.created_at + (INTERVAL '1' day) * ")
+                    .bind::<diesel::sql_types::BigInt, _>(INVITE_EXPIRATION_PERIOD_IN_DAYS),
+            )).get_result(conn)
             .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
     }
 

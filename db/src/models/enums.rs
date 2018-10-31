@@ -47,6 +47,7 @@ string_enum! { OrderTypes [Cart, BackOffice] }
 string_enum! { PaymentMethods [External, CreditCard] }
 string_enum! { PaymentStatus [Authorized, Completed] }
 string_enum! { Roles [Admin, OrgMember, OrgOwner, User] }
+string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { Tables [Payments, PaymentMethods] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted] }

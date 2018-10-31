@@ -1,4 +1,4 @@
-FROM rust:1.28
+FROM rust:1.30
 
 WORKDIR /usr/src/bn-api
 ADD api ./api/

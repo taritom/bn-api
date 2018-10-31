@@ -5,7 +5,7 @@ use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::scopes;
 use models::*;
-use schema::{organization_users, organizations, users, venues};
+use schema::{events, organization_users, organizations, users, venues};
 use utils::errors::*;
 use uuid::Uuid;
 
@@ -177,6 +177,21 @@ impl Organization {
             .find(id)
             .first::<Organization>(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading organization")
+    }
+
+    pub fn find_for_event(
+        event_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Organization, DatabaseError> {
+        events::table
+            .inner_join(organizations::table)
+            .filter(events::id.eq(event_id))
+            .select(organizations::all_columns)
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not find organization for this event",
+            )
     }
 
     pub fn all(conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {

@@ -1,15 +1,17 @@
-use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Json, Path, Query};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
+use controllers::auth;
+use controllers::auth::LoginRequest;
 use db::Connection;
 use diesel::PgConnection;
 use errors::*;
 use helpers::application;
-use models::{
-    Paging, PagingParameters, PathParameters, Payload, RegisterRequest, UserProfileAttributes,
-};
+use models::{PathParameters, RegisterRequest, UserProfileAttributes};
+use server::AppState;
 use std::collections::HashMap;
+use std::str;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -72,15 +74,12 @@ pub fn list_organizations(
         return application::unauthorized();
     }
     //TODO implement proper paging on db.
-    let query_parameters = Paging::new(&query_parameters.into_inner());
     let organization_links = Organization::all_org_names_linked_to_user(parameters.id, connection)?;
-    let links_count = organization_links.len();
-    let mut payload = Payload {
-        data: organization_links,
-        paging: Paging::clone_with_new_total(&query_parameters, links_count as u64),
-    };
-    payload.paging.limit = links_count as u64;
-    Ok(HttpResponse::Ok().json(&payload))
+
+    Ok(HttpResponse::Ok().json(&Payload::new(
+        organization_links,
+        query_parameters.into_inner().into(),
+    )))
 }
 
 pub fn find_by_email(
@@ -105,6 +104,23 @@ pub fn register(
     let new_user: NewUser = parameters.into_inner().into();
     new_user.commit(connection.get())?;
     Ok(HttpResponse::Created().finish())
+}
+
+pub fn register_and_login(
+    (http_request, connection, parameters): (
+        HttpRequest<AppState>,
+        Connection,
+        Json<RegisterRequest>,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let email = parameters.email.clone();
+    let password = parameters.password.clone();
+    let new_user: NewUser = parameters.into_inner().into();
+    new_user.commit(connection.get())?;
+    let json = Json(LoginRequest::new(&email, &password));
+    let token_response = auth::token((http_request, connection, json))?;
+
+    Ok(HttpResponse::Created().json(token_response))
 }
 
 fn current_user_from_user(

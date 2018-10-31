@@ -97,6 +97,25 @@ fn find() {
 }
 
 #[test]
+fn find_for_event() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    //Edit Organization
+    let organization = project
+        .create_organization()
+        .with_owner(&user)
+        .with_address()
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+    let found_organization =
+        Organization::find_for_event(event.id, project.get_connection()).unwrap();
+    assert_eq!(organization, found_organization);
+}
+
+#[test]
 fn users() {
     let project = TestProject::new();
     let user = project.create_user().finish();
@@ -340,6 +359,7 @@ pub fn get_scopes_for_user() {
             "event:interest",
             "event:view-guests",
             "event:write",
+            "hold:read",
             "hold:write",
             "order:read",
             "org:read",
@@ -360,6 +380,7 @@ pub fn get_scopes_for_user() {
             "event:interest",
             "event:view-guests",
             "event:write",
+            "hold:read",
             "hold:write",
             "order:read",
             "org:read",

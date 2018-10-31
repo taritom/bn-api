@@ -4,21 +4,15 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{Paging, PagingParameters, PathParameters, Payload};
+use models::PathParameters;
 
 pub fn index(
     (connection, query_parameters): (Connection, Query<PagingParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO refactor query using paging parameters
     let regions = Region::all(connection.get())?;
-    let query_parameters = Paging::new(&query_parameters.into_inner());
-    let region_count = regions.len();
-    let mut payload = Payload {
-        data: regions,
-        paging: Paging::clone_with_new_total(&query_parameters, region_count as u64),
-    };
-    payload.paging.limit = region_count as u64;
-    Ok(HttpResponse::Ok().json(&payload))
+
+    Ok(HttpResponse::Ok().json(&Payload::new(regions, query_parameters.into_inner().into())))
 }
 
 pub fn show(

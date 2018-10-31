@@ -5,7 +5,7 @@ use chrono::NaiveDateTime;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{Paging, PagingParameters, PathParameters, Payload};
+use models::PathParameters;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
@@ -47,17 +47,13 @@ pub fn index(
         return index_for_all_orgs((connection, query_parameters, user));
     }
 
-    let queryparms = Paging::new(&query_parameters.into_inner());
     //TODO remap query to use paging info
     let organizations = Organization::all_linked_to_user(user.id(), connection.get())?;
 
-    let org_count = organizations.len();
-    let mut payload = Payload {
-        data: organizations,
-        paging: Paging::clone_with_new_total(&queryparms, org_count as u64),
-    };
-    payload.paging.limit = org_count as u64;
-    Ok(HttpResponse::Ok().json(&payload))
+    Ok(HttpResponse::Ok().json(&Payload::new(
+        organizations,
+        query_parameters.into_inner().into(),
+    )))
 }
 
 pub fn index_for_all_orgs(
@@ -67,15 +63,12 @@ pub fn index_for_all_orgs(
     if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
         return application::unauthorized();
     }
-    let queryparms = Paging::new(&query_parameters.into_inner());
     let organizations = Organization::all(connection)?;
-    let org_count = organizations.len();
-    let mut payload = Payload {
-        data: organizations,
-        paging: Paging::clone_with_new_total(&queryparms, org_count as u64),
-    };
-    payload.paging.limit = org_count as u64;
-    Ok(HttpResponse::Ok().json(&payload))
+
+    Ok(HttpResponse::Ok().json(&Payload::new(
+        organizations,
+        query_parameters.into_inner().into(),
+    )))
 }
 
 pub fn show(
@@ -257,14 +250,9 @@ pub fn list_organization_members(
         .iter()
         .map(|u| DisplayUser::from(u.clone()))
         .collect();
-    let query_parameters = Paging::new(&query_parameters.into_inner());
+    let query_parameters = query_parameters.into_inner().into();
     members[0].is_org_owner = true;
-    let member_count = members.len();
-    let mut payload = Payload {
-        data: members,
-        paging: Paging::clone_with_new_total(&query_parameters, member_count as u64),
-    };
-    payload.paging.limit = member_count as u64;
+    let payload = Payload::new(members, query_parameters);
     Ok(HttpResponse::Ok().json(payload))
 }
 

@@ -4,24 +4,18 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{AddVenueToOrganizationRequest, Paging, PagingParameters, PathParameters, Payload};
+use models::{AddVenueToOrganizationRequest, PathParameters};
 
 pub fn index(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, Option<User>),
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO implement proper paging on db
-    let query_parameters = Paging::new(&query_parameters.into_inner());
     let venues = match user {
         Some(u) => Venue::all(Some(u.id()), connection.get())?,
         None => Venue::all(None, connection.get())?,
     };
-    let venues_count = venues.len();
-    let mut payload = Payload {
-        data: venues,
-        paging: Paging::clone_with_new_total(&query_parameters, venues_count as u64),
-    };
-    payload.paging.limit = venues_count as u64;
-    Ok(HttpResponse::Ok().json(&payload))
+
+    Ok(HttpResponse::Ok().json(&Payload::new(venues, query_parameters.into_inner().into())))
 }
 
 pub fn show(
@@ -42,20 +36,14 @@ pub fn show_from_organizations(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO implement proper paging on db
-    let query_parameters = Paging::new(&query_parameters.into_inner());
     let venues = match user {
         Some(u) => {
             Venue::find_for_organization(Some(u.id()), organization_id.id, connection.get())?
         }
         None => Venue::find_for_organization(None, organization_id.id, connection.get())?,
     };
-    let venues_count = venues.len();
-    let mut payload = Payload {
-        data: venues,
-        paging: Paging::clone_with_new_total(&query_parameters, venues_count as u64),
-    };
-    payload.paging.limit = venues_count as u64;
-    Ok(HttpResponse::Ok().json(&payload))
+
+    Ok(HttpResponse::Ok().json(&Payload::new(venues, query_parameters.into_inner().into())))
 }
 
 pub fn create(

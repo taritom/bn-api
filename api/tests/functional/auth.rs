@@ -24,12 +24,12 @@ fn token() {
     let test_request = TestRequest::create();
     let json = Json(LoginRequest::new("fake@localhost", "strong_password"));
 
-    let response: HttpResponse =
-        auth::token((test_request.request, database.connection.into(), json)).into();
+    let response: TokenResponse =
+        auth::token((test_request.request, database.connection.into(), json)).unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    let response: TokenResponse = serde_json::from_str(&body).unwrap();
+    //    assert_eq!(response.status(), StatusCode::OK);
+    //    let body = support::unwrap_body_to_string(&response).unwrap();
+    //    let response: TokenResponse = serde_json::from_str(&body).unwrap();
 
     let access_token = Token::<Header, AccessToken>::parse(&response.access_token).unwrap();
     let refresh_token = Token::<Header, RefreshToken>::parse(&response.refresh_token).unwrap();
@@ -46,14 +46,12 @@ fn token_invalid_email() {
     let test_request = TestRequest::create();
     let json = Json(LoginRequest::new("incorrect@localhost", "strong_password"));
 
-    let response: HttpResponse =
-        auth::token((test_request.request, database.connection.into(), json)).into();
+    let response = auth::token((test_request.request, database.connection.into(), json));
 
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert!(response.is_err());
     assert_eq!(
-        body,
-        json!({"error": "Email or password incorrect"}).to_string()
+        "Email or password incorrect",
+        response.err().unwrap().to_string()
     );
 }
 
@@ -68,14 +66,12 @@ fn token_incorrect_password() {
     let test_request = TestRequest::create();
     let json = Json(LoginRequest::new(&user.email.unwrap(), "incorrect"));
 
-    let response: HttpResponse =
-        auth::token((test_request.request, database.connection.into(), json)).into();
+    let response = auth::token((test_request.request, database.connection.into(), json));
 
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert!(response.is_err());
     assert_eq!(
-        body,
-        json!({"error": "Email or password incorrect"}).to_string()
+        "Email or password incorrect",
+        response.err().unwrap().to_string()
     );
 }
 

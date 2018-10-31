@@ -2,7 +2,6 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::*;
 use bigneon_api::models::PathParameters;
-use bigneon_api::models::*;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use serde_json;
@@ -187,18 +186,15 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     )).into();
     let response_body = support::unwrap_body_to_string(&response).unwrap();
     //Construct expected output
-    let expected_data = DisplayEventInterestedUserList {
-        total_interests: secondary_users.len() as u64,
-        users: secondary_users,
-    };
+    let len = secondary_users.len() as u32;
     let wrapped_expected_date = Payload {
-        data: expected_data.users,
+        data: secondary_users,
         paging: Paging {
             page: 0,
-            limit: 10,
+            limit: 5,
             sort: "".to_string(),
-            dir: SortingDir::None,
-            total: expected_data.total_interests,
+            dir: SortingDir::Asc,
+            total: len,
             tags: Vec::new(),
         },
     };
@@ -342,6 +338,58 @@ pub fn guest_list(role: Roles, should_test_succeed: bool) {
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}
+
+pub fn holds(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+
+    let hold = database.create_hold().with_event(&event).finish();
+    let hold2 = database.create_hold().with_event(&event).finish();
+
+    let all_holds = vec![hold, hold2];
+    let test_request = TestRequest::create();
+
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+    let test_request = TestRequest::create_with_uri(&format!("/holds"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+
+    let response: HttpResponse = events::holds((
+        database.connection.into(),
+        query_parameters,
+        path,
+        auth_user,
+    )).into();
+    let expected_holds = Payload {
+        data: all_holds,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::Asc,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&expected_holds).unwrap();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(body, expected_json);
     } else {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }

@@ -2,10 +2,8 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl::count;
 use diesel::prelude::*;
-use models::{Event, User};
+use models::*;
 use schema::{event_interest, users};
-use std::mem;
-use utils::clamp;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
@@ -36,12 +34,6 @@ pub struct DisplayEventInterestedUser {
     pub first_name: String,
     pub last_name: String,
     pub thumb_profile_pic_url: Option<String>,
-}
-
-#[derive(Serialize)]
-pub struct DisplayEventInterestedUserList {
-    pub total_interests: u64,
-    pub users: Vec<DisplayEventInterestedUser>,
 }
 
 impl NewEventInterest {
@@ -103,10 +95,10 @@ impl EventInterest {
     pub fn list_interested_users(
         event_id: Uuid,
         user_id: Uuid,
-        from_index: u64,
-        to_index: u64,
+        page: u32,
+        limit: u32,
         conn: &PgConnection,
-    ) -> Result<DisplayEventInterestedUserList, DatabaseError> {
+    ) -> Result<Payload<DisplayEventInterestedUser>, DatabaseError> {
         //Request the total count of users with an interest for a specific event
         let total_interests: i64 = event_interest::table
             .filter(event_interest::event_id.eq(event_id))
@@ -115,14 +107,6 @@ impl EventInterest {
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading event interest")?;
         if total_interests > 0 {
-            //Ensure request is within range and from_index is before to_index
-            let min_index: i64 = 0;
-            let max_index: i64 = total_interests - 1;
-            let mut from_clamped_index = clamp(from_index as i64, min_index, max_index);
-            let mut to_clamped_index = clamp(to_index as i64, min_index, max_index);
-            if from_clamped_index > to_clamped_index {
-                mem::swap(&mut from_clamped_index, &mut to_clamped_index);
-            };
             //Request a pageable list of users with an interest for a specific event
             let event_interest_list = event_interest::table
                 .filter(event_interest::event_id.eq(event_id))
@@ -130,8 +114,8 @@ impl EventInterest {
                 .inner_join(users::table)
                 .select(users::all_columns)
                 .order_by(event_interest::user_id.asc())
-                .limit(to_clamped_index - from_clamped_index + 1)
-                .offset(from_clamped_index)
+                .limit(limit as i64)
+                .offset(limit as i64 * page as i64)
                 .load::<User>(conn)
                 .to_db_error(ErrorCode::QueryError, "Error loading event interest")?;
             //Keep only required user information
@@ -146,16 +130,10 @@ impl EventInterest {
                 };
                 users.push(curr_entry);
             }
-            let result = DisplayEventInterestedUserList {
-                total_interests: total_interests as u64,
-                users,
-            };
+            let result = Payload::new(users, Paging::new(page, limit));
             Ok(result)
         } else {
-            let result = DisplayEventInterestedUserList {
-                total_interests: 0,
-                users: Vec::new(),
-            };
+            let result = Payload::empty(Paging::new(page, limit));
             Ok(result)
         }
     }

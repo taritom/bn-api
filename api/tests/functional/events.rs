@@ -2,10 +2,7 @@ use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::SearchParameters;
-use bigneon_api::models::{
-    Paging, PagingParameters, PathParameters, Payload, SearchParam, SortingDir,
-    UserDisplayTicketType,
-};
+use bigneon_api::models::{PathParameters, UserDisplayTicketType};
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use diesel::PgConnection;
@@ -51,7 +48,7 @@ pub fn index() {
             page: 0,
             limit: 2,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 2,
             tags: vec![SearchParam {
                 name: "query".to_string(),
@@ -107,7 +104,7 @@ pub fn index_with_draft_for_organization_user() {
             page: 0,
             limit: 2,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 2,
             tags: vec![SearchParam {
                 name: "query".to_string(),
@@ -156,7 +153,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
             page: 0,
             limit: 1,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 1,
             tags: vec![SearchParam {
                 name: "query".to_string(),
@@ -214,7 +211,7 @@ pub fn index_search_with_filter() {
             page: 0,
             limit: 1,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 1,
             tags: vec![SearchParam {
                 name: "query".to_string(),
@@ -456,6 +453,27 @@ mod guest_list_tests {
     }
 }
 
+#[cfg(test)]
+mod hold_tests {
+    use super::*;
+    #[test]
+    fn holds_org_member() {
+        base::events::holds(Roles::OrgMember, true);
+    }
+    #[test]
+    fn holds_admin() {
+        base::events::holds(Roles::Admin, true);
+    }
+    #[test]
+    fn holds_user() {
+        base::events::holds(Roles::User, false);
+    }
+    #[test]
+    fn holds_org_owner() {
+        base::events::holds(Roles::OrgOwner, true);
+    }
+}
+
 #[test]
 pub fn show_from_organizations() {
     let database = TestDatabase::new();
@@ -490,7 +508,7 @@ pub fn show_from_organizations() {
             page: 0,
             limit: 2,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 2,
             tags: Vec::new(),
         },
@@ -545,7 +563,7 @@ pub fn show_from_venues() {
             page: 0,
             limit: 2,
             sort: "".to_string(),
-            dir: SortingDir::None,
+            dir: SortingDir::Asc,
             total: 2,
             tags: Vec::new(),
         },

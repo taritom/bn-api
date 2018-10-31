@@ -1020,6 +1020,116 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Admin - list holds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0936a8c3-977f-412b-95de-f9ab1abd5203",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/holds",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"holds"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - read hold",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0936a8c3-977f-412b-95de-f9ab1abd5203",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/holds",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"holds"
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -1718,6 +1828,63 @@
 							"path": [
 								"users",
 								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - register and login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"pm.test(\"should have token response\", function() {",
+									"\tlet json = JSON.parse(responseBody);",
+									"\tpm.expect(json).to.have.property(\"access_token\");",
+									"\tpm.expect(json).to.have.property(\"refresh_token\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+								"exec": [
+									"",
+									"pm.environment.set(\"last_email\", \"mike\" + (new Date()).getTime() + \"@tari.com\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"first_name\":\"Mike\",\n\t\"last_name\":\"Surname\",\n\t\"email\":\"{{last_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/users",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users"
 							]
 						}
 					},

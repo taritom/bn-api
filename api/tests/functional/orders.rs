@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::orders;
-use bigneon_api::models::{PagingParameters, PathParameters, Payload};
-use bigneon_db::models::{DisplayOrder, OrderStatus, Roles};
+use bigneon_api::models::PathParameters;
+use bigneon_db::models::*;
 use bigneon_db::schema;
 use chrono::prelude::*;
 use diesel;

@@ -90,6 +90,16 @@ pub fn update(
     Ok(HttpResponse::Ok().json(hold.update(req.into_inner().into(), conn)?))
 }
 
+pub fn show(
+    (conn, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    let hold = Hold::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::OrgRead, &hold.organization(conn)?, conn)?;
+
+    Ok(HttpResponse::Ok().json(hold))
+}
+
 #[derive(Deserialize)]
 pub struct SetQuantityRequest {
     pub quantity: u32,
