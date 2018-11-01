@@ -4,7 +4,7 @@ use bigneon_db::models::{ExternalLogin, User};
 use db::Connection;
 use errors::*;
 use models::FacebookWebLoginToken;
-use reqwest::{self, header::*};
+use reqwest;
 use serde_json;
 use server::AppState;
 
@@ -32,9 +32,10 @@ pub fn web_login(
     let client = reqwest::Client::new();
     let response = client
         .get(&url)
-        .header(Authorization(Bearer {
-            token: auth_token.access_token.to_owned(),
-        })).send()?
+        .header(
+            "Authorization",
+            format!("Bearer {}", auth_token.access_token),
+        ).send()?
         .text()?;
 
     let facebook_graph_response: FacebookGraphResponse = serde_json::from_str(&response)?;

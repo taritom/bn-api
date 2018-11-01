@@ -7,10 +7,10 @@ authors = ["Philip Robinson <simian@tari.com>"]
 jsonrpc-core = "8.0.1"
 log = "0.4"
 logging = {path="../logging"}
-reqwest = "0.9.2"
-serde = "1.0.79"
+reqwest = "0.9"
+serde = "1.0"
 serde_json = "1.0"
-serde_derive = "1.0.79"
+serde_derive = "1.0"
 uuid = { version = "0.6", features = ["serde", "v4"] }
 hex = "0.3.2"
 rust-crypto = "0.2"
