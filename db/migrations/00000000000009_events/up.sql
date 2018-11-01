@@ -16,7 +16,9 @@ CREATE TABLE events (
   age_limit INTEGER NULL,
   top_line_info VARCHAR(100) NULL,
   cancelled_at TIMESTAMP NULL,
-  updated_at TIMESTAMP NOT NULL DEFAULT now()
+  updated_at TIMESTAMP NOT NULL DEFAULT now(),
+  min_ticket_price_cache BIGINT NULL,
+  max_ticket_price_cache BIGINT NULL
 );
 
 -- Indices

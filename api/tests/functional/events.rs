@@ -197,6 +197,8 @@ pub fn index_search_with_filter() {
         age_limit: event.age_limit,
         cancelled_at: event.cancelled_at,
         venue: None,
+        min_ticket_price: None,
+        max_ticket_price: None,
     }];
 
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
@@ -607,6 +609,8 @@ fn expected_show_json(
         ticket_types: Vec<UserDisplayTicketType>,
         total_interest: u32,
         user_is_interested: bool,
+        min_ticket_price: Option<i64>,
+        max_ticket_price: Option<i64>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -644,6 +648,8 @@ fn expected_show_json(
         ticket_types: display_ticket_types,
         total_interest: 1,
         user_is_interested: true,
+        min_ticket_price: None,
+        max_ticket_price: None,
     }).unwrap()
 }
 
@@ -664,6 +670,8 @@ struct EventVenueEntry {
     age_limit: Option<i32>,
     cancelled_at: Option<NaiveDateTime>,
     venue: Option<Venue>,
+    min_ticket_price: Option<i64>,
+    max_ticket_price: Option<i64>,
 }
 
 fn event_venue_entry(event: &Event, venue: &Venue) -> EventVenueEntry {
@@ -683,5 +691,7 @@ fn event_venue_entry(event: &Event, venue: &Venue) -> EventVenueEntry {
         age_limit: event.age_limit,
         cancelled_at: event.cancelled_at,
         venue: Some(venue.clone()),
+        min_ticket_price: event.min_ticket_price_cache.clone(),
+        max_ticket_price: event.max_ticket_price_cache.clone(),
     }
 }

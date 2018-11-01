@@ -35,6 +35,8 @@ pub struct Event {
     pub top_line_info: Option<String>,
     pub cancelled_at: Option<NaiveDateTime>,
     pub updated_at: NaiveDateTime,
+    pub min_ticket_price_cache: Option<i64>,
+    pub max_ticket_price_cache: Option<i64>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate)]
@@ -54,8 +56,17 @@ pub struct NewEvent {
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
+    pub min_ticket_price_cache: Option<i64>,
+    pub max_ticket_price_cache: Option<i64>,
     #[validate(length(max = "100"))]
     pub top_line_info: Option<String>,
+}
+
+#[derive(AsChangeset)]
+#[table_name = "events"]
+pub struct EventMinMaxCache {
+    pub min_ticket_price_cache: Option<i64>,
+    pub max_ticket_price_cache: Option<i64>,
 }
 
 impl NewEvent {
@@ -117,6 +128,48 @@ impl Event {
     pub fn status(&self) -> EventStatus {
         self.status.parse::<EventStatus>().unwrap()
     }
+
+    pub fn update_cache(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+        let ticket_types = TicketType::find_by_event_id(self.id, conn)?;
+
+        let mut has_prices = false;
+        let mut min_ticket_price_cache: i64 = std::i64::MAX;
+        let mut max_ticket_price_cache: i64 = 0;
+        for ticket_type in ticket_types {
+            for ticket_pricing in ticket_type.valid_ticket_pricing(conn)? {
+                has_prices = true;
+
+                if ticket_pricing.price_in_cents < min_ticket_price_cache {
+                    min_ticket_price_cache = ticket_pricing.price_in_cents.clone();
+                }
+                if ticket_pricing.price_in_cents > max_ticket_price_cache {
+                    max_ticket_price_cache = ticket_pricing.price_in_cents.clone();
+                }
+            }
+        }
+
+        DatabaseError::wrap(
+            ErrorCode::UpdateError,
+            "Could not update event",
+            diesel::update(self)
+                .set((
+                    EventMinMaxCache {
+                        min_ticket_price_cache: if has_prices {
+                            Some(min_ticket_price_cache)
+                        } else {
+                            Some(0)
+                        },
+                        max_ticket_price_cache: if has_prices {
+                            Some(max_ticket_price_cache)
+                        } else {
+                            Some(0)
+                        },
+                    },
+                    events::updated_at.eq(dsl::now),
+                )).get_result(conn),
+        )
+    }
+
     pub fn update(
         &self,
         attributes: EventEditableAttributes,
@@ -365,6 +418,8 @@ impl Event {
             additional_info: self.additional_info,
             top_line_info: self.top_line_info,
             venue,
+            max_ticket_price_cache: None,
+            min_ticket_price_cache: None,
         })
     }
 }
@@ -379,4 +434,6 @@ pub struct DisplayEvent {
     pub additional_info: Option<String>,
     pub top_line_info: Option<String>,
     pub venue: Option<DisplayVenue>,
+    pub min_ticket_price_cache: Option<i64>,
+    pub max_ticket_price_cache: Option<i64>,
 }

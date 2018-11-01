@@ -99,6 +99,8 @@ table! {
         top_line_info -> Nullable<Varchar>,
         cancelled_at -> Nullable<Timestamp>,
         updated_at -> Timestamp,
+        min_ticket_price_cache -> Nullable<Int8>,
+        max_ticket_price_cache -> Nullable<Int8>,
     }
 }
 

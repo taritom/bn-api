@@ -131,6 +131,8 @@ pub fn index(
         age_limit: Option<i32>,
         cancelled_at: Option<NaiveDateTime>,
         venue: Option<Venue>,
+        min_ticket_price: Option<i64>,
+        max_ticket_price: Option<i64>,
     }
 
     let mut venue_ids: Vec<Uuid> = events
@@ -164,6 +166,8 @@ pub fn index(
             top_line_info: event.top_line_info,
             age_limit: event.age_limit,
             cancelled_at: event.cancelled_at,
+            min_ticket_price: event.min_ticket_price_cache,
+            max_ticket_price: event.max_ticket_price_cache,
         });
         results
     });
@@ -190,11 +194,10 @@ pub fn show(
     let ticket_types = TicketType::find_by_event_id(parameters.id, connection)?;
     let mut display_ticket_types = Vec::new();
     for ticket_type in ticket_types {
-        display_ticket_types.push(UserDisplayTicketType::from_ticket_type(
-            &ticket_type,
-            &fee_schedule,
-            connection,
-        )?);
+        let display_ticket_type =
+            UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, connection)?;
+
+        display_ticket_types.push(display_ticket_type);
     }
 
     //This struct is used to just contain the id and name of the org
@@ -226,6 +229,8 @@ pub fn show(
         ticket_types: Vec<UserDisplayTicketType>,
         total_interest: u32,
         user_is_interested: bool,
+        min_ticket_price: Option<i64>,
+        max_ticket_price: Option<i64>,
     }
 
     Ok(HttpResponse::Ok().json(&R {
@@ -252,6 +257,8 @@ pub fn show(
         ticket_types: display_ticket_types,
         total_interest,
         user_is_interested: user_interest,
+        min_ticket_price: event.min_ticket_price_cache,
+        max_ticket_price: event.max_ticket_price_cache,
     }))
 }
 
@@ -460,6 +467,7 @@ pub fn update_artists(
 pub struct GuestListQueryParameters {
     pub query: String,
 }
+
 impl From<GuestListQueryParameters> for Paging {
     fn from(s: GuestListQueryParameters) -> Paging {
         let mut default_tags = Vec::new();
@@ -480,6 +488,7 @@ impl From<GuestListQueryParameters> for Paging {
         }
     }
 }
+
 pub fn guest_list(
     (connection, query, path, user): (
         Connection,
