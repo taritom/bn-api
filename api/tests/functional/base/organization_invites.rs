@@ -67,7 +67,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
             assert!(email_body.contains(&format!(
                 "Hi {} {}",
-                invited_user.first_name, invited_user.last_name
+                invited_user.first_name.unwrap_or("".to_string()),
+                invited_user.last_name.unwrap_or("".to_string())
             )));
             assert!(email_body.contains("This invite link is valid for 7 days."));
             assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
@@ -130,7 +131,8 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
 
             assert!(email_body.contains(&format!(
                 "Hi {} {}",
-                invited_user.first_name, invited_user.last_name
+                invited_user.first_name.unwrap_or("".to_string()),
+                invited_user.last_name.unwrap_or("".to_string())
             )));
             assert!(email_body.contains("This invite link is valid for 7 days."));
             assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));

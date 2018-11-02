@@ -13,8 +13,8 @@ use validator::Validate;
 #[derive(Insertable, PartialEq, Debug, Validate)]
 #[table_name = "users"]
 pub struct NewUser {
-    pub first_name: String,
-    pub last_name: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     #[validate(email)]
     pub email: Option<String>,
     pub phone: Option<String>,
@@ -26,8 +26,8 @@ pub struct NewUser {
 #[table_name = "users"]
 pub struct User {
     pub id: Uuid,
-    pub first_name: String,
-    pub last_name: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     pub email: Option<String>,
     pub phone: Option<String>,
     pub profile_pic_url: Option<String>,
@@ -48,8 +48,8 @@ pub struct User {
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct DisplayUser {
     pub id: Uuid,
-    pub first_name: String,
-    pub last_name: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     pub email: Option<String>,
     pub phone: Option<String>,
     pub profile_pic_url: Option<String>,
@@ -92,18 +92,18 @@ impl NewUser {
 
 impl User {
     pub fn create(
-        first_name: &str,
-        last_name: &str,
-        email: &str,
-        phone: &str,
+        first_name: &Option<String>,
+        last_name: &Option<String>,
+        email: &Option<String>,
+        phone: &Option<String>,
         password: &str,
     ) -> NewUser {
         let hash = PasswordHash::generate(password, None);
         NewUser {
-            first_name: String::from(first_name),
-            last_name: String::from(last_name),
-            email: Some(String::from(email)),
-            phone: Some(String::from(phone)),
+            first_name: first_name.clone(),
+            last_name: last_name.clone(),
+            email: email.clone(),
+            phone: phone.clone(),
             hashed_pw: hash.to_string(),
             role: vec![Roles::User.to_string()],
         }
@@ -262,7 +262,10 @@ impl User {
     }
 
     pub fn full_name(&self) -> String {
-        vec![self.first_name.to_string(), self.last_name.to_string()].join(" ")
+        vec![
+            self.first_name.clone().unwrap_or("".to_string()),
+            self.last_name.clone().unwrap_or("".to_string()),
+        ].join(" ")
     }
 
     pub fn add_external_login(
@@ -286,8 +289,8 @@ impl User {
     ) -> Result<User, DatabaseError> {
         let hash = PasswordHash::generate("random", None);
         let new_user = NewUser {
-            first_name: first_name.to_string(),
-            last_name: last_name.to_string(),
+            first_name: Some(first_name.to_string()),
+            last_name: Some(last_name.to_string()),
             email: Some(email.to_string()),
             phone: None,
             hashed_pw: hash.to_string(),

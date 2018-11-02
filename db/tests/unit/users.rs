@@ -9,19 +9,19 @@ use validator::Validate;
 #[test]
 fn commit() {
     let project = TestProject::new();
-    let first_name = "Jeff";
-    let last_name = "Wilco";
-    let email = "jeff@tari.com";
-    let phone_number = "555-555-5555";
+    let first_name = Some("Jeff".to_string());
+    let last_name = Some("Wilco".to_string());
+    let email = Some("jeff@tari.com".to_string());
+    let phone_number = Some("555-555-5555".to_string());
     let password = "examplePassword";
-    let user = User::create(first_name, last_name, email, phone_number, password)
+    let user = User::create(&first_name, &last_name, &email, &phone_number, password)
         .commit(project.get_connection())
         .unwrap();
 
     assert_eq!(user.first_name, first_name);
     assert_eq!(user.last_name, last_name);
-    assert_eq!(user.email, Some(email.to_string()));
-    assert_eq!(user.phone, Some(phone_number.to_string()));
+    assert_eq!(user.email, email);
+    assert_eq!(user.phone, phone_number);
     assert_ne!(user.hashed_pw, password);
     assert_eq!(user.hashed_pw.is_empty(), false);
     assert_eq!(user.id.to_string().is_empty(), false);
@@ -34,12 +34,12 @@ fn commit() {
 fn commit_duplicate_email() {
     let project = TestProject::new();
     let user1 = project.create_user().finish();
-    let first_name = "Jeff";
-    let last_name = "Wilco";
-    let email = &user1.email.unwrap();
-    let phone_number = "555-555-5555";
+    let first_name = Some("Jeff".to_string());
+    let last_name = Some("Wilco".to_string());
+    let email = user1.email;
+    let phone_number = Some("555-555-5555".to_string());
     let password = "examplePassword";
-    let result = User::create(first_name, last_name, email, phone_number, password)
+    let result = User::create(&first_name, &last_name, &email, &phone_number, password)
         .commit(project.get_connection());
 
     assert_eq!(result.is_err(), true);
@@ -193,11 +193,11 @@ fn update() {
 fn new_user_validate() {
     let email = "abc";
     let user = User::create(
-        "First".into(),
-        "Last".into(),
-        email.into(),
-        "123".into(),
-        "Password".into(),
+        &Some("First".to_string()),
+        &Some("Last".to_string()),
+        &Some(email.to_string()),
+        &Some("123".to_string()),
+        &"Password",
     );
     let result = user.validate();
     assert!(result.is_err());
@@ -252,8 +252,8 @@ fn create_from_external_login() {
     assert_eq!(external_id, external_login.external_user_id);
 
     assert_eq!(Some(email.to_string()), user.email);
-    assert_eq!(first_name, user.first_name);
-    assert_eq!(last_name, user.last_name);
+    assert_eq!(first_name, user.first_name.unwrap_or("".to_string()));
+    assert_eq!(last_name, user.last_name.unwrap_or("".to_string()));
 }
 
 #[test]

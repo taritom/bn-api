@@ -313,8 +313,8 @@ table! {
 table! {
     users (id) {
         id -> Uuid,
-        first_name -> Text,
-        last_name -> Text,
+        first_name -> Nullable<Text>,
+        last_name -> Nullable<Text>,
         email -> Nullable<Text>,
         phone -> Nullable<Text>,
         profile_pic_url -> Nullable<Text>,

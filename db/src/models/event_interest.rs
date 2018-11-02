@@ -124,8 +124,8 @@ impl EventInterest {
             for curr_user in &event_interest_list {
                 let curr_entry = DisplayEventInterestedUser {
                     user_id: curr_user.id,
-                    first_name: curr_user.first_name.clone(),
-                    last_name: curr_user.last_name.clone(),
+                    first_name: curr_user.clone().first_name.unwrap_or("".to_string()),
+                    last_name: curr_user.clone().last_name.unwrap_or("".to_string()),
                     thumb_profile_pic_url: curr_user.thumb_profile_pic_url.clone(),
                 };
                 users.push(curr_entry);

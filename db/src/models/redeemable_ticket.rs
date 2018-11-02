@@ -10,10 +10,10 @@ pub struct RedeemableTicket {
     pub ticket_type: String,
     #[sql_type = "dUuid"]
     pub user_id: Uuid,
-    #[sql_type = "Text"]
-    pub first_name: String,
-    #[sql_type = "Text"]
-    pub last_name: String,
+    #[sql_type = "Nullable<Text>"]
+    pub first_name: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub last_name: Option<String>,
     #[sql_type = "Nullable<Text>"]
     pub email: Option<String>,
     #[sql_type = "Nullable<Text>"]

@@ -103,7 +103,11 @@ fn view_invitation() {
     assert_eq!(display_invite.organization_name, organization.name);
     assert_eq!(
         display_invite.inviter_name,
-        format!("{} {}", inviter.first_name, inviter.last_name)
+        format!(
+            "{} {}",
+            inviter.first_name.unwrap_or("".to_string()),
+            inviter.last_name.unwrap_or("".to_string())
+        )
     );
 }
 #[test]

@@ -159,8 +159,14 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
             .unwrap();
         let current_user_entry = DisplayEventInterestedUser {
             user_id: current_secondary_user.id,
-            first_name: current_secondary_user.first_name.clone(),
-            last_name: current_secondary_user.last_name.clone(),
+            first_name: current_secondary_user
+                .first_name
+                .clone()
+                .unwrap_or("".to_string()),
+            last_name: current_secondary_user
+                .last_name
+                .clone()
+                .unwrap_or("".to_string()),
             thumb_profile_pic_url: None,
         };
         secondary_users.push(current_user_entry);

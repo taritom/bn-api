@@ -13,18 +13,22 @@ use support::test_request::TestRequest;
 #[cfg(test)]
 mod user_list_organizations_tests {
     use super::*;
+
     #[test]
     fn list_organizations_org_member() {
         base::users::list_organizations(Roles::OrgMember, false);
     }
+
     #[test]
     fn list_organizations_admin() {
         base::users::list_organizations(Roles::Admin, true);
     }
+
     #[test]
     fn list_organizations_user() {
         base::users::list_organizations(Roles::User, false);
     }
+
     #[test]
     fn list_organizations_org_owner() {
         base::users::list_organizations(Roles::OrgOwner, true);
@@ -34,18 +38,22 @@ mod user_list_organizations_tests {
 #[cfg(test)]
 mod find_by_email_tests {
     use super::*;
+
     #[test]
     fn find_by_email_org_member() {
         base::users::find_by_email(Roles::OrgMember, false);
     }
+
     #[test]
     fn find_by_email_admin() {
         base::users::find_by_email(Roles::Admin, true);
     }
+
     #[test]
     fn find_by_email_user() {
         base::users::find_by_email(Roles::User, false);
     }
+
     #[test]
     fn find_by_email_org_owner() {
         base::users::find_by_email(Roles::OrgOwner, true);
@@ -55,18 +63,22 @@ mod find_by_email_tests {
 #[cfg(test)]
 mod users_show_tests {
     use super::*;
+
     #[test]
     fn show_org_member() {
         base::users::show(Roles::OrgMember, false);
     }
+
     #[test]
     fn show_admin() {
         base::users::show(Roles::Admin, true);
     }
+
     #[test]
     fn show_user() {
         base::users::show(Roles::User, false);
     }
+
     #[test]
     fn show_org_owner() {
         base::users::show(Roles::OrgOwner, true);
@@ -92,6 +104,22 @@ fn register_address_exists() {
     if response.status() == StatusCode::OK {
         panic!("Duplicate email was allowed when it should not be")
     }
+}
+
+#[test]
+fn register_succeeds_without_name() {
+    let database = TestDatabase::new();
+
+    let json = Json(RegisterRequest {
+        email: "noname@localhost".to_string(),
+        password: "password".to_string(),
+        first_name: None,
+        last_name: None,
+        phone: None,
+    });
+
+    let response: HttpResponse = users::register((database.connection.into(), json)).into();
+    assert_eq!(response.status(), StatusCode::CREATED);
 }
 
 #[test]

@@ -1780,6 +1780,60 @@
 					"response": []
 				},
 				{
+					"name": "User - register without optional fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+								"exec": [
+									"",
+									"pm.environment.set(\"last_email\", \"mike\" + (new Date()).getTime() + \"@tari.com\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"email\":\"noname{{$timestamp}}@localhost\",\n\t\"password\": \"itsasecret\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/users/register",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "User - register",
 					"event": [
 						{

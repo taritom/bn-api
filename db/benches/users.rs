@@ -16,10 +16,10 @@ pub fn benchmark_user_create(c: &mut Criterion) {
             let connection = PgConnection::establish(&conn_str).unwrap();
             let x: usize = rand::random();
             User::create(
-                &format!("first{}", x),
-                &format!("last{}", x),
-                &format!("email{}@test.com", x),
-                &format!("222{}", x),
+                Some(format!("first{}", x).to_string()),
+                Some(format!("last{}", x).to_string()),
+                format!("email{}@test.com", x),
+                Some(format!("222{}", x).to_string()),
                 &format!("password{}", x),
             ).commit(&connection)
             .unwrap()
