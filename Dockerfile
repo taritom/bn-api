@@ -21,8 +21,15 @@ ADD Cargo.lock Cargo.toml ./
 
 RUN cargo build --release
 
+# Create a base minimal image for adding our executables to
+FROM rust:1.30-slim as base
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y \
+    libpq5 \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 # Now create a new image with only the essentials and throw everything else away
-FROM rust:1.30-slim
+FROM base
 COPY --from=builder /bn-api/target/release/server /usr/bin/
 COPY --from=builder /bn-api/target/release/bndb_cli /usr/bin/
 ADD reset-database.sh /usr/bin/
