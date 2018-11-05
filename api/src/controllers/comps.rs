@@ -24,7 +24,7 @@ pub fn index(
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
-    user.requires_scope_for_organization(Scopes::CompWrite, &hold.organization(conn)?, conn)?;
+    user.requires_scope_for_organization(Scopes::CompRead, &hold.organization(conn)?, conn)?;
 
     //TODO implement proper paging on db
     let comps = hold.comps(conn)?;
@@ -37,7 +37,7 @@ pub fn show(
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let hold = Hold::find(path.hold_id, conn)?;
-    user.requires_scope_for_organization(Scopes::CompWrite, &hold.organization(conn)?, conn)?;
+    user.requires_scope_for_organization(Scopes::CompRead, &hold.organization(conn)?, conn)?;
 
     let comp = Comp::find(path.hold_id, path.comp_id, conn)?;
     Ok(HttpResponse::Ok().json(&comp))

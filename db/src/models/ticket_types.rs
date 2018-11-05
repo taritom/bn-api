@@ -3,7 +3,7 @@ use diesel;
 use diesel::dsl;
 use diesel::prelude::*;
 use models::{Event, TicketInstanceStatus, TicketPricing, TicketPricingStatus, TicketTypeStatus};
-use schema::{assets, ticket_instances, ticket_pricing, ticket_types};
+use schema::{assets, ticket_instances, ticket_pricing, ticket_type_codes, ticket_types};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -62,6 +62,22 @@ impl TicketType {
             .set((attributes, ticket_types::updated_at.eq(dsl::now)))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket_types")
+    }
+
+    pub fn find_for_code(
+        code_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketType>, DatabaseError> {
+        ticket_types::table
+            .inner_join(
+                ticket_type_codes::table.on(ticket_type_codes::ticket_type_id.eq(ticket_types::id)),
+            ).filter(ticket_type_codes::code_id.eq(code_id))
+            .select(ticket_types::all_columns)
+            .get_results(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not find ticket types for code",
+            )
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<TicketType, DatabaseError> {

@@ -2,9 +2,11 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::models::{
     DisplayTicket, EventEditableAttributes, Order, RedeemResults, TicketInstance, Wallet,
 };
+use bigneon_db::schema::ticket_instances;
 use chrono::prelude::*;
 use chrono::NaiveDateTime;
 use diesel;
+use diesel::prelude::*;
 use diesel::result::Error;
 use diesel::sql_types;
 use diesel::Connection;
@@ -357,6 +359,41 @@ fn redeem_ticket() {
     let result2 =
         TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), connection).unwrap();
     assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
+}
+
+#[test]
+fn code() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let ticket = cart
+        .add_tickets(ticket_type.id, 1, connection)
+        .unwrap()
+        .remove(0);
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .finish();
+    assert_eq!(None, ticket.code(connection).unwrap());
+
+    let ticket = diesel::update(ticket_instances::table.filter(ticket_instances::id.eq(ticket.id)))
+        .set(ticket_instances::code_id.eq(code.id))
+        .get_result::<TicketInstance>(connection)
+        .unwrap();
+    assert_eq!(Some(code), ticket.code(connection).unwrap());
 }
 
 #[test]

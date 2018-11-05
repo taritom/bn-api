@@ -1,0 +1,6 @@
+ALTER TABLE ticket_type_codes DROP CONSTRAINT ticket_type_code_ticket_type_id_valid;
+DROP FUNCTION ticket_type_code_ticket_type_id_valid;
+
+ALTER TABLE holds DROP CONSTRAINT redemption_code_unique_per_event;
+ALTER TABLE codes DROP CONSTRAINT redemption_code_unique_per_event;
+DROP FUNCTION redemption_code_unique_per_event;

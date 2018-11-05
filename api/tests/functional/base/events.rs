@@ -349,6 +349,71 @@ pub fn guest_list(role: Roles, should_test_succeed: bool) {
     }
 }
 
+pub fn discounts(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let code = database
+        .create_code()
+        .with_name("Discount 1".into())
+        .with_event(&event)
+        .with_code_type(CodeTypes::Discount)
+        .finish()
+        .for_display(&connection)
+        .unwrap();
+    let code2 = database
+        .create_code()
+        .with_name("Discount 2".into())
+        .with_event(&event)
+        .with_code_type(CodeTypes::Discount)
+        .finish()
+        .for_display(&connection)
+        .unwrap();
+
+    let all_discounts = vec![code, code2];
+    let test_request = TestRequest::create();
+
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+    let test_request = TestRequest::create_with_uri(&format!("/discounts"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+
+    let response: HttpResponse = events::discounts((
+        database.connection.into(),
+        query_parameters,
+        path,
+        auth_user,
+    )).into();
+    let expected_discounts = Payload {
+        data: all_discounts,
+        paging: Paging {
+            page: 0,
+            limit: 2,
+            sort: "".to_string(),
+            dir: SortingDir::Asc,
+            total: 2,
+            tags: Vec::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&expected_discounts).unwrap();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(body, expected_json);
+    } else {
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+}
+
 pub fn holds(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
 

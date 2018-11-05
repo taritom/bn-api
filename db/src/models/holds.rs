@@ -7,7 +7,7 @@ use schema::holds;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
-use validators;
+use validators::{self, *};
 
 #[derive(Deserialize, Identifiable, Queryable, Serialize, PartialEq, Debug)]
 pub struct Hold {
@@ -28,6 +28,7 @@ pub struct Hold {
 #[table_name = "holds"]
 pub struct UpdateHoldAttributes {
     pub name: Option<String>,
+    pub redemption_code: Option<String>,
     pub hold_type: Option<String>,
     pub discount_in_cents: Option<Option<i64>>,
     pub end_at: Option<Option<NaiveDateTime>>,
@@ -66,7 +67,7 @@ impl Hold {
             update_attrs.discount_in_cents = Some(None);
         }
 
-        self.validate_record(&update_attrs)?;
+        self.validate_record(&update_attrs, conn)?;
         diesel::update(
             holds::table
                 .filter(holds::id.eq(self.id))
@@ -90,7 +91,11 @@ impl Hold {
             .to_db_error(ErrorCode::QueryError, "Could not retrieve holds for event")
     }
 
-    fn validate_record(&self, update_attrs: &UpdateHoldAttributes) -> Result<(), DatabaseError> {
+    fn validate_record(
+        &self,
+        update_attrs: &UpdateHoldAttributes,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         let discount_in_cents_valid = Hold::discount_in_cents_valid(
             update_attrs
                 .hold_type
@@ -102,11 +107,28 @@ impl Hold {
                 self.discount_in_cents
             },
         );
-        Ok(validators::append_validation_error(
+        let unique_redemption_code = redemption_code_unique_per_event_validation(
+            Some(self.id),
+            "holds".into(),
+            update_attrs
+                .redemption_code
+                .clone()
+                .unwrap_or(self.redemption_code.clone()),
+            conn,
+        )?;
+
+        let validation_errors = validators::append_validation_error(
             Ok(()),
             "discount_in_cents",
             discount_in_cents_valid,
-        )?)
+        );
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
+            "redemption_code",
+            unique_redemption_code,
+        );
+
+        Ok(validation_errors?)
     }
 
     pub fn split(
@@ -253,20 +275,34 @@ impl NewHold {
         if self.hold_type == HoldTypes::Comp.to_string() {
             self.discount_in_cents = None
         }
-        self.validate_record()?;
+        self.validate_record(conn)?;
         diesel::insert_into(holds::table)
             .values(self)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create hold")
     }
 
-    fn validate_record(&self) -> Result<(), DatabaseError> {
+    fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let discount_in_cents_valid =
             Hold::discount_in_cents_valid(self.hold_type.clone(), self.discount_in_cents);
-        Ok(validators::append_validation_error(
+        let unique_redemption_code = redemption_code_unique_per_event_validation(
+            None,
+            "holds".into(),
+            self.redemption_code.clone(),
+            conn,
+        )?;
+
+        let validation_errors = validators::append_validation_error(
             Ok(()),
             "discount_in_cents",
             discount_in_cents_valid,
-        )?)
+        );
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
+            "redemption_code",
+            unique_redemption_code,
+        );
+
+        Ok(validation_errors?)
     }
 }

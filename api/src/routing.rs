@@ -24,6 +24,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(cart::checkout);
     }).resource("/cart/{id}", |r| {
         r.method(Method::GET).with(cart::show);
+    }).resource("/codes/{id}", |r| {
+        r.method(Method::GET).with(codes::show);
+        r.method(Method::PUT).with(codes::update);
+        r.method(Method::DELETE).with(codes::destroy);
     }).resource("/events", |r| {
         r.method(Method::GET).with(events::index);
         r.method(Method::POST).with(events::create);
@@ -34,6 +38,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     }).resource("/events/{id}/artists", |r| {
         r.method(Method::POST).with(events::add_artist);
         r.method(Method::PUT).with(events::update_artists);
+    }).resource("/events/{id}/codes", |r| {
+        r.method(Method::POST).with(codes::create);
+    }).resource("/events/{id}/discounts", |r| {
+        r.method(Method::GET).with(events::discounts);
     }).resource("/events/{id}/guests", |r| {
         r.method(Method::GET).with(events::guest_list);
     }).resource("/events/{id}/holds", |r| {

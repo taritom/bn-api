@@ -15,7 +15,7 @@ impl<'a> CompBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> Self {
         let x: u16 = random();
         CompBuilder {
-            name: format!("Hold {}", x).into(),
+            name: format!("Comp {}", x).into(),
             connection,
             quantity: 3,
             hold_id: None,

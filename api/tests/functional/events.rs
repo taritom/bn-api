@@ -456,7 +456,28 @@ mod guest_list_tests {
 }
 
 #[cfg(test)]
-mod hold_tests {
+mod discounts_tests {
+    use super::*;
+    #[test]
+    fn discounts_org_member() {
+        base::events::discounts(Roles::OrgMember, true);
+    }
+    #[test]
+    fn discounts_admin() {
+        base::events::discounts(Roles::Admin, true);
+    }
+    #[test]
+    fn discounts_user() {
+        base::events::discounts(Roles::User, false);
+    }
+    #[test]
+    fn discounts_org_owner() {
+        base::events::discounts(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod holds_tests {
     use super::*;
     #[test]
     fn holds_org_member() {

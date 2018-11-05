@@ -1,4 +1,5 @@
 pub use self::artist_builder::*;
+pub use self::code_builder::*;
 pub use self::comp_builder::*;
 pub use self::event_builder::*;
 pub use self::fee_schedule_builder::*;
@@ -12,6 +13,7 @@ pub use self::user_builder::*;
 pub use self::venue_builder::*;
 
 mod artist_builder;
+mod code_builder;
 mod comp_builder;
 mod event_builder;
 mod fee_schedule_builder;

@@ -47,6 +47,58 @@ pub fn create_with_validation_errors() {
             _ => panic!("Expected validation error"),
         },
     }
+
+    // Dupe redemption code
+    let hold = db.create_hold().finish();
+    let result = Hold::create(
+        "test".to_string(),
+        event.id,
+        hold.redemption_code,
+        Some(0),
+        None,
+        Some(4),
+        HoldTypes::Discount,
+        event.ticket_types(db.get_connection()).unwrap()[0].id,
+    ).commit(db.get_connection());
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("redemption_code"));
+                assert_eq!(errors["redemption_code"].len(), 1);
+                assert_eq!(errors["redemption_code"][0].code, "uniqueness");
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    // Redemption code used by a code
+    let code = db.create_code().finish();
+    let result = Hold::create(
+        "test".to_string(),
+        event.id,
+        code.redemption_code,
+        Some(0),
+        None,
+        Some(4),
+        HoldTypes::Discount,
+        event.ticket_types(db.get_connection()).unwrap()[0].id,
+    ).commit(db.get_connection());
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("redemption_code"));
+                assert_eq!(errors["redemption_code"].len(), 1);
+                assert_eq!(errors["redemption_code"][0].code, "uniqueness");
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 }
 
 #[test]
@@ -59,7 +111,7 @@ pub fn update() {
         max_per_order: Some(None),
         end_at: Some(None),
         name: Some("New name".to_string()),
-        hold_type: None,
+        ..Default::default()
     };
     let new_hold = hold.update(update_patch, db.get_connection()).unwrap();
     assert_eq!(new_hold.name, "New name".to_string());
@@ -88,6 +140,48 @@ pub fn update_with_validation_errors() {
                 assert!(errors.contains_key("discount_in_cents"));
                 assert_eq!(errors["discount_in_cents"].len(), 1);
                 assert_eq!(errors["discount_in_cents"][0].code, "required");
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    // Dupe redemption code
+    let hold2 = db.create_hold().finish();
+    let update_patch = UpdateHoldAttributes {
+        redemption_code: Some(hold2.redemption_code),
+        ..Default::default()
+    };
+    let result = hold.update(update_patch, db.get_connection());
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("redemption_code"));
+                assert_eq!(errors["redemption_code"].len(), 1);
+                assert_eq!(errors["redemption_code"][0].code, "uniqueness");
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    // Dupe redemption code used by code
+    let code = db.create_code().finish();
+    let update_patch = UpdateHoldAttributes {
+        redemption_code: Some(code.redemption_code),
+        ..Default::default()
+    };
+    let result = hold.update(update_patch, db.get_connection());
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("redemption_code"));
+                assert_eq!(errors["redemption_code"].len(), 1);
+                assert_eq!(errors["redemption_code"][0].code, "uniqueness");
             }
             _ => panic!("Expected validation error"),
         },
@@ -181,6 +275,17 @@ pub fn set_quantity_with_validation_errors() {
             _ => panic!("Expected validation error"),
         },
     }
+}
+
+#[test]
+fn organization() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_ticket_pricing().finish();
+    let hold = project.create_hold().with_event(&event).finish();
+
+    let organization = hold.organization(connection).unwrap();
+    assert_eq!(event.organization(connection).unwrap(), organization);
 }
 
 #[test]

@@ -46,6 +46,10 @@ impl TestDatabase {
         OrderBuilder::new(&self.connection)
     }
 
+    pub fn create_code(&self) -> CodeBuilder {
+        CodeBuilder::new(&self.connection)
+    }
+
     pub fn create_comp(&self) -> CompBuilder {
         CompBuilder::new(&self.connection)
     }

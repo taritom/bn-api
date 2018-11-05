@@ -1,11 +1,10 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{
-    TicketPricing, TicketPricingEditableAttributes, TicketType, TicketTypeEditableAttributes,
-};
+use bigneon_db::models::*;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::NaiveDate;
 use diesel::result::Error;
 use diesel::Connection;
+use uuid::Uuid;
 
 #[test]
 fn create() {
@@ -21,6 +20,38 @@ fn create() {
 
     assert_eq!(ticket_type.event_id, event.id);
     assert_eq!(ticket_type.name, "VIP".to_string())
+}
+
+#[test]
+fn find_for_code() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(2)
+        .finish();
+    let ticket_types = event.ticket_types(&connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let code = project.create_code().with_event(&event).finish();
+
+    TicketTypeCode::create(ticket_type.id, code.id)
+        .commit(connection)
+        .unwrap();
+    TicketTypeCode::create(ticket_type2.id, code.id)
+        .commit(connection)
+        .unwrap();
+
+    let found_ticket_types = TicketType::find_for_code(code.id, connection).unwrap();
+    assert_eq!(
+        found_ticket_types
+            .into_iter()
+            .map(|tt| tt.id)
+            .collect::<Vec<Uuid>>()
+            .sort(),
+        vec![ticket_type.id, ticket_type2.id].sort()
+    );
 }
 
 #[test]

@@ -1,5 +1,7 @@
+mod redemption_code_uniqueness_validator;
 mod url_array_validator;
 
+pub use self::redemption_code_uniqueness_validator::redemption_code_unique_per_event_validation;
 pub use self::url_array_validator::validate_urls;
 use validator::*;
 

@@ -28,6 +28,48 @@ fn create() {
 }
 
 #[test]
+fn set_code() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .finish();
+    let mut order = project.create_order().for_event(&event).finish();
+    assert_eq!(None, order.code_id);
+    order.set_code(&code, connection).unwrap();
+    assert_eq!(Some(code.id), order.code_id);
+}
+
+#[test]
+fn code() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .finish();
+    let mut order = project.create_order().for_event(&event).finish();
+    assert_eq!(None, order.code(connection).unwrap());
+    order.set_code(&code, connection).unwrap();
+    assert_eq!(Some(code), order.code(connection).unwrap());
+}
+
+#[test]
 fn add_tickets() {
     let project = TestProject::new();
     let connection = project.get_connection();

@@ -18,5 +18,5 @@ WHERE id IN (SELECT t.id
       transfer_key,
       transfer_expiry_date,
       created_at,
-      updated_at;
-
+      updated_at,
+      code_id;

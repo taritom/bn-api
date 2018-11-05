@@ -23,6 +23,7 @@ pub struct CreateHoldRequest {
 #[derive(Default, Deserialize, Serialize)]
 pub struct UpdateHoldRequest {
     pub name: Option<String>,
+    pub redemption_code: Option<String>,
     pub hold_type: Option<HoldTypes>,
     pub quantity: Option<u32>,
     #[serde(default, deserialize_with = "deserialize_some")]
@@ -41,6 +42,7 @@ impl From<UpdateHoldRequest> for UpdateHoldAttributes {
             discount_in_cents: attributes.discount_in_cents,
             end_at: attributes.end_at,
             max_per_order: attributes.max_per_order,
+            redemption_code: attributes.redemption_code,
         }
     }
 }

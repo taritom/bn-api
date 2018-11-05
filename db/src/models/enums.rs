@@ -38,6 +38,7 @@ macro_rules! string_enum {
 }
 
 string_enum! { AssetStatus [Unsynced] }
+string_enum! { CodeTypes [Discount] }
 string_enum! { DomainEventTypes [PaymentCreated, PaymentCompleted, PaymentMethodCreated, PaymentMethodUpdated]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { HoldTypes [Discount, Comp] }

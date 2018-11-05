@@ -1,5 +1,6 @@
 pub mod artists;
 pub mod assets;
+pub mod codes;
 pub mod comps;
 pub mod concerns;
 pub mod domain_events;
@@ -18,6 +19,7 @@ pub mod payment_methods;
 pub mod regions;
 pub mod ticket_instances;
 pub mod ticket_pricing;
+pub mod ticket_type_codes;
 pub mod ticket_types;
 pub mod users;
 pub mod venues;

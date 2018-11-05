@@ -9,6 +9,7 @@ pub struct OrderBuilder<'a> {
     ticket_type_id: Option<Uuid>,
     connection: &'a PgConnection,
     is_paid: bool,
+    code: Option<Code>,
 }
 
 impl<'a> OrderBuilder<'a> {
@@ -18,11 +19,17 @@ impl<'a> OrderBuilder<'a> {
             user: None,
             ticket_type_id: None,
             is_paid: false,
+            code: None,
         }
     }
 
     pub fn for_user(mut self, user: &User) -> OrderBuilder<'a> {
         self.user = Some(user.clone());
+        self
+    }
+
+    pub fn with_code(mut self, code: &Code) -> OrderBuilder<'a> {
+        self.code = Some(code.clone());
         self
     }
 
@@ -48,11 +55,16 @@ impl<'a> OrderBuilder<'a> {
             self.ticket_type_id = Some(event.ticket_types(&self.connection).unwrap()[0].id);
         }
 
-        let cart =
+        let mut cart =
             Order::find_or_create_cart(self.user.as_ref().unwrap(), self.connection).unwrap();
 
         cart.add_tickets(self.ticket_type_id.unwrap(), 10, self.connection)
             .unwrap();
+
+        if let Some(code) = self.code {
+            cart.set_code(&code, self.connection).unwrap();
+        }
+
         let total = cart.calculate_total(self.connection).unwrap();
 
         let mut cart = cart;

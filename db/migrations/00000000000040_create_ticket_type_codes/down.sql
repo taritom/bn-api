@@ -1,0 +1,2 @@
+DROP INDEX index_ticket_type_codes_ticket_type_id_code_id;
+DROP TABLE ticket_type_codes;

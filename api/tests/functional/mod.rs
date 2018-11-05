@@ -2,6 +2,7 @@ mod artists;
 mod auth;
 mod base;
 mod cart;
+mod codes;
 mod comps;
 mod events;
 mod holds;

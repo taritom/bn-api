@@ -3,6 +3,9 @@ use std::fmt;
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum Scopes {
     ArtistWrite,
+    CodeRead,
+    CodeWrite,
+    CompRead,
     CompWrite,
     EventWrite,
     EventInterest,
@@ -25,6 +28,9 @@ impl fmt::Display for Scopes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match self {
             Scopes::ArtistWrite => "artist:write",
+            Scopes::CodeRead => "code:read",
+            Scopes::CodeWrite => "code:write",
+            Scopes::CompRead => "comp:read",
             Scopes::CompWrite => "comp:write",
             Scopes::EventWrite => "event:write",
             Scopes::EventInterest => "event:interest",
@@ -68,6 +74,9 @@ fn get_scopes_for_role(role: &str) -> Vec<Scopes> {
         "OrgMember" => {
             let mut roles = vec![
                 Scopes::ArtistWrite,
+                Scopes::CodeRead,
+                Scopes::CodeWrite,
+                Scopes::CompRead,
                 Scopes::CompWrite,
                 Scopes::EventViewGuests,
                 Scopes::EventWrite,
@@ -107,6 +116,9 @@ fn get_scopes_for_role_test() {
             Scopes::OrgWrite,
             Scopes::UserRead,
             Scopes::ArtistWrite,
+            Scopes::CodeRead,
+            Scopes::CodeWrite,
+            Scopes::CompRead,
             Scopes::CompWrite,
             Scopes::EventViewGuests,
             Scopes::EventWrite,
@@ -135,6 +147,9 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:write",
+            "code:read",
+            "code:write",
+            "comp:read",
             "comp:write",
             "event:interest",
             "event:view-guests",
@@ -156,6 +171,9 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:write",
+            "code:read",
+            "code:write",
+            "comp:read",
             "comp:write",
             "event:interest",
             "event:view-guests",
@@ -180,6 +198,9 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:write",
+            "code:read",
+            "code:write",
+            "comp:read",
             "comp:write",
             "event:interest",
             "event:view-guests",

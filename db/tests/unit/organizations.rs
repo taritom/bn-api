@@ -355,6 +355,9 @@ pub fn get_scopes_for_user() {
         organization.get_scopes_for_user(&user, connection).unwrap(),
         vec![
             "artist:write",
+            "code:read",
+            "code:write",
+            "comp:read",
             "comp:write",
             "event:interest",
             "event:view-guests",
@@ -376,6 +379,9 @@ pub fn get_scopes_for_user() {
             .unwrap(),
         vec![
             "artist:write",
+            "code:read",
+            "code:write",
+            "comp:read",
             "comp:write",
             "event:interest",
             "event:view-guests",

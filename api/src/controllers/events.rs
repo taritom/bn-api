@@ -510,6 +510,25 @@ pub fn guest_list(
     Ok(HttpResponse::Ok().json(payload))
 }
 
+pub fn discounts(
+    (conn, query, path, user): (
+        Connection,
+        Query<PagingParameters>,
+        Path<PathParameters>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    user.requires_scope_for_organization(
+        Scopes::CodeRead,
+        &Organization::find_for_event(path.id, conn)?,
+        conn,
+    )?;
+    let discounts = Code::find_for_event(path.id, CodeTypes::Discount, conn)?;
+
+    Ok(HttpResponse::Ok().json(Payload::new(discounts, query.into_inner().into())))
+}
+
 pub fn holds(
     (conn, query, path, user): (
         Connection,
