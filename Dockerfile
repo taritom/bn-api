@@ -1,4 +1,4 @@
-FROM rust:1.30 as builder
+FROM quay.io/tarilabs/rust:1.30-alpine as builder
 
 # create a new empty shell project
 RUN USER=root cargo new --bin bn-api
@@ -22,12 +22,7 @@ ADD Cargo.lock Cargo.toml ./
 RUN cargo build --release
 
 # Create a base minimal image for adding our executables to
-FROM rust:1.30-slim as base
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y \
-    libpq5 \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+FROM quay.io/tarilabs/run:alpine as base
 # Now create a new image with only the essentials and throw everything else away
 FROM base
 COPY --from=builder /bn-api/target/release/server /usr/bin/
