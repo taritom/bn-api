@@ -100,7 +100,7 @@ fn list_interested_users() {
     if desired_user_id_completelist.len() > 0 {
         //Test1 - Normal Query of list of interested users for event, excluding primary user
         let request_from_page: usize = 0;
-        let request_limit: usize = request_from_page + 9;
+        let request_limit: usize = 100;
         let result = EventInterest::list_interested_users(
             primary_event.id,
             primary_user.id,

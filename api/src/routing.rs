@@ -83,6 +83,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     }).resource("/holds/{id}", |r| {
         r.method(Method::PATCH).with(holds::update);
         r.method(Method::GET).with(holds::show);
+        r.method(Method::DELETE).with(holds::destroy);
     }).resource("/orders", |r| {
         r.method(Method::GET).with(orders::index);
     }).resource("/orders/{id}", |r| {

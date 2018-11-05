@@ -163,6 +163,14 @@ impl Hold {
         Ok(new_hold)
     }
 
+    pub fn destroy(self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        self.set_quantity(0, conn)?;
+        diesel::delete(holds::table.filter(holds::id.eq(self.id)))
+            .execute(conn)
+            .to_db_error(ErrorCode::DeleteError, "Could not delete hold")?;
+        Ok(())
+    }
+
     pub fn discount_in_cents_valid(
         hold_type: String,
         discount_in_cents: Option<i64>,

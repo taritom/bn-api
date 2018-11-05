@@ -158,3 +158,13 @@ pub fn split(
     )?;
     Ok(HttpResponse::Created().json(new_hold))
 }
+
+pub fn destroy(
+    (conn, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    let hold = Hold::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::HoldWrite, &hold.organization(conn)?, conn)?;
+    hold.destroy(conn)?;
+    Ok(HttpResponse::Ok().finish())
+}
