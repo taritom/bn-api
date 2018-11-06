@@ -88,7 +88,7 @@ mod users_show_tests {
 #[test]
 fn register_address_exists() {
     let database = TestDatabase::new();
-
+    let request = TestRequest::create();
     let existing_user = database.create_user().finish();
 
     let json = Json(RegisterRequest::new(
@@ -99,7 +99,8 @@ fn register_address_exists() {
         &"not_important",
     ));
 
-    let response: HttpResponse = users::register((database.connection.into(), json)).into();
+    let response: HttpResponse =
+        users::register((database.connection.into(), json, request.extract_state())).into();
 
     if response.status() == StatusCode::OK {
         panic!("Duplicate email was allowed when it should not be")
@@ -109,7 +110,7 @@ fn register_address_exists() {
 #[test]
 fn register_succeeds_without_name() {
     let database = TestDatabase::new();
-
+    let request = TestRequest::create();
     let json = Json(RegisterRequest {
         email: "noname@localhost".to_string(),
         password: "password".to_string(),
@@ -118,14 +119,15 @@ fn register_succeeds_without_name() {
         phone: None,
     });
 
-    let response: HttpResponse = users::register((database.connection.into(), json)).into();
+    let response: HttpResponse =
+        users::register((database.connection.into(), json, request.extract_state())).into();
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
 #[test]
 fn register_succeeds() {
     let database = TestDatabase::new();
-
+    let request = TestRequest::create();
     let json = Json(RegisterRequest::new(
         &"First",
         &"Last",
@@ -134,14 +136,15 @@ fn register_succeeds() {
         &"not_important",
     ));
 
-    let response: HttpResponse = users::register((database.connection.into(), json)).into();
+    let response: HttpResponse =
+        users::register((database.connection.into(), json, request.extract_state())).into();
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
 #[test]
 fn register_succeeds_with_login() {
     let database = TestDatabase::new();
-
+    let request = TestRequest::create();
     let json = Json(RegisterRequest::new(
         &"First",
         &"Last",
@@ -152,8 +155,12 @@ fn register_succeeds_with_login() {
 
     let test_request = TestRequest::create();
 
-    let response: HttpResponse =
-        users::register_and_login((test_request.request, database.connection.into(), json)).into();
+    let response: HttpResponse = users::register_and_login((
+        test_request.request,
+        database.connection.into(),
+        json,
+        request.extract_state(),
+    )).into();
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let token_response: TokenResponse = serde_json::from_str(&body).unwrap();
@@ -164,7 +171,7 @@ fn register_succeeds_with_login() {
 #[test]
 fn register_with_validation_errors() {
     let database = TestDatabase::new();
-
+    let request = TestRequest::create();
     let json = Json(RegisterRequest::new(
         &"First",
         &"Last",
@@ -173,7 +180,8 @@ fn register_with_validation_errors() {
         &"not_important",
     ));
 
-    let response: HttpResponse = users::register((database.connection.into(), json)).into();
+    let response: HttpResponse =
+        users::register((database.connection.into(), json, request.extract_state())).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
     let body = support::unwrap_body_to_string(&response).unwrap();

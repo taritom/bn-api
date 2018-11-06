@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Json, Path, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
@@ -8,6 +8,7 @@ use db::Connection;
 use diesel::PgConnection;
 use errors::*;
 use helpers::application;
+use mail::mailers;
 use models::{PathParameters, RegisterRequest, UserProfileAttributes};
 use server::AppState;
 use std::collections::HashMap;
@@ -99,18 +100,28 @@ pub fn find_by_email(
 }
 
 pub fn register(
-    (connection, parameters): (Connection, Json<RegisterRequest>),
+    (connection, parameters, state): (Connection, Json<RegisterRequest>, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let new_user: NewUser = parameters.into_inner().into();
     new_user.commit(connection.get())?;
+
+    if new_user.first_name.is_some() && new_user.email.is_some() {
+        mailers::user::user_registered(
+            &new_user.first_name.unwrap(),
+            &new_user.email.unwrap(),
+            &state.config,
+        )?;
+    }
+
     Ok(HttpResponse::Created().finish())
 }
 
 pub fn register_and_login(
-    (http_request, connection, parameters): (
+    (http_request, connection, parameters, state): (
         HttpRequest<AppState>,
         Connection,
         Json<RegisterRequest>,
+        State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let email = parameters.email.clone();
@@ -119,6 +130,14 @@ pub fn register_and_login(
     new_user.commit(connection.get())?;
     let json = Json(LoginRequest::new(&email, &password));
     let token_response = auth::token((http_request, connection, json))?;
+
+    if new_user.first_name.is_some() && new_user.email.is_some() {
+        mailers::user::user_registered(
+            &new_user.first_name.unwrap(),
+            &new_user.email.unwrap(),
+            &state.config,
+        )?;
+    }
 
     Ok(HttpResponse::Created().json(token_response))
 }

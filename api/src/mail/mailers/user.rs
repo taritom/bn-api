@@ -1,6 +1,30 @@
 use bigneon_db::models::User;
 use config::Config;
+use errors::*;
 use mail::mailers::Mailer;
+use utils::communication::*;
+
+pub fn user_registered(
+    user_first_name: &String,
+    user_email: &String,
+    config: &Config,
+) -> Result<(), BigNeonError> {
+    let source = CommAddress::from(&config.communication_default_source_email);
+    let destinations = CommAddress::from(user_email);
+    let title = "BigNeon Registration".to_string();
+    let template_id = config.sendgrid_template_bn_user_registered.clone();
+    let mut template_data = TemplateData::new();
+    template_data.insert("name".to_string(), user_first_name.clone());
+    Communication::new(
+        CommunicationType::EmailTemplate,
+        title,
+        None,
+        Some(source),
+        destinations,
+        Some(template_id),
+        Some(vec![template_data]),
+    ).send(&config)
+}
 
 pub fn password_reset_email(config: &Config, user: &User) -> Mailer {
     let password_reset_link = format!(

@@ -31,6 +31,10 @@ pub struct Config {
     pub token_secret: String,
     pub token_issuer: String,
     pub tari_client: Box<TariClient + Send + Sync>,
+    pub communication_default_source_email: String,
+    pub sendgrid_api_key: String,
+    pub sendgrid_template_bn_user_registered: String,
+    pub sendgrid_template_bn_purchase_completed: String,
 }
 
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
@@ -56,6 +60,14 @@ const MAIL_FROM_NAME: &str = "MAIL_FROM_NAME";
 const MAIL_SMTP_HOST: &str = "MAIL_SMTP_HOST";
 const MAIL_SMTP_PORT: &str = "MAIL_SMTP_PORT";
 const FRONT_END_URL: &str = "FRONT_END_URL";
+
+//Communication settings
+const COMMUNICATION_DEFAULT_SOURCE_EMAIL: &str = "COMMUNICATION_DEFAULT_SOURCE_EMAIL";
+
+//SendGrid settings
+const SENDGRID_API_KEY: &str = "SENDGRID_API_KEY";
+const SENDGRID_TEMPLATE_BN_USER_REGISTERED: &str = "SENDGRID_TEMPLATE_BN_USER_REGISTERED";
+const SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED: &str = "SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED";
 
 impl Config {
     pub fn new(environment: Environment) -> Self {
@@ -134,6 +146,25 @@ impl Config {
 
         let google_recaptcha_secret_key = env::var(&GOOGLE_RECAPTCHA_SECRET_KEY).ok();
 
+        let communication_default_source_email = env::var(&COMMUNICATION_DEFAULT_SOURCE_EMAIL)
+            .unwrap_or_else(|_| panic!("{} must be defined.", COMMUNICATION_DEFAULT_SOURCE_EMAIL));
+
+        let sendgrid_api_key = env::var(&SENDGRID_API_KEY)
+            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_API_KEY));
+
+        let sendgrid_template_bn_user_registered = env::var(&SENDGRID_TEMPLATE_BN_USER_REGISTERED)
+            .unwrap_or_else(|_| {
+                panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_REGISTERED)
+            });
+
+        let sendgrid_template_bn_purchase_completed =
+            env::var(&SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED).unwrap_or_else(|_| {
+                panic!(
+                    "{} must be defined.",
+                    SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED
+                )
+            });
+
         Config {
             allowed_origins,
             app_name,
@@ -154,6 +185,10 @@ impl Config {
             token_issuer,
             front_end_url,
             tari_client,
+            communication_default_source_email,
+            sendgrid_api_key,
+            sendgrid_template_bn_user_registered,
+            sendgrid_template_bn_purchase_completed,
         }
     }
 }

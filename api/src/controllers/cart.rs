@@ -8,6 +8,7 @@ use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
 use itertools::Itertools;
+use mail::mailers;
 use payments::PaymentProcessor;
 use server::AppState;
 use std::collections::HashMap;
@@ -137,6 +138,7 @@ pub fn checkout(
     order.lock_version(connection.get())?;
 
     let order_items = order.items(connection.get())?;
+    let display_order = order.for_display(connection.get())?;
 
     //Assemble token ids and ticket instance ids for each asset in the order
     let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
@@ -239,6 +241,16 @@ pub fn checkout(
                     "Could not complete this checkout because the asset has not been assigned on the blockchain",
                 ),
             }
+        }
+
+        //Communicate purchase completed to user
+        if user.user.first_name.is_some() && user.user.email.is_some() {
+            mailers::cart::purchase_completed(
+                &user.user.first_name.unwrap(),
+                &user.user.email.unwrap(),
+                display_order,
+                &state.config,
+            )?;
         }
     }
 
