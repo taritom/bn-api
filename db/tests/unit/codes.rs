@@ -330,7 +330,8 @@ pub fn find_for_event() {
         .with_code_type(CodeTypes::Discount)
         .finish();
 
-    let codes = Code::find_for_event(event.id, CodeTypes::Discount, db.get_connection()).unwrap();
+    let codes =
+        Code::find_for_event(event.id, Some(CodeTypes::Discount), db.get_connection()).unwrap();
 
     assert_eq!(
         vec![

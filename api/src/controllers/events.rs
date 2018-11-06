@@ -510,7 +510,7 @@ pub fn guest_list(
     Ok(HttpResponse::Ok().json(payload))
 }
 
-pub fn discounts(
+pub fn codes(
     (conn, query, path, user): (
         Connection,
         Query<PagingParameters>,
@@ -524,7 +524,14 @@ pub fn discounts(
         &Organization::find_for_event(path.id, conn)?,
         conn,
     )?;
-    let discounts = Code::find_for_event(path.id, CodeTypes::Discount, conn)?;
+
+    //TODO Extract the tags[type]=Discount field
+    let code_type = None;
+    let discounts = Code::find_for_event(
+        path.id,
+        code_type.map(|s: String| s.parse::<CodeTypes>().unwrap()),
+        conn,
+    )?;
 
     Ok(HttpResponse::Ok().json(Payload::new(discounts, query.into_inner().into())))
 }

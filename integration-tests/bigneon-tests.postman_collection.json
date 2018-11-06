@@ -982,7 +982,7 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/discounts",
+							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
@@ -990,7 +990,75 @@
 							"path": [
 								"events",
 								"{{last_event_id}}",
-								"discounts"
+								"codes"
+							],
+							"query": [
+								{
+									"key": "query",
+									"value": "discount"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - list all codes",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0936a8c3-977f-412b-95de-f9ab1abd5203",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"discount should be present\", function(){",
+									"    pm.expect(json.data.length).to.equal(1);",
+									"    pm.expect(json.data[0].name).to.equal(\"New Discount Name\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"codes"
 							]
 						}
 					},
@@ -1162,7 +1230,7 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/discounts",
+							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
@@ -1170,7 +1238,7 @@
 							"path": [
 								"events",
 								"{{last_event_id}}",
-								"discounts"
+								"codes"
 							]
 						}
 					},

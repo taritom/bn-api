@@ -172,7 +172,7 @@ impl Code {
 
     pub fn find_for_event(
         event_id: Uuid,
-        code_type: CodeTypes,
+        code_type: Option<CodeTypes>,
         conn: &PgConnection,
     ) -> Result<Vec<DisplayCode>, DatabaseError> {
         let query = r#"
@@ -192,13 +192,15 @@ impl Code {
                     array(select ticket_type_id from ticket_type_codes where ticket_type_codes.code_id = codes.id) as ticket_type_ids
                 FROM codes
                 WHERE
-                    codes.event_id = $1 and
-                    codes.code_type = $2
+                    codes.event_id = $1
+                    AND ($2 IS NULL OR codes.code_type = $2)
                 ORDER BY codes.name;"#;
+
         diesel::sql_query(query)
             .bind::<diesel::sql_types::Uuid, _>(event_id)
-            .bind::<diesel::sql_types::Text, _>(code_type.to_string())
-            .get_results(conn)
+            .bind::<diesel::sql_types::Nullable<diesel::sql_types::Text>, _>(
+                code_type.map(|s| s.to_string()),
+            ).get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Cannot find for events")
     }
 

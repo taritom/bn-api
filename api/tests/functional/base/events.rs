@@ -388,7 +388,7 @@ pub fn discounts(role: Roles, should_test_succeed: bool) {
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
 
-    let response: HttpResponse = events::discounts((
+    let response: HttpResponse = events::codes((
         database.connection.into(),
         query_parameters,
         path,
