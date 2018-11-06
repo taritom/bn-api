@@ -313,20 +313,35 @@ impl TicketInstance {
         hold_id: Uuid,
         ticket_type_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<u32, DatabaseError> {
+    ) -> Result<(u32, u32), DatabaseError> {
+        #[derive(Queryable)]
+        struct R {
+            ticket_count: Option<i64>,
+            available_count: Option<i64>,
+        };
+
         match ticket_instances::table
             .inner_join(assets::table)
             .filter(ticket_instances::hold_id.eq(hold_id))
             .filter(assets::ticket_type_id.eq(ticket_type_id))
-            .select(count(ticket_instances::id))
-            .first::<i64>(conn)
+            .select((
+                sql::<sql_types::Nullable<sql_types::BigInt>>(
+                    "COUNT(DISTINCT ticket_instances.id)",
+                ),
+                sql::<sql_types::Nullable<sql_types::BigInt>>(
+                    "SUM(CASE WHEN ticket_instances.status='Available' THEN 1 ELSE 0 END)",
+                ),
+            )).first::<R>(conn)
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not retrieve the number of tickets in this hold",
             ).optional()?
         {
-            Some(i) => Ok(i as u32),
-            None => Ok(0),
+            Some(r) => Ok((
+                r.ticket_count.unwrap_or(0) as u32,
+                r.available_count.unwrap_or(0) as u32,
+            )),
+            None => Ok((0, 0)),
         }
     }
 

@@ -99,7 +99,38 @@ pub fn show(
     let hold = Hold::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::OrgRead, &hold.organization(conn)?, conn)?;
 
-    Ok(HttpResponse::Ok().json(hold))
+    #[derive(Serialize)]
+    struct R {
+        pub id: Uuid,
+        pub name: String,
+        pub event_id: Uuid,
+        pub redemption_code: String,
+        pub discount_in_cents: Option<i64>,
+        pub end_at: Option<NaiveDateTime>,
+        pub max_per_order: Option<i64>,
+        pub hold_type: String,
+        pub ticket_type_id: Uuid,
+        pub available: u32,
+        pub quantity: u32,
+    }
+
+    let (quantity, available) = hold.quantity(conn)?;
+
+    let r = R {
+        id: hold.id,
+        name: hold.name,
+        event_id: hold.event_id,
+        redemption_code: hold.redemption_code,
+        discount_in_cents: hold.discount_in_cents,
+        end_at: hold.end_at,
+        max_per_order: hold.max_per_order,
+        hold_type: hold.hold_type,
+        ticket_type_id: hold.ticket_type_id,
+        available,
+        quantity,
+    };
+
+    Ok(HttpResponse::Ok().json(r))
 }
 
 #[derive(Deserialize)]

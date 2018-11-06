@@ -194,7 +194,7 @@ impl Hold {
             )?;
         }
 
-        let count = self.quantity(conn)?;
+        let (count, _available) = self.quantity(conn)?;
         if count < quantity {
             TicketInstance::add_to_hold(
                 self.id,
@@ -234,7 +234,7 @@ impl Hold {
         }
     }
 
-    pub fn quantity(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
+    pub fn quantity(&self, conn: &PgConnection) -> Result<(u32, u32), DatabaseError> {
         TicketInstance::count_for_hold(self.id, self.ticket_type_id, conn)
     }
 

@@ -104,7 +104,7 @@ pub fn add_remove_from_hold(role: Roles, should_test_succeed: bool) {
     let organization = event.organization(&connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
-    assert_eq!(hold.quantity(&connection).unwrap(), 10);
+    assert_eq!(hold.quantity(&connection).unwrap(), (10, 10));
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -117,7 +117,7 @@ pub fn add_remove_from_hold(role: Roles, should_test_succeed: bool) {
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(hold.quantity(&connection).unwrap(), 1);
+        assert_eq!(hold.quantity(&connection).unwrap(), (1, 1));
     } else {
         support::expects_unauthorized(
             &response,

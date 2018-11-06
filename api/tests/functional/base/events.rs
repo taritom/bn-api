@@ -8,6 +8,7 @@ use serde_json;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
@@ -430,7 +431,50 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
     let hold = database.create_hold().with_event(&event).finish();
     let hold2 = database.create_hold().with_event(&event).finish();
 
-    let all_holds = vec![hold, hold2];
+    #[derive(Serialize)]
+    struct R {
+        pub id: Uuid,
+        pub name: String,
+        pub event_id: Uuid,
+        pub redemption_code: String,
+        pub discount_in_cents: Option<i64>,
+        pub end_at: Option<NaiveDateTime>,
+        pub max_per_order: Option<i64>,
+        pub hold_type: String,
+        pub ticket_type_id: Uuid,
+        pub available: u32,
+        pub quantity: u32,
+    }
+
+    let all_holds = vec![
+        R {
+            id: hold.id,
+            name: hold.name,
+            event_id: hold.event_id,
+            redemption_code: hold.redemption_code,
+            discount_in_cents: hold.discount_in_cents,
+            end_at: hold.end_at,
+            max_per_order: hold.max_per_order,
+            hold_type: hold.hold_type,
+            ticket_type_id: hold.ticket_type_id,
+            available: 10,
+            quantity: 10,
+        },
+        R {
+            id: hold2.id,
+            name: hold2.name,
+            event_id: hold2.event_id,
+            redemption_code: hold2.redemption_code,
+            discount_in_cents: hold2.discount_in_cents,
+            end_at: hold2.end_at,
+            max_per_order: hold2.max_per_order,
+            hold_type: hold2.hold_type,
+            ticket_type_id: hold2.ticket_type_id,
+            available: 10,
+            quantity: 10,
+        },
+    ];
+
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();

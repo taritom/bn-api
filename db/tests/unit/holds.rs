@@ -235,7 +235,7 @@ pub fn set_quantity() {
     let hold = db.create_hold().with_event(&event).finish();
     hold.set_quantity(30, db.get_connection()).unwrap();
 
-    assert_eq!(hold.quantity(db.get_connection()).unwrap(), 30);
+    assert_eq!(hold.quantity(db.get_connection()).unwrap(), (30, 30));
 }
 
 #[test]
@@ -250,12 +250,12 @@ pub fn set_quantity_with_validation_errors() {
     // Initial value of 30
     let conn = db.get_connection();
     hold.set_quantity(30, conn).unwrap();
-    assert_eq!(hold.quantity(conn).unwrap(), 30);
+    assert_eq!(hold.quantity(conn).unwrap(), (30, 30));
 
     // Comp taking 29 of the hold allows a set quantity of 29 still
     db.create_comp().with_hold(&hold).with_quantity(29).finish();
     hold.set_quantity(29, conn).unwrap();
-    assert_eq!(hold.quantity(conn).unwrap(), 29);
+    assert_eq!(hold.quantity(conn).unwrap(), (29, 29));
 
     // Fails to set quantity to 28 which would be below comp size
     let result = hold.set_quantity(28, conn);

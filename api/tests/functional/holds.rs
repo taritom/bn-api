@@ -6,6 +6,7 @@ use functional::base;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 #[cfg(test)]
 mod create_tests {
@@ -176,7 +177,7 @@ pub fn add_remove_from_hold_with_validation_errors() {
     let organization = event.organization(&connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
-    assert_eq!(hold.quantity(&connection).unwrap(), 10);
+    assert_eq!(hold.quantity(&connection).unwrap(), (10, 10));
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -246,7 +247,11 @@ pub fn read_hold() {
     let show_response = holds::show((database.connection.into(), hold_path, auth_user)).into();
     let show_body = support::unwrap_body_to_string(&show_response).unwrap();
 
-    let fetched_hold: Hold = serde_json::from_str(show_body).unwrap();
+    #[derive(Deserialize)]
+    struct R {
+        id: Uuid,
+    }
+    let fetched_hold: R = serde_json::from_str(show_body).unwrap();
 
     assert_eq!(created_hold.id, fetched_hold.id);
 }

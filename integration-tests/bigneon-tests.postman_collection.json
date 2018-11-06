@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "a4452a3a-18d2-4403-a67e-25766633aa4d",
+		"_postman_id": "c09d893f-9d11-44e8-9dab-a29aad2115fd",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -1551,15 +1551,14 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/holds",
+							"raw": "http://{{server}}/holds/{{last_hold_id}}",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
-								"events",
-								"{{last_event_id}}",
-								"holds"
+								"holds",
+								"{{last_hold_id}}"
 							]
 						}
 					},
