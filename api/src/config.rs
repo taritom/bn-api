@@ -23,6 +23,7 @@ pub struct Config {
     pub facebook_app_id: Option<String>,
     pub facebook_app_secret: Option<String>,
     pub google_recaptcha_secret_key: Option<String>,
+    pub block_external_comms: bool,
     pub mail_from_email: String,
     pub mail_from_name: String,
     pub mail_transport: Box<Transport + Send + Sync>,
@@ -52,7 +53,8 @@ const TARI_URL: &str = "TARI_URL";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
 const TOKEN_SECRET: &str = "TOKEN_SECRET";
 const TOKEN_ISSUER: &str = "TOKEN_ISSUER";
-
+// Blocks all external communications from occurring
+const BLOCK_EXTERNAL_COMMS: &str = "BLOCK_EXTERNAL_COMMS";
 // Mail settings
 const MAIL_FROM_EMAIL: &str = "MAIL_FROM_EMAIL";
 const MAIL_FROM_NAME: &str = "MAIL_FROM_NAME";
@@ -165,6 +167,14 @@ impl Config {
                 )
             });
 
+        let block_external_comms = match env::var(&BLOCK_EXTERNAL_COMMS)
+            .unwrap_or_else(|_| "0".to_string())
+            .as_str()
+        {
+            "0" => false,
+            _ => true,
+        };
+
         Config {
             allowed_origins,
             app_name,
@@ -176,6 +186,7 @@ impl Config {
             facebook_app_id,
             facebook_app_secret,
             google_recaptcha_secret_key,
+            block_external_comms,
             mail_from_name,
             mail_from_email,
             mail_transport,

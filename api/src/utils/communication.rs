@@ -86,53 +86,59 @@ impl Communication {
 
     pub fn send(&self, config: &Config) -> Result<(), BigNeonError> {
         match config.environment {
+            //TODO Maybe remove this environment check and just rely on the BLOCK_EXTERNAL_COMMS .env
             Environment::Test => Ok(()), //Disable communication system when testing
             _ => {
-                let destination_addresses = self.destinations.get();
-                match self.comm_type {
-                    CommunicationType::Email => {
-                        if self.source.is_some() && self.body.is_some() {
-                            let source_address = self.source.as_ref().unwrap().get_first()?;
-                            send_email(
-                                &config.sendgrid_api_key.clone(),
-                                &source_address,
-                                &destination_addresses,
-                                &self.title,
-                                &self.body,
-                            )
-                        } else {
-                            Err(
-                                ApplicationError::new("Email source not specified".to_string())
-                                    .into(),
-                            )
+                match config.block_external_comms {
+                    true => Ok(()), //Disable communication system when block_external_comms is true,
+                    _ => {
+                        let destination_addresses = self.destinations.get();
+                        match self.comm_type {
+                            CommunicationType::Email => {
+                                if self.source.is_some() && self.body.is_some() {
+                                    let source_address =
+                                        self.source.as_ref().unwrap().get_first()?;
+                                    send_email(
+                                        &config.sendgrid_api_key.clone(),
+                                        &source_address,
+                                        &destination_addresses,
+                                        &self.title,
+                                        &self.body,
+                                    )
+                                } else {
+                                    Err(ApplicationError::new(
+                                        "Email source not specified".to_string(),
+                                    ).into())
+                                }
+                            }
+                            CommunicationType::EmailTemplate => {
+                                if self.source.is_some()
+                                    && self.template_id.is_some()
+                                    && self.template_data.is_some()
+                                {
+                                    let source_address =
+                                        self.source.as_ref().unwrap().get_first()?;
+                                    send_email_template(
+                                        &config.sendgrid_api_key.clone(),
+                                        &source_address,
+                                        &destination_addresses,
+                                        &self.template_id.clone().unwrap(),
+                                        &self.template_data.clone().unwrap(),
+                                    )
+                                } else {
+                                    Err(ApplicationError::new(
+                                        "Email source not specified".to_string(),
+                                    ).into())
+                                }
+                            }
+                            CommunicationType::Sms => Err(ApplicationError::new(
+                                "SMS communication not implemented".to_string(),
+                            ).into()),
+                            CommunicationType::PushNotification => Err(ApplicationError::new(
+                                "Push notifications not implemented".to_string(),
+                            ).into()),
                         }
                     }
-                    CommunicationType::EmailTemplate => {
-                        if self.source.is_some()
-                            && self.template_id.is_some()
-                            && self.template_data.is_some()
-                        {
-                            let source_address = self.source.as_ref().unwrap().get_first()?;
-                            send_email_template(
-                                &config.sendgrid_api_key.clone(),
-                                &source_address,
-                                &destination_addresses,
-                                &self.template_id.clone().unwrap(),
-                                &self.template_data.clone().unwrap(),
-                            )
-                        } else {
-                            Err(
-                                ApplicationError::new("Email source not specified".to_string())
-                                    .into(),
-                            )
-                        }
-                    }
-                    CommunicationType::Sms => Err(ApplicationError::new(
-                        "SMS communication not implemented".to_string(),
-                    ).into()),
-                    CommunicationType::PushNotification => Err(ApplicationError::new(
-                        "Push notifications not implemented".to_string(),
-                    ).into()),
                 }
             }
         }
