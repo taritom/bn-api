@@ -48,6 +48,7 @@ impl Server {
                             .allowed_headers(vec![
                                 http::header::AUTHORIZATION,
                                 http::header::ACCEPT,
+                                "X-API-Client-Version".parse::<http::header::HeaderName>().unwrap()
                             ]).allowed_header(http::header::CONTENT_TYPE)
                             .max_age(3600);
 
