@@ -22,8 +22,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::DELETE).with(cart::remove);
     }).resource("/cart/checkout", |r| {
         r.method(Method::POST).with(cart::checkout);
-    }).resource("/cart/{id}", |r| {
-        r.method(Method::GET).with(cart::show);
     }).resource("/codes/{id}", |r| {
         r.method(Method::GET).with(codes::show);
         r.method(Method::PUT).with(codes::update);
