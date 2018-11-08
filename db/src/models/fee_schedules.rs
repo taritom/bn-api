@@ -40,7 +40,7 @@ impl FeeSchedule {
         &self,
         price: i64,
         conn: &PgConnection,
-    ) -> Result<Option<FeeScheduleRange>, DatabaseError> {
+    ) -> Result<FeeScheduleRange, DatabaseError> {
         let ranges: Vec<FeeScheduleRange> = fee_schedule_ranges::table
             .filter(fee_schedule_ranges::fee_schedule_id.eq(self.id))
             .order_by(fee_schedule_ranges::min_price.asc())
@@ -56,7 +56,10 @@ impl FeeSchedule {
             found_range = Some(ranges[r].clone());
         }
 
-        Ok(found_range)
+        match found_range {
+            Some(f) => Ok(f),
+            None => DatabaseError::no_results("Could not find a valid fee for this price"),
+        }
     }
 }
 

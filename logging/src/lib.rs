@@ -1,8 +1,7 @@
 extern crate fern;
 #[macro_use]
 extern crate log;
-#[allow(unused_imports)]
-#[macro_use]
+#[cfg_attr(test, macro_use)]
 extern crate serde_json;
 
 /// A convenience wrapper around the log! macro for writing log messages that ElasticSearch can
@@ -69,7 +68,6 @@ pub fn setup_logger() -> Result<(), fern::InitError> {
 #[cfg(test)]
 mod tests {
     use log::Level::*;
-    use transform_message;
 
     #[test]
     fn plain() {

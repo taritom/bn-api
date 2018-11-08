@@ -175,6 +175,7 @@ table! {
         id -> Uuid,
         order_id -> Uuid,
         item_type -> Text,
+        ticket_type_id -> Nullable<Uuid>,
         event_id -> Nullable<Uuid>,
         quantity -> Int8,
         unit_price_in_cents -> Int8,
@@ -183,6 +184,8 @@ table! {
         ticket_pricing_id -> Nullable<Uuid>,
         fee_schedule_range_id -> Nullable<Uuid>,
         parent_id -> Nullable<Uuid>,
+        hold_id -> Nullable<Uuid>,
+        comp_id -> Nullable<Uuid>,
     }
 }
 
@@ -408,10 +411,13 @@ joinable!(external_logins -> users (user_id));
 joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
 joinable!(holds -> events (event_id));
 joinable!(holds -> ticket_types (ticket_type_id));
+joinable!(order_items -> comps (comp_id));
 joinable!(order_items -> events (event_id));
 joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
+joinable!(order_items -> holds (hold_id));
 joinable!(order_items -> orders (order_id));
 joinable!(order_items -> ticket_pricing (ticket_pricing_id));
+joinable!(order_items -> ticket_types (ticket_type_id));
 joinable!(orders -> codes (code_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));

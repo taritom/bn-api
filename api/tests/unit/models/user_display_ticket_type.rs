@@ -1,5 +1,5 @@
 use bigneon_api::models::{DisplayTicketPricing, UserDisplayTicketType};
-use bigneon_db::models::TicketTypeStatus;
+use bigneon_db::prelude::*;
 use support::database::TestDatabase;
 
 #[test]
@@ -15,16 +15,14 @@ fn from_ticket_type() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
+    let conn = &database.connection;
 
-    let ticket_type = event.ticket_types(&database.connection).unwrap().remove(0);
-    let ticket_pricing = ticket_type
-        .current_ticket_pricing(&database.connection)
-        .unwrap();
+    let ticket_type = event.ticket_types(conn).unwrap().remove(0);
+    let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
 
     // New event nothing sold
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, &database.connection)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.quantity, 100);
     assert_eq!(
         display_ticket_type.status,
@@ -32,26 +30,21 @@ fn from_ticket_type() {
     );
     assert_eq!(
         Some(
-            DisplayTicketPricing::from_ticket_pricing(
-                &ticket_pricing,
-                &fee_schedule,
-                &database.connection
-            ).unwrap()
+            DisplayTicketPricing::from_ticket_pricing(&ticket_pricing, &fee_schedule, conn)
+                .unwrap()
         ),
         display_ticket_type.ticket_pricing,
     );
-    assert_eq!(
-        Some(20),
-        display_ticket_type
-            .ticket_pricing
-            .and_then(|ticket_pricing| ticket_pricing.fee_in_cents),
-    );
+    assert_eq!(20, display_ticket_type.ticket_pricing.unwrap().fee_in_cents,);
 
     // 10 tickets sold / reserved (via create_order for_event)
-    let order = database.create_order().for_event(&event).finish();
+    let mut order = database
+        .create_order()
+        .for_event(&event)
+        .quantity(10)
+        .finish();
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, &database.connection)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.quantity, 90);
     assert_eq!(
         display_ticket_type.status,
@@ -60,11 +53,16 @@ fn from_ticket_type() {
 
     // Remaining tickets sold
     order
-        .add_tickets(ticket_type.id, 90, &database.connection)
-        .unwrap();
+        .update_quantities(
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 100,
+                redemption_code: None,
+            }],
+            conn,
+        ).unwrap();
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, &database.connection)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.quantity, 0);
     assert_eq!(
         display_ticket_type.status,
@@ -72,18 +70,17 @@ fn from_ticket_type() {
     );
 
     // Release some tickets
-    let order_item = order.items(&database.connection).unwrap().remove(0);
-    assert!(
-        order
-            .remove_tickets(
-                order_item.ticket_pricing_id.unwrap(),
-                Some(10),
-                &database.connection
-            ).is_ok()
-    );
+    order
+        .update_quantities(
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 90,
+                redemption_code: None,
+            }],
+            conn,
+        ).unwrap();
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, &database.connection)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.quantity, 10);
     assert_eq!(
         display_ticket_type.status,
@@ -92,10 +89,9 @@ fn from_ticket_type() {
 
     // No active ticket pricing
     let event = database.create_event().with_tickets().finish();
-    let ticket_type = event.ticket_types(&database.connection).unwrap().remove(0);
+    let ticket_type = event.ticket_types(conn).unwrap().remove(0);
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, &database.connection)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.quantity, 100);
     assert_eq!(
         display_ticket_type.status,

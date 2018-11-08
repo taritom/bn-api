@@ -164,6 +164,13 @@ impl DatabaseError {
             Some(message.to_string()),
         ))
     }
+
+    pub fn no_results<T>(message: &str) -> Result<T, DatabaseError> {
+        Err(DatabaseError::new(
+            ErrorCode::NoResults,
+            Some(message.to_string()),
+        ))
+    }
 }
 
 impl From<ConnectionError> for DatabaseError {

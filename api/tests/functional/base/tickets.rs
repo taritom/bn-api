@@ -21,15 +21,11 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
         .with_ticket_pricing()
         .finish();
     let user2 = database.create_user().finish();
-    let mut cart = Order::find_or_create_cart(&user2, &database.connection).unwrap();
-    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 1, &database.connection)
-        .unwrap()
+    let conn = &database.connection;
+    let ticket_type = event.ticket_types(conn).unwrap().remove(0);
+    let ticket = database
+        .create_purchased_tickets(&user2, ticket_type.id, 1)
         .remove(0);
-    let total = cart.calculate_total(&database.connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
-        .unwrap();
 
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;
@@ -48,7 +44,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
         let expected_result = ShowTicketResponse {
             ticket: expected_ticket,
             user: Some(user2.into()),
-            event: event.for_display(&database.connection).unwrap(),
+            event: event.for_display(conn).unwrap(),
         };
         assert_eq!(expected_result, ticket_response);
     } else {
@@ -70,17 +66,11 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
         .with_ticket_pricing()
         .finish();
     let user2 = database.create_user().finish();
-    let mut cart = Order::find_or_create_cart(&user2, &database.connection).unwrap();
-    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 1, &database.connection)
-        .unwrap()
+    let conn = &database.connection;
+    let ticket_type = event.ticket_types(conn).unwrap()[0].id;
+    let ticket = database
+        .create_purchased_tickets(&user2, ticket_type, 5)
         .remove(0);
-    let total = cart.calculate_total(&database.connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
-        .unwrap();
-
-    let ticket = TicketInstance::find(ticket.id, &database.connection).unwrap();
 
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;
@@ -146,17 +136,24 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
         .with_venue(&venue)
         .finish();
     let user2 = database.create_user().finish();
-    let mut cart = Order::find_or_create_cart(&user2, &database.connection).unwrap();
-    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 1, &database.connection)
-        .unwrap()
-        .remove(0);
-    let total = cart.calculate_total(&database.connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
+    let conn = &database.connection;
+    let mut cart = Order::find_or_create_cart(&user2, conn).unwrap();
+    let ticket_type = &event.ticket_types(conn).unwrap()[0];
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        conn,
+    ).unwrap();
+    let total = cart.calculate_total(conn).unwrap();
+    cart.add_external_payment("test".to_string(), user2.id, total, conn)
         .unwrap();
 
-    let ticket = TicketInstance::find(ticket.id, &database.connection).unwrap();
+    let ticket = TicketInstance::find_for_user(user2.id, conn)
+        .unwrap()
+        .remove(0);
 
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;

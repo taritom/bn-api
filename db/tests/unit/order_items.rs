@@ -16,11 +16,23 @@ fn find_fee_item() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket = &event.ticket_types(connection).unwrap()[0];
-    cart.add_tickets(ticket.id, 10, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
 
-    let order_item = cart.items(connection).unwrap().remove(0);
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket.id))
+        .unwrap();
+
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
 
     assert_eq!(fee_item.parent_id, Some(order_item.id));
@@ -42,11 +54,23 @@ fn calculate_quantity() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket = &event.ticket_types(connection).unwrap()[0];
-    cart.add_tickets(ticket.id, 10, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
 
-    let order_item = cart.items(connection).unwrap().remove(0);
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket.id))
+        .unwrap();
+
     assert_eq!(order_item.calculate_quantity(connection), Ok(10));
 
     //let datetime_in_past = NaiveDate::from_ymd(2018, 9, 16).and_hms(12, 12, 12);

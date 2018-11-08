@@ -132,11 +132,7 @@ pub fn update(
     if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
         return application::unauthorized();
     }
-    //The fee_schedule_id should only be able to be changed by an Admin
-    let mut organization_update = organization_parameters.into_inner();
-    if !user.has_scope(Scopes::OrgAdmin, Some(&organization), connection)? {
-        organization_update.fee_schedule_id = None;
-    }
+    let organization_update = organization_parameters.into_inner();
     let updated_organization = organization.update(organization_update, connection)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
@@ -293,12 +289,7 @@ pub fn add_fee_schedule(
     let fee_schedule = json.into_inner().commit(connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;
 
-    let update_fee_schedule_id = OrganizationEditableAttributes {
-        fee_schedule_id: Some(fee_schedule.id),
-        ..Default::default()
-    };
-
-    Organization::find(parameters.id, connection)?.update(update_fee_schedule_id, connection)?;
+    Organization::find(parameters.id, connection)?.add_fee_schedule(&fee_schedule, connection)?;
 
     Ok(HttpResponse::Created().json(FeeScheduleWithRanges {
         id: fee_schedule.id,

@@ -88,8 +88,8 @@ impl<'a> EventBuilder<'a> {
     }
 
     pub fn with_event_fee(mut self) -> Self {
-        let x: i64 = random();
-        self.fee_in_cents = Some(x % 500);
+        let x: u32 = random();
+        self.fee_in_cents = Some(x as i64 % 500);
         self
     }
 

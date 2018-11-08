@@ -5,10 +5,11 @@ use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::sql_types::{BigInt, Nullable, Uuid as dUuid};
+use itertools::Itertools;
+use log::Level;
 use models::*;
 use schema::{order_items, orders, users};
 use serde_json;
-use std::collections::HashMap;
 use time::Duration;
 use utils::errors;
 use utils::errors::*;
@@ -162,51 +163,156 @@ impl Order {
             .to_db_error(errors::ErrorCode::QueryError, "Could not find order")
     }
 
-    pub fn add_tickets(
-        &self,
-        ticket_type_id: Uuid,
-        quantity: u32,
+    pub fn update_quantities(
+        &mut self,
+        items: &[UpdateOrderItem],
         conn: &PgConnection,
-    ) -> Result<Vec<TicketInstance>, DatabaseError> {
-        let ticket_pricing = TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
-        let ticket_type = TicketType::find(ticket_type_id, conn)?;
+    ) -> Result<(), DatabaseError> {
+        self.lock_version(conn)?;
+        let mut mapped = vec![];
+        for (index, item) in items.iter().enumerate() {
+            mapped.push(match &item.redemption_code {
+                Some(r) => {
+                    let hold = Hold::find_by_redemption_code(r, conn)
+                        .optional()?
+                        .map(|h| h.id);
+                    let comp = Comp::find_by_redemption_code(r, conn)
+                        .optional()?
+                        .map(|c| c.id);
+                    (index, hold, comp, item)
+                }
+                None => (index, None, None, item),
+            });
+        }
 
-        let event = Event::find(ticket_type.event_id, conn)?;
-        let organization = Organization::find(event.organization_id, conn)?;
-
-        let fee_schedule_range = FeeSchedule::find(organization.fee_schedule_id, conn)?
-            .get_range(ticket_pricing.price_in_cents, conn)?
-            .unwrap();
-
-        let order_item = match OrderItem::find_for_ticket_pricing(self.id, ticket_pricing.id, conn)
-            .optional()?
+        for mut current_line in self
+            .items(conn)?
+            .into_iter()
+            .filter(|t| t.item_type() == OrderItemTypes::Tickets)
         {
-            Some(mut o) => {
-                o.quantity = o.quantity + quantity as i64;
-                o.update(conn)?;
-                o
+            let mut index_to_remove: Option<usize> = None;
+            {
+                let matching_result: Vec<&(
+                    usize,
+                    Option<Uuid>,
+                    Option<Uuid>,
+                    &UpdateOrderItem,
+                )> = mapped
+                    .iter()
+                    .filter(|i| {
+                        Some(i.3.ticket_type_id) == current_line.ticket_type_id
+                            && i.1 == current_line.hold_id
+                            && i.2 == current_line.comp_id
+                    }).collect();
+                let matching_result = matching_result.first();
+
+                if matching_result.is_some() {
+                    jlog!(Level::Debug, "Found an existing cart item, replacing");
+                    let (index, hold_id, comp_id, mut matching_line) = matching_result.unwrap();
+                    index_to_remove = Some(*index);
+                    if current_line.quantity as u32 > matching_line.quantity {
+                        jlog!(Level::Debug, "Reducing quantity of cart item");
+                        TicketInstance::release_tickets(
+                            &current_line,
+                            current_line.quantity as u32 - matching_line.quantity,
+                            conn,
+                        )?;
+                        current_line.quantity = matching_line.quantity as i64;
+                        current_line.update(conn)?;
+                        if current_line.quantity == 0 {
+                            jlog!(Level::Debug, "Cart item has 0 quantity, deleting it");
+                            OrderItem::destroy(current_line.id, conn)?;
+                        }
+                    } else if (current_line.quantity as u32) < matching_line.quantity {
+                        jlog!(Level::Debug, "Increasing quantity of cart item");
+                        // Ticket pricing might have changed since we added the previous item.
+                        // In future we may want to use the ticket pricing at the time the order was created.
+
+                        // TODO: Fetch the ticket type and pricing in one go.
+                        let ticket_type_id = current_line.ticket_type_id.unwrap();
+                        let ticket_pricing =
+                            TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
+                        let ticket_type = TicketType::find(ticket_type_id, conn)?;
+                        // TODO: Move this to an external processer
+                        let fee_schedule_range = ticket_type
+                            .fee_schedule(conn)?
+                            .get_range(ticket_pricing.price_in_cents, conn)?;
+                        if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
+                            let order_item = NewTicketsOrderItem {
+                                order_id: self.id,
+                                item_type: OrderItemTypes::Tickets.to_string(),
+                                quantity: matching_line.quantity as i64,
+                                ticket_type_id: ticket_type.id,
+                                ticket_pricing_id: ticket_pricing.id,
+                                event_id: Some(ticket_type.event_id),
+                                fee_schedule_range_id: fee_schedule_range.id,
+                                unit_price_in_cents: ticket_pricing.price_in_cents,
+                                comp_id: *comp_id,
+                                hold_id: *hold_id,
+                            }.commit(conn)?;
+                            TicketInstance::reserve_tickets(
+                                &order_item,
+                                self.expires_at,
+                                ticket_type_id,
+                                *hold_id,
+                                matching_line.quantity - current_line.quantity as u32,
+                                conn,
+                            )?;
+                        } else {
+                            TicketInstance::reserve_tickets(
+                                &current_line,
+                                self.expires_at,
+                                ticket_type_id,
+                                *hold_id,
+                                matching_line.quantity - current_line.quantity as u32,
+                                conn,
+                            )?;
+                            current_line.quantity = matching_line.quantity as i64;
+                            current_line.update(conn)?;
+                        }
+                    }
+                }
             }
-            None => NewTicketsOrderItem {
+            if index_to_remove.is_some() {
+                mapped.remove(index_to_remove.unwrap());
+            }
+        }
+
+        for (_, hold_id, comp_id, new_line) in mapped {
+            jlog!(Level::Debug, "Adding new cart items");
+            let ticket_pricing =
+                TicketPricing::get_current_ticket_pricing(new_line.ticket_type_id, conn)?;
+            let ticket_type = TicketType::find(new_line.ticket_type_id, conn)?;
+            // TODO: Move this to an external processer
+            let fee_schedule_range = ticket_type
+                .fee_schedule(conn)?
+                .get_range(ticket_pricing.price_in_cents, conn)?;
+            let order_item = NewTicketsOrderItem {
                 order_id: self.id,
                 item_type: OrderItemTypes::Tickets.to_string(),
-                quantity: quantity as i64,
+                quantity: new_line.quantity as i64,
+                ticket_type_id: ticket_type.id,
                 ticket_pricing_id: ticket_pricing.id,
-                event_id: Some(event.id),
+                event_id: Some(ticket_type.event_id),
                 fee_schedule_range_id: fee_schedule_range.id,
                 unit_price_in_cents: ticket_pricing.price_in_cents,
-            }.commit(conn)?,
-        };
+                comp_id,
+                hold_id,
+            }.commit(conn)?;
 
-        order_item.update_fees(conn)?;
+            TicketInstance::reserve_tickets(
+                &order_item,
+                self.expires_at,
+                new_line.ticket_type_id,
+                hold_id,
+                new_line.quantity,
+                conn,
+            )?;
+        }
 
-        TicketInstance::reserve_tickets(
-            &order_item,
-            &self.expires_at,
-            ticket_type_id,
-            None,
-            quantity,
-            conn,
-        )
+        self.update_fees(conn)?;
+
+        Ok(())
     }
 
     pub fn has_items(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
@@ -219,77 +325,47 @@ impl Order {
         )
     }
 
-    pub fn remove_tickets(
-        &self,
-        ticket_pricing_id: Uuid,
-        quantity: Option<u32>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
-        let mut order_item = OrderItem::find_for_ticket_pricing(self.id, ticket_pricing_id, conn)?;
+    pub fn update_fees(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let items = self.items(conn)?;
 
-        TicketInstance::release_tickets(&order_item, quantity, conn)?;
-        let calculated_quantity = order_item.calculate_quantity(conn)?;
-
-        if calculated_quantity == 0 {
-            order_item.destroy(conn)?;
-        } else {
-            let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), conn)?;
-            order_item.quantity = calculated_quantity;
-            order_item.unit_price_in_cents = ticket_pricing.price_in_cents;
-            order_item.update(conn)?;
-
-            order_item.update_fees(conn)?;
-        }
-
-        self.update_event_fees(conn)?;
-
-        Ok(())
-    }
-
-    pub fn update_event_fees(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        let order_items = OrderItem::find_for_order(self.id, conn)?;
-        let mut order_items_per_event: HashMap<Uuid, Vec<OrderItem>> = HashMap::new();
-
-        for o in order_items {
-            if o.event_id.is_some() {
-                order_items_per_event
-                    .entry(o.event_id.unwrap())
-                    .or_insert_with(|| Vec::new())
-                    .push(o);
+        for o in items {
+            match o.item_type() {
+                OrderItemTypes::EventFees => OrderItem::destroy(o.id, conn)?,
+                _ => {}
             }
         }
-        for k in order_items_per_event.keys() {
-            let mut has_event_fee = false;
-            let event = Event::find(*k, conn)?;
-            let mut item_count = 0;
-            for o in order_items_per_event.get(k).unwrap() {
-                item_count += 1;
-                if o.item_type == OrderItemTypes::EventFees.to_string() {
-                    has_event_fee = true;
+        for (event_id, items) in self
+            .items(conn)?
+            .iter()
+            .group_by(|i| i.event_id)
+            .into_iter()
+        {
+            if event_id.is_none() {
+                continue;
+            }
+            let event = Event::find(event_id.unwrap(), conn)?;
+            let organization = Organization::find(event.organization_id, conn)?;
+            for o in items {
+                match o.item_type() {
+                    OrderItemTypes::Tickets => o.update_fees(conn)?,
+                    _ => {}
                 }
             }
-            //If there is an event fee but it is the only order_item left for this event then
-            //delete the event fee.
-            if has_event_fee && item_count == 1 {
-                let event_fee = &order_items_per_event.get(k).unwrap()[0];
-                OrderItem::find(event_fee.id, conn)?.destroy(conn)?;
-            } else if !has_event_fee {
-                let mut new_event_fee = NewFeesOrderItem {
-                    order_id: self.id,
-                    item_type: OrderItemTypes::EventFees.to_string(),
-                    event_id: Some(event.id),
-                    unit_price_in_cents: 0,
-                    quantity: 1,
-                    parent_id: None,
-                };
-                let organization = Organization::find(event.organization_id, conn)?;
-                if event.fee_in_cents.is_some() {
-                    new_event_fee.unit_price_in_cents = event.fee_in_cents.unwrap();
-                    new_event_fee.commit(conn)?;
-                } else if organization.event_fee_in_cents.is_some() {
-                    new_event_fee.unit_price_in_cents = organization.event_fee_in_cents.unwrap();
-                    new_event_fee.commit(conn)?;
-                }
+
+            let mut new_event_fee = NewFeesOrderItem {
+                order_id: self.id,
+                item_type: OrderItemTypes::EventFees.to_string(),
+                event_id: Some(event.id),
+                unit_price_in_cents: 0,
+                quantity: 1,
+                parent_id: None,
+            };
+            if event.fee_in_cents.is_some() {
+                new_event_fee.unit_price_in_cents = event.fee_in_cents.unwrap();
+                new_event_fee.commit(conn)?;
+            } else if organization.event_fee_in_cents.is_some() {
+                new_event_fee.unit_price_in_cents = organization.event_fee_in_cents.unwrap();
+                new_event_fee.commit(conn)?;
             }
         }
 
@@ -316,6 +392,28 @@ impl Order {
 
     pub fn items(&self, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
         OrderItem::find_for_order(self.id, conn)
+    }
+
+    pub fn tickets(
+        &self,
+        ticket_type_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        let items = self.items(conn)?;
+        let tickets: Vec<OrderItem> = items
+            .into_iter()
+            .filter(|ci| {
+                ci.item_type() == OrderItemTypes::Tickets
+                    && ci.ticket_type_id == Some(ticket_type_id)
+            }).collect();
+
+        let mut result: Vec<TicketInstance> = vec![];
+        for t in tickets {
+            let mut instances = TicketInstance::find_for_order_item(t.id, conn)?;
+            result.append(&mut instances);
+        }
+
+        Ok(result)
     }
 
     pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayOrder, DatabaseError> {
@@ -582,4 +680,11 @@ pub struct DisplayOrder {
     pub status: String,
     pub items: Vec<DisplayOrderItem>,
     pub total_in_cents: i64,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
+pub struct UpdateOrderItem {
+    pub ticket_type_id: Uuid,
+    pub quantity: u32,
+    pub redemption_code: Option<String>,
 }

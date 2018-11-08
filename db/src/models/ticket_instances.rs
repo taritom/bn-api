@@ -201,7 +201,7 @@ impl TicketInstance {
 
     pub fn reserve_tickets(
         order_item: &OrderItem,
-        order_expires_at: &NaiveDateTime,
+        order_expires_at: NaiveDateTime,
         ticket_type_id: Uuid,
         ticket_holding_id: Option<Uuid>,
         quantity: u32,
@@ -230,27 +230,23 @@ impl TicketInstance {
 
     pub fn release_tickets(
         order_item: &OrderItem,
-        quantity: Option<u32>,
+        quantity: u32,
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let query = include_str!("../queries/release_tickets.sql");
         let q = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(order_item.id)
-            .bind::<sql_types::Nullable<Bigint>, _>(quantity.map(|x| x as i64));
+            .bind::<Bigint, _>(quantity as i64);
         let tickets: Vec<TicketInstance> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not release tickets")?;
 
-        // Quantity was specified so number removed should equal amount returned
-        if let Some(quantity) = quantity {
-            if tickets.len() as u32 != quantity {
-                return Err(DatabaseError::new(
-                    ErrorCode::QueryError,
-                    Some("Could not release the correct amount of tickets".to_string()),
-                ));
-            }
+        if tickets.len() as u32 != quantity {
+            return Err(DatabaseError::new(
+                ErrorCode::QueryError,
+                Some("Could not release the correct amount of tickets".to_string()),
+            ));
         }
-
         Ok(tickets)
     }
 

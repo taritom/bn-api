@@ -22,7 +22,9 @@ pub struct OrderItem {
     pub id: Uuid,
     pub order_id: Uuid,
     pub item_type: String,
+    pub ticket_type_id: Option<Uuid>,
     pub event_id: Option<Uuid>,
+
     pub quantity: i64,
     pub unit_price_in_cents: i64,
     pub created_at: NaiveDateTime,
@@ -30,16 +32,11 @@ pub struct OrderItem {
     pub ticket_pricing_id: Option<Uuid>,
     pub fee_schedule_range_id: Option<Uuid>,
     pub parent_id: Option<Uuid>,
+    pub hold_id: Option<Uuid>,
+    pub comp_id: Option<Uuid>,
 }
 
 impl OrderItem {
-    pub(crate) fn find(id: Uuid, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
-        order_items::table
-            .filter(order_items::id.eq(id))
-            .first(conn)
-            .to_db_error(errors::ErrorCode::QueryError, "Could not find order item")
-    }
-
     pub fn item_type(&self) -> OrderItemTypes {
         self.item_type.parse::<OrderItemTypes>().unwrap()
     }
@@ -95,11 +92,14 @@ impl OrderItem {
             )
     }
 
-    pub(crate) fn destroy(self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        diesel::delete(&self).execute(conn).map(|_| ()).to_db_error(
-            errors::ErrorCode::DeleteError,
-            "Could not delete order item",
-        )
+    pub(crate) fn destroy(id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
+        diesel::delete(order_items::table.filter(order_items::id.eq(id)))
+            .execute(conn)
+            .map(|_| ())
+            .to_db_error(
+                errors::ErrorCode::DeleteError,
+                "Could not delete order item",
+            )
     }
 
     pub fn calculate_quantity(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
@@ -174,13 +174,16 @@ impl OrderItem {
            CASE
              WHEN item_type = 'PerUnitFees' THEN 'Ticket Fees'
              WHEN item_type = 'EventFees' THEN 'Event Fees - ' || e.name
-             ELSE e.name || ' - ' || tt.name END AS description
+             ELSE e.name || ' - ' || tt.name END AS description,
+           coalesce(h.redemption_code, c.redemption_code) as redemption_code
         FROM order_items oi
            LEFT JOIN events e ON event_id = e.id
            LEFT JOIN ticket_pricing tp
            INNER JOIN ticket_types tt
             ON tp.ticket_type_id = tt.id
             ON oi.ticket_pricing_id = tp.id
+           LEFT JOIN holds h ON oi.hold_id = h.id
+           LEFT JOIN comps c ON oi.comp_id = c.id
         WHERE oi.order_id = $1
         ORDER BY oi.item_type DESC
         "#,
@@ -195,6 +198,8 @@ impl OrderItem {
     ) -> Result<Vec<OrderItem>, DatabaseError> {
         order_items::table
             .filter(order_items::order_id.eq(order_id))
+            .order_by(order_items::event_id.asc())
+            .then_order_by(order_items::item_type.asc())
             .load(conn)
             .to_db_error(errors::ErrorCode::QueryError, "Could not load order items")
     }
@@ -214,22 +219,6 @@ impl OrderItem {
                 "Could not retrieve order item",
             )
     }
-
-    pub(crate) fn find_for_ticket_pricing(
-        order_id: Uuid,
-        ticket_pricing_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<OrderItem, DatabaseError> {
-        order_items::table
-            .filter(order_items::order_id.eq(order_id))
-            .filter(order_items::ticket_pricing_id.eq(ticket_pricing_id))
-            .filter(order_items::item_type.eq(OrderItemTypes::Tickets.to_string()))
-            .first(conn)
-            .to_db_error(
-                errors::ErrorCode::QueryError,
-                "Could not retrieve order item",
-            )
-    }
 }
 
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -240,8 +229,11 @@ pub(crate) struct NewTicketsOrderItem {
     pub event_id: Option<Uuid>,
     pub quantity: i64,
     pub unit_price_in_cents: i64,
+    pub ticket_type_id: Uuid,
     pub ticket_pricing_id: Uuid,
     pub fee_schedule_range_id: Uuid,
+    pub hold_id: Option<Uuid>,
+    pub comp_id: Option<Uuid>,
 }
 
 impl NewTicketsOrderItem {
@@ -313,4 +305,6 @@ pub struct DisplayOrderItem {
     pub item_type: String,
     #[sql_type = "Text"]
     pub description: String,
+    #[sql_type = "Nullable<Text>"]
+    pub redemption_code: Option<String>,
 }

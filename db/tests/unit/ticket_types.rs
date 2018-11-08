@@ -1,6 +1,5 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::*;
-use bigneon_db::utils::errors::ErrorCode::ValidationError;
+use bigneon_db::prelude::*;
 use chrono::NaiveDate;
 use diesel::result::Error;
 use diesel::Connection;
@@ -105,7 +104,7 @@ fn validate_record() {
             assert!(validation_results.is_err());
             let error = validation_results.unwrap_err();
             match &error.error_code {
-                ValidationError { errors } => {
+                ErrorCode::ValidationError { errors } => {
                     assert!(errors.contains_key("ticket_pricing"));
                     assert_eq!(errors["ticket_pricing"].len(), 2);
                     assert_eq!(
@@ -125,21 +124,26 @@ fn validate_record() {
             ticket_pricing_parameters.start_date = Some(end_date1);
             ticket_pricing_parameters.end_date =
                 Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
-            let result =
-                ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
-            assert!(result.is_ok());
-            let validation_results = ticket_type.validate_record(project.get_connection());
-            assert!(validation_results.is_ok());
+            ticket_pricing
+                .update(ticket_pricing_parameters.clone(), project.get_connection())
+                .unwrap();
+
+            ticket_type
+                .validate_record(project.get_connection())
+                .unwrap();
             Err(Error::RollbackTransaction)
         }).unwrap_err();
 
     // Period adjusted to not overlap (prior to existing record)
     ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 4).and_hms(4, 10, 11));
     ticket_pricing_parameters.end_date = Some(start_date1);
-    let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
-    assert!(result.is_ok());
-    let validation_results = ticket_type.validate_record(project.get_connection());
-    assert!(validation_results.is_ok());
+    ticket_pricing
+        .update(ticket_pricing_parameters.clone(), project.get_connection())
+        .unwrap();
+
+    ticket_type
+        .validate_record(project.get_connection())
+        .unwrap();
 }
 
 #[test]
@@ -148,18 +152,29 @@ pub fn remaining_ticket_count() {
     let connection = project.get_connection();
     let event = project.create_event().with_ticket_pricing().finish();
     let ticket_type = event.ticket_types(connection).unwrap().remove(0);
-    let order = project.create_order().for_event(&event).finish();
+    let mut order = project.create_order().for_event(&event).finish();
     assert_eq!(90, ticket_type.remaining_ticket_count(connection).unwrap());
 
-    order.add_tickets(ticket_type.id, 10, connection).unwrap();
+    order
+        .update_quantities(
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 20,
+                redemption_code: None,
+            }],
+            connection,
+        ).unwrap();
     assert_eq!(80, ticket_type.remaining_ticket_count(connection).unwrap());
 
-    let order_item = order.items(connection).unwrap().remove(0);
-    assert!(
-        order
-            .remove_tickets(order_item.ticket_pricing_id.unwrap(), Some(4), connection)
-            .is_ok()
-    );
+    order
+        .update_quantities(
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 16,
+                redemption_code: None,
+            }],
+            connection,
+        ).unwrap();
     assert_eq!(84, ticket_type.remaining_ticket_count(connection).unwrap());
 }
 

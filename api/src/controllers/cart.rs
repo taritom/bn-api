@@ -7,7 +7,6 @@ use bigneon_db::utils::errors::Optional;
 use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
-use itertools::Itertools;
 use mail::mailers;
 use payments::PaymentProcessor;
 use server::AppState;
@@ -15,24 +14,20 @@ use std::collections::HashMap;
 use utils::ServiceLocator;
 use uuid::Uuid;
 
-#[derive(Deserialize, Serialize)]
-pub struct CartResponse {
-    pub cart_id: Uuid,
-}
-
 #[derive(Deserialize)]
-pub struct AddToCartRequestItem {
+pub struct CartItem {
     pub ticket_type_id: Uuid,
     pub quantity: u32,
+    pub redemption_code: Option<String>,
 }
 
 #[derive(Deserialize)]
-pub struct AddToCartRequest {
-    pub items: Vec<AddToCartRequestItem>,
+pub struct UpdateCartRequest {
+    pub items: Vec<CartItem>,
 }
 
-pub fn add(
-    (connection, json, user): (Connection, Json<AddToCartRequest>, User),
+pub fn update_cart(
+    (connection, json, user): (Connection, Json<UpdateCartRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
 
@@ -43,53 +38,20 @@ pub fn add(
     // Find the current cart of the user, if it exists.
     let mut cart = Order::find_or_create_cart(&user.user, connection)?;
 
-    // Force only one thread to update the order at a time.
-    cart.lock_version(connection)?;
-
-    // Add the item (first combining ticket type id to avoid multiple add calls for the same id)
-    for (ticket_type_id, request_items) in &json
+    let order_items: Vec<UpdateOrderItem> = json
+        .into_inner()
         .items
         .iter()
-        .group_by(|request_item| request_item.ticket_type_id)
-    {
-        let quantity = request_items.fold(0, |sum, request_item| sum + request_item.quantity);
+        .map(|i| UpdateOrderItem {
+            quantity: i.quantity,
+            ticket_type_id: i.ticket_type_id,
+            redemption_code: i.redemption_code.clone(),
+        }).collect();
+    cart.update_quantities(&order_items, connection)?;
 
-        cart.add_tickets(ticket_type_id, quantity, connection)?;
-    }
-
-    cart.update_event_fees(connection)?;
-
-    Ok(HttpResponse::Created().json(&CartResponse { cart_id: cart.id }))
+    Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
 }
 
-#[derive(Deserialize)]
-pub struct RemoveCartRequest {
-    pub ticket_pricing_id: Uuid,
-    pub quantity: Option<u32>,
-}
-
-pub fn remove(
-    (connection, json, user): (Connection, Json<RemoveCartRequest>, User),
-) -> Result<HttpResponse, BigNeonError> {
-    let connection = connection.get();
-    // Find the current cart of the user, if it exists.
-    let mut current_cart = Order::find_cart_for_user(user.id(), connection)?;
-
-    match current_cart.as_mut() {
-        Some(cart) => {
-            cart.lock_version(connection)?;
-            cart.remove_tickets(json.ticket_pricing_id, json.quantity, connection)?;
-
-            if cart.has_items(connection)? {
-                Ok(HttpResponse::Ok().json(&CartResponse { cart_id: cart.id }))
-            } else {
-                cart.destroy(connection)?;
-                Ok(HttpResponse::Ok().json(json!({})))
-            }
-        }
-        None => application::unprocessable("No cart exists for user"),
-    }
-}
 pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let order = Order::find_cart_for_user(user.id(), connection)?;

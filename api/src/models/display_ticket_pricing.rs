@@ -12,7 +12,7 @@ pub struct DisplayTicketPricing {
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub price_in_cents: i64,
-    pub fee_in_cents: Option<i64>,
+    pub fee_in_cents: i64,
 }
 
 impl DisplayTicketPricing {
@@ -23,7 +23,7 @@ impl DisplayTicketPricing {
     ) -> Result<DisplayTicketPricing, DatabaseError> {
         let fee_in_cents = fee_schedule
             .get_range(ticket_pricing.price_in_cents, conn)?
-            .and_then(|fee_schedule_range| Some(fee_schedule_range.fee_in_cents));
+            .fee_in_cents;
 
         Ok(DisplayTicketPricing {
             id: ticket_pricing.id,

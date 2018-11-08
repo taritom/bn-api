@@ -1,9 +1,10 @@
 use bigneon_api::config::{Config, Environment};
 use bigneon_db::dev::*;
-use bigneon_db::models::User;
+use bigneon_db::prelude::*;
 use diesel::Connection;
 use diesel::PgConnection;
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct TestDatabase {
@@ -92,5 +93,27 @@ impl TestDatabase {
 
     pub fn create_fee_schedule(&self) -> FeeScheduleBuilder {
         FeeScheduleBuilder::new(&self.connection)
+    }
+
+    pub fn create_purchased_tickets(
+        &self,
+        user: &User,
+        ticket_type_id: Uuid,
+        quantity: u32,
+    ) -> Vec<TicketInstance> {
+        let mut cart = Order::find_or_create_cart(user, &self.connection).unwrap();
+        cart.update_quantities(
+            &[UpdateOrderItem {
+                ticket_type_id,
+                quantity,
+                redemption_code: None,
+            }],
+            &self.connection,
+        ).unwrap();
+
+        let total = cart.calculate_total(&self.connection).unwrap();
+        cart.add_external_payment("test".to_string(), user.id, total, &self.connection)
+            .unwrap();
+        TicketInstance::find_for_user(user.id, &self.connection).unwrap()
     }
 }

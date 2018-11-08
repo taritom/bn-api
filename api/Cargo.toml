@@ -18,7 +18,7 @@ itertools = "0.7"
 jwt = "0.4"
 lettre = "0.8"
 lettre_email = "0.8"
-log = "0.4"
+log = { version = "0.4", features = ["max_level_debug"]}
 logging = {path="../logging"}
 reqwest="0.9"
 rust-crypto="0.2"

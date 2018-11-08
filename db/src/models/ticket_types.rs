@@ -2,8 +2,11 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl;
 use diesel::prelude::*;
-use models::{Event, TicketInstanceStatus, TicketPricing, TicketPricingStatus, TicketTypeStatus};
-use schema::{assets, ticket_instances, ticket_pricing, ticket_type_codes, ticket_types};
+use models::*;
+use schema::{
+    assets, events, fee_schedules, organizations, ticket_instances, ticket_pricing,
+    ticket_type_codes, ticket_types,
+};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -36,6 +39,21 @@ pub struct TicketTypeEditableAttributes {
 }
 
 impl TicketType {
+    // Properties at the top
+
+    pub fn fee_schedule(&self, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
+        ticket_types::table
+            .inner_join(
+                events::table.inner_join(organizations::table.inner_join(fee_schedules::table)),
+            ).filter(ticket_types::id.eq(self.id))
+            .select(fee_schedules::all_columns)
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve fee schedule for ticket type",
+            )
+    }
+
     pub fn create(
         event_id: Uuid,
         name: String,

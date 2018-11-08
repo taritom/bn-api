@@ -21,7 +21,6 @@ fn find() {
 
     let fee_schedule_range = fee_schedule
         .get_range(30, project.get_connection())
-        .unwrap()
         .unwrap();
 
     let found_fee_schedule_range =

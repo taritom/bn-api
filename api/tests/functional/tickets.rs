@@ -3,7 +3,7 @@ use bigneon_api::controllers::tickets::{
     self, SearchParameters, ShowTicketResponse, TransferTicketRequest,
 };
 use bigneon_api::models::{OptionalPathParameters, PathParameters};
-use bigneon_db::models::*;
+use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use functional::base;
 use serde_json;
@@ -35,20 +35,45 @@ pub fn index() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let mut cart = Order::find_or_create_cart(&user, &database.connection).unwrap();
-    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
-    let ticket_type2 = &event2.ticket_types(&database.connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 1, &database.connection)
-        .unwrap()
-        .remove(0);
-    let ticket2 = cart
-        .add_tickets(ticket_type2.id, 1, &database.connection)
-        .unwrap()
-        .remove(0);
-    let total = cart.calculate_total(&database.connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
+    let conn = &database.connection;
+    let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
+    let ticket_type = &event.ticket_types(conn).unwrap()[0];
+    let ticket_type2 = &event2.ticket_types(conn).unwrap()[0];
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        conn,
+    ).unwrap();
+
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type2.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        conn,
+    ).unwrap();
+
+    let total = cart.calculate_total(conn).unwrap();
+    cart.add_external_payment("test".to_string(), user.id, total, conn)
         .unwrap();
+    let ticket_id =
+        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, conn)
+            .unwrap()
+            .remove(0)
+            .1
+            .remove(0)
+            .id;
+    let ticket2_id =
+        TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, conn)
+            .unwrap()
+            .remove(0)
+            .1
+            .remove(0)
+            .id;
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
     // Test with specified event
@@ -65,7 +90,7 @@ pub fn index() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_data: Payload<DisplayTicket> = serde_json::from_str(&body).unwrap();
     let expected_ticket = DisplayTicket {
-        id: ticket.id,
+        id: ticket_id,
         ticket_type_name: ticket_type.name.clone(),
         status: "Purchased".to_string(),
     };
@@ -86,18 +111,18 @@ pub fn index() {
         serde_json::from_str(&body).unwrap();
     let found_tickets = found_data.data;
     let expected_ticket2 = DisplayTicket {
-        id: ticket2.id,
+        id: ticket2_id,
         ticket_type_name: ticket_type2.name.clone(),
         status: "Purchased".to_string(),
     };
     assert_eq!(
         vec![
             (
-                event.for_display(&database.connection).unwrap(),
+                event.for_display(conn).unwrap(),
                 vec![expected_ticket.clone()]
             ),
             (
-                event2.clone().for_display(&database.connection).unwrap(),
+                event2.clone().for_display(conn).unwrap(),
                 vec![expected_ticket2.clone()]
             )
         ],
@@ -123,7 +148,7 @@ pub fn index() {
     let found_tickets = found_data.data;
     assert_eq!(
         vec![(
-            event2.for_display(&database.connection).unwrap(),
+            event2.for_display(conn).unwrap(),
             vec![expected_ticket2.clone()]
         )],
         found_tickets
@@ -141,17 +166,25 @@ pub fn show() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let mut cart = Order::find_or_create_cart(&user, &database.connection).unwrap();
-    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 1, &database.connection)
-        .unwrap()
-        .remove(0);
-    let total = cart.calculate_total(&database.connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
+    let conn = &database.connection;
+    let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
+    let ticket_type = &event.ticket_types(conn).unwrap()[0];
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        conn,
+    ).unwrap();
+    let total = cart.calculate_total(conn).unwrap();
+    cart.add_external_payment("test".to_string(), user.id, total, conn)
         .unwrap();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
+    let ticket = TicketInstance::find_for_user(user.id, conn)
+        .unwrap()
+        .remove(0);
     path.id = ticket.id;
     let response = tickets::show((database.connection.clone().into(), path, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -166,7 +199,7 @@ pub fn show() {
     let expected_result = ShowTicketResponse {
         ticket: expected_ticket,
         user: Some(user.into()),
-        event: event.for_display(&database.connection).unwrap(),
+        event: event.for_display(conn).unwrap(),
     };
     assert_eq!(expected_result, ticket_response);
 }
@@ -249,14 +282,21 @@ fn ticket_transfer_authorization() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
+    let conn = &database.connection;
 
-    let mut cart = Order::find_or_create_cart(&user, &database.connection).unwrap();
-    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
+    let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
+    let ticket_type = &event.ticket_types(conn).unwrap()[0];
 
-    let tickets = cart
-        .add_tickets(ticket_type.id, 5, &database.connection)
-        .unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 5,
+            redemption_code: None,
+        }],
+        conn,
+    ).unwrap();
 
+    let tickets = cart.tickets(ticket_type.id, conn).unwrap();
     //Try transfer before paying for the tickets
     let mut ticket_transfer_request = TransferTicketRequest {
         ticket_ids: vec![tickets[0].id, tickets[1].id],
@@ -272,8 +312,8 @@ fn ticket_transfer_authorization() {
     assert!(response.is_err());
 
     //Try after paying for the tickets
-    let total = cart.calculate_total(&database.connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
+    let total = cart.calculate_total(conn).unwrap();
+    cart.add_external_payment("test".to_string(), user.id, total, conn)
         .unwrap();
 
     let response = tickets::transfer_authorization((
@@ -317,23 +357,30 @@ fn receive_ticket_transfer() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
+    let conn = &database.connection;
 
-    let mut cart = Order::find_or_create_cart(&user, &database.connection).unwrap();
-    let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
+    let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
+    let ticket_type = &event.ticket_types(conn).unwrap()[0];
 
-    let tickets = cart
-        .add_tickets(ticket_type.id, 5, &database.connection)
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 5,
+            redemption_code: None,
+        }],
+        conn,
+    ).unwrap();
+
+    let total = cart.calculate_total(conn).unwrap();
+    cart.add_external_payment("test".to_string(), user.id, total, conn)
         .unwrap();
-
-    let total = cart.calculate_total(&database.connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, &database.connection)
-        .unwrap();
+    let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
 
     let transfer_auth = TicketInstance::authorize_ticket_transfer(
         auth_user.id(),
         vec![tickets[0].id, tickets[1].id],
         3600,
-        &database.connection,
+        conn,
     ).unwrap();
 
     //Try receive transfer

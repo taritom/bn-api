@@ -1,7 +1,5 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{
-    DisplayTicket, EventEditableAttributes, Order, RedeemResults, TicketInstance, Wallet,
-};
+use bigneon_db::prelude::*;
 use bigneon_db::schema::ticket_instances;
 use chrono::prelude::*;
 use chrono::NaiveDateTime;
@@ -37,23 +35,18 @@ pub fn find_for_user_for_display() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    let ticket_type2 = &event2.ticket_types(connection).unwrap()[0];
-    let mut ticket_ids: Vec<Uuid> = cart
-        .add_tickets(ticket_type.id, 2, connection)
-        .unwrap()
-        .into_iter()
-        .map(|t| t.id)
-        .collect();
-    ticket_ids.sort();
-    let mut ticket_ids2: Vec<Uuid> = cart
-        .add_tickets(ticket_type2.id, 2, connection)
-        .unwrap()
-        .into_iter()
-        .map(|t| t.id)
-        .collect();
-    ticket_ids2.sort();
+    project
+        .create_order()
+        .for_user(&user)
+        .quantity(2)
+        .for_event(&event)
+        .finish();
+    let mut cart2 = project
+        .create_order()
+        .for_user(&user)
+        .quantity(2)
+        .for_event(&event2)
+        .finish();
 
     // Order is not paid so tickets are not accessible
     assert!(
@@ -62,90 +55,73 @@ pub fn find_for_user_for_display() {
             .is_empty()
     );
 
-    // Order is paid, tickets returned
-    let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, connection)
+    let total = cart2.calculate_total(connection).unwrap();
+    cart2
+        .add_external_payment("test".to_string(), user.id, total, connection)
         .unwrap();
 
-    let mut found_ticket_ids: Vec<Uuid> =
+    let found_tickets =
         TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
-            .unwrap()
-            .iter()
-            .flat_map(move |(_, tickets)| tickets.iter())
-            .map(|t| t.id)
-            .collect();
-    found_ticket_ids.sort();
-    assert_eq!(found_ticket_ids, ticket_ids);
+            .unwrap();
+    assert_eq!(found_tickets.len(), 1);
+    assert_eq!(found_tickets[0].0.id, event.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
 
     // other event
-    let mut found_ticket_ids: Vec<Uuid> =
+    let found_tickets =
         TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, connection)
-            .unwrap()
-            .iter()
-            .flat_map(move |(_, tickets)| tickets.iter())
-            .map(|t| t.id)
-            .collect();
-    found_ticket_ids.sort();
-    assert_eq!(found_ticket_ids, ticket_ids2);
+            .unwrap();
+    assert_eq!(found_tickets.len(), 1);
+    assert_eq!(found_tickets[0].0.id, event2.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
 
     // no event specified
-    let mut all_ticket_ids = ticket_ids.clone();
-    all_ticket_ids.append(&mut ticket_ids2.clone());
-    all_ticket_ids.sort();
-    let mut found_ticket_ids: Vec<Uuid> =
-        TicketInstance::find_for_user_for_display(user.id, None, None, None, connection)
-            .unwrap()
-            .iter()
-            .flat_map(move |(_, tickets)| tickets.iter())
-            .map(|t| t.id)
-            .collect();
-    found_ticket_ids.sort();
-    assert_eq!(found_ticket_ids, all_ticket_ids);
+    let found_tickets =
+        TicketInstance::find_for_user_for_display(user.id, None, None, None, connection).unwrap();
+    assert_eq!(found_tickets.len(), 2);
+    assert_eq!(found_tickets[0].0.id, event.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
+    assert_eq!(found_tickets[1].0.id, event2.id);
+    assert_eq!(found_tickets[1].1.len(), 2);
 
     // start date prior to both event starts
-    let mut found_ticket_ids: Vec<Uuid> = TicketInstance::find_for_user_for_display(
+    let found_tickets = TicketInstance::find_for_user_for_display(
         user.id,
         None,
         Some(NaiveDate::from_ymd(2015, 7, 8).and_hms(9, 0, 11)),
         None,
         connection,
-    ).unwrap()
-    .iter()
-    .flat_map(move |(_, tickets)| tickets.iter())
-    .map(|t| t.id)
-    .collect();
-    found_ticket_ids.sort();
-    assert_eq!(found_ticket_ids, all_ticket_ids);
+    ).unwrap();
+    assert_eq!(found_tickets.len(), 2);
+    assert_eq!(found_tickets[0].0.id, event.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
+    assert_eq!(found_tickets[1].0.id, event2.id);
+    assert_eq!(found_tickets[1].1.len(), 2);
 
     // start date filters out event
-    let mut found_ticket_ids: Vec<Uuid> = TicketInstance::find_for_user_for_display(
+
+    let found_tickets = TicketInstance::find_for_user_for_display(
         user.id,
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
         connection,
-    ).unwrap()
-    .iter()
-    .flat_map(move |(_, tickets)| tickets.iter())
-    .map(|t| t.id)
-    .collect();
-    found_ticket_ids.sort();
-    assert_eq!(found_ticket_ids, ticket_ids2);
+    ).unwrap();
+    assert_eq!(found_tickets.len(), 1);
+    assert_eq!(found_tickets[0].0.id, event2.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
 
     // end date filters out event
-    let mut found_ticket_ids: Vec<Uuid> = TicketInstance::find_for_user_for_display(
+    let found_tickets = TicketInstance::find_for_user_for_display(
         user.id,
         None,
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         connection,
-    ).unwrap()
-    .iter()
-    .flat_map(move |(_, tickets)| tickets.iter())
-    .map(|t| t.id)
-    .collect();
-    found_ticket_ids.sort();
-    assert_eq!(found_ticket_ids, ticket_ids);
+    ).unwrap();
+    assert_eq!(found_tickets.len(), 1);
+    assert_eq!(found_tickets[0].0.id, event.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
 }
 
 #[test]
@@ -164,11 +140,23 @@ pub fn find() {
         .finish();
     let user = project.create_user().finish();
     //let _d_user: DisplayUser = user.into();
-    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let display_event = event.for_display(connection).unwrap();
-    let ticket = cart
-        .add_tickets(ticket_type.id, 1, connection)
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let ticket = TicketInstance::find_for_order_item(order_item.id, connection)
         .unwrap()
         .remove(0);
     let expected_ticket = DisplayTicket {
@@ -201,9 +189,15 @@ pub fn find_for_user() {
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    cart.add_tickets(ticket_type.id, 5, connection)
-        .unwrap()
-        .remove(0);
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 5,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
+
     let total = cart.calculate_total(connection).unwrap();
     cart.add_external_payment("test".to_string(), user.id, total, connection)
         .unwrap();
@@ -215,67 +209,31 @@ pub fn find_for_user() {
 }
 
 #[test]
-pub fn reserve_tickets() {
-    let db = TestProject::new();
-    let connection = db.get_connection();
-
-    let organization = db
-        .create_organization()
-        .with_fee_schedule(&db.create_fee_schedule().finish())
-        .finish();
-    let event = db
-        .create_event()
-        .with_organization(&organization)
-        .with_ticket_pricing()
-        .finish();
-    let user = db.create_user().finish();
-    let order = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
-    let expires = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
-    order.add_tickets(ticket_type_id, 0, connection).unwrap();
-    let order_item = order.items(connection).unwrap().remove(0);
-
-    let reserved_tickets = TicketInstance::reserve_tickets(
-        &order_item,
-        &expires,
-        ticket_type_id,
-        None,
-        10,
-        connection,
-    ).unwrap();
-    let order_item = order.items(connection).unwrap().remove(0);
-    assert_eq!(reserved_tickets.len(), 10);
-
-    assert!(
-        reserved_tickets
-            .iter()
-            .filter(|&ticket| ticket.order_item_id != Some(order_item.id))
-            .collect::<Vec<&TicketInstance>>()
-            .is_empty()
-    );
-    assert!(
-        reserved_tickets
-            .iter()
-            .filter(|&ticket| ticket.reserved_until.is_none())
-            .collect::<Vec<&TicketInstance>>()
-            .is_empty()
-    );
-}
-
-#[test]
 pub fn release_tickets() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let event = project.create_event().with_ticket_pricing().finish();
     let user = project.create_user().finish();
-    let order = Order::find_or_create_cart(&user, connection).unwrap();
+    let mut order = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
-    order.add_tickets(ticket_type_id, 10, connection).unwrap();
-    let order_item = order.items(connection).unwrap().remove(0);
+    order
+        .update_quantities(
+            &[UpdateOrderItem {
+                ticket_type_id,
+                quantity: 10,
+                redemption_code: None,
+            }],
+            connection,
+        ).unwrap();
+
+    let items = order.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type_id))
+        .unwrap();
 
     // Release tickets
-    let released_tickets =
-        TicketInstance::release_tickets(&order_item, Some(4), connection).unwrap();
+    let released_tickets = TicketInstance::release_tickets(&order_item, 4, connection).unwrap();
 
     assert_eq!(released_tickets.len(), 4);
     assert!(
@@ -297,8 +255,7 @@ pub fn release_tickets() {
         .get_connection()
         .transaction::<Vec<TicketInstance>, Error, _>(|| {
             // Release requesting too many tickets
-            let released_tickets =
-                TicketInstance::release_tickets(&order_item, Some(7), connection);
+            let released_tickets = TicketInstance::release_tickets(&order_item, 7, connection);
             assert_eq!(
                 released_tickets.unwrap_err().cause.unwrap(),
                 "Could not release the correct amount of tickets",
@@ -306,24 +263,6 @@ pub fn release_tickets() {
 
             Err(Error::RollbackTransaction)
         }).unwrap_err();
-
-    // Release remaining tickets (no quantity specified)
-    let released_tickets = TicketInstance::release_tickets(&order_item, None, connection).unwrap();
-    assert_eq!(released_tickets.len(), 6);
-    assert!(
-        released_tickets
-            .iter()
-            .filter(|&ticket| ticket.order_item_id.is_some())
-            .collect::<Vec<&TicketInstance>>()
-            .is_empty()
-    );
-    assert!(
-        released_tickets
-            .iter()
-            .filter(|&ticket| ticket.reserved_until.is_some())
-            .collect::<Vec<&TicketInstance>>()
-            .is_empty()
-    );
 }
 
 #[test]
@@ -341,17 +280,16 @@ fn redeem_ticket() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 1, connection)
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
         .unwrap()
         .remove(0);
-    let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, connection)
-        .unwrap();
-
-    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
 
     let result1 =
         TicketInstance::redeem_ticket(ticket.id, "WrongKey".to_string(), connection).unwrap();
@@ -376,12 +314,17 @@ fn code() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let cart = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 1, connection)
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
         .unwrap()
         .remove(0);
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
     let code = project
         .create_code()
         .with_event(&event)
@@ -413,17 +356,16 @@ fn show_redeemable_ticket() {
         .with_venue(&venue)
         .finish();
     let user = project.create_user().finish();
-    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    let ticket = cart
-        .add_tickets(ticket_type.id, 1, connection)
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
         .unwrap()
         .remove(0);
-    let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, connection)
-        .unwrap();
-
-    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
 
     //make redeem date in the future
     let new_event_redeem_date = EventEditableAttributes {
@@ -470,9 +412,14 @@ pub fn authorize_ticket_transfer() {
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    cart.add_tickets(ticket_type.id, 5, connection)
-        .unwrap()
-        .remove(0);
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 5,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
     let total = cart.calculate_total(connection).unwrap();
 
     cart.add_external_payment("test".to_string(), user.id, total, connection)
@@ -521,9 +468,14 @@ pub fn receive_ticket_transfer() {
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    cart.add_tickets(ticket_type.id, 5, connection)
-        .unwrap()
-        .remove(0);
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 5,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
     let total = cart.calculate_total(connection).unwrap();
 
     cart.add_external_payment("test".to_string(), user.id, total, connection)

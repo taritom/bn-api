@@ -72,8 +72,8 @@ pub struct OrganizationEditableAttributes {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
-    pub fee_schedule_id: Option<Uuid>,
-    pub event_fee_in_cents: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    pub event_fee_in_cents: Option<Option<i64>>,
 }
 
 impl Organization {
@@ -319,13 +319,11 @@ impl Organization {
         fee_schedule: &FeeSchedule,
         conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
-        let attributes = OrganizationEditableAttributes {
-            fee_schedule_id: Some(fee_schedule.id),
-            ..Default::default()
-        };
         diesel::update(self)
-            .set((attributes, organizations::updated_at.eq(dsl::now)))
-            .get_result(conn)
+            .set((
+                organizations::fee_schedule_id.eq(fee_schedule.id),
+                organizations::updated_at.eq(dsl::now),
+            )).get_result(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not set the fee schedule for this organization",

@@ -67,17 +67,13 @@ fn get_fee_schedule_range() {
 
     let fee_schedule_range1 = fee_schedule
         .get_range(30, project.get_connection())
-        .unwrap()
         .unwrap();
     let fee_schedule_range2 = fee_schedule
         .get_range(150, project.get_connection())
-        .unwrap()
         .unwrap();
-    let fee_schedule_range3 = fee_schedule
-        .get_range(10, project.get_connection())
-        .unwrap();
+    let fee_schedule_range3 = fee_schedule.get_range(10, project.get_connection());
 
     assert_eq!(fee_schedule_range1.fee_in_cents, 10);
     assert_eq!(fee_schedule_range2.fee_in_cents, 20);
-    assert!(fee_schedule_range3.is_none());
+    assert!(fee_schedule_range3.is_err());
 }
