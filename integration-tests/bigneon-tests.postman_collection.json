@@ -1,5 +1,6 @@
 {
 	"info": {
+
 		"_postman_id": "96cd748f-171a-444d-ba80-00e229770f91",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -468,20 +469,20 @@
 					"response": []
 				},
 				{
-					"name": "Admin - creates venue",
+					"name": "Admin - Create venue",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 201\", function() {",
 									"    pm.response.to.have.status(201);",
 									"})",
 									"",
 									"pm.environment.set(\"last_venue_id\", JSON.parse(responseBody).id);"
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -505,7 +506,75 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\"\n}"
+							"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"50 Street street\",\n\t\"city\": \"\",\n\t\"country\": \"\",\n\t\"organization_id\": \"{{last_org_id}}\",\n\t\"phone\": \"5555555555\",\n\t\"place_id\": \"\",\n\t\"state\": \"\",\n\t\"zip\": \"\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/venues",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"venues"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - List Venues",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"",
+									" let r = JSON.parse(responseBody);",
+									" ",
+									"pm.test(\"created venue should be present\", function() {",
+									"    let found = false;",
+									"    let last_venue_id = pm.environment.get(\"last_venue_id\");",
+									"    for (var i=0;i < r.data.length; i++){",
+									"        if (r.data[i].id === last_venue_id) {",
+									"            found=true;",
+									"            break;",
+									"        }",
+									"",
+									"    }",
+									"    pm.expect(found).to.be.true();",
+									"  ",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/venues",
