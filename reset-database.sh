@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 echo Dropping database..
 bndb_cli drop -c $DATABASE_URL
 echo Recreating database..
