@@ -18,7 +18,7 @@ fn create() {
         CodeTypes::Discount,
         "REDEMPTION".into(),
         10,
-        100,
+        Some(100),
         start_date,
         end_date,
         None,
@@ -38,7 +38,7 @@ pub fn create_with_validation_errors() {
         CodeTypes::Discount,
         "A".into(),
         10,
-        100,
+        None,
         start_date,
         end_date,
         None,
@@ -56,6 +56,10 @@ pub fn create_with_validation_errors() {
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
                 assert_eq!(errors["start_date"][0].code, "invalid_start_date");
+
+                assert!(errors.contains_key("discount_in_cents"));
+                assert_eq!(errors["discount_in_cents"].len(), 1);
+                assert_eq!(errors["discount_in_cents"][0].code, "required");
             }
             _ => panic!("Expected validation error"),
         },
@@ -71,7 +75,7 @@ pub fn create_with_validation_errors() {
         CodeTypes::Discount,
         code.redemption_code,
         10,
-        100,
+        Some(100),
         start_date,
         end_date,
         None,
@@ -100,7 +104,7 @@ pub fn create_with_validation_errors() {
         CodeTypes::Discount,
         hold.redemption_code,
         10,
-        100,
+        Some(100),
         start_date,
         end_date,
         None,
@@ -118,6 +122,22 @@ pub fn create_with_validation_errors() {
             _ => panic!("Expected validation error"),
         },
     }
+
+    // Access code does not require a discount
+    let start_date = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
+    let end_date = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
+    let result = Code::create(
+        "test".into(),
+        event.id,
+        CodeTypes::Access,
+        "NEWUNUSEDCODE".into(),
+        10,
+        None,
+        start_date,
+        end_date,
+        None,
+    ).commit(db.get_connection());
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -144,6 +164,7 @@ pub fn update_with_validation_errors() {
         redemption_code: Some("a".into()),
         start_date: Some(start_date),
         end_date: Some(end_date),
+        discount_in_cents: Some(None),
         ..Default::default()
     };
     let result = code.update(update_patch, db.get_connection());
@@ -160,6 +181,10 @@ pub fn update_with_validation_errors() {
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
                 assert_eq!(errors["start_date"][0].code, "invalid_start_date");
+
+                assert!(errors.contains_key("discount_in_cents"));
+                assert_eq!(errors["discount_in_cents"].len(), 1);
+                assert_eq!(errors["discount_in_cents"][0].code, "required");
             }
             _ => panic!("Expected validation error"),
         },
@@ -329,14 +354,35 @@ pub fn find_for_event() {
         .with_event(&event)
         .with_code_type(CodeTypes::Discount)
         .finish();
+    let code3 = db
+        .create_code()
+        .with_name("Access 1".into())
+        .with_event(&event)
+        .with_code_type(CodeTypes::Access)
+        .finish();
+    let code4 = db
+        .create_code()
+        .with_name("Access 2".into())
+        .with_event(&event)
+        .with_code_type(CodeTypes::Access)
+        .finish();
 
     let codes =
         Code::find_for_event(event.id, Some(CodeTypes::Discount), db.get_connection()).unwrap();
-
     assert_eq!(
         vec![
             code.for_display(db.get_connection()).unwrap(),
             code2.for_display(db.get_connection()).unwrap()
+        ],
+        codes
+    );
+
+    let codes =
+        Code::find_for_event(event.id, Some(CodeTypes::Access), db.get_connection()).unwrap();
+    assert_eq!(
+        vec![
+            code3.for_display(db.get_connection()).unwrap(),
+            code4.for_display(db.get_connection()).unwrap()
         ],
         codes
     );

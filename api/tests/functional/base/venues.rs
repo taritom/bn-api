@@ -4,6 +4,7 @@ use bigneon_api::models::AddVenueToOrganizationRequest;
 use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use serde_json;
+use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -28,7 +29,7 @@ pub fn index(role: Roles, should_succeed: bool) {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();
@@ -217,7 +218,7 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();

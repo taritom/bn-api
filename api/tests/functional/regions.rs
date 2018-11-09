@@ -4,6 +4,7 @@ use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use functional::base;
 use serde_json;
+use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -34,7 +35,7 @@ fn index() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_regions).unwrap();

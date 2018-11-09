@@ -180,3 +180,21 @@ fn destroy() {
     assert!(comp.destroy(project.get_connection()).unwrap() > 0);
     assert!(Comp::find(comp.hold_id, comp.id, project.get_connection()).is_err());
 }
+
+#[test]
+fn destroy_from_hold() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let hold = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Comp)
+        .finish();
+    let comp = project.create_comp().with_hold(&hold).finish();
+    let comp2 = project.create_comp().with_hold(&hold).finish();
+    let comp3 = project.create_comp().finish();
+    assert_eq!(Comp::destroy_from_hold(hold.id, connection).unwrap(), 2);
+    assert!(Comp::find(comp.hold_id, comp.id, connection).is_err());
+    assert!(Comp::find(comp2.hold_id, comp2.id, connection).is_err());
+    // Not deleted as part of another hold
+    assert!(Comp::find(comp3.hold_id, comp3.id, connection).is_ok());
+}

@@ -3,6 +3,7 @@ use bigneon_api::controllers::comps::{self, NewCompRequest};
 use bigneon_api::models::{CompPathParameters, PathParameters};
 use bigneon_db::models::*;
 use serde_json;
+use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -53,7 +54,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: counter,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
 

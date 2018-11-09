@@ -36,7 +36,6 @@ pub struct TicketInstance {
     pub status: String,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
-    pub code_id: Option<Uuid>,
 }
 
 impl TicketInstance {
@@ -45,12 +44,6 @@ impl TicketInstance {
             .find(id)
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")
-    }
-
-    pub fn code(&self, conn: &PgConnection) -> Result<Option<Code>, DatabaseError> {
-        self.code_id
-            .map(|code_id| Code::find(code_id, conn))
-            .map_or(Ok(None), |d| d.map(Some))
     }
 
     pub fn find_for_display(

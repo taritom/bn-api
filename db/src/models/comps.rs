@@ -107,17 +107,15 @@ impl Comp {
     ) -> Result<(), DatabaseError> {
         let mut validation_errors = update_attrs.validate();
 
-        let comps_quantity_valid_validation = Comp::comps_quantity_valid_for_hold_quantity(
-            self.hold_id,
-            Some(self.id),
-            update_attrs.quantity.unwrap_or(self.quantity),
-            conn,
-        )?;
-
         validation_errors = validators::append_validation_error(
             validation_errors,
             "quantity",
-            comps_quantity_valid_validation,
+            Comp::comps_quantity_valid_for_hold_quantity(
+                self.hold_id,
+                Some(self.id),
+                update_attrs.quantity.unwrap_or(self.quantity),
+                conn,
+            )?,
         );
 
         Ok(validation_errors?)
@@ -129,6 +127,7 @@ impl Comp {
         conn: &PgConnection,
     ) -> Result<Comp, DatabaseError> {
         self.validate_record(&update_attrs, conn)?;
+
         diesel::update(
             comps::table
                 .filter(comps::id.eq(self.id))
@@ -211,6 +210,15 @@ impl Comp {
             diesel::delete(self).execute(conn),
         )
     }
+
+    pub fn destroy_from_hold(hold_id: Uuid, conn: &PgConnection) -> Result<usize, DatabaseError> {
+        // TODO: prevent deletion of comps that have been claimed
+        DatabaseError::wrap(
+            ErrorCode::DeleteError,
+            "Could not remove comps",
+            diesel::delete(comps::table.filter(comps::hold_id.eq(hold_id))).execute(conn),
+        )
+    }
 }
 
 #[derive(Deserialize, Insertable, Serialize, Validate)]
@@ -237,20 +245,16 @@ impl NewComp {
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut validation_errors = self.validate();
-        let comps_quantity_valid_validation =
-            Comp::comps_quantity_valid_for_hold_quantity(self.hold_id, None, self.quantity, conn)?;
-        let comps_hold_type_valid_validation =
-            Comp::comps_hold_type_valid_for_comp_creation(self.hold_id, None, conn)?;
 
         validation_errors = validators::append_validation_error(
             validation_errors,
             "quantity",
-            comps_quantity_valid_validation,
+            Comp::comps_quantity_valid_for_hold_quantity(self.hold_id, None, self.quantity, conn)?,
         );
         validation_errors = validators::append_validation_error(
             validation_errors,
             "hold_id",
-            comps_hold_type_valid_validation,
+            Comp::comps_hold_type_valid_for_comp_creation(self.hold_id, None, conn)?,
         );
 
         Ok(validation_errors?)

@@ -65,6 +65,31 @@ pub fn get_error_message(code: &ErrorCode) -> (i32, String) {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct EnumParseError {
+    pub message: String,
+    pub value: String,
+    pub enum_type: String,
+}
+
+impl fmt::Display for EnumParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}\nType: {}\nValue: {}",
+            self.message, self.enum_type, self.value
+        )?;
+
+        Ok(())
+    }
+}
+
+impl Error for EnumParseError {
+    fn description(&self) -> &str {
+        &self.message
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct DatabaseError {
     pub code: i32,
     pub message: String,

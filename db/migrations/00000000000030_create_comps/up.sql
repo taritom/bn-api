@@ -4,7 +4,7 @@ CREATE TABLE comps
     name TEXT NOT NULL,
     phone TEXT NULL,
     email TEXT NULL,
-    hold_id uuid NOT NULL REFERENCES holds(id),
+    hold_id uuid NOT NULL REFERENCES holds(id) ON DELETE CASCADE,
     quantity INT NOT NULL CHECK (quantity >= 0),
     redemption_code TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
@@ -22,7 +22,7 @@ BEGIN
     RETURN (
         select (
           (select coalesce(sum(quantity), 0) + $3 from comps where hold_id = $1 and id <> $2) <=
-          (select coalesce(count(*), 0) from ticket_instances where hold_id = $1)
+          (select count(*) from ticket_instances where hold_id = $1)
         )
     );
 END $$ LANGUAGE 'plpgsql';

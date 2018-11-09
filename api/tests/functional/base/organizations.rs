@@ -5,6 +5,7 @@ use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use serde_json;
+use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -50,7 +51,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: counter,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
 
@@ -141,7 +142,7 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: counter,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
 
@@ -417,7 +418,7 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: count as u32,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_date).unwrap();

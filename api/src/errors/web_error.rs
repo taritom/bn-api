@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse};
-use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
+use bigneon_db::utils::errors::*;
 use diesel::result::Error as DieselError;
 use errors::*;
 use lettre::smtp::error::Error as SmtpError;
@@ -55,6 +55,13 @@ impl ConvertToWebError for ReqwestError {
 impl ConvertToWebError for PaymentProcessorError {
     fn to_response(&self) -> HttpResponse {
         error!("Payment Processor error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for EnumParseError {
+    fn to_response(&self) -> HttpResponse {
+        error!("Enum parse error: {}", self);
         internal_error("Internal error")
     }
 }

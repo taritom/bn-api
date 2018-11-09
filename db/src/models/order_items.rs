@@ -14,6 +14,8 @@ use validator::*;
 use validators;
 
 sql_function!(fn order_items_quantity_in_increments(item_type: Text, quantity: BigInt, ticket_pricing_id: Nullable<dUuid>) -> Bool);
+sql_function!(fn order_items_code_id_max_uses_valid(order_id: dUuid, code_id: dUuid) -> Bool);
+sql_function!(fn order_items_code_id_max_tickets_per_user_valid(order_item_id: dUuid, order_id: dUuid, code_id: dUuid, quantity: BigInt) -> Bool);
 
 #[derive(Identifiable, Associations, Queryable, AsChangeset)]
 #[belongs_to(Order)]
@@ -34,6 +36,7 @@ pub struct OrderItem {
     pub parent_id: Option<Uuid>,
     pub hold_id: Option<Uuid>,
     pub comp_id: Option<Uuid>,
+    pub code_id: Option<Uuid>,
 }
 
 impl OrderItem {
@@ -115,18 +118,83 @@ impl OrderItem {
     }
 
     pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        let quantity_valid_increment = OrderItem::quantity_valid_increment(
-            false,
-            self.item_type.clone(),
-            self.quantity,
-            self.ticket_pricing_id,
-            conn,
-        )?;
-        Ok(validators::append_validation_error(
+        let validation_errors = validators::append_validation_error(
             Ok(()),
             "quantity",
-            quantity_valid_increment,
-        )?)
+            OrderItem::quantity_valid_increment(
+                false,
+                self.item_type.clone(),
+                self.quantity,
+                self.ticket_pricing_id,
+                conn,
+            )?,
+        );
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
+            "quantity",
+            OrderItem::code_id_max_tickets_per_user_valid(
+                Some(self.id),
+                self.order_id,
+                self.code_id,
+                self.quantity,
+                conn,
+            )?,
+        );
+        Ok(validation_errors?)
+    }
+
+    fn code_id_max_tickets_per_user_valid(
+        id: Option<Uuid>,
+        order_id: Uuid,
+        code_id: Option<Uuid>,
+        quantity: i64,
+        conn: &PgConnection,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        if code_id.is_none() {
+            return Ok(Ok(()));
+        }
+
+        let result = select(order_items_code_id_max_tickets_per_user_valid(
+            id.unwrap_or(Uuid::default()),
+            order_id,
+            code_id.unwrap(),
+            quantity,
+        )).get_result::<bool>(conn)
+        .to_db_error(
+            if id.is_none() {
+                errors::ErrorCode::InsertError
+            } else {
+                errors::ErrorCode::UpdateError
+            },
+            "Could not confirm code_id valid for max tickets per user",
+        )?;
+        if !result {
+            return Ok(Err(ValidationError::new("max_tickets_per_user_reached")));
+        }
+        Ok(Ok(()))
+    }
+
+    fn code_id_max_uses_valid(
+        order_id: Uuid,
+        code_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        if code_id.is_none() {
+            return Ok(Ok(()));
+        }
+
+        let result = select(order_items_code_id_max_uses_valid(
+            order_id,
+            code_id.unwrap(),
+        )).get_result::<bool>(conn)
+        .to_db_error(
+            errors::ErrorCode::InsertError,
+            "Could not confirm code_id valid for max uses",
+        )?;
+        if !result {
+            return Ok(Err(ValidationError::new("max_uses_reached")));
+        }
+        Ok(Ok(()))
     }
 
     fn quantity_valid_increment(
@@ -234,6 +302,7 @@ pub(crate) struct NewTicketsOrderItem {
     pub fee_schedule_range_id: Uuid,
     pub hold_id: Option<Uuid>,
     pub comp_id: Option<Uuid>,
+    pub code_id: Option<Uuid>,
 }
 
 impl NewTicketsOrderItem {
@@ -249,18 +318,34 @@ impl NewTicketsOrderItem {
     }
 
     pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        let quantity_valid_increment = OrderItem::quantity_valid_increment(
-            true,
-            self.item_type.clone(),
-            self.quantity,
-            Some(self.ticket_pricing_id),
-            conn,
-        )?;
-        Ok(validators::append_validation_error(
+        let validation_errors = validators::append_validation_error(
             Ok(()),
             "quantity",
-            quantity_valid_increment,
-        )?)
+            OrderItem::quantity_valid_increment(
+                true,
+                self.item_type.clone(),
+                self.quantity,
+                Some(self.ticket_pricing_id),
+                conn,
+            )?,
+        );
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
+            "quantity",
+            OrderItem::code_id_max_tickets_per_user_valid(
+                None,
+                self.order_id,
+                self.code_id,
+                self.quantity,
+                conn,
+            )?,
+        );
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
+            "code_id",
+            OrderItem::code_id_max_uses_valid(self.order_id, self.code_id, conn)?,
+        );
+        Ok(validation_errors?)
     }
 }
 

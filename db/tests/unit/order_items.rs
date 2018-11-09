@@ -1,5 +1,8 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
+use bigneon_db::schema::order_items;
+use bigneon_db::utils::errors::ErrorCode::ValidationError;
+use diesel::prelude::*;
 
 #[test]
 fn find_fee_item() {
@@ -37,6 +40,106 @@ fn find_fee_item() {
 
     assert_eq!(fee_item.parent_id, Some(order_item.id));
     assert_eq!(fee_item.item_type, OrderItemTypes::PerUnitFees.to_string());
+}
+
+#[test]
+fn update_with_validation_errors() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 4,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .with_max_tickets_per_user(Some(5))
+        .finish();
+
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    diesel::update(order_items::table.filter(order_items::id.eq(order_item.id)))
+        .set(order_items::code_id.eq(code.id))
+        .get_result::<OrderItem>(connection)
+        .unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 5,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
+
+    let result = cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 6,
+            redemption_code: None,
+        }],
+        connection,
+    );
+
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("quantity"));
+                assert_eq!(errors["quantity"].len(), 1);
+                assert_eq!(errors["quantity"][0].code, "max_tickets_per_user_reached");
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    // Different user can still add them to their cart
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 4,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
+    let order_item = cart.items(connection).unwrap().remove(0);
+    diesel::update(order_items::table.filter(order_items::id.eq(order_item.id)))
+        .set(order_items::code_id.eq(code.id))
+        .get_result::<OrderItem>(connection)
+        .unwrap();
+    // Add 1 making it 5 tickets for this type
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
 }
 
 #[test]

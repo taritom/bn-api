@@ -8,6 +8,7 @@ use errors::*;
 use helpers::application;
 use mail::mailers;
 use models::{OptionalPathParameters, PathParameters};
+use serde_json::Value;
 use server::AppState;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -19,21 +20,15 @@ pub struct SearchParameters {
 }
 impl From<SearchParameters> for Paging {
     fn from(s: SearchParameters) -> Paging {
-        let mut default_tags = Vec::new();
+        let mut default_tags: HashMap<String, Value> = HashMap::new();
+
         if let Some(ref i) = s.start_utc {
-            let new_value = SearchParam {
-                name: "start_utc".to_owned(),
-                values: vec![i.to_string()],
-            };
-            default_tags.push(new_value);
+            default_tags.insert("start_utc".to_owned(), json!(i));
         }
         if let Some(ref i) = s.end_utc {
-            let new_value = SearchParam {
-                name: "end_utc".to_owned(),
-                values: vec![i.to_string()],
-            };
-            default_tags.push(new_value);
+            default_tags.insert("end_utc".to_owned(), json!(i));
         }
+
         Paging {
             page: 0,
             limit: 100,

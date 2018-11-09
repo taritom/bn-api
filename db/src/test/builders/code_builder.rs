@@ -16,6 +16,9 @@ pub struct CodeBuilder<'a> {
     connection: &'a PgConnection,
     ticket_type_ids: Vec<Uuid>,
     code_type: CodeTypes,
+    discount_in_cents: Option<u32>,
+    max_uses: u32,
+    max_tickets_per_user: Option<u32>,
 }
 
 impl<'a> CodeBuilder<'a> {
@@ -34,11 +37,29 @@ impl<'a> CodeBuilder<'a> {
             ticket_type_ids: Vec::new(),
             event_id: None,
             code_type: CodeTypes::Discount,
+            discount_in_cents: Some(100),
+            max_tickets_per_user: None,
+            max_uses: 10,
         }
     }
 
     pub fn with_name(mut self, name: String) -> Self {
         self.name = name;
+        self
+    }
+
+    pub fn with_max_tickets_per_user(mut self, max_tickets_per_user: Option<u32>) -> Self {
+        self.max_tickets_per_user = max_tickets_per_user;
+        self
+    }
+
+    pub fn with_max_uses(mut self, max_uses: u32) -> Self {
+        self.max_uses = max_uses;
+        self
+    }
+
+    pub fn with_discount_in_cents(mut self, discount_in_cents: Option<u32>) -> Self {
+        self.discount_in_cents = discount_in_cents;
         self
     }
 
@@ -81,11 +102,11 @@ impl<'a> CodeBuilder<'a> {
             self.event_id.unwrap(),
             self.code_type,
             self.redemption_code,
-            10,
-            100,
+            self.max_uses,
+            self.discount_in_cents,
             start_date,
             end_date,
-            None,
+            self.max_tickets_per_user,
         ).commit(self.connection)
         .unwrap();
 

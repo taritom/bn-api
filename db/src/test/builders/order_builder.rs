@@ -10,7 +10,6 @@ pub struct OrderBuilder<'a> {
     connection: &'a PgConnection,
     quantity: u32,
     is_paid: bool,
-    code: Option<Code>,
 }
 
 impl<'a> OrderBuilder<'a> {
@@ -21,17 +20,11 @@ impl<'a> OrderBuilder<'a> {
             ticket_type_id: None,
             quantity: 10,
             is_paid: false,
-            code: None,
         }
     }
 
     pub fn for_user(mut self, user: &User) -> OrderBuilder<'a> {
         self.user = Some(user.clone());
-        self
-    }
-
-    pub fn with_code(mut self, code: &Code) -> OrderBuilder<'a> {
-        self.code = Some(code.clone());
         self
     }
 
@@ -74,9 +67,6 @@ impl<'a> OrderBuilder<'a> {
             self.connection,
         ).unwrap();
 
-        if let Some(code) = self.code {
-            cart.set_code(&code, self.connection).unwrap();
-        }
         let total = cart.calculate_total(self.connection).unwrap();
 
         let mut cart = cart;

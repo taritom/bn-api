@@ -64,7 +64,9 @@ impl Hold {
         conn: &PgConnection,
     ) -> Result<Hold, DatabaseError> {
         if update_attrs.hold_type == Some(HoldTypes::Comp.to_string()) {
+            // Remove discount and clear comps
             update_attrs.discount_in_cents = Some(None);
+            Comp::destroy_from_hold(self.id, conn)?;
         }
 
         self.validate_record(&update_attrs, conn)?;
@@ -96,36 +98,33 @@ impl Hold {
         update_attrs: &UpdateHoldAttributes,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        let discount_in_cents_valid = Hold::discount_in_cents_valid(
-            update_attrs
-                .hold_type
-                .clone()
-                .unwrap_or(self.hold_type.clone()),
-            if update_attrs.discount_in_cents.is_some() {
-                update_attrs.discount_in_cents.unwrap()
-            } else {
-                self.discount_in_cents
-            },
-        );
-        let unique_redemption_code = redemption_code_unique_per_event_validation(
-            Some(self.id),
-            "holds".into(),
-            update_attrs
-                .redemption_code
-                .clone()
-                .unwrap_or(self.redemption_code.clone()),
-            conn,
-        )?;
-
         let validation_errors = validators::append_validation_error(
             Ok(()),
             "discount_in_cents",
-            discount_in_cents_valid,
+            Hold::discount_in_cents_valid(
+                update_attrs
+                    .hold_type
+                    .clone()
+                    .unwrap_or(self.hold_type.clone()),
+                if update_attrs.discount_in_cents.is_some() {
+                    update_attrs.discount_in_cents.unwrap()
+                } else {
+                    self.discount_in_cents
+                },
+            ),
         );
         let validation_errors = validators::append_validation_error(
             validation_errors,
             "redemption_code",
-            unique_redemption_code,
+            redemption_code_unique_per_event_validation(
+                Some(self.id),
+                "holds".into(),
+                update_attrs
+                    .redemption_code
+                    .clone()
+                    .unwrap_or(self.redemption_code.clone()),
+                conn,
+            )?,
         );
 
         Ok(validation_errors?)
@@ -291,24 +290,20 @@ impl NewHold {
     }
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        let discount_in_cents_valid =
-            Hold::discount_in_cents_valid(self.hold_type.clone(), self.discount_in_cents);
-        let unique_redemption_code = redemption_code_unique_per_event_validation(
-            None,
-            "holds".into(),
-            self.redemption_code.clone(),
-            conn,
-        )?;
-
         let validation_errors = validators::append_validation_error(
             Ok(()),
             "discount_in_cents",
-            discount_in_cents_valid,
+            Hold::discount_in_cents_valid(self.hold_type.clone(), self.discount_in_cents),
         );
         let validation_errors = validators::append_validation_error(
             validation_errors,
             "redemption_code",
-            unique_redemption_code,
+            redemption_code_unique_per_event_validation(
+                None,
+                "holds".into(),
+                self.redemption_code.clone(),
+                conn,
+            )?,
         );
 
         Ok(validation_errors?)

@@ -14,7 +14,7 @@ pub struct CreateCodeRequest {
     pub redemption_code: String,
     pub code_type: CodeTypes,
     pub max_uses: u32,
-    pub discount_in_cents: u32,
+    pub discount_in_cents: Option<u32>,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub max_tickets_per_user: Option<u32>,
@@ -26,7 +26,8 @@ pub struct UpdateCodeRequest {
     pub name: Option<String>,
     pub redemption_code: Option<String>,
     pub max_uses: Option<i64>,
-    pub discount_in_cents: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    pub discount_in_cents: Option<Option<u32>>,
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
     #[serde(default, deserialize_with = "deserialize_some")]
@@ -40,7 +41,7 @@ impl From<UpdateCodeRequest> for UpdateCodeAttributes {
             name: attributes.name,
             redemption_code: attributes.redemption_code,
             max_uses: attributes.max_uses.map(|m| m as i64),
-            discount_in_cents: attributes.discount_in_cents.map(|d| d as i64),
+            discount_in_cents: attributes.discount_in_cents.map(|d| d.map(|d2| d2 as i64)),
             start_date: attributes.start_date,
             end_date: attributes.end_date,
             max_tickets_per_user: attributes

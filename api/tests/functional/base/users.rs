@@ -4,6 +4,7 @@ use bigneon_api::controllers::users::SearchUserByEmail;
 use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use serde_json;
+use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -53,7 +54,7 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
                 sort: "".to_string(),
                 dir: SortingDir::Asc,
                 total: 1,
-                tags: Vec::new(),
+                tags: HashMap::new(),
             },
         };
         let expected_json = serde_json::to_string(&wrapped_expected_links).unwrap();

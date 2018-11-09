@@ -1,4 +1,6 @@
 use models::SortingDir;
+use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone)]
 ///struct used to indicate paging information and search query information
@@ -8,14 +10,7 @@ pub struct Paging {
     pub sort: String,
     pub dir: SortingDir,
     pub total: u32,
-    pub tags: Vec<SearchParam>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-///Struct used to store search object names and values
-pub struct SearchParam {
-    pub name: String,
-    pub values: Vec<String>,
+    pub tags: HashMap<String, Value>,
 }
 
 impl Paging {
@@ -26,7 +21,7 @@ impl Paging {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 0,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         }
     }
 }
@@ -45,18 +40,14 @@ impl From<PagingParameters> for Paging {
         } else {
             SortingDir::Asc
         };
-        let default_tags = if let Some(ref i) = received.tags {
-            i.clone()
-        } else {
-            Vec::new()
-        };
+
         Paging {
             page: default_page,
             limit: default_limit,
             sort: default_sort,
             dir: default_dir,
             total: 0,
-            tags: default_tags,
+            tags: received.tags,
         }
     }
 }
@@ -98,5 +89,6 @@ pub struct PagingParameters {
     pub limit: Option<u32>,
     pub sort: Option<String>,
     pub dir: Option<SortingDir>,
-    pub tags: Option<Vec<SearchParam>>,
+    #[serde(flatten)]
+    pub tags: HashMap<String, Value>,
 }

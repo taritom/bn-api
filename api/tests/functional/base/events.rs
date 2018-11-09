@@ -5,6 +5,8 @@ use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use serde_json;
+use serde_json::Value;
+use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -202,7 +204,7 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: len,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json_body = serde_json::to_string(&wrapped_expected_date).unwrap();
@@ -350,7 +352,7 @@ pub fn guest_list(role: Roles, should_test_succeed: bool) {
     }
 }
 
-pub fn discounts(role: Roles, should_test_succeed: bool) {
+pub fn codes(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.clone();
     let user = database.create_user().finish();
@@ -378,13 +380,21 @@ pub fn discounts(role: Roles, should_test_succeed: bool) {
         .finish()
         .for_display(&connection)
         .unwrap();
+    let _code3 = database
+        .create_code()
+        .with_name("Access".into())
+        .with_event(&event)
+        .with_code_type(CodeTypes::Access)
+        .finish()
+        .for_display(&connection)
+        .unwrap();
 
     let all_discounts = vec![code, code2];
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
-    let test_request = TestRequest::create_with_uri(&format!("/discounts"));
+    let test_request = TestRequest::create_with_uri(&format!("/codes?type=Discount"));
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
 
@@ -394,6 +404,10 @@ pub fn discounts(role: Roles, should_test_succeed: bool) {
         path,
         auth_user,
     )).into();
+
+    let mut expected_tags: HashMap<String, Value> = HashMap::new();
+    expected_tags.insert("type".to_string(), json!("Discount"));
+
     let expected_discounts = Payload {
         data: all_discounts,
         paging: Paging {
@@ -402,7 +416,7 @@ pub fn discounts(role: Roles, should_test_succeed: bool) {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: Vec::new(),
+            tags: expected_tags,
         },
     };
     let expected_json = serde_json::to_string(&expected_discounts).unwrap();
@@ -497,7 +511,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&expected_holds).unwrap();

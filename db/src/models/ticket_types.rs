@@ -108,18 +108,16 @@ impl TicketType {
     pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut validation_errors: Result<(), ValidationErrors> = Ok(());
         for ticket_pricing in self.ticket_pricing(conn)? {
-            let date_overlap_validation = TicketPricing::ticket_pricing_no_overlapping_periods(
-                ticket_pricing.id,
-                self.id,
-                ticket_pricing.start_date,
-                ticket_pricing.end_date,
-                conn,
-            )?;
-
             validation_errors = validators::append_validation_error(
                 validation_errors,
                 "ticket_pricing",
-                date_overlap_validation,
+                TicketPricing::ticket_pricing_no_overlapping_periods(
+                    ticket_pricing.id,
+                    self.id,
+                    ticket_pricing.start_date,
+                    ticket_pricing.end_date,
+                    conn,
+                )?,
             );
         }
 

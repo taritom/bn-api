@@ -2,11 +2,19 @@ CREATE OR REPLACE FUNCTION redemption_code_unique_per_event(UUID, TEXT, TEXT) RE
 BEGIN
     RETURN (
         select not exists (
-          select redemption_code from codes where (id <> $1 or $2 <> 'codes') and redemption_code = $3 union
-          select redemption_code from holds where (id <> $1 or $2 <> 'holds') and redemption_code = $3
+          select redemption_code
+          from codes
+          where ((id <> $1 and $2 = 'codes') or $2 <> 'codes') and redemption_code = $3
+          union select redemption_code
+          from holds
+          where ((id <> $1 and $2 = 'holds') or $2 <> 'holds') and redemption_code = $3
+          union select redemption_code
+          from comps
+          where ((id <> $1 and $2 = 'comps') or $2 <> 'comps') and redemption_code = $3
         )
     );
 END $$ LANGUAGE 'plpgsql';
 
 ALTER TABLE codes ADD CONSTRAINT redemption_code_unique_per_event CHECK(redemption_code_unique_per_event(id, 'codes', redemption_code));
 ALTER TABLE holds ADD CONSTRAINT redemption_code_unique_per_event CHECK(redemption_code_unique_per_event(id, 'holds', redemption_code));
+ALTER TABLE comps ADD CONSTRAINT redemption_code_unique_per_event CHECK(redemption_code_unique_per_event(id, 'comps', redemption_code));

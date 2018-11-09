@@ -6,6 +6,7 @@ use db::Connection;
 use errors::*;
 use helpers::application;
 use models::{PathParameters, UserDisplayTicketType};
+use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -21,56 +22,40 @@ pub struct SearchParameters {
     status: Vec<EventStatus>,
     start_utc: Option<NaiveDateTime>,
     end_utc: Option<NaiveDateTime>,
+    page: Option<u32>,
+    limit: Option<u32>,
+    sort: Option<String>,
+    dir: Option<SortingDir>,
 }
 
 impl From<SearchParameters> for Paging {
     fn from(s: SearchParameters) -> Paging {
-        let mut default_tags = Vec::new();
+        let mut default_tags: HashMap<String, Value> = HashMap::new();
         if let Some(ref i) = s.query {
-            let new_value = SearchParam {
-                name: "query".to_owned(),
-                values: vec![i.clone()],
-            };
-            default_tags.push(new_value);
+            default_tags.insert("query".to_owned(), json!(i.clone()));
         }
         if let Some(ref i) = s.region_id {
-            let new_value = SearchParam {
-                name: "region_id".to_owned(),
-                values: vec![i.to_string()],
-            };
-            default_tags.push(new_value);
+            default_tags.insert("region_id".to_owned(), json!(i));
         }
 
         for event_status in s.status.clone().into_iter() {
-            let new_value = SearchParam {
-                name: "status".to_owned(),
-                values: vec![event_status.to_string()],
-            };
-            default_tags.push(new_value);
+            default_tags.insert("status".to_owned(), json!(event_status));
         }
 
         if let Some(ref i) = s.start_utc {
-            let new_value = SearchParam {
-                name: "start_utc".to_owned(),
-                values: vec![i.to_string()],
-            };
-            default_tags.push(new_value);
+            default_tags.insert("start_utc".to_owned(), json!(i));
         }
         if let Some(ref i) = s.end_utc {
-            let new_value = SearchParam {
-                name: "end_utc".to_owned(),
-                values: vec![i.to_string()],
-            };
-            default_tags.push(new_value);
+            default_tags.insert("end_utc".to_owned(), json!(i));
         }
-        Paging {
-            page: 0,
-            limit: 100,
-            sort: "".to_owned(),
-            dir: SortingDir::Asc,
-            total: 0,
+
+        PagingParameters {
+            page: s.page,
+            limit: s.limit,
+            sort: s.sort,
+            dir: s.dir,
             tags: default_tags,
-        }
+        }.into()
     }
 }
 
@@ -470,13 +455,8 @@ pub struct GuestListQueryParameters {
 
 impl From<GuestListQueryParameters> for Paging {
     fn from(s: GuestListQueryParameters) -> Paging {
-        let mut default_tags = Vec::new();
-
-        let new_value = SearchParam {
-            name: "query".to_owned(),
-            values: vec![s.query.clone()],
-        };
-        default_tags.push(new_value);
+        let mut default_tags: HashMap<String, Value> = HashMap::new();
+        default_tags.insert("query".to_owned(), json!(s.query.clone()));
 
         Paging {
             page: 0,
@@ -525,15 +505,15 @@ pub fn codes(
         conn,
     )?;
 
-    //TODO Extract the tags[type]=Discount field
-    let code_type = None;
-    let discounts = Code::find_for_event(
-        path.id,
-        code_type.map(|s: String| s.parse::<CodeTypes>().unwrap()),
-        conn,
-    )?;
+    let mut code_type: Option<CodeTypes> = None;
+    if let Some(value) = query.tags.get("type") {
+        code_type = serde_json::from_value(value.clone())?;
+    }
 
-    Ok(HttpResponse::Ok().json(Payload::new(discounts, query.into_inner().into())))
+    //TODO: remap query to use paging info
+    let codes = Code::find_for_event(path.id, code_type, conn)?;
+
+    Ok(HttpResponse::Ok().json(Payload::new(codes, query.into_inner().into())))
 }
 
 pub fn holds(

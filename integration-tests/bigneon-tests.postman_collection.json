@@ -1,6 +1,7 @@
 {
 	"info": {
 
+
 		"_postman_id": "96cd748f-171a-444d-ba80-00e229770f91",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -1372,6 +1373,206 @@
 					"response": []
 				},
 				{
+					"name": "Admin - create access code",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0936a8c3-977f-412b-95de-f9ab1abd5203",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"pm.test(\"discount should have correct information\", function(){",
+									"    pm.expect(json.name).to.equal(\"Access Tickets\");",
+									"    pm.expect(json.max_uses).to.equal(10);",
+									"    pm.expect(json.code_type).to.equal(\"Access\");",
+									"    pm.expect(json.discount_in_cents).to.equal(null);",
+									"    pm.expect(json.start_date).to.equal(\"2018-01-01T12:00:00\");",
+									"    pm.expect(json.end_date).to.equal(\"2019-01-01T12:00:00\");",
+									"    pm.expect(json.max_tickets_per_user).to.equal(10);",
+									"    let ticket_type_id = pm.variables.get(\"last_ticket_type_id\");",
+									"    pm.expect(json.ticket_type_ids[0]).to.equal(ticket_type_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\":\"Access Tickets\",\n\t\"code_type\" : \"Access\",\n\t\"redemption_code\" : \"AccessDiscountCode{{$timestamp}}\",\n\t\"max_uses\" : 10,\n\t\"discount_in_cents\" : null,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2019-01-01T12:00:00\",\n\t\"max_tickets_per_user\" : 10,\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"codes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - list all discount codes",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0936a8c3-977f-412b-95de-f9ab1abd5203",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"discount should be present\", function(){",
+									"    pm.expect(json.data.length).to.equal(1);",
+									"    pm.expect(json.data[0].name).to.equal(\"New Discount Name\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/codes?type=Discount",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"codes"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "Discount"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - list all access codes",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0936a8c3-977f-412b-95de-f9ab1abd5203",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"access should be present\", function(){",
+									"    pm.expect(json.data.length).to.equal(1);",
+									"    pm.expect(json.data[0].name).to.equal(\"Access Tickets\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/codes?type=Access",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"codes"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "Access"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Admin - destroy discount",
 					"event": [
 						{
@@ -1439,8 +1640,8 @@
 									"",
 									"let json = JSON.parse(responseBody);",
 									"",
-									"pm.test(\"discount should not be present\", function(){",
-									"    pm.expect(json.data.length).to.equal(0);",
+									"pm.test(\"codes should only return 1 item\", function(){",
+									"    pm.expect(json.data.length).to.equal(1);",
 									"});",
 									""
 								],

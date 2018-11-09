@@ -88,7 +88,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         redemption_code: redemption_code.clone(),
         code_type: CodeTypes::Discount,
         max_uses: 10,
-        discount_in_cents: 100,
+        discount_in_cents: Some(100),
         start_date,
         end_date,
         max_tickets_per_user: None,
@@ -109,7 +109,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         assert_eq!(code.name, name);
         assert_eq!(code.redemption_code, redemption_code);
         assert_eq!(code.max_uses, 10);
-        assert_eq!(code.discount_in_cents, 100);
+        assert_eq!(code.discount_in_cents, Some(100));
         assert_eq!(code.ticket_type_ids, vec![ticket_type_id]);
     } else {
         support::expects_unauthorized(

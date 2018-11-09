@@ -19,7 +19,7 @@ pub struct Code {
     pub code_type: String,
     pub redemption_code: String,
     pub max_uses: i64,
-    pub discount_in_cents: i64,
+    pub discount_in_cents: Option<i64>,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub max_tickets_per_user: Option<i64>,
@@ -41,8 +41,8 @@ pub struct DisplayCode {
     pub redemption_code: String,
     #[sql_type = "BigInt"]
     pub max_uses: i64,
-    #[sql_type = "BigInt"]
-    pub discount_in_cents: i64,
+    #[sql_type = "Nullable<BigInt>"]
+    pub discount_in_cents: Option<i64>,
     #[sql_type = "Timestamp"]
     pub start_date: NaiveDateTime,
     #[sql_type = "Timestamp"]
@@ -64,7 +64,7 @@ pub struct UpdateCodeAttributes {
     #[validate(length(min = "6"))]
     pub redemption_code: Option<String>,
     pub max_uses: Option<i64>,
-    pub discount_in_cents: Option<i64>,
+    pub discount_in_cents: Option<Option<i64>>,
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
     pub max_tickets_per_user: Option<Option<i64>>,
@@ -139,7 +139,7 @@ impl Code {
         code_type: CodeTypes,
         redemption_code: String,
         max_uses: u32,
-        discount_in_cents: u32,
+        discount_in_cents: Option<u32>,
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
         max_tickets_per_user: Option<u32>,
@@ -150,7 +150,7 @@ impl Code {
             code_type: code_type.to_string(),
             redemption_code,
             max_uses: max_uses as i64,
-            discount_in_cents: discount_in_cents as i64,
+            discount_in_cents: discount_in_cents.map(|max| max as i64),
             start_date,
             end_date,
             max_tickets_per_user: max_tickets_per_user.map(|max| max as i64),
@@ -217,35 +217,56 @@ impl Code {
         Ok(())
     }
 
+    pub fn discount_present_for_discount_type(
+        code_type: String,
+        discount_in_cents: Option<i64>,
+    ) -> Result<(), ValidationError> {
+        if code_type == CodeTypes::Discount.to_string() && discount_in_cents.is_none() {
+            let mut validation_error = ValidationError::new("required");
+            validation_error.add_param(Cow::from("code_type"), &code_type);
+            validation_error.add_param(Cow::from("discount"), &discount_in_cents);
+            return Err(validation_error);
+        }
+        Ok(())
+    }
+
     fn validate_record(
         &self,
         update_attrs: &UpdateCodeAttributes,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         let mut validation_errors = update_attrs.validate();
-        let codes_start_date_prior_to_end_date = Code::codes_start_date_prior_to_end_date(
-            update_attrs.start_date.unwrap_or(self.start_date),
-            update_attrs.end_date.unwrap_or(self.end_date),
-        );
-        let unique_redemption_code = redemption_code_unique_per_event_validation(
-            Some(self.id),
-            "codes".into(),
-            update_attrs
-                .redemption_code
-                .clone()
-                .unwrap_or(self.redemption_code.clone()),
-            conn,
-        )?;
 
         validation_errors = validators::append_validation_error(
             validation_errors,
             "start_date",
-            codes_start_date_prior_to_end_date,
+            Code::codes_start_date_prior_to_end_date(
+                update_attrs.start_date.unwrap_or(self.start_date),
+                update_attrs.end_date.unwrap_or(self.end_date),
+            ),
+        );
+        validation_errors = validators::append_validation_error(
+            validation_errors,
+            "discount_in_cents",
+            Code::discount_present_for_discount_type(
+                self.code_type.clone(),
+                update_attrs
+                    .discount_in_cents
+                    .unwrap_or(self.discount_in_cents),
+            ),
         );
         validation_errors = validators::append_validation_error(
             validation_errors,
             "redemption_code",
-            unique_redemption_code,
+            redemption_code_unique_per_event_validation(
+                Some(self.id),
+                "codes".into(),
+                update_attrs
+                    .redemption_code
+                    .clone()
+                    .unwrap_or(self.redemption_code.clone()),
+                conn,
+            )?,
         );
 
         Ok(validation_errors?)
@@ -291,7 +312,7 @@ pub struct NewCode {
     #[validate(length(min = "6"))]
     pub redemption_code: String,
     pub max_uses: i64,
-    pub discount_in_cents: i64,
+    pub discount_in_cents: Option<i64>,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub max_tickets_per_user: Option<i64>,
@@ -309,24 +330,28 @@ impl NewCode {
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut validation_errors = self.validate();
-        let codes_start_date_prior_to_end_date =
-            Code::codes_start_date_prior_to_end_date(self.start_date, self.end_date);
-        let unique_redemption_code = redemption_code_unique_per_event_validation(
-            None,
-            "codes".into(),
-            self.redemption_code.clone(),
-            conn,
-        )?;
-
         validation_errors = validators::append_validation_error(
             validation_errors,
             "start_date",
-            codes_start_date_prior_to_end_date,
+            Code::codes_start_date_prior_to_end_date(self.start_date, self.end_date),
+        );
+        validation_errors = validators::append_validation_error(
+            validation_errors,
+            "discount_in_cents",
+            Code::discount_present_for_discount_type(
+                self.code_type.clone(),
+                self.discount_in_cents,
+            ),
         );
         validation_errors = validators::append_validation_error(
             validation_errors,
             "redemption_code",
-            unique_redemption_code,
+            redemption_code_unique_per_event_validation(
+                None,
+                "codes".into(),
+                self.redemption_code.clone(),
+                conn,
+            )?,
         );
 
         Ok(validation_errors?)

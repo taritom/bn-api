@@ -39,7 +39,7 @@ table! {
         code_type -> Text,
         redemption_code -> Text,
         max_uses -> Int8,
-        discount_in_cents -> Int8,
+        discount_in_cents -> Nullable<Int8>,
         start_date -> Timestamp,
         end_date -> Timestamp,
         max_tickets_per_user -> Nullable<Int8>,
@@ -186,6 +186,7 @@ table! {
         parent_id -> Nullable<Uuid>,
         hold_id -> Nullable<Uuid>,
         comp_id -> Nullable<Uuid>,
+        code_id -> Nullable<Uuid>,
     }
 }
 
@@ -200,7 +201,6 @@ table! {
         version -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        code_id -> Nullable<Uuid>,
     }
 }
 
@@ -220,6 +220,16 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         owner_user_id -> Uuid,
@@ -234,16 +244,6 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Uuid,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -300,7 +300,6 @@ table! {
         status -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        code_id -> Nullable<Uuid>,
     }
 }
 
@@ -411,6 +410,7 @@ joinable!(external_logins -> users (user_id));
 joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
 joinable!(holds -> events (event_id));
 joinable!(holds -> ticket_types (ticket_type_id));
+joinable!(order_items -> codes (code_id));
 joinable!(order_items -> comps (comp_id));
 joinable!(order_items -> events (event_id));
 joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
@@ -418,7 +418,6 @@ joinable!(order_items -> holds (hold_id));
 joinable!(order_items -> orders (order_id));
 joinable!(order_items -> ticket_pricing (ticket_pricing_id));
 joinable!(order_items -> ticket_types (ticket_type_id));
-joinable!(orders -> codes (code_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
@@ -428,7 +427,6 @@ joinable!(payment_methods -> users (user_id));
 joinable!(payments -> orders (order_id));
 joinable!(payments -> users (created_by));
 joinable!(ticket_instances -> assets (asset_id));
-joinable!(ticket_instances -> codes (code_id));
 joinable!(ticket_instances -> holds (hold_id));
 joinable!(ticket_instances -> order_items (order_item_id));
 joinable!(ticket_instances -> wallets (wallet_id));
@@ -457,8 +455,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     payment_methods,
     payments,
     regions,

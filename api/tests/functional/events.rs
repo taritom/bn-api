@@ -8,6 +8,8 @@ use chrono::NaiveDateTime;
 use diesel::PgConnection;
 use functional::base;
 use serde_json;
+use serde_json::Value;
+use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -42,6 +44,9 @@ pub fn index() {
         events::index((database.connection.into(), parameters, None)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
+
+    let mut expected_tags: HashMap<String, Value> = HashMap::new();
+    expected_tags.insert("query".to_string(), json!("New"));
     let wrapped_expected_events = Payload {
         data: expected_results,
         paging: Paging {
@@ -50,10 +55,7 @@ pub fn index() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: vec![SearchParam {
-                name: "query".to_string(),
-                values: vec!["New".to_string()],
-            }],
+            tags: expected_tags,
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
@@ -98,6 +100,9 @@ pub fn index_with_draft_for_organization_user() {
         events::index((database.connection.into(), parameters, Some(auth_user))).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
+
+    let mut expected_tags: HashMap<String, Value> = HashMap::new();
+    expected_tags.insert("query".to_string(), json!("New"));
     let wrapped_expected_events = Payload {
         data: expected_results,
         paging: Paging {
@@ -106,10 +111,7 @@ pub fn index_with_draft_for_organization_user() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: vec![SearchParam {
-                name: "query".to_string(),
-                values: vec!["New".to_string()],
-            }],
+            tags: expected_tags,
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
@@ -147,6 +149,8 @@ pub fn index_with_draft_for_user_ignores_drafts() {
         events::index((database.connection.into(), parameters, Some(auth_user))).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
+    let mut expected_tags: HashMap<String, Value> = HashMap::new();
+    expected_tags.insert("query".to_string(), json!("New"));
     let wrapped_expected_events = Payload {
         data: expected_results,
         paging: Paging {
@@ -155,10 +159,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 1,
-            tags: vec![SearchParam {
-                name: "query".to_string(),
-                values: vec!["New".to_string()],
-            }],
+            tags: expected_tags,
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
@@ -207,6 +208,8 @@ pub fn index_search_with_filter() {
         events::index((database.connection.into(), parameters, None)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
+    let mut expected_tags: HashMap<String, Value> = HashMap::new();
+    expected_tags.insert("query".to_string(), json!("NewEvent1"));
     let wrapped_expected_events = Payload {
         data: expected_events,
         paging: Paging {
@@ -215,10 +218,7 @@ pub fn index_search_with_filter() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 1,
-            tags: vec![SearchParam {
-                name: "query".to_string(),
-                values: vec!["NewEvent1".to_string()],
-            }],
+            tags: expected_tags,
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
@@ -456,23 +456,23 @@ mod guest_list_tests {
 }
 
 #[cfg(test)]
-mod discounts_tests {
+mod codes_tests {
     use super::*;
     #[test]
-    fn discounts_org_member() {
-        base::events::discounts(Roles::OrgMember, true);
+    fn codes_org_member() {
+        base::events::codes(Roles::OrgMember, true);
     }
     #[test]
-    fn discounts_admin() {
-        base::events::discounts(Roles::Admin, true);
+    fn codes_admin() {
+        base::events::codes(Roles::Admin, true);
     }
     #[test]
-    fn discounts_user() {
-        base::events::discounts(Roles::User, false);
+    fn codes_user() {
+        base::events::codes(Roles::User, false);
     }
     #[test]
-    fn discounts_org_owner() {
-        base::events::discounts(Roles::OrgOwner, true);
+    fn codes_org_owner() {
+        base::events::codes(Roles::OrgOwner, true);
     }
 }
 
@@ -533,7 +533,7 @@ pub fn show_from_organizations() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
@@ -588,7 +588,7 @@ pub fn show_from_venues() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();

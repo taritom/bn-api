@@ -1,6 +1,6 @@
 use actix_web::HttpResponse;
 use actix_web::ResponseError;
-use bigneon_db::utils::errors::DatabaseError;
+use bigneon_db::utils::errors::*;
 use diesel::result::Error as DieselError;
 use errors::AuthError;
 use errors::*;
@@ -17,6 +17,12 @@ pub struct BigNeonError(Box<ConvertToWebError + Send + Sync>);
 
 impl From<DatabaseError> for BigNeonError {
     fn from(e: DatabaseError) -> Self {
+        BigNeonError(Box::new(e))
+    }
+}
+
+impl From<EnumParseError> for BigNeonError {
+    fn from(e: EnumParseError) -> Self {
         BigNeonError(Box::new(e))
     }
 }

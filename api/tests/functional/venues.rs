@@ -4,6 +4,7 @@ use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use functional::base;
 use serde_json;
+use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -54,7 +55,7 @@ fn index_with_org_linked_and_private_venues() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 3,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();
@@ -92,7 +93,7 @@ fn index_with_org_linked_and_private_venues() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 4,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();
@@ -311,7 +312,7 @@ pub fn show_from_organizations_private_venue_same_org() {
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
-            tags: Vec::new(),
+            tags: HashMap::new(),
         },
     };
     let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();

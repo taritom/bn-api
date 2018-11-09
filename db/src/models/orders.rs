@@ -27,7 +27,6 @@ pub struct Order {
     pub version: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-    pub code_id: Option<Uuid>,
 }
 
 #[derive(Insertable)]
@@ -37,7 +36,6 @@ pub struct NewOrder {
     status: String,
     expires_at: NaiveDateTime,
     order_type: String,
-    code_id: Option<Uuid>,
 }
 
 impl NewOrder {
@@ -54,12 +52,6 @@ impl NewOrder {
 }
 
 impl Order {
-    pub fn code(&self, conn: &PgConnection) -> Result<Option<Code>, DatabaseError> {
-        self.code_id
-            .map(|code_id| Code::find(code_id, conn))
-            .map_or(Ok(None), |d| d.map(Some))
-    }
-
     pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
         let cart_user: Option<User> = users::table
             .filter(users::last_cart_id.eq(self.id))
@@ -249,6 +241,7 @@ impl Order {
                                 unit_price_in_cents: ticket_pricing.price_in_cents,
                                 comp_id: *comp_id,
                                 hold_id: *hold_id,
+                                code_id: None,
                             }.commit(conn)?;
                             TicketInstance::reserve_tickets(
                                 &order_item,
@@ -298,6 +291,7 @@ impl Order {
                 unit_price_in_cents: ticket_pricing.price_in_cents,
                 comp_id,
                 hold_id,
+                code_id: None,
             }.commit(conn)?;
 
             TicketInstance::reserve_tickets(
@@ -618,19 +612,6 @@ impl Order {
         diesel::update(&*self)
             .set((
                 orders::status.eq(&self.status),
-                orders::updated_at.eq(dsl::now),
-            )).execute(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
-
-        Ok(())
-    }
-
-    pub fn set_code(&mut self, code: &Code, conn: &PgConnection) -> Result<(), DatabaseError> {
-        // TODO: Recalculate pricing, etc.
-        self.code_id = Some(code.id);
-        diesel::update(&*self)
-            .set((
-                orders::code_id.eq(&self.code_id),
                 orders::updated_at.eq(dsl::now),
             )).execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update order")?;

@@ -1,5 +1,6 @@
 use std::fmt;
 use std::str::FromStr;
+use utils::errors::EnumParseError;
 
 macro_rules! string_enum {
     ($name:ident [$($value:ident),+]) => {
@@ -23,14 +24,18 @@ macro_rules! string_enum {
             }
 
             impl FromStr for $name {
-                type Err = &'static str;
+                type Err = EnumParseError;
 
-                fn from_str(s: &str) -> Result<Self, &'static str> {
+                fn from_str(s: &str) -> Result<Self, Self::Err> {
                     match s {
                         $(
                           stringify!($value) => Ok($name::$value),
                          )*
-                          _ => Err("Could not parse value")
+                          _ => Err(EnumParseError {
+                              message: "Could not parse value".to_string(),
+                              enum_type: stringify!($name).to_string(),
+                              value: s.to_string(),
+                          })
                     }
                 }
             }
@@ -38,7 +43,7 @@ macro_rules! string_enum {
 }
 
 string_enum! { AssetStatus [Unsynced] }
-string_enum! { CodeTypes [Discount] }
+string_enum! { CodeTypes [Access, Discount] }
 string_enum! { DomainEventTypes [PaymentCreated, PaymentCompleted, PaymentMethodCreated, PaymentMethodUpdated]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { HoldTypes [Discount, Comp] }
