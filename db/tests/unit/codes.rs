@@ -55,7 +55,10 @@ pub fn create_with_validation_errors() {
 
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
-                assert_eq!(errors["start_date"][0].code, "invalid_start_date");
+                assert_eq!(
+                    errors["start_date"][0].code,
+                    "start_date_must_be_before_end_date"
+                );
 
                 assert!(errors.contains_key("discount_in_cents"));
                 assert_eq!(errors["discount_in_cents"].len(), 1);
@@ -180,7 +183,10 @@ pub fn update_with_validation_errors() {
 
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
-                assert_eq!(errors["start_date"][0].code, "invalid_start_date");
+                assert_eq!(
+                    errors["start_date"][0].code,
+                    "start_date_must_be_before_end_date"
+                );
 
                 assert!(errors.contains_key("discount_in_cents"));
                 assert_eq!(errors["discount_in_cents"].len(), 1);

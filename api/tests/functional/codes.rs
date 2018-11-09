@@ -105,8 +105,8 @@ fn create_with_validation_errors() {
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
-    let start_date = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
-    let end_date = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
+    let start_date = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(1));
+    let end_date = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));
     let json = Json(CreateCodeRequest {
         name: "Code Example".into(),
         redemption_code: "a".into(),
@@ -133,6 +133,7 @@ fn create_with_validation_errors() {
         "error": "Validation error",
         "fields":{
             "redemption_code":[{"code":"length","message":null,"params":{"min": 6, "value":"a"}}],
+            "start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
         }
     }).to_string();
     assert_eq!(body, expected_json);
@@ -198,8 +199,12 @@ fn update_with_validation_errors() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = code.id;
 
+    let start_date = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(1));
+    let end_date = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));
     let json = Json(UpdateCodeRequest {
         redemption_code: Some("a".into()),
+        start_date: Some(start_date),
+        end_date: Some(end_date),
         ..Default::default()
     });
 
@@ -213,6 +218,7 @@ fn update_with_validation_errors() {
         "error": "Validation error",
         "fields":{
             "redemption_code":[{"code":"length","message":null,"params":{"min": 6, "value":"a"}}],
+            "start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
         }
     }).to_string();
     assert_eq!(body, expected_json);

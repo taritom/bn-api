@@ -1,5 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
+use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::NaiveDate;
 use diesel::result::Error;
 use diesel::Connection;
@@ -19,6 +20,41 @@ fn create() {
 
     assert_eq!(ticket_type.event_id, event.id);
     assert_eq!(ticket_type.name, "VIP".to_string())
+}
+
+#[test]
+pub fn create_with_validation_errors() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().finish();
+    let wallet_id = event.issuer_wallet(connection).unwrap().id;
+    let start_date = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let end_date = NaiveDate::from_ymd(2016, 6, 9).and_hms(4, 10, 11);
+    let result = event.add_ticket_type(
+        "VIP".to_string(),
+        100,
+        start_date,
+        end_date,
+        wallet_id,
+        None,
+        connection,
+    );
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("start_date"));
+                assert_eq!(errors["start_date"].len(), 1);
+                assert_eq!(
+                    errors["start_date"][0].code,
+                    "start_date_must_be_before_end_date"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 }
 
 #[test]
@@ -70,7 +106,7 @@ fn create_large_amount() {
 }
 
 #[test]
-fn validate_record() {
+fn validate_ticket_pricing() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
     let ticket_type = &event.ticket_types(project.get_connection()).unwrap()[0];
@@ -100,7 +136,7 @@ fn validate_record() {
     project
         .get_connection()
         .transaction::<(), Error, _>(|| {
-            let validation_results = ticket_type.validate_record(project.get_connection());
+            let validation_results = ticket_type.validate_ticket_pricing(project.get_connection());
             assert!(validation_results.is_err());
             let error = validation_results.unwrap_err();
             match &error.error_code {
@@ -129,7 +165,7 @@ fn validate_record() {
                 .unwrap();
 
             ticket_type
-                .validate_record(project.get_connection())
+                .validate_ticket_pricing(project.get_connection())
                 .unwrap();
             Err(Error::RollbackTransaction)
         }).unwrap_err();
@@ -142,7 +178,7 @@ fn validate_record() {
         .unwrap();
 
     ticket_type
-        .validate_record(project.get_connection())
+        .validate_ticket_pricing(project.get_connection())
         .unwrap();
 }
 
@@ -199,6 +235,41 @@ fn update() {
     assert_eq!(updated_ticket_type.name, update_name);
     assert_eq!(updated_ticket_type.start_date, update_start_date);
     assert_eq!(updated_ticket_type.end_date, update_end_date);
+}
+
+#[test]
+pub fn update_with_validation_errors() {
+    let db = TestProject::new();
+    let connection = db.get_connection();
+    let event = db.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    //Change editable parameter and submit ticket type update request
+    let update_name = String::from("updated_event_name");
+    let update_start_date = NaiveDate::from_ymd(2018, 6, 23).and_hms(5, 14, 18);
+    let update_end_date = NaiveDate::from_ymd(2018, 4, 1).and_hms(8, 5, 34);
+    let update_parameters = TicketTypeEditableAttributes {
+        name: Some(update_name.clone()),
+        start_date: Some(update_start_date),
+        end_date: Some(update_end_date),
+        ..Default::default()
+    };
+    let result = ticket_type.update(update_parameters, connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("start_date"));
+                assert_eq!(errors["start_date"].len(), 1);
+                assert_eq!(
+                    errors["start_date"][0].code,
+                    "start_date_must_be_before_end_date"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 }
 
 #[test]

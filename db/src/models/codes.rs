@@ -204,19 +204,6 @@ impl Code {
             .to_db_error(ErrorCode::QueryError, "Cannot find for events")
     }
 
-    pub fn codes_start_date_prior_to_end_date(
-        start_date: NaiveDateTime,
-        end_date: NaiveDateTime,
-    ) -> Result<(), ValidationError> {
-        if start_date > end_date {
-            let mut validation_error = ValidationError::new("invalid_start_date");
-            validation_error.add_param(Cow::from("start_date"), &start_date);
-            validation_error.add_param(Cow::from("end_date"), &end_date);
-            return Err(validation_error);
-        }
-        Ok(())
-    }
-
     pub fn discount_present_for_discount_type(
         code_type: String,
         discount_in_cents: Option<i64>,
@@ -240,7 +227,7 @@ impl Code {
         validation_errors = validators::append_validation_error(
             validation_errors,
             "start_date",
-            Code::codes_start_date_prior_to_end_date(
+            validators::start_date_valid(
                 update_attrs.start_date.unwrap_or(self.start_date),
                 update_attrs.end_date.unwrap_or(self.end_date),
             ),
@@ -330,11 +317,7 @@ impl NewCode {
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut validation_errors = self.validate();
-        validation_errors = validators::append_validation_error(
-            validation_errors,
-            "start_date",
-            Code::codes_start_date_prior_to_end_date(self.start_date, self.end_date),
-        );
+
         validation_errors = validators::append_validation_error(
             validation_errors,
             "discount_in_cents",
@@ -342,6 +325,11 @@ impl NewCode {
                 self.code_type.clone(),
                 self.discount_in_cents,
             ),
+        );
+        validation_errors = validators::append_validation_error(
+            validation_errors,
+            "start_date",
+            validators::start_date_valid(self.start_date, self.end_date),
         );
         validation_errors = validators::append_validation_error(
             validation_errors,

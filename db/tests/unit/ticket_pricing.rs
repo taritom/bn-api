@@ -1,9 +1,7 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::{TicketPricing, TicketPricingEditableAttributes, TicketType};
-use bigneon_db::utils::errors::{self, *};
+use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::NaiveDate;
-use diesel::result::Error;
-use diesel::Connection;
 
 #[test]
 fn create() {
@@ -105,7 +103,7 @@ fn ticket_pricing_no_overlapping_periods() {
 }
 
 #[test]
-fn validate_new() {
+fn create_with_validation_errors() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
     let ticket_type = &event.ticket_types(project.get_connection()).unwrap()[0];
@@ -130,23 +128,23 @@ fn validate_new() {
         100,
     );
 
-    // Invalid start date validation
-    project
-        .get_connection()
-        .transaction::<(), Error, _>(|| {
-            let result = ticket_pricing.clone().commit(project.get_connection());
-            assert!(result.is_err());
-            let errors = result.unwrap_err();
-            assert_eq!(
-                errors.code,
-                errors::get_error_message(&ErrorCode::InsertError).0
-            );
-            assert_eq!(
-                errors.cause,
-                Some("Could not create ticket pricing, new row for relation \"ticket_pricing\" violates check constraint \"ticket_pricing_start_date_prior_to_end_date\"".into())
-            );
-            Err(Error::RollbackTransaction)
-        }).unwrap_err();
+    let result = ticket_pricing.clone().commit(project.get_connection());
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("ticket_pricing.start_date"));
+                assert_eq!(errors["ticket_pricing.start_date"].len(), 1);
+                assert_eq!(
+                    errors["ticket_pricing.start_date"][0].code,
+                    "start_date_must_be_before_end_date"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 
     // Period without start date validation
     ticket_pricing.start_date = end_date1;
@@ -156,7 +154,7 @@ fn validate_new() {
 }
 
 #[test]
-fn validate_existing() {
+fn update_with_validation_errors() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
     let ticket_type = &event.ticket_types(project.get_connection()).unwrap()[0];
@@ -180,40 +178,33 @@ fn validate_existing() {
         100,
     ).commit(project.get_connection())
     .unwrap();
+
     let mut ticket_pricing_parameters: TicketPricingEditableAttributes = Default::default();
+    ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11));
+    ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11));
+    let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("ticket_pricing.start_date"));
+                assert_eq!(errors["ticket_pricing.start_date"].len(), 1);
+                assert_eq!(
+                    errors["ticket_pricing.start_date"][0].code,
+                    "start_date_must_be_before_end_date"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 
-    // Invalid start date validation
-    project
-        .get_connection()
-        .transaction::<(), Error, _>(|| {
-            ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11));
-            ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11));
-            let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
-            assert!(result.is_err());
-            let errors = result.unwrap_err();
-            assert_eq!(
-                errors.code,
-                errors::get_error_message(&ErrorCode::UpdateError).0
-            );
-            assert_eq!(
-                errors.cause,
-                Some("Could not update ticket_pricing, new row for relation \"ticket_pricing\" violates check constraint \"ticket_pricing_start_date_prior_to_end_date\"".into())
-            );
-            Err(Error::RollbackTransaction)
-        }).unwrap_err();
-
-    // Period without start date validation
-    project
-        .get_connection()
-        .transaction::<(), Error, _>(|| {
-            ticket_pricing_parameters.start_date = Some(end_date1);
-            ticket_pricing_parameters.end_date =
-                Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
-            let result =
-                ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
-            assert!(result.is_ok());
-            Err(Error::RollbackTransaction)
-        }).unwrap_err();
+    // Updates without start date validation triggering
+    ticket_pricing_parameters.start_date = Some(end_date1);
+    ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
+    let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
+    assert!(result.is_ok());
 }
 
 #[test]

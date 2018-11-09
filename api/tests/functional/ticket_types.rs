@@ -75,6 +75,116 @@ mod index_tests {
 }
 
 #[test]
+pub fn create_with_validation_errors() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+    //Construct Ticket creation and pricing request
+    let test_request = TestRequest::create();
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+    let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
+    let start_date = NaiveDate::from_ymd(2018, 8, 1).and_hms(6, 20, 21);
+    let end_date = NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23);
+    let start_date2 = NaiveDate::from_ymd(2018, 7, 1).and_hms(6, 20, 21);
+    let end_date2 = NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23);
+    ticket_pricing.push(CreateTicketPricingRequest {
+        name: String::from("Early bird"),
+        price_in_cents: 10000,
+        start_date: start_date2,
+        end_date: end_date2,
+    });
+    let request_data = CreateTicketTypeRequest {
+        name: "VIP".into(),
+        capacity: 1000,
+        start_date,
+        end_date,
+        ticket_pricing,
+        increment: None,
+    };
+    let response: HttpResponse = ticket_types::create((
+        database.connection.into(),
+        path,
+        Json(request_data),
+        auth_user,
+        state,
+    )).into();
+
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
+
+    let expected_json = json!({
+        "error": "Validation error",
+        "fields":{
+            "start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
+        }
+    }).to_string();
+    assert_eq!(body, expected_json);
+}
+
+#[test]
+pub fn create_with_validation_errors_on_ticket_pricing() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+    //Construct Ticket creation and pricing request
+    let test_request = TestRequest::create();
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+    let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
+    let start_date = NaiveDate::from_ymd(2018, 7, 1).and_hms(6, 20, 21);
+    let end_date = NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23);
+    let start_date2 = NaiveDate::from_ymd(2018, 8, 1).and_hms(6, 20, 21);
+    let end_date2 = NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23);
+    ticket_pricing.push(CreateTicketPricingRequest {
+        name: String::from("Early bird"),
+        price_in_cents: 10000,
+        start_date: start_date2,
+        end_date: end_date2,
+    });
+    let request_data = CreateTicketTypeRequest {
+        name: "VIP".into(),
+        capacity: 1000,
+        start_date,
+        end_date,
+        ticket_pricing,
+        increment: None,
+    };
+    let response: HttpResponse = ticket_types::create((
+        database.connection.into(),
+        path,
+        Json(request_data),
+        auth_user,
+        state,
+    )).into();
+
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
+
+    let expected_json = json!({
+        "error": "Validation error",
+        "fields":{
+            "ticket_pricing.start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
+        }
+    }).to_string();
+    assert_eq!(body, expected_json);
+}
+
+#[test]
 pub fn create_with_overlapping_periods() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
@@ -193,6 +303,152 @@ pub fn update_with_invalid_id() {
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     assert!(response.error().is_some());
+}
+
+#[test]
+pub fn update_with_validation_errors() {
+    let database = TestDatabase::new();
+    let request = TestRequest::create();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    //Retrieve created ticket type and pricing
+    let created_ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
+    let created_ticket_capacity = created_ticket_type
+        .ticket_capacity(&database.connection)
+        .unwrap();
+    let created_ticket_pricing = created_ticket_type
+        .ticket_pricing(&database.connection)
+        .unwrap();
+
+    //Construct update request
+    let test_request =
+        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
+    path.event_id = event.id;
+    path.ticket_type_id = created_ticket_type.id;
+
+    let mut request_ticket_pricing: Vec<UpdateTicketPricingRequest> = Vec::new();
+    let start_date = Some(NaiveDate::from_ymd(2018, 7, 1).and_hms(6, 20, 21));
+    let end_date = Some(NaiveDate::from_ymd(2018, 6, 3).and_hms(9, 23, 23));
+    let start_date2 = Some(NaiveDate::from_ymd(2018, 5, 1).and_hms(6, 20, 21));
+    let end_date2 = Some(NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23));
+    request_ticket_pricing.push(UpdateTicketPricingRequest {
+        id: Some(created_ticket_pricing[1].id),
+        name: Some(String::from("Base")),
+        start_date: start_date2,
+        end_date: end_date2,
+        price_in_cents: Some(20000),
+    });
+    let request_data = UpdateTicketTypeRequest {
+        name: Some("Updated VIP".into()),
+        capacity: Some(created_ticket_capacity),
+        start_date,
+        end_date,
+        ticket_pricing: Some(request_ticket_pricing),
+        increment: None,
+    };
+
+    //Send update request
+    let response: HttpResponse = ticket_types::update((
+        database.connection.clone().into(),
+        path,
+        Json(request_data),
+        auth_user,
+        request.extract_state(),
+    )).into();
+
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
+
+    let expected_json = json!({
+        "error": "Validation error",
+        "fields":{
+            "start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
+        }
+    }).to_string();
+    assert_eq!(body, expected_json);
+}
+
+#[test]
+pub fn update_with_validation_errors_on_ticket_pricing() {
+    let database = TestDatabase::new();
+    let request = TestRequest::create();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    //Retrieve created ticket type and pricing
+    let created_ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
+    let created_ticket_capacity = created_ticket_type
+        .ticket_capacity(&database.connection)
+        .unwrap();
+    let created_ticket_pricing = created_ticket_type
+        .ticket_pricing(&database.connection)
+        .unwrap();
+
+    //Construct update request
+    let test_request =
+        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
+    path.event_id = event.id;
+    path.ticket_type_id = created_ticket_type.id;
+
+    let mut request_ticket_pricing: Vec<UpdateTicketPricingRequest> = Vec::new();
+    let start_date = Some(NaiveDate::from_ymd(2018, 5, 1).and_hms(6, 20, 21));
+    let end_date = Some(NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23));
+    let start_date2 = Some(NaiveDate::from_ymd(2018, 7, 1).and_hms(6, 20, 21));
+    let end_date2 = Some(NaiveDate::from_ymd(2018, 6, 3).and_hms(9, 23, 23));
+    request_ticket_pricing.push(UpdateTicketPricingRequest {
+        id: Some(created_ticket_pricing[1].id),
+        name: Some(String::from("Base")),
+        start_date: start_date2,
+        end_date: end_date2,
+        price_in_cents: Some(20000),
+    });
+    let request_data = UpdateTicketTypeRequest {
+        name: Some("Updated VIP".into()),
+        capacity: Some(created_ticket_capacity),
+        start_date,
+        end_date,
+        ticket_pricing: Some(request_ticket_pricing),
+        increment: None,
+    };
+
+    //Send update request
+    let response: HttpResponse = ticket_types::update((
+        database.connection.clone().into(),
+        path,
+        Json(request_data),
+        auth_user,
+        request.extract_state(),
+    )).into();
+
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
+
+    let expected_json = json!({
+        "error": "Validation error",
+        "fields":{
+            "ticket_pricing.start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
+        }
+    }).to_string();
+    assert_eq!(body, expected_json);
 }
 
 #[test]

@@ -3,7 +3,7 @@ CREATE TABLE ticket_types (
   event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   status TEXT NOT NULL,
-  start_date TIMESTAMP NOT NULL,
+  start_date TIMESTAMP NOT NULL CHECK (start_date < end_date),
   end_date TIMESTAMP NOT NULL,
   increment INT NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT now(),

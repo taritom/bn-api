@@ -76,6 +76,7 @@ impl TicketType {
         attributes: TicketTypeEditableAttributes,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
+        self.validate_record(&attributes)?;
         diesel::update(self)
             .set((attributes, ticket_types::updated_at.eq(dsl::now)))
             .get_result(conn)
@@ -105,8 +106,25 @@ impl TicketType {
             .to_db_error(ErrorCode::QueryError, "Could not find ticket type")
     }
 
-    pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn validate_record(
+        &self,
+        attributes: &TicketTypeEditableAttributes,
+    ) -> Result<(), DatabaseError> {
+        let validation_errors = validators::append_validation_error(
+            Ok(()),
+            "start_date",
+            validators::start_date_valid(
+                attributes.start_date.unwrap_or(self.start_date),
+                attributes.end_date.unwrap_or(self.end_date),
+            ),
+        );
+
+        Ok(validation_errors?)
+    }
+
+    pub fn validate_ticket_pricing(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut validation_errors: Result<(), ValidationErrors> = Ok(());
+
         for ticket_pricing in self.ticket_pricing(conn)? {
             validation_errors = validators::append_validation_error(
                 validation_errors,
@@ -255,9 +273,20 @@ pub struct NewTicketType {
 
 impl NewTicketType {
     pub fn commit(self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
+        self.validate_record()?;
         diesel::insert_into(ticket_types::table)
             .values(self)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create ticket type")
+    }
+
+    pub fn validate_record(&self) -> Result<(), DatabaseError> {
+        let validation_errors = validators::append_validation_error(
+            Ok(()),
+            "start_date",
+            validators::start_date_valid(self.start_date, self.end_date),
+        );
+
+        Ok(validation_errors?)
     }
 }

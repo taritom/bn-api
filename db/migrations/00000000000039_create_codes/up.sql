@@ -7,7 +7,7 @@ CREATE TABLE codes
     redemption_code TEXT NOT NULL CHECK (length(redemption_code) >= 6),
     max_uses BIGINT NOT NULL CHECK (max_uses > 0),
     discount_in_cents bigint NULL CHECK (code_type <> 'Discount' or discount_in_cents > 0),
-    start_date TIMESTAMP NOT NULL,
+    start_date TIMESTAMP NOT NULL CHECK (start_date < end_date),
     end_date TIMESTAMP NOT NULL,
     max_tickets_per_user BIGINT NULL CHECK (coalesce (max_tickets_per_user, 1) >= 0),
     created_at TIMESTAMP NOT NULL DEFAULT now(),

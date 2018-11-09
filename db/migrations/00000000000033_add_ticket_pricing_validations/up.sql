@@ -24,5 +24,3 @@ BEGIN
         )
     );
 END $$ LANGUAGE 'plpgsql';
-
-ALTER TABLE ticket_pricing ADD CONSTRAINT ticket_pricing_start_date_prior_to_end_date CHECK (start_date < end_date);

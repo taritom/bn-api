@@ -11,6 +11,7 @@ pub fn unauthorized_with_message(message: &str) -> Result<HttpResponse, BigNeonE
     let error: BigNeonError = AuthError {
         reason: message.to_string(),
     }.into();
+    // Error required for triggering middleware rollback
     Ok(HttpResponse::from_error(error.into())
         .into_builder()
         .status(StatusCode::UNAUTHORIZED)
@@ -22,6 +23,7 @@ pub fn forbidden(message: &str) -> Result<HttpResponse, BigNeonError> {
     let error: BigNeonError = AuthError {
         reason: message.to_string(),
     }.into();
+    // Error required for triggering middleware rollback
     Ok(HttpResponse::from_error(error.into())
         .into_builder()
         .status(StatusCode::FORBIDDEN)
@@ -33,6 +35,7 @@ pub fn unprocessable(message: &str) -> Result<HttpResponse, BigNeonError> {
     let error: BigNeonError = ApplicationError {
         reason: message.to_string(),
     }.into();
+    // Error required for triggering middleware rollback
     Ok(HttpResponse::from_error(error.into())
         .into_builder()
         .status(StatusCode::UNPROCESSABLE_ENTITY)
@@ -44,6 +47,7 @@ pub fn internal_server_error(message: &str) -> Result<HttpResponse, BigNeonError
     let error: BigNeonError = ApplicationError {
         reason: message.to_string(),
     }.into();
+    // Error required for triggering middleware rollback
     Ok(HttpResponse::from_error(error.into())
         .into_builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)

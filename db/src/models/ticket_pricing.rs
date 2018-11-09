@@ -9,6 +9,7 @@ use std::borrow::Cow;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
+use validators;
 
 sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp) -> Bool);
 
@@ -54,11 +55,27 @@ impl TicketPricing {
         }
     }
 
+    pub fn validate_record(
+        &self,
+        attributes: &TicketPricingEditableAttributes,
+    ) -> Result<(), DatabaseError> {
+        let validation_errors = validators::append_validation_error(
+            Ok(()),
+            "ticket_pricing.start_date",
+            validators::start_date_valid(
+                attributes.start_date.unwrap_or(self.start_date),
+                attributes.end_date.unwrap_or(self.end_date),
+            ),
+        );
+        Ok(validation_errors?)
+    }
+
     pub fn update(
         &self,
         attributes: TicketPricingEditableAttributes,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
+        self.validate_record(&attributes)?;
         diesel::update(self)
             .set((attributes, ticket_pricing::updated_at.eq(dsl::now)))
             .get_result(conn)
@@ -181,7 +198,17 @@ pub struct NewTicketPricing {
 }
 
 impl NewTicketPricing {
+    pub fn validate_record(&self) -> Result<(), DatabaseError> {
+        let validation_errors = validators::append_validation_error(
+            Ok(()),
+            "ticket_pricing.start_date",
+            validators::start_date_valid(self.start_date, self.end_date),
+        );
+        Ok(validation_errors?)
+    }
+
     pub fn commit(self, conn: &PgConnection) -> Result<TicketPricing, DatabaseError> {
+        self.validate_record()?;
         diesel::insert_into(ticket_pricing::table)
             .values(self)
             .get_result(conn)

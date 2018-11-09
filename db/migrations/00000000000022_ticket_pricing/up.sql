@@ -4,7 +4,7 @@ CREATE TABLE ticket_pricing (
   name TEXT NOT NULL,
   status TEXT NOT NULL,
   price_in_cents BIGINT NOT NULL,
-  start_date TIMESTAMP NOT NULL,
+  start_date TIMESTAMP NOT NULL CHECK (start_date < end_date),
   end_date TIMESTAMP NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT  NULL DEFAULT now()
@@ -12,4 +12,3 @@ CREATE TABLE ticket_pricing (
 
 -- Indices
 CREATE INDEX index_ticket_pricing_ticket_type_id ON ticket_pricing(ticket_type_id);
-
