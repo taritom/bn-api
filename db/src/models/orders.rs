@@ -182,96 +182,96 @@ impl Order {
             .items(conn)?
             .into_iter()
             .filter(|t| t.item_type() == OrderItemTypes::Tickets)
+        {
+            let mut index_to_remove: Option<usize> = None;
             {
-                let mut index_to_remove: Option<usize> = None;
-                {
-                    let matching_result: Vec<&(
-                        usize,
-                        Option<Uuid>,
-                        Option<Uuid>,
-                        &UpdateOrderItem,
-                    )> = mapped
-                        .iter()
-                        .filter(|i| {
-                            Some(i.3.ticket_type_id) == current_line.ticket_type_id
-                                && i.1 == current_line.hold_id
-                                && i.2 == current_line.comp_id
-                        }).collect();
-                    let matching_result = matching_result.first();
+                let matching_result: Vec<&(
+                    usize,
+                    Option<Uuid>,
+                    Option<Uuid>,
+                    &UpdateOrderItem,
+                )> = mapped
+                    .iter()
+                    .filter(|i| {
+                        Some(i.3.ticket_type_id) == current_line.ticket_type_id
+                            && i.1 == current_line.hold_id
+                            && i.2 == current_line.comp_id
+                    }).collect();
+                let matching_result = matching_result.first();
 
-                    if matching_result.is_some() {
-                        jlog!(Level::Debug, "Found an existing cart item, replacing");
-                        let (index, hold_id, comp_id, mut matching_line) = matching_result.unwrap();
-                        index_to_remove = Some(*index);
-                        if current_line.quantity as u32 > matching_line.quantity {
-                            jlog!(Level::Debug, "Reducing quantity of cart item");
-                            TicketInstance::release_tickets(
+                if matching_result.is_some() {
+                    jlog!(Level::Debug, "Found an existing cart item, replacing");
+                    let (index, hold_id, comp_id, mut matching_line) = matching_result.unwrap();
+                    index_to_remove = Some(*index);
+                    if current_line.quantity as u32 > matching_line.quantity {
+                        jlog!(Level::Debug, "Reducing quantity of cart item");
+                        TicketInstance::release_tickets(
+                            &current_line,
+                            current_line.quantity as u32 - matching_line.quantity,
+                            conn,
+                        )?;
+                        current_line.quantity = matching_line.quantity as i64;
+                        current_line.update(conn)?;
+                        if current_line.quantity == 0 {
+                            jlog!(Level::Debug, "Cart item has 0 quantity, deleting it");
+                            OrderItem::destroy(current_line.id, conn)?;
+                        }
+                    } else if (current_line.quantity as u32) < matching_line.quantity {
+                        jlog!(Level::Debug, "Increasing quantity of cart item");
+                        // Ticket pricing might have changed since we added the previous item.
+                        // In future we may want to use the ticket pricing at the time the order was created.
+
+                        // TODO: Fetch the ticket type and pricing in one go.
+                        let ticket_type_id = current_line.ticket_type_id.unwrap();
+                        let ticket_pricing =
+                            TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
+                        let ticket_type = TicketType::find(ticket_type_id, conn)?;
+
+                        // TODO: Move this to an external processer
+                        let fee_schedule_range = ticket_type
+                            .fee_schedule(conn)?
+                            .get_range(ticket_pricing.price_in_cents, conn)?;
+                        if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
+                            let order_item = NewTicketsOrderItem {
+                                order_id: self.id,
+                                item_type: OrderItemTypes::Tickets.to_string(),
+                                quantity: matching_line.quantity as i64,
+                                ticket_type_id: ticket_type.id,
+                                ticket_pricing_id: ticket_pricing.id,
+                                event_id: Some(ticket_type.event_id),
+                                fee_schedule_range_id: fee_schedule_range.id,
+                                unit_price_in_cents: ticket_pricing.price_in_cents,
+                                comp_id: *comp_id,
+                                hold_id: *hold_id,
+                                code_id: None,
+                            }.commit(conn)?;
+                            TicketInstance::reserve_tickets(
+                                &order_item,
+                                self.expires_at,
+                                ticket_type_id,
+                                *hold_id,
+                                matching_line.quantity - current_line.quantity as u32,
+                                conn,
+                            )?;
+                        } else {
+                            TicketInstance::reserve_tickets(
                                 &current_line,
-                                current_line.quantity as u32 - matching_line.quantity,
+                                self.expires_at,
+                                ticket_type_id,
+                                *hold_id,
+                                matching_line.quantity - current_line.quantity as u32,
                                 conn,
                             )?;
                             current_line.quantity = matching_line.quantity as i64;
                             current_line.update(conn)?;
-                            if current_line.quantity == 0 {
-                                jlog!(Level::Debug, "Cart item has 0 quantity, deleting it");
-                                OrderItem::destroy(current_line.id, conn)?;
-                            }
-                        } else if (current_line.quantity as u32) < matching_line.quantity {
-                            jlog!(Level::Debug, "Increasing quantity of cart item");
-                            // Ticket pricing might have changed since we added the previous item.
-                            // In future we may want to use the ticket pricing at the time the order was created.
-
-                            // TODO: Fetch the ticket type and pricing in one go.
-                            let ticket_type_id = current_line.ticket_type_id.unwrap();
-                            let ticket_pricing =
-                                TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
-                            let ticket_type = TicketType::find(ticket_type_id, conn)?;
-
-                            // TODO: Move this to an external processer
-                            let fee_schedule_range = ticket_type
-                                .fee_schedule(conn)?
-                                .get_range(ticket_pricing.price_in_cents, conn)?;
-                            if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
-                                let order_item = NewTicketsOrderItem {
-                                    order_id: self.id,
-                                    item_type: OrderItemTypes::Tickets.to_string(),
-                                    quantity: matching_line.quantity as i64,
-                                    ticket_type_id: ticket_type.id,
-                                    ticket_pricing_id: ticket_pricing.id,
-                                    event_id: Some(ticket_type.event_id),
-                                    fee_schedule_range_id: fee_schedule_range.id,
-                                    unit_price_in_cents: ticket_pricing.price_in_cents,
-                                    comp_id: *comp_id,
-                                    hold_id: *hold_id,
-                                    code_id: None,
-                                }.commit(conn)?;
-                                TicketInstance::reserve_tickets(
-                                    &order_item,
-                                    self.expires_at,
-                                    ticket_type_id,
-                                    *hold_id,
-                                    matching_line.quantity - current_line.quantity as u32,
-                                    conn,
-                                )?;
-                            } else {
-                                TicketInstance::reserve_tickets(
-                                    &current_line,
-                                    self.expires_at,
-                                    ticket_type_id,
-                                    *hold_id,
-                                    matching_line.quantity - current_line.quantity as u32,
-                                    conn,
-                                )?;
-                                current_line.quantity = matching_line.quantity as i64;
-                                current_line.update(conn)?;
-                            }
                         }
                     }
                 }
-                if index_to_remove.is_some() {
-                    mapped.remove(index_to_remove.unwrap());
-                }
             }
+            if index_to_remove.is_some() {
+                mapped.remove(index_to_remove.unwrap());
+            }
+        }
 
         for (_, hold_id, comp_id, new_line) in mapped {
             jlog!(Level::Debug, "Adding new cart items");
@@ -281,8 +281,8 @@ impl Order {
 
             println!("{:?}", ticket_type);
 
-            let _quantities_ordered = Order::quantity_for_user_for_event(&self.user_id, &ticket_type.event_id, &conn)?;
-
+            let _quantities_ordered =
+                Order::quantity_for_user_for_event(&self.user_id, &ticket_type.event_id, &conn)?;
 
             // TODO: Move this to an external processer
             let fee_schedule_range = ticket_type
@@ -310,11 +310,7 @@ impl Order {
                 new_line.quantity,
                 conn,
             )?;
-
-
         }
-
-
 
         self.update_fees(conn)?;
 
@@ -325,10 +321,10 @@ impl Order {
         select(exists(
             order_items::table.filter(order_items::order_id.eq(self.id)),
         )).get_result(conn)
-            .to_db_error(
-                errors::ErrorCode::QueryError,
-                "Could not check if order items exist",
-            )
+        .to_db_error(
+            errors::ErrorCode::QueryError,
+            "Could not check if order items exist",
+        )
     }
 
     pub fn update_fees(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -345,35 +341,35 @@ impl Order {
             .iter()
             .group_by(|i| i.event_id)
             .into_iter()
-            {
-                if event_id.is_none() {
-                    continue;
-                }
-                let event = Event::find(event_id.unwrap(), conn)?;
-                let organization = Organization::find(event.organization_id, conn)?;
-                for o in items {
-                    match o.item_type() {
-                        OrderItemTypes::Tickets => o.update_fees(conn)?,
-                        _ => {}
-                    }
-                }
-
-                let mut new_event_fee = NewFeesOrderItem {
-                    order_id: self.id,
-                    item_type: OrderItemTypes::EventFees.to_string(),
-                    event_id: Some(event.id),
-                    unit_price_in_cents: 0,
-                    quantity: 1,
-                    parent_id: None,
-                };
-                if event.fee_in_cents.is_some() {
-                    new_event_fee.unit_price_in_cents = event.fee_in_cents.unwrap();
-                    new_event_fee.commit(conn)?;
-                } else if organization.event_fee_in_cents.is_some() {
-                    new_event_fee.unit_price_in_cents = organization.event_fee_in_cents.unwrap();
-                    new_event_fee.commit(conn)?;
+        {
+            if event_id.is_none() {
+                continue;
+            }
+            let event = Event::find(event_id.unwrap(), conn)?;
+            let organization = Organization::find(event.organization_id, conn)?;
+            for o in items {
+                match o.item_type() {
+                    OrderItemTypes::Tickets => o.update_fees(conn)?,
+                    _ => {}
                 }
             }
+
+            let mut new_event_fee = NewFeesOrderItem {
+                order_id: self.id,
+                item_type: OrderItemTypes::EventFees.to_string(),
+                event_id: Some(event.id),
+                unit_price_in_cents: 0,
+                quantity: 1,
+                parent_id: None,
+            };
+            if event.fee_in_cents.is_some() {
+                new_event_fee.unit_price_in_cents = event.fee_in_cents.unwrap();
+                new_event_fee.commit(conn)?;
+            } else if organization.event_fee_in_cents.is_some() {
+                new_event_fee.unit_price_in_cents = organization.event_fee_in_cents.unwrap();
+                new_event_fee.commit(conn)?;
+            }
+        }
 
         Ok(())
     }
@@ -386,13 +382,11 @@ impl Order {
         0
     }
 
-
     pub fn quantity_for_user_for_event(
         user_id: &Uuid,
         event_id: &Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<ResultForTicketTypeTotal>, DatabaseError> {
-
         let query = r#"
             SELECT
                 order_items.ticket_type_id,
@@ -408,18 +402,16 @@ impl Order {
                 order_items.event_id,
                 order_items.ticket_type_id
         "#;
-        let order_items_for_user:Vec<ResultForTicketTypeTotal> = diesel::sql_query(query)
+        let order_items_for_user: Vec<ResultForTicketTypeTotal> = diesel::sql_query(query)
             .bind::<diesel::sql_types::Uuid, _>(user_id)
             .bind::<diesel::sql_types::Uuid, _>(event_id)
             .load::<ResultForTicketTypeTotal>(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
 
-
         println!("{:?}", order_items_for_user);
 
         Ok(order_items_for_user)
     }
-
 
     pub fn find_for_user_for_display(
         user_id: Uuid,
@@ -584,7 +576,7 @@ impl Order {
             orders::expires_at.eq(now_plus_one_day),
             orders::updated_at.eq(dsl::now),
         )).execute(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update order status")?;
+        .to_db_error(ErrorCode::UpdateError, "Could not update order status")?;
 
         let db_record = Order::find(self.id, conn)?;
 
@@ -696,7 +688,7 @@ impl Order {
             orders::version.eq(self.version + 1),
             orders::updated_at.eq(dsl::now),
         )).execute(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not lock order")?;
+        .to_db_error(ErrorCode::UpdateError, "Could not lock order")?;
         if rows_affected == 0 {
             return DatabaseError::concurrency_error(
                 "Could not lock order, another process has updated it",
@@ -709,10 +701,10 @@ impl Order {
 
 #[derive(QueryableByName, Deserialize, Serialize, Debug)]
 pub struct ResultForTicketTypeTotal {
-    #[sql_type="Nullable<dUuid>"]
+    #[sql_type = "Nullable<dUuid>"]
     ticket_type_id: Option<Uuid>,
-    #[sql_type="BigInt"]
-    total_quantity: i64
+    #[sql_type = "BigInt"]
+    total_quantity: i64,
 }
 
 #[derive(Deserialize, Serialize)]
