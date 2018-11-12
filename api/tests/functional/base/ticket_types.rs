@@ -47,6 +47,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         end_date,
         ticket_pricing,
         increment: None,
+        limit_per_person: Some(0),
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -124,6 +125,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         end_date,
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
+        limit_per_person: Some(0),
     };
     let request_json = serde_json::to_string(&request_data).unwrap();
 
@@ -169,6 +171,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         end_date: Some(updated_ticket_type.end_date),
         ticket_pricing: Some(new_ticket_pricing),
         increment: None,
+        limit_per_person: Some(0),
     };
     let updated_json = serde_json::to_string(&updated_data).unwrap();
 
