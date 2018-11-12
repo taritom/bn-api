@@ -39,18 +39,34 @@ fn new_artist_validate() {
     assert!(errors.contains_key("image_url"));
     assert_eq!(errors["image_url"].len(), 1);
     assert_eq!(errors["image_url"][0].code, "url");
+    assert_eq!(
+        &errors["image_url"][0].message.clone().unwrap().into_owned(),
+        "Image URL is invalid"
+    );
 
     assert!(errors.contains_key("youtube_video_urls"));
     assert_eq!(errors["youtube_video_urls"].len(), 1);
     assert_eq!(errors["youtube_video_urls"][0].code, "url");
+    assert_eq!(
+        &errors["youtube_video_urls"][0]
+            .message
+            .clone()
+            .unwrap()
+            .into_owned(),
+        "URL is invalid"
+    );
 
     assert!(errors.contains_key("website_url"));
     assert_eq!(errors["website_url"].len(), 1);
     assert_eq!(errors["website_url"][0].code, "url");
-
-    assert!(errors.contains_key("youtube_video_urls"));
-    assert_eq!(errors["youtube_video_urls"].len(), 1);
-    assert_eq!(errors["youtube_video_urls"][0].code, "url");
+    assert_eq!(
+        &errors["website_url"][0]
+            .message
+            .clone()
+            .unwrap()
+            .into_owned(),
+        "Website URL is invalid"
+    );
 }
 
 #[test]
@@ -68,10 +84,26 @@ fn artist_editable_attributes_validate() {
     assert!(errors.contains_key("website_url"));
     assert_eq!(errors["website_url"].len(), 1);
     assert_eq!(errors["website_url"][0].code, "url");
+    assert_eq!(
+        &errors["website_url"][0]
+            .message
+            .clone()
+            .unwrap()
+            .into_owned(),
+        "Website URL is invalid"
+    );
 
     assert!(errors.contains_key("youtube_video_urls"));
     assert_eq!(errors["youtube_video_urls"].len(), 1);
     assert_eq!(errors["youtube_video_urls"][0].code, "url");
+    assert_eq!(
+        &errors["youtube_video_urls"][0]
+            .message
+            .clone()
+            .unwrap()
+            .into_owned(),
+        "URL is invalid"
+    );
 }
 
 #[test]

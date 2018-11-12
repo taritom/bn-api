@@ -51,6 +51,14 @@ pub fn create_with_validation_errors() {
                     errors["start_date"][0].code,
                     "start_date_must_be_before_end_date"
                 );
+                assert_eq!(
+                    &errors["start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
+                );
             }
             _ => panic!("Expected validation error"),
         },
@@ -146,6 +154,14 @@ fn validate_ticket_pricing() {
                     assert_eq!(
                         errors["ticket_pricing"][0].code,
                         "ticket_pricing_overlapping_periods"
+                    );
+                    assert_eq!(
+                        &errors["ticket_pricing"][0]
+                            .message
+                            .clone()
+                            .unwrap()
+                            .into_owned(),
+                        "Ticket pricing dates overlap another ticket pricing period"
                     );
                 }
                 _ => panic!("Expected validation error"),
@@ -265,6 +281,14 @@ pub fn update_with_validation_errors() {
                 assert_eq!(
                     errors["start_date"][0].code,
                     "start_date_must_be_before_end_date"
+                );
+                assert_eq!(
+                    &errors["start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
                 );
             }
             _ => panic!("Expected validation error"),

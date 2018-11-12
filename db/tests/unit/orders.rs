@@ -130,6 +130,10 @@ fn add_tickets_with_increment() {
             assert!(errors.contains_key("quantity"));
             assert_eq!(errors["quantity"].len(), 1);
             assert_eq!(errors["quantity"][0].code, "quantity_invalid_increment");
+            assert_eq!(
+                &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                "Order item quantity invalid for ticket pricing increment"
+            );
         }
         _ => panic!("Expected validation error"),
     }
@@ -305,6 +309,10 @@ fn remove_tickets_with_increment() {
             assert!(errors.contains_key("quantity"));
             assert_eq!(errors["quantity"].len(), 1);
             assert_eq!(errors["quantity"][0].code, "quantity_invalid_increment");
+            assert_eq!(
+                &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                "Order item quantity invalid for ticket pricing increment"
+            );
         }
         _ => panic!("Expected validation error"),
     }

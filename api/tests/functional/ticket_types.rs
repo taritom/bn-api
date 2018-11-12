@@ -116,17 +116,19 @@ pub fn create_with_validation_errors() {
         state,
     )).into();
 
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
-
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let start_date_errors = validation_response.fields.get("start_date").unwrap();
+    assert_eq!(start_date_errors.len(), 1);
+    assert_eq!(
+        start_date_errors[0].code,
+        "start_date_must_be_before_end_date"
+    );
+    assert_eq!(
+        &start_date_errors[0].message.clone().unwrap().into_owned(),
+        "Start date must be before end date"
+    );
 }
 
 #[test]
@@ -171,17 +173,22 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         state,
     )).into();
 
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
-
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "ticket_pricing.start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let start_date_errors = validation_response
+        .fields
+        .get("ticket_pricing.start_date")
+        .unwrap();
+    assert_eq!(start_date_errors.len(), 1);
+    assert_eq!(
+        start_date_errors[0].code,
+        "start_date_must_be_before_end_date"
+    );
+    assert_eq!(
+        &start_date_errors[0].message.clone().unwrap().into_owned(),
+        "Start date must be before end date"
+    );
 }
 
 #[test]
@@ -231,16 +238,35 @@ pub fn create_with_overlapping_periods() {
         state,
     )).into();
 
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
-
-    #[derive(Deserialize)]
-    struct Response {
-        error: String,
-    }
-    let deserialized_response: Response = serde_json::from_str(&body).unwrap();
-    assert_eq!(deserialized_response.error, "Validation error");
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let ticket_pricing_errors = validation_response.fields.get("ticket_pricing").unwrap();
+    assert_eq!(ticket_pricing_errors.len(), 2);
+    assert_eq!(
+        ticket_pricing_errors[0].code,
+        "ticket_pricing_overlapping_periods"
+    );
+    assert_eq!(
+        &ticket_pricing_errors[0]
+            .message
+            .clone()
+            .unwrap()
+            .into_owned(),
+        "Ticket pricing dates overlap another ticket pricing period"
+    );
+    assert_eq!(
+        ticket_pricing_errors[1].code,
+        "ticket_pricing_overlapping_periods"
+    );
+    assert_eq!(
+        &ticket_pricing_errors[1]
+            .message
+            .clone()
+            .unwrap()
+            .into_owned(),
+        "Ticket pricing dates overlap another ticket pricing period"
+    );
 }
 
 #[test]
@@ -365,17 +391,19 @@ pub fn update_with_validation_errors() {
         request.extract_state(),
     )).into();
 
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
-
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let start_date_errors = validation_response.fields.get("start_date").unwrap();
+    assert_eq!(start_date_errors.len(), 1);
+    assert_eq!(
+        start_date_errors[0].code,
+        "start_date_must_be_before_end_date"
+    );
+    assert_eq!(
+        &start_date_errors[0].message.clone().unwrap().into_owned(),
+        "Start date must be before end date"
+    );
 }
 
 #[test]
@@ -438,17 +466,22 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
         request.extract_state(),
     )).into();
 
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
-
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "ticket_pricing.start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let start_date_errors = validation_response
+        .fields
+        .get("ticket_pricing.start_date")
+        .unwrap();
+    assert_eq!(start_date_errors.len(), 1);
+    assert_eq!(
+        start_date_errors[0].code,
+        "start_date_must_be_before_end_date"
+    );
+    assert_eq!(
+        &start_date_errors[0].message.clone().unwrap().into_owned(),
+        "Start date must be before end date"
+    );
 }
 
 #[test]

@@ -184,14 +184,14 @@ fn register_with_validation_errors() {
         users::register((database.connection.into(), json, request.extract_state())).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "email":[{"code":"email","message":null,"params":{"value":"bad-email"}}]
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let email = validation_response.fields.get("email").unwrap();
+    assert_eq!(email[0].code, "email");
+    assert_eq!(
+        &email[0].message.clone().unwrap().into_owned(),
+        "Email is invalid"
+    );
 }
 
 #[test]
@@ -389,16 +389,16 @@ pub fn update_current_user_with_validation_errors() {
 
     let response: HttpResponse =
         users::update_current_user((database.connection.into(), json, user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "email":[{"code":"email","message":null,"params":{"value":"bad-email"}}]
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let email = validation_response.fields.get("email").unwrap();
+    assert_eq!(email[0].code, "email");
+    assert_eq!(
+        &email[0].message.clone().unwrap().into_owned(),
+        "Email is invalid"
+    );
 }
 
 #[test]

@@ -43,6 +43,14 @@ fn create_with_validation_errors() {
                 assert!(errors.contains_key("user_email"));
                 assert_eq!(errors["user_email"].len(), 1);
                 assert_eq!(errors["user_email"][0].code, "email");
+                assert_eq!(
+                    &errors["user_email"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "User email is invalid"
+                );
             }
             _ => panic!("Expected validation error"),
         },

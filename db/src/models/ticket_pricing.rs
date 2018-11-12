@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
-use validators;
+use validators::{self, *};
 
 sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp) -> Bool);
 
@@ -100,8 +100,11 @@ impl TicketPricing {
             "Could not confirm periods do not overlap",
         )?;
         if !result {
-            let mut validation_error = ValidationError::new("ticket_pricing_overlapping_periods");
-            validation_error.add_param(Cow::from("id"), &id);
+            let mut validation_error = create_validation_error(
+                "ticket_pricing_overlapping_periods",
+                "Ticket pricing dates overlap another ticket pricing period",
+            );
+            validation_error.add_param(Cow::from("ticket_pricing_id"), &id);
             validation_error.add_param(Cow::from("ticket_type_id"), &ticket_type_id);
             validation_error.add_param(Cow::from("start_date"), &start_date);
             validation_error.add_param(Cow::from("end_date"), &end_date);

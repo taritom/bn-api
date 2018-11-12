@@ -15,7 +15,7 @@ use validator::Validate;
 pub struct NewUser {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
-    #[validate(email)]
+    #[validate(email(message = "Email is invalid"))]
     pub email: Option<String>,
     pub phone: Option<String>,
     pub hashed_pw: String,
@@ -63,16 +63,16 @@ pub struct DisplayUser {
 pub struct UserEditableAttributes {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
-    #[validate(email)]
+    #[validate(email(message = "Email is invalid"))]
     pub email: Option<String>,
     pub phone: Option<String>,
     pub active: Option<bool>,
     pub role: Option<Vec<String>>,
-    #[validate(url)]
+    #[validate(url(message = "Profile pic URL is invalid"))]
     pub profile_pic_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Thumb profile pic URL is invalid"))]
     pub thumb_profile_pic_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Cover photo URL is invalid"))]
     pub cover_photo_url: Option<String>,
 }
 

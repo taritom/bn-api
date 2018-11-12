@@ -270,16 +270,15 @@ fn update_with_increment_failure_invalid_quantity() {
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse =
         cart::update_cart((database.connection.into(), input, auth_user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "quantity":[{"code":"quantity_invalid_increment","message":null,"params":{}}]
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let quantity = validation_response.fields.get("quantity").unwrap();
+    assert_eq!(quantity[0].code, "quantity_invalid_increment");
+    assert_eq!(
+        &quantity[0].message.clone().unwrap().into_owned(),
+        "Order item quantity invalid for ticket pricing increment"
+    );
 }
 
 #[test]
@@ -607,16 +606,14 @@ fn remove_with_increment_failure_invalid_quantity() {
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response: HttpResponse =
         cart::update_cart((database.connection.clone().into(), input, auth_user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "quantity":[{"code":"quantity_invalid_increment","message":null,"params":{}}]
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let quantity = validation_response.fields.get("quantity").unwrap();
+    assert_eq!(quantity[0].code, "quantity_invalid_increment");
+    assert_eq!(
+        &quantity[0].message.clone().unwrap().into_owned(),
+        "Order item quantity invalid for ticket pricing increment"
+    );
 }
 
 #[test]

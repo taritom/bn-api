@@ -125,18 +125,22 @@ fn create_with_validation_errors() {
 
     let response: HttpResponse =
         codes::create((database.connection.into(), json, path, auth_user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "redemption_code":[{"code":"length","message":null,"params":{"min": 6, "value":"a"}}],
-            "start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let redemption_code = validation_response.fields.get("redemption_code").unwrap();
+    assert_eq!(redemption_code[0].code, "length");
+    assert_eq!(
+        &redemption_code[0].message.clone().unwrap().into_owned(),
+        "Redemption code must be at least 6 characters long"
+    );
+    let start_date = validation_response.fields.get("start_date").unwrap();
+    assert_eq!(start_date[0].code, "start_date_must_be_before_end_date");
+    assert_eq!(
+        &start_date[0].message.clone().unwrap().into_owned(),
+        "Start date must be before end date"
+    );
 }
 
 #[test]
@@ -171,17 +175,16 @@ fn create_fails_adding_ticket_type_id_from_other_event() {
 
     let response: HttpResponse =
         codes::create((database.connection.into(), json, path, auth_user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "ticket_type_id":[{"code":"invalid","message":null,"params":{"ticket_type_id": ticket_type_id}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let ticket_type_id = validation_response.fields.get("ticket_type_id").unwrap();
+    assert_eq!(ticket_type_id[0].code, "invalid");
+    assert_eq!(
+        &ticket_type_id[0].message.clone().unwrap().into_owned(),
+        "Ticket type not valid for code as it does not belong to same event"
+    );
 }
 
 #[test]
@@ -210,18 +213,22 @@ fn update_with_validation_errors() {
 
     let response: HttpResponse =
         codes::update((database.connection.into(), json, path, auth_user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "redemption_code":[{"code":"length","message":null,"params":{"min": 6, "value":"a"}}],
-            "start_date":[{"code":"start_date_must_be_before_end_date", "message":null,"params":{}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let redemption_code = validation_response.fields.get("redemption_code").unwrap();
+    assert_eq!(redemption_code[0].code, "length");
+    assert_eq!(
+        &redemption_code[0].message.clone().unwrap().into_owned(),
+        "Redemption code must be at least 6 characters long"
+    );
+    let start_date = validation_response.fields.get("start_date").unwrap();
+    assert_eq!(start_date[0].code, "start_date_must_be_before_end_date");
+    assert_eq!(
+        &start_date[0].message.clone().unwrap().into_owned(),
+        "Start date must be before end date"
+    );
 }
 
 #[test]
@@ -248,17 +255,16 @@ fn update_fails_adding_ticket_type_id_from_other_event() {
 
     let response: HttpResponse =
         codes::update((database.connection.into(), json, path, auth_user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "ticket_type_id":[{"code":"invalid","message":null,"params":{"ticket_type_id": ticket_type_id}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let ticket_type_id = validation_response.fields.get("ticket_type_id").unwrap();
+    assert_eq!(ticket_type_id[0].code, "invalid");
+    assert_eq!(
+        &ticket_type_id[0].message.clone().unwrap().into_owned(),
+        "Ticket type not valid for code as it does not belong to same event"
+    );
 }
 
 #[test]

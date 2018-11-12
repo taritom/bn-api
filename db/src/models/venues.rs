@@ -5,11 +5,13 @@ use diesel::prelude::*;
 use models::users::User;
 use models::{Organization, Region};
 use schema::{organization_users, organizations, venues};
+use std::borrow::Cow;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
-use validator::{ValidationError, ValidationErrors};
+use validator::ValidationErrors;
+use validators::*;
 
 #[derive(
     Clone,
@@ -227,34 +229,34 @@ impl Venue {
         let mut res = ValidationErrors::new();
 
         if self.address.is_none() {
-            res.add(
-                "venue.address",
-                ValidationError::new("Address is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "Address is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.address", validation_error);
         }
         if self.city.is_none() {
-            res.add(
-                "venue.city",
-                ValidationError::new("City is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "City is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.city", validation_error);
         }
         if self.country.is_none() {
-            res.add(
-                "venue.country",
-                ValidationError::new("Country is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "Country is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.country", validation_error);
         }
         if self.postal_code.is_none() {
-            res.add(
-                "venue.postal_code",
-                ValidationError::new("Postal code is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "Postal code is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.postal_code", validation_error);
         }
         if self.state.is_none() {
-            res.add(
-                "venue.state",
-                ValidationError::new("State is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "State is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.state", validation_error);
         }
         if !res.is_empty() {
             return Err(res);

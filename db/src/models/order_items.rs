@@ -6,12 +6,13 @@ use diesel::sql_types;
 use diesel::sql_types::{BigInt, Nullable, Text, Uuid as dUuid};
 use models::*;
 use schema::{order_items, ticket_instances};
+use std::borrow::Cow;
 use utils::errors;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use uuid::Uuid;
 use validator::*;
-use validators;
+use validators::{self, *};
 
 sql_function!(fn order_items_quantity_in_increments(item_type: Text, quantity: BigInt, ticket_pricing_id: Nullable<dUuid>) -> Bool);
 sql_function!(fn order_items_code_id_max_uses_valid(order_id: dUuid, code_id: dUuid) -> Bool);
@@ -169,7 +170,13 @@ impl OrderItem {
             "Could not confirm code_id valid for max tickets per user",
         )?;
         if !result {
-            return Ok(Err(ValidationError::new("max_tickets_per_user_reached")));
+            let mut validation_error = create_validation_error(
+                "max_tickets_per_user_reached",
+                "Redemption code maximum tickets limit exceeded",
+            );
+            validation_error.add_param(Cow::from("order_item_id"), &id);
+
+            return Ok(Err(validation_error));
         }
         Ok(Ok(()))
     }
@@ -192,7 +199,13 @@ impl OrderItem {
             "Could not confirm code_id valid for max uses",
         )?;
         if !result {
-            return Ok(Err(ValidationError::new("max_uses_reached")));
+            let mut validation_error = create_validation_error(
+                "max_uses_reached",
+                "Redemption code maximum uses limit exceeded",
+            );
+            validation_error.add_param(Cow::from("order_id"), &order_id);
+            validation_error.add_param(Cow::from("code_id"), &code_id);
+            return Ok(Err(validation_error));
         }
         Ok(Ok(()))
     }
@@ -221,7 +234,13 @@ impl OrderItem {
             "Could not confirm quantity increment valid",
         )?;
         if !result {
-            return Ok(Err(ValidationError::new("quantity_invalid_increment")));
+            let mut validation_error = create_validation_error(
+                "quantity_invalid_increment",
+                "Order item quantity invalid for ticket pricing increment",
+            );
+            validation_error.add_param(Cow::from("ticket_pricing_id"), &ticket_pricing_id);
+            validation_error.add_param(Cow::from("quantity"), &quantity);
+            return Ok(Err(validation_error));
         }
         Ok(Ok(()))
     }

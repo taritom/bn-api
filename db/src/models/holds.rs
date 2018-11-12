@@ -1,15 +1,19 @@
 use chrono::prelude::*;
 use diesel;
-use diesel::expression::dsl;
+use diesel::dsl::{self, select};
 use diesel::prelude::*;
+use diesel::sql_types::{Text, Uuid as dUuid};
 use models::*;
 use schema::holds;
-use utils::errors::*;
+use std::borrow::Cow;
+use utils::errors::{self, *};
 use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
 
-#[derive(Deserialize, Identifiable, Queryable, Serialize, PartialEq, Debug)]
+sql_function!(fn hold_can_change_type(id: dUuid, hold_type: Text) -> Bool);
+
+#[derive(Clone, Deserialize, Identifiable, Queryable, Serialize, PartialEq, Debug)]
 pub struct Hold {
     pub id: Uuid,
     pub name: String,
@@ -58,18 +62,45 @@ impl Hold {
         }
     }
 
+    fn hold_has_comps_in_use(
+        id: Uuid,
+        hold_type: String,
+        conn: &PgConnection,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        if hold_type == HoldTypes::Comp.to_string() {
+            return Ok(Ok(()));
+        }
+
+        let result = select(hold_can_change_type(id, hold_type))
+            .get_result::<bool>(conn)
+            .to_db_error(
+                errors::ErrorCode::UpdateError,
+                "Could not confirm if hold has used comps",
+            )?;
+        if !result {
+            let mut validation_error =
+                create_validation_error("comps_in_use", "Hold has comps used by order items");
+            validation_error.add_param(Cow::from("hold_id"), &id);
+            return Ok(Err(validation_error));
+        }
+        Ok(Ok(()))
+    }
+
     pub fn update(
         &self,
         mut update_attrs: UpdateHoldAttributes,
         conn: &PgConnection,
     ) -> Result<Hold, DatabaseError> {
         if update_attrs.hold_type == Some(HoldTypes::Comp.to_string()) {
-            // Remove discount and clear comps
+            // Remove discount
             update_attrs.discount_in_cents = Some(None);
-            Comp::destroy_from_hold(self.id, conn)?;
         }
 
         self.validate_record(&update_attrs, conn)?;
+        if update_attrs.hold_type == Some(HoldTypes::Comp.to_string()) {
+            // Passes validation so safe to destroy remaining unused comps
+            Comp::destroy_from_hold(self.id, conn)?;
+        }
         diesel::update(
             holds::table
                 .filter(holds::id.eq(self.id))
@@ -100,6 +131,18 @@ impl Hold {
     ) -> Result<(), DatabaseError> {
         let validation_errors = validators::append_validation_error(
             Ok(()),
+            "hold_type",
+            Hold::hold_has_comps_in_use(
+                self.id,
+                update_attrs
+                    .hold_type
+                    .clone()
+                    .unwrap_or(self.hold_type.clone()),
+                conn,
+            )?,
+        );
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
             "discount_in_cents",
             Hold::discount_in_cents_valid(
                 update_attrs
@@ -163,7 +206,16 @@ impl Hold {
     }
 
     pub fn destroy(self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        // Validate if hold eligible for deletion
+        validators::append_validation_error(
+            Ok(()),
+            "hold_type",
+            Hold::hold_has_comps_in_use(self.id, "".to_string(), conn)?,
+        )?;
+
+        Comp::destroy_from_hold(self.id, conn)?;
         self.set_quantity(0, conn)?;
+
         diesel::delete(holds::table.filter(holds::id.eq(self.id)))
             .execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Could not delete hold")?;
@@ -175,7 +227,9 @@ impl Hold {
         discount_in_cents: Option<i64>,
     ) -> Result<(), ValidationError> {
         if hold_type == HoldTypes::Discount.to_string() && discount_in_cents.is_none() {
-            return Err(ValidationError::new("required"));
+            let validation_error =
+                create_validation_error("required", "Discount required for hold type Discount");
+            return Err(validation_error);
         }
 
         Ok(())
@@ -184,13 +238,13 @@ impl Hold {
     pub fn set_quantity(&self, quantity: u32, conn: &PgConnection) -> Result<(), DatabaseError> {
         // Validate logic is not releasing already assigned comps
         if self.hold_type == HoldTypes::Comp.to_string() && self.comps_sum(conn)? > quantity {
-            validators::append_validation_error(
-                Ok(()),
-                "quantity",
-                Err(ValidationError::new(
-                    &"assigned_comp_count_greater_than_quantity",
-                )),
-            )?;
+            let mut validation_error = create_validation_error(
+                "assigned_comp_count_greater_than_quantity",
+                "Existing comp total quantity greater than new quantity",
+            );
+            validation_error.add_param(Cow::from("hold_id"), &self.id);
+
+            validators::append_validation_error(Ok(()), "quantity", Err(validation_error))?;
         }
 
         let (count, _available) = self.quantity(conn)?;
