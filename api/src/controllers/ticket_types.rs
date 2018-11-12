@@ -26,7 +26,7 @@ pub struct CreateTicketTypeRequest {
     pub end_date: NaiveDateTime,
     pub ticket_pricing: Vec<CreateTicketPricingRequest>,
     pub increment: Option<i32>,
-    pub limit_per_person: Option<i32>,
+    pub limit_per_person: i32,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -83,7 +83,7 @@ pub fn create(
         data.end_date,
         org_wallet.id,
         data.increment,
-        0,
+        data.limit_per_person,
         connection,
     )?;
     //Add each ticket pricing entry for newly created ticket type

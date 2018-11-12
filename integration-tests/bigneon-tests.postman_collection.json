@@ -1,8 +1,6 @@
 {
 	"info": {
-
-
-		"_postman_id": "96cd748f-171a-444d-ba80-00e229770f91",
+		"_postman_id": "a931b958-0d3f-4d01-9eb1-dd8d719f3381",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -953,14 +951,14 @@
 							"listen": "test",
 							"script": {
 								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 201\", function() {",
 									"    pm.response.to.have.status(201);",
 									"})",
 									"",
 									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);"
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -984,7 +982,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -1008,14 +1006,14 @@
 							"listen": "test",
 							"script": {
 								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 201\", function() {",
 									"    pm.response.to.have.status(201);",
 									"})",
 									"",
 									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);"
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -1039,7 +1037,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Standard\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Standard\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
