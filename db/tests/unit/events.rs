@@ -573,6 +573,7 @@ fn add_ticket_type() {
     let ticket_type = event
         .add_ticket_type(
             "General Admission".to_string(),
+            None,
             100,
             sd,
             ed,
@@ -596,6 +597,7 @@ fn ticket_types() {
     let ticket_type_ga = event
         .add_ticket_type(
             "General Admission".to_string(),
+            None,
             100,
             sd,
             ed,
@@ -604,7 +606,7 @@ fn ticket_types() {
             conn,
         ).unwrap();
     let ticket_type_vip = event
-        .add_ticket_type("VIP".to_string(), 100, sd, ed, wallet_id, None, conn)
+        .add_ticket_type("VIP".to_string(), None, 100, sd, ed, wallet_id, None, conn)
         .unwrap();
 
     let ticket_types = event.ticket_types(conn).unwrap();

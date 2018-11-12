@@ -21,6 +21,7 @@ pub struct TicketType {
     pub id: Uuid,
     pub event_id: Uuid,
     pub name: String,
+    pub description: Option<String>,
     status: String,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
@@ -33,6 +34,7 @@ pub struct TicketType {
 #[table_name = "ticket_types"]
 pub struct TicketTypeEditableAttributes {
     pub name: Option<String>,
+    pub description: Option<Option<String>>,
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
     pub increment: Option<i32>,
@@ -57,6 +59,7 @@ impl TicketType {
     pub fn create(
         event_id: Uuid,
         name: String,
+        description: Option<String>,
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
         increment: Option<i32>,
@@ -64,6 +67,7 @@ impl TicketType {
         NewTicketType {
             event_id,
             name,
+            description,
             status: TicketTypeStatus::Published.to_string(),
             start_date,
             end_date,
@@ -265,6 +269,7 @@ impl TicketType {
 pub struct NewTicketType {
     event_id: Uuid,
     name: String,
+    description: Option<String>,
     status: String,
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,

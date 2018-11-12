@@ -9,6 +9,7 @@ use uuid::Uuid;
 pub struct UserDisplayTicketType {
     pub id: Uuid,
     pub name: String,
+    pub description: Option<String>,
     pub status: String,
     pub quantity: u32,
     pub start_date: NaiveDateTime,
@@ -47,6 +48,7 @@ impl UserDisplayTicketType {
         Ok(UserDisplayTicketType {
             id: ticket_type.id,
             name: ticket_type.name.clone(),
+            description: ticket_type.description.clone(),
             status,
             start_date: ticket_type.start_date,
             end_date: ticket_type.end_date,

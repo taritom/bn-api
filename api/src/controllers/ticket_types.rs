@@ -21,6 +21,7 @@ pub struct CreateTicketPricingRequest {
 #[derive(Deserialize)]
 pub struct CreateTicketTypeRequest {
     pub name: String,
+    pub description: Option<String>,
     pub capacity: u32,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
@@ -40,6 +41,8 @@ pub struct UpdateTicketPricingRequest {
 #[derive(Deserialize, Serialize)]
 pub struct UpdateTicketTypeRequest {
     pub name: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    pub description: Option<Option<String>>,
     pub capacity: Option<u32>,
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
@@ -76,6 +79,7 @@ pub fn create(
     //Add new ticket type
     let ticket_type = event.add_ticket_type(
         data.name.clone(),
+        data.description.clone(),
         data.capacity,
         data.start_date,
         data.end_date,
@@ -243,6 +247,7 @@ pub fn update(
     //Update the editable attributes of the ticket type
     let update_parameters = TicketTypeEditableAttributes {
         name: data.name.clone(),
+        description: data.description.clone(),
         start_date: data.start_date,
         end_date: data.end_date,
         increment: data.increment,
