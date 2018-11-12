@@ -105,17 +105,16 @@ fn create_with_validation_errors() {
 
     let response: HttpResponse =
         holds::create((database.connection.into(), json, path, auth_user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "discount_in_cents":[{"code":"required","message":null,"params":{}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let discount_in_cents = validation_response.fields.get("discount_in_cents").unwrap();
+    assert_eq!(discount_in_cents[0].code, "required");
+    assert_eq!(
+        &discount_in_cents[0].message.clone().unwrap().into_owned(),
+        "Discount required for hold type Discount"
+    );
 }
 
 #[test]
@@ -145,17 +144,16 @@ fn update_with_validation_errors() {
 
     let response: HttpResponse =
         holds::update((database.connection.into(), json, path, auth_user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "discount_in_cents":[{"code":"required","message":null,"params":{}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let discount_in_cents = validation_response.fields.get("discount_in_cents").unwrap();
+    assert_eq!(discount_in_cents[0].code, "required");
+    assert_eq!(
+        &discount_in_cents[0].message.clone().unwrap().into_owned(),
+        "Discount required for hold type Discount"
+    );
 }
 
 #[test]
@@ -187,17 +185,19 @@ pub fn add_remove_from_hold_with_validation_errors() {
 
     let response: HttpResponse =
         holds::add_remove_from_hold((database.connection.into(), json, path, auth_user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
-    let expected_json = json!({
-        "error": "Validation error",
-        "fields":{
-            "quantity":[{"code":"assigned_comp_count_greater_than_quantity","message":null,"params":{}}],
-        }
-    }).to_string();
-    assert_eq!(body, expected_json);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let quantity = validation_response.fields.get("quantity").unwrap();
+    assert_eq!(
+        quantity[0].code,
+        "assigned_comp_count_greater_than_quantity"
+    );
+    assert_eq!(
+        &quantity[0].message.clone().unwrap().into_owned(),
+        "Existing comp total quantity greater than new quantity"
+    );
 }
 
 #[test]

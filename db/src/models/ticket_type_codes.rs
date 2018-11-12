@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
-use validators;
+use validators::{self, *};
 
 sql_function!(fn ticket_type_code_ticket_type_id_valid(code_id: dUuid, ticket_type_id: dUuid) -> Bool);
 
@@ -93,11 +93,15 @@ impl TicketTypeCode {
         )).get_result::<bool>(conn)
         .to_db_error(
             ErrorCode::InsertError,
-            "Could not confirm if redemption code unique",
+            "Could not confirm if ticket type id valid for code",
         )?;
         if !result {
-            let mut validation_error = ValidationError::new("invalid");
+            let mut validation_error = create_validation_error(
+                "invalid",
+                "Ticket type not valid for code as it does not belong to same event",
+            );
             validation_error.add_param(Cow::from("ticket_type_id"), &ticket_type_id);
+            validation_error.add_param(Cow::from("code_id"), &code_id);
 
             return Ok(Err(validation_error));
         }

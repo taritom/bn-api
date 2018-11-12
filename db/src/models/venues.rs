@@ -2,13 +2,16 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use models::users::User;
 use models::{Organization, Region};
 use schema::{organization_users, organizations, venues};
+use std::borrow::Cow;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
-use validator::{ValidationError, ValidationErrors};
+use validator::ValidationErrors;
+use validators::*;
 
 #[derive(
     Clone,
@@ -123,21 +126,22 @@ impl Venue {
             .to_db_error(ErrorCode::QueryError, "Unable to load venues by ids")
     }
 
-    pub fn all(user_id: Option<Uuid>, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
-        let query = match user_id {
+    pub fn all(user: Option<&User>, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
+        let query = match user {
             Some(u) => venues::table
                 .left_join(
                     organization_users::table.on(venues::organization_id
                         .eq(organization_users::organization_id.nullable())
-                        .and(organization_users::user_id.eq(u))),
+                        .and(organization_users::user_id.eq(u.id))),
                 ).left_join(
                     organizations::table
                         .on(venues::organization_id.eq(organizations::id.nullable())),
                 ).filter(
                     organization_users::user_id
-                        .eq(u)
-                        .or(organizations::owner_user_id.eq(u))
-                        .or(venues::is_private.eq(false)),
+                        .eq(u.id)
+                        .or(organizations::owner_user_id.eq(u.id))
+                        .or(venues::is_private.eq(false))
+                        .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
                 ).order_by(venues::name)
                 .select(venues::all_columns)
                 .load(conn),
@@ -225,34 +229,34 @@ impl Venue {
         let mut res = ValidationErrors::new();
 
         if self.address.is_none() {
-            res.add(
-                "venue.address",
-                ValidationError::new("Address is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "Address is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.address", validation_error);
         }
         if self.city.is_none() {
-            res.add(
-                "venue.city",
-                ValidationError::new("City is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "City is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.city", validation_error);
         }
         if self.country.is_none() {
-            res.add(
-                "venue.country",
-                ValidationError::new("Country is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "Country is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.country", validation_error);
         }
         if self.postal_code.is_none() {
-            res.add(
-                "venue.postal_code",
-                ValidationError::new("Postal code is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "Postal code is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.postal_code", validation_error);
         }
         if self.state.is_none() {
-            res.add(
-                "venue.state",
-                ValidationError::new("State is required before publishing"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "State is required before publishing");
+            validation_error.add_param(Cow::from("venue_id"), &self.id);
+            res.add("venue.state", validation_error);
         }
         if !res.is_empty() {
             return Err(res);

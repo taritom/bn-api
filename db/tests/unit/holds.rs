@@ -3,7 +3,7 @@ use bigneon_db::models::*;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 
 #[test]
-pub fn create() {
+fn create() {
     let db = TestProject::new();
     let event = db.create_event().with_tickets().finish();
     Hold::create(
@@ -20,7 +20,7 @@ pub fn create() {
 }
 
 #[test]
-pub fn create_with_validation_errors() {
+fn create_with_validation_errors() {
     let db = TestProject::new();
     let event = db.create_event().with_tickets().finish();
     let result = Hold::create(
@@ -102,7 +102,7 @@ pub fn create_with_validation_errors() {
 }
 
 #[test]
-pub fn update() {
+fn update() {
     let db = TestProject::new();
     let hold = db.create_hold().finish();
 
@@ -121,8 +121,9 @@ pub fn update() {
 }
 
 #[test]
-pub fn update_with_validation_errors() {
+fn update_with_validation_errors() {
     let db = TestProject::new();
+    let connection = db.get_connection();
     let hold = db.create_hold().with_hold_type(HoldTypes::Comp).finish();
     assert!(hold.discount_in_cents.is_none());
 
@@ -130,7 +131,7 @@ pub fn update_with_validation_errors() {
         hold_type: Some(HoldTypes::Discount.to_string()),
         ..Default::default()
     };
-    let result = hold.update(update_patch, db.get_connection());
+    let result = hold.update(update_patch, connection);
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -151,7 +152,7 @@ pub fn update_with_validation_errors() {
         redemption_code: Some(hold2.redemption_code),
         ..Default::default()
     };
-    let result = hold.update(update_patch, db.get_connection());
+    let result = hold.update(update_patch, connection);
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -172,7 +173,7 @@ pub fn update_with_validation_errors() {
         redemption_code: Some(code.redemption_code),
         ..Default::default()
     };
-    let result = hold.update(update_patch, db.get_connection());
+    let result = hold.update(update_patch, connection);
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -186,10 +187,116 @@ pub fn update_with_validation_errors() {
             _ => panic!("Expected validation error"),
         },
     }
+
+    // Create and assign comp to active cart
+    let comp = db.create_comp().with_hold(&hold).finish();
+    let organization = db
+        .create_organization()
+        .with_fee_schedule(&db.create_fee_schedule().finish())
+        .finish();
+    let event = db
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = db.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    cart.update_quantities(
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: Some(comp.redemption_code),
+        }],
+        connection,
+    ).unwrap();
+
+    // Try to change out of Comp type
+    let update_patch = UpdateHoldAttributes {
+        hold_type: Some(HoldTypes::Discount.to_string()),
+        discount_in_cents: Some(Some(10)),
+        ..Default::default()
+    };
+    let result = hold.update(update_patch, connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("hold_type"));
+                assert_eq!(errors["hold_type"].len(), 1);
+                assert_eq!(errors["hold_type"][0].code, "comps_in_use");
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 }
 
 #[test]
-pub fn comps_and_sum() {
+fn destroy() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let hold = project.create_hold().finish();
+    assert!(hold.clone().destroy(connection).is_ok());
+    assert!(Code::find(hold.id, connection).is_err());
+
+    // Destroy hold with comps
+    let comp = project.create_comp().finish();
+    let hold = Hold::find(comp.hold_id, connection).unwrap();
+    hold.clone().destroy(connection).unwrap();
+    assert!(Code::find(hold.id, connection).is_err());
+}
+
+#[test]
+fn destroy_with_validation_errors() {
+    let db = TestProject::new();
+    let connection = db.get_connection();
+    // Create and assign comp to active cart
+    let comp = db.create_comp().finish();
+    let hold = Hold::find(comp.hold_id, connection).unwrap();
+    let organization = db
+        .create_organization()
+        .with_fee_schedule(&db.create_fee_schedule().finish())
+        .finish();
+    let event = db
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = db.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    cart.update_quantities(
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: Some(comp.redemption_code),
+        }],
+        connection,
+    ).unwrap();
+
+    // Try to destroy hold
+    let result = hold.destroy(connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("hold_type"));
+                assert_eq!(errors["hold_type"].len(), 1);
+                assert_eq!(errors["hold_type"][0].code, "comps_in_use");
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+}
+
+#[test]
+fn comps_and_sum() {
     let db = TestProject::new();
     let connection = db.get_connection();
     let hold1 = db.create_hold().with_hold_type(HoldTypes::Comp).finish();
@@ -229,7 +336,7 @@ pub fn comps_and_sum() {
 }
 
 #[test]
-pub fn set_quantity() {
+fn set_quantity() {
     let db = TestProject::new();
     let event = db.create_event().with_tickets().finish();
     let hold = db.create_hold().with_event(&event).finish();
@@ -239,7 +346,7 @@ pub fn set_quantity() {
 }
 
 #[test]
-pub fn set_quantity_with_validation_errors() {
+fn set_quantity_with_validation_errors() {
     let db = TestProject::new();
     let event = db.create_event().with_tickets().finish();
     let hold = db
@@ -289,7 +396,7 @@ fn organization() {
 }
 
 #[test]
-pub fn find() {
+fn find() {
     let db = TestProject::new();
     let hold = db.create_hold().finish();
 
@@ -299,7 +406,7 @@ pub fn find() {
 }
 
 #[test]
-pub fn find_for_event() {
+fn find_for_event() {
     let db = TestProject::new();
     let event = db.create_event().with_ticket_pricing().finish();
     let hold = db.create_hold().with_event(&event).finish();

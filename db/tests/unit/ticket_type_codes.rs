@@ -81,6 +81,14 @@ fn create_with_validation_errors() {
                 assert!(errors.contains_key("ticket_type_id"));
                 assert_eq!(errors["ticket_type_id"].len(), 1);
                 assert_eq!(errors["ticket_type_id"][0].code, "invalid");
+                assert_eq!(
+                    &errors["ticket_type_id"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Ticket type not valid for code as it does not belong to same event"
+                );
             }
             _ => panic!("Expected validation error"),
         },

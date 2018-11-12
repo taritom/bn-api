@@ -1,5 +1,5 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{Venue, VenueEditableAttributes};
+use bigneon_db::prelude::*;
 
 #[test]
 fn commit() {
@@ -91,8 +91,9 @@ fn all() {
         .with_name("Venue2".to_string())
         .finish();
     let organization = project.create_organization().finish();
+    let conn = &project.get_connection();
 
-    let all_found_venues = Venue::all(None, &project.get_connection()).unwrap();
+    let all_found_venues = Venue::all(None, conn).unwrap();
     let mut all_venues = vec![venue, venue2];
     assert_eq!(all_venues, all_found_venues);
 
@@ -101,16 +102,16 @@ fn all() {
         .with_name("Venue3".to_string())
         .make_private()
         .finish();
-    let venue3 = venue3.add_to_organization(&organization.id, &project.get_connection());
+    let venue3 = venue3.add_to_organization(&organization.id, conn);
     let user = project.create_user().finish();
-    let _ = organization
-        .add_user(user.id, &project.get_connection())
-        .unwrap();
+    let _ = organization.add_user(user.id, conn).unwrap();
     all_venues.push(venue3.unwrap());
-    let all_found_venues = Venue::all(Some(user.id), &project.get_connection()).unwrap();
+    let all_found_venues = Venue::all(Some(&user), conn).unwrap();
     assert_eq!(all_venues, all_found_venues);
-    let all_found_venues =
-        Venue::all(Some(organization.owner_user_id), &project.get_connection()).unwrap();
+    let all_found_venues = Venue::all(
+        Some(&User::find(organization.owner_user_id, conn).unwrap()),
+        conn,
+    ).unwrap();
     assert_eq!(all_venues, all_found_venues);
 }
 

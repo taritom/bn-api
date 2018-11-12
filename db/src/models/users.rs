@@ -15,7 +15,7 @@ use validator::Validate;
 pub struct NewUser {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
-    #[validate(email)]
+    #[validate(email(message = "Email is invalid"))]
     pub email: Option<String>,
     pub phone: Option<String>,
     pub hashed_pw: String,
@@ -63,16 +63,16 @@ pub struct DisplayUser {
 pub struct UserEditableAttributes {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
-    #[validate(email)]
+    #[validate(email(message = "Email is invalid"))]
     pub email: Option<String>,
     pub phone: Option<String>,
     pub active: Option<bool>,
     pub role: Option<Vec<String>>,
-    #[validate(url)]
+    #[validate(url(message = "Profile pic URL is invalid"))]
     pub profile_pic_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Thumb profile pic URL is invalid"))]
     pub thumb_profile_pic_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Cover photo URL is invalid"))]
     pub cover_photo_url: Option<String>,
 }
 
@@ -167,6 +167,13 @@ impl User {
         self.update_role(current_roles, conn)
     }
 
+    pub fn has_role(&self, role: Roles) -> bool {
+        self.role.contains(&role.to_string())
+    }
+
+    pub fn is_admin(&self) -> bool {
+        self.has_role(Roles::Admin)
+    }
     pub fn get_global_scopes(&self) -> Vec<String> {
         scopes::get_scopes(self.role.clone())
     }
@@ -300,10 +307,6 @@ impl User {
             user.add_external_login(external_user_id, site, access_token, conn)?;
             Ok(user)
         })
-    }
-
-    pub fn has_role(&self, role: Roles) -> bool {
-        self.role.contains(&role.to_string())
     }
 
     pub fn can_read_user(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {

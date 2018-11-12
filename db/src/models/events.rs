@@ -6,11 +6,13 @@ use diesel::prelude::*;
 use diesel::sql_types;
 use models::*;
 use schema::{artists, event_artists, events, organization_users, organizations, venues};
+use std::borrow::Cow;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
-use validator::{Validate, ValidationError, ValidationErrors};
+use validator::{Validate, ValidationErrors};
+use validators::*;
 
 #[derive(Associations, Identifiable, Queryable, AsChangeset)]
 #[belongs_to(Organization)]
@@ -52,13 +54,16 @@ pub struct NewEvent {
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
     pub fee_in_cents: Option<i64>,
-    #[validate(url)]
+    #[validate(url(message = "Promo image URL is invalid"))]
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
     pub min_ticket_price_cache: Option<i64>,
     pub max_ticket_price_cache: Option<i64>,
-    #[validate(length(max = "100"))]
+    #[validate(length(
+        max = "100",
+        message = "Top line info must be at most 100 characters long"
+    ))]
     pub top_line_info: Option<String>,
 }
 
@@ -94,12 +99,15 @@ pub struct EventEditableAttributes {
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
     pub fee_in_cents: Option<i64>,
-    #[validate(url)]
+    #[validate(url(message = "Promo image URL is invalid"))]
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
     pub cancelled_at: Option<NaiveDateTime>,
-    #[validate(length(max = "100"))]
+    #[validate(length(
+        max = "100",
+        message = "Top line info must be at most 100 characters long"
+    ))]
     pub top_line_info: Option<String>,
 }
 
@@ -193,10 +201,10 @@ impl Event {
         let mut errors = ValidationErrors::new();
 
         if self.venue_id.is_none() {
-            errors.add(
-                "venue_id",
-                ValidationError::new("Event can't be published without a venue"),
-            );
+            let mut validation_error =
+                create_validation_error("required", "Event can't be published without a venue");
+            validation_error.add_param(Cow::from("event_id"), &self.id);
+            errors.add("venue_id", validation_error);
         } else {
             let venue = self.venue(conn)?.unwrap();
             venue.validate_for_publish()?;

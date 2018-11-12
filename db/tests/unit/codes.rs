@@ -52,6 +52,14 @@ pub fn create_with_validation_errors() {
                 assert!(errors.contains_key("redemption_code"));
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "length");
+                assert_eq!(
+                    &errors["redemption_code"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Redemption code must be at least 6 characters long"
+                );
 
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
@@ -59,10 +67,26 @@ pub fn create_with_validation_errors() {
                     errors["start_date"][0].code,
                     "start_date_must_be_before_end_date"
                 );
+                assert_eq!(
+                    &errors["start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
+                );
 
                 assert!(errors.contains_key("discount_in_cents"));
                 assert_eq!(errors["discount_in_cents"].len(), 1);
                 assert_eq!(errors["discount_in_cents"][0].code, "required");
+                assert_eq!(
+                    &errors["discount_in_cents"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Discount required for Discount code type"
+                );
             }
             _ => panic!("Expected validation error"),
         },
@@ -92,6 +116,14 @@ pub fn create_with_validation_errors() {
                 assert!(errors.contains_key("redemption_code"));
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "uniqueness");
+                assert_eq!(
+                    &errors["redemption_code"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Redemption code must be unique"
+                );
             }
             _ => panic!("Expected validation error"),
         },
@@ -121,6 +153,14 @@ pub fn create_with_validation_errors() {
                 assert!(errors.contains_key("redemption_code"));
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "uniqueness");
+                assert_eq!(
+                    &errors["redemption_code"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Redemption code must be unique"
+                );
             }
             _ => panic!("Expected validation error"),
         },
@@ -180,6 +220,14 @@ pub fn update_with_validation_errors() {
                 assert!(errors.contains_key("redemption_code"));
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "length");
+                assert_eq!(
+                    &errors["redemption_code"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Redemption code must be at least 6 characters long"
+                );
 
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
@@ -187,10 +235,26 @@ pub fn update_with_validation_errors() {
                     errors["start_date"][0].code,
                     "start_date_must_be_before_end_date"
                 );
+                assert_eq!(
+                    &errors["start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
+                );
 
                 assert!(errors.contains_key("discount_in_cents"));
                 assert_eq!(errors["discount_in_cents"].len(), 1);
                 assert_eq!(errors["discount_in_cents"][0].code, "required");
+                assert_eq!(
+                    &errors["discount_in_cents"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Discount required for Discount code type"
+                );
             }
             _ => panic!("Expected validation error"),
         },
@@ -212,6 +276,14 @@ pub fn update_with_validation_errors() {
                 assert!(errors.contains_key("redemption_code"));
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "uniqueness");
+                assert_eq!(
+                    &errors["redemption_code"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Redemption code must be unique"
+                );
             }
             _ => panic!("Expected validation error"),
         },
@@ -233,6 +305,14 @@ pub fn update_with_validation_errors() {
                 assert!(errors.contains_key("redemption_code"));
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "uniqueness");
+                assert_eq!(
+                    &errors["redemption_code"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Redemption code must be unique"
+                );
             }
             _ => panic!("Expected validation error"),
         },

@@ -4,14 +4,29 @@ pub mod test_request;
 use actix_web::{http::StatusCode, Body::Binary, HttpResponse};
 use bigneon_api::auth::user::User as AuthUser;
 use bigneon_db::models::{Organization, Roles, User};
+use serde_json;
+use std::collections::HashMap;
 use std::str;
 use support::database::TestDatabase;
+use validator::ValidationError;
+
+#[derive(Debug, Deserialize)]
+pub struct ValidationResponse {
+    pub error: String,
+    pub fields: HashMap<String, Vec<ValidationError>>,
+}
 
 pub fn unwrap_body_to_string(response: &HttpResponse) -> Result<&str, &'static str> {
     match response.body() {
         Binary(binary) => Ok(str::from_utf8(binary.as_ref()).unwrap()),
         _ => Err("Unexpected response body"),
     }
+}
+
+pub fn validation_response_from_response(
+    response: &HttpResponse,
+) -> Result<ValidationResponse, &'static str> {
+    Ok(serde_json::from_str(unwrap_body_to_string(response)?).unwrap())
 }
 
 pub fn create_auth_user(

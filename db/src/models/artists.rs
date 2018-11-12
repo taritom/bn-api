@@ -37,11 +37,11 @@ pub struct NewArtist {
     pub organization_id: Option<Uuid>,
     pub name: String,
     pub bio: String,
-    #[validate(url)]
+    #[validate(url(message = "Image URL is invalid"))]
     pub image_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Thumb image URL is invalid"))]
     pub thumb_image_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Website URL is invalid"))]
     pub website_url: Option<String>,
     #[validate(custom = "validators::validate_urls")]
     pub youtube_video_urls: Option<Vec<String>>,
@@ -203,11 +203,11 @@ impl Artist {
 pub struct ArtistEditableAttributes {
     pub name: Option<String>,
     pub bio: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Image URL is invalid"))]
     pub image_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Thumb image URL is invalid"))]
     pub thumb_image_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Website URL is invalid"))]
     pub website_url: Option<String>,
     #[validate(custom = "validators::validate_urls")]
     pub youtube_video_urls: Option<Vec<String>>,
