@@ -107,7 +107,7 @@ pub fn create_with_validation_errors() {
         end_date,
         ticket_pricing,
         increment: None,
-        limit_per_person: Some(0),
+        limit_per_person: 0,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -165,7 +165,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         end_date,
         ticket_pricing,
         increment: None,
-        limit_per_person: Some(0),
+        limit_per_person: 0,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -231,7 +231,7 @@ pub fn create_with_overlapping_periods() {
         end_date,
         ticket_pricing,
         increment: None,
-        limit_per_person: Some(0),
+        limit_per_person: 0,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),

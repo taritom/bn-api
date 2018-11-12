@@ -47,7 +47,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         end_date,
         ticket_pricing,
         increment: None,
-        limit_per_person: Some(0),
+        limit_per_person: 0,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
