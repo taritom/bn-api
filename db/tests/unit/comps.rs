@@ -36,6 +36,10 @@ pub fn create_with_validation_errors() {
                 assert!(errors.contains_key("email"));
                 assert_eq!(errors["email"].len(), 1);
                 assert_eq!(errors["email"][0].code, "email");
+                assert_eq!(
+                    &errors["email"][0].message.clone().unwrap().into_owned(),
+                    "Email is invalid"
+                );
 
                 assert!(errors.contains_key("hold_id"));
                 assert_eq!(errors["hold_id"].len(), 1);
@@ -43,12 +47,20 @@ pub fn create_with_validation_errors() {
                     errors["hold_id"][0].code,
                     "comps_hold_type_valid_for_comp_creation"
                 );
+                assert_eq!(
+                    &errors["hold_id"][0].message.clone().unwrap().into_owned(),
+                    "Comps can only be associated with holds that have Comp hold type"
+                );
 
                 assert!(errors.contains_key("quantity"));
                 assert_eq!(errors["quantity"].len(), 1);
                 assert_eq!(
                     errors["quantity"][0].code,
                     "comps_quantity_valid_for_hold_quantity"
+                );
+                assert_eq!(
+                    &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                    "Comp quantity is too large for hold quantity"
                 );
             }
             _ => panic!("Expected validation error"),
@@ -92,12 +104,20 @@ pub fn update_with_validation_errors() {
                 assert!(errors.contains_key("email"));
                 assert_eq!(errors["email"].len(), 1);
                 assert_eq!(errors["email"][0].code, "email");
+                assert_eq!(
+                    &errors["email"][0].message.clone().unwrap().into_owned(),
+                    "Email is invalid"
+                );
 
                 assert!(errors.contains_key("quantity"));
                 assert_eq!(errors["quantity"].len(), 1);
                 assert_eq!(
                     errors["quantity"][0].code,
                     "comps_quantity_valid_for_hold_quantity"
+                );
+                assert_eq!(
+                    &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                    "Comp quantity is too large for hold quantity"
                 );
             }
             _ => panic!("Expected validation error"),

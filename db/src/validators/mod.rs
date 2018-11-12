@@ -5,6 +5,7 @@ mod url_array_validator;
 pub use self::redemption_code_uniqueness_validator::redemption_code_unique_per_event_validation;
 pub use self::start_date_before_end_date_validator::start_date_valid;
 pub use self::url_array_validator::validate_urls;
+use std::borrow::Cow;
 use validator::*;
 
 pub fn append_validation_error(
@@ -22,4 +23,10 @@ pub fn append_validation_error(
     } else {
         validation_errors
     }
+}
+
+pub fn create_validation_error(code: &'static str, message: &'static str) -> ValidationError {
+    let mut validation_error = ValidationError::new(code);
+    validation_error.message = Some(Cow::from(message));
+    validation_error
 }

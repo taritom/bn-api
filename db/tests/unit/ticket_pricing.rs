@@ -141,6 +141,14 @@ fn create_with_validation_errors() {
                     errors["ticket_pricing.start_date"][0].code,
                     "start_date_must_be_before_end_date"
                 );
+                assert_eq!(
+                    &errors["ticket_pricing.start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
+                );
             }
             _ => panic!("Expected validation error"),
         },
@@ -194,6 +202,14 @@ fn update_with_validation_errors() {
                 assert_eq!(
                     errors["ticket_pricing.start_date"][0].code,
                     "start_date_must_be_before_end_date"
+                );
+                assert_eq!(
+                    &errors["ticket_pricing.start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
                 );
             }
             _ => panic!("Expected validation error"),

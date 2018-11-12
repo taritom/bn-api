@@ -46,7 +46,7 @@ pub struct OrganizationInvite {
 pub struct NewOrganizationInvite {
     pub organization_id: Uuid,
     pub inviter_id: Uuid,
-    #[validate(email)]
+    #[validate(email(message = "User email is invalid"))]
     pub user_email: String,
     pub security_token: Option<Uuid>,
     pub user_id: Option<Uuid>,

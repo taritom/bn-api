@@ -1,8 +1,6 @@
 {
 	"info": {
-
-
-		"_postman_id": "96cd748f-171a-444d-ba80-00e229770f91",
+		"_postman_id": "a931b958-0d3f-4d01-9eb1-dd8d719f3381",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -507,7 +505,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"50 Street street\",\n\t\"city\": \"\",\n\t\"country\": \"\",\n\t\"organization_id\": \"{{last_org_id}}\",\n\t\"phone\": \"5555555555\",\n\t\"place_id\": \"\",\n\t\"state\": \"\",\n\t\"zip\": \"\"\n}"
+							"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": null,\n\t\"city\": null,\n\t\"country\": null,\n\t\"organization_id\": \"{{last_org_id}}\",\n\t\"phone\": \"5555555555\",\n\t\"place_id\": \"\",\n\t\"state\": null,\n\t\"zip\": null\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/venues",
@@ -547,7 +545,7 @@
 									"        }",
 									"",
 									"    }",
-									"    pm.expect(found).to.be.true();",
+									"    pm.expect(found).to.be.true;",
 									"  ",
 									"})"
 								],
@@ -718,12 +716,17 @@
 									"",
 									"let r = JSON.parse(responseBody);",
 									"",
-									"pm.test(\"should have 4 errors\", function() {",
-									"    pm.expect(r.fields[\"venue.address\"][0].code).to.equal(\"Address is required before publishing\");",
-									"    pm.expect(r.fields[\"venue.city\"][0].code).to.equal(\"City is required before publishing\");",
-									"    pm.expect(r.fields[\"venue.country\"][0].code).to.equal(\"Country is required before publishing\");",
-									"    pm.expect(r.fields[\"venue.postal_code\"][0].code).to.equal(\"Postal code is required before publishing\");",
-									"    pm.expect(r.fields[\"venue.state\"][0].code).to.equal(\"State is required before publishing\");",
+									"pm.test(\"should have 5 errors\", function() {",
+									"    pm.expect(r.fields[\"venue.address\"][0].code).to.equal(\"required\");",
+									"    pm.expect(r.fields[\"venue.address\"][0].message).to.equal(\"Address is required before publishing\");",
+									"    pm.expect(r.fields[\"venue.city\"][0].code).to.equal(\"required\");",
+									"    pm.expect(r.fields[\"venue.city\"][0].message).to.equal(\"City is required before publishing\");",
+									"    pm.expect(r.fields[\"venue.country\"][0].code).to.equal(\"required\");",
+									"    pm.expect(r.fields[\"venue.country\"][0].message).to.equal(\"Country is required before publishing\");",
+									"    pm.expect(r.fields[\"venue.postal_code\"][0].code).to.equal(\"required\");",
+									"    pm.expect(r.fields[\"venue.postal_code\"][0].message).to.equal(\"Postal code is required before publishing\");",
+									"    pm.expect(r.fields[\"venue.state\"][0].code).to.equal(\"required\");",
+									"    pm.expect(r.fields[\"venue.state\"][0].message).to.equal(\"State is required before publishing\");",
 									"})"
 								]
 							}
@@ -773,13 +776,25 @@
 							"listen": "test",
 							"script": {
 								"id": "c91d2787-44e0-489c-9b8c-69a7f118f457",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
-									"})",
-									""
-								]
+									"});",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"fields should be updated\", function() {",
+									"    pm.expect(r.address).to.equal(\"address\");",
+									"    pm.expect(r.city).to.equal(\"city\");",
+									"",
+									"    pm.expect(r.country).to.equal(\"the best country\");",
+									"",
+									"    pm.expect(r.postal_code).to.equal(\"2222\");",
+									"    ",
+									"    pm.expect(r.state).to.equal(\"CA\");",
+									"});"
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -936,14 +951,14 @@
 							"listen": "test",
 							"script": {
 								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 201\", function() {",
 									"    pm.response.to.have.status(201);",
 									"})",
 									"",
 									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);"
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -967,7 +982,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -991,14 +1006,14 @@
 							"listen": "test",
 							"script": {
 								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 201\", function() {",
 									"    pm.response.to.have.status(201);",
 									"})",
 									"",
 									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);"
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -1022,7 +1037,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Standard\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Standard\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",

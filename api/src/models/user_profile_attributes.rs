@@ -5,14 +5,14 @@ use validator::Validate;
 pub struct UserProfileAttributes {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
-    #[validate(email)]
+    #[validate(email(message = "Email is invalid"))]
     pub email: Option<String>,
     pub phone: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Profile pic URL is invalid"))]
     pub profile_pic_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Thumb profile pic URL is invalid"))]
     pub thumb_profile_pic_url: Option<String>,
-    #[validate(url)]
+    #[validate(url(message = "Cover photo URL is invalid"))]
     pub cover_photo_url: Option<String>,
 }
 

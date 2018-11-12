@@ -87,20 +87,26 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
 
     let user = support::create_auth_user(role, None, &database);
     let response: HttpResponse = artists::create((database.connection.into(), json, user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
         assert!(response.error().is_some());
-
-        let expected_json = json!({
-            "error": "Validation error",
-            "fields":{
-                "website_url":[{"code":"url","message":null,"params":{"value":"invalid-format.com"}}],
-                "youtube_video_urls":[{"code":"url","message":null,"params":{"value":["invalid"]}}]
-            }
-        }).to_string();
-        assert_eq!(body, expected_json);
+        let validation_response = support::validation_response_from_response(&response).unwrap();
+        let website_url = validation_response.fields.get("website_url").unwrap();
+        assert_eq!(website_url[0].code, "url");
+        assert_eq!(
+            &website_url[0].message.clone().unwrap().into_owned(),
+            "Website URL is invalid"
+        );
+        let youtube_video_urls = validation_response
+            .fields
+            .get("youtube_video_urls")
+            .unwrap();
+        assert_eq!(youtube_video_urls[0].code, "url");
+        assert_eq!(
+            &youtube_video_urls[0].message.clone().unwrap().into_owned(),
+            "URL is invalid"
+        );
     } else {
         support::expects_unauthorized(&response, None);
     }
@@ -225,20 +231,26 @@ pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
 
     let response: HttpResponse =
         artists::update((database.connection.into(), path, json, user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
         assert!(response.error().is_some());
-
-        let expected_json = json!({
-            "error": "Validation error",
-            "fields":{
-                "website_url":[{"code":"url","message":null,"params":{"value":"invalid-format.com"}}],
-                "youtube_video_urls":[{"code":"url","message":null,"params":{"value":["invalid"]}}]
-            }
-        }).to_string();
-        assert_eq!(body, expected_json);
+        let validation_response = support::validation_response_from_response(&response).unwrap();
+        let website_url = validation_response.fields.get("website_url").unwrap();
+        assert_eq!(website_url[0].code, "url");
+        assert_eq!(
+            &website_url[0].message.clone().unwrap().into_owned(),
+            "Website URL is invalid"
+        );
+        let youtube_video_urls = validation_response
+            .fields
+            .get("youtube_video_urls")
+            .unwrap();
+        assert_eq!(youtube_video_urls[0].code, "url");
+        assert_eq!(
+            &youtube_video_urls[0].message.clone().unwrap().into_owned(),
+            "URL is invalid"
+        );
     } else {
         support::expects_unauthorized(&response, None);
     }

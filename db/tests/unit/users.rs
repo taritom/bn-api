@@ -206,6 +206,10 @@ fn new_user_validate() {
     assert!(errors.contains_key("email"));
     assert_eq!(errors["email"].len(), 1);
     assert_eq!(errors["email"][0].code, "email");
+    assert_eq!(
+        &errors["email"][0].message.clone().unwrap().into_owned(),
+        "Email is invalid"
+    );
 }
 
 #[test]
@@ -220,6 +224,10 @@ fn user_editable_attributes_validate() {
     assert!(errors.contains_key("email"));
     assert_eq!(errors["email"].len(), 1);
     assert_eq!(errors["email"][0].code, "email");
+    assert_eq!(
+        &errors["email"][0].message.clone().unwrap().into_owned(),
+        "Email is invalid"
+    );
 }
 
 #[test]

@@ -137,6 +137,7 @@ impl<'a> EventBuilder<'a> {
                         event_end,
                         wallet_id,
                         None,
+                        0,
                         self.connection,
                     ).unwrap();
 

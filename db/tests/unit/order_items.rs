@@ -110,6 +110,10 @@ fn update_with_validation_errors() {
                 assert!(errors.contains_key("quantity"));
                 assert_eq!(errors["quantity"].len(), 1);
                 assert_eq!(errors["quantity"][0].code, "max_tickets_per_user_reached");
+                assert_eq!(
+                    &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                    "Redemption code maximum tickets limit exceeded"
+                );
             }
             _ => panic!("Expected validation error"),
         },

@@ -11,7 +11,7 @@ use std::borrow::Cow;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
-use validators;
+use validators::{self, *};
 
 sql_function!(fn comps_quantity_valid_for_hold_quantity(hold_id: dUuid, id: dUuid, quantity: Int4) -> Bool);
 sql_function!(fn comps_hold_type_valid_for_comp_creation(hold_id: dUuid) -> Bool);
@@ -33,7 +33,7 @@ pub struct Comp {
 #[table_name = "comps"]
 pub struct UpdateCompAttributes {
     pub name: Option<String>,
-    #[validate(email)]
+    #[validate(email(message = "Email is invalid"))]
     pub email: Option<String>,
     pub phone: Option<String>,
     pub quantity: Option<i32>,
@@ -157,8 +157,10 @@ impl Comp {
             "Could not confirm if comp quantity valid for hold",
         )?;
         if !result {
-            let mut validation_error =
-                ValidationError::new("comps_quantity_valid_for_hold_quantity");
+            let mut validation_error = create_validation_error(
+                "comps_quantity_valid_for_hold_quantity",
+                "Comp quantity is too large for hold quantity",
+            );
             validation_error.add_param(Cow::from("id"), &id);
             validation_error.add_param(Cow::from("hold_id"), &hold_id);
             validation_error.add_param(Cow::from("quantity"), &quantity);
@@ -184,8 +186,10 @@ impl Comp {
                 "Could not confirm if comp valid for hold type",
             )?;
         if !result {
-            let mut validation_error =
-                ValidationError::new("comps_hold_type_valid_for_comp_creation");
+            let mut validation_error = create_validation_error(
+                "comps_hold_type_valid_for_comp_creation",
+                "Comps can only be associated with holds that have Comp hold type",
+            );
             validation_error.add_param(Cow::from("id"), &id);
             validation_error.add_param(Cow::from("hold_id"), &hold_id);
 
@@ -226,7 +230,7 @@ impl Comp {
 pub struct NewComp {
     pub name: String,
     pub hold_id: Uuid,
-    #[validate(email)]
+    #[validate(email(message = "Email is invalid"))]
     pub email: Option<String>,
     pub phone: Option<String>,
     pub quantity: i32,

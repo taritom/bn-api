@@ -15,7 +15,7 @@ fn create() {
     let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
     let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type = event
-        .add_ticket_type("VIP".to_string(), 100, sd, ed, wallet_id, None, conn)
+        .add_ticket_type("VIP".to_string(), 100, sd, ed, wallet_id, None, 0, conn)
         .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
@@ -37,6 +37,7 @@ pub fn create_with_validation_errors() {
         end_date,
         wallet_id,
         None,
+        0,
         connection,
     );
     match result {
@@ -50,6 +51,14 @@ pub fn create_with_validation_errors() {
                 assert_eq!(
                     errors["start_date"][0].code,
                     "start_date_must_be_before_end_date"
+                );
+                assert_eq!(
+                    &errors["start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
                 );
             }
             _ => panic!("Expected validation error"),
@@ -98,7 +107,7 @@ fn create_large_amount() {
     let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
     let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type = event
-        .add_ticket_type("VIP".to_string(), 100_000, sd, ed, wallet_id, None, conn)
+        .add_ticket_type("VIP".to_string(), 100_000, sd, ed, wallet_id, None, 0, conn)
         .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
@@ -146,6 +155,14 @@ fn validate_ticket_pricing() {
                     assert_eq!(
                         errors["ticket_pricing"][0].code,
                         "ticket_pricing_overlapping_periods"
+                    );
+                    assert_eq!(
+                        &errors["ticket_pricing"][0]
+                            .message
+                            .clone()
+                            .unwrap()
+                            .into_owned(),
+                        "Ticket pricing dates overlap another ticket pricing period"
                     );
                 }
                 _ => panic!("Expected validation error"),
@@ -265,6 +282,14 @@ pub fn update_with_validation_errors() {
                 assert_eq!(
                     errors["start_date"][0].code,
                     "start_date_must_be_before_end_date"
+                );
+                assert_eq!(
+                    &errors["start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
                 );
             }
             _ => panic!("Expected validation error"),

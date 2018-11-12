@@ -61,7 +61,10 @@ pub struct DisplayCode {
 #[table_name = "codes"]
 pub struct UpdateCodeAttributes {
     pub name: Option<String>,
-    #[validate(length(min = "6"))]
+    #[validate(length(
+        min = "6",
+        message = "Redemption code must be at least 6 characters long"
+    ))]
     pub redemption_code: Option<String>,
     pub max_uses: Option<i64>,
     pub discount_in_cents: Option<Option<i64>>,
@@ -209,7 +212,8 @@ impl Code {
         discount_in_cents: Option<i64>,
     ) -> Result<(), ValidationError> {
         if code_type == CodeTypes::Discount.to_string() && discount_in_cents.is_none() {
-            let mut validation_error = ValidationError::new("required");
+            let mut validation_error =
+                create_validation_error("required", "Discount required for Discount code type");
             validation_error.add_param(Cow::from("code_type"), &code_type);
             validation_error.add_param(Cow::from("discount"), &discount_in_cents);
             return Err(validation_error);
@@ -296,7 +300,10 @@ pub struct NewCode {
     pub name: String,
     pub event_id: Uuid,
     pub code_type: String,
-    #[validate(length(min = "6"))]
+    #[validate(length(
+        min = "6",
+        message = "Redemption code must be at least 6 characters long"
+    ))]
     pub redemption_code: String,
     pub max_uses: i64,
     pub discount_in_cents: Option<i64>,

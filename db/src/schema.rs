@@ -220,16 +220,6 @@ table! {
 }
 
 table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     organizations (id) {
         id -> Uuid,
         owner_user_id -> Uuid,
@@ -244,6 +234,16 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Uuid,
+    }
+}
+
+table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -336,6 +336,7 @@ table! {
         start_date -> Timestamp,
         end_date -> Timestamp,
         increment -> Int4,
+        limit_per_person -> Int4,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -455,8 +456,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organization_users,
     organizations,
+    organization_users,
     payment_methods,
     payments,
     regions,
