@@ -11,7 +11,7 @@ pub fn index(
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO implement proper paging on db
     let venues = match user {
-        Some(u) => Venue::all(Some(u.id()), connection.get())?,
+        Some(u) => Venue::all(Some(&u.user), connection.get())?,
         None => Venue::all(None, connection.get())?,
     };
 

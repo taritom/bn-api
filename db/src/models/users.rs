@@ -167,6 +167,13 @@ impl User {
         self.update_role(current_roles, conn)
     }
 
+    pub fn has_role(&self, role: Roles) -> bool {
+        self.role.contains(&role.to_string())
+    }
+
+    pub fn is_admin(&self) -> bool {
+        self.has_role(Roles::Admin)
+    }
     pub fn get_global_scopes(&self) -> Vec<String> {
         scopes::get_scopes(self.role.clone())
     }
@@ -300,10 +307,6 @@ impl User {
             user.add_external_login(external_user_id, site, access_token, conn)?;
             Ok(user)
         })
-    }
-
-    pub fn has_role(&self, role: Roles) -> bool {
-        self.role.contains(&role.to_string())
     }
 
     pub fn can_read_user(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {

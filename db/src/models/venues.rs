@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use models::users::User;
 use models::{Organization, Region};
 use schema::{organization_users, organizations, venues};
 use utils::errors::ConvertToDatabaseError;
@@ -123,21 +124,22 @@ impl Venue {
             .to_db_error(ErrorCode::QueryError, "Unable to load venues by ids")
     }
 
-    pub fn all(user_id: Option<Uuid>, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
-        let query = match user_id {
+    pub fn all(user: Option<&User>, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
+        let query = match user {
             Some(u) => venues::table
                 .left_join(
                     organization_users::table.on(venues::organization_id
                         .eq(organization_users::organization_id.nullable())
-                        .and(organization_users::user_id.eq(u))),
+                        .and(organization_users::user_id.eq(u.id))),
                 ).left_join(
                     organizations::table
                         .on(venues::organization_id.eq(organizations::id.nullable())),
                 ).filter(
                     organization_users::user_id
-                        .eq(u)
-                        .or(organizations::owner_user_id.eq(u))
-                        .or(venues::is_private.eq(false)),
+                        .eq(u.id)
+                        .or(organizations::owner_user_id.eq(u.id))
+                        .or(venues::is_private.eq(false))
+                        .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
                 ).order_by(venues::name)
                 .select(venues::all_columns)
                 .load(conn),

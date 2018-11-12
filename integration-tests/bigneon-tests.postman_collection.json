@@ -773,13 +773,25 @@
 							"listen": "test",
 							"script": {
 								"id": "c91d2787-44e0-489c-9b8c-69a7f118f457",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
-									"})",
-									""
-								]
+									"});",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"fields should be updated\", function() {",
+									"    pm.expect(r.address).to.equal(\"address\");",
+									"    pm.expect(r.city).to.equal(\"city\");",
+									"",
+									"    pm.expect(r.country).to.equal(\"the best country\");",
+									"",
+									"    pm.expect(r.postal_code).to.equal(\"2222\");",
+									"    ",
+									"    pm.expect(r.state).to.equal(\"CA\");",
+									"});"
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
