@@ -1011,7 +1011,8 @@
 									"    pm.response.to.have.status(201);",
 									"})",
 									"",
-									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);"
+									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);",
+									"pm.environment.set(\"last_ticket_type_limit_per_person\", JSON.parse(responseBody).limit_per_person);"
 								],
 								"type": "text/javascript"
 							}
@@ -1037,7 +1038,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Standard\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Standard\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -3018,6 +3019,57 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}]}"
+						},
+						"url": {
+							"raw": "http://{{server}}/cart",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"cart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - add more than limit to cart",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "aadca825-5dbc-4d09-8fb8-6b9d7cbe9350",
+								"exec": [
+									"pm.test(\"should be 400\", function() {",
+									"    pm.response.to.have.status(400);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\": {{last_ticket_type_limit_per_person}}\n}]}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
