@@ -142,6 +142,7 @@ impl TicketType {
                     self.id,
                     ticket_pricing.start_date,
                     ticket_pricing.end_date,
+                    ticket_pricing.is_box_office_only,
                     conn,
                 )?,
             );

@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl::{self, select};
 use diesel::prelude::*;
-use diesel::sql_types::{Timestamp, Uuid as dUuid};
+use diesel::sql_types::{Bool, Timestamp, Uuid as dUuid};
 use models::{TicketPricingStatus, TicketType};
 use schema::{order_items, ticket_pricing};
 use std::borrow::Cow;
@@ -11,7 +11,7 @@ use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
 
-sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp) -> Bool);
+sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp, is_box_office_only: Bool) -> Bool);
 
 #[derive(Identifiable, Associations, Queryable, PartialEq, Debug)]
 #[belongs_to(TicketType)]
@@ -91,6 +91,7 @@ impl TicketPricing {
         ticket_type_id: Uuid,
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
+        is_box_office_only: bool,
         conn: &PgConnection,
     ) -> Result<Result<(), ValidationError>, DatabaseError> {
         let result = select(ticket_pricing_no_overlapping_periods(
@@ -98,6 +99,7 @@ impl TicketPricing {
             ticket_type_id,
             start_date,
             end_date,
+            is_box_office_only,
         )).get_result::<bool>(conn)
         .to_db_error(
             ErrorCode::UpdateError,

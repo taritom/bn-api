@@ -16,7 +16,7 @@ pub struct CreateTicketPricingRequest {
     pub price_in_cents: i64,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
-    pub is_box_office_only: bool,
+    pub is_box_office_only: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -99,7 +99,7 @@ pub fn create(
             current_pricing_entry.start_date,
             current_pricing_entry.end_date,
             current_pricing_entry.price_in_cents,
-            false,
+            current_pricing_entry.is_box_office_only.unwrap_or(false),
             connection,
         )?;
     }
@@ -289,7 +289,7 @@ pub fn update(
                     price_in_cents: current_ticket_pricing.price_in_cents,
                     start_date: current_ticket_pricing.start_date,
                     end_date: current_ticket_pricing.end_date,
-                    is_box_office_only: Some(false),
+                    is_box_office_only: current_ticket_pricing.is_box_office_only,
                 };
                 let current_ticket_pricing_id = current_ticket_pricing.id.unwrap();
                 let found_index = ticket_pricing
@@ -318,7 +318,7 @@ pub fn update(
                     current_ticket_pricing.start_date.unwrap(),
                     current_ticket_pricing.end_date.unwrap(),
                     current_ticket_pricing.price_in_cents.unwrap(),
-                    false,
+                    current_ticket_pricing.is_box_office_only.unwrap(),
                     connection,
                 )?;
             } else {

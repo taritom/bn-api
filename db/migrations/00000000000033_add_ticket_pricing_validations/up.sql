@@ -1,7 +1,7 @@
-CREATE OR REPLACE FUNCTION ticket_pricing_no_overlapping_periods(UUID, UUID, TIMESTAMP, TIMESTAMP) RETURNS BOOLEAN AS $$
+CREATE OR REPLACE FUNCTION ticket_pricing_no_overlapping_periods(UUID, UUID, TIMESTAMP, TIMESTAMP, BOOLEAN) RETURNS BOOLEAN AS $$
 BEGIN
     RETURN (
-        SELECT NOT EXISTS (
+        SELECT $5 OR NOT EXISTS (
             SELECT id
             FROM ticket_pricing
             WHERE
