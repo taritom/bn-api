@@ -89,7 +89,13 @@ pub fn update(
 
     let hold = Hold::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::HoldWrite, &hold.organization(conn)?, conn)?;
-    Ok(HttpResponse::Ok().json(hold.update(req.into_inner().into(), conn)?))
+    let quantity = req.quantity;
+    let hold = hold.update(req.into_inner().into(), conn)?;
+    if quantity.is_some() {
+        hold.set_quantity(quantity.unwrap(), conn)?;
+    }
+
+    Ok(HttpResponse::Ok().json(hold))
 }
 
 pub fn show(
@@ -136,22 +142,6 @@ pub fn show(
 #[derive(Deserialize)]
 pub struct SetQuantityRequest {
     pub quantity: u32,
-}
-
-pub fn add_remove_from_hold(
-    (conn, req, path, user): (
-        Connection,
-        Json<SetQuantityRequest>,
-        Path<PathParameters>,
-        User,
-    ),
-) -> Result<HttpResponse, BigNeonError> {
-    let conn = conn.get();
-    let hold = Hold::find(path.id, conn)?;
-    user.requires_scope_for_organization(Scopes::HoldWrite, &hold.organization(conn)?, conn)?;
-    hold.set_quantity(req.quantity, conn)?;
-
-    Ok(HttpResponse::Ok().finish())
 }
 
 #[derive(Deserialize, Serialize)]

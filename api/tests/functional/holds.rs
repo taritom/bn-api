@@ -50,27 +50,6 @@ mod update_tests {
     }
 }
 
-#[cfg(test)]
-mod add_remove_from_hold_tests {
-    use super::*;
-    #[test]
-    fn add_remove_from_hold_org_member() {
-        base::holds::add_remove_from_hold(Roles::OrgMember, true);
-    }
-    #[test]
-    fn add_remove_from_hold_admin() {
-        base::holds::add_remove_from_hold(Roles::Admin, true);
-    }
-    #[test]
-    fn add_remove_from_hold_user() {
-        base::holds::add_remove_from_hold(Roles::User, false);
-    }
-    #[test]
-    fn add_remove_from_hold_org_owner() {
-        base::holds::add_remove_from_hold(Roles::OrgOwner, true);
-    }
-}
-
 #[test]
 fn create_with_validation_errors() {
     let database = TestDatabase::new();
@@ -181,10 +160,13 @@ pub fn add_remove_from_hold_with_validation_errors() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = hold.id;
 
-    let json = Json(SetQuantityRequest { quantity: 3 });
-
+    let json = Json(UpdateHoldRequest {
+        quantity: Some(3),
+        ..Default::default()
+    });
     let response: HttpResponse =
-        holds::add_remove_from_hold((database.connection.into(), json, path, auth_user)).into();
+        holds::update((database.connection.into(), json, path, auth_user)).into();
+
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 

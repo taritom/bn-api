@@ -209,13 +209,13 @@ impl TicketInstance {
             .bind::<Bigint, _>(quantity as i64);
         let tickets: Vec<TicketInstance> = q
             .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not reserve tickets")?;
+            .to_db_error(ErrorCode::UpdateError, "Could not reserve tickets")?;
 
         if tickets.len() as u32 != quantity {
-            return Err(DatabaseError::new(
-                ErrorCode::QueryError,
-                Some("Could not reserve the correct amount of tickets".to_string()),
-            ));
+            return DatabaseError::validation_error(
+                "quantity",
+                "Could not reserve the correct amount of tickets",
+            );
         }
 
         Ok(tickets)
@@ -235,10 +235,10 @@ impl TicketInstance {
             .to_db_error(ErrorCode::QueryError, "Could not release tickets")?;
 
         if tickets.len() as u32 != quantity {
-            return Err(DatabaseError::new(
-                ErrorCode::QueryError,
-                Some("Could not release the correct amount of tickets".to_string()),
-            ));
+            return DatabaseError::validation_error(
+                "quantity",
+                "Could not release the correct amount of tickets",
+            );
         }
         Ok(tickets)
     }
@@ -262,10 +262,10 @@ impl TicketInstance {
             .to_db_error(ErrorCode::QueryError, "Could not add tickets to the hold")?;
 
         if tickets.len() as u32 != quantity {
-            return Err(DatabaseError::new(
-                ErrorCode::QueryError,
-                Some("Could not add the correct amount of tickets to the hold".to_string()),
-            ));
+            return DatabaseError::validation_error(
+                "quantity",
+                "Could not reserve the correct amount of tickets",
+            );
         }
 
         Ok(tickets)
@@ -289,10 +289,10 @@ impl TicketInstance {
         )?;
 
         if tickets.len() as u32 != quantity {
-            return Err(DatabaseError::new(
-                ErrorCode::QueryError,
-                Some("Could not release the correct amount of tickets from the hold".to_string()),
-            ));
+            return DatabaseError::validation_error(
+                "quantity",
+                "Could not release the correct amount of tickets",
+            );
         }
 
         Ok(tickets)

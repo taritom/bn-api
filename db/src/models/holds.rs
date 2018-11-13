@@ -88,9 +88,10 @@ impl Hold {
 
     pub fn update(
         &self,
-        mut update_attrs: UpdateHoldAttributes,
+        update_attrs: UpdateHoldAttributes,
         conn: &PgConnection,
     ) -> Result<Hold, DatabaseError> {
+        let mut update_attrs = update_attrs;
         if update_attrs.hold_type == Some(HoldTypes::Comp.to_string()) {
             // Remove discount
             update_attrs.discount_in_cents = Some(None);
@@ -101,6 +102,9 @@ impl Hold {
             // Passes validation so safe to destroy remaining unused comps
             Comp::destroy_from_hold(self.id, conn)?;
         }
+
+        self.validate_record(&update_attrs, conn)?;
+
         diesel::update(
             holds::table
                 .filter(holds::id.eq(self.id))

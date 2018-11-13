@@ -183,6 +183,20 @@ impl DatabaseError {
         ))
     }
 
+    pub fn validation_error<T>(
+        field: &'static str,
+        message: &'static str,
+    ) -> Result<T, DatabaseError> {
+        let mut v = ValidationErrors::new();
+        v.add(field, ValidationError::new(message));
+        Err(DatabaseError::new(
+            ErrorCode::ValidationError {
+                errors: v.field_errors(),
+            },
+            None,
+        ))
+    }
+
     pub fn concurrency_error<T>(message: &str) -> Result<T, DatabaseError> {
         Err(DatabaseError::new(
             ErrorCode::ConcurrencyError,
