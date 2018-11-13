@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "a931b958-0d3f-4d01-9eb1-dd8d719f3381",
+		"_postman_id": "be9f0879-883e-4aab-9823-f603d52028c0",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -1012,7 +1012,7 @@
 									"})",
 									"",
 									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);",
-									"pm.environment.set(\"last_ticket_type_limit_per_person\", JSON.parse(responseBody).limit_per_person);"
+									"pm.environment.set(\"ticket_limit_above_max\", 51);"
 								],
 								"type": "text/javascript"
 							}
@@ -3041,8 +3041,8 @@
 							"script": {
 								"id": "aadca825-5dbc-4d09-8fb8-6b9d7cbe9350",
 								"exec": [
-									"pm.test(\"should be 400\", function() {",
-									"    pm.response.to.have.status(400);",
+									"pm.test(\"should be 422\", function() {",
+									"    pm.response.to.have.status(422);",
 									"})"
 								],
 								"type": "text/javascript"
@@ -3069,7 +3069,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\": {{last_ticket_type_limit_per_person}}\n}]}"
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\": {{ticket_limit_above_max}}\n}]}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",

@@ -10,11 +10,14 @@ use log::Level;
 use models::*;
 use schema::{order_items, orders, users};
 use serde_json;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
 use utils::errors;
 use utils::errors::*;
 use uuid::Uuid;
+use validator::ValidationErrors;
+use validators::*;
 
 #[derive(Associations, Debug, Identifiable, PartialEq, Queryable)]
 #[belongs_to(User)]
@@ -338,10 +341,22 @@ impl Order {
                 match quantities_ordered.get(&limit_check.ticket_type_id) {
                     Some(ordered_quantity) => {
                         if ordered_quantity > &limit_check.limit_per_person {
-                            return Err(DatabaseError::new(
-                                ErrorCode::InvalidInput,
-                                Some("Ticket Limit Exceeded".to_string()),
-                            ));
+                            let mut error = create_validation_error(
+                                "limit_per_person_exceeded",
+                                "Exceeded limit per person per event",
+                            );
+                            error.add_param(
+                                Cow::from("limit_per_person"),
+                                &limit_check.limit_per_person,
+                            );
+                            error.add_param(
+                                Cow::from("ticket_type_id"),
+                                &limit_check.ticket_type_id,
+                            );
+                            error.add_param(Cow::from("attempted_quantity"), ordered_quantity);
+                            let mut errors = ValidationErrors::new();
+                            errors.add("quantity", error);
+                            return Err(errors.into());
                         }
                     }
                     None => {}
@@ -409,14 +424,6 @@ impl Order {
         }
 
         Ok(())
-    }
-
-    pub fn available_order_limit_for_user(
-        _user_id: Uuid,
-        _event_id: Uuid,
-        _conn: &PgConnection,
-    ) -> i32 {
-        0
     }
 
     pub fn quantity_for_user_for_event(

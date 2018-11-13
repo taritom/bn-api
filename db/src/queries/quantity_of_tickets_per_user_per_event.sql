@@ -3,9 +3,9 @@ SELECT
     CAST(COUNT(ticket_instances.id) AS Integer) as total_quantity
 FROM
     orders
-LEFT JOIN
+INNER JOIN
     order_items ON (order_items.order_id = orders.id)
-RIGHT JOIN
+INNER JOIN
     ticket_instances ON (ticket_instances.order_item_id = order_items.id)
 WHERE
     orders.user_id = $1
