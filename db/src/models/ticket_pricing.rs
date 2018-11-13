@@ -170,6 +170,8 @@ impl TicketPricing {
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
         let mut price_points = ticket_pricing::table
+            //Must use the box office endpoints to add is_box_office_only prices
+            .filter(ticket_pricing::is_box_office_only.eq(false))
             .filter(ticket_pricing::ticket_type_id.eq(ticket_type_id))
             .filter(ticket_pricing::start_date.le(dsl::now))
             .filter(ticket_pricing::end_date.gt(dsl::now))
