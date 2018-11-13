@@ -1,5 +1,5 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{Artist, ArtistEditableAttributes};
+use bigneon_db::prelude::*;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -142,9 +142,16 @@ fn set_privacy() {
 #[test]
 fn all() {
     let project = TestProject::new();
+    let conn = &project.get_connection();
     let name = "Name";
     let owner = project.create_user().finish();
     let user = project.create_user().finish();
+    let admin = project
+        .create_user()
+        .finish()
+        .add_role(Roles::Admin, conn)
+        .unwrap();
+
     let organization = project
         .create_organization()
         .with_owner(&owner)
@@ -155,7 +162,7 @@ fn all() {
     assert_eq!(name, artist.name);
     assert_eq!(artist.id.to_string().is_empty(), false);
 
-    let found_artists = Artist::all(None, project.get_connection()).unwrap();
+    let found_artists = Artist::all(None, conn).unwrap();
     assert_eq!(1, found_artists.len());
     assert_eq!(found_artists[0].id, artist.id);
     assert_eq!(found_artists[0].name, artist.name);
@@ -170,19 +177,23 @@ fn all() {
     assert_eq!(name2, artist2.name);
     assert_eq!(artist2.id.to_string().is_empty(), false);
 
-    let found_artists = Artist::all(None, project.get_connection()).unwrap();
+    let found_artists = Artist::all(None, conn).unwrap();
     assert_eq!(1, found_artists.len());
     assert_eq!(found_artists[0].id, artist.id);
     assert_eq!(found_artists[0].name, artist.name);
 
-    let found_artists_owner = Artist::all(Some(owner.id), project.get_connection()).unwrap();
-    let found_artists_user = Artist::all(Some(user.id), project.get_connection()).unwrap();
-    assert_eq!(found_artists_user, found_artists_owner);
+    let found_artists_owner = Artist::all(Some(&owner), conn).unwrap();
+    let found_artists_user = Artist::all(Some(&user), conn).unwrap();
+    let found_artists_admin = Artist::all(Some(&admin), conn).unwrap();
     assert_eq!(2, found_artists_user.len());
+    assert_eq!(2, found_artists_owner.len());
+    assert_eq!(2, found_artists_admin.len());
     assert_eq!(found_artists_user[0].id, artist.id);
     assert_eq!(found_artists_user[0].name, artist.name);
     assert_eq!(found_artists_user[1].id, artist2.id);
     assert_eq!(found_artists_user[1].name, artist2.name);
+    assert_eq!(found_artists_admin[1].id, artist2.id);
+    assert_eq!(found_artists_admin[1].name, artist2.name);
 }
 
 #[test]
