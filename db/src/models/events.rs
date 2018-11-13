@@ -240,7 +240,7 @@ impl Event {
             .to_db_error(ErrorCode::UpdateError, "Could not update event")
     }
 
-    pub fn find_all_events_from_venue(
+    pub fn find_all_events_for_venue(
         venue_id: &Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
@@ -254,18 +254,159 @@ impl Event {
         )
     }
 
-    pub fn find_all_events_from_organization(
-        organization_id: &Uuid,
+    pub fn find_all_events_for_organization(
+        organization_id: Uuid,
+        past_or_upcoming: PastOrUpcoming,
+        page: u32,
+        limit: u32,
         conn: &PgConnection,
-    ) -> Result<Vec<Event>, DatabaseError> {
-        DatabaseError::wrap(
+    ) -> Result<paging::Payload<EventSummaryResult>, DatabaseError> {
+        use diesel::sql_types::Nullable as N;
+
+        #[derive(QueryableByName)]
+        struct Total {
+            #[sql_type = "sql_types::BigInt"]
+            total: i64,
+        };
+
+        let mut total: Vec<Total> = diesel::sql_query(
+            r#"
+            SELECT count(*) as total
+            FROM events e
+            WHERE e.organization_id = $1
+            AND CASE WHEN $2 THEN e.event_start >= now() ELSE e.event_start < now() END;
+        "#,
+        ).bind::<sql_types::Uuid, _>(organization_id)
+        .bind::<sql_types::Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
+        .get_results(conn)
+        .to_db_error(
             ErrorCode::QueryError,
-            "Error loading events via organization",
-            events::table
-                .filter(events::organization_id.eq(organization_id))
-                .order_by(events::name)
-                .load(conn),
-        )
+            "Could not get total events for organization",
+        )?;
+
+        let mut paging = Paging::new(page, limit);
+        paging.total = total.remove(0).total as u32;
+
+        #[derive(QueryableByName)]
+        struct R {
+            #[sql_type = "sql_types::Uuid"]
+            id: Uuid,
+            #[sql_type = "sql_types::Text"]
+            name: String,
+            #[sql_type = "sql_types::Uuid"]
+            organization_id: Uuid,
+            #[sql_type = "N<sql_types::Uuid>"]
+            venue_id: Option<Uuid>,
+            #[sql_type = "N<sql_types::Text>"]
+            venue_name: Option<String>,
+            #[sql_type = "sql_types::Timestamp"]
+            created_at: NaiveDateTime,
+            #[sql_type = "N<sql_types::Timestamp>"]
+            event_start: Option<NaiveDateTime>,
+            #[sql_type = "N<sql_types::Timestamp>"]
+            door_time: Option<NaiveDateTime>,
+            #[sql_type = "sql_types::Text"]
+            status: String,
+            #[sql_type = "N<sql_types::Text>"]
+            promo_image_url: Option<String>,
+            #[sql_type = "N<sql_types::Text>"]
+            additional_info: Option<String>,
+            #[sql_type = "N<sql_types::Text>"]
+            top_line_info: Option<String>,
+            #[sql_type = "N<sql_types::BigInt>"]
+            age_limit: Option<i64>,
+            #[sql_type = "N<sql_types::Timestamp>"]
+            cancelled_at: Option<NaiveDateTime>,
+            #[sql_type = "N<sql_types::BigInt>"]
+            min_price: Option<i64>,
+            #[sql_type = "N<sql_types::BigInt>"]
+            max_price: Option<i64>,
+            #[sql_type = "N<sql_types::Timestamp>"]
+            publish_date: Option<NaiveDateTime>,
+            #[sql_type = "N<sql_types::Timestamp>"]
+            on_sale: Option<NaiveDateTime>,
+            #[sql_type = "N<sql_types::BigInt>"]
+            sales_total_in_cents: Option<i64>,
+        }
+
+        let query_events = include_str!("../queries/find_all_events_for_organization.sql");
+
+        let events: Vec<R> = diesel::sql_query(query_events)
+            .bind::<sql_types::Uuid, _>(organization_id)
+            .bind::<sql_types::Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
+            .bind::<sql_types::BigInt, _>((page * limit) as i64)
+            .bind::<sql_types::BigInt, _>(limit as i64)
+            .get_results(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load events for organization",
+            )?;
+
+        let query_ticket_types =
+            include_str!("../queries/find_all_events_for_organization_ticket_type.sql");;
+
+
+        let ticket_types: Vec<EventSummaryResultTicketType> = diesel::sql_query(query_ticket_types)
+            .get_results(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load events' ticket types for organization",
+            )?;
+
+        let results: Vec<EventSummaryResult> = events
+            .into_iter()
+            .map(|r| {
+                let venue = match r.venue_id {
+                    None => None,
+                    Some(_) => Some(VenueInfo {
+                        id: *r.venue_id.as_ref().unwrap(),
+                        name: r.venue_name.as_ref().unwrap().to_string(),
+                    }),
+                };
+                let event_id = r.id;
+                let mut result = EventSummaryResult {
+                    id: r.id,
+                    name: r.name,
+                    organization_id: r.organization_id,
+                    venue,
+                    created_at: r.created_at,
+                    event_start: r.event_start,
+                    door_time: r.door_time,
+                    status: r.status,
+                    promo_image_url: r.promo_image_url,
+                    additional_info: r.additional_info,
+                    top_line_info: r.top_line_info,
+                    age_limit: r.age_limit.map(|i| i as u32),
+                    cancelled_at: r.cancelled_at,
+                    max_ticket_price: r.max_price.map(|i| i as u32),
+                    min_ticket_price: r.min_price.map(|i| i as u32),
+                    publish_date: r.publish_date,
+                    on_sale: r.on_sale,
+                    total_tickets: 0,
+                    sold_unreserved: 0,
+                    sold_held: 0,
+                    tickets_open: 0,
+                    tickets_held: 0,
+                    sales_total_in_cents: r.sales_total_in_cents.unwrap_or(0) as u32,
+                    ticket_types: vec![],
+                };
+
+                for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
+                    result.ticket_types.push(ticket_type.clone());
+                    result.total_tickets += ticket_type.total as u32;
+                    result.sold_unreserved += ticket_type.sold_unreserved as u32;
+                    result.sold_held += ticket_type.sold_held as u32;
+                    result.tickets_open += ticket_type.open as u32;
+                    result.tickets_held += ticket_type.held as u32;
+                }
+
+                result
+            }).collect();
+
+        Ok(Payload {
+            paging,
+            data: results,
+        })
     }
 
     pub fn guest_list(
@@ -453,4 +594,54 @@ pub struct DisplayEvent {
     pub venue: Option<DisplayVenue>,
     pub min_ticket_price_cache: Option<i64>,
     pub max_ticket_price_cache: Option<i64>,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+pub struct EventSummaryResult {
+    pub id: Uuid,
+    pub name: String,
+    pub organization_id: Uuid,
+    pub venue: Option<VenueInfo>,
+    pub created_at: NaiveDateTime,
+    pub event_start: Option<NaiveDateTime>,
+    pub door_time: Option<NaiveDateTime>,
+    pub status: String,
+    pub promo_image_url: Option<String>,
+    pub additional_info: Option<String>,
+    pub top_line_info: Option<String>,
+    pub age_limit: Option<u32>,
+    pub cancelled_at: Option<NaiveDateTime>,
+    pub min_ticket_price: Option<u32>,
+    pub max_ticket_price: Option<u32>,
+    pub publish_date: Option<NaiveDateTime>,
+    pub on_sale: Option<NaiveDateTime>,
+    pub total_tickets: u32,
+    pub sold_unreserved: u32,
+    pub sold_held: u32,
+    pub tickets_open: u32,
+    pub tickets_held: u32,
+    pub sales_total_in_cents: u32,
+    pub ticket_types: Vec<EventSummaryResultTicketType>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, QueryableByName)]
+pub struct EventSummaryResultTicketType {
+    #[sql_type = "sql_types::Uuid"]
+    pub(crate) event_id: Uuid,
+    #[sql_type = "sql_types::Text"]
+    pub name: String,
+    #[sql_type = "sql_types::BigInt"]
+    pub min_price: i64,
+    #[sql_type = "sql_types::BigInt"]
+    pub max_price: i64,
+    #[sql_type = "sql_types::BigInt"]
+    pub total: i64,
+    #[sql_type = "sql_types::BigInt"]
+    pub sold_unreserved: i64,
+    #[sql_type = "sql_types::BigInt"]
+    pub sold_held: i64,
+    #[sql_type = "sql_types::BigInt"]
+    pub open: i64,
+    #[sql_type = "sql_types::BigInt"]
+    pub held: i64,
 }
