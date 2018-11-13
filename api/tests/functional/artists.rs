@@ -105,7 +105,6 @@ fn index_with_org_linked_and_private_venues() {
         query_parameters,
         Some(user.clone()),
     )).into();
-;
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_json);
@@ -115,8 +114,32 @@ fn index_with_org_linked_and_private_venues() {
     expected_artists.push(artist4);
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: HttpResponse = artists::index((
+        database.connection.clone().into(),
+        query_parameters,
+        Some(user),
+    )).into();
+    let wrapped_expected_artists = Payload {
+        data: expected_artists.clone(),
+        paging: Paging {
+            page: 0,
+            limit: 4,
+            sort: "".to_string(),
+            dir: SortingDir::Asc,
+            total: 4,
+            tags: HashMap::new(),
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_artists).unwrap();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, expected_json);
+
+    //now with an admin user
+    let admin = support::create_auth_user(Roles::Admin, None, &database);
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     let response: HttpResponse =
-        artists::index((database.connection.into(), query_parameters, Some(user))).into();
+        artists::index((database.connection.into(), query_parameters, Some(admin))).into();
     let wrapped_expected_artists = Payload {
         data: expected_artists,
         paging: Paging {
