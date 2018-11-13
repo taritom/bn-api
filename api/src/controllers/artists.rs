@@ -11,7 +11,7 @@ pub fn index(
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO implement proper paging on db
     let artists = match user {
-        Some(u) => Artist::all(Some(u.id()), connection.get())?,
+        Some(u) => Artist::all(Some(&u.user), connection.get())?,
         None => Artist::all(None, connection.get())?,
     };
     let payload = Payload::new(artists, query_parameters.into_inner().into());
