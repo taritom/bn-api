@@ -42,6 +42,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
+        description: None,
         capacity: 1000,
         start_date,
         end_date,
@@ -120,6 +121,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),
+        description: None,
         capacity: Some(created_ticket_capacity),
         start_date,
         end_date,
@@ -166,6 +168,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     }
     let updated_data = UpdateTicketTypeRequest {
         name: Some(updated_ticket_type.name.clone()),
+        description: None,
         capacity: Some(updated_ticket_capacity),
         start_date: Some(updated_ticket_type.start_date),
         end_date: Some(updated_ticket_type.end_date),

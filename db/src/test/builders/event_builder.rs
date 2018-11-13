@@ -132,6 +132,7 @@ impl<'a> EventBuilder<'a> {
                 let ticket_type = event
                     .add_ticket_type(
                         format!("Ticket Type {}", x).into(),
+                        None,
                         self.ticket_quantity,
                         event_start,
                         event_end,

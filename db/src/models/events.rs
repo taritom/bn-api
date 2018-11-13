@@ -391,6 +391,7 @@ impl Event {
     pub fn add_ticket_type(
         &self,
         name: String,
+        description: Option<String>,
         quantity: u32,
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
@@ -400,14 +401,9 @@ impl Event {
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         let asset_name = format!("{}.{}", self.name, &name);
-        let ticket_type = TicketType::create(
-            self.id,
-            name,
-            start_date,
-            end_date,
-            increment,
-            limit_per_person,
-        ).commit(conn)?;
+        let ticket_type =
+            TicketType::create(self.id, name, description, start_date, end_date, increment, limit_per_person)
+                .commit(conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;
         TicketInstance::create_multiple(asset.id, 0, quantity, wallet_id, conn)?;
         Ok(ticket_type)
