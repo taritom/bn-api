@@ -33,14 +33,14 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         price_in_cents: 10000,
         start_date,
         end_date: middle_date,
-        is_box_office_only: false,
+        is_box_office_only: Some(false),
     });
     ticket_pricing.push(CreateTicketPricingRequest {
         name: String::from("Base"),
         price_in_cents: 20000,
         start_date: middle_date,
         end_date,
-        is_box_office_only: false,
+        is_box_office_only: Some(false),
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),

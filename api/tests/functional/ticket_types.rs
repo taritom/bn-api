@@ -99,7 +99,7 @@ pub fn create_with_validation_errors() {
         price_in_cents: 10000,
         start_date: start_date2,
         end_date: end_date2,
-        is_box_office_only: false,
+        is_box_office_only: Some(false),
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
@@ -159,7 +159,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         price_in_cents: 10000,
         start_date: start_date2,
         end_date: end_date2,
-        is_box_office_only: false,
+        is_box_office_only: Some(false),
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
@@ -221,14 +221,14 @@ pub fn create_with_overlapping_periods() {
         price_in_cents: 10000,
         start_date,
         end_date: middle_date,
-        is_box_office_only: false,
+        is_box_office_only: Some(false),
     });
     ticket_pricing.push(CreateTicketPricingRequest {
         name: String::from("Base"),
         price_in_cents: 20000,
         start_date: start_date,
         end_date,
-        is_box_office_only: false,
+        is_box_office_only: Some(false),
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),

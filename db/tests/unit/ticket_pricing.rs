@@ -87,6 +87,7 @@ fn ticket_pricing_no_overlapping_periods() {
             ticket_type.id,
             start_date1,
             end_date1,
+            false,
             project.get_connection()
         ).unwrap()
         .is_err()
@@ -97,6 +98,7 @@ fn ticket_pricing_no_overlapping_periods() {
             ticket_type.id,
             start_date2,
             end_date2,
+            false,
             project.get_connection()
         ).unwrap()
         .is_err()
@@ -109,6 +111,7 @@ fn ticket_pricing_no_overlapping_periods() {
             ticket_type.id,
             start_date3,
             end_date3,
+            false,
             project.get_connection()
         ).unwrap()
         .is_ok()
