@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "be9f0879-883e-4aab-9823-f603d52028c0",
+		"_postman_id": "58e4b441-14fb-4a48-a47e-0a940c9a1fae",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -951,14 +951,14 @@
 							"listen": "test",
 							"script": {
 								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
+								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 201\", function() {",
 									"    pm.response.to.have.status(201);",
 									"})",
 									"",
 									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);"
-								],
-								"type": "text/javascript"
+								]
 							}
 						}
 					],
@@ -1901,7 +1901,7 @@
 								}
 							]
 						},
-						"method": "PUT",
+						"method": "PATCH",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -1913,15 +1913,14 @@
 							"raw": "{\n\t\"quantity\" : 10\n}"
 						},
 						"url": {
-							"raw": "http://{{server}}/holds/{{last_hold_id}}/tickets",
+							"raw": "http://{{server}}/holds/{{last_hold_id}}",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
 								"holds",
-								"{{last_hold_id}}",
-								"tickets"
+								"{{last_hold_id}}"
 							]
 						}
 					},
@@ -1955,7 +1954,7 @@
 								}
 							]
 						},
-						"method": "PUT",
+						"method": "PATCH",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -1967,15 +1966,14 @@
 							"raw": "{\n\t\"quantity\" : 5\n}"
 						},
 						"url": {
-							"raw": "http://{{server}}/holds/{{last_hold_id}}/tickets",
+							"raw": "http://{{server}}/holds/{{last_hold_id}}",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
 								"holds",
-								"{{last_hold_id}}",
-								"tickets"
+								"{{last_hold_id}}"
 							]
 						}
 					},

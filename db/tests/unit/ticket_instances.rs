@@ -254,10 +254,7 @@ pub fn release_tickets() {
         .transaction::<Vec<TicketInstance>, Error, _>(|| {
             // Release requesting too many tickets
             let released_tickets = TicketInstance::release_tickets(&order_item, 7, connection);
-            assert_eq!(
-                released_tickets.unwrap_err().cause.unwrap(),
-                "Could not release the correct amount of tickets",
-            );
+            assert_eq!(released_tickets.unwrap_err().code, 7200,);
 
             Err(Error::RollbackTransaction)
         }).unwrap_err();

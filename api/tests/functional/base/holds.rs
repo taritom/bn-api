@@ -76,6 +76,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
 
     let json = Json(UpdateHoldRequest {
         name: Some(name.into()),
+        quantity: Some(1),
         ..Default::default()
     });
 
@@ -87,37 +88,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         let updated_hold: Hold = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_hold.name, name);
-    } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
-    }
-}
-
-pub fn add_remove_from_hold(role: Roles, should_test_succeed: bool) {
-    let database = TestDatabase::new();
-    let connection = database.connection.clone();
-    let user = database.create_user().finish();
-    let hold = database.create_hold().finish();
-    let event = Event::find(hold.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
-    assert_eq!(hold.quantity(&connection).unwrap(), (10, 10));
-
-    let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = hold.id;
-
-    let json = Json(SetQuantityRequest { quantity: 1 });
-
-    let response: HttpResponse =
-        holds::add_remove_from_hold((database.connection.into(), json, path, auth_user)).into();
-
-    if should_test_succeed {
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(hold.quantity(&connection).unwrap(), (1, 1));
+        assert_eq!(updated_hold.quantity(&connection).unwrap(), (1, 1));
     } else {
         support::expects_unauthorized(
             &response,
