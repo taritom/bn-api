@@ -332,6 +332,7 @@ table! {
         id -> Uuid,
         event_id -> Uuid,
         name -> Text,
+        description -> Nullable<Text>,
         status -> Text,
         start_date -> Timestamp,
         end_date -> Timestamp,

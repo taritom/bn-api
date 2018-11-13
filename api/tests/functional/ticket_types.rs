@@ -102,6 +102,7 @@ pub fn create_with_validation_errors() {
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
+        description: None,
         capacity: 1000,
         start_date,
         end_date,
@@ -159,6 +160,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
+        description: None,
         capacity: 1000,
         start_date,
         end_date,
@@ -224,6 +226,7 @@ pub fn create_with_overlapping_periods() {
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
+        description: None,
         capacity: 1000,
         start_date,
         end_date,
@@ -311,6 +314,7 @@ pub fn update_with_invalid_id() {
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),
+        description: None,
         capacity: Some(created_ticket_capacity),
         start_date,
         end_date,
@@ -375,6 +379,7 @@ pub fn update_with_validation_errors() {
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),
+        description: None,
         capacity: Some(created_ticket_capacity),
         start_date,
         end_date,
@@ -450,6 +455,7 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),
+        description: None,
         capacity: Some(created_ticket_capacity),
         start_date,
         end_date,
@@ -536,6 +542,7 @@ pub fn update_with_overlapping_periods() {
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),
+        description: None,
         capacity: Some(created_ticket_capacity),
         start_date,
         end_date,
