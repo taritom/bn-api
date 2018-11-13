@@ -39,6 +39,7 @@ pub struct Event {
     pub updated_at: NaiveDateTime,
     pub min_ticket_price_cache: Option<i64>,
     pub max_ticket_price_cache: Option<i64>,
+    pub video_url: Option<String>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate)]
@@ -65,6 +66,7 @@ pub struct NewEvent {
         message = "Top line info must be at most 100 characters long"
     ))]
     pub top_line_info: Option<String>,
+    pub video_url: Option<String>,
 }
 
 #[derive(AsChangeset)]
@@ -109,6 +111,7 @@ pub struct EventEditableAttributes {
         message = "Top line info must be at most 100 characters long"
     ))]
     pub top_line_info: Option<String>,
+    pub video_url: Option<String>,
 }
 
 impl Event {
@@ -437,6 +440,7 @@ impl Event {
             venue,
             max_ticket_price_cache: None,
             min_ticket_price_cache: None,
+            video_url: self.video_url,
         })
     }
 }
@@ -453,4 +457,5 @@ pub struct DisplayEvent {
     pub venue: Option<DisplayVenue>,
     pub min_ticket_price_cache: Option<i64>,
     pub max_ticket_price_cache: Option<i64>,
+    pub video_url: Option<String>,
 }
