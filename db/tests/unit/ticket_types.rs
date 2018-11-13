@@ -15,8 +15,17 @@ fn create() {
     let sd = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
     let ed = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ticket_type = event
-        .add_ticket_type("VIP".to_string(), None, 100, sd, ed, wallet_id, None, 0, conn)
-        .unwrap();
+        .add_ticket_type(
+            "VIP".to_string(),
+            None,
+            100,
+            sd,
+            ed,
+            wallet_id,
+            None,
+            0,
+            conn,
+        ).unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
     assert_eq!(ticket_type.name, "VIP".to_string())
