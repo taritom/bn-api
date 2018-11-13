@@ -228,31 +228,31 @@ impl Venue {
     pub fn validate_for_publish(&self) -> Result<(), ValidationErrors> {
         let mut res = ValidationErrors::new();
 
-        if self.address.is_none() {
+        if self.address.as_ref().unwrap_or(&"".to_string()) == "" {
             let mut validation_error =
                 create_validation_error("required", "Address is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);
             res.add("venue.address", validation_error);
         }
-        if self.city.is_none() {
+        if self.city.as_ref().unwrap_or(&"".to_string()) == "" {
             let mut validation_error =
                 create_validation_error("required", "City is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);
             res.add("venue.city", validation_error);
         }
-        if self.country.is_none() {
+        if self.country.as_ref().unwrap_or(&"".to_string()) == "" {
             let mut validation_error =
                 create_validation_error("required", "Country is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);
             res.add("venue.country", validation_error);
         }
-        if self.postal_code.is_none() {
+        if self.postal_code.as_ref().unwrap_or(&"".to_string()) == "" {
             let mut validation_error =
                 create_validation_error("required", "Postal code is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);
             res.add("venue.postal_code", validation_error);
         }
-        if self.state.is_none() {
+        if self.state.as_ref().unwrap_or(&"".to_string()) == "" {
             let mut validation_error =
                 create_validation_error("required", "State is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);
@@ -290,4 +290,10 @@ impl From<Venue> for DisplayVenue {
             phone: venue.phone,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct VenueInfo {
+    pub id: Uuid,
+    pub name: String,
 }

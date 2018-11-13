@@ -202,3 +202,21 @@ fn organization() {
     );
     assert_eq!(Ok(None), venue2.organization(project.get_connection()));
 }
+
+#[test]
+fn validate_for_publish() {
+    let project = TestProject::new();
+    let venue = Venue::create("test", None, None)
+        .commit(project.get_connection())
+        .unwrap();
+
+    let res = venue.validate_for_publish();
+
+    assert!(res.is_err());
+    let errors = res.err().unwrap().errors();
+    assert!(errors.contains_key("venue.address"));
+    assert!(errors.contains_key("venue.city"));
+    assert!(errors.contains_key("venue.country"));
+    assert!(errors.contains_key("venue.postal_code"));
+    assert!(errors.contains_key("venue.state"));
+}

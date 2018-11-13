@@ -1,11 +1,11 @@
-use actix_web::{HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{PathParameters, UserDisplayTicketType};
+use models::{PathParameters, UserDisplayTicketType, WebPayload};
 use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use std::collections::HashMap;
@@ -57,24 +57,6 @@ impl From<SearchParameters> for Paging {
             tags: default_tags,
         }.into()
     }
-}
-
-#[derive(Deserialize, Debug)]
-pub struct AddArtistRequest {
-    pub artist_id: Uuid,
-    pub rank: i32,
-    pub set_time: Option<NaiveDateTime>,
-}
-
-#[derive(Deserialize, Debug, Default)]
-pub struct UpdateArtistsRequest {
-    pub artist_id: Uuid,
-    pub set_time: Option<NaiveDateTime>,
-}
-
-#[derive(Deserialize, Debug, Default)]
-pub struct UpdateArtistsRequestList {
-    pub artists: Vec<UpdateArtistsRequest>,
 }
 
 pub fn index(
@@ -258,15 +240,19 @@ pub fn publish(
 }
 
 pub fn show_from_organizations(
-    (connection, organization_id, query_parameters): (
-        Connection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-    ),
-) -> Result<HttpResponse, BigNeonError> {
-    let events = Event::find_all_events_from_organization(&organization_id.id, connection.get())?;
-    let payload = Payload::new(events, query_parameters.into_inner().into());
-    Ok(HttpResponse::Ok().json(&payload))
+    (connection, path, paging): (Connection, Path<PathParameters>, Query<PagingParameters>),
+) -> Result<WebPayload<EventSummaryResult>, BigNeonError> {
+    let events = Event::find_all_events_for_organization(
+        path.id,
+        paging
+            .get_tag("past_or_upcoming")
+            .unwrap_or_else(|| "Upcoming".to_string())
+            .parse()?,
+        paging.page(),
+        paging.limit(),
+        connection.get(),
+    )?;
+    Ok(WebPayload::new(StatusCode::OK, events))
 }
 
 pub fn show_from_venues(
@@ -276,9 +262,16 @@ pub fn show_from_venues(
         Query<PagingParameters>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    let events = Event::find_all_events_from_venue(&venue_id.id, connection.get())?;
+    let events = Event::find_all_events_for_venue(&venue_id.id, connection.get())?;
     let payload = Payload::new(events, query_parameters.into_inner().into());
     Ok(HttpResponse::Ok().json(&payload))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AddArtistRequest {
+    pub artist_id: Uuid,
+    pub rank: i32,
+    pub set_time: Option<NaiveDateTime>,
 }
 
 pub fn create(
@@ -296,6 +289,17 @@ pub fn create(
 
     let event = new_event.commit(connection)?;
     Ok(HttpResponse::Created().json(&event))
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct UpdateArtistsRequest {
+    pub artist_id: Uuid,
+    pub set_time: Option<NaiveDateTime>,
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct UpdateArtistsRequestList {
+    pub artists: Vec<UpdateArtistsRequest>,
 }
 
 pub fn update(

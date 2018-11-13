@@ -498,48 +498,93 @@ mod holds_tests {
 }
 
 #[test]
-pub fn show_from_organizations() {
+pub fn show_from_organizations_past() {
     let database = TestDatabase::new();
 
     let organization = database.create_organization().finish();
     let event = database
         .create_event()
         .with_name("NewEvent".to_string())
-        .with_organization(&organization)
+        .with_event_start(
+            &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        ).with_organization(&organization)
         .finish();
-    let event2 = database
+    let _event2 = database
         .create_event()
         .with_name("NewEvent2".to_string())
-        .with_organization(&organization)
+        .with_event_start(
+            &NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        ).with_organization(&organization)
         .finish();
 
-    let all_events = vec![event, event2];
+    let expected_events = vec![event.id];
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
+    let test_request = TestRequest::create_with_uri(&format!("/events?past_or_upcoming=Past"));
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
-    let response: HttpResponse =
+    let response =
         events::show_from_organizations((database.connection.into(), path, query_parameters))
-            .into();
+            .unwrap();
 
-    let wrapped_expected_events = Payload {
-        data: all_events,
-        paging: Paging {
-            page: 0,
-            limit: 2,
-            sort: "".to_string(),
-            dir: SortingDir::Asc,
-            total: 2,
-            tags: HashMap::new(),
-        },
-    };
-    let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, expected_json);
+    assert_eq!(
+        expected_events,
+        response
+            .payload()
+            .data
+            .iter()
+            .map(|i| i.id)
+            .collect::<Vec<Uuid>>()
+    );
+}
+
+#[test]
+pub fn show_from_organizations_upcoming() {
+    let database = TestDatabase::new();
+
+    let organization = database.create_organization().finish();
+    let _event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_event_start(
+            &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        ).with_organization(&organization)
+        .finish();
+    let event2 = database
+        .create_event()
+        .with_event_start(
+            &NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        ).with_name("NewEvent2".to_string())
+        .with_organization(&organization)
+        .finish();
+
+    let expected_events = vec![event2.id];
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    let test_request = TestRequest::create_with_uri(&format!("/events?past_or_upcoming=Upcoming"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response =
+        events::show_from_organizations((database.connection.into(), path, query_parameters))
+            .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        expected_events,
+        response
+            .payload()
+            .data
+            .iter()
+            .map(|i| i.id)
+            .collect::<Vec<Uuid>>()
+    );
 }
 
 #[test]

@@ -5,41 +5,42 @@ use utils::errors::EnumParseError;
 macro_rules! string_enum {
     ($name:ident [$($value:ident),+]) => {
 
-            #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
-            pub enum $name {
-                $(
-                    $value,
-                )*
-            }
+        #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
+        pub enum $name {
+            $(
+                $value,
+            )*
+        }
 
-            impl fmt::Display for $name {
-                fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-                 let s = match self {
-                      $(
-                        $name::$value => stringify!($value),
-                       )*
-                    };
-                    write!(f, "{}", s)
-                }
-            }
-
-            impl FromStr for $name {
-                type Err = EnumParseError;
-
-                fn from_str(s: &str) -> Result<Self, Self::Err> {
-                    match s {
-                        $(
-                          stringify!($value) => Ok($name::$value),
-                         )*
-                          _ => Err(EnumParseError {
-                              message: "Could not parse value".to_string(),
-                              enum_type: stringify!($name).to_string(),
-                              value: s.to_string(),
-                          })
-                    }
-                }
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+             let s = match self {
+                  $(
+                    $name::$value => stringify!($value),
+                   )*
+                };
+                write!(f, "{}", s)
             }
         }
+
+        impl FromStr for $name {
+            type Err = EnumParseError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+               $(
+                  if s.eq_ignore_ascii_case(stringify!($value)) {
+                     return Ok($name::$value);
+                  }
+               )*
+
+               Err(EnumParseError {
+                          message: "Could not parse value".to_string(),
+                          enum_type: stringify!($name).to_string(),
+                          value: s.to_string(),
+                      })
+            }
+        }
+    }
 }
 
 string_enum! { AssetStatus [Unsynced] }
@@ -52,6 +53,7 @@ string_enum! { OrderItemTypes [Tickets, PerUnitFees, EventFees]}
 string_enum! { OrderTypes [Cart, BackOffice] }
 string_enum! { PaymentMethods [External, CreditCard] }
 string_enum! { PaymentStatus [Authorized, Completed] }
+string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Roles [Admin, OrgMember, OrgOwner, User] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { Tables [Payments, PaymentMethods] }
