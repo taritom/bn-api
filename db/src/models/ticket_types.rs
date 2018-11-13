@@ -26,6 +26,7 @@ pub struct TicketType {
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub increment: i32,
+    pub limit_per_person: i32,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -38,6 +39,7 @@ pub struct TicketTypeEditableAttributes {
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
     pub increment: Option<i32>,
+    pub limit_per_person: Option<i32>,
 }
 
 impl TicketType {
@@ -63,6 +65,7 @@ impl TicketType {
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
         increment: Option<i32>,
+        limit_per_person: i32,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -72,6 +75,7 @@ impl TicketType {
             start_date,
             end_date,
             increment,
+            limit_per_person,
         }
     }
 
@@ -274,6 +278,7 @@ pub struct NewTicketType {
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
     increment: Option<i32>,
+    limit_per_person: i32,
 }
 
 impl NewTicketType {

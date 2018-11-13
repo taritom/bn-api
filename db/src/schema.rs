@@ -337,6 +337,7 @@ table! {
         start_date -> Timestamp,
         end_date -> Timestamp,
         increment -> Int4,
+        limit_per_person -> Int4,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

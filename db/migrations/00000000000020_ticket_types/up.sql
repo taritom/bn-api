@@ -7,6 +7,7 @@ CREATE TABLE ticket_types (
   start_date TIMESTAMP NOT NULL CHECK (start_date < end_date),
   end_date TIMESTAMP NOT NULL,
   increment INT NOT NULL DEFAULT 1,
+  limit_per_person INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );

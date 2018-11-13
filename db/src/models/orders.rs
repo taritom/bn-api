@@ -4,16 +4,20 @@ use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
-use diesel::sql_types::{BigInt, Nullable, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Integer, Nullable, Uuid as dUuid};
 use itertools::Itertools;
 use log::Level;
 use models::*;
 use schema::{order_items, orders, users};
 use serde_json;
+use std::borrow::Cow;
+use std::collections::HashMap;
 use time::Duration;
 use utils::errors;
 use utils::errors::*;
 use uuid::Uuid;
+use validator::ValidationErrors;
+use validators::*;
 
 #[derive(Associations, Debug, Identifiable, PartialEq, Queryable)]
 #[belongs_to(User)]
@@ -161,6 +165,15 @@ impl Order {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         self.lock_version(conn)?;
+
+        #[derive(Debug)]
+        struct LimitCheck {
+            ticket_type_id: Uuid,
+            event_id: Uuid,
+            limit_per_person: i32,
+        }
+        let mut check_ticket_limits: Vec<LimitCheck> = vec![];
+
         let mut mapped = vec![];
         for (index, item) in items.iter().enumerate() {
             mapped.push(match &item.redemption_code {
@@ -225,6 +238,13 @@ impl Order {
                         let ticket_pricing =
                             TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
                         let ticket_type = TicketType::find(ticket_type_id, conn)?;
+
+                        check_ticket_limits.push(LimitCheck {
+                            limit_per_person: ticket_type.limit_per_person.clone(),
+                            ticket_type_id: ticket_type.id.clone(),
+                            event_id: ticket_type.event_id.clone(),
+                        });
+
                         // TODO: Move this to an external processer
                         let fee_schedule_range = ticket_type
                             .fee_schedule(conn)?
@@ -276,6 +296,13 @@ impl Order {
             let ticket_pricing =
                 TicketPricing::get_current_ticket_pricing(new_line.ticket_type_id, conn)?;
             let ticket_type = TicketType::find(new_line.ticket_type_id, conn)?;
+
+            check_ticket_limits.push(LimitCheck {
+                limit_per_person: ticket_type.limit_per_person.clone(),
+                ticket_type_id: ticket_type.id.clone(),
+                event_id: ticket_type.event_id.clone(),
+            });
+
             // TODO: Move this to an external processer
             let fee_schedule_range = ticket_type
                 .fee_schedule(conn)?
@@ -302,6 +329,39 @@ impl Order {
                 new_line.quantity,
                 conn,
             )?;
+        }
+
+        for limit_check in check_ticket_limits {
+            let quantities_ordered =
+                Order::quantity_for_user_for_event(&self.user_id, &limit_check.event_id, &conn)?;
+
+            if &limit_check.limit_per_person > &0
+                && quantities_ordered.contains_key(&limit_check.ticket_type_id)
+            {
+                match quantities_ordered.get(&limit_check.ticket_type_id) {
+                    Some(ordered_quantity) => {
+                        if ordered_quantity > &limit_check.limit_per_person {
+                            let mut error = create_validation_error(
+                                "limit_per_person_exceeded",
+                                "Exceeded limit per person per event",
+                            );
+                            error.add_param(
+                                Cow::from("limit_per_person"),
+                                &limit_check.limit_per_person,
+                            );
+                            error.add_param(
+                                Cow::from("ticket_type_id"),
+                                &limit_check.ticket_type_id,
+                            );
+                            error.add_param(Cow::from("attempted_quantity"), ordered_quantity);
+                            let mut errors = ValidationErrors::new();
+                            errors.add("quantity", error);
+                            return Err(errors.into());
+                        }
+                    }
+                    None => {}
+                };
+            }
         }
 
         self.update_fees(conn)?;
@@ -364,6 +424,30 @@ impl Order {
         }
 
         Ok(())
+    }
+
+    pub fn quantity_for_user_for_event(
+        user_id: &Uuid,
+        event_id: &Uuid,
+        conn: &PgConnection,
+    ) -> Result<HashMap<Uuid, i32>, DatabaseError> {
+        let mut ticket_type_totals: HashMap<Uuid, i32> = HashMap::new();
+
+        let query = include_str!("../queries/quantity_of_tickets_per_user_per_event.sql");
+        let order_items_for_user: Vec<ResultForTicketTypeTotal> = diesel::sql_query(query)
+            .bind::<diesel::sql_types::Uuid, _>(user_id)
+            .bind::<diesel::sql_types::Uuid, _>(event_id)
+            .load::<ResultForTicketTypeTotal>(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
+
+        for result_for_ticket in &order_items_for_user {
+            ticket_type_totals.insert(
+                result_for_ticket.ticket_type_id.unwrap(),
+                result_for_ticket.total_quantity,
+            );
+        }
+
+        Ok(ticket_type_totals)
     }
 
     pub fn find_for_user_for_display(
@@ -650,6 +734,14 @@ impl Order {
         self.version = self.version + 1;
         Ok(())
     }
+}
+
+#[derive(QueryableByName, Deserialize, Serialize, Debug)]
+pub struct ResultForTicketTypeTotal {
+    #[sql_type = "Nullable<dUuid>"]
+    ticket_type_id: Option<Uuid>,
+    #[sql_type = "Integer"]
+    total_quantity: i32,
 }
 
 #[derive(Deserialize, Serialize)]
