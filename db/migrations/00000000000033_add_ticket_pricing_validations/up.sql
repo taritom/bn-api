@@ -8,6 +8,9 @@ BEGIN
                 -- Filter out current record being updated
                 ID <> $1
             AND
+                -- Filter out is_box_office_only prices they can overlap dates
+                is_box_office_only = FALSE
+            AND
                 -- Filter to the current ticket type
                 ticket_type_id = $2
             AND

@@ -24,6 +24,7 @@ pub struct TicketPricing {
     pub price_in_cents: i64,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
+    pub is_box_office_only: bool,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -35,6 +36,7 @@ pub struct TicketPricingEditableAttributes {
     pub price_in_cents: Option<i64>,
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
+    pub is_box_office_only: Option<bool>,
 }
 
 impl TicketPricing {
@@ -44,6 +46,7 @@ impl TicketPricing {
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
         price_in_cents: i64,
+        is_box_office_only: bool,
     ) -> NewTicketPricing {
         NewTicketPricing {
             ticket_type_id,
@@ -52,6 +55,7 @@ impl TicketPricing {
             start_date,
             end_date,
             price_in_cents,
+            is_box_office_only,
         }
     }
 
@@ -196,6 +200,7 @@ pub struct NewTicketPricing {
     name: String,
     status: String,
     price_in_cents: i64,
+    is_box_office_only: bool,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
 }
