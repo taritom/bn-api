@@ -31,7 +31,9 @@ pub use self::ticket_types::*;
 pub use self::users::*;
 pub use self::venues::*;
 pub use self::wallets::*;
+
 use serde::{Deserialize, Deserializer};
+use serde_json::Value;
 
 pub mod concerns;
 
@@ -68,10 +70,75 @@ mod users;
 mod venues;
 mod wallets;
 
-pub fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+pub fn deserialize_unless_blank<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     T: Deserialize<'de>,
     D: Deserializer<'de>,
 {
-    Deserialize::deserialize(deserializer).map(Some)
+    let value: Value = Deserialize::deserialize(deserializer)?;
+    if value.as_str().map_or(false, |v| !v.is_empty()) {
+        Ok(T::deserialize(value).ok())
+    } else {
+        Ok(None)
+    }
+}
+
+#[test]
+fn deserialize_unless_blank_properly_deserializes() {
+    let venue_data = r#"{"name": "Venue"}"#;
+    let venue: NewVenue = serde_json::from_str(&venue_data).unwrap();
+    assert_eq!(venue.name, "Venue".to_string());
+    assert_eq!(venue.city, None);
+    assert_eq!(venue.state, None);
+    assert_eq!(venue.address, None);
+    assert_eq!(venue.country, None);
+    assert_eq!(venue.postal_code, None);
+
+    let venue_data = r#"{
+        "name": "Venue",
+        "city": null,
+        "state": null,
+        "address": null,
+        "country": null,
+        "postal_code": null
+    }"#;
+    let venue: NewVenue = serde_json::from_str(&venue_data).unwrap();
+    assert_eq!(venue.name, "Venue".to_string());
+    assert_eq!(venue.city, None);
+    assert_eq!(venue.state, None);
+    assert_eq!(venue.address, None);
+    assert_eq!(venue.country, None);
+    assert_eq!(venue.postal_code, None);
+
+    let venue_data = r#"{
+        "name": "Venue",
+        "city": "",
+        "state": "",
+        "address": "",
+        "country": "",
+        "postal_code": ""
+    }"#;
+    let venue: NewVenue = serde_json::from_str(&venue_data).unwrap();
+    assert_eq!(venue.name, "Venue".to_string());
+    assert_eq!(venue.city, None);
+    assert_eq!(venue.state, None);
+    assert_eq!(venue.address, None);
+    assert_eq!(venue.country, None);
+    assert_eq!(venue.postal_code, None);
+
+    let venue_data = r#"{
+        "name": "Venue",
+        "city": "Springfield",
+        "state": "MA",
+        "address": "111 Main Street",
+        "country": "US",
+        "postal_code": "01103"
+    }"#;
+    let venue: NewVenue = serde_json::from_str(&venue_data).unwrap();
+    assert_eq!(venue.name, "Venue".to_string());
+    assert_eq!(venue.city, Some("Springfield".to_string()));
+    assert_eq!(venue.state, Some("MA".to_string()));
+    assert_eq!(venue.address, Some("111 Main Street".to_string()));
+    assert_eq!(venue.country, Some("US".to_string()));
+    assert_eq!(venue.postal_code, Some("01103".to_string()));
 }

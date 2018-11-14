@@ -34,7 +34,9 @@ pub struct Comp {
 pub struct UpdateCompAttributes {
     pub name: Option<String>,
     #[validate(email(message = "Email is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub email: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
     pub quantity: Option<i32>,
 }

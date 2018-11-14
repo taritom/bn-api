@@ -6,6 +6,7 @@ use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
 use models::PathParameters;
+use serde_with::rust::double_option;
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize)]
@@ -26,11 +27,11 @@ pub struct UpdateCodeRequest {
     pub name: Option<String>,
     pub redemption_code: Option<String>,
     pub max_uses: Option<i64>,
-    #[serde(default, deserialize_with = "deserialize_some")]
+    #[serde(default, deserialize_with = "double_option::deserialize")]
     pub discount_in_cents: Option<Option<u32>>,
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
-    #[serde(default, deserialize_with = "deserialize_some")]
+    #[serde(default, deserialize_with = "double_option::deserialize")]
     pub max_tickets_per_user: Option<Option<u32>>,
     pub ticket_type_ids: Option<Vec<Uuid>>,
 }

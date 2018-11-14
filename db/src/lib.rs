@@ -26,6 +26,7 @@ extern crate uuid;
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
+extern crate serde_with;
 #[macro_use]
 extern crate validator_derive;
 extern crate tari_client;

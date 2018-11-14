@@ -3,7 +3,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::users::User;
-use models::{Organization, Region};
+use models::*;
 use schema::{organization_users, organizations, venues};
 use std::borrow::Cow;
 use utils::errors::ConvertToDatabaseError;
@@ -47,11 +47,17 @@ pub struct Venue {
 pub struct VenueEditableAttributes {
     pub region_id: Option<Uuid>,
     pub name: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub address: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub city: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub state: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub country: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub postal_code: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
 }
 
@@ -61,11 +67,17 @@ pub struct NewVenue {
     pub name: String,
     pub region_id: Option<Uuid>,
     pub organization_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub address: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub city: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub state: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub country: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub postal_code: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
 }
 
@@ -228,31 +240,31 @@ impl Venue {
     pub fn validate_for_publish(&self) -> Result<(), ValidationErrors> {
         let mut res = ValidationErrors::new();
 
-        if self.address.as_ref().unwrap_or(&"".to_string()) == "" {
+        if self.address.is_none() {
             let mut validation_error =
                 create_validation_error("required", "Address is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);
             res.add("venue.address", validation_error);
         }
-        if self.city.as_ref().unwrap_or(&"".to_string()) == "" {
+        if self.city.is_none() {
             let mut validation_error =
                 create_validation_error("required", "City is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);
             res.add("venue.city", validation_error);
         }
-        if self.country.as_ref().unwrap_or(&"".to_string()) == "" {
+        if self.country.is_none() {
             let mut validation_error =
                 create_validation_error("required", "Country is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);
             res.add("venue.country", validation_error);
         }
-        if self.postal_code.as_ref().unwrap_or(&"".to_string()) == "" {
+        if self.postal_code.is_none() {
             let mut validation_error =
                 create_validation_error("required", "Postal code is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);
             res.add("venue.postal_code", validation_error);
         }
-        if self.state.as_ref().unwrap_or(&"".to_string()) == "" {
+        if self.state.is_none() {
             let mut validation_error =
                 create_validation_error("required", "State is required before publishing");
             validation_error.add_param(Cow::from("venue_id"), &self.id);

@@ -1,18 +1,25 @@
-use bigneon_db::models::UserEditableAttributes;
+use bigneon_db::models::{deserialize_unless_blank, UserEditableAttributes};
 use validator::Validate;
 
 #[derive(Default, Deserialize, Validate)]
 pub struct UserProfileAttributes {
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub first_name: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub last_name: Option<String>,
     #[validate(email(message = "Email is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub email: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
     #[validate(url(message = "Profile pic URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub profile_pic_url: Option<String>,
     #[validate(url(message = "Thumb profile pic URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub thumb_profile_pic_url: Option<String>,
     #[validate(url(message = "Cover photo URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub cover_photo_url: Option<String>,
 }
 

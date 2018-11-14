@@ -26,6 +26,7 @@ pub struct InviteResponseQuery {
 
 #[derive(Deserialize)]
 pub struct NewOrgInviteRequest {
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub user_email: Option<String>,
     pub user_id: Option<Uuid>,
 }
@@ -177,5 +178,5 @@ pub fn decline_request(
     recipient_name: str,
     connection : Connection)
 {
-   
+
 }*/

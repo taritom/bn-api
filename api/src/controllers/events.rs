@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct SearchParameters {
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     query: Option<String>,
     region_id: Option<Uuid>,
     #[serde(
@@ -24,6 +25,7 @@ pub struct SearchParameters {
     end_utc: Option<NaiveDateTime>,
     page: Option<u32>,
     limit: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     sort: Option<String>,
     dir: Option<SortingDir>,
 }

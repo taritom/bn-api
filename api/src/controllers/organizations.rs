@@ -32,11 +32,17 @@ pub struct NewOrganizationRequest {
     pub owner_user_id: Uuid,
     pub name: String,
     pub event_fee_in_cents: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub address: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub city: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub state: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub country: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub postal_code: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
 }
 

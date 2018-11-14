@@ -6,6 +6,7 @@ use diesel::prelude::*;
 use models::scopes;
 use models::*;
 use schema::{events, organization_users, organizations, users, venues};
+use serde_with::rust::double_option;
 use utils::errors::*;
 use uuid::Uuid;
 
@@ -66,13 +67,19 @@ impl NewOrganization {
 #[table_name = "organizations"]
 pub struct OrganizationEditableAttributes {
     pub name: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub address: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub city: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub state: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub country: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub postal_code: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_some")]
+    #[serde(default, deserialize_with = "double_option::deserialize")]
     pub event_fee_in_cents: Option<Option<i64>>,
 }
 

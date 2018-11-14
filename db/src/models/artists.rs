@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use models::{Organization, User};
+use models::*;
 use schema::{artists, organization_users, organizations};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -38,17 +38,25 @@ pub struct NewArtist {
     pub name: String,
     pub bio: String,
     #[validate(url(message = "Image URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub image_url: Option<String>,
     #[validate(url(message = "Thumb image URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub thumb_image_url: Option<String>,
     #[validate(url(message = "Website URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub website_url: Option<String>,
     #[validate(custom = "validators::validate_urls")]
     pub youtube_video_urls: Option<Vec<String>>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub instagram_username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub snapchat_username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub soundcloud_username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub bandcamp_username: Option<String>,
 }
 
@@ -205,17 +213,25 @@ pub struct ArtistEditableAttributes {
     pub name: Option<String>,
     pub bio: Option<String>,
     #[validate(url(message = "Image URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub image_url: Option<String>,
     #[validate(url(message = "Thumb image URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub thumb_image_url: Option<String>,
     #[validate(url(message = "Website URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub website_url: Option<String>,
     #[validate(custom = "validators::validate_urls")]
     pub youtube_video_urls: Option<Vec<String>>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub instagram_username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub snapchat_username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub soundcloud_username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub bandcamp_username: Option<String>,
 }
 

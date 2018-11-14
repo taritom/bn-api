@@ -1,10 +1,13 @@
-use bigneon_db::models::{NewUser, User};
+use bigneon_db::models::{deserialize_unless_blank, NewUser, User};
 
 #[derive(Deserialize)]
 pub struct RegisterRequest {
     pub email: String,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub first_name: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub last_name: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
     pub password: String,
 }

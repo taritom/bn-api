@@ -56,7 +56,9 @@ pub struct NewEvent {
     pub redeem_date: Option<NaiveDateTime>,
     pub fee_in_cents: Option<i64>,
     #[validate(url(message = "Promo image URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub promo_image_url: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
     pub min_ticket_price_cache: Option<i64>,
@@ -65,6 +67,7 @@ pub struct NewEvent {
         max = "100",
         message = "Top line info must be at most 100 characters long"
     ))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub top_line_info: Option<String>,
     #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,
@@ -103,7 +106,9 @@ pub struct EventEditableAttributes {
     pub redeem_date: Option<NaiveDateTime>,
     pub fee_in_cents: Option<i64>,
     #[validate(url(message = "Promo image URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub promo_image_url: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
     pub cancelled_at: Option<NaiveDateTime>,
@@ -111,6 +116,7 @@ pub struct EventEditableAttributes {
         max = "100",
         message = "Top line info must be at most 100 characters long"
     ))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub top_line_info: Option<String>,
     #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,

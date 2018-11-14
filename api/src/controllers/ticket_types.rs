@@ -6,6 +6,7 @@ use db::Connection;
 use errors::*;
 use helpers::application;
 use models::{AdminDisplayTicketType, EventTicketPathParameters, PathParameters};
+use serde_with::rust::double_option;
 use server::AppState;
 use tari_client::MessagePayloadCreateAsset as TariNewAsset;
 use uuid::Uuid;
@@ -22,6 +23,7 @@ pub struct CreateTicketPricingRequest {
 #[derive(Deserialize)]
 pub struct CreateTicketTypeRequest {
     pub name: String,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub description: Option<String>,
     pub capacity: u32,
     pub start_date: NaiveDateTime,
@@ -44,7 +46,7 @@ pub struct UpdateTicketPricingRequest {
 #[derive(Deserialize, Serialize)]
 pub struct UpdateTicketTypeRequest {
     pub name: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_some")]
+    #[serde(default, deserialize_with = "double_option::deserialize")]
     pub description: Option<Option<String>>,
     pub capacity: Option<u32>,
     pub start_date: Option<NaiveDateTime>,

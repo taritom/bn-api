@@ -18,6 +18,7 @@ use uuid::Uuid;
 pub struct CartItem {
     pub ticket_type_id: Uuid,
     pub quantity: u32,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub redemption_code: Option<String>,
 }
 
@@ -83,6 +84,7 @@ pub enum PaymentRequest {
         set_default: bool,
     },
     PaymentMethod {
+        #[serde(default, deserialize_with = "deserialize_unless_blank")]
         provider: Option<String>,
     },
 }

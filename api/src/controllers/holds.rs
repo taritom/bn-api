@@ -6,6 +6,7 @@ use db::Connection;
 use errors::BigNeonError;
 use helpers::application;
 use models::PathParameters;
+use serde_with::rust::double_option;
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize)]
@@ -26,9 +27,10 @@ pub struct UpdateHoldRequest {
     pub redemption_code: Option<String>,
     pub hold_type: Option<HoldTypes>,
     pub quantity: Option<u32>,
-    #[serde(default, deserialize_with = "deserialize_some")]
+    #[serde(default, deserialize_with = "double_option::deserialize")]
     pub discount_in_cents: Option<Option<i64>>,
     pub end_at: Option<Option<NaiveDateTime>>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
     pub max_per_order: Option<Option<i64>>,
 }
 

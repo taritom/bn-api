@@ -1,6 +1,6 @@
 use actix_web::{HttpRequest, HttpResponse, Json, State};
 use auth::{claims::RefreshToken, TokenResponse};
-use bigneon_db::models::User;
+use bigneon_db::models::{deserialize_unless_blank, User};
 use crypto::sha2::Sha256;
 use db::Connection;
 use errors::*;
@@ -18,6 +18,7 @@ pub struct LoginRequest {
     email: String,
     password: String,
     #[serde(rename = "g-recaptcha-response")]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     captcha_response: Option<String>,
 }
 

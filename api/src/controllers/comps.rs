@@ -9,7 +9,9 @@ use models::{CompPathParameters, PathParameters};
 #[derive(Default, Deserialize, Serialize)]
 pub struct NewCompRequest {
     pub name: String,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub email: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
     pub quantity: u16,
 }
