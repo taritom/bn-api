@@ -123,6 +123,7 @@ impl Event {
         event_start: Option<NaiveDateTime>,
         door_time: Option<NaiveDateTime>,
         publish_date: Option<NaiveDateTime>,
+        video_url: Option<String>,
     ) -> NewEvent {
         NewEvent {
             name: name.into(),
@@ -132,6 +133,7 @@ impl Event {
             event_start,
             door_time,
             publish_date,
+            video_url,
             ..Default::default()
         }
     }
