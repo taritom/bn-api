@@ -33,7 +33,6 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     // Emulate serialization for default serde behavior
     let new_event: NewEvent =
         serde_json::from_str(&serde_json::to_string(&new_event).unwrap()).unwrap();
-
     let json = Json(new_event);
 
     let response: HttpResponse =

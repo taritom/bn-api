@@ -15,7 +15,6 @@ diesel database reset --database-url=$DATABASE_ADMIN_URL
 diesel setup --database-url=$DATABASE_ADMIN_URL
 diesel migration run --database-url=$DATABASE_ADMIN_URL
 
-
 if [[ "$1" == "--seed" ]]; then
    cargo run seed -c $DATABASE_URL
 fi
