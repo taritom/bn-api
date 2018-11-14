@@ -142,6 +142,7 @@ impl TicketType {
                     self.id,
                     ticket_pricing.start_date,
                     ticket_pricing.end_date,
+                    ticket_pricing.is_box_office_only,
                     conn,
                 )?,
             );
@@ -258,9 +259,17 @@ impl TicketType {
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
         price_in_cents: i64,
+        is_box_office_only: bool,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
-        TicketPricing::create(self.id, name, start_date, end_date, price_in_cents).commit(conn)
+        TicketPricing::create(
+            self.id,
+            name,
+            start_date,
+            end_date,
+            price_in_cents,
+            is_box_office_only,
+        ).commit(conn)
     }
 
     pub fn status(&self) -> TicketTypeStatus {

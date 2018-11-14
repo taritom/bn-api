@@ -149,6 +149,7 @@ impl<'a> EventBuilder<'a> {
                             early_bird_start,
                             early_bird_end,
                             100,
+                            false,
                             self.connection,
                         ).unwrap();
 
@@ -158,6 +159,7 @@ impl<'a> EventBuilder<'a> {
                             standard_start,
                             standard_end,
                             150,
+                            false,
                             self.connection,
                         ).unwrap();
                 }

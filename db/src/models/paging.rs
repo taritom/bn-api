@@ -2,7 +2,7 @@ use models::SortingDir;
 use serde_json::Value;
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 ///struct used to indicate paging information and search query information
 pub struct Paging {
     pub page: u32,
@@ -52,7 +52,7 @@ impl From<PagingParameters> for Paging {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 ///return wrapper struct for returning large lists
 pub struct Payload<T> {
     pub data: Vec<T>,
@@ -91,4 +91,20 @@ pub struct PagingParameters {
     pub dir: Option<SortingDir>,
     #[serde(flatten)]
     pub tags: HashMap<String, Value>,
+}
+
+impl PagingParameters {
+    pub fn page(&self) -> u32 {
+        self.page.unwrap_or(0)
+    }
+
+    pub fn limit(&self) -> u32 {
+        self.limit.unwrap_or(100)
+    }
+
+    pub fn get_tag(&self, tag: &'static str) -> Option<String> {
+        self.tags
+            .get(tag)
+            .map(|v| v.as_str().unwrap_or("").to_string())
+    }
 }

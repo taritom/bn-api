@@ -1,6 +1,7 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use chrono::prelude::*;
+use uuid::Uuid;
 
 #[test]
 fn create() {
@@ -136,15 +137,18 @@ fn find_individuals() {
     let found_event = Event::find(event.id, project.get_connection()).unwrap();
     assert_eq!(found_event, event);
     //find event via organisation
-    let found_event_via_organization = Event::find_all_events_from_organization(
-        &found_event.organization_id,
+    let found_event_via_organization = Event::find_all_events_for_organization(
+        found_event.organization_id,
+        PastOrUpcoming::Past,
+        0,
+        100,
         project.get_connection(),
     ).unwrap();
-    assert_eq!(found_event_via_organization[0], found_event);
+    assert_eq!(found_event_via_organization.data[0].id, found_event.id);
 
     //find event via venue
     let found_event_via_venue =
-        Event::find_all_events_from_venue(&event.venue_id.unwrap(), project.get_connection())
+        Event::find_all_events_for_venue(&event.venue_id.unwrap(), project.get_connection())
             .unwrap();
     assert_eq!(found_event_via_venue[0], event);
 }
@@ -494,7 +498,10 @@ fn find_for_organization_and_venue() {
     let event = project
         .create_event()
         .with_name("Event1".into())
-        .with_organization(&organization)
+        .with_event_start(
+            &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        ).with_organization(&organization)
         .with_venue(&venue1)
         .finish();
     event
@@ -508,26 +515,40 @@ fn find_for_organization_and_venue() {
     let event2 = project
         .create_event()
         .with_name("Event2".into())
-        .with_organization(&organization)
+        .with_event_start(
+            &NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        ).with_organization(&organization)
         .with_venue(&venue2)
         .finish();
     event2
         .add_artist(artist1.id, project.get_connection())
         .unwrap();
 
-    let all_events = vec![event, event2];
+    let all_events = vec![event2.id, event.id];
 
     //find all events via organisation
-    let found_event_via_organizations =
-        Event::find_all_events_from_organization(&organization.id, project.get_connection())
-            .unwrap();
-    assert_eq!(found_event_via_organizations, all_events);
+    let found_event_via_organizations = Event::find_all_events_for_organization(
+        organization.id,
+        PastOrUpcoming::Past,
+        0,
+        100,
+        project.get_connection(),
+    ).unwrap();
+    assert_eq!(
+        found_event_via_organizations
+            .data
+            .iter()
+            .map(|i| i.id)
+            .collect::<Vec<Uuid>>(),
+        all_events
+    );
 
     //find all events via venue
     let found_event_via_venues =
-        Event::find_all_events_from_venue(&venue1.id, project.get_connection()).unwrap();
+        Event::find_all_events_for_venue(&venue1.id, project.get_connection()).unwrap();
     assert_eq!(found_event_via_venues.len(), 1);
-    assert_eq!(found_event_via_venues[0], all_events[0]);
+    assert_eq!(found_event_via_venues[0].id, all_events[1]);
 }
 
 #[test]
