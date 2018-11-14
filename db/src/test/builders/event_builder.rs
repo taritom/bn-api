@@ -107,7 +107,6 @@ impl<'a> EventBuilder<'a> {
                 .or_else(|| Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))),
             Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10)),
             None,
-            None,
         ).commit(self.connection)
         .unwrap();
 
