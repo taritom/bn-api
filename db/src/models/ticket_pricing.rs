@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl::{self, select};
 use diesel::prelude::*;
-use diesel::sql_types::{Timestamp, Uuid as dUuid};
+use diesel::sql_types::{Bool, Timestamp, Uuid as dUuid};
 use models::{TicketPricingStatus, TicketType};
 use schema::{order_items, ticket_pricing};
 use std::borrow::Cow;
@@ -11,7 +11,7 @@ use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
 
-sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp) -> Bool);
+sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp, is_box_office_only: Bool) -> Bool);
 
 #[derive(Identifiable, Associations, Queryable, PartialEq, Debug)]
 #[belongs_to(TicketType)]
@@ -24,6 +24,7 @@ pub struct TicketPricing {
     pub price_in_cents: i64,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
+    pub is_box_office_only: bool,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -35,6 +36,7 @@ pub struct TicketPricingEditableAttributes {
     pub price_in_cents: Option<i64>,
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
+    pub is_box_office_only: Option<bool>,
 }
 
 impl TicketPricing {
@@ -44,6 +46,7 @@ impl TicketPricing {
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
         price_in_cents: i64,
+        is_box_office_only: bool,
     ) -> NewTicketPricing {
         NewTicketPricing {
             ticket_type_id,
@@ -52,6 +55,7 @@ impl TicketPricing {
             start_date,
             end_date,
             price_in_cents,
+            is_box_office_only,
         }
     }
 
@@ -87,6 +91,7 @@ impl TicketPricing {
         ticket_type_id: Uuid,
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
+        is_box_office_only: bool,
         conn: &PgConnection,
     ) -> Result<Result<(), ValidationError>, DatabaseError> {
         let result = select(ticket_pricing_no_overlapping_periods(
@@ -94,6 +99,7 @@ impl TicketPricing {
             ticket_type_id,
             start_date,
             end_date,
+            is_box_office_only,
         )).get_result::<bool>(conn)
         .to_db_error(
             ErrorCode::UpdateError,
@@ -164,6 +170,8 @@ impl TicketPricing {
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
         let mut price_points = ticket_pricing::table
+            //Must use the box office endpoints to add is_box_office_only prices
+            .filter(ticket_pricing::is_box_office_only.eq(false))
             .filter(ticket_pricing::ticket_type_id.eq(ticket_type_id))
             .filter(ticket_pricing::start_date.le(dsl::now))
             .filter(ticket_pricing::end_date.gt(dsl::now))
@@ -196,6 +204,7 @@ pub struct NewTicketPricing {
     name: String,
     status: String,
     price_in_cents: i64,
+    is_box_office_only: bool,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
 }

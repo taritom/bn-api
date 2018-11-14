@@ -148,6 +148,7 @@ fn validate_ticket_pricing() {
         start_date1,
         end_date1,
         100,
+        false,
     ).commit(project.get_connection())
     .unwrap();
     let ticket_pricing = TicketPricing::create(
@@ -156,6 +157,7 @@ fn validate_ticket_pricing() {
         start_date2,
         end_date2,
         100,
+        false,
     ).commit(project.get_connection())
     .unwrap();
     let mut ticket_pricing_parameters: TicketPricingEditableAttributes = Default::default();

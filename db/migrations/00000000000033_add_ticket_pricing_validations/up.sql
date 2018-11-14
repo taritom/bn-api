@@ -1,12 +1,15 @@
-CREATE OR REPLACE FUNCTION ticket_pricing_no_overlapping_periods(UUID, UUID, TIMESTAMP, TIMESTAMP) RETURNS BOOLEAN AS $$
+CREATE OR REPLACE FUNCTION ticket_pricing_no_overlapping_periods(UUID, UUID, TIMESTAMP, TIMESTAMP, BOOLEAN) RETURNS BOOLEAN AS $$
 BEGIN
     RETURN (
-        SELECT NOT EXISTS (
+        SELECT $5 OR NOT EXISTS (
             SELECT id
             FROM ticket_pricing
             WHERE
                 -- Filter out current record being updated
                 ID <> $1
+            AND
+                -- Filter out is_box_office_only prices they can overlap dates
+                is_box_office_only = FALSE
             AND
                 -- Filter to the current ticket type
                 ticket_type_id = $2

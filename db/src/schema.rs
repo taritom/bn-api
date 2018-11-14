@@ -312,6 +312,7 @@ table! {
         price_in_cents -> Int8,
         start_date -> Timestamp,
         end_date -> Timestamp,
+        is_box_office_only -> Bool,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

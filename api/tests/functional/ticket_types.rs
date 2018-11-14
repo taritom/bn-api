@@ -99,6 +99,7 @@ pub fn create_with_validation_errors() {
         price_in_cents: 10000,
         start_date: start_date2,
         end_date: end_date2,
+        is_box_office_only: Some(false),
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
@@ -158,6 +159,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         price_in_cents: 10000,
         start_date: start_date2,
         end_date: end_date2,
+        is_box_office_only: Some(false),
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
@@ -219,12 +221,14 @@ pub fn create_with_overlapping_periods() {
         price_in_cents: 10000,
         start_date,
         end_date: middle_date,
+        is_box_office_only: Some(false),
     });
     ticket_pricing.push(CreateTicketPricingRequest {
         name: String::from("Base"),
         price_in_cents: 20000,
         start_date: start_date,
         end_date,
+        is_box_office_only: Some(false),
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
@@ -314,6 +318,7 @@ pub fn update_with_invalid_id() {
         start_date,
         end_date,
         price_in_cents: Some(20000),
+        is_box_office_only: Some(false),
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),
@@ -380,6 +385,7 @@ pub fn update_with_validation_errors() {
         start_date: start_date2,
         end_date: end_date2,
         price_in_cents: Some(20000),
+        is_box_office_only: Some(false),
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),
@@ -457,6 +463,7 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
         start_date: start_date2,
         end_date: end_date2,
         price_in_cents: Some(20000),
+        is_box_office_only: Some(false),
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),
@@ -538,6 +545,7 @@ pub fn update_with_overlapping_periods() {
         start_date: start_date,
         end_date,
         price_in_cents: Some(20000),
+        is_box_office_only: Some(false),
     });
     request_ticket_pricing.push(UpdateTicketPricingRequest {
         id: None,
@@ -545,6 +553,7 @@ pub fn update_with_overlapping_periods() {
         start_date,
         end_date: middle_date,
         price_in_cents: Some(15000),
+        is_box_office_only: Some(false),
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),

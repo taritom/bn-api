@@ -33,12 +33,14 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         price_in_cents: 10000,
         start_date,
         end_date: middle_date,
+        is_box_office_only: Some(false),
     });
     ticket_pricing.push(CreateTicketPricingRequest {
         name: String::from("Base"),
         price_in_cents: 20000,
         start_date: middle_date,
         end_date,
+        is_box_office_only: Some(false),
     });
     let request_data = CreateTicketTypeRequest {
         name: "VIP".into(),
@@ -111,6 +113,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         start_date: middle_date,
         end_date,
         price_in_cents: Some(20000),
+        is_box_office_only: Some(false),
     });
     request_ticket_pricing.push(UpdateTicketPricingRequest {
         id: None,
@@ -118,6 +121,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         start_date,
         end_date: middle_date,
         price_in_cents: Some(15000),
+        is_box_office_only: Some(false),
     });
     let request_data = UpdateTicketTypeRequest {
         name: Some("Updated VIP".into()),
@@ -164,6 +168,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
             start_date: Some(current_ticket_pricing.start_date),
             end_date: Some(current_ticket_pricing.end_date),
             price_in_cents: Some(current_ticket_pricing.price_in_cents),
+            is_box_office_only: Some(false),
         });
     }
     let updated_data = UpdateTicketTypeRequest {
