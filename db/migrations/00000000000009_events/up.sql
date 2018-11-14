@@ -18,7 +18,8 @@ CREATE TABLE events (
   cancelled_at TIMESTAMP NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT now(),
   min_ticket_price_cache BIGINT NULL,
-  max_ticket_price_cache BIGINT NULL
+  max_ticket_price_cache BIGINT NULL,
+  video_url TEXT NULL
 );
 
 -- Indices
