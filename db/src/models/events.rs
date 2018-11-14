@@ -66,6 +66,7 @@ pub struct NewEvent {
         message = "Top line info must be at most 100 characters long"
     ))]
     pub top_line_info: Option<String>,
+    #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,
 }
 
@@ -111,6 +112,7 @@ pub struct EventEditableAttributes {
         message = "Top line info must be at most 100 characters long"
     ))]
     pub top_line_info: Option<String>,
+    #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,
 }
 
