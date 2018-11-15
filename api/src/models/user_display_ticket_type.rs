@@ -11,7 +11,7 @@ pub struct UserDisplayTicketType {
     pub name: String,
     pub description: Option<String>,
     pub status: String,
-    pub quantity: u32,
+    pub available: u32,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub increment: i32,
@@ -26,7 +26,7 @@ impl UserDisplayTicketType {
     ) -> Result<UserDisplayTicketType, DatabaseError> {
         let ticket_type_status = ticket_type.status();
         let mut status = ticket_type_status.to_string();
-        let quantity = ticket_type.remaining_ticket_count(conn)?;
+        let available = ticket_type.remaining_ticket_count(conn)?;
 
         let ticket_pricing = match ticket_type.current_ticket_pricing(conn).optional()? {
             Some(ticket_pricing) => Some(DisplayTicketPricing::from_ticket_pricing(
@@ -38,7 +38,7 @@ impl UserDisplayTicketType {
         };
 
         if ticket_type_status == TicketTypeStatus::Published {
-            if quantity == 0 {
+            if available == 0 {
                 status = TicketTypeStatus::SoldOut.to_string();
             } else if ticket_pricing.is_none() {
                 status = TicketTypeStatus::NoActivePricing.to_string();
@@ -53,7 +53,7 @@ impl UserDisplayTicketType {
             start_date: ticket_type.start_date,
             end_date: ticket_type.end_date,
             ticket_pricing,
-            quantity,
+            available,
             increment: ticket_type.increment,
         })
     }

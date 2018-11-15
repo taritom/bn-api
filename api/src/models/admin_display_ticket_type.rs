@@ -14,8 +14,9 @@ pub struct AdminDisplayTicketType {
     pub status: String,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
-    pub quantity: u32,
-    pub increment: i32,
+    pub available: u32,
+    pub increment: u32,
+    pub limit_per_person: u32,
     pub ticket_pricing: Vec<DisplayTicketPricing>,
 }
 
@@ -25,7 +26,7 @@ impl AdminDisplayTicketType {
         fee_schedule: &FeeSchedule,
         conn: &PgConnection,
     ) -> Result<AdminDisplayTicketType, DatabaseError> {
-        let quantity = ticket_type.remaining_ticket_count(conn)?;
+        let available = ticket_type.remaining_ticket_count(conn)?;
         let capacity = ticket_type.ticket_capacity(conn)?;
         let mut ticket_pricing_list = Vec::new();
         for ticket_pricing in ticket_type.valid_ticket_pricing(conn)? {
@@ -44,9 +45,10 @@ impl AdminDisplayTicketType {
             start_date: ticket_type.start_date,
             end_date: ticket_type.end_date,
             ticket_pricing: ticket_pricing_list,
-            quantity,
+            available,
             capacity,
-            increment: ticket_type.increment,
+            increment: ticket_type.increment as u32,
+            limit_per_person: ticket_type.limit_per_person as u32,
         })
     }
 }
