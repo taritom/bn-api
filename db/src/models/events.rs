@@ -282,7 +282,7 @@ impl Event {
 
         let mut total: Vec<Total> = diesel::sql_query(
             r#"
-            SELECT count(*) as total
+            SELECT CAST(count(*) as bigint) as total
             FROM events e
             WHERE e.organization_id = $1
             AND CASE WHEN $2 THEN e.event_start >= now() ELSE e.event_start < now() END;
@@ -324,8 +324,8 @@ impl Event {
             additional_info: Option<String>,
             #[sql_type = "N<sql_types::Text>"]
             top_line_info: Option<String>,
-            #[sql_type = "N<sql_types::BigInt>"]
-            age_limit: Option<i64>,
+            #[sql_type = "N<sql_types::Integer>"]
+            age_limit: Option<i32>,
             #[sql_type = "N<sql_types::Timestamp>"]
             cancelled_at: Option<NaiveDateTime>,
             #[sql_type = "N<sql_types::BigInt>"]
@@ -358,6 +358,7 @@ impl Event {
 
 
         let ticket_types: Vec<EventSummaryResultTicketType> = diesel::sql_query(query_ticket_types)
+            .bind::<sql_types::Uuid, _>(organization_id)
             .get_results(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -403,12 +404,15 @@ impl Event {
                 };
 
                 for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
-                    result.ticket_types.push(ticket_type.clone());
+                    let mut ticket_type = ticket_type.clone();
+                    ticket_type.sales_total_in_cents =
+                        Some(ticket_type.sales_total_in_cents.unwrap_or(0));
                     result.total_tickets += ticket_type.total as u32;
                     result.sold_unreserved += ticket_type.sold_unreserved as u32;
                     result.sold_held += ticket_type.sold_held as u32;
                     result.tickets_open += ticket_type.open as u32;
                     result.tickets_held += ticket_type.held as u32;
+                    result.ticket_types.push(ticket_type);
                 }
 
                 result
@@ -657,4 +661,6 @@ pub struct EventSummaryResultTicketType {
     pub open: i64,
     #[sql_type = "sql_types::BigInt"]
     pub held: i64,
+    #[sql_type = "sql_types::Nullable<sql_types::BigInt>"]
+    pub sales_total_in_cents: Option<i64>,
 }
