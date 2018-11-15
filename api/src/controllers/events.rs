@@ -192,6 +192,7 @@ pub fn show(
         additional_info: Option<String>,
         top_line_info: Option<String>,
         age_limit: Option<i32>,
+        video_url: Option<String>,
         organization: ShortOrganization,
         venue: Option<Venue>,
         artists: Vec<DisplayEventArtist>,
@@ -217,6 +218,7 @@ pub fn show(
         additional_info: event.additional_info,
         top_line_info: event.top_line_info,
         age_limit: event.age_limit,
+        video_url: event.video_url,
         organization: ShortOrganization {
             id: organization.id,
             name: organization.name,
