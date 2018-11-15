@@ -10,12 +10,17 @@ SELECT t2.event_id,
        sum(CASE
              WHEN ti.status = 'Purchased' AND ti.hold_id IS NOT NULL THEN 1
              ELSE 0 END)                                                                      AS sold_held,
-       sum(CASE WHEN ti.status = 'Available' THEN 1 ELSE 0 END)                               AS open,
-       sum(CASE WHEN ti.hold_id IS NOT NULL THEN 1 ELSE 0 END)                                AS held
+       sum(CASE WHEN ti.status = 'Available' AND ti.hold_id IS NULL THEN 1 ELSE 0 END)                               AS open,
+       sum(CASE WHEN ti.hold_id IS NOT NULL THEN 1 ELSE 0 END)                                AS held,
+       (SELECT cast(sum(oi.unit_price_in_cents * oi.quantity) as BIGINT)
+        FROM order_items oi
+               INNER JOIN orders o ON oi.order_id = o.id
+        WHERE oi.ticket_type_id = t2.id
+          AND o.status = 'Paid') as sales_total_in_cents
 FROM ticket_instances ti
        INNER JOIN assets a
        INNER JOIN ticket_types t2
        INNER JOIN events e ON t2.event_id = e.id ON a.ticket_type_id = t2.id ON ti.asset_id = a.id
-WHERE e.organization_id = '7a40aaab-f88f-4d74-9bfa-34ba840933db'
+WHERE e.organization_id = $1
 GROUP BY t2.name, t2.id, t2.event_id;
 
