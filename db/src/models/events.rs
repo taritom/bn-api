@@ -282,7 +282,7 @@ impl Event {
 
         let mut total: Vec<Total> = diesel::sql_query(
             r#"
-            SELECT count(*) as total
+            SELECT CAST(count(*) as bigint) as total
             FROM events e
             WHERE e.organization_id = $1
             AND CASE WHEN $2 THEN e.event_start >= now() ELSE e.event_start < now() END;
@@ -324,8 +324,8 @@ impl Event {
             additional_info: Option<String>,
             #[sql_type = "N<sql_types::Text>"]
             top_line_info: Option<String>,
-            #[sql_type = "N<sql_types::BigInt>"]
-            age_limit: Option<i64>,
+            #[sql_type = "N<sql_types::Integer>"]
+            age_limit: Option<i32>,
             #[sql_type = "N<sql_types::Timestamp>"]
             cancelled_at: Option<NaiveDateTime>,
             #[sql_type = "N<sql_types::BigInt>"]
