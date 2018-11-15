@@ -320,7 +320,7 @@ pub fn update(
                     current_ticket_pricing.start_date.unwrap(),
                     current_ticket_pricing.end_date.unwrap(),
                     current_ticket_pricing.price_in_cents.unwrap(),
-                    current_ticket_pricing.is_box_office_only.unwrap(),
+                    current_ticket_pricing.is_box_office_only.unwrap_or(false),
                     connection,
                 )?;
             } else {
