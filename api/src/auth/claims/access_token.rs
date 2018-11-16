@@ -1,3 +1,4 @@
+use errors::BigNeonError;
 use std::time::Duration;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
@@ -5,7 +6,7 @@ use uuid::Uuid;
 
 const ACCESS_TOKEN_EXPIRATION_IN_SECONDS: u64 = 15 * 60;
 
-#[derive(RustcDecodable, RustcEncodable)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AccessToken {
     pub sub: String,
     pub iss: String,
@@ -25,7 +26,7 @@ impl AccessToken {
         }
     }
 
-    pub fn get_id(&self) -> Uuid {
-        Uuid::parse_str(&self.sub).unwrap()
+    pub fn get_id(&self) -> Result<Uuid, BigNeonError> {
+        Ok(Uuid::parse_str(&self.sub)?)
     }
 }

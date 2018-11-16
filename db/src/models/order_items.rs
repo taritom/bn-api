@@ -7,9 +7,7 @@ use diesel::sql_types::{BigInt, Nullable, Text, Uuid as dUuid};
 use models::*;
 use schema::{order_items, ticket_instances};
 use std::borrow::Cow;
-use utils::errors;
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::DatabaseError;
+use utils::errors::{self, *};
 use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
@@ -41,8 +39,8 @@ pub struct OrderItem {
 }
 
 impl OrderItem {
-    pub fn item_type(&self) -> OrderItemTypes {
-        self.item_type.parse::<OrderItemTypes>().unwrap()
+    pub fn item_type(&self) -> Result<OrderItemTypes, EnumParseError> {
+        self.item_type.parse::<OrderItemTypes>()
     }
 
     pub fn find_fee_item(&self, conn: &PgConnection) -> Result<Option<OrderItem>, DatabaseError> {
@@ -59,7 +57,10 @@ impl OrderItem {
 
     pub(crate) fn update_fees(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let fee_item = self.find_fee_item(conn)?;
-        let fee_schedule_range = FeeScheduleRange::find(self.fee_schedule_range_id.unwrap(), conn)?;
+        let fee_schedule_range = match self.fee_schedule_range_id {
+            Some(fee_schedule_range_id) => FeeScheduleRange::find(fee_schedule_range_id, conn)?,
+            None => return DatabaseError::no_results("Expected fee schedule range for order item"),
+        };
 
         match fee_item {
             Some(mut fee_item) => {
@@ -151,34 +152,35 @@ impl OrderItem {
         quantity: i64,
         conn: &PgConnection,
     ) -> Result<Result<(), ValidationError>, DatabaseError> {
-        if code_id.is_none() {
-            return Ok(Ok(()));
-        }
+        match code_id {
+            None => return Ok(Ok(())),
+            Some(code_id) => {
+                let result = select(order_items_code_id_max_tickets_per_user_valid(
+                    id.unwrap_or(Uuid::default()),
+                    order_id,
+                    code_id,
+                    quantity,
+                )).get_result::<bool>(conn)
+                .to_db_error(
+                    if id.is_none() {
+                        errors::ErrorCode::InsertError
+                    } else {
+                        errors::ErrorCode::UpdateError
+                    },
+                    "Could not confirm code_id valid for max tickets per user",
+                )?;
+                if !result {
+                    let mut validation_error = create_validation_error(
+                        "max_tickets_per_user_reached",
+                        "Redemption code maximum tickets limit exceeded",
+                    );
+                    validation_error.add_param(Cow::from("order_item_id"), &id);
 
-        let result = select(order_items_code_id_max_tickets_per_user_valid(
-            id.unwrap_or(Uuid::default()),
-            order_id,
-            code_id.unwrap(),
-            quantity,
-        )).get_result::<bool>(conn)
-        .to_db_error(
-            if id.is_none() {
-                errors::ErrorCode::InsertError
-            } else {
-                errors::ErrorCode::UpdateError
-            },
-            "Could not confirm code_id valid for max tickets per user",
-        )?;
-        if !result {
-            let mut validation_error = create_validation_error(
-                "max_tickets_per_user_reached",
-                "Redemption code maximum tickets limit exceeded",
-            );
-            validation_error.add_param(Cow::from("order_item_id"), &id);
-
-            return Ok(Err(validation_error));
+                    return Ok(Err(validation_error));
+                }
+                Ok(Ok(()))
+            }
         }
-        Ok(Ok(()))
     }
 
     fn code_id_max_uses_valid(
@@ -186,28 +188,27 @@ impl OrderItem {
         code_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Result<(), ValidationError>, DatabaseError> {
-        if code_id.is_none() {
-            return Ok(Ok(()));
+        match code_id {
+            None => return Ok(Ok(())),
+            Some(code_id) => {
+                let result = select(order_items_code_id_max_uses_valid(order_id, code_id))
+                    .get_result::<bool>(conn)
+                    .to_db_error(
+                        errors::ErrorCode::InsertError,
+                        "Could not confirm code_id valid for max uses",
+                    )?;
+                if !result {
+                    let mut validation_error = create_validation_error(
+                        "max_uses_reached",
+                        "Redemption code maximum uses limit exceeded",
+                    );
+                    validation_error.add_param(Cow::from("order_id"), &order_id);
+                    validation_error.add_param(Cow::from("code_id"), &code_id);
+                    return Ok(Err(validation_error));
+                }
+                Ok(Ok(()))
+            }
         }
-
-        let result = select(order_items_code_id_max_uses_valid(
-            order_id,
-            code_id.unwrap(),
-        )).get_result::<bool>(conn)
-        .to_db_error(
-            errors::ErrorCode::InsertError,
-            "Could not confirm code_id valid for max uses",
-        )?;
-        if !result {
-            let mut validation_error = create_validation_error(
-                "max_uses_reached",
-                "Redemption code maximum uses limit exceeded",
-            );
-            validation_error.add_param(Cow::from("order_id"), &order_id);
-            validation_error.add_param(Cow::from("code_id"), &code_id);
-            return Ok(Err(validation_error));
-        }
-        Ok(Ok(()))
     }
 
     fn quantity_valid_increment(

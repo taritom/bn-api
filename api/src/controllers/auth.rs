@@ -1,11 +1,10 @@
 use actix_web::{HttpRequest, HttpResponse, Json, State};
 use auth::{claims::RefreshToken, TokenResponse};
 use bigneon_db::models::{deserialize_unless_blank, User};
-use crypto::sha2::Sha256;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use jwt::{Header, Token};
+use jwt::{decode, Validation};
 use reqwest;
 use serde_json;
 use server::AppState;
@@ -96,34 +95,32 @@ pub fn token(
         &state.config.token_secret,
         &state.config.token_issuer,
         &user,
-    );
+    )?;
     Ok(response)
 }
 
 pub fn token_refresh(
     (state, connection, refresh_request): (State<AppState>, Connection, Json<RefreshRequest>),
 ) -> Result<HttpResponse, BigNeonError> {
-    let token = match Token::<Header, RefreshToken>::parse(&refresh_request.refresh_token) {
-        Ok(token) => token,
-        Err(_e) => return application::unauthorized_with_message("Invalid token"),
-    };
+    let mut validation = Validation::default();
+    validation.validate_exp = false;
+    let token = decode::<RefreshToken>(
+        &refresh_request.refresh_token,
+        state.config.token_secret.as_bytes(),
+        &validation,
+    )?;
+    let user = User::find(token.claims.get_id()?, connection.get())?;
 
-    if token.verify(state.config.token_secret.as_bytes(), Sha256::new()) {
-        let user = User::find(token.claims.get_id(), connection.get())?;
-
-        // If the user changes their password invalidate all refresh tokens
-        let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
-        if password_modified_timestamp <= token.claims.issued {
-            let response = TokenResponse::create_from_refresh_token(
-                &state.config.token_secret,
-                &state.config.token_issuer,
-                &user.id,
-                &refresh_request.refresh_token,
-            );
-            Ok(HttpResponse::Ok().json(response))
-        } else {
-            application::unauthorized_with_message("Invalid token")
-        }
+    // If the user changes their password invalidate all refresh tokens
+    let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
+    if password_modified_timestamp <= token.claims.issued {
+        let response = TokenResponse::create_from_refresh_token(
+            &state.config.token_secret,
+            &state.config.token_issuer,
+            &user.id,
+            &refresh_request.refresh_token,
+        )?;
+        Ok(HttpResponse::Ok().json(response))
     } else {
         application::unauthorized_with_message("Invalid token")
     }

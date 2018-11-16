@@ -544,7 +544,7 @@ impl TicketInstance {
             signature: convert_bytes_to_hexstring(&cryptographic_signature(
                 &message,
                 &convert_hexstring_to_bytes(&secret_key),
-            )),
+            )?),
         })
     }
 

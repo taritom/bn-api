@@ -95,9 +95,10 @@ impl Communication {
                         let destination_addresses = self.destinations.get();
                         match self.comm_type {
                             CommunicationType::Email => {
-                                if self.source.is_some() && self.body.is_some() {
-                                    let source_address =
-                                        self.source.as_ref().unwrap().get_first()?;
+                                if let (Some(source), Some(_body)) =
+                                    (self.source.as_ref(), self.body.as_ref())
+                                {
+                                    let source_address = source.get_first()?;
                                     send_email(
                                         &config.sendgrid_api_key.clone(),
                                         &source_address,
@@ -112,18 +113,18 @@ impl Communication {
                                 }
                             }
                             CommunicationType::EmailTemplate => {
-                                if self.source.is_some()
-                                    && self.template_id.is_some()
-                                    && self.template_data.is_some()
-                                {
-                                    let source_address =
-                                        self.source.as_ref().unwrap().get_first()?;
+                                if let (Some(source), Some(template_id), Some(template_data)) = (
+                                    self.source.as_ref(),
+                                    self.template_id.as_ref(),
+                                    self.template_data.as_ref(),
+                                ) {
+                                    let source_address = source.get_first()?;
                                     send_email_template(
                                         &config.sendgrid_api_key.clone(),
                                         &source_address,
                                         &destination_addresses,
-                                        &self.template_id.clone().unwrap(),
-                                        &self.template_data.clone().unwrap(),
+                                        &template_id,
+                                        &template_data,
                                     )
                                 } else {
                                     Err(ApplicationError::new(

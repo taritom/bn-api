@@ -88,6 +88,6 @@ pub fn web_login(
         &state.config.token_secret,
         &state.config.token_issuer,
         &user,
-    );
+    )?;
     Ok(HttpResponse::Ok().json(response))
 }

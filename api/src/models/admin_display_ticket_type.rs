@@ -41,7 +41,7 @@ impl AdminDisplayTicketType {
             id: ticket_type.id,
             name: ticket_type.name.clone(),
             description: ticket_type.description.clone(),
-            status: ticket_type.status().to_string(),
+            status: ticket_type.status()?.to_string(),
             start_date: ticket_type.start_date,
             end_date: ticket_type.end_date,
             ticket_pricing: ticket_pricing_list,

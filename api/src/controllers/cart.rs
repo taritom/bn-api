@@ -55,13 +55,10 @@ pub fn update_cart(
 
 pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let order = Order::find_cart_for_user(user.id(), connection)?;
-    if order.is_none() {
-        return Ok(HttpResponse::Ok().json(json!({})));
-    }
-
-    let order = order.unwrap();
-
+    let order = match Order::find_cart_for_user(user.id(), connection)? {
+        Some(o) => o,
+        None => return Ok(HttpResponse::Ok().json(json!({}))),
+    };
     Ok(HttpResponse::Ok().json(order.for_display(connection)?))
 }
 
@@ -193,7 +190,12 @@ pub fn checkout(
             let asset = Asset::find(*asset_id, connection.get())?;
             match asset.blockchain_asset_id {
                 Some(a) => {
-                    let wallet_id=wallet_id_per_asset.get(asset_id).unwrap().clone();
+                    let wallet_id = match wallet_id_per_asset.get(asset_id) {
+                        Some(w) => w.clone(),
+                        None => return application::internal_server_error(
+                            "Could not complete this checkout because wallet id not found for asset",
+                        ),
+                    };
                     let org_wallet = Wallet::find(wallet_id, connection.get())?;
                     state.config.tari_client.transfer_tokens(&org_wallet.secret_key, &org_wallet.public_key,
                                                              &a,
@@ -208,13 +210,8 @@ pub fn checkout(
         }
 
         //Communicate purchase completed to user
-        if user.user.first_name.is_some() && user.user.email.is_some() {
-            mailers::cart::purchase_completed(
-                &user.user.first_name.unwrap(),
-                &user.user.email.unwrap(),
-                display_order,
-                &state.config,
-            )?;
+        if let (Some(first_name), Some(email)) = (user.user.first_name, user.user.email) {
+            mailers::cart::purchase_completed(&first_name, &email, display_order, &state.config)?;
         }
     }
 
@@ -235,7 +232,7 @@ fn checkout_external(
         return application::unauthorized();
     }
 
-    if order.status() != OrderStatus::Draft {
+    if order.status()? != OrderStatus::Draft {
         return application::unprocessable(
             "Could not complete this cart because it is not in the correct status",
         );
@@ -269,13 +266,13 @@ fn checkout_payment_processor(
 
     if order.user_id != auth_user.id() {
         return application::forbidden("This cart does not belong to you");
-    } else if order.status() != OrderStatus::Draft {
+    } else if order.status()? != OrderStatus::Draft {
         return application::unprocessable(
             "Could not complete this cart because it is not in the correct status",
         );
     }
 
-    let client = service_locator.create_payment_processor(provider_name);
+    let client = service_locator.create_payment_processor(provider_name)?;
 
     let token = if use_stored_payment {
         info!("CART: Using stored payment");
@@ -293,13 +290,15 @@ fn checkout_payment_processor(
         }
     } else {
         info!("CART: Not using stored payment");
-        if token.is_none() {
-            return application::unprocessable(
-                "Could not complete this cart because no token provided",
-            );
-        }
+        let token = match token {
+            Some(t) => t,
+            None => {
+                return application::unprocessable(
+                    "Could not complete this cart because no token provided",
+                )
+            }
+        };
 
-        let token = token.unwrap();
         if save_payment_method {
             info!("CART: User has requested to save the payment method");
             match auth_user

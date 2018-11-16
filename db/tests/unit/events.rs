@@ -63,7 +63,7 @@ fn publish() {
         .with_venue(&venue)
         .finish();
 
-    assert_eq!(event.status(), EventStatus::Draft);
+    assert_eq!(event.status().unwrap(), EventStatus::Draft);
 
     let event_id = event.id;
     let venue = event.venue(project.get_connection()).unwrap().unwrap();
@@ -89,7 +89,7 @@ fn publish() {
         .publish(project.get_connection())
         .unwrap();
 
-    assert_eq!(event.status(), EventStatus::Published);
+    assert_eq!(event.status().unwrap(), EventStatus::Published);
     assert!(event.publish_date.is_some());
 }
 

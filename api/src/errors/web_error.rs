@@ -3,8 +3,11 @@ use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use bigneon_db::utils::errors::*;
 use diesel::result::Error as DieselError;
 use errors::*;
+use jwt::errors::Error as JwtError;
 use lettre::smtp::error::Error as SmtpError;
+use lettre_email::error::Error as EmailBuilderError;
 use payments::PaymentProcessorError;
+use reqwest::header::ToStrError as ReqwestToStrError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
 use std::error::Error;
@@ -12,6 +15,7 @@ use std::fmt::Debug;
 use std::string::ToString;
 use stripe::StripeError;
 use tari_client::TariError;
+use uuid::ParseError as UuidParseError;
 
 pub trait ConvertToWebError: Debug + Error + ToString {
     fn to_response(&self) -> HttpResponse;
@@ -45,7 +49,35 @@ impl ConvertToWebError for DieselError {
     }
 }
 
+impl ConvertToWebError for JwtError {
+    fn to_response(&self) -> HttpResponse {
+        error!("JWT error: {}", self);
+        unauthorized("Invalid token")
+    }
+}
+
+impl ConvertToWebError for UuidParseError {
+    fn to_response(&self) -> HttpResponse {
+        error!("UUID parse error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for EmailBuilderError {
+    fn to_response(&self) -> HttpResponse {
+        error!("Email Builder error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
 impl ConvertToWebError for ReqwestError {
+    fn to_response(&self) -> HttpResponse {
+        error!("Reqwest error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for ReqwestToStrError {
     fn to_response(&self) -> HttpResponse {
         error!("Reqwest error: {}", self);
         internal_error("Internal error")
@@ -132,6 +164,7 @@ impl ConvertToWebError for DatabaseError {
                     .into_builder()
                     .json(json!({"error": "Validation error".to_string()})),
             },
+            7300 => internal_error("Internal error"),
             _ => internal_error("Unknown error"),
         }
     }

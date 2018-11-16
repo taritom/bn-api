@@ -17,8 +17,7 @@ extern crate scheduled_thread_pool;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
-extern crate crypto;
-extern crate jwt;
+extern crate jsonwebtoken as jwt;
 extern crate serde_with;
 extern crate tari_client;
 extern crate uuid;
@@ -28,7 +27,6 @@ extern crate log;
 extern crate chrono;
 extern crate logging;
 extern crate reqwest;
-extern crate rustc_serialize;
 extern crate serde;
 extern crate stripe;
 #[macro_use]

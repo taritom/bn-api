@@ -161,8 +161,8 @@ impl TicketPricing {
             .to_db_error(ErrorCode::QueryError, "Error loading ticket pricing")
     }
 
-    pub fn status(&self) -> TicketPricingStatus {
-        self.status.parse::<TicketPricingStatus>().unwrap()
+    pub fn status(&self) -> Result<TicketPricingStatus, EnumParseError> {
+        self.status.parse::<TicketPricingStatus>()
     }
 
     pub fn get_current_ticket_pricing(

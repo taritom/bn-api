@@ -6,6 +6,7 @@ use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use tari_client::TariError;
 use validator::{ValidationError, ValidationErrors};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -26,6 +27,7 @@ pub enum ErrorCode {
     ValidationError {
         errors: HashMap<&'static str, Vec<ValidationError>>,
     },
+    ParseError,
     Unknown,
     MultipleResultsWhenOneExpected,
 }
@@ -59,6 +61,7 @@ pub fn get_error_message(code: &ErrorCode) -> (i32, String) {
         BusinessProcessError => (7000, "Business Process error".to_string()),
         ConcurrencyError => (7100, "Concurrency error".to_string()),
         ValidationError { errors: _ } => (7200, "Validation failed:".to_string()),
+        ParseError => (7300, "Parse failed:".to_string()),
         // Try not to use this error
         Unknown => (10, "Unknown database error".to_string()),
     }
@@ -215,6 +218,18 @@ impl DatabaseError {
 impl From<ConnectionError> for DatabaseError {
     fn from(e: ConnectionError) -> Self {
         DatabaseError::new(ErrorCode::ConnectionError, Some(e.to_string()))
+    }
+}
+
+impl From<EnumParseError> for DatabaseError {
+    fn from(e: EnumParseError) -> Self {
+        DatabaseError::new(ErrorCode::ParseError, Some(e.to_string()))
+    }
+}
+
+impl From<TariError> for DatabaseError {
+    fn from(e: TariError) -> Self {
+        DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
     }
 }
 

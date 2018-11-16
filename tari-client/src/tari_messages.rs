@@ -2,6 +2,8 @@ use cryptographic::*;
 use jsonrpc_core::Value;
 use jsonrpc_core::*;
 use serde_json;
+use std::result::Result;
+use tari_error::*;
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct Token {
@@ -138,7 +140,7 @@ pub fn construct_request_message(
     msg_payload: Value,
     secret_key: &Vec<u8>,
     public_key: &Vec<u8>,
-) -> Value {
+) -> Result<Value, TariError> {
     let msg_header = MessageHeader {
         command: header_command.clone(),
         asset_class_id: String::from("0"),
@@ -148,16 +150,16 @@ pub fn construct_request_message(
         public_key: convert_bytes_to_hexstring(&public_key),
         data_signature: message_data_signature(
             &msg_header,
-            &to_value(&msg_payload).unwrap().to_string(),
+            &to_value(&msg_payload)?.to_string(),
             &secret_key,
-        ),
+        )?,
     };
     let request_message = MessageRequest {
         header: msg_header,
         payload: msg_payload,
         signature: msg_signature,
     };
-    (serde_json::to_value(&request_message).unwrap())
+    Ok(serde_json::to_value(&request_message)?)
 }
 
 pub fn construct_jsonrpc_request(
@@ -165,11 +167,11 @@ pub fn construct_jsonrpc_request(
     msg_payload: Value,
     secret_key: &Vec<u8>,
     public_key: &Vec<u8>,
-) -> RPCRequest {
-    (RPCRequest {
+) -> Result<RPCRequest, TariError> {
+    Ok(RPCRequest {
         jsonrpc: String::from("2.0"),
         method: header_command.clone(),
-        params: construct_request_message(header_command, msg_payload, &secret_key, &public_key),
+        params: construct_request_message(header_command, msg_payload, &secret_key, &public_key)?,
         id: 1,
     })
 }

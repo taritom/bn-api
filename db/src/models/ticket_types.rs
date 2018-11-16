@@ -7,9 +7,7 @@ use schema::{
     assets, events, fee_schedules, organizations, ticket_instances, ticket_pricing,
     ticket_type_codes, ticket_types,
 };
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
+use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
 use validators;
@@ -272,8 +270,8 @@ impl TicketType {
         ).commit(conn)
     }
 
-    pub fn status(&self) -> TicketTypeStatus {
-        self.status.parse::<TicketTypeStatus>().unwrap()
+    pub fn status(&self) -> Result<TicketTypeStatus, EnumParseError> {
+        self.status.parse::<TicketTypeStatus>()
     }
 }
 

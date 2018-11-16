@@ -7,6 +7,8 @@ use rand;
 use rand::{OsRng, Rng};
 use secp256k1::{constants, Message, PublicKey, Secp256k1, SecretKey, Signature};
 use std::cmp::min;
+use std::result::Result;
+use tari_error::*;
 use tari_messages::*;
 
 pub fn random_hash() -> String {
@@ -60,16 +62,19 @@ pub fn cryptographic_hash(input_msg: &String) -> Vec<u8> {
     (convert_hexstring_to_bytes(&hash_hexstring))
 }
 
-pub fn cryptographic_signature(input_msg: &String, secret_key: &Vec<u8>) -> Vec<u8> {
+pub fn cryptographic_signature(
+    input_msg: &String,
+    secret_key: &Vec<u8>,
+) -> Result<Vec<u8>, TariError> {
     //Note: ECDSA of secp256k1 requires exactly 32 bytes as input, pad with zeros if less and discard entries if more
     let msg_hash_bytes =
         force_byte_array_size(cryptographic_hash(input_msg), constants::MESSAGE_SIZE);
     //S=ECDSA(HASH(message),private_key)
     let secp = Secp256k1::new();
-    let secp_message = Message::from_slice(&msg_hash_bytes).unwrap();
-    let secp_secret_key = SecretKey::from_slice(&secp, &secret_key).unwrap();
+    let secp_message = Message::from_slice(&msg_hash_bytes)?;
+    let secp_secret_key = SecretKey::from_slice(&secp, &secret_key)?;
     let secp_data_signature = secp.sign(&secp_message, &secp_secret_key);
-    (secp_data_signature.serialize_der(&secp))
+    Ok(secp_data_signature.serialize_der(&secp))
 }
 
 pub fn cryptographic_verify(
@@ -108,18 +113,21 @@ pub fn message_data_signature(
     msg_header: &MessageHeader,
     msg_payload: &String,
     secret_key: &Vec<u8>,
-) -> String {
-    let msg_header_string = to_value(&msg_header).unwrap().to_string();
+) -> Result<String, TariError> {
+    let msg_header_string = to_value(&msg_header)?.to_string();
     let complete_msg_string = msg_header_string + &msg_payload;
-    (convert_bytes_to_hexstring(&cryptographic_signature(&complete_msg_string, &secret_key)))
+    Ok(convert_bytes_to_hexstring(&cryptographic_signature(
+        &complete_msg_string,
+        &secret_key,
+    )?))
 }
 
 pub fn message_verification(
     msg_header: &MessageHeader,
     msg_payload: &String,
     msg_signature: &MessageSignature,
-) -> bool {
-    let msg_header_string = to_value(&msg_header).unwrap().to_string();
+) -> Result<bool, TariError> {
+    let msg_header_string = to_value(&msg_header)?.to_string();
     let complete_msg_string = msg_header_string + &msg_payload;
     let data_signature = convert_hexstring_to_bytes(&msg_signature.data_signature);
     let msg_public_key = convert_hexstring_to_bytes(&msg_signature.public_key);
@@ -132,9 +140,13 @@ pub fn message_verification(
     ));
     println!(
         "  + actual_data_signature= {}",
-        convert_bytes_to_hexstring(&cryptographic_signature(&complete_msg_string, &secret_key))
+        convert_bytes_to_hexstring(&cryptographic_signature(&complete_msg_string, &secret_key)?)
     );
     //temp_stop
     */
-    cryptographic_verify(&data_signature, &complete_msg_string, &msg_public_key)
+    Ok(cryptographic_verify(
+        &data_signature,
+        &complete_msg_string,
+        &msg_public_key,
+    ))
 }

@@ -1,7 +1,8 @@
+use errors::BigNeonError;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-#[derive(RustcDecodable, RustcEncodable)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RefreshToken {
     pub sub: String,
     pub iss: String,
@@ -22,7 +23,7 @@ impl RefreshToken {
         }
     }
 
-    pub fn get_id(&self) -> Uuid {
-        Uuid::parse_str(&self.sub).unwrap()
+    pub fn get_id(&self) -> Result<Uuid, BigNeonError> {
+        Ok(Uuid::parse_str(&self.sub)?)
     }
 }

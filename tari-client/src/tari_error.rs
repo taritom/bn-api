@@ -1,4 +1,5 @@
 use reqwest;
+use secp256k1;
 use serde_json;
 use std::error::Error;
 use std::fmt;
@@ -29,6 +30,15 @@ impl From<reqwest::Error> for TariError {
     fn from(r: reqwest::Error) -> Self {
         TariError {
             description: format!("Error calling Tari: reqwest error {}", r),
+            cause: Some(Arc::new(r)),
+        }
+    }
+}
+
+impl From<secp256k1::Error> for TariError {
+    fn from(r: secp256k1::Error) -> Self {
+        TariError {
+            description: format!("Error calling Tari: secp256k1 error {}", r),
             cause: Some(Arc::new(r)),
         }
     }

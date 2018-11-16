@@ -4,8 +4,8 @@ use actix_web::HttpResponse;
 use actix_web::Responder;
 use auth::{claims::AccessToken, claims::RefreshToken};
 use bigneon_db::models::User;
-use crypto::sha2::Sha256;
-use jwt::{Component, Header, Token};
+use errors::BigNeonError;
+use jwt::{encode, Header};
 use serde_json;
 use uuid::Uuid;
 
@@ -35,17 +35,29 @@ impl TokenResponse {
         }
     }
 
-    pub fn create_from_user(token_secret: &str, token_issuer: &str, user: &User) -> Self {
+    pub fn create_from_user(
+        token_secret: &str,
+        token_issuer: &str,
+        user: &User,
+    ) -> Result<Self, BigNeonError> {
         let access_token_claims = AccessToken::new(&user.id, token_issuer.to_string());
-        let access_token = Token::new(Default::default(), access_token_claims);
+        let access_token = encode(
+            &Header::default(),
+            &access_token_claims,
+            token_secret.as_bytes(),
+        )?;
 
         let refresh_token_claims = RefreshToken::new(&user.id, token_issuer.to_string());
-        let refresh_token = Token::new(Default::default(), refresh_token_claims);
+        let refresh_token = encode(
+            &Header::default(),
+            &refresh_token_claims,
+            token_secret.as_bytes(),
+        )?;
 
-        TokenResponse {
-            access_token: sign_token(token_secret, &access_token),
-            refresh_token: sign_token(token_secret, &refresh_token),
-        }
+        Ok(TokenResponse {
+            access_token,
+            refresh_token,
+        })
     }
 
     pub fn create_from_refresh_token(
@@ -53,19 +65,17 @@ impl TokenResponse {
         token_issuer: &str,
         user_id: &Uuid,
         signed_refresh_token: &str,
-    ) -> Self {
+    ) -> Result<Self, BigNeonError> {
         let access_token_claims = AccessToken::new(&user_id, token_issuer.to_string());
-        let access_token = Token::new(Default::default(), access_token_claims);
+        let access_token = encode(
+            &Header::default(),
+            &access_token_claims,
+            token_secret.as_bytes(),
+        )?;
 
-        TokenResponse {
-            access_token: sign_token(token_secret, &access_token),
+        Ok(TokenResponse {
+            access_token,
             refresh_token: String::from(signed_refresh_token),
-        }
+        })
     }
-}
-
-fn sign_token<T: Component>(token_secret: &str, token: &Token<Header, T>) -> String {
-    token
-        .signed(token_secret.as_bytes(), Sha256::new())
-        .unwrap()
 }

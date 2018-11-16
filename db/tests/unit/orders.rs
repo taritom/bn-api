@@ -520,10 +520,10 @@ fn add_external_payment() {
     assert_eq!(cart.calculate_total(conn).unwrap(), 2000);
     cart.add_external_payment("test".to_string(), user.id, 1500, conn)
         .unwrap();
-    assert_eq!(cart.status(), OrderStatus::PartiallyPaid);
+    assert_eq!(cart.status().unwrap(), OrderStatus::PartiallyPaid);
     cart.add_external_payment("test2".to_string(), user.id, 500, conn)
         .unwrap();
-    assert_eq!(cart.status(), OrderStatus::Paid);
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
 }
 
 #[test]
@@ -684,7 +684,7 @@ fn adding_event_fees() {
 
     let mut event_fees_count = 0;
     for o in &order_items {
-        if o.item_type() == OrderItemTypes::EventFees {
+        if o.item_type().unwrap() == OrderItemTypes::EventFees {
             println!("Order item {:?}", o);
             event_fees_count += 1;
         }

@@ -2,8 +2,7 @@ use actix_web::{http::StatusCode, HttpResponse, Json};
 use bigneon_api::auth::{claims::AccessToken, claims::RefreshToken, TokenResponse};
 use bigneon_api::controllers::auth;
 use bigneon_api::controllers::auth::{LoginRequest, RefreshRequest};
-use crypto::sha2::Sha256;
-use jwt::{Header, Token};
+use jwt::{decode, encode, Header, Validation};
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -22,20 +21,28 @@ fn token() {
         .finish();
 
     let test_request = TestRequest::create();
+    let state = test_request.extract_state();
     let json = Json(LoginRequest::new("fake@localhost", "strong_password"));
 
     let response: TokenResponse =
         auth::token((test_request.request, database.connection.into(), json)).unwrap();
 
-    //    assert_eq!(response.status(), StatusCode::OK);
-    //    let body = support::unwrap_body_to_string(&response).unwrap();
-    //    let response: TokenResponse = serde_json::from_str(&body).unwrap();
+    let access_token = decode::<AccessToken>(
+        &response.access_token,
+        state.config.token_secret.as_bytes(),
+        &Validation::default(),
+    ).unwrap();
 
-    let access_token = Token::<Header, AccessToken>::parse(&response.access_token).unwrap();
-    let refresh_token = Token::<Header, RefreshToken>::parse(&response.refresh_token).unwrap();
+    let mut validation = Validation::default();
+    validation.validate_exp = false;
+    let refresh_token = decode::<RefreshToken>(
+        &response.refresh_token,
+        state.config.token_secret.as_bytes(),
+        &validation,
+    ).unwrap();
 
-    assert_eq!(access_token.claims.get_id(), user.id);
-    assert_eq!(refresh_token.claims.get_id(), user.id);
+    assert_eq!(access_token.claims.get_id().unwrap(), user.id);
+    assert_eq!(refresh_token.claims.get_id().unwrap(), user.id);
 }
 
 #[test]
@@ -82,11 +89,14 @@ fn token_refresh() {
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
+    let token_secret = &state.config.token_secret.clone();
     let refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
-    let header: Header = Default::default();
-    let refresh_token = Token::new(header, refresh_token_claims)
-        .signed(state.config.token_secret.as_bytes(), Sha256::new())
-        .unwrap();
+    let refresh_token = encode(
+        &Header::default(),
+        &refresh_token_claims,
+        token_secret.as_bytes(),
+    ).unwrap();
+
     let json = Json(RefreshRequest::new(&refresh_token));
 
     let response: HttpResponse =
@@ -95,9 +105,13 @@ fn token_refresh() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let response: TokenResponse = serde_json::from_str(&body).unwrap();
 
-    let access_token = Token::<Header, AccessToken>::parse(&response.access_token).unwrap();
+    let access_token = decode::<AccessToken>(
+        &response.access_token,
+        token_secret.as_bytes(),
+        &Validation::default(),
+    ).unwrap();
     assert_eq!(response.refresh_token, refresh_token);
-    assert_eq!(access_token.claims.get_id(), user.id);
+    assert_eq!(access_token.claims.get_id().unwrap(), user.id);
 }
 
 #[test]
@@ -108,10 +122,12 @@ fn token_refresh_invalid_refresh_token_secret() {
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
-    let header: Header = Default::default();
-    let refresh_token = Token::new(header, refresh_token_claims)
-        .signed(b"incorrect-secret", Sha256::new())
-        .unwrap();
+    let refresh_token = encode(
+        &Header::default(),
+        &refresh_token_claims,
+        b"incorrect-secret",
+    ).unwrap();
+
     let json = Json(RefreshRequest::new(&refresh_token));
 
     let response: HttpResponse =
@@ -151,10 +167,11 @@ fn token_refresh_user_does_not_exist() {
     let mut refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
     refresh_token_claims.sub = Uuid::new_v4().to_string();
 
-    let header: Header = Default::default();
-    let refresh_token = Token::new(header, refresh_token_claims)
-        .signed(state.config.token_secret.as_bytes(), Sha256::new())
-        .unwrap();
+    let refresh_token = encode(
+        &Header::default(),
+        &refresh_token_claims,
+        state.config.token_secret.as_bytes(),
+    ).unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
     let response: HttpResponse =
@@ -177,10 +194,11 @@ fn token_refresh_password_reset_since_issued() {
 
     // Issued a second prior to the latest password
     refresh_token_claims.issued = password_modified_timestamp - 1;
-    let header: Header = Default::default();
-    let refresh_token = Token::new(header, refresh_token_claims)
-        .signed(state.config.token_secret.as_bytes(), Sha256::new())
-        .unwrap();
+    let refresh_token = encode(
+        &Header::default(),
+        &refresh_token_claims,
+        state.config.token_secret.as_bytes(),
+    ).unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
     let response: HttpResponse =
@@ -201,14 +219,16 @@ fn token_refreshed_after_password_change() {
     let test_request = TestRequest::create();
 
     let state = test_request.extract_state();
+    let token_secret = &state.config.token_secret.clone();
     let mut refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
 
     // Issued a second after the latest password
     refresh_token_claims.issued = password_modified_timestamp + 1;
-    let header: Header = Default::default();
-    let refresh_token = Token::new(header, refresh_token_claims)
-        .signed(state.config.token_secret.as_bytes(), Sha256::new())
-        .unwrap();
+    let refresh_token = encode(
+        &Header::default(),
+        &refresh_token_claims,
+        token_secret.as_bytes(),
+    ).unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
     let response: HttpResponse =
@@ -218,7 +238,11 @@ fn token_refreshed_after_password_change() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let response: TokenResponse = serde_json::from_str(&body).unwrap();
 
-    let access_token = Token::<Header, AccessToken>::parse(&response.access_token).unwrap();
+    let access_token = decode::<AccessToken>(
+        &response.access_token,
+        token_secret.as_bytes(),
+        &Validation::default(),
+    ).unwrap();
     assert_eq!(response.refresh_token, refresh_token);
-    assert_eq!(access_token.claims.get_id(), user.id);
+    assert_eq!(access_token.claims.get_id().unwrap(), user.id);
 }

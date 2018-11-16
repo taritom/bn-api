@@ -7,10 +7,9 @@ use bigneon_api::db::Connection as BigNeonConnection;
 use bigneon_db::models::concerns::users::password_resetable::*;
 use bigneon_db::models::User;
 use chrono::{Duration, Utc};
-use crypto::sha2::Sha256;
 use diesel;
 use diesel::prelude::*;
-use jwt::{Header, Token};
+use jwt::{decode, Validation};
 use lettre::SendableEmail;
 use serde_json;
 use std::str;
@@ -108,7 +107,7 @@ fn update() {
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
-    let token_secret = state.config.token_secret.clone();
+    let token_secret = &state.config.token_secret.clone();
     let json = Json(UpdatePasswordResetParameters {
         password_reset_token: user.password_reset_token.unwrap(),
         password: new_password.to_string(),
@@ -124,14 +123,21 @@ fn update() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let token_response: TokenResponse = serde_json::from_str(&body).unwrap();
 
-    let access_token = Token::<Header, AccessToken>::parse(&token_response.access_token).unwrap();
-    assert!(access_token.verify(token_secret.as_bytes(), Sha256::new()));
-    assert_eq!(access_token.claims.get_id(), user.id);
+    let access_token = decode::<AccessToken>(
+        &token_response.access_token,
+        token_secret.as_bytes(),
+        &Validation::default(),
+    ).unwrap();
+    assert_eq!(access_token.claims.get_id().unwrap(), user.id);
 
-    let refresh_token =
-        Token::<Header, RefreshToken>::parse(&token_response.refresh_token).unwrap();
-    assert!(refresh_token.verify(token_secret.as_bytes(), Sha256::new()));
-    assert_eq!(refresh_token.claims.get_id(), user.id);
+    let mut validation = Validation::default();
+    validation.validate_exp = false;
+    let refresh_token = decode::<RefreshToken>(
+        &token_response.refresh_token,
+        token_secret.as_bytes(),
+        &validation,
+    ).unwrap();
+    assert_eq!(refresh_token.claims.get_id().unwrap(), user.id);
 }
 
 #[test]

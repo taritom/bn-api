@@ -49,8 +49,7 @@ impl Mailer {
             .from(self.from())
             .subject(self.subject())
             .text(self.body())
-            .build()
-            .unwrap();
+            .build()?;
         self.config.mail_transport.send(email)
     }
 }

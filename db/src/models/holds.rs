@@ -153,11 +153,9 @@ impl Hold {
                     .hold_type
                     .clone()
                     .unwrap_or(self.hold_type.clone()),
-                if update_attrs.discount_in_cents.is_some() {
-                    update_attrs.discount_in_cents.unwrap()
-                } else {
-                    self.discount_in_cents
-                },
+                update_attrs
+                    .discount_in_cents
+                    .unwrap_or(self.discount_in_cents),
             ),
         );
         let validation_errors = validators::append_validation_error(

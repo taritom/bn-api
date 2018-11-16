@@ -82,11 +82,11 @@ impl TariClient for HttpTariClient {
         asset: MessagePayloadCreateAsset,
     ) -> Result<String, TariError> {
         let header_command = String::from("create_asset");
-        let msg_payload = serde_json::to_value(asset).unwrap();
+        let msg_payload = serde_json::to_value(asset)?;
         let secret_key = convert_hexstring_to_bytes(&secret_key);
         let public_key = convert_hexstring_to_bytes(&public_key);
         let jsonrpc_request =
-            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key)?;
 
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
@@ -94,7 +94,7 @@ impl TariClient for HttpTariClient {
         jlog!(Level::Info, "Response from create_asset:{}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccessId =
-            serde_json::from_value(response_message.result).unwrap();
+            serde_json::from_value(response_message.result)?;
 
         if response_message_result.success {
             Ok(response_message_result.id)
@@ -121,11 +121,11 @@ impl TariClient for HttpTariClient {
             token_ids: None,
             token_metadata: None,
             new_supply: Some(new_supply),
-        }).unwrap();
+        })?;
         let secret_key = convert_hexstring_to_bytes(&secret_key);
         let public_key = convert_hexstring_to_bytes(&public_key);
         let jsonrpc_request =
-            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key)?;
 
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
@@ -133,7 +133,7 @@ impl TariClient for HttpTariClient {
         jlog!(Level::Info, "Response from modify_asset: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccess =
-            serde_json::from_value(response_message.result).unwrap();
+            serde_json::from_value(response_message.result)?;
 
         if response_message_result.success {
             Ok(())
@@ -160,11 +160,11 @@ impl TariClient for HttpTariClient {
             token_ids: Some(token_ids),
             token_metadata: None,
             new_supply: None,
-        }).unwrap();
+        })?;
         let secret_key = convert_hexstring_to_bytes(&secret_key);
         let public_key = convert_hexstring_to_bytes(&public_key);
         let jsonrpc_request =
-            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key)?;
 
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
@@ -172,7 +172,7 @@ impl TariClient for HttpTariClient {
         jlog!(Level::Info, "Response from modify_asset: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccess =
-            serde_json::from_value(response_message.result).unwrap();
+            serde_json::from_value(response_message.result)?;
 
         if response_message_result.success {
             Ok(())
@@ -199,11 +199,11 @@ impl TariClient for HttpTariClient {
             token_ids: Some(token_ids),
             token_metadata: None,
             new_supply: None,
-        }).unwrap();
+        })?;
         let secret_key = convert_hexstring_to_bytes(&secret_key);
         let public_key = convert_hexstring_to_bytes(&public_key);
         let jsonrpc_request =
-            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key)?;
 
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
@@ -211,7 +211,7 @@ impl TariClient for HttpTariClient {
         jlog!(Level::Info, "Response from modify_asset: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccess =
-            serde_json::from_value(response_message.result).unwrap();
+            serde_json::from_value(response_message.result)?;
 
         if response_message_result.success {
             Ok(())
@@ -236,11 +236,11 @@ impl TariClient for HttpTariClient {
             asset_id: asset_id.clone(),
             token_ids,
             new_owner,
-        }).unwrap();
+        })?;
         let secret_key = convert_hexstring_to_bytes(&secret_key);
         let public_key = convert_hexstring_to_bytes(&public_key);
         let jsonrpc_request =
-            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key)?;
 
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
@@ -248,7 +248,7 @@ impl TariClient for HttpTariClient {
         jlog!(Level::Info, "Response from transfer_token: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadSuccess =
-            serde_json::from_value(response_message.result).unwrap();
+            serde_json::from_value(response_message.result)?;
 
         if response_message_result.success {
             Ok(())
@@ -272,11 +272,11 @@ impl TariClient for HttpTariClient {
             user: None,
             asset_id: asset_id.clone(),
             token_ids: None,
-        }).unwrap();
+        })?;
         let secret_key = convert_hexstring_to_bytes(&secret_key);
         let public_key = convert_hexstring_to_bytes(&public_key);
         let jsonrpc_request =
-            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key);
+            construct_jsonrpc_request(header_command, msg_payload, &secret_key, &public_key)?;
 
         let client = reqwest::Client::new();
         let mut resp = client.post(&self.tari_url).json(&jsonrpc_request).send()?;
@@ -284,7 +284,7 @@ impl TariClient for HttpTariClient {
         jlog!(Level::Info, "Response from read_asset: {}", raw);
         let response_message: RPCResponse = serde_json::from_str(&raw)?;
         let response_message_result: ResponsePayloadReadAsset =
-            serde_json::from_value(response_message.result).unwrap();
+            serde_json::from_value(response_message.result)?;
 
         Ok(response_message_result)
     }

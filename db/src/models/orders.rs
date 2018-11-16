@@ -13,8 +13,7 @@ use serde_json;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
-use utils::errors;
-use utils::errors::*;
+use utils::errors::{self, *};
 use uuid::Uuid;
 use validator::ValidationErrors;
 use validators::*;
@@ -64,8 +63,9 @@ impl Order {
                 ErrorCode::QueryError,
                 "Could not find user attached to this cart",
             ).optional()?;
-        if cart_user.is_some() {
-            cart_user.unwrap().update_last_cart(None, conn)?;
+
+        if let Some(user) = cart_user {
+            user.update_last_cart(None, conn)?;
         }
 
         DatabaseError::wrap(
@@ -75,16 +75,16 @@ impl Order {
         )
     }
 
-    pub fn status(&self) -> OrderStatus {
-        self.status.parse::<OrderStatus>().unwrap()
+    pub fn status(&self) -> Result<OrderStatus, EnumParseError> {
+        self.status.parse::<OrderStatus>()
     }
 
     pub fn find_or_create_cart(user: &User, conn: &PgConnection) -> Result<Order, DatabaseError> {
         // Do a quick check to find the cart linked to the user.
         let cart = Order::find_cart_for_user(user.id, conn)?;
 
-        if cart.is_some() {
-            return Ok(cart.unwrap());
+        if let Some(cart) = cart {
+            return Ok(cart);
         }
 
         // Cart either does not exist, expired or was paid up.
@@ -190,11 +190,11 @@ impl Order {
             });
         }
 
-        for mut current_line in self
-            .items(conn)?
-            .into_iter()
-            .filter(|t| t.item_type() == OrderItemTypes::Tickets)
-        {
+        for mut current_line in self.items(conn)? {
+            if current_line.item_type()? != OrderItemTypes::Tickets {
+                continue;
+            }
+
             let mut index_to_remove: Option<usize> = None;
             {
                 let matching_result: Vec<&(
@@ -211,9 +211,9 @@ impl Order {
                     }).collect();
                 let matching_result = matching_result.first();
 
-                if matching_result.is_some() {
+                if let Some(matching_result) = matching_result {
                     jlog!(Level::Debug, "Found an existing cart item, replacing");
-                    let (index, hold_id, comp_id, mut matching_line) = matching_result.unwrap();
+                    let (index, hold_id, comp_id, mut matching_line) = matching_result;
                     index_to_remove = Some(*index);
                     if current_line.quantity as u32 > matching_line.quantity {
                         jlog!(Level::Debug, "Reducing quantity of cart item");
@@ -286,8 +286,8 @@ impl Order {
                     }
                 }
             }
-            if index_to_remove.is_some() {
-                mapped.remove(index_to_remove.unwrap());
+            if let Some(index) = index_to_remove {
+                mapped.remove(index);
             }
         }
 
@@ -383,7 +383,7 @@ impl Order {
         let items = self.items(conn)?;
 
         for o in items {
-            match o.item_type() {
+            match o.item_type()? {
                 OrderItemTypes::EventFees => OrderItem::destroy(o.id, conn)?,
                 _ => {}
             }
@@ -391,16 +391,14 @@ impl Order {
         for (event_id, items) in self
             .items(conn)?
             .iter()
+            .filter(|i| i.event_id.is_some())
             .group_by(|i| i.event_id)
             .into_iter()
         {
-            if event_id.is_none() {
-                continue;
-            }
             let event = Event::find(event_id.unwrap(), conn)?;
             let organization = Organization::find(event.organization_id, conn)?;
             for o in items {
-                match o.item_type() {
+                match o.item_type()? {
                     OrderItemTypes::Tickets => o.update_fees(conn)?,
                     _ => {}
                 }
@@ -414,11 +412,11 @@ impl Order {
                 quantity: 1,
                 parent_id: None,
             };
-            if event.fee_in_cents.is_some() {
-                new_event_fee.unit_price_in_cents = event.fee_in_cents.unwrap();
+            if let Some(event_fee_in_cents) = event.fee_in_cents {
+                new_event_fee.unit_price_in_cents = event_fee_in_cents;
                 new_event_fee.commit(conn)?;
-            } else if organization.event_fee_in_cents.is_some() {
-                new_event_fee.unit_price_in_cents = organization.event_fee_in_cents.unwrap();
+            } else if let Some(organization_event_fee_in_cents) = organization.event_fee_in_cents {
+                new_event_fee.unit_price_in_cents = organization_event_fee_in_cents;
                 new_event_fee.commit(conn)?;
             }
         }
@@ -478,12 +476,14 @@ impl Order {
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let items = self.items(conn)?;
-        let tickets: Vec<OrderItem> = items
-            .into_iter()
-            .filter(|ci| {
-                ci.item_type() == OrderItemTypes::Tickets
-                    && ci.ticket_type_id == Some(ticket_type_id)
-            }).collect();
+        let mut tickets: Vec<OrderItem> = Vec::new();
+        for ci in items {
+            if ci.item_type()? == OrderItemTypes::Tickets
+                && ci.ticket_type_id == Some(ticket_type_id)
+            {
+                tickets.push(ci);
+            }
+        }
 
         let mut result: Vec<TicketInstance> = vec![];
         for t in tickets {
@@ -578,16 +578,17 @@ impl Order {
         payment: NewPayment,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
-        if self.status() == OrderStatus::Paid {
+        let status = self.status()?;
+        if status == OrderStatus::Paid {
             return DatabaseError::business_process_error("This order has already been paid");
         }
         // orders can only expire if the order is in draft
-        if self.status() == OrderStatus::Draft {
+        if status == OrderStatus::Draft {
             self.mark_partially_paid(conn)?;
-        } else if self.status() != OrderStatus::PartiallyPaid {
+        } else if status != OrderStatus::PartiallyPaid {
             return DatabaseError::business_process_error(&format!(
                 "Order was in unexpected state when trying to make a payment: {}",
-                self.status()
+                status
             ));
         }
 
@@ -663,8 +664,8 @@ impl Order {
                     "Could not find user attached to this cart",
                 ).optional()?;
 
-            if cart_user.is_some() {
-                cart_user.unwrap().update_last_cart(None, conn)?;
+            if let Some(user) = cart_user {
+                user.update_last_cart(None, conn)?;
             }
         }
         Ok(())

@@ -59,5 +59,5 @@ pub fn update(
         &state.config.token_secret,
         &state.config.token_issuer,
         &user,
-    )))
+    )?))
 }

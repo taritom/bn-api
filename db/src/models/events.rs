@@ -7,8 +7,6 @@ use diesel::sql_types;
 use models::*;
 use schema::{artists, event_artists, events, organization_users, organizations, venues};
 use std::borrow::Cow;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
@@ -144,8 +142,8 @@ impl Event {
         }
     }
 
-    pub fn status(&self) -> EventStatus {
-        self.status.parse::<EventStatus>().unwrap()
+    pub fn status(&self) -> Result<EventStatus, EnumParseError> {
+        self.status.parse::<EventStatus>()
     }
 
     pub fn update_cache(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
@@ -205,22 +203,23 @@ impl Event {
     }
 
     pub fn publish(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
-        if self.status() == EventStatus::Published {
+        if self.status()? == EventStatus::Published {
             return Event::find(self.id, conn);
         }
 
         let mut errors = ValidationErrors::new();
-
-        if self.venue_id.is_none() {
-            let mut validation_error =
-                create_validation_error("required", "Event can't be published without a venue");
-            validation_error.add_param(Cow::from("event_id"), &self.id);
-            errors.add("venue_id", validation_error);
-        } else {
-            let venue = self.venue(conn)?.unwrap();
-            venue.validate_for_publish()?;
+        match self.venue_id {
+            Some(venue_id) => {
+                let venue = Venue::find(venue_id, conn)?;
+                venue.validate_for_publish()?;
+            }
+            None => {
+                let mut validation_error =
+                    create_validation_error("required", "Event can't be published without a venue");
+                validation_error.add_param(Cow::from("event_id"), &self.id);
+                errors.add("venue_id", validation_error);
+            }
         }
-
         if !errors.is_empty() {
             return Err(errors.into());
         }
@@ -368,13 +367,17 @@ impl Event {
         let results: Vec<EventSummaryResult> = events
             .into_iter()
             .map(|r| {
-                let venue = match r.venue_id {
-                    None => None,
-                    Some(_) => Some(VenueInfo {
-                        id: *r.venue_id.as_ref().unwrap(),
-                        name: r.venue_name.as_ref().unwrap().to_string(),
-                    }),
+                let venue = if let (Some(venue_id), Some(venue_name)) =
+                    (r.venue_id.as_ref(), r.venue_name.as_ref())
+                {
+                    Some(VenueInfo {
+                        id: *venue_id,
+                        name: venue_name.to_string(),
+                    })
+                } else {
+                    None
                 };
+
                 let event_id = r.id;
                 let mut result = EventSummaryResult {
                     id: r.id,

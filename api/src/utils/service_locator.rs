@@ -1,4 +1,5 @@
 use config::Config;
+use errors::*;
 use payments::PaymentProcessor;
 use payments::StripePaymentProcessor;
 
@@ -13,10 +14,15 @@ impl ServiceLocator {
         }
     }
 
-    pub fn create_payment_processor(&self, provider_name: &str) -> impl PaymentProcessor {
+    pub fn create_payment_processor(
+        &self,
+        provider_name: &str,
+    ) -> Result<impl PaymentProcessor, BigNeonError> {
         match provider_name {
-            "stripe" => StripePaymentProcessor::new(self.stripe_secret_key.to_string()),
-            _ => panic!("Unknown payment provider"),
+            "stripe" => Ok(StripePaymentProcessor::new(
+                self.stripe_secret_key.to_string(),
+            )),
+            _ => return Err(ApplicationError::new("Unknown payment provider".into()).into()),
         }
     }
 }

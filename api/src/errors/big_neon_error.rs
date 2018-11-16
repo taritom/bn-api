@@ -4,76 +4,45 @@ use bigneon_db::utils::errors::*;
 use diesel::result::Error as DieselError;
 use errors::AuthError;
 use errors::*;
+use jwt::errors::Error as JwtError;
 use lettre::smtp::error::Error as SmtpError;
+use lettre_email::error::Error as EmailBuilderError;
 use payments::PaymentProcessorError;
+use reqwest::header::ToStrError as ReqwestToStrError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
 use std::error::Error;
 use std::fmt;
 use tari_client::TariError;
+use uuid::ParseError as UuidParseError;
 
 #[derive(Debug)]
 pub struct BigNeonError(Box<ConvertToWebError + Send + Sync>);
 
-impl From<DatabaseError> for BigNeonError {
-    fn from(e: DatabaseError) -> Self {
-        BigNeonError(Box::new(e))
-    }
+macro_rules! error_conversion {
+    ($e: ty) => {
+        impl From<$e> for BigNeonError {
+            fn from(e: $e) -> Self {
+                BigNeonError(Box::new(e))
+            }
+        }
+    };
 }
 
-impl From<EnumParseError> for BigNeonError {
-    fn from(e: EnumParseError) -> Self {
-        BigNeonError(Box::new(e))
-    }
-}
-
-impl From<ReqwestError> for BigNeonError {
-    fn from(e: ReqwestError) -> Self {
-        BigNeonError(Box::new(e))
-    }
-}
-
-impl From<PaymentProcessorError> for BigNeonError {
-    fn from(pe: PaymentProcessorError) -> Self {
-        BigNeonError(Box::new(pe))
-    }
-}
-
-impl From<TariError> for BigNeonError {
-    fn from(te: TariError) -> Self {
-        BigNeonError(Box::new(te))
-    }
-}
-
-impl From<DieselError> for BigNeonError {
-    fn from(e: DieselError) -> Self {
-        BigNeonError(Box::new(e))
-    }
-}
-
-impl From<SerdeError> for BigNeonError {
-    fn from(e: SerdeError) -> Self {
-        BigNeonError(Box::new(e))
-    }
-}
-
-impl From<ApplicationError> for BigNeonError {
-    fn from(e: ApplicationError) -> Self {
-        BigNeonError(Box::new(e))
-    }
-}
-
-impl From<SmtpError> for BigNeonError {
-    fn from(e: SmtpError) -> Self {
-        BigNeonError(Box::new(e))
-    }
-}
-
-impl From<AuthError> for BigNeonError {
-    fn from(e: AuthError) -> Self {
-        BigNeonError(Box::new(e))
-    }
-}
+error_conversion!(ApplicationError);
+error_conversion!(AuthError);
+error_conversion!(DatabaseError);
+error_conversion!(DieselError);
+error_conversion!(EmailBuilderError);
+error_conversion!(EnumParseError);
+error_conversion!(JwtError);
+error_conversion!(PaymentProcessorError);
+error_conversion!(ReqwestError);
+error_conversion!(ReqwestToStrError);
+error_conversion!(SerdeError);
+error_conversion!(SmtpError);
+error_conversion!(TariError);
+error_conversion!(UuidParseError);
 
 impl fmt::Display for BigNeonError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -93,8 +93,8 @@ pub fn update(
     user.requires_scope_for_organization(Scopes::HoldWrite, &hold.organization(conn)?, conn)?;
     let quantity = req.quantity;
     let hold = hold.update(req.into_inner().into(), conn)?;
-    if quantity.is_some() {
-        hold.set_quantity(quantity.unwrap(), conn)?;
+    if let Some(quantity) = quantity {
+        hold.set_quantity(quantity, conn)?;
     }
 
     Ok(HttpResponse::Ok().json(hold))

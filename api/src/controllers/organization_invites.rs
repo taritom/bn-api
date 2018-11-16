@@ -144,15 +144,25 @@ pub fn accept_request(
     //Check that the user is logged in, that if the invite has a user_id associated with it that it is the currently logged in user
     match user {
         Some(u) => {
-            if (invite_details.user_id.is_some() && invite_details.user_id.unwrap() != u.id())
-                || (invite_details.user_id.is_none()
-                    && invite_details.user_email != u.email().unwrap())
-            {
-                return application::unauthorized();
-            } else {
+            let valid_for_acceptance = match invite_details.user_id {
+                // If the user_id was provided confirm that the current user is the accepting user
+                Some(user_id) => user_id == u.id(),
+                None => {
+                    // If not confirm that the current user has an email set and that it matches the invite
+                    if let Some(email) = u.email() {
+                        invite_details.user_email == email
+                    } else {
+                        false
+                    }
+                }
+            };
+
+            if valid_for_acceptance {
                 let accept_details = invite_details.change_invite_status(1, connection)?;
                 let org = Organization::find(accept_details.organization_id, connection)?;
-                let _ = org.add_user(u.id(), connection)?;
+                org.add_user(u.id(), connection)?;
+            } else {
+                return application::unauthorized();
             }
         }
         None => return application::unauthorized(),

@@ -92,7 +92,7 @@ pub fn show(
     let organization = db_event.organization(connection)?;
 
     if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)?
-        && (user.is_none() || user.as_ref().unwrap().id != auth_user.id())
+        && user.as_ref().map_or(false, |u| u.id != auth_user.id())
     {
         return application::unauthorized();
     }
@@ -149,7 +149,7 @@ pub fn redeem(
             },
         Err(e) => Ok(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
             .into_builder()
-            .json(json!({"error": e.cause.unwrap().to_string(),}))),
+            .json(json!({"error": e.cause.unwrap_or("Tickets#Redeem: No cause listed".to_string()),}))),
     }
 }
 
@@ -162,7 +162,7 @@ pub fn show_redeemable_ticket(
     let organization = db_event.organization(connection)?;
 
     if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)?
-        && (user.is_none() || user.unwrap().id != auth_user.id())
+        && user.as_ref().map_or(false, |u| u.id != auth_user.id())
     {
         return application::unauthorized();
     }

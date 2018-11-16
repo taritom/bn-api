@@ -24,7 +24,7 @@ impl UserDisplayTicketType {
         fee_schedule: &FeeSchedule,
         conn: &PgConnection,
     ) -> Result<UserDisplayTicketType, DatabaseError> {
-        let ticket_type_status = ticket_type.status();
+        let ticket_type_status = ticket_type.status()?;
         let mut status = ticket_type_status.to_string();
         let available = ticket_type.remaining_ticket_count(conn)?;
 
