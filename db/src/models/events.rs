@@ -67,6 +67,7 @@ pub struct NewEvent {
     ))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub top_line_info: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,
 }
@@ -116,6 +117,7 @@ pub struct EventEditableAttributes {
     ))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub top_line_info: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,
 }
