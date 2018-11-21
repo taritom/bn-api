@@ -19,10 +19,10 @@ extern crate serde_json;
 /// `{"level": "ERROR", "target": "my_module", "message": "Amount must be positive", "value": -1}`
 #[macro_export]
 macro_rules! jlog {
-    ($t:path, $msg:expr) => {
+    ($t:path, $msg:expr) => {{
         use $crate::transform_message;
         transform_message($t, $msg, "")
-    };
+    }};
     ($t:path, $msg:expr, $json:tt) => {{
         use $crate::transform_message;
         let meta = json!($json).to_string();

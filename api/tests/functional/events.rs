@@ -519,6 +519,14 @@ pub fn show_from_organizations_past() {
         ).with_organization(&organization)
         .finish();
 
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(
+        &user,
+        Roles::OrgMember,
+        Some(&organization),
+        &database,
+    );
+
     let expected_events = vec![event.id];
 
     let test_request = TestRequest::create();
@@ -527,9 +535,12 @@ pub fn show_from_organizations_past() {
     let test_request = TestRequest::create_with_uri(&format!("/events?past_or_upcoming=Past"));
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
-    let response =
-        events::show_from_organizations((database.connection.into(), path, query_parameters))
-            .unwrap();
+    let response = events::show_from_organizations((
+        database.connection.into(),
+        path,
+        query_parameters,
+        auth_user,
+    )).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
@@ -565,6 +576,14 @@ pub fn show_from_organizations_upcoming() {
         .with_organization(&organization)
         .finish();
 
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(
+        &user,
+        Roles::OrgMember,
+        Some(&organization),
+        &database,
+    );
+
     let expected_events = vec![event2.id];
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -572,9 +591,12 @@ pub fn show_from_organizations_upcoming() {
     let test_request = TestRequest::create_with_uri(&format!("/events?past_or_upcoming=Upcoming"));
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
-    let response =
-        events::show_from_organizations((database.connection.into(), path, query_parameters))
-            .unwrap();
+    let response = events::show_from_organizations((
+        database.connection.into(),
+        path,
+        query_parameters,
+        auth_user,
+    )).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         expected_events,

@@ -1,12 +1,15 @@
-use chrono::NaiveDate;
-use chrono::NaiveDateTime;
+use chrono::prelude::*;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
+use log::Level;
 use models::*;
 use schema::{artists, event_artists, events, organization_users, organizations, venues};
 use std::borrow::Cow;
+use time::Duration;
+use utils::errors::DatabaseError;
+use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
@@ -273,8 +276,6 @@ impl Event {
         limit: u32,
         conn: &PgConnection,
     ) -> Result<paging::Payload<EventSummaryResult>, DatabaseError> {
-        use diesel::sql_types::Nullable as N;
-
         #[derive(QueryableByName)]
         struct Total {
             #[sql_type = "sql_types::BigInt"]
@@ -298,6 +299,41 @@ impl Event {
 
         let mut paging = Paging::new(page, limit);
         paging.total = total.remove(0).total as u32;
+
+        let results = Event::find_summary_data(
+            Some(organization_id),
+            None,
+            Some(past_or_upcoming),
+            page,
+            limit,
+            conn,
+        )?;
+        Ok(Payload {
+            paging,
+            data: results,
+        })
+    }
+
+    pub fn summary(&self, conn: &PgConnection) -> Result<EventSummaryResult, DatabaseError> {
+        let mut results = Event::find_summary_data(None, Some(self), None, 0, 100, conn)?;
+        Ok(results.remove(0))
+    }
+
+    fn find_summary_data(
+        organization_id: Option<Uuid>,
+        event: Option<&Event>,
+        past_or_upcoming: Option<PastOrUpcoming>,
+        page: u32,
+        limit: u32,
+        conn: &PgConnection,
+    ) -> Result<Vec<EventSummaryResult>, DatabaseError> {
+        use diesel::sql_types::Nullable as N;
+
+        let organization_id = match event {
+            Some(e) => e.organization_id,
+            None => organization_id
+                .expect("Either organization_id or event must be used when calling this method"),
+        };
 
         #[derive(QueryableByName)]
         struct R {
@@ -343,11 +379,13 @@ impl Event {
 
         let query_events = include_str!("../queries/find_all_events_for_organization.sql");
 
+        jlog!(Level::Debug, "Fetching summary data for event");
         let events: Vec<R> = diesel::sql_query(query_events)
             .bind::<sql_types::Uuid, _>(organization_id)
-            .bind::<sql_types::Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
+            .bind::<N<sql_types::Bool>, _>(past_or_upcoming.map(|p| p == PastOrUpcoming::Upcoming))
             .bind::<sql_types::BigInt, _>((page * limit) as i64)
             .bind::<sql_types::BigInt, _>(limit as i64)
+            .bind::<N<sql_types::Uuid>, _>(event.map(|e| e.id))
             .get_results(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -358,8 +396,12 @@ impl Event {
             include_str!("../queries/find_all_events_for_organization_ticket_type.sql");;
 
 
+        jlog!(Level::Debug, "Fetching summary data for ticket types");
+
         let ticket_types: Vec<EventSummaryResultTicketType> = diesel::sql_query(query_ticket_types)
             .bind::<sql_types::Uuid, _>(organization_id)
+            .bind::<N<sql_types::Bool>, _>(past_or_upcoming.map(|p| p == PastOrUpcoming::Upcoming))
+            .bind::<sql_types::Nullable<sql_types::Uuid>, _>(event.map(|e| e.id))
             .get_results(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -423,10 +465,60 @@ impl Event {
                 result
             }).collect();
 
-        Ok(Payload {
-            paging,
-            data: results,
-        })
+        Ok(results)
+    }
+
+    pub fn get_last_n_days_sales(
+        &self,
+        n: u32,
+        conn: &PgConnection,
+    ) -> Result<Vec<DayStats>, DatabaseError> {
+        jlog!(Level::Debug, "Fetching last n days");
+
+        let query = r#"
+                SELECT CAST(o.order_date as Date) as date,
+                cast(COALESCE(sum(oi.unit_price_in_cents * oi.quantity), 0) AS bigint) as sales,
+                CAST( COALESCE(SUM(CASE WHEN oi.item_type = 'Tickets' THEN oi.quantity ELSE 0 END), 0)  as BigInt) as ticket_count
+                FROM order_items oi
+                INNER JOIN orders o ON oi.order_id = o.id
+                WHERE oi.event_id = $1
+                AND o.status = 'Paid'
+                AND o.order_date > $2
+                GROUP BY CAST(o.order_date as Date)
+                ORDER BY CAST(o.order_date as Date) desc
+                "#;
+
+        #[derive(QueryableByName)]
+        struct R {
+            #[sql_type = "sql_types::Date"]
+            date: NaiveDate,
+            #[sql_type = "sql_types::Nullable<sql_types::BigInt>"]
+            sales: Option<i64>,
+            #[sql_type = "sql_types::Nullable<sql_types::BigInt>"]
+            ticket_count: Option<i64>,
+        }
+
+        let summary: Vec<R> = diesel::sql_query(query)
+            .bind::<sql_types::Uuid, _>(self.id)
+            .bind::<sql_types::Timestamp, NaiveDateTime>(
+                (Utc::now() - Duration::days(n as i64)).naive_utc(),
+            ).get_results(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load calculate sales for event",
+            )?;
+
+        let mut result = vec![];
+
+        for s in summary {
+            result.push(DayStats {
+                date: s.date,
+                sales: s.sales.unwrap_or(0),
+                tickets_sold: s.ticket_count.unwrap_or(0),
+            });
+        }
+
+        Ok(result)
     }
 
     pub fn guest_list(
@@ -668,4 +760,11 @@ pub struct EventSummaryResultTicketType {
     pub held: i64,
     #[sql_type = "sql_types::Nullable<sql_types::BigInt>"]
     pub sales_total_in_cents: Option<i64>,
+}
+
+#[derive(Serialize)]
+pub struct DayStats {
+    date: NaiveDate,
+    sales: i64,
+    tickets_sold: i64,
 }

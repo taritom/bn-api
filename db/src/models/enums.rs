@@ -71,8 +71,8 @@ fn display() {
 
 #[test]
 fn parse() {
-    assert_eq!(Roles::Admin, "Admin".parse::<Roles>().unwrap());
-    assert_eq!(Roles::OrgMember, "OrgMember".parse::<Roles>().unwrap());
-    assert_eq!(Roles::OrgOwner, "OrgOwner".parse::<Roles>().unwrap());
+    assert_eq!(Roles::Admin, "Admin".parse().unwrap());
+    assert_eq!(Roles::OrgMember, "OrgMember".parse().unwrap());
+    assert_eq!(Roles::OrgOwner, "OrgOwner".parse().unwrap());
     assert!("Invalid Role".parse::<Roles>().is_err());
 }

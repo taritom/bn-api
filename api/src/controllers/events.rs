@@ -243,8 +243,17 @@ pub fn publish(
 }
 
 pub fn show_from_organizations(
-    (connection, path, paging): (Connection, Path<PathParameters>, Query<PagingParameters>),
+    (connection, path, paging, user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+        User,
+    ),
 ) -> Result<WebPayload<EventSummaryResult>, BigNeonError> {
+    let conn = connection.get();
+    let org = Organization::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &org, conn)?;
+
     let events = Event::find_all_events_for_organization(
         path.id,
         paging
@@ -253,9 +262,29 @@ pub fn show_from_organizations(
             .parse()?,
         paging.page(),
         paging.limit(),
-        connection.get(),
+        conn,
     )?;
     Ok(WebPayload::new(StatusCode::OK, events))
+}
+
+pub fn dashboard(
+    (connection, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = connection.get();
+    let event = Event::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &event.organization(conn)?, conn)?;
+    let summary = event.summary(conn)?;
+    let last_30_days = event.get_last_n_days_sales(30, conn)?;
+
+    #[derive(Serialize)]
+    struct R {
+        event: EventSummaryResult,
+        last_30_days: Vec<DayStats>,
+    }
+    Ok(HttpResponse::Ok().json(R {
+        event: summary,
+        last_30_days,
+    }))
 }
 
 pub fn show_from_venues(
