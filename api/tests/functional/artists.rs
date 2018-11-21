@@ -1,5 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::artists;
+use bigneon_api::controllers::artists::ArtistOrSpotify;
 use bigneon_api::models::PathParameters;
 use bigneon_db::prelude::*;
 use functional::base;
@@ -8,6 +9,7 @@ use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 #[test]
 fn index() {
@@ -154,6 +156,78 @@ fn index_with_org_linked_and_private_venues() {
     let expected_json = serde_json::to_string(&wrapped_expected_artists).unwrap();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_json);
+}
+
+#[test]
+pub fn search_no_spotify() {
+    let database = TestDatabase::new();
+    let artist = database
+        .create_artist()
+        .with_name("Artist1".to_string())
+        .finish();
+
+    let expected_artists = vec![artist.id];
+    let test_request = TestRequest::create_with_uri(&format!("/?q=Artist&spotify=1"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response = artists::search((
+        test_request.extract_state(),
+        database.connection.into(),
+        query_parameters,
+        None,
+    )).unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let collected_ids = response
+        .payload()
+        .data
+        .iter()
+        .map(|i| match i {
+            ArtistOrSpotify::Artist(artist) => artist.id,
+            _ => Uuid::new_v4(),
+        }).collect::<Vec<Uuid>>();
+
+    assert_eq!(expected_artists, collected_ids);
+}
+
+#[test]
+pub fn search_with_spotify() {
+    let database = TestDatabase::new();
+    let _artist = database
+        .create_artist()
+        .with_name("Artist1".to_string())
+        .finish();
+
+    let test_request = TestRequest::create_with_uri(&format!("/?q=Powerwolf&spotify=1"));
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response = artists::search((
+        test_request.extract_state(),
+        database.connection.into(),
+        query_parameters,
+        None,
+    )).unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let spotify_results = response
+        .payload()
+        .data
+        .iter()
+        .filter(|i| match i {
+            ArtistOrSpotify::Artist(_artist) => false,
+            ArtistOrSpotify::Spotify(_spotify) => true,
+        }).count();
+    if test_request
+        .extract_state()
+        .config
+        .spotify_auth_token
+        .is_some()
+    {
+        assert_ne!(spotify_results, 0);
+    } else {
+        assert_eq!(spotify_results, 0);
+    }
 }
 
 #[test]

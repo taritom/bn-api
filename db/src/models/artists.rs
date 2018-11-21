@@ -89,6 +89,47 @@ impl Artist {
         }
     }
 
+    pub fn search(
+        user: &Option<User>,
+        query_filter: Option<String>,
+        conn: &PgConnection,
+    ) -> Result<Vec<Artist>, DatabaseError> {
+        let query_like = match query_filter {
+            Some(n) => format!("%{}%", n),
+            None => "%".to_string(),
+        };
+        //TODO Add pagination to the query
+        let query = match user {
+            Some(u) => artists::table
+                .left_join(
+                    organization_users::table.on(artists::organization_id
+                        .eq(organization_users::organization_id.nullable())
+                        .and(organization_users::user_id.eq(u.id))),
+                ).left_join(
+                    organizations::table
+                        .on(artists::organization_id.eq(organizations::id.nullable())),
+                ).filter(
+                    organization_users::user_id
+                        .eq(u.id)
+                        .or(organizations::owner_user_id.eq(u.id))
+                        .or(artists::is_private.eq(false))
+                        .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
+                ).filter(artists::name.ilike(query_like.clone()))
+                .order_by(artists::name)
+                .select(artists::all_columns)
+                .load(conn),
+
+            None => artists::table
+                .filter(artists::is_private.eq(false))
+                .filter(artists::name.ilike(query_like.clone()))
+                .order_by(artists::name)
+                .select(artists::all_columns)
+                .load(conn),
+        };
+
+        query.to_db_error(ErrorCode::QueryError, "Unable to search artists")
+    }
+
     pub fn all(user: Option<&User>, conn: &PgConnection) -> Result<Vec<Artist>, DatabaseError> {
         let query = match user {
             Some(u) => artists::table

@@ -1,18 +1,94 @@
-use actix_web::{HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
-use models::PathParameters;
+use helpers::application;
+use models::{ExternalPathParameters, PathParameters, WebPayload};
+use server::AppState;
+use utils::spotify::*;
+
+#[derive(Serialize, Debug)]
+pub enum ArtistOrSpotify {
+    Artist(Artist),
+    Spotify(SpotifyArtist),
+}
+
+pub fn search(
+    (state, connection, query_parameters, user): (
+        State<AppState>,
+        Connection,
+        Query<PagingParameters>,
+        Option<User>,
+    ),
+) -> Result<WebPayload<ArtistOrSpotify>, BigNeonError> {
+    let db_user = user.map(|u| u.user);
+    let artists = Artist::search(&db_user, query_parameters.get_tag("q"), connection.get())?;
+    let try_spotify = query_parameters
+        .get_tag("spotify")
+        .map(|spotify| spotify != "0")
+        .unwrap_or(false);
+    if try_spotify && artists.is_empty() && query_parameters.get_tag("q").is_some() {
+        //Try spotify
+        let auth_token = state.config.spotify_auth_token.clone();
+        let spotify_client = Spotify::connect(auth_token)?;
+        let spotify_artists = spotify_client.search(
+            query_parameters
+                .get_tag("q")
+                .unwrap_or("".to_string())
+                .to_string(),
+        )?;
+
+        let wrapper = spotify_artists
+            .iter()
+            .map(|s| ArtistOrSpotify::Spotify(s.to_owned()))
+            .collect();
+        let payload = Payload::new(wrapper, query_parameters.into_inner().into());
+        Ok(WebPayload::new(StatusCode::OK, payload))
+    } else {
+        let wrapper = artists
+            .iter()
+            .map(|a| ArtistOrSpotify::Artist(a.to_owned()))
+            .collect();
+        let payload = Payload::new(wrapper, query_parameters.into_inner().into());
+        Ok(WebPayload::new(StatusCode::OK, payload))
+    }
+}
+
+pub fn create_from_spotify(
+    (state, connection, parameters, user): (
+        State<AppState>,
+        Connection,
+        Path<ExternalPathParameters>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let auth_token = state.config.spotify_auth_token.clone();
+    let spotify_client = Spotify::connect(auth_token)?;
+    let spotify_artist_result = spotify_client.read_artist(&parameters.id);
+    match spotify_artist_result {
+        Ok(spotify_artist) => match spotify_artist {
+            Some(artist) => {
+                let new_artist = NewArtist {
+                    organization_id: None,
+                    name: artist["name"].as_str().unwrap_or(&"").to_string(),
+                    bio: "".to_string(),
+                    //TODO Add the image_url from the images[0] object
+                    ..Default::default()
+                };
+                Ok(create((connection, Json(new_artist), user))?)
+            }
+            None => application::not_found(),
+        },
+        Err(e) => Err(e),
+    }
+}
 
 pub fn index(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, Option<User>),
 ) -> Result<HttpResponse, BigNeonError> {
-    //TODO implement proper paging on db
-    let artists = match user {
-        Some(u) => Artist::all(Some(&u.user), connection.get())?,
-        None => Artist::all(None, connection.get())?,
-    };
+    let db_user = user.map(|u| u.user);
+    let artists = Artist::search(&db_user, query_parameters.get_tag("q"), connection.get())?;
     let payload = Payload::new(artists, query_parameters.into_inner().into());
     Ok(HttpResponse::Ok().json(&payload))
 }

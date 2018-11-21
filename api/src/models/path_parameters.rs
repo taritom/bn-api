@@ -11,6 +11,11 @@ pub struct OptionalPathParameters {
 }
 
 #[derive(Deserialize)]
+pub struct ExternalPathParameters {
+    pub id: String,
+}
+
+#[derive(Deserialize)]
 pub struct EventTicketPathParameters {
     pub event_id: Uuid,
     pub ticket_type_id: Uuid,

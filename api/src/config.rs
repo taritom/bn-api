@@ -36,6 +36,7 @@ pub struct Config {
     pub sendgrid_api_key: String,
     pub sendgrid_template_bn_user_registered: String,
     pub sendgrid_template_bn_purchase_completed: String,
+    pub spotify_auth_token: Option<String>,
 }
 
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
@@ -70,6 +71,9 @@ const COMMUNICATION_DEFAULT_SOURCE_EMAIL: &str = "COMMUNICATION_DEFAULT_SOURCE_E
 const SENDGRID_API_KEY: &str = "SENDGRID_API_KEY";
 const SENDGRID_TEMPLATE_BN_USER_REGISTERED: &str = "SENDGRID_TEMPLATE_BN_USER_REGISTERED";
 const SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED: &str = "SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED";
+
+//Spotify settings
+const SPOTIFY_AUTH_TOKEN: &str = "SPOTIFY_AUTH_TOKEN";
 
 impl Config {
     pub fn new(environment: Environment) -> Self {
@@ -167,6 +171,8 @@ impl Config {
                 )
             });
 
+        let spotify_auth_token = env::var(&SPOTIFY_AUTH_TOKEN).ok();
+
         let block_external_comms = match env::var(&BLOCK_EXTERNAL_COMMS)
             .unwrap_or_else(|_| "0".to_string())
             .as_str()
@@ -200,6 +206,7 @@ impl Config {
             sendgrid_api_key,
             sendgrid_template_bn_user_registered,
             sendgrid_template_bn_purchase_completed,
+            spotify_auth_token,
         }
     }
 }
