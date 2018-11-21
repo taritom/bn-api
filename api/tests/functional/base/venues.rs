@@ -43,7 +43,7 @@ pub fn index(role: Roles, should_succeed: bool) {
         venues::index((database.connection.into(), query_parameters, Some(user))).into();
 
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -66,7 +66,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let response: HttpResponse = venues::create((database.connection.into(), json, user)).into();
 
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::CREATED);
@@ -94,7 +94,7 @@ pub fn create_with_organization(role: Roles, should_succeed: bool) {
         venues::create((database.connection.into(), json, auth_user.clone())).into();
 
     if !should_succeed {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::CREATED);
@@ -122,7 +122,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let response: HttpResponse =
         venues::update((database.connection.into(), path, json, user)).into();
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -149,7 +149,7 @@ pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
         let updated_venue: Venue = serde_json::from_str(&body).unwrap();
         assert_ne!(updated_venue.is_private, venue.is_private)
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -181,7 +181,7 @@ pub fn update_with_organization(role: Roles, should_succeed: bool, is_private: b
     let response: HttpResponse =
         venues::update((database.connection.into(), path, json, auth_user.clone())).into();
     if !should_succeed {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -242,7 +242,7 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
             .into();
 
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -268,7 +268,7 @@ pub fn add_to_organization(role: Roles, should_succeed: bool) {
     let response: HttpResponse =
         venues::add_to_organization((database.connection.into(), path, json, auth_user)).into();
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
 
@@ -300,7 +300,7 @@ pub fn add_to_organization_where_link_already_exists(role: Roles, should_succeed
     let response: HttpResponse =
         venues::add_to_organization((database.connection.into(), path, json, auth_user)).into();
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
 

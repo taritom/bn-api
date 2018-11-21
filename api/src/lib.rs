@@ -4,12 +4,11 @@
 #![deny(unused_imports)]
 // Unused results is more often than not an error
 #![deny(unused_must_use)]
-//#![deny(unused_extern_crates)]
+#![deny(unused_extern_crates)]
 extern crate actix_web;
 extern crate bigneon_db;
 extern crate diesel;
 extern crate dotenv;
-extern crate itertools;
 extern crate lettre;
 extern crate lettre_email;
 extern crate scheduled_thread_pool;
@@ -23,8 +22,8 @@ extern crate tari_client;
 extern crate uuid;
 #[macro_use]
 extern crate log;
-//#[macro_use]
 extern crate chrono;
+#[macro_use]
 extern crate logging;
 extern crate reqwest;
 extern crate serde;

@@ -6,19 +6,19 @@ mod index_tests {
     use super::*;
     #[test]
     fn index_org_member() {
-        organizations::index(Roles::OrgMember, true);
+        organizations::index(Roles::OrgMember);
     }
     #[test]
     fn index_admin() {
-        organizations::index(Roles::Admin, true);
+        organizations::index(Roles::Admin);
     }
     #[test]
     fn index_user() {
-        organizations::index(Roles::User, true);
+        organizations::index(Roles::User);
     }
     #[test]
     fn index_org_owner() {
-        organizations::index(Roles::OrgOwner, true);
+        organizations::index(Roles::OrgOwner);
     }
 }
 

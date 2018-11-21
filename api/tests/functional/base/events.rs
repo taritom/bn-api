@@ -43,7 +43,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         let event: Event = serde_json::from_str(&body).unwrap();
         assert_eq!(event.status, EventStatus::Draft.to_string());
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -76,7 +76,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         let updated_event: Event = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_event.name, new_name);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -103,7 +103,7 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
         let updated_event: Event = serde_json::from_str(&body).unwrap();
         assert!(!updated_event.cancelled_at.is_none());
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -141,7 +141,7 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -213,10 +213,7 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response_body, expected_json_body);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(response_body, updated_event);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -232,15 +229,11 @@ pub fn add_interest(role: Roles, should_test_succeed: bool) {
 
     let response: HttpResponse =
         events::add_interest((database.connection.into(), path, user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, updated_event);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -266,10 +259,7 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, "1");
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, updated_event);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -314,7 +304,7 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
         assert_eq!(returned_event_artists[0].artist_id, artist1.id);
         assert_eq!(returned_event_artists[1].set_time, None);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -348,7 +338,7 @@ pub fn guest_list(role: Roles, should_test_succeed: bool) {
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -425,7 +415,7 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, expected_json);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -520,6 +510,6 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, expected_json);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
     }
 }

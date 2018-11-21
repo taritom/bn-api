@@ -100,7 +100,12 @@ pub fn token(
 }
 
 pub fn token_refresh(
-    (state, connection, refresh_request): (State<AppState>, Connection, Json<RefreshRequest>),
+    (state, connection, refresh_request, request): (
+        State<AppState>,
+        Connection,
+        Json<RefreshRequest>,
+        HttpRequest<AppState>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let mut validation = Validation::default();
     validation.validate_exp = false;
@@ -122,7 +127,7 @@ pub fn token_refresh(
         )?;
         Ok(HttpResponse::Ok().json(response))
     } else {
-        application::unauthorized_with_message("Invalid token")
+        application::unauthorized_with_message("Invalid token", &request, None)
     }
 }
 

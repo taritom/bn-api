@@ -3,7 +3,6 @@ use auth::user::User;
 use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
-use helpers::application;
 use models::PathParameters;
 
 pub fn index(
@@ -30,19 +29,14 @@ pub fn create(
     (connection, new_artist, user): (Connection, Json<NewArtist>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    if !user.has_scope(Scopes::ArtistWrite, None, connection)? {
-        if new_artist.organization_id.is_none() {
-            return application::unauthorized();
-        } else if let Some(organization_id) = new_artist.organization_id {
-            let organization = Organization::find(organization_id, connection)?;
-            if !user.has_scope(Scopes::ArtistWrite, Some(&organization), connection)? {
-                return application::unauthorized();
-            }
-        }
+    if let Some(organization_id) = new_artist.organization_id {
+        let organization = Organization::find(organization_id, connection)?;
+        user.requires_scope_for_organization(Scopes::ArtistWrite, &organization, connection)?;
+    } else {
+        user.requires_scope(Scopes::ArtistWrite)?;
     }
 
     let mut artist = new_artist.commit(connection)?;
-
     // New artists belonging to an organization start private
     if artist.organization_id.is_some() {
         artist = artist.set_privacy(true, connection)?;
@@ -79,14 +73,11 @@ pub fn update(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let artist = Artist::find(&parameters.id, connection)?;
-    if !user.has_scope(Scopes::ArtistWrite, None, connection)? {
-        if !artist.is_private || artist.organization_id.is_none() {
-            return application::unauthorized();
-        } else if let Some(organization) = artist.organization(connection)? {
-            if !user.has_scope(Scopes::ArtistWrite, Some(&organization), connection)? {
-                return application::unauthorized();
-            }
-        }
+    if !artist.is_private || artist.organization_id.is_none() {
+        user.requires_scope(Scopes::ArtistWrite)?;
+    } else {
+        let organization = artist.organization(connection)?.unwrap();
+        user.requires_scope_for_organization(Scopes::ArtistWrite, &organization, connection)?;
     }
 
     let updated_artist = artist.update(&artist_parameters, connection)?;
@@ -96,10 +87,9 @@ pub fn update(
 pub fn toggle_privacy(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
+    user.requires_scope(Scopes::ArtistWrite)?;
+
     let connection = connection.get();
-    if !user.has_scope(Scopes::ArtistWrite, None, connection)? {
-        return application::unauthorized();
-    }
     let artist = Artist::find(&parameters.id, connection)?;
     let updated_artist = artist.set_privacy(!artist.is_private, connection)?;
     Ok(HttpResponse::Ok().json(updated_artist))

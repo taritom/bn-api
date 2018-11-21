@@ -4,7 +4,6 @@ use bigneon_db::models::*;
 use chrono::prelude::*;
 use db::Connection;
 use errors::*;
-use helpers::application;
 use models::{PathParameters, UserDisplayTicketType, WebPayload};
 use serde_json::Value;
 use serde_with::{self, CommaSeparator};
@@ -282,14 +281,8 @@ pub fn create(
     (connection, new_event, user): (Connection, Json<NewEvent>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-
-    if !user.has_scope(Scopes::EventWrite, None, connection)? && !user.has_scope(
-        Scopes::EventWrite,
-        Some(&Organization::find(new_event.organization_id, connection)?),
-        connection,
-    )? {
-        return application::unauthorized();
-    }
+    let organization = Organization::find(new_event.organization_id, connection)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
 
     let event = new_event.commit(connection)?;
     Ok(HttpResponse::Created().json(&event))
@@ -316,13 +309,8 @@ pub fn update(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
-    if !user.has_scope(
-        Scopes::EventWrite,
-        Some(&event.organization(connection)?),
-        connection,
-    )? {
-        return application::unauthorized();
-    }
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
 
     let updated_event = event.update(event_parameters.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(&updated_event))
@@ -333,13 +321,8 @@ pub fn cancel(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
-    if !user.has_scope(
-        Scopes::EventWrite,
-        Some(&event.organization(connection)?),
-        connection,
-    )? {
-        return application::unauthorized();
-    }
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
 
     //Doing this in the DB layer so it can use the DB time as now.
     let updated_event = event.cancel(connection)?;
@@ -355,11 +338,9 @@ pub fn list_interested_users(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = connection.get();
-    if !user.has_scope(Scopes::EventInterest, None, connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope(Scopes::EventInterest)?;
 
+    let connection = connection.get();
     let paging: Paging = query.clone().into();
 
     let payload = EventInterest::list_interested_users(
@@ -375,11 +356,9 @@ pub fn list_interested_users(
 pub fn add_interest(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = connection.get();
-    if !user.has_scope(Scopes::EventInterest, None, connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope(Scopes::EventInterest)?;
 
+    let connection = connection.get();
     let event_interest = EventInterest::create(parameters.id, user.id()).commit(connection)?;
     Ok(HttpResponse::Created().json(&event_interest))
 }
@@ -387,11 +366,9 @@ pub fn add_interest(
 pub fn remove_interest(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = connection.get();
-    if !user.has_scope(Scopes::EventInterest, None, connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope(Scopes::EventInterest)?;
 
+    let connection = connection.get();
     let event_interest = EventInterest::remove(parameters.id, user.id(), connection)?;
     Ok(HttpResponse::Ok().json(&event_interest))
 }
@@ -406,13 +383,8 @@ pub fn add_artist(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
-    if !user.has_scope(
-        Scopes::EventWrite,
-        Some(&event.organization(connection)?),
-        connection,
-    )? {
-        return application::unauthorized();
-    }
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
 
     let event_artist = EventArtist::create(
         parameters.id,
@@ -433,13 +405,8 @@ pub fn update_artists(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
-    if !user.has_scope(
-        Scopes::EventWrite,
-        Some(&event.organization(connection)?),
-        connection,
-    )? {
-        return application::unauthorized();
-    }
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
 
     EventArtist::clear_all_from_event(parameters.id, connection)?;
 

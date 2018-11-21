@@ -4,7 +4,6 @@ use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use db::Connection;
 use errors::*;
-use helpers::application;
 use models::PathParameters;
 use uuid::Uuid;
 
@@ -49,7 +48,7 @@ pub struct NewOrganizationRequest {
 pub fn index(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if user.has_scope(Scopes::OrgAdmin, None, connection.get())? {
+    if user.requires_scope(Scopes::OrgAdmin).is_ok() {
         return index_for_all_orgs((connection, query_parameters, user));
     }
 
@@ -65,10 +64,8 @@ pub fn index(
 pub fn index_for_all_orgs(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
+    user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
-    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
-        return application::unauthorized();
-    }
     let organizations = Organization::all(connection)?;
 
     Ok(HttpResponse::Ok().json(&Payload::new(
@@ -82,9 +79,7 @@ pub fn show(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    if !user.has_scope(Scopes::OrgRead, Some(&organization), connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope_for_organization(Scopes::OrgRead, &organization, connection)?;
 
     Ok(HttpResponse::Ok().json(&organization))
 }
@@ -92,10 +87,8 @@ pub fn show(
 pub fn create(
     (connection, new_organization, user): (Connection, Json<NewOrganizationRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
+    user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
-    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
-        return application::unauthorized();
-    }
 
     let fee_schedule = FeeSchedule::create(
         format!("{} default fees", new_organization.name),
@@ -135,9 +128,7 @@ pub fn update(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
     let organization_update = organization_parameters.into_inner();
     let updated_organization = organization.update(organization_update, connection)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
@@ -151,10 +142,8 @@ pub fn update_owner(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
+    user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
-    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
-        return application::unauthorized();
-    }
     let organization = Organization::find(parameters.id, connection)?;
     let updated_organization =
         organization.set_owner(json.into_inner().owner_user_id, connection)?;
@@ -171,9 +160,7 @@ pub fn add_venue(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
 
     let mut new_venue = new_venue.into_inner();
     new_venue.organization_id = Some(parameters.id);
@@ -191,9 +178,7 @@ pub fn add_artist(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
 
     let mut new_artist = new_artist.into_inner();
     new_artist.organization_id = Some(parameters.id);
@@ -212,9 +197,7 @@ pub fn add_user(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
-    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
     organization.add_user(add_request.user_id, connection)?;
     Ok(HttpResponse::Created().finish())
 }
@@ -224,9 +207,7 @@ pub fn remove_user(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
 
     let organization = organization.remove_user(user_id.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(&organization))
@@ -243,9 +224,7 @@ pub fn list_organization_members(
     let connection = connection.get();
     //TODO refactor Organization::find to use limits as in PagingParameters
     let organization = Organization::find(path_parameters.id, connection)?;
-    if !user.has_scope(Scopes::OrgRead, Some(&organization), connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope_for_organization(Scopes::OrgRead, &organization, connection)?;
 
     let mut members: Vec<DisplayUser> = organization
         .users(connection)?
@@ -263,9 +242,7 @@ pub fn show_fee_schedule(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    if !user.has_scope(Scopes::OrgWrite, Some(&organization), connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;
@@ -287,10 +264,8 @@ pub fn add_fee_schedule(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
+    user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
-    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
-        return application::unauthorized();
-    }
 
     let fee_schedule = json.into_inner().commit(connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;

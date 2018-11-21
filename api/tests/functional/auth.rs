@@ -99,8 +99,12 @@ fn token_refresh() {
 
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((
+        state,
+        database.connection.into(),
+        json,
+        test_request.request,
+    )).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let response: TokenResponse = serde_json::from_str(&body).unwrap();
@@ -130,8 +134,12 @@ fn token_refresh_invalid_refresh_token_secret() {
 
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((
+        state,
+        database.connection.into(),
+        json,
+        test_request.request,
+    )).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -148,8 +156,12 @@ fn token_refresh_invalid_refresh_token() {
     let state = test_request.extract_state();
     let json = Json(RefreshRequest::new(&"not.a.real.token"));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((
+        state,
+        database.connection.into(),
+        json,
+        test_request.request,
+    )).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -174,8 +186,12 @@ fn token_refresh_user_does_not_exist() {
     ).unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((
+        state,
+        database.connection.into(),
+        json,
+        test_request.request,
+    )).into();
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -201,8 +217,12 @@ fn token_refresh_password_reset_since_issued() {
     ).unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((
+        state,
+        database.connection.into(),
+        json,
+        test_request.request,
+    )).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -231,8 +251,12 @@ fn token_refreshed_after_password_change() {
     ).unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((
+        state,
+        database.connection.into(),
+        json,
+        test_request.request,
+    )).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

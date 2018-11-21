@@ -34,7 +34,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         assert_eq!(artist.name, name);
         assert!(!artist.is_private);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -67,7 +67,7 @@ pub fn create_with_organization(role: Roles, should_test_succeed: bool) {
         assert_eq!(artist.name, name);
         assert!(artist.is_private);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -108,7 +108,7 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
             "URL is invalid"
         );
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -130,7 +130,7 @@ pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
         let updated_artist: Artist = serde_json::from_str(&body).unwrap();
         assert_ne!(updated_artist.is_private, artist.is_private)
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -162,7 +162,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         let updated_artist: Artist = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_artist.name, name);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -206,7 +206,7 @@ pub fn update_with_organization(role: Roles, should_test_succeed: bool, is_priva
         let updated_artist: Artist = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_artist.name, name);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -252,6 +252,6 @@ pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
             "URL is invalid"
         );
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }

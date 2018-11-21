@@ -32,10 +32,7 @@ pub fn show(role: Roles, should_succeed: bool) {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(body, expected_json);
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -61,10 +58,7 @@ pub fn destroy(role: Roles, should_succeed: bool) {
         let code = Code::find(code.id, &connection);
         assert!(code.is_err());
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -112,10 +106,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         assert_eq!(code.discount_in_cents, Some(100));
         assert_eq!(code.ticket_type_ids, vec![ticket_type_id]);
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -151,9 +142,6 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         assert_eq!(updated_code.name, name);
         assert_eq!(updated_code.ticket_type_ids, vec![ticket_type_id]);
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }

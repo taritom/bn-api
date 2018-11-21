@@ -63,10 +63,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, expected_json);
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -97,10 +94,7 @@ pub fn show(role: Roles, should_succeed: bool) {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(body, expected_json);
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -131,10 +125,7 @@ pub fn destroy(role: Roles, should_succeed: bool) {
         let comp = Comp::find(hold.id, comp.id, &connection);
         assert!(comp.is_err());
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -178,10 +169,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         assert_eq!(comp.email, email);
         assert_eq!(comp.quantity, 10);
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -216,9 +204,6 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         let updated_comp: Comp = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_comp.name, name);
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }

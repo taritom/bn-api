@@ -60,14 +60,10 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         state,
     )).into();
 
-    let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let updated_event = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, updated_event);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -187,7 +183,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         assert_eq!(request_json, updated_json);
         assert_eq!(response.status(), StatusCode::OK);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -212,12 +208,12 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
-    let response = ticket_types::index((
+    let response: HttpResponse = ticket_types::index((
         database.connection.clone().into(),
         path,
         query_parameters,
         auth_user,
-    )).unwrap();
+    )).into();
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
@@ -233,6 +229,6 @@ pub fn index(role: Roles, should_test_succeed: bool) {
             serde_json::from_str(&body).unwrap();
         assert_eq!(ticket_types_response.data, expected_ticket_types);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }

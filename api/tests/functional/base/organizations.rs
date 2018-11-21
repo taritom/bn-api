@@ -11,7 +11,7 @@ use support::database::TestDatabase;
 use support::test_request::TestRequest;
 use uuid::Uuid;
 
-pub fn index(role: Roles, should_test_succeed: bool) {
+pub fn index(role: Roles) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
 
@@ -56,15 +56,8 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     };
 
     let expected_json = serde_json::to_string(&wrapped_expected_orgs).unwrap();
-    if should_test_succeed {
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(body, expected_json);
-    } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, expected_json);
-    }
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, expected_json);
 }
 
 pub fn show(role: Roles, should_succeed: bool) {
@@ -85,7 +78,7 @@ pub fn show(role: Roles, should_succeed: bool) {
         organizations::show((database.connection.into(), path, auth_user.clone())).into();
 
     if !should_succeed {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
         return;
     }
 
@@ -151,10 +144,7 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, expected_json);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, expected_json);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -194,10 +184,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         let org: Organization = serde_json::from_str(&body).unwrap();
         assert_eq!(org.name, name);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, organization_expected_json);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -226,7 +213,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let response: HttpResponse =
         organizations::update((database.connection.into(), path, json, auth_user.clone())).into();
     if !should_succeed {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -264,7 +251,7 @@ pub fn remove_user(role: Roles, should_test_succeed: bool) {
         let removed_entries: usize = serde_json::from_str(&body).unwrap();
         assert_eq!(removed_entries, count);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -285,7 +272,7 @@ pub fn add_user(role: Roles, should_test_succeed: bool) {
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -314,7 +301,7 @@ pub fn add_venue(role: Roles, should_test_succeed: bool) {
         let venue: Venue = serde_json::from_str(&body).unwrap();
         assert_eq!(venue.name, name);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -348,7 +335,7 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
         let artist: Artist = serde_json::from_str(&body).unwrap();
         assert_eq!(artist.name, name);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -373,7 +360,7 @@ pub fn update_owner(role: Roles, should_succeed: bool) {
         organizations::update_owner((database.connection.into(), path, json, auth_user)).into();
 
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -437,7 +424,7 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
     )).into();
 
     if !should_succeed {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -484,7 +471,7 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
             .into();
 
     if !should_succeed {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);
@@ -518,7 +505,7 @@ pub fn add_fee_schedule(role: Roles, should_succeed: bool) {
         organizations::add_fee_schedule((database.connection.into(), path, json, auth_user)).into();
 
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::CREATED);

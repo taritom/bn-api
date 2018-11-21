@@ -19,7 +19,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let response: HttpResponse = regions::create((database.connection.into(), json, user)).into();
 
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::CREATED);
@@ -45,7 +45,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let response: HttpResponse =
         regions::update((database.connection.into(), path, json, user)).into();
     if !should_succeed {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        support::expects_unauthorized(&response);
         return;
     }
     assert_eq!(response.status(), StatusCode::OK);

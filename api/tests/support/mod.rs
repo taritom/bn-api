@@ -8,6 +8,7 @@ use serde_json;
 use std::collections::HashMap;
 use std::str;
 use support::database::TestDatabase;
+use support::test_request::TestRequest;
 use validator::ValidationError;
 
 #[derive(Debug, Deserialize)]
@@ -44,9 +45,10 @@ pub fn create_auth_user_from_user(
     organization: Option<&Organization>,
     database: &TestDatabase,
 ) -> AuthUser {
+    let test_request = TestRequest::create();
     if [Roles::Admin, Roles::User].contains(&role) {
         let user = user.add_role(role, &database.connection).unwrap();
-        AuthUser::new(user)
+        AuthUser::new(user, &test_request.request)
     } else {
         let organization = match organization {
             Some(organization) => (*organization).clone(),
@@ -63,13 +65,13 @@ pub fn create_auth_user_from_user(
                 .unwrap();
         }
 
-        AuthUser::new(user.clone())
+        AuthUser::new(user.clone(), &test_request.request)
     }
 }
 
-pub fn expects_unauthorized(response: &HttpResponse, message: Option<&str>) {
-    let expected_json =
-        HttpResponse::Unauthorized().json(json!({"error": message.unwrap_or("Unauthorized")}));
+pub fn expects_unauthorized(response: &HttpResponse) {
+    let expected_json = HttpResponse::Unauthorized()
+        .json(json!({"error": "User does not have the required permissions"}));
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     let expected_text = unwrap_body_to_string(&expected_json).unwrap();

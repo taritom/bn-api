@@ -1,16 +1,30 @@
-use actix_web::{http::StatusCode, HttpResponse};
+use actix_web::{http::StatusCode, HttpRequest, HttpResponse};
+use auth::user::User as AuthUser;
 use errors::*;
+use log::Level::Warn;
 use serde_json;
+use server::AppState;
+use std::collections::HashMap;
 
-pub fn unauthorized() -> Result<HttpResponse, BigNeonError> {
-    unauthorized_with_message("Unauthorized")
+pub fn unauthorized(
+    request: &HttpRequest<AppState>,
+    user: Option<AuthUser>,
+) -> Result<HttpResponse, BigNeonError> {
+    unauthorized_with_message("User does not have the required permissions", request, user)
 }
 
-pub fn unauthorized_with_message(message: &str) -> Result<HttpResponse, BigNeonError> {
-    warn!("Unauthorized: {}", message);
-    let error: BigNeonError = AuthError {
-        reason: message.to_string(),
-    }.into();
+pub fn unauthorized_with_message(
+    message: &str,
+    request: &HttpRequest<AppState>,
+    auth_user: Option<AuthUser>,
+) -> Result<HttpResponse, BigNeonError> {
+    if let Some(auth_user) = auth_user {
+        auth_user.log_unauthorized_access_attempt(HashMap::new());
+    } else {
+        log_unauthorized_access_attempt_from_request(request);
+    }
+
+    let error: BigNeonError = AuthError::new(message.into()).into();
     // Error required for triggering middleware rollback
     Ok(HttpResponse::from_error(error.into())
         .into_builder()
@@ -18,11 +32,20 @@ pub fn unauthorized_with_message(message: &str) -> Result<HttpResponse, BigNeonE
         .json(json!({"error": message.to_string()})))
 }
 
+fn log_unauthorized_access_attempt_from_request(request: &HttpRequest<AppState>) {
+    let mut logging_data = HashMap::new();
+    logging_data.insert(
+        "ip_address",
+        json!(request.connection_info().remote().map(|i| i.to_string())),
+    );
+    logging_data.insert("url", json!(request.uri().to_string()));
+    logging_data.insert("method", json!(request.method().to_string()));
+    jlog!(Warn, "Unauthorized access attempt", logging_data);
+}
+
 pub fn forbidden(message: &str) -> Result<HttpResponse, BigNeonError> {
     warn!("Forbidden: {}", message);
-    let error: BigNeonError = AuthError {
-        reason: message.to_string(),
-    }.into();
+    let error: BigNeonError = AuthError::new(message.into()).into();
     // Error required for triggering middleware rollback
     Ok(HttpResponse::from_error(error.into())
         .into_builder()

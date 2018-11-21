@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize)]
 pub enum Scopes {
     ArtistWrite,
     CodeRead,

@@ -52,10 +52,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         assert_eq!(hold.hold_type, hold_type.to_string());
         assert_eq!(hold.discount_in_cents, Some(10));
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -90,9 +87,6 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         assert_eq!(updated_hold.name, name);
         assert_eq!(updated_hold.quantity(&connection).unwrap(), (1, 1));
     } else {
-        support::expects_unauthorized(
-            &response,
-            Some("User does not have the required permissions"),
-        );
+        support::expects_unauthorized(&response);
     }
 }

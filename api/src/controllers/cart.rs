@@ -227,11 +227,9 @@ fn checkout_external(
     checkout_request: &CheckoutCartRequest,
     user: &User,
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = conn.get();
-    if !user.has_scope(Scopes::OrderMakeExternalPayment, None, connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope(Scopes::OrderMakeExternalPayment)?;
 
+    let connection = conn.get();
     if order.status()? != OrderStatus::Draft {
         return application::unprocessable(
             "Could not complete this cart because it is not in the correct status",

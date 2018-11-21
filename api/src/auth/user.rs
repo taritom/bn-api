@@ -5,22 +5,31 @@ use bigneon_db::models::{Organization, Scopes};
 use diesel::PgConnection;
 use errors::*;
 use jwt::{decode, Validation};
+use log::Level::Warn;
 use middleware::RequestConnection;
+use serde_json::Value;
 use server::AppState;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct User {
     pub user: DbUser,
     pub global_scopes: Vec<String>,
+    pub ip_address: Option<String>,
+    pub uri: String,
+    pub method: String,
 }
 
 impl User {
-    pub fn new(user: DbUser) -> User {
+    pub fn new(user: DbUser, request: &HttpRequest<AppState>) -> User {
         let global_scopes = user.get_global_scopes();
         User {
             user,
             global_scopes,
+            ip_address: request.connection_info().remote().map(|i| i.to_string()),
+            uri: request.uri().to_string(),
+            method: request.method().to_string(),
         }
     }
 
@@ -32,32 +41,46 @@ impl User {
         self.user.email.clone()
     }
 
-    pub fn has_scope(
+    fn has_scope(
         &self,
         scope: Scopes,
         organization: Option<&Organization>,
-        connection: &PgConnection,
+        connection: Option<&PgConnection>,
     ) -> Result<bool, BigNeonError> {
         if self.global_scopes.contains(&scope.to_string()) {
             return Ok(true);
         }
 
-        if let Some(organization) = organization {
-            return Ok(organization
-                .get_scopes_for_user(&self.user, connection)?
-                .contains(&scope.to_string()));
+        let mut logging_data = HashMap::new();
+        if let (Some(organization), Some(connection)) = (organization, connection) {
+            let organization_scopes = organization.get_scopes_for_user(&self.user, connection)?;
+            logging_data.insert("organization_scopes", json!(organization_scopes));
+            logging_data.insert("organization_id", json!(organization.id));
+            if organization_scopes.contains(&scope.to_string()) {
+                return Ok(true);
+            }
         }
 
+        logging_data.insert("accessed_scope", json!(scope.to_string()));
+        logging_data.insert("global_scopes", json!(self.global_scopes));
+        self.log_unauthorized_access_attempt(logging_data);
         Ok(false)
     }
 
-    pub fn requires_scope(&self, scope: Scopes) -> Result<(), AuthError> {
-        if self.global_scopes.contains(&scope.to_string()) {
+    pub fn log_unauthorized_access_attempt(&self, mut logging_data: HashMap<&'static str, Value>) {
+        logging_data.insert("user_id", json!(self.id()));
+        logging_data.insert("user_name", json!(self.user.full_name()));
+        logging_data.insert("ip_address", json!(self.ip_address));
+        logging_data.insert("url", json!(self.uri));
+        logging_data.insert("method", json!(self.method));
+        jlog!(Warn, "Unauthorized access attempt", logging_data);
+    }
+
+    pub fn requires_scope(&self, scope: Scopes) -> Result<(), BigNeonError> {
+        if self.has_scope(scope, None, None)? {
             return Ok(());
         }
-        Err(AuthError::new(
-            "User does not have the required permissions".to_string(),
-        ))
+        Err(AuthError::new("User does not have the required permissions".to_string()).into())
     }
 
     pub fn requires_scope_for_organization(
@@ -66,7 +89,7 @@ impl User {
         organization: &Organization,
         conn: &PgConnection,
     ) -> Result<(), BigNeonError> {
-        if self.has_scope(scope, Some(organization), conn)? {
+        if self.has_scope(scope, Some(organization), Some(conn))? {
             return Ok(());
         }
         Err(AuthError::new("User does not have the required permissions".to_string()).into())
@@ -99,7 +122,7 @@ impl FromRequest<AppState> for User {
                         ).map_err(|e| BigNeonError::from(e))?;
                         let connection = req.connection()?;
                         match DbUser::find(token.claims.get_id()?, connection.get()) {
-                            Ok(user) => Ok(User::new(user)),
+                            Ok(user) => Ok(User::new(user, req)),
                             Err(e) => Err(error::ErrorInternalServerError(e)),
                         }
                     }

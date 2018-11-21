@@ -91,10 +91,12 @@ pub fn show(
     let db_event = Event::find(event.id, connection)?;
     let organization = db_event.organization(connection)?;
 
-    if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)?
-        && user.as_ref().map_or(false, |u| u.id != auth_user.id())
-    {
-        return application::unauthorized();
+    if user.as_ref().map_or(false, |u| u.id != auth_user.id()) {
+        auth_user.requires_scope_for_organization(
+            Scopes::TicketAdmin,
+            &organization,
+            connection,
+        )?;
     }
 
     let ticket_response = ShowTicketResponse {
@@ -119,10 +121,7 @@ pub fn redeem(
     let (event, ticket) = TicketInstance::find_for_processing(parameters.id, connection)?;
     let db_event = Event::find(event.id, connection)?;
     let organization = db_event.organization(connection)?;
-
-    if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)? {
-        return application::unauthorized();
-    }
+    auth_user.requires_scope_for_organization(Scopes::TicketAdmin, &organization, connection)?;
 
     let result =
         TicketInstance::redeem_ticket(ticket.id, redeem_parameters.redeem_key.clone(), connection);
@@ -161,10 +160,12 @@ pub fn show_redeemable_ticket(
     let db_event = Event::find(event.id, connection)?;
     let organization = db_event.organization(connection)?;
 
-    if !auth_user.has_scope(Scopes::TicketAdmin, Some(&organization), connection)?
-        && user.as_ref().map_or(false, |u| u.id != auth_user.id())
-    {
-        return application::unauthorized();
+    if user.as_ref().map_or(false, |u| u.id != auth_user.id()) {
+        auth_user.requires_scope_for_organization(
+            Scopes::TicketAdmin,
+            &organization,
+            connection,
+        )?;
     }
 
     let redeemable_ticket = TicketInstance::show_redeemable_ticket(parameters.id, connection)?;
@@ -180,10 +181,8 @@ pub fn send_via_email(
         State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
+    auth_user.requires_scope(Scopes::TicketTransfer)?;
     let connection = connection.get();
-    if !auth_user.has_scope(Scopes::TicketTransfer, None, connection)? {
-        return application::unauthorized();
-    }
 
     let authorization = TicketInstance::authorize_ticket_transfer(
         auth_user.id(),
@@ -221,10 +220,8 @@ pub fn transfer_authorization(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
+    auth_user.requires_scope(Scopes::TicketTransfer)?;
     let connection = connection.get();
-    if !auth_user.has_scope(Scopes::TicketTransfer, None, connection)? {
-        return application::unauthorized();
-    }
 
     let transfer_authorization = TicketInstance::authorize_ticket_transfer(
         auth_user.id(),
@@ -244,10 +241,8 @@ pub fn receive_transfer(
         State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
+    auth_user.requires_scope(Scopes::TicketTransfer)?;
     let connection = connection.get();
-    if !auth_user.has_scope(Scopes::TicketTransfer, None, connection)? {
-        return application::unauthorized();
-    }
 
     let sender_wallet =
         Wallet::find_default_for_user(transfer_authorization.sender_user_id, connection)?;

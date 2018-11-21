@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, Json, Path, Query, State};
+use actix_web::{HttpRequest, HttpResponse, Json, Path, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
@@ -41,13 +41,8 @@ pub fn create(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    if !auth_user.has_scope(
-        Scopes::OrgWrite,
-        Some(&Organization::find(path.id, connection)?),
-        connection,
-    )? {
-        return application::unauthorized();
-    }
+    let organization = Organization::find(path.id, connection)?;
+    auth_user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
 
     let invite_args = new_org_invite.into_inner();
 
@@ -135,7 +130,12 @@ pub fn view(
 }
 
 pub fn accept_request(
-    (connection, query, user): (Connection, Query<InviteResponseQuery>, Option<AuthUser>),
+    (connection, query, user, request): (
+        Connection,
+        Query<InviteResponseQuery>,
+        Option<AuthUser>,
+        HttpRequest<AppState>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let query_struct = query.into_inner();
     let connection = connection.get();
@@ -162,10 +162,10 @@ pub fn accept_request(
                 let org = Organization::find(accept_details.organization_id, connection)?;
                 org.add_user(u.id(), connection)?;
             } else {
-                return application::unauthorized();
+                return application::unauthorized(&request, Some(u));
             }
         }
-        None => return application::unauthorized(),
+        None => return application::unauthorized(&request, None),
     }
     Ok(HttpResponse::Ok().json(json!({})))
 }

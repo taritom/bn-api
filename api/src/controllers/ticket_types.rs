@@ -72,13 +72,8 @@ pub fn create(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
-    if !user.has_scope(
-        Scopes::EventWrite,
-        Some(&event.organization(connection)?),
-        connection,
-    )? {
-        return application::unauthorized();
-    }
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
     //Retrieve default wallet
     let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
 
@@ -145,10 +140,8 @@ pub fn index(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
-    let organization = &event.organization(connection)?;
-    if !user.has_scope(Scopes::EventWrite, Some(organization), connection)? {
-        return application::unauthorized();
-    }
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
     //TODO refactor using paging params
@@ -179,13 +172,8 @@ pub fn update(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.event_id, connection)?;
-    if !user.has_scope(
-        Scopes::EventWrite,
-        Some(&event.organization(connection)?),
-        connection,
-    )? {
-        return application::unauthorized();
-    }
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
 
     let ticket_type = TicketType::find(path.ticket_type_id, connection)?;
     if let Some(requested_capacity) = data.capacity {

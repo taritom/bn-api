@@ -29,6 +29,7 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
         path,
         query_parameters,
         auth_user.clone(),
+        test_request.request,
     )).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -60,7 +61,7 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
         let expected_json = serde_json::to_string(&wrapped_expected_links).unwrap();
         assert_eq!(body, expected_json);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
     assert_eq!(true, true);
 }
@@ -80,8 +81,12 @@ pub fn find_by_email(role: Roles, should_test_true: bool) {
 
     let test_request = TestRequest::create_with_uri(&format!("/?email={}", email));
     let data = Query::<SearchUserByEmail>::from_request(&test_request.request, &()).unwrap();
-    let response: HttpResponse =
-        users::find_by_email((database.connection.into(), data, auth_user.clone())).into();
+    let response: HttpResponse = users::find_by_email((
+        database.connection.into(),
+        data,
+        auth_user.clone(),
+        test_request.request,
+    )).into();
     let display_user: DisplayUser = user2.into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -90,7 +95,7 @@ pub fn find_by_email(role: Roles, should_test_true: bool) {
         let user: DisplayUser = serde_json::from_str(&body).unwrap();
         assert_eq!(user, display_user);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -108,14 +113,18 @@ pub fn show(role: Roles, should_test_true: bool) {
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = display_user.id;
-    let response: HttpResponse =
-        users::show((database.connection.into(), path, auth_user.clone())).into();
+    let response: HttpResponse = users::show((
+        database.connection.into(),
+        path,
+        auth_user.clone(),
+        test_request.request,
+    )).into();
     if should_test_true {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let user: DisplayUser = serde_json::from_str(&body).unwrap();
         assert_eq!(user, display_user);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }

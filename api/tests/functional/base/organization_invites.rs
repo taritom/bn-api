@@ -74,7 +74,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
             assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
         }
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -138,10 +138,7 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
             assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
         }
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, organization_expected_json);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -197,10 +194,7 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
             assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
         }
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, organization_expected_json);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -240,10 +234,7 @@ pub fn create_failure_missing_required_parameters(role: Roles, should_test_succe
             assert!(sent.first().is_none());
         }
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, organization_expected_json);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -279,16 +270,14 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         database.connection.into(),
         parameters,
         Some(auth_user),
+        test_request.request,
     )).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         println!("{:?}", body);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, organization_expected_json);
+        support::expects_unauthorized(&response);
     }
 }
 pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
@@ -333,9 +322,6 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         println!("{:?}", body);
     } else {
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        let temp_json = HttpResponse::Unauthorized().json(json!({"error": "Unauthorized"}));
-        let organization_expected_json = support::unwrap_body_to_string(&temp_json).unwrap();
-        assert_eq!(body, organization_expected_json);
+        support::expects_unauthorized(&response);
     }
 }

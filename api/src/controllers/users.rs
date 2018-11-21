@@ -50,29 +50,35 @@ pub fn update_current_user(
 }
 
 pub fn show(
-    (connection, parameters, auth_user): (Connection, Path<PathParameters>, AuthUser),
+    (connection, parameters, auth_user, request): (
+        Connection,
+        Path<PathParameters>,
+        AuthUser,
+        HttpRequest<AppState>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
     if !auth_user.user.can_read_user(&user, connection)? {
-        return application::unauthorized();
+        return application::unauthorized(&request, Some(auth_user));
     }
 
     Ok(HttpResponse::Ok().json(&user.for_display()?))
 }
 
 pub fn list_organizations(
-    (connection, parameters, query_parameters, auth_user): (
+    (connection, parameters, query_parameters, auth_user, request): (
         Connection,
         Path<PathParameters>,
         Query<PagingParameters>,
         AuthUser,
+        HttpRequest<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
     if !auth_user.user.can_read_user(&user, connection)? {
-        return application::unauthorized();
+        return application::unauthorized(&request, Some(auth_user));
     }
     //TODO implement proper paging on db.
     let organization_links = Organization::all_org_names_linked_to_user(parameters.id, connection)?;
@@ -84,7 +90,12 @@ pub fn list_organizations(
 }
 
 pub fn find_by_email(
-    (connection, query, auth_user): (Connection, Query<SearchUserByEmail>, AuthUser),
+    (connection, query, auth_user, request): (
+        Connection,
+        Query<SearchUserByEmail>,
+        AuthUser,
+        HttpRequest<AppState>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = match User::find_by_email(&query.into_inner().email, connection).optional()? {
@@ -93,7 +104,7 @@ pub fn find_by_email(
     };
 
     if !auth_user.user.can_read_user(&user, connection)? {
-        return application::unauthorized();
+        return application::unauthorized(&request, Some(auth_user));
     }
 
     Ok(HttpResponse::Ok().json(&user.for_display()?))

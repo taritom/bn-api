@@ -3,7 +3,6 @@ use auth::user::User;
 use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
-use helpers::application;
 use models::{AddVenueToOrganizationRequest, PathParameters};
 
 pub fn index(
@@ -50,15 +49,12 @@ pub fn create(
     (connection, new_venue, user): (Connection, Json<NewVenue>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    if !user.has_scope(Scopes::VenueWrite, None, connection)? {
-        if new_venue.organization_id.is_none() {
-            return application::unauthorized();
-        } else if let Some(organization_id) = new_venue.organization_id {
-            let organization = Organization::find(organization_id, connection)?;
-            if !user.has_scope(Scopes::VenueWrite, Some(&organization), connection)? {
-                return application::unauthorized();
-            }
-        }
+
+    if let Some(organization_id) = new_venue.organization_id {
+        let organization = Organization::find(organization_id, connection)?;
+        user.requires_scope_for_organization(Scopes::VenueWrite, &organization, connection)?;
+    } else {
+        user.requires_scope(Scopes::ArtistWrite)?;
     }
 
     let mut venue = new_venue.commit(connection)?;
@@ -75,9 +71,7 @@ pub fn toggle_privacy(
     (connection, parameters, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    if !user.has_scope(Scopes::VenueWrite, None, connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope(Scopes::VenueWrite)?;
 
     let venue = Venue::find(parameters.id, connection)?;
     let updated_venue = venue.set_privacy(!venue.is_private, connection)?;
@@ -94,14 +88,11 @@ pub fn update(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let venue = Venue::find(parameters.id, connection)?;
-    if !user.has_scope(Scopes::VenueWrite, None, connection)? {
-        if !venue.is_private || venue.organization_id.is_none() {
-            return application::unauthorized();
-        } else if let Some(organization) = venue.organization(connection)? {
-            if !user.has_scope(Scopes::VenueWrite, Some(&organization), connection)? {
-                return application::unauthorized();
-            }
-        }
+    if !venue.is_private || venue.organization_id.is_none() {
+        user.requires_scope(Scopes::VenueWrite)?;
+    } else {
+        let organization = venue.organization(connection)?.unwrap();
+        user.requires_scope_for_organization(Scopes::VenueWrite, &organization, connection)?;
     }
 
     let updated_venue = venue.update(venue_parameters.into_inner(), connection)?;
@@ -117,9 +108,7 @@ pub fn add_to_organization(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    if !user.has_scope(Scopes::OrgAdmin, None, connection)? {
-        return application::unauthorized();
-    }
+    user.requires_scope(Scopes::OrgAdmin)?;
     let venue = Venue::find(parameters.id, &*connection)?;
     let add_request = add_request.into_inner();
     if venue.organization_id.is_some() {

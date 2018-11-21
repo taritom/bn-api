@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, FromRequest, Json, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::tickets::{self, ShowTicketResponse, TicketRedeemRequest};
 use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
@@ -30,7 +30,8 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;
 
-    let response = tickets::show((database.connection.clone().into(), path, auth_user)).unwrap();
+    let response: HttpResponse =
+        tickets::show((database.connection.clone().into(), path, auth_user)).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -48,7 +49,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
         };
         assert_eq!(expected_result, ticket_response);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -82,13 +83,13 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
         redeem_key: "WrongKey".to_string(),
     };
 
-    let response = tickets::redeem((
+    let response: HttpResponse = tickets::redeem((
         database.connection.clone().into(),
         path,
         Json(request_data),
         auth_user.clone(),
         request.extract_state(),
-    )).unwrap();
+    )).into();
 
     #[derive(Deserialize)]
 
@@ -106,18 +107,18 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
             redeem_key: ticket.redeem_key.unwrap(),
         };
 
-        let response = tickets::redeem((
+        let response: HttpResponse = tickets::redeem((
             database.connection.clone().into(),
             path2,
             Json(request_data),
             auth_user,
             request.extract_state(),
-        )).unwrap();
+        )).into();
         let body = support::unwrap_body_to_string(&response).unwrap();
         let ticket_response: R = serde_json::from_str(&body).unwrap();
         assert_eq!(ticket_response.success, true);
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
 
@@ -158,17 +159,17 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = ticket.id;
 
-    let response = tickets::show_redeemable_ticket((
+    let response: HttpResponse = tickets::show_redeemable_ticket((
         database.connection.clone().into(),
         path,
         auth_user.clone(),
-    )).unwrap();
+    )).into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         let ticket_response: RedeemableTicket = serde_json::from_str(&body).unwrap();
         assert!(ticket_response.redeem_key.is_some());
     } else {
-        support::expects_unauthorized(&response, None);
+        support::expects_unauthorized(&response);
     }
 }
