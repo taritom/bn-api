@@ -1,5 +1,5 @@
 use errors::{ApplicationError, BigNeonError};
-use models::CreateArtist;
+use models::CreateArtistRequest;
 use reqwest::Client;
 use serde_json;
 use serde_json::Value;
@@ -63,7 +63,7 @@ impl Spotify {
         }
     }
 
-    pub fn search(&self, q: String) -> Result<Vec<CreateArtist>, BigNeonError> {
+    pub fn search(&self, q: String) -> Result<Vec<CreateArtistRequest>, BigNeonError> {
         match &self.auth_token {
             Some(_auth_token) => {
                 let reqwest_client = Client::new();
@@ -88,7 +88,7 @@ impl Spotify {
                     .into_iter()
                     .map(|item| {
                         let artist = item;
-                        CreateArtist {
+                        CreateArtistRequest {
                             name: artist["name"].as_str().map(|s| s.to_string()),
                             bio: Some("".to_string()),
                             spotify_id: artist["id"].as_str().map(|s| s.to_string()),
@@ -101,7 +101,10 @@ impl Spotify {
         }
     }
 
-    pub fn read_artist(&self, artist_id: &str) -> Result<Option<CreateArtist>, BigNeonError> {
+    pub fn read_artist(
+        &self,
+        artist_id: &str,
+    ) -> Result<Option<CreateArtistRequest>, BigNeonError> {
         match &self.auth_token {
             Some(_auth_token) => {
                 let reqwest_client = Client::new();
@@ -124,7 +127,7 @@ impl Spotify {
                             .to_string(),
                     ).into());
                 } else {
-                    let create_artist = CreateArtist {
+                    let create_artist = CreateArtistRequest {
                         name: artist["name"].as_str().map(|s| s.to_string()),
                         bio: Some("".to_string()),
                         spotify_id: artist["id"].as_str().map(|s| s.to_string()),

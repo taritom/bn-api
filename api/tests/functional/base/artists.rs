@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::artists;
-use bigneon_api::models::{CreateArtist, PathParameters};
+use bigneon_api::models::{CreateArtistRequest, PathParameters};
 use bigneon_db::models::*;
 use serde_json;
 use support;
@@ -16,7 +16,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let bio = "Bio";
     let website_url = "http://www.example.com";
 
-    let json = Json(CreateArtist {
+    let json = Json(CreateArtistRequest {
         organization_id: None,
         name: Some(name.to_string()),
         bio: Some(bio.to_string()),
@@ -54,7 +54,7 @@ pub fn create_with_organization(role: Roles, should_test_succeed: bool) {
     let bio = "Bio";
     let website_url = "http://www.example.com";
 
-    let json = Json(CreateArtist {
+    let json = Json(CreateArtistRequest {
         organization_id: Some(organization.id),
         name: Some(name.to_string()),
         bio: Some(bio.to_string()),
@@ -87,7 +87,7 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let name = "Artist Example";
     let bio = "Bio";
     let website_url = "invalid-format.com";
-    let json = Json(CreateArtist {
+    let json = Json(CreateArtistRequest {
         name: Some(name.to_string()),
         bio: Some(bio.to_string()),
         website_url: Some(website_url.to_string()),

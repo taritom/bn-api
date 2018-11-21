@@ -3,7 +3,7 @@ use chrono::NaiveDateTime;
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone, Default)]
-pub struct CreateArtist {
+pub struct CreateArtistRequest {
     pub id: Option<Uuid>,
     pub organization_id: Option<Uuid>,
     pub is_private: Option<bool>,
@@ -23,7 +23,7 @@ pub struct CreateArtist {
     pub updated_at: Option<NaiveDateTime>,
 }
 
-impl Into<NewArtist> for CreateArtist {
+impl Into<NewArtist> for CreateArtistRequest {
     fn into(self) -> NewArtist {
         let create_artist = self.clone();
         NewArtist {
@@ -44,9 +44,9 @@ impl Into<NewArtist> for CreateArtist {
     }
 }
 
-impl From<Artist> for CreateArtist {
+impl From<Artist> for CreateArtistRequest {
     fn from(artist: Artist) -> Self {
-        CreateArtist {
+        CreateArtistRequest {
             id: Some(artist.id),
             organization_id: artist.organization_id,
             is_private: Some(artist.is_private),

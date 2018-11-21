@@ -4,7 +4,7 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{CreateArtist, PathParameters, WebPayload};
+use models::{CreateArtistRequest, PathParameters, WebPayload};
 use server::AppState;
 use utils::spotify::*;
 
@@ -15,7 +15,7 @@ pub fn search(
         Query<PagingParameters>,
         Option<User>,
     ),
-) -> Result<WebPayload<CreateArtist>, BigNeonError> {
+) -> Result<WebPayload<CreateArtistRequest>, BigNeonError> {
     let db_user = user.map(|u| u.user);
     let artists = Artist::search(&db_user, query_parameters.get_tag("q"), connection.get())?;
 
@@ -37,7 +37,10 @@ pub fn search(
         let payload = Payload::new(spotify_artists, query_parameters.into_inner().into());
         Ok(WebPayload::new(StatusCode::OK, payload))
     } else {
-        let wrapper = artists.into_iter().map(|a| CreateArtist::from(a)).collect();
+        let wrapper = artists
+            .into_iter()
+            .map(|a| CreateArtistRequest::from(a))
+            .collect();
         let payload = Payload::new(wrapper, query_parameters.into_inner().into());
         Ok(WebPayload::new(StatusCode::OK, payload))
     }
@@ -64,7 +67,7 @@ pub fn create(
     (state, connection, json_create_artist, user): (
         State<AppState>,
         Connection,
-        Json<CreateArtist>,
+        Json<CreateArtistRequest>,
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
