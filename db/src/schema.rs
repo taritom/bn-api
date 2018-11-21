@@ -14,6 +14,7 @@ table! {
         snapchat_username -> Nullable<Text>,
         soundcloud_username -> Nullable<Text>,
         bandcamp_username -> Nullable<Text>,
+        spotify_id -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

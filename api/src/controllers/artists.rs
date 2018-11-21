@@ -4,15 +4,9 @@ use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::{ExternalPathParameters, PathParameters, WebPayload};
+use models::{CreateArtist, PathParameters, WebPayload};
 use server::AppState;
 use utils::spotify::*;
-
-#[derive(Serialize, Debug)]
-pub enum ArtistOrSpotify {
-    Artist(Artist),
-    Spotify(SpotifyArtist),
-}
 
 pub fn search(
     (state, connection, query_parameters, user): (
@@ -21,9 +15,10 @@ pub fn search(
         Query<PagingParameters>,
         Option<User>,
     ),
-) -> Result<WebPayload<ArtistOrSpotify>, BigNeonError> {
+) -> Result<WebPayload<CreateArtist>, BigNeonError> {
     let db_user = user.map(|u| u.user);
     let artists = Artist::search(&db_user, query_parameters.get_tag("q"), connection.get())?;
+
     let try_spotify = query_parameters
         .get_tag("spotify")
         .map(|spotify| spotify != "0")
@@ -39,48 +34,12 @@ pub fn search(
                 .to_string(),
         )?;
 
-        let wrapper = spotify_artists
-            .iter()
-            .map(|s| ArtistOrSpotify::Spotify(s.to_owned()))
-            .collect();
-        let payload = Payload::new(wrapper, query_parameters.into_inner().into());
+        let payload = Payload::new(spotify_artists, query_parameters.into_inner().into());
         Ok(WebPayload::new(StatusCode::OK, payload))
     } else {
-        let wrapper = artists
-            .iter()
-            .map(|a| ArtistOrSpotify::Artist(a.to_owned()))
-            .collect();
+        let wrapper = artists.into_iter().map(|a| CreateArtist::from(a)).collect();
         let payload = Payload::new(wrapper, query_parameters.into_inner().into());
         Ok(WebPayload::new(StatusCode::OK, payload))
-    }
-}
-
-pub fn create_from_spotify(
-    (state, connection, parameters, user): (
-        State<AppState>,
-        Connection,
-        Path<ExternalPathParameters>,
-        User,
-    ),
-) -> Result<HttpResponse, BigNeonError> {
-    let auth_token = state.config.spotify_auth_token.clone();
-    let spotify_client = Spotify::connect(auth_token)?;
-    let spotify_artist_result = spotify_client.read_artist(&parameters.id);
-    match spotify_artist_result {
-        Ok(spotify_artist) => match spotify_artist {
-            Some(artist) => {
-                let new_artist = NewArtist {
-                    organization_id: None,
-                    name: artist["name"].as_str().unwrap_or(&"").to_string(),
-                    bio: "".to_string(),
-                    //TODO Add the image_url from the images[0] object
-                    ..Default::default()
-                };
-                Ok(create((connection, Json(new_artist), user))?)
-            }
-            None => application::not_found(),
-        },
-        Err(e) => Err(e),
     }
 }
 
@@ -102,17 +61,42 @@ pub fn show(
 }
 
 pub fn create(
-    (connection, new_artist, user): (Connection, Json<NewArtist>, User),
+    (state, connection, json_create_artist, user): (
+        State<AppState>,
+        Connection,
+        Json<CreateArtist>,
+        User,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    if let Some(organization_id) = new_artist.organization_id {
+    if let Some(organization_id) = json_create_artist.organization_id {
         let organization = Organization::find(organization_id, connection)?;
         user.requires_scope_for_organization(Scopes::ArtistWrite, &organization, connection)?;
     } else {
         user.requires_scope(Scopes::ArtistWrite)?;
     }
 
-    let mut artist = new_artist.commit(connection)?;
+    let create_artist = json_create_artist.into_inner();
+    let mut artist = match &create_artist.spotify_id {
+        Some(spotify_id) => {
+            let auth_token = state.config.spotify_auth_token.clone();
+            let spotify_client = Spotify::connect(auth_token)?;
+            println!("Spotify ID {}", spotify_id);
+            let spotify_artist_result = spotify_client.read_artist(&spotify_id)?;
+            match spotify_artist_result {
+                Some(artist) => {
+                    let new_artist: NewArtist = artist.into();
+                    new_artist.commit(connection)?
+                }
+                None => return application::not_found(),
+            }
+        }
+        None => {
+            let new_artist: NewArtist = create_artist.clone().into();
+            new_artist.commit(connection)?
+        }
+    };
+
     // New artists belonging to an organization start private
     if artist.organization_id.is_some() {
         artist = artist.set_privacy(true, connection)?;

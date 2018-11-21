@@ -14,6 +14,7 @@ CREATE TABLE artists (
   snapchat_username TEXT,
   soundcloud_username TEXT,
   bandcamp_username TEXT,
+  spotify_id TEXT,
   created_at TIMESTAMP DEFAULT now() NOT NULL,
   updated_at TIMESTAMP DEFAULT now() NOT NULL
 );

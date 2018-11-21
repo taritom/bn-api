@@ -1,8 +1,6 @@
 {
 	"info": {
-
-		"_postman_id": "37b0cace-932a-4a02-83ec-19aaf0ff0408",
-
+		"_postman_id": "691f386e-8a30-4636-bb38-207f59e11beb",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -535,7 +533,7 @@
 									"})",
 									"",
 									"pm.test(\"Artist result should match\",function() {",
-									"    pm.expect(JSON.parse(responseBody).data[0].Artist.id).to.eq(pm.environment.get(\"last_artist_id\"));",
+									"    pm.expect(JSON.parse(responseBody).data[0].id).to.eq(pm.environment.get(\"last_artist_id\"));",
 									"});"
 								],
 								"type": "text/javascript"
@@ -562,7 +560,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Artist {{$timestamp}}\",\n\t\"bio\": \"Artist bio\"\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/artists/search?q=Artist&spotify=1",
@@ -600,18 +598,12 @@
 									"    pm.response.to.have.status(200);",
 									"})",
 									"",
-									"pm.test(\"Spotify result should match\",function() {",
+									"pm.test(\"Spotify result should contain spotify_id\",function() {",
 									"    pm.environment.set(\"last_spotify_artist_id\", \"\");",
 									"    JSON.parse(responseBody).data.forEach(item => {",
-									"        if (item.Artist) {",
-									"            throw new Error(\"There should be no Artist entries\");",
-									"        }",
-									"        if (item.Spotify && item.Spotify.spotify_id === \"5HFkc3t0HYETL4JeEbDB1v\") {",
-									"            pm.expect(item.Spotify.spotify_id).to.eq(\"5HFkc3t0HYETL4JeEbDB1v\");",
-									"            pm.environment.set(\"last_spotify_artist_id\", \"5HFkc3t0HYETL4JeEbDB1v\");",
-									"        }",
+									"        pm.expect(item.spotify_id).to.not.be.a(\"null\");",
+									"        pm.environment.set(\"last_spotify_artist_id\", \"5HFkc3t0HYETL4JeEbDB1v\");",
 									"    })",
-									"    // pm.expect(JSON.parse(responseBody).data[0].Artist.id).to.eq(pm.environment.get(\"last_artist_id\"));",
 									"});"
 								],
 								"type": "text/javascript"
@@ -638,7 +630,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Artist {{$timestamp}}\",\n\t\"bio\": \"Artist bio\"\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/artists/search?q=Powerwolf&spotify=1",
@@ -712,17 +704,16 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Artist {{$timestamp}}\",\n\t\"bio\": \"Artist bio\"\n}"
+							"raw": "{\n\t\"spotify_id\": \"{{last_spotify_artist_id}}\"\n}"
 						},
 						"url": {
-							"raw": "http://{{server}}/spotify/{{last_spotify_artist_id}}",
+							"raw": "http://{{server}}/artists",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
-								"spotify",
-								"{{last_spotify_artist_id}}"
+								"artists"
 							]
 						}
 					},

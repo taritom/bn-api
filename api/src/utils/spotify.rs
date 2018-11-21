@@ -1,4 +1,5 @@
 use errors::{ApplicationError, BigNeonError};
+use models::CreateArtist;
 use reqwest::Client;
 use serde_json;
 use serde_json::Value;
@@ -62,7 +63,7 @@ impl Spotify {
         }
     }
 
-    pub fn search(&self, q: String) -> Result<Vec<SpotifyArtist>, BigNeonError> {
+    pub fn search(&self, q: String) -> Result<Vec<CreateArtist>, BigNeonError> {
         match &self.auth_token {
             Some(_auth_token) => {
                 let reqwest_client = Client::new();
@@ -87,10 +88,11 @@ impl Spotify {
                     .into_iter()
                     .map(|item| {
                         let artist = item;
-                        SpotifyArtist {
-                            id: artist["id"].as_str().map(|s| s.to_string()),
+                        CreateArtist {
                             name: artist["name"].as_str().map(|s| s.to_string()),
-                            href: artist["href"].as_str().map(|s| s.to_string()),
+                            bio: Some("".to_string()),
+                            spotify_id: artist["id"].as_str().map(|s| s.to_string()),
+                            ..Default::default()
                         }
                     }).collect();
                 Ok(spotify_artists)
@@ -99,7 +101,7 @@ impl Spotify {
         }
     }
 
-    pub fn read_artist(&self, artist_id: &str) -> Result<Option<Value>, BigNeonError> {
+    pub fn read_artist(&self, artist_id: &str) -> Result<Option<CreateArtist>, BigNeonError> {
         match &self.auth_token {
             Some(_auth_token) => {
                 let reqwest_client = Client::new();
@@ -112,17 +114,23 @@ impl Spotify {
                     .header("Authorization", format!("Bearer {}", access_token))
                     .send()?
                     .text()?;
-                //TODO Deserialize this into a FullArtist struct
-                let result: Value = serde_json::from_str(&res).unwrap();
-                if result.get("error").is_some() {
+
+                let artist: Value = serde_json::from_str(&res).unwrap();
+                if artist.get("error").is_some() {
                     return Err(ApplicationError::new(
-                        result["error"]["message"]
+                        artist["error"]["message"]
                             .as_str()
                             .unwrap_or("Invalid Spotify Response")
                             .to_string(),
                     ).into());
                 } else {
-                    Ok(Some(result))
+                    let create_artist = CreateArtist {
+                        name: artist["name"].as_str().map(|s| s.to_string()),
+                        bio: Some("".to_string()),
+                        spotify_id: artist["id"].as_str().map(|s| s.to_string()),
+                        ..Default::default()
+                    };
+                    Ok(Some(create_artist))
                 }
             }
             None => Err(ApplicationError::new("No Spotify Auth Token".to_string()).into()),

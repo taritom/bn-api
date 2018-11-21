@@ -1,5 +1,6 @@
 pub use self::add_venue_to_organization_request::*;
 pub use self::admin_display_ticket_type::*;
+pub use self::artist_spotify_or_local::*;
 pub use self::display_ticket_pricing::*;
 pub use self::facebook_web_login_token::*;
 pub use self::path_parameters::*;
@@ -10,6 +11,7 @@ pub use self::user_profile_attributes::*;
 
 mod add_venue_to_organization_request;
 mod admin_display_ticket_type;
+mod artist_spotify_or_local;
 mod display_ticket_pricing;
 mod facebook_web_login_token;
 mod path_parameters;

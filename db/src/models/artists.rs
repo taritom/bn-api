@@ -27,6 +27,7 @@ pub struct Artist {
     pub snapchat_username: Option<String>,
     pub soundcloud_username: Option<String>,
     pub bandcamp_username: Option<String>,
+    pub spotify_id: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -58,6 +59,8 @@ pub struct NewArtist {
     pub soundcloud_username: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub bandcamp_username: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub spotify_id: Option<String>,
 }
 
 impl NewArtist {
