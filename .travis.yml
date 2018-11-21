@@ -67,6 +67,7 @@ before_install:
 
 before_script:
 
-after_script:
 
+after_script:
+    - ./scripts/bump-version.sh --with-git
 

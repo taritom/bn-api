@@ -4,7 +4,7 @@ use actix_web::middleware::Logger;
 use actix_web::{server, App};
 use config::Config;
 use db::*;
-use middleware::*;
+use middleware::{AppVersionHeader, DatabaseTransaction};
 use routing;
 use utils::ServiceLocator;
 
@@ -35,6 +35,7 @@ impl Server {
             move || {
                 App::with_state(AppState::new(config.clone()))
                     .middleware(DatabaseTransaction::new())
+                    .middleware(AppVersionHeader::new())
                     .middleware(Logger::new(
                         r#"{\"remote_ip\":\"%a\", \"user_agent\": \"%{User-Agent}i\", \"request\": \"%r\", \"status_code\": %s, \"response_time\": %D}"#,
                     )).configure(|a| {
