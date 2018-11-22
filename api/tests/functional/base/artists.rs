@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::artists;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{CreateArtistRequest, PathParameters};
 use bigneon_db::models::*;
 use serde_json;
 use support;
@@ -16,16 +16,21 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let bio = "Bio";
     let website_url = "http://www.example.com";
 
-    let json = Json(NewArtist {
+    let json = Json(CreateArtistRequest {
         organization_id: None,
-        name: name.to_string(),
-        bio: bio.to_string(),
+        name: Some(name.to_string()),
+        bio: Some(bio.to_string()),
         website_url: Some(website_url.to_string()),
         ..Default::default()
     });
 
-    let response: HttpResponse =
-        artists::create((database.connection.into(), json, auth_user)).into();
+    let test_request = TestRequest::create();
+    let response: HttpResponse = artists::create((
+        test_request.extract_state(),
+        database.connection.into(),
+        json,
+        auth_user,
+    )).into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -49,16 +54,21 @@ pub fn create_with_organization(role: Roles, should_test_succeed: bool) {
     let bio = "Bio";
     let website_url = "http://www.example.com";
 
-    let json = Json(NewArtist {
+    let json = Json(CreateArtistRequest {
         organization_id: Some(organization.id),
-        name: name.to_string(),
-        bio: bio.to_string(),
+        name: Some(name.to_string()),
+        bio: Some(bio.to_string()),
         website_url: Some(website_url.to_string()),
         ..Default::default()
     });
 
-    let response: HttpResponse =
-        artists::create((database.connection.into(), json, auth_user.clone())).into();
+    let test_request = TestRequest::create();
+    let response: HttpResponse = artists::create((
+        test_request.extract_state(),
+        database.connection.into(),
+        json,
+        auth_user.clone(),
+    )).into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -77,16 +87,21 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let name = "Artist Example";
     let bio = "Bio";
     let website_url = "invalid-format.com";
-    let json = Json(NewArtist {
-        name: name.to_string(),
-        bio: bio.to_string(),
+    let json = Json(CreateArtistRequest {
+        name: Some(name.to_string()),
+        bio: Some(bio.to_string()),
         website_url: Some(website_url.to_string()),
         youtube_video_urls: Some(vec!["invalid".to_string()]),
         ..Default::default()
     });
-
+    let test_request = TestRequest::create();
     let user = support::create_auth_user(role, None, &database);
-    let response: HttpResponse = artists::create((database.connection.into(), json, user)).into();
+    let response: HttpResponse = artists::create((
+        test_request.extract_state(),
+        database.connection.into(),
+        json,
+        user,
+    )).into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);

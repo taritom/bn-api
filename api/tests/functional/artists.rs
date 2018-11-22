@@ -1,6 +1,5 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::artists;
-use bigneon_api::controllers::artists::ArtistOrSpotify;
 use bigneon_api::models::PathParameters;
 use bigneon_db::prelude::*;
 use functional::base;
@@ -182,10 +181,8 @@ pub fn search_no_spotify() {
         .payload()
         .data
         .iter()
-        .map(|i| match i {
-            ArtistOrSpotify::Artist(artist) => artist.id,
-            _ => Uuid::new_v4(),
-        }).collect::<Vec<Uuid>>();
+        .map(|i| i.id.unwrap_or(Uuid::new_v4()))
+        .collect::<Vec<Uuid>>();
 
     assert_eq!(expected_artists, collected_ids);
 }
@@ -214,10 +211,8 @@ pub fn search_with_spotify() {
         .payload()
         .data
         .iter()
-        .filter(|i| match i {
-            ArtistOrSpotify::Artist(_artist) => false,
-            ArtistOrSpotify::Spotify(_spotify) => true,
-        }).count();
+        .filter(|i| i.spotify_id.is_some())
+        .count();
     if test_request
         .extract_state()
         .config
