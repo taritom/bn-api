@@ -127,10 +127,19 @@ impl Spotify {
                             .to_string(),
                     ).into());
                 } else {
+                    let image = artist["images"]
+                        .as_array()
+                        .map(|ref arr| arr.first().map(|v| v))
+                        .unwrap_or(None);
+                    let image_url = image
+                        .map(|m| m["url"].as_str().map(|s| s.to_string()))
+                        .unwrap_or(None);
+
                     let create_artist = CreateArtistRequest {
                         name: artist["name"].as_str().map(|s| s.to_string()),
                         bio: Some("".to_string()),
                         spotify_id: artist["id"].as_str().map(|s| s.to_string()),
+                        image_url,
                         ..Default::default()
                     };
                     Ok(Some(create_artist))
