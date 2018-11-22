@@ -88,10 +88,12 @@ impl Spotify {
                     .into_iter()
                     .map(|item| {
                         let artist = item;
+                        let image_url = Spotify::get_image_from_artist(&artist["images"], None);
                         CreateArtistRequest {
                             name: artist["name"].as_str().map(|s| s.to_string()),
                             bio: Some("".to_string()),
                             spotify_id: artist["id"].as_str().map(|s| s.to_string()),
+                            image_url,
                             ..Default::default()
                         }
                     }).collect();
@@ -127,13 +129,7 @@ impl Spotify {
                             .to_string(),
                     ).into());
                 } else {
-                    let image = artist["images"]
-                        .as_array()
-                        .map(|ref arr| arr.first().map(|v| v))
-                        .unwrap_or(None);
-                    let image_url = image
-                        .map(|m| m["url"].as_str().map(|s| s.to_string()))
-                        .unwrap_or(None);
+                    let image_url = Spotify::get_image_from_artist(&artist["images"], Some(0));
 
                     let create_artist = CreateArtistRequest {
                         name: artist["name"].as_str().map(|s| s.to_string()),
@@ -147,5 +143,21 @@ impl Spotify {
             }
             None => Err(ApplicationError::new("No Spotify Auth Token".to_string()).into()),
         }
+    }
+
+    pub fn get_image_from_artist(image_array: &Value, image_index: Option<usize>) -> Option<String> {
+        let image = image_array
+            .as_array()
+            .map(|ref arr| {
+                let val = match image_index {
+                    None => arr.last(),
+                    Some(index) => arr.get(index)
+                };
+                val.map(|v| v)
+            })
+            .unwrap_or(None);
+        image
+            .map(|m| m["url"].as_str().map(|s| s.to_string()))
+            .unwrap_or(None)
     }
 }
