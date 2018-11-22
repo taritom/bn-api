@@ -145,17 +145,19 @@ impl Spotify {
         }
     }
 
-    pub fn get_image_from_artist(image_array: &Value, image_index: Option<usize>) -> Option<String> {
+    pub fn get_image_from_artist(
+        image_array: &Value,
+        image_index: Option<usize>,
+    ) -> Option<String> {
         let image = image_array
             .as_array()
             .map(|ref arr| {
                 let val = match image_index {
                     None => arr.last(),
-                    Some(index) => arr.get(index)
+                    Some(index) => arr.get(index),
                 };
                 val.map(|v| v)
-            })
-            .unwrap_or(None);
+            }).unwrap_or(None);
         image
             .map(|m| m["url"].as_str().map(|s| s.to_string()))
             .unwrap_or(None)
