@@ -1,6 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
-use bigneon_api::controllers::tickets::{self, ShowTicketResponse, TicketRedeemRequest};
-use bigneon_api::models::PathParameters;
+use bigneon_api::controllers::events::{self, TicketRedeemRequest};
+use bigneon_api::controllers::tickets::{self, ShowTicketResponse};
+use bigneon_api::models::{PathParameters, RedeemTicketPathParameters};
 use bigneon_db::models::*;
 use serde_json;
 use support;
@@ -56,7 +57,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
 pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let request = TestRequest::create();
+    let request = TestRequest::create_with_uri_custom_params("/", vec!["id", "ticket_instance_id"]);
     let organization = database.create_organization().finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
@@ -73,17 +74,19 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
         .create_purchased_tickets(&user2, ticket_type, 5)
         .remove(0);
 
-    let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
-    path.id = ticket.id;
-    let mut path2 = Path::<PathParameters>::extract(&request.request).unwrap();
-    path2.id = ticket.id;
+    let mut path = Path::<RedeemTicketPathParameters>::extract(&request.request).unwrap();
+    path.id = event.id;
+    path.ticket_instance_id = ticket.id;
+    let mut path2 = Path::<RedeemTicketPathParameters>::extract(&request.request).unwrap();
+    path2.id = event.id;
+    path2.ticket_instance_id = ticket.id;
 
     //First try when Redeem code is wrong
     let request_data = TicketRedeemRequest {
         redeem_key: "WrongKey".to_string(),
     };
 
-    let response: HttpResponse = tickets::redeem((
+    let response: HttpResponse = events::redeem_ticket((
         database.connection.clone().into(),
         path,
         Json(request_data),
@@ -91,32 +94,22 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
         request.extract_state(),
     )).into();
 
-    #[derive(Deserialize)]
-
-    struct R {
-        success: bool,
-        //message: Option<String>,
-    }
-
     if should_test_succeed {
-        let body = support::unwrap_body_to_string(&response).unwrap();
-        let ticket_response: R = serde_json::from_str(&body).unwrap();
-        assert_eq!(ticket_response.success, false);
+        assert_ne!(response.status(), StatusCode::OK);
         //Now try with redeem code being correct
         let request_data = TicketRedeemRequest {
             redeem_key: ticket.redeem_key.unwrap(),
         };
 
-        let response: HttpResponse = tickets::redeem((
+        let response: HttpResponse = events::redeem_ticket((
             database.connection.clone().into(),
             path2,
             Json(request_data),
             auth_user,
             request.extract_state(),
         )).into();
-        let body = support::unwrap_body_to_string(&response).unwrap();
-        let ticket_response: R = serde_json::from_str(&body).unwrap();
-        assert_eq!(ticket_response.success, true);
+
+        assert_eq!(response.status(), StatusCode::OK);
     } else {
         support::expects_unauthorized(&response);
     }

@@ -1,5 +1,5 @@
 use actix_web::State;
-use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
+use actix_web::{HttpResponse, Json, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -38,11 +38,6 @@ impl From<SearchParameters> for Paging {
             tags: default_tags,
         }
     }
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct TicketRedeemRequest {
-    pub redeem_key: String,
 }
 
 pub fn index(
@@ -106,50 +101,6 @@ pub fn show(
     };
 
     Ok(HttpResponse::Ok().json(&ticket_response))
-}
-
-pub fn redeem(
-    (connection, parameters, redeem_parameters, auth_user, state): (
-        Connection,
-        Path<PathParameters>,
-        Json<TicketRedeemRequest>,
-        User,
-        State<AppState>,
-    ),
-) -> Result<HttpResponse, BigNeonError> {
-    let connection = connection.get();
-    let (event, ticket) = TicketInstance::find_for_processing(parameters.id, connection)?;
-    let db_event = Event::find(event.id, connection)?;
-    let organization = db_event.organization(connection)?;
-    auth_user.requires_scope_for_organization(Scopes::TicketAdmin, &organization, connection)?;
-
-    let result =
-        TicketInstance::redeem_ticket(ticket.id, redeem_parameters.redeem_key.clone(), connection);
-
-    match result {
-        Ok(r) => match r {
-                RedeemResults::TicketRedeemSuccess => {
-                    //Redeem ticket on chain
-                    let asset = Asset::find(ticket.asset_id, connection)?;
-                    match asset.blockchain_asset_id {
-                        Some(a) => {
-                            let wallet = Wallet::find(ticket.wallet_id, connection)?;
-                            state.config.tari_client.modify_asset_redeem_token(&wallet.secret_key, &wallet.public_key,
-                                                                               &a,
-                                                                               vec![ticket.token_id as u64],
-                            )?;
-                            Ok(HttpResponse::Ok().json(json!({"success": true})))
-                        },
-                        None => Ok(HttpResponse::Ok().json(json!({"success": false, "message": "Could not complete this checkout because the asset has not been assigned on the blockchain.".to_string()}))),
-                    }
-                },
-                RedeemResults::TicketAlreadyRedeemed => Ok(HttpResponse::Ok().json(json!({"success": false, "message": "Ticket has already been redeemed.".to_string()}))),
-                RedeemResults::TicketInvalid => Ok(HttpResponse::Ok().json(json!({"success": false, "message": "Ticket is invalid.".to_string()}))),
-            },
-        Err(e) => Ok(HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
-            .into_builder()
-            .json(json!({"error": e.cause.unwrap_or("Tickets#Redeem: No cause listed".to_string()),}))),
-    }
 }
 
 pub fn show_redeemable_ticket(

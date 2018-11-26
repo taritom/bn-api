@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "691f386e-8a30-4636-bb38-207f59e11beb",
+		"_postman_id": "b488d522-5d81-4225-bc0b-5c6c13720201",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -5105,7 +5105,8 @@
 									"let json = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"tickets should be present\", function(){",
-									"    pm.expect(json.data.length).to.equal(7);",
+									"    let length = json.data.length;",
+									"    pm.expect(length).to.equal(7);",
 									"});"
 								],
 								"type": "text/javascript"
@@ -5267,71 +5268,6 @@
 							"path": [
 								"orders",
 								"{{last_order_id}}"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Redeeming",
-			"item": [
-				{
-					"name": "Admin - Get Guest List",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "d45f9b99-03d0-43cc-9394-ec61d6f955b3",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let json = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"7 guests should be present\", function(){",
-									"    pm.expect(json.data.length).to.equal(7);",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/guests?query=",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events",
-								"{{last_event_id}}",
-								"guests"
-							],
-							"query": [
-								{
-									"key": "query",
-									"value": ""
-								}
 							]
 						}
 					},
@@ -5823,6 +5759,200 @@
 			]
 		},
 		{
+			"name": "Redeeming",
+			"item": [
+				{
+					"name": "Admin - Get Guest List",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d45f9b99-03d0-43cc-9394-ec61d6f955b3",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"7 guests should be present\", function(){",
+									"    pm.expect(json.data.length).to.equal(7);",
+									"    pm.environment.set(\"last_ticket_instance_id\", json.data[0].id);",
+									"    pm.environment.set(\"last_ticket_instance_redeem_key\", json.data[0].redeem_key);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/guests?query=",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"guests"
+							],
+							"query": [
+								{
+									"key": "query",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Redeem Ticket",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d45f9b99-03d0-43cc-9394-ec61d6f955b3",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"pm.test(\"ID should be last_ticket_instance_id\", function() {",
+									"    pm.expect(json.id).to.equal(pm.environment.get(\"last_ticket_instance_id\"));",
+									"});",
+									"pm.test(\"Data should be an object and not have an error key\", function() {",
+									"    pm.expect(json).to.be.an('object');",
+									"    pm.expect(json.hasOwnProperty(\"error\")).to.equal(false);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"redeem_key\": \"{{last_ticket_instance_redeem_key}}\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/redeem/{{last_ticket_instance_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"redeem",
+								"{{last_ticket_instance_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Redeem Duplicate Ticket Should Fail",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d45f9b99-03d0-43cc-9394-ec61d6f955b3",
+								"exec": [
+									"pm.test(\"should be 409\", function() {",
+									"    pm.response.to.have.status(409);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"pm.test(\"Response should include error key\", function() {",
+									"    pm.expect(json).to.be.an(\"object\");",
+									"    pm.expect(json.error).to.be.an(\"string\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"redeem_key\": \"VYM6J848K\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/redeem/{{last_ticket_instance_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"redeem",
+								"{{last_ticket_instance_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "Dashboards",
 			"item": [
 				{
@@ -5863,14 +5993,14 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/events/5178bc3d-7fcb-487b-925f-8294f830bc4d/dashboard",
+							"raw": "http://{{server}}/events/{{last_event_id}}/dashboard",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
 								"events",
-								"5178bc3d-7fcb-487b-925f-8294f830bc4d",
+								"{{last_event_id}}",
 								"dashboard"
 							]
 						}

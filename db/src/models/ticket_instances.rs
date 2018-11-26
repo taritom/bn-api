@@ -75,6 +75,7 @@ impl TicketInstance {
 
     pub fn find_for_processing(
         id: Uuid,
+        event_id: Uuid,
         conn: &PgConnection,
     ) -> Result<(DisplayEvent, ProcessingTicket), DatabaseError> {
         let ticket_intermediary = ticket_instances::table
@@ -83,6 +84,7 @@ impl TicketInstance {
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
             .filter(ticket_instances::id.eq(id))
+            .filter(events::id.eq(event_id))
             .select((
                 ticket_instances::id,
                 ticket_instances::asset_id,
@@ -94,6 +96,7 @@ impl TicketInstance {
                 events::venue_id,
             )).first::<ProcessingTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
+
         let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
         Ok((event, ticket_intermediary.into()))
     }

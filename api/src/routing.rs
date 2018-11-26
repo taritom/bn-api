@@ -53,6 +53,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::DELETE).with(events::remove_interest);
     }).resource("/events/{id}/publish", |r| {
         r.method(Method::POST).with(events::publish);
+    }).resource("/events/{id}/redeem/{ticket_instance_id}", |r| {
+        r.method(Method::POST).with(events::redeem_ticket);
     }).resource("/events/{id}/tickets", |r| {
         r.method(Method::GET).with(tickets::index);
     }).resource("/events/{id}/ticket_types", |r| {
@@ -137,7 +139,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(tickets::index);
     }).resource("/tickets/{id}/redeem", |r| {
         r.method(Method::GET).with(tickets::show_redeemable_ticket);
-        r.method(Method::POST).with(tickets::redeem);
     }).resource("/users/me", |r| {
         r.method(Method::GET).with(users::current_user);
         r.method(Method::PUT).with(users::update_current_user);
