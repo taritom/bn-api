@@ -7,6 +7,7 @@ use log::Level;
 use models::*;
 use schema::{artists, event_artists, events, organization_users, organizations, venues};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use time::Duration;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -508,14 +509,29 @@ impl Event {
                 "Could not load calculate sales for event",
             )?;
 
+        let mut map = HashMap::<NaiveDate, R>::new();
+        for s in summary {
+            map.insert(s.date, s);
+        }
+
         let mut result = vec![];
 
-        for s in summary {
-            result.push(DayStats {
-                date: s.date,
-                sales: s.sales.unwrap_or(0),
-                tickets_sold: s.ticket_count.unwrap_or(0),
-            });
+        let n = n as i64;
+        for s in 0..=n {
+            let date = (Utc::today() - Duration::days(n - s)).naive_utc();
+
+            match map.get(&date) {
+                Some(s) => result.push(DayStats {
+                    date: s.date,
+                    sales: s.sales.unwrap_or(0),
+                    tickets_sold: s.ticket_count.unwrap_or(0),
+                }),
+                None => result.push(DayStats {
+                    date,
+                    sales: 0,
+                    tickets_sold: 0,
+                }),
+            }
         }
 
         Ok(result)
