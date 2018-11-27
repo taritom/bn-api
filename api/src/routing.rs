@@ -30,8 +30,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     }).resource("/events", |r| {
         r.method(Method::GET).with(events::index);
         r.method(Method::POST).with(events::create);
-    }).resource("/events/authority", |r| {
-        r.method(Method::GET).with(events::authority);
     }).resource("/events/{id}", |r| {
         r.method(Method::GET).with(events::show);
         r.method(Method::PUT).with(events::update);
