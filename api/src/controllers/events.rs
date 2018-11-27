@@ -61,14 +61,12 @@ impl From<SearchParameters> for Paging {
     }
 }
 
-
 /**
  * What events does this user have authority over
 **/
 pub fn authority(
     (_connection, _query, _auth_user): (Connection, Query<SearchParameters>, Option<User>),
 ) -> Result<HttpResponse, BigNeonError> {
-
     Ok(HttpResponse::Ok().finish())
 }
 
