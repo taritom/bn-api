@@ -1,10 +1,10 @@
 use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events;
-use bigneon_api::controllers::events::SearchParameters;
+use bigneon_api::controllers::events::*;
 use bigneon_api::models::{PathParameters, UserDisplayTicketType};
 use bigneon_db::models::*;
-use chrono::NaiveDateTime;
+use chrono::prelude::*;
 use diesel::PgConnection;
 use functional::base;
 use serde_json;
@@ -51,7 +51,7 @@ pub fn index() {
         data: expected_results,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
@@ -107,7 +107,7 @@ pub fn index_with_draft_for_organization_user() {
         data: expected_results,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
@@ -155,7 +155,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
         data: expected_results,
         paging: Paging {
             page: 0,
-            limit: 1,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 1,
@@ -214,7 +214,7 @@ pub fn index_search_with_filter() {
         data: expected_events,
         paging: Paging {
             page: 0,
-            limit: 1,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 1,
@@ -261,6 +261,27 @@ fn show() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);
+}
+
+#[cfg(test)]
+mod dashboard_tests {
+    use super::*;
+    #[test]
+    fn dashboard_org_member() {
+        base::events::dashboard(Roles::OrgMember, true);
+    }
+    #[test]
+    fn dashboard_admin() {
+        base::events::dashboard(Roles::Admin, true);
+    }
+    #[test]
+    fn dashboard_user() {
+        base::events::dashboard(Roles::User, false);
+    }
+    #[test]
+    fn dashboard_org_owner() {
+        base::events::dashboard(Roles::OrgOwner, true);
+    }
 }
 
 #[cfg(test)]
@@ -498,6 +519,68 @@ mod holds_tests {
 }
 
 #[test]
+fn dashboard_with_default_range() {
+    let database = TestDatabase::new();
+    let connection = &database.connection;
+    let user = database.create_user().finish();
+    let organization = database
+        .create_organization()
+        .with_fee_schedule(&database.create_fee_schedule().finish())
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+
+    // user purchases 10 tickets
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
+    assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
+    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}/dashboard?", event.id));
+    let query_parameters =
+        Query::<DashboardParameters>::from_request(&test_request.request, &()).unwrap();
+    let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path_parameters.id = event.id;
+
+    let response: HttpResponse = events::dashboard((
+        database.connection.clone().into(),
+        path_parameters,
+        query_parameters,
+        auth_user.clone(),
+    )).into();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let dashboard_result: DashboardResult = serde_json::from_str(&body).unwrap();
+    assert_eq!(dashboard_result.day_stats.len(), 30);
+    assert_eq!(
+        dashboard_result.day_stats[29],
+        DayStats {
+            date: Utc::now().naive_utc().date(),
+            revenue_in_cents: 1700,
+            ticket_sales: 10,
+        }
+    );
+}
+
+#[test]
 pub fn show_from_organizations_past() {
     let database = TestDatabase::new();
 
@@ -651,7 +734,7 @@ pub fn show_from_venues() {
         data: all_events,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,

@@ -1,6 +1,7 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use chrono::prelude::*;
+use chrono::Duration;
 use uuid::Uuid;
 
 #[test]
@@ -110,6 +111,123 @@ fn cancel() {
 
     let event = event.cancel(&project.get_connection()).unwrap();
     assert!(!event.cancelled_at.is_none());
+}
+
+#[test]
+fn get_sales_by_date_range() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+
+    // user purchases 10 tickets
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
+    assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
+    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+
+    // Other user does not checkout
+    let mut cart2 = Order::find_or_create_cart(&user2, connection).unwrap();
+    cart2
+        .update_quantities(
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 5,
+                redemption_code: None,
+            }],
+            connection,
+        ).unwrap();
+
+    // A day ago to today
+    let start_utc = Utc::now().naive_utc().date() - Duration::days(1);
+    let end_utc = Utc::now().naive_utc().date();
+    let results = event
+        .get_sales_by_date_range(start_utc, end_utc, connection)
+        .unwrap();
+    assert_eq!(results.len(), 2);
+    assert_eq!(
+        results,
+        vec![
+            DayStats {
+                date: start_utc,
+                revenue_in_cents: 0,
+                ticket_sales: 0,
+            },
+            DayStats {
+                date: end_utc,
+                revenue_in_cents: 1700,
+                ticket_sales: 10,
+            }
+        ]
+    );
+
+    // Just today
+    let start_utc = Utc::now().naive_utc().date();
+    let end_utc = Utc::now().naive_utc().date();
+    let results = event
+        .get_sales_by_date_range(start_utc, end_utc, connection)
+        .unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results,
+        vec![DayStats {
+            date: start_utc,
+            revenue_in_cents: 1700,
+            ticket_sales: 10,
+        }]
+    );
+    // Two days ago to yesterday
+    let start_utc = Utc::now().naive_utc().date() - Duration::days(2);
+    let end_utc = Utc::now().naive_utc().date() - Duration::days(1);
+    let results = event
+        .get_sales_by_date_range(start_utc, end_utc, connection)
+        .unwrap();
+    assert_eq!(results.len(), 2);
+    assert_eq!(
+        results,
+        vec![
+            DayStats {
+                date: start_utc,
+                revenue_in_cents: 0,
+                ticket_sales: 0,
+            },
+            DayStats {
+                date: end_utc,
+                revenue_in_cents: 0,
+                ticket_sales: 0,
+            }
+        ]
+    );
+
+    // Error as start date is not earlier than end date
+    let results = event.get_sales_by_date_range(end_utc, start_utc, connection);
+    assert!(results.is_err());
+    assert_eq!(
+        "Sales data start date must come before end date",
+        results.unwrap_err().cause.unwrap().to_string()
+    );
 }
 
 #[test]

@@ -26,7 +26,7 @@ pub struct TicketInstance {
     pub id: Uuid,
     pub asset_id: Uuid,
     pub token_id: i32,
-    hold_id: Option<Uuid>,
+    pub hold_id: Option<Uuid>,
     pub order_item_id: Option<Uuid>,
     pub wallet_id: Uuid,
     pub reserved_until: Option<NaiveDateTime>,

@@ -14,7 +14,11 @@ pub fn index(
         None => Venue::all(None, connection.get())?,
     };
 
-    Ok(HttpResponse::Ok().json(&Payload::new(venues, query_parameters.into_inner().into())))
+    Ok(HttpResponse::Ok().json(&Payload::from_data(
+        venues,
+        query_parameters.page(),
+        query_parameters.limit(),
+    )))
 }
 
 pub fn show(
@@ -42,7 +46,11 @@ pub fn show_from_organizations(
         None => Venue::find_for_organization(None, organization_id.id, connection.get())?,
     };
 
-    Ok(HttpResponse::Ok().json(&Payload::new(venues, query_parameters.into_inner().into())))
+    Ok(HttpResponse::Ok().json(&Payload::from_data(
+        venues,
+        query_parameters.page(),
+        query_parameters.limit(),
+    )))
 }
 
 pub fn create(

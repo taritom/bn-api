@@ -301,7 +301,7 @@ impl Event {
         )?;
 
         let mut paging = Paging::new(page, limit);
-        paging.total = total.remove(0).total as u32;
+        paging.total = total.remove(0).total as u64;
 
         let results = Event::find_summary_data(
             Some(organization_id),
@@ -471,12 +471,23 @@ impl Event {
         Ok(results)
     }
 
-    pub fn get_last_n_days_sales(
+    pub fn get_sales_by_date_range(
         &self,
-        n: u32,
+        start_utc: NaiveDate,
+        end_utc: NaiveDate,
         conn: &PgConnection,
     ) -> Result<Vec<DayStats>, DatabaseError> {
-        jlog!(Level::Debug, "Fetching last n days");
+        jlog!(
+            Level::Debug,
+            &format!("Fetching sales data by dates {} and {}", start_utc, end_utc)
+        );
+
+        if start_utc > end_utc {
+            return Err(DatabaseError::new(
+                ErrorCode::InternalError,
+                Some("Sales data start date must come before end date".to_string()),
+            ));
+        }
 
         let query = r#"
                 SELECT CAST(o.order_date as Date) as date,
@@ -486,7 +497,8 @@ impl Event {
                 INNER JOIN orders o ON oi.order_id = o.id
                 WHERE oi.event_id = $1
                 AND o.status = 'Paid'
-                AND o.order_date > $2
+                AND o.order_date >= $2
+                AND o.order_date <= $3
                 GROUP BY CAST(o.order_date as Date)
                 ORDER BY CAST(o.order_date as Date) desc
                 "#;
@@ -503,9 +515,9 @@ impl Event {
 
         let summary: Vec<R> = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(self.id)
-            .bind::<sql_types::Timestamp, NaiveDateTime>(
-                (Utc::now() - Duration::days(n as i64)).naive_utc(),
-            ).get_results(conn)
+            .bind::<sql_types::Timestamp, NaiveDateTime>(start_utc.and_hms(0, 0, 0))
+            .bind::<sql_types::Timestamp, NaiveDateTime>(end_utc.and_hms(23, 59, 59))
+            .get_results(conn)
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not load calculate sales for event",
@@ -517,21 +529,20 @@ impl Event {
         }
 
         let mut result = vec![];
-
-        let n = n as i64;
+        let n = end_utc.signed_duration_since(start_utc).num_days();
         for s in 0..=n {
-            let date = (Utc::today() - Duration::days(n - s)).naive_utc();
+            let date = start_utc + Duration::days(s);
 
             match map.get(&date) {
-                Some(s) => result.push(DayStats {
-                    date: s.date,
-                    sales: s.sales.unwrap_or(0),
-                    tickets_sold: s.ticket_count.unwrap_or(0),
+                Some(map_data) => result.push(DayStats {
+                    date: map_data.date,
+                    revenue_in_cents: map_data.sales.unwrap_or(0),
+                    ticket_sales: map_data.ticket_count.unwrap_or(0),
                 }),
                 None => result.push(DayStats {
                     date,
-                    sales: 0,
-                    tickets_sold: 0,
+                    revenue_in_cents: 0,
+                    ticket_sales: 0,
                 }),
             }
         }
@@ -728,7 +739,7 @@ pub struct DisplayEvent {
     pub video_url: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct EventSummaryResult {
     pub id: Uuid,
     pub name: String,
@@ -756,7 +767,7 @@ pub struct EventSummaryResult {
     pub ticket_types: Vec<EventSummaryResultTicketType>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, QueryableByName)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]
 pub struct EventSummaryResultTicketType {
     #[sql_type = "sql_types::Uuid"]
     pub(crate) event_id: Uuid,
@@ -780,9 +791,9 @@ pub struct EventSummaryResultTicketType {
     pub sales_total_in_cents: Option<i64>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct DayStats {
-    date: NaiveDate,
-    sales: i64,
-    tickets_sold: i64,
+    pub date: NaiveDate,
+    pub revenue_in_cents: i64,
+    pub ticket_sales: i64,
 }

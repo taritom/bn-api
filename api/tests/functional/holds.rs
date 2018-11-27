@@ -136,53 +136,6 @@ fn update_with_validation_errors() {
 }
 
 #[test]
-pub fn add_remove_from_hold_with_validation_errors() {
-    let database = TestDatabase::new();
-    let connection = database.connection.clone();
-    let user = database.create_user().finish();
-    let hold = database
-        .create_hold()
-        .with_hold_type(HoldTypes::Comp)
-        .finish();
-    // 4 comps exist for this hold so setting the quantity < 4 will trigger validation error
-    database
-        .create_comp()
-        .with_hold(&hold)
-        .with_quantity(4)
-        .finish();
-    let event = Event::find(hold.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
-    assert_eq!(hold.quantity(&connection).unwrap(), (10, 10));
-
-    let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = hold.id;
-
-    let json = Json(UpdateHoldRequest {
-        quantity: Some(3),
-        ..Default::default()
-    });
-    let response: HttpResponse =
-        holds::update((database.connection.into(), json, path, auth_user)).into();
-
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-    assert!(response.error().is_some());
-
-    let validation_response = support::validation_response_from_response(&response).unwrap();
-    let quantity = validation_response.fields.get("quantity").unwrap();
-    assert_eq!(
-        quantity[0].code,
-        "assigned_comp_count_greater_than_quantity"
-    );
-    assert_eq!(
-        &quantity[0].message.clone().unwrap().into_owned(),
-        "Existing comp total quantity greater than new quantity"
-    );
-}
-
-#[test]
 pub fn read_hold() {
     let database = TestDatabase::new();
     let organization = database.create_organization().finish();
@@ -221,7 +174,7 @@ pub fn read_hold() {
         auth_user.clone(),
     )).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let created_hold: Hold = serde_json::from_str(body).unwrap();
+    let created_hold: DisplayHold = serde_json::from_str(body).unwrap();
 
     let mut hold_path = Path::<PathParameters>::extract(&test_request.request).unwrap();
 

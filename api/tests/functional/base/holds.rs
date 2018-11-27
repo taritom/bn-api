@@ -46,10 +46,9 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
-        let hold: Hold = serde_json::from_str(&body).unwrap();
+        let hold: DisplayHold = serde_json::from_str(&body).unwrap();
         assert_eq!(hold.name, name);
         assert_eq!(hold.redemption_code, redemption_code);
-        assert_eq!(hold.hold_type, hold_type.to_string());
         assert_eq!(hold.discount_in_cents, Some(10));
     } else {
         support::expects_unauthorized(&response);

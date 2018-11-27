@@ -39,3 +39,35 @@ where
             .body(body))
     }
 }
+
+pub struct WebResult<T>(StatusCode, T);
+
+impl<T> WebResult<T> {
+    pub fn new(code: StatusCode, data: T) -> WebResult<T> {
+        WebResult(code, data)
+    }
+
+    pub fn status(&self) -> StatusCode {
+        self.0
+    }
+
+    pub fn data(&self) -> &T {
+        &self.1
+    }
+}
+
+impl<T> Responder for WebResult<T>
+where
+    T: Serialize,
+{
+    type Item = HttpResponse;
+    type Error = Error;
+
+    fn respond_to<S>(self, _req: &HttpRequest<S>) -> Result<HttpResponse, Error> {
+        let body = serde_json::to_string(&self.1)?;
+        Ok(HttpResponse::new(self.0)
+            .into_builder()
+            .content_type("application/json")
+            .body(body))
+    }
+}

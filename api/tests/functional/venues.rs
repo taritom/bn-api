@@ -51,7 +51,7 @@ fn index_with_org_linked_and_private_venues() {
         data: expected_venues.clone(),
         paging: Paging {
             page: 0,
-            limit: 3,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 3,
@@ -89,7 +89,7 @@ fn index_with_org_linked_and_private_venues() {
         data: expected_venues,
         paging: Paging {
             page: 0,
-            limit: 4,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 4,
@@ -308,7 +308,7 @@ pub fn show_from_organizations_private_venue_same_org() {
         data: all_venues,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,

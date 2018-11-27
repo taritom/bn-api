@@ -60,7 +60,7 @@ fn add_tickets() {
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.calculate_quantity(connection), Ok(10));
     assert_eq!(
-        order_item.unit_price_in_cents,
+        order_item.unit_price_in_cents(),
         ticket_pricing.price_in_cents
     );
 
@@ -68,9 +68,10 @@ fn add_tickets() {
         FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents * 10
+        fee_item.unit_price_in_cents(),
+        fee_schedule_range.fee_in_cents
     );
+    assert_eq!(fee_item.quantity, 10);
 
     // Add some more
     cart.update_quantities(
@@ -194,7 +195,7 @@ fn remove_tickets() {
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 10);
     assert_eq!(
-        order_item.unit_price_in_cents,
+        order_item.unit_price_in_cents(),
         ticket_pricing.price_in_cents
     );
 
@@ -202,9 +203,10 @@ fn remove_tickets() {
         FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents * 10
+        fee_item.unit_price_in_cents(),
+        fee_schedule_range.fee_in_cents
     );
+    assert_eq!(fee_item.quantity, 10);
 
     // Remove tickets
     assert!(
@@ -224,14 +226,15 @@ fn remove_tickets() {
         .unwrap();
     assert_eq!(order_item.quantity, 6);
     assert_eq!(
-        order_item.unit_price_in_cents,
+        order_item.unit_price_in_cents(),
         ticket_pricing.price_in_cents
     );
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents * 6
+        fee_item.unit_price_in_cents(),
+        fee_schedule_range.fee_in_cents
     );
+    assert_eq!(fee_item.quantity, 6);
 
     cart.update_quantities(
         &[UpdateOrderItem {

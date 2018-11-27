@@ -7,7 +7,7 @@ use uuid::Uuid;
 pub struct CompBuilder<'a> {
     name: String,
     hold_id: Option<Uuid>,
-    quantity: u16,
+    quantity: u32,
     connection: &'a PgConnection,
 }
 
@@ -32,12 +32,12 @@ impl<'a> CompBuilder<'a> {
         self
     }
 
-    pub fn with_quantity(mut self, quantity: u16) -> Self {
+    pub fn with_quantity(mut self, quantity: u32) -> Self {
         self.quantity = quantity;
         self
     }
 
-    pub fn finish(mut self) -> Comp {
+    pub fn finish(mut self) -> Hold {
         if self.hold_id.is_none() {
             self.hold_id = Some(
                 HoldBuilder::new(self.connection)
@@ -46,9 +46,18 @@ impl<'a> CompBuilder<'a> {
                     .id,
             );
         }
+        let x: u16 = random();
 
-        Comp::create(self.name, self.hold_id.unwrap(), None, None, self.quantity)
-            .commit(self.connection)
-            .unwrap()
+        Hold::create_comp_for_person(
+            self.name,
+            self.hold_id.unwrap(),
+            Some("email@test.com".to_string()),
+            None,
+            format!("REDEEEEEMTPION{}", x),
+            None,
+            None,
+            self.quantity,
+            self.connection,
+        ).unwrap()
     }
 }

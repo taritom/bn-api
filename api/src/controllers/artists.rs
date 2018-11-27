@@ -51,7 +51,7 @@ pub fn index(
 ) -> Result<HttpResponse, BigNeonError> {
     let db_user = user.map(|u| u.user);
     let artists = Artist::search(&db_user, query_parameters.get_tag("q"), connection.get())?;
-    let payload = Payload::new(artists, query_parameters.into_inner().into());
+    let payload = Payload::from_data(artists, query_parameters.page(), query_parameters.limit());
     Ok(HttpResponse::Ok().json(&payload))
 }
 
@@ -122,7 +122,7 @@ pub fn show_from_organizations(
         }
         None => Artist::find_for_organization(None, organization_id.id, connection.get())?,
     };
-    let payload = Payload::new(artists, query_parameters.into_inner().into());
+    let payload = Payload::from_data(artists, query_parameters.page(), query_parameters.limit());
     Ok(HttpResponse::Ok().json(&payload))
 }
 

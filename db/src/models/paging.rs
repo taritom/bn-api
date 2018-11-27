@@ -9,7 +9,7 @@ pub struct Paging {
     pub limit: u32,
     pub sort: String,
     pub dir: SortingDir,
-    pub total: u32,
+    pub total: u64,
     pub tags: HashMap<String, Value>,
 }
 
@@ -61,14 +61,24 @@ pub struct Payload<T> {
 
 impl<T> Payload<T> {
     pub fn new(data: Vec<T>, paging_query: Paging) -> Payload<T> {
-        let mut payload = Payload {
+        let payload = Payload {
             data,
             paging: paging_query,
         };
-        let total = payload.data.len() as u32;
-        payload.paging.total = total;
 
-        payload.paging.limit = total;
+        payload
+    }
+
+    pub fn from_data(data: Vec<T>, page: u32, limit: u32) -> Payload<T> {
+        let len = data.len() as u64;
+
+        let mut payload = Payload {
+            data,
+            paging: Paging::new(page, limit),
+        };
+
+        payload.paging.total = len;
+
         payload
     }
 
@@ -79,6 +89,10 @@ impl<T> Payload<T> {
         };
         payload.paging.total = 0;
         payload
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data.len() == 0
     }
 }
 

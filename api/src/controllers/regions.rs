@@ -11,7 +11,11 @@ pub fn index(
     //TODO refactor query using paging parameters
     let regions = Region::all(connection.get())?;
 
-    Ok(HttpResponse::Ok().json(&Payload::new(regions, query_parameters.into_inner().into())))
+    Ok(HttpResponse::Ok().json(&Payload::from_data(
+        regions,
+        query_parameters.page(),
+        query_parameters.limit(),
+    )))
 }
 
 pub fn show(

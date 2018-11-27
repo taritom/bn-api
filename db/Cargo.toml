@@ -21,6 +21,7 @@ name="main"
 harness=false
 
 [dependencies]
+backtrace = "0.2"
 diesel = { version = "1.3", features = ["postgres", "uuid", "chrono","numeric", "serde_json"] }
 dotenv = "0.13"
 rand = "0.5"

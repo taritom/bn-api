@@ -42,15 +42,15 @@ pub fn index(role: Roles) {
     let response: HttpResponse =
         organizations::index((database.connection.into(), query_parameters, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let counter = expected_organizations.len() as u32;
+    let counter = expected_organizations.len();
     let wrapped_expected_orgs = Payload {
         data: expected_organizations,
         paging: Paging {
             page: 0,
-            limit: counter,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
-            total: counter,
+            total: counter as u64,
             tags: HashMap::new(),
         },
     };
@@ -126,15 +126,15 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
-    let counter = expected_organizations.len() as u32;
+    let counter = expected_organizations.len();
     let wrapped_expected_orgs = Payload {
         data: expected_organizations,
         paging: Paging {
             page: 0,
-            limit: counter,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
-            total: counter,
+            total: counter as u64,
             tags: HashMap::new(),
         },
     };
@@ -401,10 +401,10 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
         data: organization_members,
         paging: Paging {
             page: 0,
-            limit: count as u32,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
-            total: count as u32,
+            total: count as u64,
             tags: HashMap::new(),
         },
     };

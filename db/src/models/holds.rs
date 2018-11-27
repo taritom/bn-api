@@ -1,22 +1,20 @@
 use chrono::prelude::*;
 use diesel;
-use diesel::dsl::{self, select};
+use diesel::dsl;
 use diesel::prelude::*;
-use diesel::sql_types::{Text, Uuid as dUuid};
 use models::*;
 use schema::holds;
-use std::borrow::Cow;
-use utils::errors::{self, *};
+use utils::errors::*;
 use uuid::Uuid;
+use validator::Validate;
 use validator::*;
 use validators::{self, *};
-
-sql_function!(fn hold_can_change_type(id: dUuid, hold_type: Text) -> Bool);
 
 #[derive(Clone, Deserialize, Identifiable, Queryable, Serialize, PartialEq, Debug)]
 pub struct Hold {
     pub id: Uuid,
     pub name: String,
+    pub parent_hold_id: Option<Uuid>,
     pub event_id: Uuid,
     pub redemption_code: String,
     pub discount_in_cents: Option<i64>,
@@ -24,23 +22,30 @@ pub struct Hold {
     pub max_per_order: Option<i64>,
     pub hold_type: String,
     pub ticket_type_id: Uuid,
+    pub email: Option<String>,
+    pub phone: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(AsChangeset, Default)]
+#[derive(AsChangeset, Default, Validate)]
 #[table_name = "holds"]
 pub struct UpdateHoldAttributes {
     pub name: Option<String>,
     pub redemption_code: Option<String>,
     pub hold_type: Option<String>,
     pub discount_in_cents: Option<Option<i64>>,
+    #[validate(email(message = "Email is invalid"))]
+    pub email: Option<Option<String>>,
+    pub phone: Option<Option<String>>,
     pub end_at: Option<Option<NaiveDateTime>>,
     pub max_per_order: Option<Option<i64>>,
 }
 
 impl Hold {
-    pub fn create(
+    /// Constructor for creating a simple hold that is accessible via a redemption code. For
+    /// creating a comp, use `create_comp_for_person`.
+    pub fn create_hold(
         name: String,
         event_id: Uuid,
         redemption_code: String,
@@ -52,7 +57,10 @@ impl Hold {
     ) -> NewHold {
         NewHold {
             name,
+            parent_hold_id: None,
             event_id,
+            email: None,
+            phone: None,
             redemption_code: redemption_code.to_uppercase(),
             discount_in_cents: discount_in_cents.and_then(|discount| Some(discount as i64)),
             end_at,
@@ -62,30 +70,49 @@ impl Hold {
         }
     }
 
-    fn hold_has_comps_in_use(
-        id: Uuid,
-        hold_type: String,
+    /// Creates a `quantity` of tickets in a hold (comp) for a person. `name` should
+    /// be the name of the person, but does not have to be. For creating a simple hold,
+    /// use `create_hold`.
+    pub fn create_comp_for_person(
+        name: String,
+        hold_id: Uuid,
+        email: Option<String>,
+        phone: Option<String>,
+        redemption_code: String,
+        end_at: Option<NaiveDateTime>,
+        max_per_order: Option<u32>,
+        quantity: u32,
         conn: &PgConnection,
-    ) -> Result<Result<(), ValidationError>, DatabaseError> {
-        if hold_type == HoldTypes::Comp.to_string() {
-            return Ok(Ok(()));
-        }
+    ) -> Result<Hold, DatabaseError> {
+        let hold = Hold::find(hold_id, conn)?;
 
-        let result = select(hold_can_change_type(id, hold_type))
-            .get_result::<bool>(conn)
-            .to_db_error(
-                errors::ErrorCode::UpdateError,
-                "Could not confirm if hold has used comps",
-            )?;
-        if !result {
-            let mut validation_error =
-                create_validation_error("comps_in_use", "Hold has comps used by order items");
-            validation_error.add_param(Cow::from("hold_id"), &id);
-            return Ok(Err(validation_error));
-        }
-        Ok(Ok(()))
+        let new_hold = NewHold {
+            name,
+            parent_hold_id: Some(hold_id),
+            event_id: hold.event_id,
+            email,
+            phone,
+            redemption_code: redemption_code.to_uppercase(),
+            discount_in_cents: None,
+            end_at,
+            max_per_order: max_per_order.map(|m| m as i64),
+            hold_type: HoldTypes::Comp.to_string(),
+            ticket_type_id: hold.ticket_type_id,
+        };
+
+        let new_hold = new_hold.commit(conn)?;
+
+        new_hold.set_quantity(quantity, conn)?;
+
+        Ok(new_hold)
     }
 
+    pub fn hold_type(&self) -> HoldTypes {
+        self.hold_type.parse().unwrap()
+    }
+
+    /// Updates a hold. Note, the quantity in the hold must be updated using
+    /// `set_quantity`.
     pub fn update(
         &self,
         update_attrs: UpdateHoldAttributes,
@@ -95,12 +122,6 @@ impl Hold {
         if update_attrs.hold_type == Some(HoldTypes::Comp.to_string()) {
             // Remove discount
             update_attrs.discount_in_cents = Some(None);
-        }
-
-        self.validate_record(&update_attrs, conn)?;
-        if update_attrs.hold_type == Some(HoldTypes::Comp.to_string()) {
-            // Passes validation so safe to destroy remaining unused comps
-            Comp::destroy_from_hold(self.id, conn)?;
         }
 
         self.validate_record(&update_attrs, conn)?;
@@ -121,9 +142,51 @@ impl Hold {
             .to_db_error(ErrorCode::QueryError, "Could not retrieve hold")
     }
 
+    pub fn find_by_parent_id(
+        parent_id: Uuid,
+        hold_type: HoldTypes,
+        page: u32,
+        limit: u32,
+        conn: &PgConnection,
+    ) -> Result<Payload<Hold>, DatabaseError> {
+        let total: i64 = holds::table
+            .filter(
+                holds::hold_type
+                    .eq(hold_type.to_string())
+                    .and(holds::parent_hold_id.eq(parent_id)),
+            ).count()
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not get total holds for parent hold",
+            )?;
+
+        let paging = Paging::new(page, limit);
+        let mut payload = Payload::new(
+            holds::table
+                .filter(
+                    holds::hold_type
+                        .eq(hold_type.to_string())
+                        .and(holds::parent_hold_id.eq(parent_id)),
+                ).order_by(holds::name)
+                .limit(limit as i64)
+                .offset((page * limit) as i64)
+                .load(conn)
+                .to_db_error(ErrorCode::QueryError, "Could not retrieve holds")?,
+            paging,
+        );
+
+        // TODO: remove this when other structs implement paging
+        payload.paging.total = total as u64;
+        payload.paging.page = page;
+        payload.paging.limit = limit;
+        Ok(payload)
+    }
+
     pub fn find_for_event(event_id: Uuid, conn: &PgConnection) -> Result<Vec<Hold>, DatabaseError> {
         holds::table
             .filter(holds::event_id.eq(event_id))
+            .order_by(holds::name.asc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve holds for event")
     }
@@ -134,19 +197,7 @@ impl Hold {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         let validation_errors = validators::append_validation_error(
-            Ok(()),
-            "hold_type",
-            Hold::hold_has_comps_in_use(
-                self.id,
-                update_attrs
-                    .hold_type
-                    .clone()
-                    .unwrap_or(self.hold_type.clone()),
-                conn,
-            )?,
-        );
-        let validation_errors = validators::append_validation_error(
-            validation_errors,
+            update_attrs.validate(),
             "discount_in_cents",
             Hold::discount_in_cents_valid(
                 update_attrs
@@ -175,6 +226,12 @@ impl Hold {
         Ok(validation_errors?)
     }
 
+    /// Creates a new hold, dividing the quantity in the calling hold (`self`). This is done so that
+    /// there isn't a time where the tickets return to the main pool, or the parent hold and are
+    /// reserved in between creation of the new hold. Note that the new hold created will have the
+    /// same `parent_hold_id` as `self` (the original hold) and not `self`, as might be expected.
+    /// If tickets are released from this new hold, or the original hold, they will be returned
+    /// to the parent hold, being either the main pool or the parent hold in `parent_hold_id`.
     pub fn split(
         &self,
         name: String,
@@ -186,16 +243,21 @@ impl Hold {
         max_per_order: Option<u32>,
         conn: &PgConnection,
     ) -> Result<Hold, DatabaseError> {
-        let new_hold = Hold::create(
+        let new_hold = NewHold {
             name,
-            self.event_id,
-            redemption_code,
-            discount_in_cents,
+            parent_hold_id: self.parent_hold_id,
+            event_id: self.event_id,
+            email: None,
+            phone: None,
+            redemption_code: redemption_code.to_uppercase(),
+            discount_in_cents: discount_in_cents.map(|m| m as i64),
             end_at,
-            max_per_order,
-            hold_type,
-            self.ticket_type_id,
-        ).commit(conn)?;
+            max_per_order: max_per_order.map(|m| m as i64),
+            hold_type: hold_type.to_string(),
+            ticket_type_id: self.ticket_type_id,
+        };
+
+        let new_hold = new_hold.commit(conn)?;
 
         TicketInstance::add_to_hold(
             new_hold.id,
@@ -207,20 +269,16 @@ impl Hold {
         Ok(new_hold)
     }
 
+    /// Deletes a hold by first setting the quantity to 0 and then deleting the record. If there
+    /// are other holds that reference this hold via `parent_hold_id`, a `DatabaseError` with
+    /// `ErrorCode::ForeignKeyError` will be returned.
     pub fn destroy(self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        // Validate if hold eligible for deletion
-        validators::append_validation_error(
-            Ok(()),
-            "hold_type",
-            Hold::hold_has_comps_in_use(self.id, "".to_string(), conn)?,
-        )?;
-
-        Comp::destroy_from_hold(self.id, conn)?;
         self.set_quantity(0, conn)?;
 
         diesel::delete(holds::table.filter(holds::id.eq(self.id)))
             .execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Could not delete hold")?;
+
         Ok(())
     }
 
@@ -237,56 +295,41 @@ impl Hold {
         Ok(())
     }
 
+    /// Changes the quantity of tickets reserved in this hold. If the quantity is
+    /// higher, it will attempt to reserve more tickets from either the main pool,
+    /// or from the parent hold if `parent_hold_id` is not `None`. Likewise, if the
+    /// quantity is lower, it will release the reserved tickets back to either the
+    /// main pool or the parent hold.
     pub fn set_quantity(&self, quantity: u32, conn: &PgConnection) -> Result<(), DatabaseError> {
-        // Validate logic is not releasing already assigned comps
-        if self.hold_type == HoldTypes::Comp.to_string() && self.comps_sum(conn)? > quantity {
-            let mut validation_error = create_validation_error(
-                "assigned_comp_count_greater_than_quantity",
-                "Existing comp total quantity greater than new quantity",
-            );
-            validation_error.add_param(Cow::from("hold_id"), &self.id);
-
-            validators::append_validation_error(Ok(()), "quantity", Err(validation_error))?;
-        }
-
         let (count, _available) = self.quantity(conn)?;
         if count < quantity {
             TicketInstance::add_to_hold(
                 self.id,
                 self.ticket_type_id,
                 quantity - count,
-                None,
+                self.parent_hold_id,
                 conn,
             )?;
         }
         if count > quantity {
-            TicketInstance::release_from_hold(
-                self.id,
-                self.ticket_type_id,
-                count - quantity,
-                conn,
-            )?;
+            if self.parent_hold_id.is_some() {
+                TicketInstance::add_to_hold(
+                    self.parent_hold_id.unwrap(),
+                    self.ticket_type_id,
+                    count - quantity,
+                    Some(self.id),
+                    conn,
+                )?;
+            } else {
+                TicketInstance::release_from_hold(
+                    self.id,
+                    self.ticket_type_id,
+                    count - quantity,
+                    conn,
+                )?;
+            }
         }
         Ok(())
-    }
-
-    pub fn comps_sum(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
-        if self.hold_type == HoldTypes::Comp.to_string() {
-            Comp::sum_for_hold(self.id, conn)
-        } else {
-            Ok(0)
-        }
-    }
-
-    pub fn comps(&self, conn: &PgConnection) -> Result<Vec<Comp>, DatabaseError> {
-        if self.hold_type == HoldTypes::Comp.to_string() {
-            Comp::find_for_hold(self.id, conn)
-        } else {
-            Err(DatabaseError::new(
-                ErrorCode::InternalError,
-                Some("Comps only exist for holds with Comp hold_type".to_string()),
-            ))
-        }
     }
 
     pub fn quantity(&self, conn: &PgConnection) -> Result<(u32, u32), DatabaseError> {
@@ -318,13 +361,39 @@ impl Hold {
                 "Could not load hold with that redeem key",
             )
     }
+
+    pub fn into_display(self, conn: &PgConnection) -> Result<DisplayHold, DatabaseError> {
+        let (quantity, available) = self.quantity(conn)?;
+
+        Ok(DisplayHold {
+            id: self.id,
+            name: self.name,
+            parent_hold_id: self.parent_hold_id,
+            event_id: self.event_id,
+            redemption_code: self.redemption_code,
+            discount_in_cents: self.discount_in_cents,
+            max_per_order: self.max_per_order,
+            email: self.email,
+            phone: self.phone,
+            available,
+            quantity,
+        })
+    }
+
+    pub fn comps(&self, conn: &PgConnection) -> Result<Vec<Hold>, DatabaseError> {
+        Ok(Hold::find_by_parent_id(self.id, HoldTypes::Comp, 0, 100000, conn)?.data)
+    }
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Validate)]
 #[table_name = "holds"]
 pub struct NewHold {
     pub name: String,
+    pub parent_hold_id: Option<Uuid>,
     pub event_id: Uuid,
+    #[validate(email(message = "Email is invalid"))]
+    pub email: Option<String>,
+    pub phone: Option<String>,
     pub redemption_code: String,
     pub discount_in_cents: Option<i64>,
     pub end_at: Option<NaiveDateTime>,
@@ -347,7 +416,7 @@ impl NewHold {
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let validation_errors = validators::append_validation_error(
-            Ok(()),
+            self.validate(),
             "discount_in_cents",
             Hold::discount_in_cents_valid(self.hold_type.clone(), self.discount_in_cents),
         );
@@ -364,4 +433,19 @@ impl NewHold {
 
         Ok(validation_errors?)
     }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct DisplayHold {
+    pub id: Uuid,
+    pub parent_hold_id: Option<Uuid>,
+    pub name: String,
+    pub event_id: Uuid,
+    pub redemption_code: String,
+    pub discount_in_cents: Option<i64>,
+    pub max_per_order: Option<i64>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub available: u32,
+    pub quantity: u32,
 }

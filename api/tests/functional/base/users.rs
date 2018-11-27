@@ -51,7 +51,7 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
             data: vec![expected_data],
             paging: Paging {
                 page: 0,
-                limit: 1,
+                limit: 100,
                 sort: "".to_string(),
                 dir: SortingDir::Asc,
                 total: 1,

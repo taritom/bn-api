@@ -31,7 +31,7 @@ fn index() {
         data: expected_regions,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,

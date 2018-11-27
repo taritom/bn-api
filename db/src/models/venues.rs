@@ -304,7 +304,7 @@ impl From<Venue> for DisplayVenue {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct VenueInfo {
     pub id: Uuid,
     pub name: String,

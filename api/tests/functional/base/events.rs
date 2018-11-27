@@ -4,6 +4,7 @@ use bigneon_api::controllers::events::*;
 use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use chrono::prelude::*;
+use chrono::Duration;
 use serde_json;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -177,7 +178,7 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     secondary_users.sort_by_key(|x| x.user_id); //Sort results for testing purposes
                                                 //Construct api query
     let page: usize = 0;
-    let limit: usize = 10;
+    let limit: usize = 100;
     let test_request = TestRequest::create_with_uri(&format!(
         "/interest?page={}&limit={}",
         page.to_string(),
@@ -195,12 +196,12 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     )).into();
     let response_body = support::unwrap_body_to_string(&response).unwrap();
     //Construct expected output
-    let len = secondary_users.len() as u32;
+    let len = secondary_users.len() as u64;
     let wrapped_expected_date = Payload {
         data: secondary_users,
         paging: Paging {
             page: 0,
-            limit: 5,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: len,
@@ -308,6 +309,83 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
     }
 }
 
+pub fn dashboard(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = &database.connection;
+    let user = database.create_user().finish();
+    let organization = database
+        .create_organization()
+        .with_fee_schedule(&database.create_fee_schedule().finish())
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+
+    // user purchases 10 tickets
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        connection,
+    ).unwrap();
+    assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
+    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+
+    let start_utc = Utc::now().naive_utc().date() - Duration::days(1);
+    let end_utc = Utc::now().naive_utc().date();
+
+    let test_request = TestRequest::create_with_uri(&format!(
+        "/events/{}/dashboard?start_utc={:?}&end_utc={:?}",
+        event.id, start_utc, end_utc
+    ));
+    let query_parameters =
+        Query::<DashboardParameters>::from_request(&test_request.request, &()).unwrap();
+    let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path_parameters.id = event.id;
+
+    let response: HttpResponse = events::dashboard((
+        database.connection.clone().into(),
+        path_parameters,
+        query_parameters,
+        auth_user.clone(),
+    )).into();
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = support::unwrap_body_to_string(&response).unwrap();
+        let dashboard_result: DashboardResult = serde_json::from_str(&body).unwrap();
+        assert_eq!(dashboard_result.day_stats.len(), 2);
+        assert_eq!(
+            dashboard_result.day_stats,
+            vec![
+                DayStats {
+                    date: start_utc,
+                    revenue_in_cents: 0,
+                    ticket_sales: 0,
+                },
+                DayStats {
+                    date: end_utc,
+                    revenue_in_cents: 1700,
+                    ticket_sales: 10,
+                }
+            ]
+        );
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
 pub fn guest_list(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
@@ -402,7 +480,7 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
         data: all_discounts,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
@@ -432,8 +510,16 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         .with_ticket_pricing()
         .finish();
 
-    let hold = database.create_hold().with_event(&event).finish();
-    let hold2 = database.create_hold().with_event(&event).finish();
+    let hold = database
+        .create_hold()
+        .with_name("Hold 1".to_string())
+        .with_event(&event)
+        .finish();
+    let hold2 = database
+        .create_hold()
+        .with_name("Hold 2".to_string())
+        .with_event(&event)
+        .finish();
 
     #[derive(Serialize)]
     struct R {
@@ -497,7 +583,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         data: all_holds,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
