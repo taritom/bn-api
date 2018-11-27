@@ -2,6 +2,7 @@ use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
+use chrono::Duration;
 use db::Connection;
 use errors::*;
 use models::{PathParameters, RedeemTicketPathParameters, UserDisplayTicketType, WebPayload};
@@ -335,23 +336,40 @@ pub fn show_from_organizations(
     Ok(WebPayload::new(StatusCode::OK, events))
 }
 
+#[derive(Deserialize)]
+pub struct DashboardParameters {
+    start_utc: Option<NaiveDate>, // Defaults to 29 days ago if not provided
+    end_utc: Option<NaiveDate>,   // Defaults to today if not provided
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct DashboardResult {
+    pub event: EventSummaryResult,
+    pub day_stats: Vec<DayStats>,
+}
+
 pub fn dashboard(
-    (connection, path, user): (Connection, Path<PathParameters>, User),
+    (connection, path, query, user): (
+        Connection,
+        Path<PathParameters>,
+        Query<DashboardParameters>,
+        User,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::EventWrite, &event.organization(conn)?, conn)?;
     let summary = event.summary(conn)?;
-    let last_30_days = event.get_last_n_days_sales(30, conn)?;
+    let start_utc = query
+        .start_utc
+        .unwrap_or(Utc::now().naive_utc().date() - Duration::days(29));
+    let end_utc = query.end_utc.unwrap_or(Utc::now().naive_utc().date());
 
-    #[derive(Serialize)]
-    struct R {
-        event: EventSummaryResult,
-        last_30_days: Vec<DayStats>,
-    }
-    Ok(HttpResponse::Ok().json(R {
+    let day_stats = event.get_sales_by_date_range(start_utc, end_utc, conn)?;
+
+    Ok(HttpResponse::Ok().json(DashboardResult {
         event: summary,
-        last_30_days,
+        day_stats,
     }))
 }
 
