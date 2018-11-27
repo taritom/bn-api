@@ -864,7 +864,7 @@ fn event_venue_entry(event: &Event, venue: &Venue) -> EventVenueEntry {
         age_limit: event.age_limit,
         cancelled_at: event.cancelled_at,
         venue: Some(venue.clone()),
-        min_ticket_price: event.min_ticket_price_cache.clone(),
-        max_ticket_price: event.max_ticket_price_cache.clone(),
+        min_ticket_price: event.min_ticket_price.clone(),
+        max_ticket_price: event.max_ticket_price.clone(),
     }
 }

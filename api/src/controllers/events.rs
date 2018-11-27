@@ -136,8 +136,8 @@ pub fn index(
             top_line_info: event.top_line_info,
             age_limit: event.age_limit,
             cancelled_at: event.cancelled_at,
-            min_ticket_price: event.min_ticket_price_cache,
-            max_ticket_price: event.max_ticket_price_cache,
+            min_ticket_price: event.min_ticket_price,
+            max_ticket_price: event.max_ticket_price,
         });
         results
     });
@@ -231,8 +231,8 @@ pub fn show(
         ticket_types: display_ticket_types,
         total_interest,
         user_is_interested: user_interest,
-        min_ticket_price: event.min_ticket_price_cache,
-        max_ticket_price: event.max_ticket_price_cache,
+        min_ticket_price: event.min_ticket_price,
+        max_ticket_price: event.max_ticket_price,
     }))
 }
 

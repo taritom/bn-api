@@ -39,8 +39,10 @@ pub struct Event {
     pub top_line_info: Option<String>,
     pub cancelled_at: Option<NaiveDateTime>,
     pub updated_at: NaiveDateTime,
-    pub min_ticket_price_cache: Option<i64>,
-    pub max_ticket_price_cache: Option<i64>,
+    #[column_name = "min_ticket_price_cache"]
+    pub min_ticket_price: Option<i64>,
+    #[column_name = "max_ticket_price_cache"]
+    pub max_ticket_price: Option<i64>,
     pub video_url: Option<String>,
 }
 
@@ -715,8 +717,8 @@ impl Event {
             additional_info: self.additional_info,
             top_line_info: self.top_line_info,
             venue,
-            max_ticket_price_cache: None,
-            min_ticket_price_cache: None,
+            max_ticket_price: self.max_ticket_price,
+            min_ticket_price: self.min_ticket_price,
             video_url: self.video_url,
         })
     }
@@ -732,8 +734,8 @@ pub struct DisplayEvent {
     pub additional_info: Option<String>,
     pub top_line_info: Option<String>,
     pub venue: Option<DisplayVenue>,
-    pub min_ticket_price_cache: Option<i64>,
-    pub max_ticket_price_cache: Option<i64>,
+    pub min_ticket_price: Option<i64>,
+    pub max_ticket_price: Option<i64>,
     pub video_url: Option<String>,
 }
 
