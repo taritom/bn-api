@@ -61,3 +61,9 @@ impl ResponseError for BigNeonError {
         self.0.to_response()
     }
 }
+
+impl BigNeonError {
+    pub fn into_inner(&self) -> &ConvertToWebError {
+        self.0.as_ref()
+    }
+}

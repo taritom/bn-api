@@ -50,20 +50,6 @@ table! {
 }
 
 table! {
-    comps (id) {
-        id -> Uuid,
-        name -> Text,
-        phone -> Nullable<Text>,
-        email -> Nullable<Text>,
-        hold_id -> Uuid,
-        quantity -> Int4,
-        redemption_code -> Text,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     domain_events (id) {
         id -> Uuid,
         event_type -> Text,
@@ -160,6 +146,7 @@ table! {
     holds (id) {
         id -> Uuid,
         name -> Text,
+        parent_hold_id -> Nullable<Uuid>,
         event_id -> Uuid,
         redemption_code -> Text,
         discount_in_cents -> Nullable<Int8>,
@@ -167,6 +154,8 @@ table! {
         max_per_order -> Nullable<Int8>,
         hold_type -> Text,
         ticket_type_id -> Uuid,
+        email -> Nullable<Text>,
+        phone -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -187,7 +176,6 @@ table! {
         fee_schedule_range_id -> Nullable<Uuid>,
         parent_id -> Nullable<Uuid>,
         hold_id -> Nullable<Uuid>,
-        comp_id -> Nullable<Uuid>,
         code_id -> Nullable<Uuid>,
     }
 }
@@ -404,7 +392,6 @@ table! {
 joinable!(artists -> organizations (organization_id));
 joinable!(assets -> ticket_types (ticket_type_id));
 joinable!(codes -> events (event_id));
-joinable!(comps -> holds (hold_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
 joinable!(event_interest -> events (event_id));
@@ -416,7 +403,6 @@ joinable!(fee_schedule_ranges -> fee_schedules (fee_schedule_id));
 joinable!(holds -> events (event_id));
 joinable!(holds -> ticket_types (ticket_type_id));
 joinable!(order_items -> codes (code_id));
-joinable!(order_items -> comps (comp_id));
 joinable!(order_items -> events (event_id));
 joinable!(order_items -> fee_schedule_ranges (fee_schedule_range_id));
 joinable!(order_items -> holds (hold_id));
@@ -448,7 +434,6 @@ allow_tables_to_appear_in_same_query!(
     artists,
     assets,
     codes,
-    comps,
     domain_events,
     event_artists,
     event_interest,

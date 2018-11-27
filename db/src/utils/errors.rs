@@ -1,3 +1,4 @@
+use backtrace::Backtrace;
 use diesel::result::ConnectionError;
 use diesel::result::DatabaseErrorKind;
 use diesel::result::Error as DieselError;
@@ -27,6 +28,7 @@ pub enum ErrorCode {
     ValidationError {
         errors: HashMap<&'static str, Vec<ValidationError>>,
     },
+    ForeignKeyError,
     ParseError,
     Unknown,
     MultipleResultsWhenOneExpected,
@@ -61,7 +63,11 @@ pub fn get_error_message(code: &ErrorCode) -> (i32, String) {
         BusinessProcessError => (7000, "Business Process error".to_string()),
         ConcurrencyError => (7100, "Concurrency error".to_string()),
         ValidationError { errors: _ } => (7200, "Validation failed:".to_string()),
-        ParseError => (7300, "Parse failed:".to_string()),
+        ForeignKeyError => (
+            7300,
+            "Could not delete record because there are other entities referencing it".to_string(),
+        ),
+        ParseError => (7400, "Parse failed:".to_string()),
         // Try not to use this error
         Unknown => (10, "Unknown database error".to_string()),
     }
@@ -156,11 +162,22 @@ impl DatabaseError {
                     Some(format!("{}, {}", message, e.to_string())),
                 )),
                 DieselError::DatabaseError(kind, _) => {
-                    println!("PG Database error:{}", e.to_string());
+                    let current_backtrace = Backtrace::new();
+                    println!(
+                        "PG error {} {} {:?}",
+                        message,
+                        e.to_string(),
+                        current_backtrace
+                    );
+
                     match kind {
                         DatabaseErrorKind::UniqueViolation => Err(DatabaseError::new(
                             ErrorCode::DuplicateKeyError,
                             Some(format!("{}, {}", message, e.to_string())),
+                        )),
+                        DatabaseErrorKind::ForeignKeyViolation => Err(DatabaseError::new(
+                            ErrorCode::ForeignKeyError,
+                            Some(format!("{} {}", message, e.to_string())),
                         )),
                         _ => Err(DatabaseError::new(
                             error_code,
@@ -169,7 +186,14 @@ impl DatabaseError {
                     }
                 }
                 _ => {
-                    println!("PG Database error:{}", e.to_string());
+                    let current_backtrace = Backtrace::new();
+                    println!(
+                        "PG error {} {} {:?}",
+                        message,
+                        e.to_string(),
+                        current_backtrace
+                    );
+
                     Err(DatabaseError::new(
                         error_code,
                         Some(format!("{}, {}", message, e.to_string())),

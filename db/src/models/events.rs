@@ -299,7 +299,7 @@ impl Event {
         )?;
 
         let mut paging = Paging::new(page, limit);
-        paging.total = total.remove(0).total as u32;
+        paging.total = total.remove(0).total as u64;
 
         let results = Event::find_summary_data(
             Some(organization_id),

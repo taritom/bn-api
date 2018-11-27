@@ -11,6 +11,7 @@ use models::*;
 use schema::{order_items, orders, users};
 use serde_json;
 use std::borrow::Cow;
+use std::cmp;
 use std::collections::HashMap;
 use time::Duration;
 use utils::errors::{self, *};
@@ -73,6 +74,35 @@ impl Order {
             "Failed to delete order record",
             diesel::delete(self).execute(conn),
         )
+    }
+
+    pub(crate) fn destroy_item(
+        &self,
+        item_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if self.status()? != OrderStatus::Draft {
+            return DatabaseError::business_process_error(
+                "Cannot delete an order item for an order that is not in draft",
+            );
+        }
+
+        // delete children order items
+        diesel::delete(order_items::table.filter(order_items::parent_id.eq(item_id)))
+            .execute(conn)
+            .map(|_| ())
+            .to_db_error(
+                errors::ErrorCode::DeleteError,
+                "Could not delete child order item",
+            )?;
+
+        diesel::delete(order_items::table.filter(order_items::id.eq(item_id)))
+            .execute(conn)
+            .map(|_| ())
+            .to_db_error(
+                errors::ErrorCode::DeleteError,
+                "Could not delete order item",
+            )
     }
 
     pub fn status(&self) -> Result<OrderStatus, EnumParseError> {
@@ -177,15 +207,15 @@ impl Order {
         let mut mapped = vec![];
         for (index, item) in items.iter().enumerate() {
             mapped.push(match &item.redemption_code {
-                Some(r) => {
-                    let hold = Hold::find_by_redemption_code(r, conn)
-                        .optional()?
-                        .map(|h| h.id);
-                    let comp = Comp::find_by_redemption_code(r, conn)
-                        .optional()?
-                        .map(|c| c.id);
-                    (index, hold, comp, item)
-                }
+                Some(r) => match Hold::find_by_redemption_code(r, conn).optional()? {
+                    Some(hold) => (index, Some(hold.id), Some(hold), item),
+                    None => {
+                        return DatabaseError::validation_error(
+                            "redemption_code",
+                            "Redemption code is not valid",
+                        )
+                    }
+                },
                 None => (index, None, None, item),
             });
         }
@@ -200,20 +230,19 @@ impl Order {
                 let matching_result: Vec<&(
                     usize,
                     Option<Uuid>,
-                    Option<Uuid>,
+                    Option<Hold>,
                     &UpdateOrderItem,
                 )> = mapped
                     .iter()
-                    .filter(|i| {
-                        Some(i.3.ticket_type_id) == current_line.ticket_type_id
-                            && i.1 == current_line.hold_id
-                            && i.2 == current_line.comp_id
+                    .filter(|(_, hold_id, _, item)| {
+                        Some(item.ticket_type_id) == current_line.ticket_type_id
+                            && *hold_id == current_line.hold_id
                     }).collect();
                 let matching_result = matching_result.first();
 
                 if let Some(matching_result) = matching_result {
                     jlog!(Level::Debug, "Found an existing cart item, replacing");
-                    let (index, hold_id, comp_id, mut matching_line) = matching_result;
+                    let (index, hold_id, hold, mut matching_line) = matching_result;
                     index_to_remove = Some(*index);
                     if current_line.quantity as u32 > matching_line.quantity {
                         jlog!(Level::Debug, "Reducing quantity of cart item");
@@ -226,7 +255,7 @@ impl Order {
                         current_line.update(conn)?;
                         if current_line.quantity == 0 {
                             jlog!(Level::Debug, "Cart item has 0 quantity, deleting it");
-                            OrderItem::destroy(current_line.id, conn)?;
+                            self.destroy_item(current_line.id, conn)?;
                         }
                     } else if (current_line.quantity as u32) < matching_line.quantity {
                         jlog!(Level::Debug, "Increasing quantity of cart item");
@@ -246,10 +275,23 @@ impl Order {
                         });
 
                         // TODO: Move this to an external processer
-                        let fee_schedule_range = ticket_type
-                            .fee_schedule(conn)?
-                            .get_range(ticket_pricing.price_in_cents, conn)?;
+
                         if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
+                            let mut price_in_cents = ticket_pricing.price_in_cents;
+                            if let Some(h) = hold.as_ref() {
+                                let discount = h.discount_in_cents;
+                                let hold_type = h.hold_type();
+                                price_in_cents = match hold_type {
+                                    HoldTypes::Discount => {
+                                        cmp::max(0, price_in_cents - discount.unwrap_or(0))
+                                    }
+                                    HoldTypes::Comp => 0,
+                                }
+                            }
+                            let fee_schedule_range = ticket_type
+                                .fee_schedule(conn)?
+                                .get_range(price_in_cents, conn)?;
+
                             let order_item = NewTicketsOrderItem {
                                 order_id: self.id,
                                 item_type: OrderItemTypes::Tickets.to_string(),
@@ -258,8 +300,7 @@ impl Order {
                                 ticket_pricing_id: ticket_pricing.id,
                                 event_id: Some(ticket_type.event_id),
                                 fee_schedule_range_id: fee_schedule_range.id,
-                                unit_price_in_cents: ticket_pricing.price_in_cents,
-                                comp_id: *comp_id,
+                                unit_price_in_cents: price_in_cents,
                                 hold_id: *hold_id,
                                 code_id: None,
                             }.commit(conn)?;
@@ -291,7 +332,7 @@ impl Order {
             }
         }
 
-        for (_, hold_id, comp_id, new_line) in mapped {
+        for (_, hold_id, hold, new_line) in mapped {
             jlog!(Level::Debug, "Adding new cart items");
             let ticket_pricing =
                 TicketPricing::get_current_ticket_pricing(new_line.ticket_type_id, conn)?;
@@ -303,6 +344,15 @@ impl Order {
                 event_id: ticket_type.event_id.clone(),
             });
 
+            let mut price_in_cents = ticket_pricing.price_in_cents;
+            if let Some(h) = hold.as_ref() {
+                let discount = h.discount_in_cents;
+                let hold_type = h.hold_type();
+                price_in_cents = match hold_type {
+                    HoldTypes::Discount => cmp::max(0, price_in_cents - discount.unwrap_or(0)),
+                    HoldTypes::Comp => 0,
+                }
+            }
             // TODO: Move this to an external processer
             let fee_schedule_range = ticket_type
                 .fee_schedule(conn)?
@@ -315,9 +365,8 @@ impl Order {
                 ticket_pricing_id: ticket_pricing.id,
                 event_id: Some(ticket_type.event_id),
                 fee_schedule_range_id: fee_schedule_range.id,
-                unit_price_in_cents: ticket_pricing.price_in_cents,
-                comp_id,
-                hold_id,
+                unit_price_in_cents: price_in_cents,
+                hold_id: hold_id,
                 code_id: None,
             }.commit(conn)?;
 
@@ -384,22 +433,32 @@ impl Order {
 
         for o in items {
             match o.item_type()? {
-                OrderItemTypes::EventFees => OrderItem::destroy(o.id, conn)?,
+                OrderItemTypes::EventFees => self.destroy_item(o.id, conn)?,
                 _ => {}
             }
         }
-        for (event_id, items) in self
+        for ((event_id, hold_id), items) in self
             .items(conn)?
             .iter()
             .filter(|i| i.event_id.is_some())
-            .group_by(|i| i.event_id)
+            .group_by(|i| (i.event_id, i.hold_id))
             .into_iter()
         {
+            if event_id.is_none() {
+                continue;
+            }
+            if hold_id.is_some() {
+                let hold = Hold::find(hold_id.unwrap(), conn)?;
+                if hold.hold_type() == HoldTypes::Comp {
+                    continue;
+                }
+            }
+
             let event = Event::find(event_id.unwrap(), conn)?;
             let organization = Organization::find(event.organization_id, conn)?;
             for o in items {
                 match o.item_type()? {
-                    OrderItemTypes::Tickets => o.update_fees(conn)?,
+                    OrderItemTypes::Tickets => o.update_fees(&self, conn)?,
                     _ => {}
                 }
             }
@@ -527,6 +586,28 @@ impl Order {
         conn: &PgConnection,
     ) -> Result<OrderItem, DatabaseError> {
         OrderItem::find_in_order(self.id, cart_item_id, conn)
+    }
+
+    pub fn find_item_by_type(
+        &self,
+        ticket_type_id: Uuid,
+        item_type: OrderItemTypes,
+        conn: &PgConnection,
+    ) -> Result<OrderItem, DatabaseError> {
+        let items = self.items(conn)?;
+        let mut order_item: Vec<OrderItem> = items
+            .into_iter()
+            .filter(|i| {
+                i.ticket_type_id == Some(ticket_type_id) && i.item_type == item_type.to_string()
+            }).collect();
+
+        match order_item.pop() {
+            Some(o) => Ok(o),
+            None => Err(DatabaseError::new(
+                ErrorCode::NoResults,
+                Some("Could not find item".to_string()),
+            )),
+        }
     }
 
     pub fn add_external_payment(
@@ -709,7 +790,7 @@ impl Order {
         let mut total = 0;
 
         for item in &order_items {
-            total += item.unit_price_in_cents * item.quantity;
+            total += item.unit_price_in_cents() * item.quantity;
         }
 
         Ok(total)

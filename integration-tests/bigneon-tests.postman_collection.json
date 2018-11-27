@@ -1,5 +1,6 @@
 {
 	"info": {
+
 		"_postman_id": "b488d522-5d81-4225-bc0b-5c6c13720201",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -1142,13 +1143,12 @@
 					"response": []
 				},
 				{
-					"name": "Admin - search for events",
+					"name": "Admin - search for events - Upcoming",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
@@ -1160,7 +1160,8 @@
 									"pm.test(\"should be one result\", function(){",
 									"    pm.expect(r.data.length).to.equal(1);",
 									"})"
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -1182,7 +1183,7 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/events",
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/events?past_or_upcoming=upcoming",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
@@ -1191,6 +1192,186 @@
 								"organizations",
 								"{{last_org_id}}",
 								"events"
+							],
+							"query": [
+								{
+									"key": "past_or_upcoming",
+									"value": "upcoming"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - search for events - Past - No results",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should be empty\", function(){",
+									"    pm.expect(r.data.length).to.equal(0);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/events?past_or_upcoming=past",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"organizations",
+								"{{last_org_id}}",
+								"events"
+							],
+							"query": [
+								{
+									"key": "past_or_upcoming",
+									"value": "past"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin  - Create Event in Past",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2018-11-13T12:00:00\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - search for events - Past",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should be one result\", function(){",
+									"    pm.expect(r.data.length).to.equal(1);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/events?past_or_upcoming=Past",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"organizations",
+								"{{last_org_id}}",
+								"events"
+							],
+							"query": [
+								{
+									"key": "past_or_upcoming",
+									"value": "Past"
+								}
 							]
 						}
 					},
@@ -2439,7 +2620,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Event Comp Tickets\",\n\t\"hold_type\":\"Comp\",\n\t\"redemption_code\" : \"Comps{{$timestamp}}\",\n\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\"quantity\" : 30\n\t\n}"
+							"raw": "{\n\t\"name\":\"Event Comp Tickets{{$timestamp}}\",\n\t\"hold_type\":\"Comp\",\n\t\"redemption_code\" : \"Comps{{$timestamp}}\",\n\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\"quantity\" : 30\n\t\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/holds",
@@ -2474,7 +2655,6 @@
 									"    pm.expect(json.name).to.equal(\"Michael Davidson\");",
 									"    pm.expect(json.phone).to.equal(\"111-111-1111\");",
 									"    pm.expect(json.email).to.equal(\"michael-davidson@tari.com\");",
-									"    pm.expect(json.quantity).to.equal(15);",
 									"});"
 								],
 								"type": "text/javascript"
@@ -2511,7 +2691,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\": \"Michael Davidson\",\n\t\"email\": \"michael-davidson@tari.com\",\n\t\"phone\":\"111-111-1111\",\n\t\"quantity\": 15\n}"
+							"raw": "{\n\t\"name\": \"Michael Davidson\",\n\t\"email\": \"michael-davidson@tari.com\",\n\t\"phone\":\"111-111-1111\",\n\t\"quantity\": 15,\n\t\"redemption_code\": \"MIKETIX{{$timestamp}}\"\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps",
@@ -2644,14 +2824,12 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"raw": "http://{{server}}/comps/{{last_comp_id}}",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
-								"holds",
-								"{{last_hold_id}}",
 								"comps",
 								"{{last_comp_id}}"
 							]
@@ -2695,7 +2873,7 @@
 								}
 							]
 						},
-						"method": "PUT",
+						"method": "PATCH",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -2707,14 +2885,12 @@
 							"raw": "{\n\t\"name\": \"Michael Robinson\",\n\t\"email\": \"michael-robinson@tari.com\",\n\t\"phone\":\"222-222-2222\",\n\t\"quantity\": 5\n}"
 						},
 						"url": {
-							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"raw": "http://{{server}}/comps/{{last_comp_id}}",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
-								"holds",
-								"{{last_hold_id}}",
 								"comps",
 								"{{last_comp_id}}"
 							]
@@ -2770,14 +2946,12 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"raw": "http://{{server}}/comps/{{last_comp_id}}",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
-								"holds",
-								"{{last_hold_id}}",
 								"comps",
 								"{{last_comp_id}}"
 							]
@@ -2825,14 +2999,12 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"raw": "http://{{server}}/comps/{{last_comp_id}}",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
-								"holds",
-								"{{last_hold_id}}",
 								"comps",
 								"{{last_comp_id}}"
 							]
@@ -2879,14 +3051,12 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/holds/{{last_hold_id}}/comps/{{last_comp_id}}",
+							"raw": "http://{{server}}/comps/{{last_comp_id}}",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
-								"holds",
-								"{{last_hold_id}}",
 								"comps",
 								"{{last_comp_id}}"
 							]
@@ -2949,6 +3119,264 @@
 								"holds",
 								"{{last_hold_id}}",
 								"comps"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - create comp hold",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0936a8c3-977f-412b-95de-f9ab1abd5203",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.environment.set(\"last_hold_id\", r.id);",
+									"",
+									"pm.environment.set(\"last_redemption_code\", r.redemption_code);",
+									"",
+									"pm.test(\"quantity should be correct\", function() {",
+									"    pm.expect(r.quantity).to.equal(30);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\":\"Event Comp Tickets{{$timestamp}}\",\n\t\"hold_type\":\"Comp\",\n\t\"redemption_code\" : \"Comps{{$timestamp}}\",\n\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\"quantity\" : 30\n\t\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/holds",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"holds"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - register and login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"pm.test(\"should have token response\", function() {",
+									"\tlet json = JSON.parse(responseBody);",
+									"\tpm.expect(json).to.have.property(\"access_token\");",
+									"\tpm.expect(json).to.have.property(\"refresh_token\");",
+									"});",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.environment.set(\"user_token\", json.access_token);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+								"exec": [
+									"",
+									"pm.environment.set(\"last_email\", \"mike\" + (new Date()).getTime() + \"@tari.com\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"first_name\":\"Mike\",\n\t\"last_name\":\"Surname\",\n\t\"email\":\"{{last_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/users",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - add to cart - redemption code",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "aadca825-5dbc-4d09-8fb8-6b9d7cbe9350",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.environment.set(\"last_cart_id\", json.cart_id);",
+									"",
+									"pm.test(\"tickets should be present\", function(){",
+									"    pm.expect(json.items[0].item_type).to.equal(\"Tickets\");",
+									"    pm.expect(json.items[0].quantity).to.equal(30);",
+									"    pm.expect(json.items[0].unit_price_in_cents).to.equal(0);",
+									"    ",
+									"    pm.expect(json.items[0].redemption_code).to.equal(pm.environment.get(\"last_redemption_code\"));",
+									"   ",
+									"});",
+									"",
+									"pm.test(\"should have no per item or event fees\", function(){",
+									"    pm.expect(json.items.length).to.equal(1);",
+									"  ",
+									"});",
+									"",
+									"pm.test(\"total should be correct\", function() {",
+									"    pm.expect(json.total_in_cents).to.equal(0);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"redemption_code\": \"{{last_redemption_code}}\",\n\"quantity\":30\n}]}"
+						},
+						"url": {
+							"raw": "http://{{server}}/cart",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"cart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - add to cart - redemption code - too many fails",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "aadca825-5dbc-4d09-8fb8-6b9d7cbe9350",
+								"exec": [
+									"pm.test(\"should be 422\", function() {",
+									"    pm.response.to.have.status(422);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.environment.set(\"last_cart_id\", json.cart_id);",
+									"",
+									"pm.test(\"error should be present\", function(){",
+									"    pm.expect(json.fields.quantity[0].code).to.equal(\"Could not reserve the correct amount of tickets\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"redemption_code\": \"{{last_redemption_code}}\",\n\"quantity\":31\n}]}"
+						},
+						"url": {
+							"raw": "http://{{server}}/cart",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"cart"
 							]
 						}
 					},
@@ -3284,8 +3712,8 @@
 									"",
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
-									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(20);",
+									"     pm.expect(json.items[1].quantity).to.equal(2);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(10);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -3413,8 +3841,8 @@
 									"",
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
-									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(40);",
+									"    pm.expect(json.items[1].quantity).to.equal(4);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(10);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -3491,8 +3919,8 @@
 									"",
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
-									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(40);",
+									"    pm.expect(json.items[0].quantity).to.equal(4);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(10);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -3570,7 +3998,7 @@
 									"",
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
-									"    ",
+									"    pm.expect(json.items[0].quantity).to.equal(1);",
 									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(10);",
 									"});",
 									"",
@@ -3649,7 +4077,7 @@
 									"",
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
-									"    ",
+									"    pm.expect(json.items[0].quantity).to.equal(1);",
 									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(10);",
 									"});",
 									"",
@@ -4048,8 +4476,8 @@
 									"",
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
-									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(20);",
+									"    pm.expect(json.items[0].quantity).to.equal(2);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(10);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -4123,8 +4551,8 @@
 									"",
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
-									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(20);",
+									"    pm.expect(json.items[0].quantity).to.equal(2);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(10);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -4629,8 +5057,8 @@
 									"",
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
-									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(20);",
+									"    pm.expect(json.items[0].quantity).to.equal(2);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(10);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",
@@ -4925,8 +5353,8 @@
 									"",
 									"pm.test(\"fees should be present\", function(){",
 									"    pm.expect(json.items[1].item_type).to.equal(\"PerUnitFees\");",
-									"    ",
-									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(20);",
+									"    pm.expect(json.items[0].quantity).to.equal(2);",
+									"    pm.expect(json.items[1].unit_price_in_cents).to.equal(10);",
 									"});",
 									"",
 									"pm.test(\"fees should be present\", function(){",

@@ -25,7 +25,7 @@ pub fn index(role: Roles, should_succeed: bool) {
         data: expected_venues,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
@@ -214,7 +214,7 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
         data: all_venues,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,

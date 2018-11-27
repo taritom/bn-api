@@ -55,9 +55,10 @@ pub fn index(
     //TODO remap query to use paging info
     let organizations = Organization::all_linked_to_user(user.id(), connection.get())?;
 
-    Ok(HttpResponse::Ok().json(&Payload::new(
+    Ok(HttpResponse::Ok().json(&Payload::from_data(
         organizations,
-        query_parameters.into_inner().into(),
+        query_parameters.page(),
+        query_parameters.limit(),
     )))
 }
 
@@ -68,9 +69,10 @@ pub fn index_for_all_orgs(
     let connection = connection.get();
     let organizations = Organization::all(connection)?;
 
-    Ok(HttpResponse::Ok().json(&Payload::new(
+    Ok(HttpResponse::Ok().json(&Payload::from_data(
         organizations,
-        query_parameters.into_inner().into(),
+        query_parameters.page(),
+        query_parameters.limit(),
     )))
 }
 
@@ -231,9 +233,8 @@ pub fn list_organization_members(
         .iter()
         .map(|u| DisplayUser::from(u.clone()))
         .collect();
-    let query_parameters = query_parameters.into_inner().into();
     members[0].is_org_owner = true;
-    let payload = Payload::new(members, query_parameters);
+    let payload = Payload::from_data(members, query_parameters.page(), query_parameters.limit());
     Ok(HttpResponse::Ok().json(payload))
 }
 

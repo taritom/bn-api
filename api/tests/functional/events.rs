@@ -51,7 +51,7 @@ pub fn index() {
         data: expected_results,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
@@ -107,7 +107,7 @@ pub fn index_with_draft_for_organization_user() {
         data: expected_results,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
@@ -155,7 +155,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
         data: expected_results,
         paging: Paging {
             page: 0,
-            limit: 1,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 1,
@@ -214,7 +214,7 @@ pub fn index_search_with_filter() {
         data: expected_events,
         paging: Paging {
             page: 0,
-            limit: 1,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 1,
@@ -651,7 +651,7 @@ pub fn show_from_venues() {
         data: all_events,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,

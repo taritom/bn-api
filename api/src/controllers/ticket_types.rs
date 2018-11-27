@@ -156,7 +156,7 @@ pub fn index(
         )?);
     }
     payload.paging.limit = payload.data.len() as u32;
-    payload.paging.total = payload.data.len() as u32;
+    payload.paging.total = payload.data.len() as u64;
 
     Ok(HttpResponse::Ok().json(&payload))
 }

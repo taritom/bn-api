@@ -27,6 +27,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(codes::show);
         r.method(Method::PUT).with(codes::update);
         r.method(Method::DELETE).with(codes::destroy);
+    }).resource("/comps/{id}", |r| {
+        r.method(Method::GET).with(comps::show);
+        r.method(Method::PATCH).with(comps::update);
+        r.method(Method::DELETE).with(comps::destroy);
     }).resource("/events", |r| {
         r.method(Method::GET).with(events::index);
         r.method(Method::POST).with(events::create);
@@ -71,10 +75,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             .with(organization_invites::accept_request);
         r.method(Method::DELETE)
             .with(organization_invites::decline_request);
-    }).resource("/holds/{hold_id}/comps/{comp_id}", |r| {
-        r.method(Method::GET).with(comps::show);
-        r.method(Method::PUT).with(comps::update);
-        r.method(Method::DELETE).with(comps::destroy);
     }).resource("/holds/{id}/comps", |r| {
         r.method(Method::GET).with(comps::index);
         r.method(Method::POST).with(comps::create);

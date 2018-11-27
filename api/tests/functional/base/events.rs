@@ -177,7 +177,7 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     secondary_users.sort_by_key(|x| x.user_id); //Sort results for testing purposes
                                                 //Construct api query
     let page: usize = 0;
-    let limit: usize = 10;
+    let limit: usize = 100;
     let test_request = TestRequest::create_with_uri(&format!(
         "/interest?page={}&limit={}",
         page.to_string(),
@@ -195,12 +195,12 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     )).into();
     let response_body = support::unwrap_body_to_string(&response).unwrap();
     //Construct expected output
-    let len = secondary_users.len() as u32;
+    let len = secondary_users.len() as u64;
     let wrapped_expected_date = Payload {
         data: secondary_users,
         paging: Paging {
             page: 0,
-            limit: 5,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: len,
@@ -402,7 +402,7 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
         data: all_discounts,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
@@ -432,8 +432,16 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         .with_ticket_pricing()
         .finish();
 
-    let hold = database.create_hold().with_event(&event).finish();
-    let hold2 = database.create_hold().with_event(&event).finish();
+    let hold = database
+        .create_hold()
+        .with_name("Hold 1".to_string())
+        .with_event(&event)
+        .finish();
+    let hold2 = database
+        .create_hold()
+        .with_name("Hold 2".to_string())
+        .with_event(&event)
+        .finish();
 
     #[derive(Serialize)]
     struct R {
@@ -497,7 +505,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         data: all_holds,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,

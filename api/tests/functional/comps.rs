@@ -1,6 +1,8 @@
+use actix_web::error::ResponseError;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
 use bigneon_api::controllers::comps::{self, NewCompRequest};
-use bigneon_api::models::{CompPathParameters, PathParameters};
+use bigneon_api::controllers::holds::UpdateHoldRequest;
+use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use functional::base;
 use support;
@@ -134,18 +136,20 @@ fn create_with_validation_errors() {
         name: name.clone(),
         email: email.clone(),
         phone: None,
-        quantity: quantity,
+        quantity,
+        redemption_code: "OHHHYEAAAH".to_string(),
+        end_at: None,
+        max_per_order: None,
     });
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = hold.id;
 
-    let response: HttpResponse =
-        comps::create((database.connection.into(), json, path, auth_user)).into();
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-    assert!(response.error().is_some());
+    let response = comps::create((database.connection.into(), json, path, auth_user));
+    let err = response.err().unwrap();
 
+    let response: HttpResponse = err.error_response();
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let email = validation_response.fields.get("email").unwrap();
     assert_eq!(email[0].code, "email");
@@ -161,20 +165,18 @@ fn update_with_validation_errors() {
     let connection = database.connection.clone();
     let user = database.create_user().finish();
     let comp = database.create_comp().finish();
-    let hold = Hold::find(comp.hold_id, &connection).unwrap();
-    let event = Event::find(hold.event_id, &connection).unwrap();
+    let event = Event::find(comp.event_id, &connection).unwrap();
     let organization = event.organization(&connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
-    let email = "invalid";
-    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["hold_id", "comp_id"]);
-    let mut path = Path::<CompPathParameters>::extract(&test_request.request).unwrap();
-    path.hold_id = hold.id;
-    path.comp_id = comp.id;
+    let email = "invalid".to_string();
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id"]);
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = comp.id;
 
-    let json = Json(UpdateCompAttributes {
-        email: Some(email.into()),
+    let json = Json(UpdateHoldRequest {
+        email: Some(Some(email)),
         ..Default::default()
     });
 

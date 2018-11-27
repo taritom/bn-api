@@ -140,7 +140,9 @@ pub fn index(
         });
         results
     });
-    let payload = Payload::new(results, query.into());
+    let mut payload = Payload::new(results, query.into());
+    payload.paging.total = payload.data.len() as u64;
+    payload.paging.limit = 100;
     Ok(HttpResponse::Ok().json(&payload))
 }
 
@@ -361,7 +363,7 @@ pub fn show_from_venues(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let events = Event::find_all_events_for_venue(&venue_id.id, connection.get())?;
-    let payload = Payload::new(events, query_parameters.into_inner().into());
+    let payload = Payload::from_data(events, query_parameters.page(), query_parameters.limit());
     Ok(HttpResponse::Ok().json(&payload))
 }
 
@@ -582,8 +584,10 @@ pub fn codes(
 
     //TODO: remap query to use paging info
     let codes = Code::find_for_event(path.id, code_type, conn)?;
+    let mut payload = Payload::from_data(codes, query.page(), query.limit());
+    payload.paging.tags = query.tags.clone();
 
-    Ok(HttpResponse::Ok().json(Payload::new(codes, query.into_inner().into())))
+    Ok(HttpResponse::Ok().json(payload))
 }
 
 pub fn holds(
@@ -638,5 +642,5 @@ pub fn holds(
         list.push(r);
     }
 
-    Ok(HttpResponse::Ok().json(Payload::new(list, query.into_inner().into())))
+    Ok(HttpResponse::Ok().json(Payload::from_data(list, query.page(), query.limit())))
 }

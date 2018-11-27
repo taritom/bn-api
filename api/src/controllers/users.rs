@@ -83,9 +83,10 @@ pub fn list_organizations(
     //TODO implement proper paging on db.
     let organization_links = Organization::all_org_names_linked_to_user(parameters.id, connection)?;
 
-    Ok(HttpResponse::Ok().json(&Payload::new(
+    Ok(HttpResponse::Ok().json(&Payload::from_data(
         organization_links,
-        query_parameters.into_inner().into(),
+        query_parameters.page(),
+        query_parameters.limit(),
     )))
 }
 

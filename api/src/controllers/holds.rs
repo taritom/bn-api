@@ -29,6 +29,14 @@ pub struct UpdateHoldRequest {
     pub quantity: Option<u32>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub discount_in_cents: Option<Option<i64>>,
+
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub email: Option<Option<String>>,
+
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub phone: Option<Option<String>>,
+
+    #[serde(default, deserialize_with = "double_option::deserialize")]
     pub end_at: Option<Option<NaiveDateTime>>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub max_per_order: Option<Option<i64>>,
@@ -42,6 +50,8 @@ impl From<UpdateHoldRequest> for UpdateHoldAttributes {
                 .hold_type
                 .and_then(|hold_type| Some(hold_type.to_string())),
             discount_in_cents: attributes.discount_in_cents,
+            email: attributes.email,
+            phone: attributes.phone,
             end_at: attributes.end_at,
             max_per_order: attributes.max_per_order,
             redemption_code: attributes.redemption_code,
@@ -63,7 +73,7 @@ pub fn create(
     let event = Event::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::HoldWrite, &event.organization(conn)?, conn)?;
 
-    let hold = Hold::create(
+    let hold = Hold::create_hold(
         req.name.clone(),
         path.id,
         req.redemption_code.clone(),
@@ -76,7 +86,38 @@ pub fn create(
 
     hold.set_quantity(req.quantity, conn)?;
 
-    application::created(json!(hold))
+    #[derive(Serialize)]
+    struct R {
+        pub id: Uuid,
+        pub name: String,
+        pub event_id: Uuid,
+        pub redemption_code: String,
+        pub discount_in_cents: Option<i64>,
+        pub end_at: Option<NaiveDateTime>,
+        pub max_per_order: Option<i64>,
+        pub hold_type: String,
+        pub ticket_type_id: Uuid,
+        pub available: u32,
+        pub quantity: u32,
+    }
+
+    let (quantity, available) = hold.quantity(conn)?;
+
+    let r = R {
+        id: hold.id,
+        name: hold.name,
+        event_id: hold.event_id,
+        redemption_code: hold.redemption_code,
+        discount_in_cents: hold.discount_in_cents,
+        end_at: hold.end_at,
+        max_per_order: hold.max_per_order,
+        hold_type: hold.hold_type,
+        ticket_type_id: hold.ticket_type_id,
+        available,
+        quantity,
+    };
+
+    application::created(json!(r))
 }
 
 pub fn update(

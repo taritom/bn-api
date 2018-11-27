@@ -33,7 +33,7 @@ fn index() {
         data: expected_artists,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,
@@ -86,7 +86,7 @@ fn index_with_org_linked_and_private_venues() {
         data: expected_artists.clone(),
         paging: Paging {
             page: 0,
-            limit: 3,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 3,
@@ -124,7 +124,7 @@ fn index_with_org_linked_and_private_venues() {
         data: expected_artists.clone(),
         paging: Paging {
             page: 0,
-            limit: 4,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 4,
@@ -145,7 +145,7 @@ fn index_with_org_linked_and_private_venues() {
         data: expected_artists,
         paging: Paging {
             page: 0,
-            limit: 4,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 4,
@@ -265,7 +265,7 @@ pub fn show_from_organizations_private_artist_same_org() {
         data: all_artists,
         paging: Paging {
             page: 0,
-            limit: 2,
+            limit: 100,
             sort: "".to_string(),
             dir: SortingDir::Asc,
             total: 2,

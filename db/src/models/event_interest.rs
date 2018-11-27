@@ -130,7 +130,8 @@ impl EventInterest {
                 };
                 users.push(curr_entry);
             }
-            let result = Payload::new(users, Paging::new(page, limit));
+            let mut result = Payload::new(users, Paging::new(page, limit));
+            result.paging.total = total_interests as u64;
             Ok(result)
         } else {
             let result = Payload::empty(Paging::new(page, limit));

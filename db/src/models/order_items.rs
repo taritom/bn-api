@@ -7,7 +7,7 @@ use diesel::sql_types::{BigInt, Nullable, Text, Uuid as dUuid};
 use models::*;
 use schema::{order_items, ticket_instances};
 use std::borrow::Cow;
-use utils::errors::{self, *};
+use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
@@ -25,20 +25,22 @@ pub struct OrderItem {
     pub item_type: String,
     pub ticket_type_id: Option<Uuid>,
     pub event_id: Option<Uuid>,
-
     pub quantity: i64,
-    pub unit_price_in_cents: i64,
+    unit_price_in_cents: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub ticket_pricing_id: Option<Uuid>,
     pub fee_schedule_range_id: Option<Uuid>,
     pub parent_id: Option<Uuid>,
     pub hold_id: Option<Uuid>,
-    pub comp_id: Option<Uuid>,
     pub code_id: Option<Uuid>,
 }
 
 impl OrderItem {
+    pub fn unit_price_in_cents(&self) -> i64 {
+        self.unit_price_in_cents
+    }
+
     pub fn item_type(&self) -> Result<OrderItemTypes, EnumParseError> {
         self.item_type.parse::<OrderItemTypes>()
     }
@@ -49,22 +51,41 @@ impl OrderItem {
             .filter(order_items::item_type.eq(OrderItemTypes::PerUnitFees.to_string()))
             .first(conn)
             .optional()
-            .to_db_error(
-                errors::ErrorCode::QueryError,
-                "Could not retrieve order item fees",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve order item fees")
     }
 
-    pub(crate) fn update_fees(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub(crate) fn update_fees(
+        &self,
+        order: &Order,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if self.item_type()? == OrderItemTypes::PerUnitFees
+            || self.item_type()? == OrderItemTypes::EventFees
+        {
+            return Ok(());
+        }
+
         let fee_item = self.find_fee_item(conn)?;
         let fee_schedule_range = match self.fee_schedule_range_id {
             Some(fee_schedule_range_id) => FeeScheduleRange::find(fee_schedule_range_id, conn)?,
             None => return DatabaseError::no_results("Expected fee schedule range for order item"),
         };
 
+        // If the hold is a comp, then there are no fees.
+        if let Some(hold_id) = self.hold_id {
+            let hold = Hold::find(hold_id, conn)?;
+            if hold.hold_type() == HoldTypes::Comp {
+                if let Some(fee_item) = fee_item {
+                    order.destroy_item(fee_item.id, conn)?;
+                }
+                return Ok(());
+            }
+        }
+
         match fee_item {
             Some(mut fee_item) => {
-                fee_item.unit_price_in_cents = fee_schedule_range.fee_in_cents * self.quantity;
+                fee_item.quantity = self.quantity;
+                fee_item.unit_price_in_cents = fee_schedule_range.fee_in_cents;
                 fee_item.update(conn)
             }
             None => {
@@ -72,8 +93,8 @@ impl OrderItem {
                     order_id: self.order_id,
                     item_type: OrderItemTypes::PerUnitFees.to_string(),
                     event_id: self.event_id,
-                    unit_price_in_cents: fee_schedule_range.fee_in_cents * self.quantity,
-                    quantity: 1,
+                    unit_price_in_cents: fee_schedule_range.fee_in_cents,
+                    quantity: self.quantity,
                     parent_id: Some(self.id),
                 }.commit(conn)?;
 
@@ -86,25 +107,12 @@ impl OrderItem {
         self.validate_record(conn)?;
         diesel::update(self)
             .set((
-                order_items::unit_price_in_cents.eq(self.unit_price_in_cents),
                 order_items::quantity.eq(self.quantity),
+                order_items::unit_price_in_cents.eq(self.unit_price_in_cents),
                 order_items::updated_at.eq(dsl::now),
             )).execute(conn)
             .map(|_| ())
-            .to_db_error(
-                errors::ErrorCode::UpdateError,
-                "Could not update order item",
-            )
-    }
-
-    pub(crate) fn destroy(id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
-        diesel::delete(order_items::table.filter(order_items::id.eq(id)))
-            .execute(conn)
-            .map(|_| ())
-            .to_db_error(
-                errors::ErrorCode::DeleteError,
-                "Could not delete order item",
-            )
+            .to_db_error(ErrorCode::UpdateError, "Could not update order item")
     }
 
     pub fn calculate_quantity(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
@@ -113,10 +121,7 @@ impl OrderItem {
             //.filter(ticket_instances::reserved_until.ge(dsl::now.nullable()))
             .select(dsl::count(ticket_instances::id))
             .first(conn)
-            .to_db_error(
-                errors::ErrorCode::QueryError,
-                "Could calculate order item quantity",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could calculate order item quantity")
     }
 
     pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -163,9 +168,9 @@ impl OrderItem {
                 )).get_result::<bool>(conn)
                 .to_db_error(
                     if id.is_none() {
-                        errors::ErrorCode::InsertError
+                        ErrorCode::InsertError
                     } else {
-                        errors::ErrorCode::UpdateError
+                        ErrorCode::UpdateError
                     },
                     "Could not confirm code_id valid for max tickets per user",
                 )?;
@@ -194,7 +199,7 @@ impl OrderItem {
                 let result = select(order_items_code_id_max_uses_valid(order_id, code_id))
                     .get_result::<bool>(conn)
                     .to_db_error(
-                        errors::ErrorCode::InsertError,
+                        ErrorCode::InsertError,
                         "Could not confirm code_id valid for max uses",
                     )?;
                 if !result {
@@ -228,9 +233,9 @@ impl OrderItem {
         )).get_result::<bool>(conn)
         .to_db_error(
             if new_record {
-                errors::ErrorCode::InsertError
+                ErrorCode::InsertError
             } else {
-                errors::ErrorCode::UpdateError
+                ErrorCode::UpdateError
             },
             "Could not confirm quantity increment valid",
         )?;
@@ -263,7 +268,7 @@ impl OrderItem {
              WHEN item_type = 'PerUnitFees' THEN 'Ticket Fees'
              WHEN item_type = 'EventFees' THEN 'Event Fees - ' || e.name
              ELSE e.name || ' - ' || tt.name END AS description,
-           coalesce(h.redemption_code, c.redemption_code) as redemption_code
+           h.redemption_code as redemption_code
         FROM order_items oi
            LEFT JOIN events e ON event_id = e.id
            LEFT JOIN ticket_pricing tp
@@ -271,13 +276,12 @@ impl OrderItem {
             ON tp.ticket_type_id = tt.id
             ON oi.ticket_pricing_id = tp.id
            LEFT JOIN holds h ON oi.hold_id = h.id
-           LEFT JOIN comps c ON oi.comp_id = c.id
         WHERE oi.order_id = $1
         ORDER BY oi.item_type DESC
         "#,
         ).bind::<sql_types::Uuid, _>(order_id)
         .load(conn)
-        .to_db_error(errors::ErrorCode::QueryError, "Could not load order items")
+        .to_db_error(ErrorCode::QueryError, "Could not load order items")
     }
 
     pub fn find_for_order(
@@ -289,23 +293,20 @@ impl OrderItem {
             .order_by(order_items::event_id.asc())
             .then_order_by(order_items::item_type.asc())
             .load(conn)
-            .to_db_error(errors::ErrorCode::QueryError, "Could not load order items")
+            .to_db_error(ErrorCode::QueryError, "Could not load order items")
     }
 
     pub(crate) fn find_in_order(
         order_id: Uuid,
         order_item_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<OrderItem, errors::DatabaseError> {
+    ) -> Result<OrderItem, DatabaseError> {
         order_items::table
             .filter(order_items::order_id.eq(order_id))
             .filter(order_items::id.eq(order_item_id))
             .filter(order_items::item_type.eq(OrderItemTypes::Tickets.to_string()))
             .first(conn)
-            .to_db_error(
-                errors::ErrorCode::QueryError,
-                "Could not retrieve order item",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve order item")
     }
 }
 
@@ -321,7 +322,6 @@ pub(crate) struct NewTicketsOrderItem {
     pub ticket_pricing_id: Uuid,
     pub fee_schedule_range_id: Uuid,
     pub hold_id: Option<Uuid>,
-    pub comp_id: Option<Uuid>,
     pub code_id: Option<Uuid>,
 }
 
@@ -331,10 +331,7 @@ impl NewTicketsOrderItem {
         diesel::insert_into(order_items::table)
             .values(self)
             .get_result(conn)
-            .to_db_error(
-                errors::ErrorCode::InsertError,
-                "Could not create order item",
-            )
+            .to_db_error(ErrorCode::InsertError, "Could not create order item")
     }
 
     pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -385,10 +382,7 @@ impl NewFeesOrderItem {
         diesel::insert_into(order_items::table)
             .values(self)
             .get_result(conn)
-            .to_db_error(
-                errors::ErrorCode::InsertError,
-                "Could not create order item",
-            )
+            .to_db_error(ErrorCode::InsertError, "Could not create order item")
     }
 }
 

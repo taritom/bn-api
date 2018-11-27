@@ -53,7 +53,7 @@ impl<'a> HoldBuilder<'a> {
         let event = Event::find(self.event_id.unwrap(), self.connection).unwrap();
         let ticket_type_id = event.ticket_types(self.connection).unwrap()[0].id;
 
-        let hold = Hold::create(
+        let hold = Hold::create_hold(
             self.name,
             self.event_id.unwrap(),
             self.redemption_code,
