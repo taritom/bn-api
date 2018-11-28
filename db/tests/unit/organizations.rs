@@ -1,8 +1,5 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{
-    FeeSchedule, NewFeeScheduleRange, Organization, OrganizationEditableAttributes,
-    OrganizationUser, Roles, User,
-};
+use bigneon_db::prelude::*;
 use uuid::Uuid;
 
 #[test]
@@ -365,6 +362,7 @@ pub fn get_scopes_for_user() {
             "hold:read",
             "hold:write",
             "order:read",
+            "org:fans",
             "org:read",
             "org:write",
             "ticket:admin",
@@ -389,6 +387,7 @@ pub fn get_scopes_for_user() {
             "hold:read",
             "hold:write",
             "order:read",
+            "org:fans",
             "org:read",
             "ticket:admin",
             "ticket:transfer",
@@ -478,4 +477,42 @@ fn owner() {
     let organization_owner = organization.owner(&project.get_connection()).unwrap();
 
     assert_eq!(owner.id, organization_owner.id);
+}
+
+#[test]
+fn search_fans() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .finish();
+
+    let search_results = organization
+        .search_fans(
+            None,
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        ).unwrap();
+    assert_eq!(search_results.data[0].user_id, user.id);
+    let search_results = organization
+        .search_fans(
+            Some("NOT A REAL NAME".to_string()),
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        ).unwrap();
+    assert_eq!(search_results.data.len(), 0);
 }

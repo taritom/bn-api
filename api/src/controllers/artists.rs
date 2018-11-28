@@ -27,12 +27,8 @@ pub fn search(
         //Try spotify
         let auth_token = state.config.spotify_auth_token.clone();
         let spotify_client = Spotify::connect(auth_token)?;
-        let spotify_artists = spotify_client.search(
-            query_parameters
-                .get_tag("q")
-                .unwrap_or("".to_string())
-                .to_string(),
-        )?;
+        let spotify_artists =
+            spotify_client.search(query_parameters.get_tag("q").unwrap_or("".to_string()))?;
 
         let payload = Payload::new(spotify_artists, query_parameters.into_inner().into());
         Ok(WebPayload::new(StatusCode::OK, payload))

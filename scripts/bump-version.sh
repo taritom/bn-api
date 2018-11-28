@@ -2,11 +2,6 @@
 
 set -e
 
-if [[ "$TRAVIS_BRANCH" != "master" ]];then
-    echo "Skipping tag-version because branch is not master (but is '$TRAVIS_BRANCH')"
-    exit 0
-fi
-
 new_version=""
 
 function bump_patch {

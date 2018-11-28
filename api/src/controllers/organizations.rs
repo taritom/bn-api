@@ -1,10 +1,11 @@
-use actix_web::{HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use db::Connection;
 use errors::*;
 use models::PathParameters;
+use models::WebPayload;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
@@ -280,4 +281,30 @@ pub fn add_fee_schedule(
         created_at: fee_schedule.created_at,
         ranges: fee_schedule_ranges,
     }))
+}
+
+pub fn search_fans(
+    (connection, path, query, user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+        User,
+    ),
+) -> Result<WebPayload<DisplayFan>, BigNeonError> {
+    let connection = connection.get();
+    let org = Organization::find(path.id, connection)?;
+    user.requires_scope_for_organization(Scopes::OrgReadFans, &org, &connection)?;
+    let payload = org.search_fans(
+        query.get_tag("query"),
+        query.page(),
+        query.limit(),
+        query
+            .sort
+            .as_ref()
+            .map(|s| s.parse().unwrap_or(FanSortField::LastOrder))
+            .unwrap_or(FanSortField::LastOrder),
+        query.dir.unwrap_or(SortingDir::Desc),
+        connection,
+    )?;
+    Ok(WebPayload::new(StatusCode::OK, payload))
 }
