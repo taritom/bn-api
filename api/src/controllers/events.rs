@@ -63,9 +63,9 @@ impl From<SearchParameters> for Paging {
 }
 
 /**
- * What events does this user have authority over
+ * What events does this user have authority to check in
 **/
-pub fn authority(
+pub fn checkins(
     (conn, query, auth_user): (Connection, Query<SearchParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     auth_user.requires_scope(Scopes::EventScan)?;
