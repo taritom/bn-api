@@ -116,6 +116,9 @@ impl PagingParameters {
         self.limit.unwrap_or(100)
     }
 
+    pub fn dir(&self) -> SortingDir {
+        self.dir.unwrap_or(SortingDir::Asc)
+    }
     pub fn get_tag(&self, tag: &'static str) -> Option<String> {
         self.tags
             .get(tag)

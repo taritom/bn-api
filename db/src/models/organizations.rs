@@ -3,12 +3,15 @@ use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use diesel::sql_types::{BigInt, Text, Timestamp};
+use serde_with::rust::double_option;
+use uuid::Uuid;
+
+use diesel::expression::sql_literal::sql;
 use models::scopes;
 use models::*;
 use schema::{events, organization_users, organizations, users, venues};
-use serde_with::rust::double_option;
 use utils::errors::*;
-use uuid::Uuid;
 
 #[derive(Identifiable, Associations, Queryable, AsChangeset)]
 #[belongs_to(User, foreign_key = "owner_user_id")]
@@ -336,4 +339,128 @@ impl Organization {
                 "Could not set the fee schedule for this organization",
             )
     }
+
+    pub fn search_fans(
+        &self,
+        query: Option<String>,
+        page: u32,
+        limit: u32,
+        sort_field: FanSortField,
+        sort_direction: SortingDir,
+        conn: &PgConnection,
+    ) -> Result<Payload<DisplayFan>, DatabaseError> {
+        use schema::*;
+
+        let search_filter = format!("%{}%", query.unwrap_or("".to_string()));
+
+        let sort_column = match sort_field {
+            FanSortField::FirstName => "2",
+            FanSortField::LastName => "3",
+            FanSortField::Email => "4",
+            FanSortField::Phone => "5",
+            FanSortField::Orders => "7",
+            FanSortField::FirstOrder => "8",
+            FanSortField::LastOrder => "9",
+            FanSortField::Revenue => "10",
+        };
+
+        let query = order_items::table
+            .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(users::table.on(users::id.eq(orders::user_id)))
+            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
+            .filter(orders::status.eq(OrderStatus::Paid.to_string()))
+            .filter(events::organization_id.eq(self.id))
+            .filter(
+                sql("users.first_name ilike ")
+                    .bind::<Text, _>(&search_filter)
+                    .sql(" OR users.last_name ilike ")
+                    .bind::<Text, _>(&search_filter)
+                    .sql(" OR users.email ilike ")
+                    .bind::<Text, _>(&search_filter)
+                    .sql("or users.phone ilike ")
+                    .bind::<Text, _>(&search_filter),
+            ).group_by((
+                events::organization_id,
+                users::first_name,
+                users::last_name,
+                users::email,
+                users::phone,
+                users::id,
+            )).select((
+                events::organization_id,
+                users::first_name,
+                users::last_name,
+                users::email,
+                users::phone,
+                users::id,
+                sql::<BigInt>("count(distinct orders.id)"),
+                sql::<Timestamp>("min(orders.order_date)"),
+                sql::<Timestamp>("max(orders.order_date)"),
+                sql::<BigInt>(
+                    "cast(sum(order_items.unit_price_in_cents * order_items.quantity) as bigint)",
+                ),
+                sql::<BigInt>("count(*) over()"),
+            )).order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)));
+
+        let query = query.limit(limit as i64).offset((limit * page) as i64);
+
+        #[derive(Queryable)]
+        struct R {
+            organization_id: Uuid,
+            first_name: Option<String>,
+            last_name: Option<String>,
+            email: Option<String>,
+            phone: Option<String>,
+            user_id: Uuid,
+            order_count: i64,
+            first_order_time: NaiveDateTime,
+            last_order_time: NaiveDateTime,
+            revenue_in_cents: i64,
+            total_rows: i64,
+        }
+
+        let results: Vec<R> = query.get_results(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not load fans for organization",
+        )?;
+
+        let paging = Paging::new(page, limit);
+        let mut total = results.len() as u64;
+        if !results.is_empty() {
+            total = results[0].total_rows as u64;
+        }
+
+        let fans = results
+            .into_iter()
+            .map(|r| DisplayFan {
+                user_id: r.user_id,
+                first_name: r.first_name,
+                last_name: r.last_name,
+                email: r.email,
+                phone: r.phone,
+                organization_id: r.organization_id,
+                order_count: r.order_count as u32,
+                first_order_time: r.first_order_time,
+                last_order_time: r.last_order_time,
+                revenue_in_cents: r.revenue_in_cents,
+            }).collect();
+
+        let mut p = Payload::new(fans, paging);
+        p.paging.total = total;
+        Ok(p)
+    }
+}
+
+#[derive(Serialize)]
+pub struct DisplayFan {
+    pub user_id: Uuid,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub organization_id: Uuid,
+    pub order_count: u32,
+    pub first_order_time: NaiveDateTime,
+    pub last_order_time: NaiveDateTime,
+    pub revenue_in_cents: i64,
 }

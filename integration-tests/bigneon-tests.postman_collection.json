@@ -1,7 +1,6 @@
 {
 	"info": {
-
-		"_postman_id": "b488d522-5d81-4225-bc0b-5c6c13720201",
+		"_postman_id": "2223322d-c9ed-4aac-a8e7-eaad909bb236",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -6430,6 +6429,76 @@
 								"events",
 								"{{last_event_id}}",
 								"dashboard"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - View Fans Page",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d481afe5-174e-4720-914d-483d6b75535e",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/fans?page=0&limit=10&sort=Email&dir=Asc",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"organizations",
+								"{{last_org_id}}",
+								"fans"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "sort",
+									"value": "Email"
+								},
+								{
+									"key": "dir",
+									"value": "Asc"
+								}
 							]
 						}
 					},
