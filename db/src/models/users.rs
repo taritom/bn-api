@@ -1,14 +1,16 @@
 use chrono::NaiveDateTime;
+use chrono::prelude::{Utc};
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::*;
-use schema::{organization_users, organizations, users};
+use schema::{organization_users, organizations, users, events};
 use std::collections::HashMap;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::passwords::PasswordHash;
 use uuid::Uuid;
 use validator::Validate;
+use time::Duration;
 
 #[derive(Insertable, PartialEq, Debug, Validate)]
 #[table_name = "users"]
@@ -266,6 +268,37 @@ impl User {
                 .set((users::role.eq(new_roles), users::updated_at.eq(dsl::now)))
                 .get_result(conn),
         )
+    }
+
+   pub fn find_events_with_access_to_scan(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
+       let event_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
+
+       if self.is_admin() {
+           DatabaseError::wrap(ErrorCode::QueryError,
+                               "Error loading events to scan",
+                               events::table
+                                   .filter(events::status.eq(EventStatus::Published.to_string()))
+                                   .filter(events::event_start.ge(event_start))
+                                   .order_by(events::event_start.asc())
+                                   .load(conn)
+           )
+
+
+       } else {
+           DatabaseError::wrap(ErrorCode::QueryError,
+                               "Error loading events to scan",
+                               events::table
+                                   .inner_join(organization_users::table.on(
+                                       organization_users::organization_id.eq(events::organization_id)
+                                           .and(organization_users::user_id.eq(self.id))
+                                   ))
+                                   .filter(events::status.eq(EventStatus::Published.to_string()))
+                                   .filter(events::event_start.ge(event_start))
+                                   .order_by(events::event_start.asc())
+                                   .select(events::all_columns)
+                                   .load(conn)
+           )
+       }
     }
 
     pub fn full_name(&self) -> String {
