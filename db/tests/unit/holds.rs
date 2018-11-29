@@ -212,6 +212,7 @@ fn update_with_validation_errors() {
             quantity: 10,
             redemption_code: Some(comp.redemption_code),
         }],
+        false,
         connection,
     ).unwrap();
 }

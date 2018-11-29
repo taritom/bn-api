@@ -349,6 +349,7 @@ fn reduce() {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     let items = cart.items(&connection).unwrap();
@@ -426,6 +427,7 @@ fn remove() {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     let items = cart.items(&connection).unwrap();
@@ -497,6 +499,7 @@ fn remove_with_increment() {
             quantity: 12,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     let items = cart.items(&connection).unwrap();
@@ -580,6 +583,7 @@ fn remove_with_increment_failure_invalid_quantity() {
             quantity: 12,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     let items = cart.items(&connection).unwrap();

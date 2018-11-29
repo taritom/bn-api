@@ -19,6 +19,8 @@ use uuid::Uuid;
 use validator::ValidationErrors;
 use validators::*;
 
+const CART_EXPIRY_TIME_MINUTES: i64 = 15;
+
 #[derive(Associations, Debug, Identifiable, PartialEq, Queryable)]
 #[belongs_to(User)]
 pub struct Order {
@@ -141,8 +143,9 @@ impl Order {
 
         let cart_id: Vec<R> = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(user.id)
-            .bind::<sql_types::Timestamp, _>(Utc::now().naive_utc() + Duration::minutes(15))
-            .get_results(conn)
+            .bind::<sql_types::Timestamp, _>(
+                Utc::now().naive_utc() + Duration::minutes(CART_EXPIRY_TIME_MINUTES),
+            ).get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find or create cart")?;
 
         if cart_id.is_empty() || cart_id[0].id.is_none() || cart_id.len() > 1 {
@@ -189,12 +192,34 @@ impl Order {
             .to_db_error(errors::ErrorCode::QueryError, "Could not find order")
     }
 
+    pub fn extend_expiry(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let affected_rows = diesel::update(
+            orders::table.filter(
+                orders::id
+                    .eq(self.id)
+                    .and(orders::version.eq(self.version))
+                    .and(orders::expires_at.gt(Utc::now().naive_utc())),
+            ),
+        ).set(
+            orders::expires_at
+                .eq(Utc::now().naive_utc() + Duration::minutes(CART_EXPIRY_TIME_MINUTES)),
+        ).execute(conn)
+        .to_db_error(ErrorCode::UpdateError, "Could not update expiry time")?;
+        if affected_rows != 1 {
+            return DatabaseError::concurrency_error("Could not update expiry time.");
+        }
+        Ok(())
+    }
+
     pub fn update_quantities(
         &mut self,
         items: &[UpdateOrderItem],
+        remove_others: bool,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         self.lock_version(conn)?;
+
+        let current_items = self.items(conn)?;
 
         #[derive(Debug)]
         struct LimitCheck {
@@ -220,7 +245,7 @@ impl Order {
             });
         }
 
-        for mut current_line in self.items(conn)? {
+        for mut current_line in current_items {
             if current_line.item_type()? != OrderItemTypes::Tickets {
                 continue;
             }
@@ -325,6 +350,15 @@ impl Order {
                             current_line.update(conn)?;
                         }
                     }
+                } else if remove_others {
+                    jlog!(Level::Debug, "Removing extra tickets because remove others was called.", { "order_item.id": current_line.id, "ticket_type_id": current_line.ticket_type_id});
+                    jlog!(Level::Debug, "Reducing quantity of cart item");
+                    TicketInstance::release_tickets(
+                        &current_line,
+                        current_line.quantity as u32,
+                        conn,
+                    )?;
+                    self.destroy_item(current_line.id, conn)?;
                 }
             }
             if let Some(index) = index_to_remove {
@@ -332,7 +366,17 @@ impl Order {
             }
         }
 
+        // if the cart is empty at this point, it is effectively a new cart, extend the time
+
+        if self.items(conn)?.len() == 0 {
+            self.extend_expiry(conn)?;
+        }
+
         for (_, hold_id, hold, new_line) in mapped {
+            if new_line.quantity == 0 {
+                continue;
+            }
+
             jlog!(Level::Debug, "Adding new cart items");
             let ticket_pricing =
                 TicketPricing::get_current_ticket_pricing(new_line.ticket_type_id, conn)?;

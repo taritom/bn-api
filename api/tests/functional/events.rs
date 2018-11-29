@@ -546,6 +546,7 @@ fn dashboard_with_default_range() {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);

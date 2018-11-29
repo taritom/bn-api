@@ -45,6 +45,7 @@ pub fn index() {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         conn,
     ).unwrap();
 
@@ -54,6 +55,7 @@ pub fn index() {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         conn,
     ).unwrap();
 
@@ -175,6 +177,7 @@ pub fn show() {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         conn,
     ).unwrap();
     let total = cart.calculate_total(conn).unwrap();
@@ -293,6 +296,7 @@ fn ticket_transfer_authorization() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         conn,
     ).unwrap();
 
@@ -368,6 +372,7 @@ fn receive_ticket_transfer() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         conn,
     ).unwrap();
 

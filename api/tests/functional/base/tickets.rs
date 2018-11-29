@@ -139,6 +139,7 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         conn,
     ).unwrap();
     let total = cart.calculate_total(conn).unwrap();

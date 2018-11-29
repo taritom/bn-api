@@ -141,6 +141,7 @@ fn get_sales_by_date_range() {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
@@ -157,6 +158,7 @@ fn get_sales_by_date_range() {
                 quantity: 5,
                 redemption_code: None,
             }],
+            false,
             connection,
         ).unwrap();
 

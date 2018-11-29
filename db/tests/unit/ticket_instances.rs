@@ -147,6 +147,7 @@ pub fn find() {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     let items = cart.items(&connection).unwrap();
@@ -193,6 +194,7 @@ pub fn find_for_user() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
 
@@ -221,6 +223,7 @@ pub fn release_tickets() {
                 quantity: 10,
                 redemption_code: None,
             }],
+            false,
             connection,
         ).unwrap();
 
@@ -373,6 +376,7 @@ pub fn authorize_ticket_transfer() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     let total = cart.calculate_total(connection).unwrap();
@@ -429,6 +433,7 @@ pub fn receive_ticket_transfer() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     let total = cart.calculate_total(connection).unwrap();

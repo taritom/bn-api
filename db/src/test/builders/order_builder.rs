@@ -64,6 +64,7 @@ impl<'a> OrderBuilder<'a> {
                 quantity: self.quantity,
                 redemption_code: None,
             }],
+            false,
             self.connection,
         ).unwrap();
 

@@ -48,7 +48,30 @@ pub fn update_cart(
             ticket_type_id: i.ticket_type_id,
             redemption_code: i.redemption_code.clone(),
         }).collect();
-    cart.update_quantities(&order_items, connection)?;
+    cart.update_quantities(&order_items, false, connection)?;
+
+    Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
+}
+
+pub fn replace_cart(
+    (connection, json, user): (Connection, Json<UpdateCartRequest>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+
+    // Find the current cart of the user, if it exists.
+    let mut cart = Order::find_or_create_cart(&user.user, connection)?;
+
+    let order_items: Vec<UpdateOrderItem> = json
+        .into_inner()
+        .items
+        .iter()
+        .map(|i| UpdateOrderItem {
+            quantity: i.quantity,
+            ticket_type_id: i.ticket_type_id,
+            redemption_code: i.redemption_code.clone(),
+        }).collect();
+
+    cart.update_quantities(&order_items, true, connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
 }
