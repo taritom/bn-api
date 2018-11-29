@@ -13,7 +13,7 @@ use models::*;
 use schema::{events, organization_users, organizations, users, venues};
 use utils::errors::*;
 
-#[derive(Identifiable, Associations, Queryable, AsChangeset)]
+#[derive(Identifiable, Associations, Queryable, QueryableByName, AsChangeset)]
 #[belongs_to(User, foreign_key = "owner_user_id")]
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "organizations"]

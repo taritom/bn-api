@@ -6266,12 +6266,7 @@
 									"",
 									"pm.test(\"There should be 1 event that Admin can checkin\", function() {",
 									"    pm.expect(json.data.length).to.equal(1);",
-									"});",
-									"// pm.test(\"7 guests should be present\", function(){",
-									"//     pm.expect(json.data.length).to.equal(7);",
-									"//     pm.environment.set(\"last_ticket_instance_id\", json.data[0].id);",
-									"//     pm.environment.set(\"last_ticket_instance_redeem_key\", json.data[0].redeem_key);",
-									"// });"
+									"});"
 								],
 								"type": "text/javascript"
 							}

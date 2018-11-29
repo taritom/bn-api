@@ -214,9 +214,7 @@ impl User {
             .filter(
                 organization_users::user_id
                     .eq(self.id)
-                    .or(organization_users::id
-                        .is_null()
-                        .and(organizations::owner_user_id.eq(self.id))),
+                    .or(organizations::owner_user_id.eq(self.id)),
             ).select(organizations::all_columns)
             .order_by(organizations::name.asc())
             .load::<Organization>(conn)
@@ -279,7 +277,7 @@ impl User {
         if self.is_admin() {
             DatabaseError::wrap(
                 ErrorCode::QueryError,
-                "Error loading events to scan",
+                "Error loading scannable events",
                 events::table
                     .filter(events::status.eq(EventStatus::Published.to_string()))
                     .filter(events::event_start.ge(event_start))
@@ -287,19 +285,21 @@ impl User {
                     .load(conn),
             )
         } else {
+            let user_organizations = self.organizations(conn)?;
+            let user_organization_ids: Vec<Uuid> =
+                user_organizations.iter().map(|org| org.id).collect();
+
+            let result = events::table
+                .filter(events::status.eq(EventStatus::Published.to_string()))
+                .filter(events::event_start.ge(event_start))
+                .filter(events::organization_id.eq_any(user_organization_ids))
+                .order_by(events::event_start.asc());
+            //            println!("SQL {}", diesel::query_builder::debug_query(&result).to_string());
+            let result = result.select(events::all_columns).load(conn);
             DatabaseError::wrap(
                 ErrorCode::QueryError,
-                "Error loading events to scan",
-                events::table
-                    .inner_join(
-                        organization_users::table.on(organization_users::organization_id
-                            .eq(events::organization_id)
-                            .and(organization_users::user_id.eq(self.id))),
-                    ).filter(events::status.eq(EventStatus::Published.to_string()))
-                    .filter(events::event_start.ge(event_start))
-                    .order_by(events::event_start.asc())
-                    .select(events::all_columns)
-                    .load(conn),
+                "Error loading scannable events",
+                result,
             )
         }
     }
