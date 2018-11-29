@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpRequest, HttpResponse};
+use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Responder};
 use auth::user::User as AuthUser;
 use errors::*;
 use log::Level::Warn;
@@ -6,30 +6,25 @@ use serde_json;
 use server::AppState;
 use std::collections::HashMap;
 
-pub fn unauthorized(
+pub fn unauthorized<T: Responder>(
     request: &HttpRequest<AppState>,
     user: Option<AuthUser>,
-) -> Result<HttpResponse, BigNeonError> {
+) -> Result<T, BigNeonError> {
     unauthorized_with_message("User does not have the required permissions", request, user)
 }
 
-pub fn unauthorized_with_message(
+pub fn unauthorized_with_message<T: Responder>(
     message: &str,
     request: &HttpRequest<AppState>,
     auth_user: Option<AuthUser>,
-) -> Result<HttpResponse, BigNeonError> {
+) -> Result<T, BigNeonError> {
     if let Some(auth_user) = auth_user {
         auth_user.log_unauthorized_access_attempt(HashMap::new());
     } else {
         log_unauthorized_access_attempt_from_request(request);
     }
 
-    let error: BigNeonError = AuthError::new(message.into()).into();
-    // Error required for triggering middleware rollback
-    Ok(HttpResponse::from_error(error.into())
-        .into_builder()
-        .status(StatusCode::UNAUTHORIZED)
-        .json(json!({"error": message.to_string()})))
+    Err(AuthError::new(AuthErrorType::Unauthorized, message.into()).into())
 }
 
 fn log_unauthorized_access_attempt_from_request(request: &HttpRequest<AppState>) {
@@ -43,38 +38,22 @@ fn log_unauthorized_access_attempt_from_request(request: &HttpRequest<AppState>)
     jlog!(Warn, "Unauthorized access attempt", logging_data);
 }
 
-pub fn forbidden(message: &str) -> Result<HttpResponse, BigNeonError> {
+pub fn forbidden<T: Responder>(message: &str) -> Result<T, BigNeonError> {
     warn!("Forbidden: {}", message);
-    let error: BigNeonError = AuthError::new(message.into()).into();
-    // Error required for triggering middleware rollback
-    Ok(HttpResponse::from_error(error.into())
-        .into_builder()
-        .status(StatusCode::FORBIDDEN)
-        .json(json!({"error": message.to_string()})))
+    Err(AuthError::new(AuthErrorType::Forbidden, message.into()).into())
 }
 
-pub fn unprocessable(message: &str) -> Result<HttpResponse, BigNeonError> {
+pub fn unprocessable<T: Responder>(message: &str) -> Result<T, BigNeonError> {
     warn!("Unprocessable: {}", message);
-    let error: BigNeonError = ApplicationError {
-        reason: message.to_string(),
-    }.into();
-    // Error required for triggering middleware rollback
-    Ok(HttpResponse::from_error(error.into())
-        .into_builder()
-        .status(StatusCode::UNPROCESSABLE_ENTITY)
-        .json(json!({"error":message.to_string()})))
+    Err(
+        ApplicationError::new_with_type(ApplicationErrorType::Unprocessable, message.to_string())
+            .into(),
+    )
 }
 
-pub fn internal_server_error(message: &str) -> Result<HttpResponse, BigNeonError> {
+pub fn internal_server_error<T: Responder>(message: &str) -> Result<T, BigNeonError> {
     error!("Internal Server Error: {}", message);
-    let error: BigNeonError = ApplicationError {
-        reason: message.to_string(),
-    }.into();
-    // Error required for triggering middleware rollback
-    Ok(HttpResponse::from_error(error.into())
-        .into_builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .json(json!({"error":message.to_string()})))
+    Err(ApplicationError::new(message.to_string()).into())
 }
 
 pub fn no_content() -> Result<HttpResponse, BigNeonError> {

@@ -5,6 +5,7 @@ use actix_web::{Error, Responder};
 use bigneon_db::models::Payload;
 use serde::Serialize;
 
+#[derive(Debug)]
 pub struct WebPayload<T>(StatusCode, Payload<T>);
 
 impl<T> WebPayload<T>

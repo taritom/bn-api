@@ -7,6 +7,8 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
+pub const FACEBOOK_SITE: &str = "facebook.com";
+
 #[derive(Identifiable, Associations, Queryable)]
 #[belongs_to(User, foreign_key = "user_id")]
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -56,6 +58,22 @@ impl ExternalLogin {
             user_id,
             access_token,
         }
+    }
+
+    pub fn find_for_site(
+        user_id: Uuid,
+        site: &str,
+        conn: &PgConnection,
+    ) -> Result<Option<ExternalLogin>, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::QueryError,
+            "Error loading external login",
+            external_logins::table
+                .filter(external_logins::user_id.eq(user_id))
+                .filter(external_logins::site.eq(site))
+                .first::<ExternalLogin>(conn)
+                .optional(),
+        )
     }
 
     pub fn find_user(

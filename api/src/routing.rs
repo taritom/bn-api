@@ -96,6 +96,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(organizations::add_artist);
     }).resource("/organizations/{id}/events", |r| {
         r.method(Method::GET).with(events::show_from_organizations);
+    }).resource("/organizations/{id}/fans/{user_id}/history", |r| {
+        r.method(Method::GET).with(users::history);
+    }).resource("/organizations/{id}/fans/{user_id}", |r| {
+        r.method(Method::GET).with(users::profile);
     }).resource("/organizations/{id}/fee_schedule", |r| {
         r.method(Method::GET).with(organizations::show_fee_schedule);
         r.method(Method::POST).with(organizations::add_fee_schedule);

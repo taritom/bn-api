@@ -80,7 +80,10 @@ impl User {
         if self.has_scope(scope, None, None)? {
             return Ok(());
         }
-        Err(AuthError::new("User does not have the required permissions".to_string()).into())
+        Err(AuthError::new(
+            AuthErrorType::Unauthorized,
+            "User does not have the required permissions".to_string(),
+        ).into())
     }
 
     pub fn requires_scope_for_organization(
@@ -92,7 +95,10 @@ impl User {
         if self.has_scope(scope, Some(organization), Some(conn))? {
             return Ok(());
         }
-        Err(AuthError::new("User does not have the required permissions".to_string()).into())
+        Err(AuthError::new(
+            AuthErrorType::Unauthorized,
+            "User does not have the required permissions".to_string(),
+        ).into())
     }
 }
 

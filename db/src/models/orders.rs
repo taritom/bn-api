@@ -14,7 +14,7 @@ use std::borrow::Cow;
 use std::cmp;
 use std::collections::HashMap;
 use time::Duration;
-use utils::errors::{self, *};
+use utils::errors::*;
 use uuid::Uuid;
 use validator::ValidationErrors;
 use validators::*;
@@ -28,7 +28,7 @@ pub struct Order {
     pub user_id: Uuid,
     pub status: String,
     order_type: String,
-    order_date: NaiveDateTime,
+    pub order_date: NaiveDateTime,
     pub expires_at: NaiveDateTime,
     pub version: i64,
     pub created_at: NaiveDateTime,
@@ -93,18 +93,12 @@ impl Order {
         diesel::delete(order_items::table.filter(order_items::parent_id.eq(item_id)))
             .execute(conn)
             .map(|_| ())
-            .to_db_error(
-                errors::ErrorCode::DeleteError,
-                "Could not delete child order item",
-            )?;
+            .to_db_error(ErrorCode::DeleteError, "Could not delete child order item")?;
 
         diesel::delete(order_items::table.filter(order_items::id.eq(item_id)))
             .execute(conn)
             .map(|_| ())
-            .to_db_error(
-                errors::ErrorCode::DeleteError,
-                "Could not delete order item",
-            )
+            .to_db_error(ErrorCode::DeleteError, "Could not delete order item")
     }
 
     pub fn status(&self) -> Result<OrderStatus, EnumParseError> {
@@ -179,17 +173,15 @@ impl Order {
             .filter(orders::expires_at.ge(dsl::now))
             .select(orders::all_columns)
             .first(conn)
-            .to_db_error(
-                errors::ErrorCode::QueryError,
-                "Could not load cart for user",
-            ).optional()
+            .to_db_error(ErrorCode::QueryError, "Could not load cart for user")
+            .optional()
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<Order, DatabaseError> {
         orders::table
             .filter(orders::id.eq(id))
             .first(conn)
-            .to_db_error(errors::ErrorCode::QueryError, "Could not find order")
+            .to_db_error(ErrorCode::QueryError, "Could not find order")
     }
 
     pub fn extend_expiry(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -467,7 +459,7 @@ impl Order {
             order_items::table.filter(order_items::order_id.eq(self.id)),
         )).get_result(conn)
         .to_db_error(
-            errors::ErrorCode::QueryError,
+            ErrorCode::QueryError,
             "Could not check if order items exist",
         )
     }

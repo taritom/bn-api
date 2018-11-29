@@ -1,6 +1,6 @@
 use actix_web::{HttpResponse, Json, State};
 use auth::TokenResponse;
-use bigneon_db::models::{ExternalLogin, User};
+use bigneon_db::models::{ExternalLogin, User, FACEBOOK_SITE};
 use db::Connection;
 use errors::*;
 use models::FacebookWebLoginToken;
@@ -9,7 +9,6 @@ use serde_json;
 use server::AppState;
 
 const FACEBOOK_GRAPH_URL: &str = "https://graph.facebook.com";
-const SITE: &str = "facebook.com";
 
 #[derive(Deserialize)]
 struct FacebookGraphResponse {
@@ -56,7 +55,7 @@ pub fn web_login(
                     info!("User has existing account, linking external service");
                     user.add_external_login(
                         facebook_graph_response.id.clone(),
-                        SITE.to_string(),
+                        FACEBOOK_SITE.to_string(),
                         auth_token.access_token.clone(),
                         connection,
                     )?;
@@ -72,7 +71,7 @@ pub fn web_login(
                                 facebook_graph_response.first_name.clone(),
                                 facebook_graph_response.last_name.clone(),
                                 facebook_graph_response.email.clone(),
-                                SITE.to_string(),
+                                FACEBOOK_SITE.to_string(),
                                 auth_token.access_token.clone(),
                                 connection,
                             )?

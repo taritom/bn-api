@@ -11,6 +11,56 @@ use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
 #[cfg(test)]
+mod history_tests {
+    use super::*;
+
+    #[test]
+    fn history_org_member() {
+        base::users::history(Roles::OrgMember, true);
+    }
+
+    #[test]
+    fn history_admin() {
+        base::users::history(Roles::Admin, true);
+    }
+
+    #[test]
+    fn history_user() {
+        base::users::history(Roles::User, false);
+    }
+
+    #[test]
+    fn history_org_owner() {
+        base::users::history(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod profile_tests {
+    use super::*;
+
+    #[test]
+    fn profile_org_member() {
+        base::users::profile(Roles::OrgMember, true);
+    }
+
+    #[test]
+    fn profile_admin() {
+        base::users::profile(Roles::Admin, true);
+    }
+
+    #[test]
+    fn profile_user() {
+        base::users::profile(Roles::User, false);
+    }
+
+    #[test]
+    fn profile_org_owner() {
+        base::users::profile(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod user_list_organizations_tests {
     use super::*;
 

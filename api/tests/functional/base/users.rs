@@ -1,7 +1,8 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::users;
 use bigneon_api::controllers::users::SearchUserByEmail;
-use bigneon_api::models::PathParameters;
+use bigneon_api::errors::*;
+use bigneon_api::models::*;
 use bigneon_db::models::*;
 use serde_json;
 use std::collections::HashMap;
@@ -9,6 +10,146 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 use uuid::Uuid;
+
+pub fn profile(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database
+        .create_organization()
+        .with_fee_schedule(&database.create_fee_schedule().finish())
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(&*connection).unwrap()[0];
+    let mut cart = Order::find_or_create_cart(&user2, &*connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        &*connection,
+    ).unwrap();
+    assert_eq!(cart.calculate_total(&*connection).unwrap(), 1700);
+    cart.add_external_payment("test".to_string(), user.id, 1700, &*connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
+    let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    path.user_id = user2.id;
+    let response: HttpResponse = users::profile((
+        database.connection.into(),
+        path,
+        auth_user.clone(),
+        test_request.request,
+    )).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    if should_test_true {
+        assert_eq!(response.status(), StatusCode::OK);
+        let user_profile: FanProfile = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            user_profile,
+            FanProfile {
+                first_name: user2.first_name.clone(),
+                last_name: user2.last_name.clone(),
+                email: user2.email.clone(),
+                facebook_linked: false,
+                event_count: 1,
+                revenue_in_cents: 1700,
+                ticket_sales: 10,
+                profile_pic_url: user2.profile_pic_url.clone(),
+                thumb_profile_pic_url: user2.thumb_profile_pic_url.clone(),
+                cover_photo_url: user2.cover_photo_url.clone(),
+                created_at: user2.created_at,
+            }
+        );
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
+pub fn history(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.clone();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database
+        .create_organization()
+        .with_fee_schedule(&database.create_fee_schedule().finish())
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(&*connection).unwrap()[0];
+    let mut cart = Order::find_or_create_cart(&user2, &*connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        &*connection,
+    ).unwrap();
+    assert_eq!(cart.calculate_total(&*connection).unwrap(), 1700);
+    cart.add_external_payment("test".to_string(), user.id, 1700, &*connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
+    let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    path.user_id = user2.id;
+    let query_parameters =
+        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let response: Result<WebPayload<HistoryItem>, BigNeonError> = users::history((
+        database.connection.into(),
+        path,
+        query_parameters,
+        auth_user.clone(),
+        test_request.request,
+    ));
+
+    if should_test_true {
+        let response = response.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let history_payload = response.payload();
+
+        let paging = Paging::new(0, 100);
+        let mut payload = Payload::new(
+            vec![HistoryItem::Purchase {
+                order_id: cart.id,
+                order_date: cart.order_date,
+                event_name: event.name.clone(),
+                ticket_sales: 10,
+                revenue_in_cents: 1700,
+            }],
+            paging,
+        );
+        payload.paging.total = 1;
+
+        assert_eq!(history_payload, &payload);
+    } else {
+        support::expects_unauthorized(&response.unwrap_err().into_inner().to_response());
+    }
+}
 
 pub fn list_organizations(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
@@ -18,10 +159,9 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
-    let test_request = TestRequest::create();
+    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = user2.id;
-    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     let response: HttpResponse = users::list_organizations((

@@ -2,13 +2,27 @@ use std::error::Error;
 use std::fmt;
 
 #[derive(Debug)]
+pub enum ApplicationErrorType {
+    Unprocessable,
+    Internal,
+}
+
+#[derive(Debug)]
 pub struct ApplicationError {
     pub reason: String,
+    pub error_type: ApplicationErrorType,
 }
 
 impl ApplicationError {
     pub fn new(reason: String) -> ApplicationError {
-        ApplicationError { reason }
+        ApplicationError {
+            reason,
+            error_type: ApplicationErrorType::Internal,
+        }
+    }
+
+    pub fn new_with_type(error_type: ApplicationErrorType, reason: String) -> ApplicationError {
+        ApplicationError { reason, error_type }
     }
 }
 

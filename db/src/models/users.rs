@@ -2,7 +2,9 @@ use chrono::prelude::Utc;
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
+use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
+use diesel::sql_types::BigInt;
 use models::*;
 use schema::{events, organization_users, organizations, users};
 use std::collections::HashMap;
@@ -78,6 +80,21 @@ pub struct UserEditableAttributes {
     pub cover_photo_url: Option<String>,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct FanProfile {
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub email: Option<String>,
+    pub facebook_linked: bool,
+    pub event_count: u32,
+    pub revenue_in_cents: u32,
+    pub ticket_sales: u32,
+    pub profile_pic_url: Option<String>,
+    pub thumb_profile_pic_url: Option<String>,
+    pub cover_photo_url: Option<String>,
+    pub created_at: NaiveDateTime,
+}
+
 impl NewUser {
     pub fn commit(&self, conn: &PgConnection) -> Result<User, DatabaseError> {
         self.validate()?;
@@ -109,6 +126,128 @@ impl User {
             hashed_pw: hash.to_string(),
             role: vec![Roles::User.to_string()],
         }
+    }
+
+    pub fn get_history_for_organization(
+        &self,
+        organization: &Organization,
+        page: u32,
+        limit: u32,
+        sort_direction: SortingDir,
+        conn: &PgConnection,
+    ) -> Result<Payload<HistoryItem>, DatabaseError> {
+        use schema::*;
+        let query = order_items::table
+            .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
+            .filter(orders::status.eq(OrderStatus::Paid.to_string()))
+            .filter(orders::user_id.eq(self.id))
+            .filter(events::organization_id.eq(organization.id))
+            .group_by((orders::id, orders::order_date, events::name))
+            .select((
+                orders::id,
+                orders::order_date,
+                events::name,
+                sql::<BigInt>(
+                    "cast(COALESCE(sum(
+                    CASE WHEN order_items.item_type = 'Tickets'
+                    THEN order_items.quantity
+                    ELSE 0 END
+                    ), 0) as BigInt)",
+                ),
+                sql::<BigInt>(
+                    "cast(sum(order_items.unit_price_in_cents * order_items.quantity) as bigint)",
+                ),
+                sql::<BigInt>("count(*) over()"),
+            )).order_by(sql::<()>(&format!("orders.order_date {}", sort_direction)))
+            .limit(limit as i64)
+            .offset((limit * page) as i64);
+
+        #[derive(Queryable)]
+        struct R {
+            order_id: Uuid,
+            order_date: NaiveDateTime,
+            event_name: String,
+            ticket_sales: i64,
+            revenue_in_cents: i64,
+            total_rows: i64,
+        }
+        let results: Vec<R> = query.get_results(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not load history for organization fan",
+        )?;
+
+        let paging = Paging::new(page, limit);
+        let mut total: u64 = 0;
+        if !results.is_empty() {
+            total = results[0].total_rows as u64;
+        }
+
+        let history = results
+            .into_iter()
+            .map(|r| HistoryItem::Purchase {
+                order_id: r.order_id,
+                order_date: r.order_date,
+                event_name: r.event_name,
+                ticket_sales: r.ticket_sales as u32,
+                revenue_in_cents: r.revenue_in_cents as u32,
+            }).collect();
+
+        let mut payload = Payload::new(history, paging);
+        payload.paging.total = total;
+        Ok(payload)
+    }
+
+    pub fn get_profile_for_organization(
+        &self,
+        organization: &Organization,
+        conn: &PgConnection,
+    ) -> Result<FanProfile, DatabaseError> {
+        use schema::*;
+        let query = order_items::table
+            .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
+            .filter(orders::status.eq(OrderStatus::Paid.to_string()))
+            .filter(events::organization_id.eq(organization.id))
+            .filter(orders::user_id.eq(self.id))
+            .select((
+                sql::<BigInt>(
+                    "cast(COALESCE(sum(
+                    CASE WHEN order_items.item_type = 'Tickets'
+                    THEN order_items.quantity
+                    ELSE 0 END
+                    ), 0) as BigInt)",
+                ),
+                sql::<BigInt>(
+                    "cast(COALESCE(sum(order_items.unit_price_in_cents * order_items.quantity), 0) as bigint)",
+                ),
+                sql::<BigInt>("cast(COALESCE(count(distinct events.id), 0) as BigInt)"),
+            ));
+
+        #[derive(Queryable)]
+        struct R {
+            ticket_sales: i64,
+            revenue_in_cents: i64,
+            event_count: i64,
+        }
+        let result: R = query.get_result(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not load profile for organization fan",
+        )?;
+
+        Ok(FanProfile {
+            first_name: self.first_name.clone(),
+            last_name: self.last_name.clone(),
+            email: self.email.clone(),
+            facebook_linked: self.find_external_login(FACEBOOK_SITE, conn)?.is_some(),
+            event_count: result.event_count as u32,
+            revenue_in_cents: result.revenue_in_cents as u32,
+            ticket_sales: result.ticket_sales as u32,
+            profile_pic_url: self.profile_pic_url.clone(),
+            thumb_profile_pic_url: self.thumb_profile_pic_url.clone(),
+            cover_photo_url: self.cover_photo_url.clone(),
+            created_at: self.created_at,
+        })
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<User, DatabaseError> {
@@ -311,6 +450,14 @@ impl User {
         ].join(" ")
     }
 
+    pub fn find_external_login(
+        &self,
+        site: &str,
+        conn: &PgConnection,
+    ) -> Result<Option<ExternalLogin>, DatabaseError> {
+        ExternalLogin::find_for_site(self.id, site, conn)
+    }
+
     pub fn add_external_login(
         &self,
         external_user_id: String,
@@ -318,7 +465,7 @@ impl User {
         access_token: String,
         conn: &PgConnection,
     ) -> Result<ExternalLogin, DatabaseError> {
-        ExternalLogin::create(external_user_id, site, self.id, access_token).commit(&*conn)
+        ExternalLogin::create(external_user_id, site, self.id, access_token).commit(conn)
     }
 
     pub fn create_from_external_login(

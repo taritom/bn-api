@@ -156,6 +156,23 @@ impl Organization {
             .to_db_error(ErrorCode::QueryError, "Could not retrieve venues")
     }
 
+    pub fn has_fan(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        use schema::*;
+
+        select(exists(
+            order_items::table
+                .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+                .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
+                .filter(orders::status.eq(OrderStatus::Paid.to_string()))
+                .filter(events::organization_id.eq(self.id))
+                .filter(orders::user_id.eq(user.id)),
+        )).get_result(conn)
+        .to_db_error(
+            ErrorCode::QueryError,
+            "Could not check if organization has fan",
+        )
+    }
+
     pub fn get_scopes_for_user(
         &self,
         user: &User,

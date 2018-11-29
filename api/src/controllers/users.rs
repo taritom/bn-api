@@ -9,7 +9,7 @@ use diesel::PgConnection;
 use errors::*;
 use helpers::application;
 use mail::mailers;
-use models::{PathParameters, RegisterRequest, UserProfileAttributes};
+use models::*;
 use server::AppState;
 use std::collections::HashMap;
 use std::str;
@@ -30,21 +30,74 @@ pub struct CurrentUser {
 }
 
 pub fn current_user(
-    (connection, user): (Connection, AuthUser),
+    (connection, auth_user): (Connection, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let user = User::find(user.id(), connection)?;
-    let current_user = current_user_from_user(&user, connection)?;
+    let current_user = current_user_from_user(&auth_user.user, connection)?;
     Ok(HttpResponse::Ok().json(&current_user))
 }
 
-pub fn update_current_user(
-    (connection, user_parameters, user): (Connection, Json<UserProfileAttributes>, AuthUser),
+pub fn profile(
+    (connection, path, auth_user, request): (
+        Connection,
+        Path<OrganizationFanPathParameters>,
+        AuthUser,
+        HttpRequest<AppState>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let user = User::find(user.id(), connection)?;
+    let organization = Organization::find(path.id, connection)?;
+    auth_user.requires_scope_for_organization(Scopes::OrgReadFans, &organization, &connection)?;
 
-    let updated_user = user.update(&user_parameters.into_inner().into(), connection)?;
+    let user = User::find(path.user_id, connection)?;
+
+    // Confirm organization has specified user as a fan
+    if !organization.has_fan(&user, connection)? {
+        return application::unauthorized(&request, Some(auth_user));
+    }
+
+    Ok(HttpResponse::Ok().json(&user.get_profile_for_organization(&organization, connection)?))
+}
+
+pub fn history(
+    (connection, path, query, auth_user, request): (
+        Connection,
+        Path<OrganizationFanPathParameters>,
+        Query<PagingParameters>,
+        AuthUser,
+        HttpRequest<AppState>,
+    ),
+) -> Result<WebPayload<HistoryItem>, BigNeonError> {
+    let connection = connection.get();
+    let organization = Organization::find(path.id, connection)?;
+    auth_user.requires_scope_for_organization(Scopes::OrgReadFans, &organization, &connection)?;
+
+    let user = User::find(path.user_id, connection)?;
+
+    // Confirm organization has specified user as a fan
+    if !organization.has_fan(&user, connection)? {
+        return application::unauthorized(&request, Some(auth_user));
+    }
+
+    let payload = user.get_history_for_organization(
+        &organization,
+        query.page(),
+        query.limit(),
+        query.dir.unwrap_or(SortingDir::Desc),
+        connection,
+    )?;
+
+    Ok(WebPayload::new(StatusCode::OK, payload))
+}
+
+pub fn update_current_user(
+    (connection, user_parameters, auth_user): (Connection, Json<UserProfileAttributes>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+
+    let updated_user = auth_user
+        .user
+        .update(&user_parameters.into_inner().into(), connection)?;
     let current_user = current_user_from_user(&updated_user, connection)?;
     Ok(HttpResponse::Ok().json(&current_user))
 }

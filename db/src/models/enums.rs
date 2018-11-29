@@ -48,6 +48,7 @@ string_enum! { CodeTypes [Access, Discount] }
 string_enum! { DomainEventTypes [PaymentCreated, PaymentCompleted, PaymentMethodCreated, PaymentMethodUpdated]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { FanSortField [FirstName, LastName, Email, Phone, Orders, FirstOrder, LastOrder, Revenue] }
+string_enum! { HistoryType [Purchase]}
 string_enum! { HoldTypes [Discount, Comp] }
 string_enum! { OrderStatus [Draft, PartiallyPaid, Paid, Cancelled] }
 string_enum! { OrderItemTypes [Tickets, PerUnitFees, EventFees]}

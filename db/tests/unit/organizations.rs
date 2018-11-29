@@ -32,6 +32,47 @@ fn create() {
 }
 
 #[test]
+fn has_fan() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+
+    // No relationship
+    assert!(!organization.has_fan(&user, connection).unwrap());
+
+    // User adds item to cart but does not checkout so no relationship
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        connection,
+    ).unwrap();
+    assert!(!organization.has_fan(&user, connection).unwrap());
+
+    // User checks out so has a paid order so relationship exists
+    assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
+    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert!(organization.has_fan(&user, connection).unwrap());
+}
+
+#[test]
 fn update() {
     let project = TestProject::new();
     let user = project.create_user().finish();

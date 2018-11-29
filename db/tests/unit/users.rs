@@ -1,10 +1,11 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{
-    EventStatus, ExternalLogin, ForDisplay, Roles, User, UserEditableAttributes,
-};
+use bigneon_db::prelude::*;
+use bigneon_db::schema::orders;
 use bigneon_db::utils::errors;
 use bigneon_db::utils::errors::ErrorCode;
-use chrono::Utc;
+use chrono::{Duration, Utc};
+use diesel;
+use diesel::prelude::*;
 use std::collections::HashMap;
 use uuid::Uuid;
 use validator::Validate;
@@ -49,6 +50,337 @@ fn commit_duplicate_email() {
     assert_eq!(
         result.err().unwrap().code,
         errors::get_error_message(&ErrorCode::DuplicateKeyError).0
+    );
+}
+
+#[test]
+fn find_external_login() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+
+    // No external login for facebook, returns None
+    assert_eq!(
+        None,
+        user.find_external_login(FACEBOOK_SITE, connection).unwrap()
+    );
+
+    // With external login present
+    let external_login = user
+        .add_external_login(
+            "abc".to_string(),
+            FACEBOOK_SITE.to_string(),
+            "123".to_string(),
+            connection,
+        ).unwrap();
+    assert_eq!(
+        Some(external_login),
+        user.find_external_login(FACEBOOK_SITE, connection).unwrap()
+    );
+}
+
+#[test]
+fn get_profile_for_organization() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let ticket_type2 = &event2.ticket_types(connection).unwrap()[0];
+
+    // No purchases
+    assert_eq!(
+        user.get_profile_for_organization(&organization, connection)
+            .unwrap(),
+        FanProfile {
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+            email: user.email.clone(),
+            facebook_linked: false,
+            event_count: 0,
+            revenue_in_cents: 0,
+            ticket_sales: 0,
+            profile_pic_url: user.profile_pic_url.clone(),
+            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
+            cover_photo_url: user.cover_photo_url.clone(),
+            created_at: user.created_at,
+        }
+    );
+
+    // Add facebook login
+    user.add_external_login(
+        "abc".to_string(),
+        FACEBOOK_SITE.to_string(),
+        "123".to_string(),
+        connection,
+    ).unwrap();
+    assert_eq!(
+        user.get_profile_for_organization(&organization, connection)
+            .unwrap(),
+        FanProfile {
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+            email: user.email.clone(),
+            facebook_linked: true,
+            event_count: 0,
+            revenue_in_cents: 0,
+            ticket_sales: 0,
+            profile_pic_url: user.profile_pic_url.clone(),
+            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
+            cover_photo_url: user.cover_photo_url.clone(),
+            created_at: user.created_at,
+        }
+    );
+
+    // Add order but do not checkout
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        connection,
+    ).unwrap();
+    assert_eq!(
+        user.get_profile_for_organization(&organization, connection)
+            .unwrap(),
+        FanProfile {
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+            email: user.email.clone(),
+            facebook_linked: true,
+            event_count: 0,
+            revenue_in_cents: 0,
+            ticket_sales: 0,
+            profile_pic_url: user.profile_pic_url.clone(),
+            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
+            cover_photo_url: user.cover_photo_url.clone(),
+            created_at: user.created_at,
+        }
+    );
+
+    // Checkout which changes sales data
+    assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
+    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(
+        user.get_profile_for_organization(&organization, connection)
+            .unwrap(),
+        FanProfile {
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+            email: user.email.clone(),
+            facebook_linked: true,
+            event_count: 1,
+            revenue_in_cents: 1700,
+            ticket_sales: 10,
+            profile_pic_url: user.profile_pic_url.clone(),
+            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
+            cover_photo_url: user.cover_photo_url.clone(),
+            created_at: user.created_at,
+        }
+    );
+
+    // Checkout with a second order same event
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        connection,
+    ).unwrap();
+    assert_eq!(cart.calculate_total(connection).unwrap(), 170);
+    cart.add_external_payment("test".to_string(), user.id, 170, connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(
+        user.get_profile_for_organization(&organization, connection)
+            .unwrap(),
+        FanProfile {
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+            email: user.email.clone(),
+            facebook_linked: true,
+            event_count: 1,
+            revenue_in_cents: 1870,
+            ticket_sales: 11,
+            profile_pic_url: user.profile_pic_url.clone(),
+            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
+            cover_photo_url: user.cover_photo_url.clone(),
+            created_at: user.created_at,
+        }
+    );
+
+    // Checkout with new event increasing event count as well
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type2.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        connection,
+    ).unwrap();
+    assert_eq!(cart.calculate_total(connection).unwrap(), 170);
+    cart.add_external_payment("test".to_string(), user.id, 170, connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(
+        user.get_profile_for_organization(&organization, connection)
+            .unwrap(),
+        FanProfile {
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+            email: user.email.clone(),
+            facebook_linked: true,
+            event_count: 2,
+            revenue_in_cents: 2040,
+            ticket_sales: 12,
+            profile_pic_url: user.profile_pic_url.clone(),
+            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
+            cover_photo_url: user.cover_photo_url.clone(),
+            created_at: user.created_at,
+        }
+    );
+}
+
+#[test]
+fn get_history_for_organization() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+
+    // No history to date
+    assert!(
+        user.get_history_for_organization(&organization, 0, 100, SortingDir::Desc, connection)
+            .unwrap()
+            .is_empty()
+    );
+
+    // User adds item to cart but does not checkout so no history
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        connection,
+    ).unwrap();
+    assert!(
+        user.get_history_for_organization(&organization, 0, 100, SortingDir::Desc, connection)
+            .unwrap()
+            .is_empty()
+    );
+
+    // User checks out so has a paid order so history exists
+    assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
+    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
+        .unwrap();
+    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+
+    let paging = Paging::new(0, 100);
+    let mut payload = Payload::new(
+        vec![HistoryItem::Purchase {
+            order_id: cart.id,
+            order_date: cart.order_date,
+            event_name: event.name.clone(),
+            ticket_sales: 10,
+            revenue_in_cents: 1700,
+        }],
+        paging,
+    );
+    payload.paging.total = 1;
+    assert_eq!(
+        user.get_history_for_organization(&organization, 0, 100, SortingDir::Desc, connection)
+            .unwrap(),
+        payload
+    );
+
+    // User makes a second order
+    let mut cart2 = Order::find_or_create_cart(&user, connection).unwrap();
+    cart2
+        .update_quantities(
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 1,
+                redemption_code: None,
+            }],
+            false,
+            connection,
+        ).unwrap();
+
+    // Update cart2 to a future date to avoid test timing errors
+    let mut cart2 = diesel::update(orders::table.filter(orders::id.eq(cart2.id)))
+        .set(orders::order_date.eq(Utc::now().naive_utc() + Duration::seconds(1)))
+        .get_result::<Order>(connection)
+        .unwrap();
+
+    assert_eq!(cart2.calculate_total(connection).unwrap(), 170);
+    cart2
+        .add_external_payment("test".to_string(), user.id, 170, connection)
+        .unwrap();
+    assert_eq!(cart2.status().unwrap(), OrderStatus::Paid);
+
+    let paging = Paging::new(0, 100);
+    let mut payload = Payload::new(
+        vec![
+            HistoryItem::Purchase {
+                order_id: cart2.id,
+                order_date: cart2.order_date,
+                event_name: event.name.clone(),
+                ticket_sales: 1,
+                revenue_in_cents: 170,
+            },
+            HistoryItem::Purchase {
+                order_id: cart.id,
+                order_date: cart.order_date,
+                event_name: event.name.clone(),
+                ticket_sales: 10,
+                revenue_in_cents: 1700,
+            },
+        ],
+        paging,
+    );
+    payload.paging.total = 2;
+    assert_eq!(
+        user.get_history_for_organization(&organization, 0, 100, SortingDir::Desc, connection)
+            .unwrap(),
+        payload
     );
 }
 

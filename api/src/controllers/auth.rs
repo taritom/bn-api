@@ -70,11 +70,19 @@ pub fn token(
                     captcha_response,
                     remote_ip,
                 )? {
-                    return Err(AuthError::new("Captcha value invalid".to_string()).into());
+                    return application::unauthorized_with_message(
+                        "Captcha value invalid",
+                        &http_request,
+                        None,
+                    );
                 }
             }
             None => {
-                return Err(AuthError::new("Captcha required".to_string()).into());
+                return application::unauthorized_with_message(
+                    "Captcha required",
+                    &http_request,
+                    None,
+                );
             }
         }
     }
@@ -84,11 +92,17 @@ pub fn token(
 
     let user = match User::find_by_email(&login_request.email, connection.get()) {
         Ok(u) => u,
-        Err(_e) => return Err(AuthError::new(login_failure_messaging.to_string()).into()),
+        Err(_e) => {
+            return application::unauthorized_with_message(
+                login_failure_messaging,
+                &http_request,
+                None,
+            )
+        }
     };
 
     if !user.check_password(&login_request.password) {
-        return Err(AuthError::new(login_failure_messaging.to_string()).into());
+        return application::unauthorized_with_message(login_failure_messaging, &http_request, None);
     }
 
     let response = TokenResponse::create_from_user(
@@ -118,17 +132,17 @@ pub fn token_refresh(
 
     // If the user changes their password invalidate all refresh tokens
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
-    if password_modified_timestamp <= token.claims.issued {
-        let response = TokenResponse::create_from_refresh_token(
-            &state.config.token_secret,
-            &state.config.token_issuer,
-            &user.id,
-            &refresh_request.refresh_token,
-        )?;
-        Ok(HttpResponse::Ok().json(response))
-    } else {
-        application::unauthorized_with_message("Invalid token", &request, None)
+    if password_modified_timestamp > token.claims.issued {
+        return application::unauthorized_with_message("Invalid token", &request, None);
     }
+
+    let response = TokenResponse::create_from_refresh_token(
+        &state.config.token_secret,
+        &state.config.token_issuer,
+        &user.id,
+        &refresh_request.refresh_token,
+    )?;
+    Ok(HttpResponse::Ok().json(response))
 }
 
 fn verify_google_captcha_response(

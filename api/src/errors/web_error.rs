@@ -29,6 +29,14 @@ fn unauthorized(message: &str) -> HttpResponse {
     status_code_and_message(StatusCode::UNAUTHORIZED, message)
 }
 
+fn forbidden(message: &str) -> HttpResponse {
+    status_code_and_message(StatusCode::FORBIDDEN, message)
+}
+
+fn unprocessable(message: &str) -> HttpResponse {
+    status_code_and_message(StatusCode::UNPROCESSABLE_ENTITY, message)
+}
+
 fn status_code_and_message(code: StatusCode, message: &str) -> HttpResponse {
     HttpResponse::new(code)
         .into_builder()
@@ -108,7 +116,11 @@ impl ConvertToWebError for StripeError {
 impl ConvertToWebError for ApplicationError {
     fn to_response(&self) -> HttpResponse {
         error!("Application error: {}", self);
-        internal_error("Internal error")
+
+        match self.error_type {
+            ApplicationErrorType::Internal => internal_error("Internal error"),
+            ApplicationErrorType::Unprocessable => unprocessable(&self.reason),
+        }
     }
 }
 
@@ -136,7 +148,11 @@ impl ConvertToWebError for TariError {
 impl ConvertToWebError for AuthError {
     fn to_response(&self) -> HttpResponse {
         error!("AuthError error: {}", self.reason);
-        unauthorized(&self.reason)
+
+        match self.error_type {
+            AuthErrorType::Forbidden => forbidden(&self.reason),
+            AuthErrorType::Unauthorized => unauthorized(&self.reason),
+        }
     }
 }
 
