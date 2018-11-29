@@ -35,6 +35,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     }).resource("/events", |r| {
         r.method(Method::GET).with(events::index);
         r.method(Method::POST).with(events::create);
+    }).resource("/events/checkins", |r| {
+        r.method(Method::GET).with(events::checkins);
     }).resource("/events/{id}", |r| {
         r.method(Method::GET).with(events::show);
         r.method(Method::PUT).with(events::update);

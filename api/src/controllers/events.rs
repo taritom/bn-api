@@ -62,6 +62,21 @@ impl From<SearchParameters> for Paging {
     }
 }
 
+/**
+ * What events does this user have authority to check in
+**/
+pub fn checkins(
+    (conn, query, auth_user): (Connection, Query<SearchParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    auth_user.requires_scope(Scopes::EventScan)?;
+
+    let events = auth_user.user.find_events_with_access_to_scan(conn.get())?;
+    let mut payload = Payload::new(events, query.into_inner().into());
+    payload.paging.total = payload.data.len() as u64;
+    payload.paging.limit = 100;
+    Ok(HttpResponse::Ok().json(&payload))
+}
+
 pub fn index(
     (connection, query, auth_user): (Connection, Query<SearchParameters>, Option<User>),
 ) -> Result<HttpResponse, BigNeonError> {

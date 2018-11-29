@@ -1,7 +1,10 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{ExternalLogin, ForDisplay, Roles, User, UserEditableAttributes};
+use bigneon_db::models::{
+    EventStatus, ExternalLogin, ForDisplay, Roles, User, UserEditableAttributes,
+};
 use bigneon_db::utils::errors;
 use bigneon_db::utils::errors::ErrorCode;
+use chrono::Utc;
 use std::collections::HashMap;
 use uuid::Uuid;
 use validator::Validate;
@@ -342,6 +345,50 @@ pub fn organizations() {
 }
 
 #[test]
+pub fn get_events_with_access_to_scan() {
+    //create event
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let venue = project.create_venue().finish();
+
+    let owner = project.create_user().finish();
+    let scanner = project.create_user().finish();
+    let _normal_user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_owner(&owner)
+        .with_user(&scanner)
+        .finish();
+    let _draft_event = project
+        .create_event()
+        .with_status(EventStatus::Draft)
+        .with_event_start(&Utc::now().naive_utc())
+        .with_name("DraftEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
+    let _published_event = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .with_event_start(&Utc::now().naive_utc())
+        .with_name("PublishedEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
+    let owner_events = owner.find_events_with_access_to_scan(connection).unwrap();
+    let scanner_events = scanner.find_events_with_access_to_scan(connection).unwrap();
+    let normal_user_events = _normal_user
+        .find_events_with_access_to_scan(connection)
+        .unwrap();
+
+    assert_eq!(owner_events.len(), 1);
+    assert_eq!(scanner_events.len(), 1);
+    assert_eq!(normal_user_events.len(), 0);
+}
+
+#[test]
 pub fn get_roles_by_organization() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -409,6 +456,7 @@ pub fn get_scopes_by_organization() {
             "comp:read",
             "comp:write",
             "event:interest",
+            "event:scan",
             "event:view-guests",
             "event:write",
             "hold:read",
@@ -434,6 +482,7 @@ pub fn get_scopes_by_organization() {
             "comp:read",
             "comp:write",
             "event:interest",
+            "event:scan",
             "event:view-guests",
             "event:write",
             "hold:read",
@@ -486,6 +535,7 @@ pub fn get_global_scopes() {
             "comp:read",
             "comp:write",
             "event:interest",
+            "event:scan",
             "event:view-guests",
             "event:write",
             "hold:read",

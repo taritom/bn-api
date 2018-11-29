@@ -1,10 +1,12 @@
+use chrono::prelude::Utc;
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::*;
-use schema::{organization_users, organizations, users};
+use schema::{events, organization_users, organizations, users};
 use std::collections::HashMap;
+use time::Duration;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::passwords::PasswordHash;
 use uuid::Uuid;
@@ -212,9 +214,7 @@ impl User {
             .filter(
                 organization_users::user_id
                     .eq(self.id)
-                    .or(organization_users::id
-                        .is_null()
-                        .and(organizations::owner_user_id.eq(self.id))),
+                    .or(organizations::owner_user_id.eq(self.id)),
             ).select(organizations::all_columns)
             .order_by(organizations::name.asc())
             .load::<Organization>(conn)
@@ -266,6 +266,42 @@ impl User {
                 .set((users::role.eq(new_roles), users::updated_at.eq(dsl::now)))
                 .get_result(conn),
         )
+    }
+
+    pub fn find_events_with_access_to_scan(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Vec<Event>, DatabaseError> {
+        let event_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
+
+        if self.is_admin() {
+            DatabaseError::wrap(
+                ErrorCode::QueryError,
+                "Error loading scannable events",
+                events::table
+                    .filter(events::status.eq(EventStatus::Published.to_string()))
+                    .filter(events::event_start.ge(event_start))
+                    .order_by(events::event_start.asc())
+                    .load(conn),
+            )
+        } else {
+            let user_organizations = self.organizations(conn)?;
+            let user_organization_ids: Vec<Uuid> =
+                user_organizations.iter().map(|org| org.id).collect();
+
+            let result = events::table
+                .filter(events::status.eq(EventStatus::Published.to_string()))
+                .filter(events::event_start.ge(event_start))
+                .filter(events::organization_id.eq_any(user_organization_ids))
+                .order_by(events::event_start.asc());
+            //            println!("SQL {}", diesel::query_builder::debug_query(&result).to_string());
+            let result = result.select(events::all_columns).load(conn);
+            DatabaseError::wrap(
+                ErrorCode::QueryError,
+                "Error loading scannable events",
+                result,
+            )
+        }
     }
 
     pub fn full_name(&self) -> String {
