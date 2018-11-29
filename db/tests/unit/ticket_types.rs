@@ -236,6 +236,7 @@ pub fn remaining_ticket_count() {
                 quantity: 20,
                 redemption_code: None,
             }],
+            false,
             connection,
         ).unwrap();
     assert_eq!(80, ticket_type.remaining_ticket_count(connection).unwrap());
@@ -247,6 +248,7 @@ pub fn remaining_ticket_count() {
                 quantity: 16,
                 redemption_code: None,
             }],
+            false,
             connection,
         ).unwrap();
     assert_eq!(84, ticket_type.remaining_ticket_count(connection).unwrap());

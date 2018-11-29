@@ -336,6 +336,7 @@ pub fn dashboard(role: Roles, should_test_succeed: bool) {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         connection,
     ).unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);

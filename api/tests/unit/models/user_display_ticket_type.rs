@@ -59,6 +59,7 @@ fn from_ticket_type() {
                 quantity: 100,
                 redemption_code: None,
             }],
+            false,
             conn,
         ).unwrap();
     let display_ticket_type =
@@ -77,6 +78,7 @@ fn from_ticket_type() {
                 quantity: 90,
                 redemption_code: None,
             }],
+            false,
             conn,
         ).unwrap();
     let display_ticket_type =

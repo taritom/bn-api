@@ -108,6 +108,7 @@ impl TestDatabase {
                 quantity,
                 redemption_code: None,
             }],
+            false,
             &self.connection,
         ).unwrap();
 
