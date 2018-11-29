@@ -37,8 +37,12 @@ pub fn transform_message(level: log::Level, msg: &str, meta: &str) {
 
 fn format_message(msg: &str, meta: &str) -> String {
     match meta.len() {
-        0 => format!("\"message\": \"{}\"", msg),
-        _ => format!("\"message\": \"{}\", {}", msg, &meta[1..meta.len() - 1]),
+        0 => format!("\"message\": \"{}\"", msg.trim()),
+        _ => format!(
+            "\"message\": \"{}\", {}",
+            msg.trim(),
+            &meta[1..meta.len() - 1]
+        ),
     }
 }
 
