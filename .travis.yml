@@ -38,6 +38,7 @@ before_install:
 before_script: []
 after_script: []
 after_success:
+- 'cd $(git rev-parse --show-toplevel)'
 - '[[ "$TRAVIS_BRANCH" == "master" ]] && ./scripts/init-github-ssh.sh'
 - '[[ "$TRAVIS_BRANCH" == "master" ]] && ./scripts/bump-version.sh --with-git'
 env:
