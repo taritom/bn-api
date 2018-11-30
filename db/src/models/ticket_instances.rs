@@ -4,7 +4,7 @@ use diesel::dsl::*;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
-use diesel::sql_types::{Bigint, Integer, Nullable, Text, Uuid as dUuid};
+use diesel::sql_types::{Bigint, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use rand;
@@ -63,6 +63,8 @@ impl TicketInstance {
                 events::id,
                 events::venue_id,
                 ticket_instances::status,
+                ticket_instances::redeem_key,
+                events::redeem_date,
             )).first::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
         let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
@@ -133,6 +135,8 @@ impl TicketInstance {
                 events::id,
                 events::venue_id,
                 ticket_instances::status,
+                ticket_instances::redeem_key,
+                events::redeem_date,
             )).order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
             .load::<DisplayTicketIntermediary>(conn)
@@ -649,6 +653,7 @@ pub struct DisplayTicket {
     pub id: Uuid,
     pub ticket_type_name: String,
     pub status: String,
+    pub redeem_key: Option<String>,
 }
 
 #[derive(Queryable, QueryableByName)]
@@ -665,14 +670,26 @@ pub struct DisplayTicketIntermediary {
     pub venue_id: Option<Uuid>,
     #[sql_type = "Text"]
     pub status: String,
+    #[sql_type = "Nullable<Text>"]
+    pub redeem_key: Option<String>,
+    #[sql_type = "Nullable<Timestamp>"]
+    pub redeem_date: Option<NaiveDateTime>,
 }
 
 impl From<DisplayTicketIntermediary> for DisplayTicket {
     fn from(ticket_intermediary: DisplayTicketIntermediary) -> Self {
+        let redeem_key = if ticket_intermediary.redeem_date.is_some()
+            && ticket_intermediary.redeem_date.unwrap() > Utc::now().naive_utc()
+        {
+            None //Redeem key not available yet. Should this be an error?
+        } else {
+            ticket_intermediary.redeem_key.clone()
+        };
         DisplayTicket {
             id: ticket_intermediary.id.clone(),
             ticket_type_name: ticket_intermediary.name.clone(),
             status: ticket_intermediary.status.clone(),
+            redeem_key,
         }
     }
 }

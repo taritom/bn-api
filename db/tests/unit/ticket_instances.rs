@@ -162,6 +162,7 @@ pub fn find() {
         id: ticket.id,
         ticket_type_name: ticket_type.name.clone(),
         status: "Reserved".to_string(),
+        redeem_key: ticket.redeem_key,
     };
     assert_eq!(
         (display_event, None, expected_ticket),

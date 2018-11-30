@@ -62,20 +62,20 @@ pub fn index() {
     let total = cart.calculate_total(conn).unwrap();
     cart.add_external_payment("test".to_string(), user.id, total, conn)
         .unwrap();
-    let ticket_id =
+    let ticket =
         TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, conn)
             .unwrap()
             .remove(0)
             .1
-            .remove(0)
-            .id;
-    let ticket2_id =
+            .remove(0);
+    let ticket_id = ticket.id;
+    let ticket2 =
         TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, conn)
             .unwrap()
             .remove(0)
             .1
-            .remove(0)
-            .id;
+            .remove(0);
+    let ticket2_id = ticket2.id;
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
     // Test with specified event
@@ -95,6 +95,7 @@ pub fn index() {
         id: ticket_id,
         ticket_type_name: ticket_type.name.clone(),
         status: "Purchased".to_string(),
+        redeem_key: ticket.redeem_key,
     };
     assert_eq!(vec![expected_ticket.clone()], found_data.data);
     // Test without specified event
@@ -116,6 +117,7 @@ pub fn index() {
         id: ticket2_id,
         ticket_type_name: ticket_type2.name.clone(),
         status: "Purchased".to_string(),
+        redeem_key: ticket2.redeem_key,
     };
     assert_eq!(
         vec![
@@ -197,6 +199,7 @@ pub fn show() {
         id: ticket.id,
         ticket_type_name: ticket_type.name.clone(),
         status: "Purchased".to_string(),
+        redeem_key: ticket.redeem_key,
     };
 
     let expected_result = ShowTicketResponse {
