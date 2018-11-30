@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
+use models::enums::Roles;
 use models::{Organization, User};
 use schema::organization_users;
 use utils::errors::DatabaseError;
@@ -16,6 +17,7 @@ pub struct OrganizationUser {
     pub id: Uuid,
     pub organization_id: Uuid,
     pub user_id: Uuid,
+    pub role: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -25,10 +27,20 @@ pub struct OrganizationUser {
 pub struct NewOrganizationUser {
     pub organization_id: Uuid,
     pub user_id: Uuid,
+    pub role: String,
 }
 
 impl NewOrganizationUser {
     pub fn commit(&self, conn: &PgConnection) -> Result<OrganizationUser, DatabaseError> {
+        match self.validate_record() {
+            Ok(_) => (),
+            Err(_e) => {
+                return Err(DatabaseError::new(
+                    ErrorCode::InvalidInput,
+                    Some("Invalid user role supplied".to_string()),
+                ));
+            }
+        }
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new organization user",
@@ -37,13 +49,24 @@ impl NewOrganizationUser {
                 .get_result(conn),
         )
     }
+
+    pub fn validate_record(&self) -> Result<(), EnumParseError> {
+        let _: Roles = self.role.parse()?;
+        Ok(())
+    }
 }
 
 impl OrganizationUser {
-    pub fn create(organization_id: Uuid, user_id: Uuid) -> NewOrganizationUser {
+    pub fn create(
+        organization_id: Uuid,
+        user_id: Uuid,
+        role: Option<Roles>,
+    ) -> NewOrganizationUser {
+        let role = role.unwrap_or(Roles::OrgMember).to_string();
         NewOrganizationUser {
             organization_id,
             user_id,
+            role,
         }
     }
 

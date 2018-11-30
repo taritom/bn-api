@@ -38,6 +38,7 @@ pub struct Venue {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
+    pub promo_image_url: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -59,6 +60,8 @@ pub struct VenueEditableAttributes {
     pub postal_code: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub promo_image_url: Option<String>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -79,6 +82,8 @@ pub struct NewVenue {
     pub postal_code: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub promo_image_url: Option<String>,
 }
 
 impl NewVenue {
@@ -287,6 +292,7 @@ pub struct DisplayVenue {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
+    pub promo_image_url: Option<String>,
 }
 
 impl From<Venue> for DisplayVenue {
@@ -300,6 +306,7 @@ impl From<Venue> for DisplayVenue {
             country: venue.country,
             postal_code: venue.postal_code,
             phone: venue.phone,
+            promo_image_url: venue.promo_image_url,
         }
     }
 }

@@ -75,7 +75,7 @@ fn index_with_org_linked_and_private_venues() {
     assert_eq!(body, expected_json);
 
     //now with user that DOES belong to org
-    let _ = organization.add_user(auth_user.id(), &database.connection.clone());
+    let _ = organization.add_user(auth_user.id(), None, &database.connection.clone());
     expected_venues.push(venue4);
 
     let query_parameters =

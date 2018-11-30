@@ -3,6 +3,7 @@ CREATE TABLE organization_users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   organization_id uuid NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'OrgMember',
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
