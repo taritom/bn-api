@@ -28,6 +28,9 @@ pub struct Organization {
     pub postal_code: Option<String>,
     pub phone: Option<String>,
     pub event_fee_in_cents: Option<i64>,
+    pub sendgrid_api_key: Option<String>,
+    pub google_ga_key: Option<String>,
+    pub facebook_pixel_key: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub fee_schedule_id: Uuid,
@@ -53,6 +56,9 @@ pub struct NewOrganization {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
+    pub sendgrid_api_key: Option<String>,
+    pub google_ga_key: Option<String>,
+    pub facebook_pixel_key: Option<String>,
 }
 
 impl NewOrganization {
@@ -84,6 +90,12 @@ pub struct OrganizationEditableAttributes {
     pub phone: Option<String>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub event_fee_in_cents: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub sendgrid_api_key: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub google_ga_key: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub facebook_pixel_key: Option<String>,
 }
 
 impl Organization {
