@@ -93,7 +93,7 @@ impl<'a> OrganizationBuilder<'a> {
             .unwrap();
 
         for user_id in self.members.clone() {
-            OrganizationUser::create(organization.id, user_id)
+            OrganizationUser::create(organization.id, user_id, None)
                 .commit(self.connection)
                 .unwrap();
         }

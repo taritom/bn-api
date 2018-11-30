@@ -235,6 +235,7 @@ table! {
         id -> Uuid,
         organization_id -> Uuid,
         user_id -> Uuid,
+        role -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -373,6 +374,7 @@ table! {
         country -> Nullable<Text>,
         postal_code -> Nullable<Text>,
         phone -> Nullable<Text>,
+        promo_image_url -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

@@ -329,9 +329,10 @@ impl Organization {
     pub fn add_user(
         &self,
         user_id: Uuid,
+        role: Option<Roles>,
         conn: &PgConnection,
     ) -> Result<OrganizationUser, DatabaseError> {
-        let org_user = OrganizationUser::create(self.id, user_id).commit(conn)?;
+        let org_user = OrganizationUser::create(self.id, user_id, role).commit(conn)?;
         Ok(org_user)
     }
 

@@ -160,7 +160,7 @@ pub fn accept_request(
             if valid_for_acceptance {
                 let accept_details = invite_details.change_invite_status(1, connection)?;
                 let org = Organization::find(accept_details.organization_id, connection)?;
-                org.add_user(u.id(), connection)?;
+                org.add_user(u.id(), None, connection)?;
             } else {
                 return application::unauthorized(&request, Some(u));
             }

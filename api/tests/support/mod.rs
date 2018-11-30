@@ -61,7 +61,7 @@ pub fn create_auth_user_from_user(
                 .unwrap();
         } else {
             organization
-                .add_user(user.id, &database.connection)
+                .add_user(user.id, None, &database.connection)
                 .unwrap();
         }
 

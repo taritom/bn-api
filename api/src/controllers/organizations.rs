@@ -210,7 +210,7 @@ pub fn add_user(
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
     user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
-    organization.add_user(add_request.user_id, connection)?;
+    organization.add_user(add_request.user_id, None, connection)?;
     Ok(HttpResponse::Created().finish())
 }
 

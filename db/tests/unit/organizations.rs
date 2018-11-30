@@ -161,7 +161,7 @@ fn users() {
     let user3 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let organization2 = project.create_organization().with_owner(&user3).finish();
-    OrganizationUser::create(organization2.id, user2.id)
+    OrganizationUser::create(organization2.id, user2.id, None)
         .commit(project.get_connection())
         .unwrap();
 
@@ -177,7 +177,7 @@ fn users() {
     );
 
     // Explicitly make the organization user an org user
-    OrganizationUser::create(organization.id, user.id)
+    OrganizationUser::create(organization.id, user.id, None)
         .commit(project.get_connection())
         .unwrap();
     let user_results = organization.users(project.get_connection()).unwrap();
@@ -189,7 +189,7 @@ fn users() {
     assert_eq!(user2.id, user_results2[1].id);
 
     // Add a new user to the organization
-    OrganizationUser::create(organization.id, user2.id)
+    OrganizationUser::create(organization.id, user2.id, None)
         .commit(project.get_connection())
         .unwrap();
     let user_results = organization.users(project.get_connection()).unwrap();
@@ -318,10 +318,10 @@ fn remove_users() {
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    OrganizationUser::create(organization.id, user2.id)
+    OrganizationUser::create(organization.id, user2.id, None)
         .commit(project.get_connection())
         .unwrap();
-    OrganizationUser::create(organization.id, user3.id)
+    OrganizationUser::create(organization.id, user3.id, None)
         .commit(project.get_connection())
         .unwrap();
     let user2_id = user2.id;
@@ -486,7 +486,7 @@ fn add_user() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let organization_user = organization.add_user(user2.id, connection).unwrap();
+    let organization_user = organization.add_user(user2.id, None, connection).unwrap();
 
     assert_eq!(organization_user.user_id, user2.id);
     assert_eq!(organization_user.organization_id, organization.id);

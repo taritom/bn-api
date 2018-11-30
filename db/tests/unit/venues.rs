@@ -104,7 +104,7 @@ fn all() {
         .finish();
     let venue3 = venue3.add_to_organization(&organization.id, conn);
     let user = project.create_user().finish();
-    let _ = organization.add_user(user.id, conn).unwrap();
+    let _ = organization.add_user(user.id, None, conn).unwrap();
     all_venues.push(venue3.unwrap());
     let all_found_venues = Venue::all(Some(&user), conn).unwrap();
     assert_eq!(all_venues, all_found_venues);

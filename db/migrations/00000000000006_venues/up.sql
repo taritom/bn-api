@@ -11,6 +11,7 @@ CREATE TABLE venues (
   country TEXT,
   postal_code TEXT,
   phone TEXT,
+  promo_image_url TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
