@@ -10,6 +10,9 @@ CREATE TABLE organizations (
   postal_code TEXT,
   phone TEXT,
   event_fee_in_cents BIGINT NULL,
+  sendgrid_api_key TEXT NULL,
+  google_ga_key TEXT NULL,
+  facebook_pixel_key TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );

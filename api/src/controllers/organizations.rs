@@ -44,6 +44,12 @@ pub struct NewOrganizationRequest {
     pub postal_code: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub sendgrid_api_key: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub google_ga_key: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub facebook_pixel_key: Option<String>,
 }
 
 pub fn index(
@@ -112,6 +118,9 @@ pub fn create(
         country: new_organization.country.clone(),
         postal_code: new_organization.postal_code.clone(),
         phone: new_organization.phone.clone(),
+        sendgrid_api_key: new_organization.sendgrid_api_key.clone(),
+        google_ga_key: new_organization.google_ga_key.clone(),
+        facebook_pixel_key: new_organization.facebook_pixel_key.clone(),
     };
 
     let organization = new_organization_with_fee_schedule.commit(connection)?;
