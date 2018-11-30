@@ -37,10 +37,14 @@ before_install:
 - cargo fmt --all -- --check
 before_script: []
 after_script: []
-after_success:
-- 'cd $(git rev-parse --show-toplevel)'
-- '[[ "$TRAVIS_BRANCH" == "master" ]] && ./scripts/init-github-ssh.sh'
-- '[[ "$TRAVIS_BRANCH" == "master" ]] && ./scripts/bump-version.sh --with-git'
+deploy:
+  - provider: script
+    script:
+    - 'cd $(git rev-parse --show-toplevel)'
+    - './scripts/init-github-ssh.sh'
+    - './scripts/bump-version.sh --with-git'
+    on:
+      branch: master
 env:
   global:
   - FRONT_END_URL="http://localhost"

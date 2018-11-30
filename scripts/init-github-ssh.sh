@@ -1,4 +1,4 @@
-#!/usr/bin/env
+#!/usr/bin/env bash
 
 declare -r SSH_FILE="$(mktemp -u $HOME/.ssh/github)"
 
