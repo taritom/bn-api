@@ -38,7 +38,9 @@ pub fn index() {
     let conn = &database.connection;
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket_type = &event.ticket_types(conn).unwrap()[0];
+    let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
     let ticket_type2 = &event2.ticket_types(conn).unwrap()[0];
+    let ticket_pricing2 = ticket_type2.current_ticket_pricing(conn).unwrap();
     cart.update_quantities(
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
@@ -93,6 +95,8 @@ pub fn index() {
     let found_data: Payload<DisplayTicket> = serde_json::from_str(&body).unwrap();
     let expected_ticket = DisplayTicket {
         id: ticket_id,
+        order_id: cart.id,
+        price_in_cents: Some(ticket_pricing.price_in_cents as u32),
         ticket_type_name: ticket_type.name.clone(),
         status: "Purchased".to_string(),
         redeem_key: ticket.redeem_key,
@@ -115,6 +119,8 @@ pub fn index() {
     let found_tickets = found_data.data;
     let expected_ticket2 = DisplayTicket {
         id: ticket2_id,
+        order_id: cart.id,
+        price_in_cents: Some(ticket_pricing2.price_in_cents as u32),
         ticket_type_name: ticket_type2.name.clone(),
         status: "Purchased".to_string(),
         redeem_key: ticket2.redeem_key,
@@ -173,6 +179,7 @@ pub fn show() {
     let conn = &database.connection;
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket_type = &event.ticket_types(conn).unwrap()[0];
+    let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
     cart.update_quantities(
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
@@ -197,6 +204,8 @@ pub fn show() {
     let ticket_response: ShowTicketResponse = serde_json::from_str(&body).unwrap();
     let expected_ticket = DisplayTicket {
         id: ticket.id,
+        order_id: cart.id,
+        price_in_cents: Some(ticket_pricing.price_in_cents as u32),
         ticket_type_name: ticket_type.name.clone(),
         status: "Purchased".to_string(),
         redeem_key: ticket.redeem_key,

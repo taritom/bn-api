@@ -24,6 +24,8 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
     let user2 = database.create_user().finish();
     let conn = &database.connection;
     let ticket_type = event.ticket_types(conn).unwrap().remove(0);
+    let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
+    let cart = Order::find_or_create_cart(&user2, conn).unwrap();
     let ticket = database
         .create_purchased_tickets(&user2, ticket_type.id, 1)
         .remove(0);
@@ -39,6 +41,8 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
         let ticket_response: ShowTicketResponse = serde_json::from_str(&body).unwrap();
         let expected_ticket = DisplayTicket {
             id: ticket.id,
+            order_id: cart.id,
+            price_in_cents: Some(ticket_pricing.price_in_cents as u32),
             ticket_type_name: ticket_type.name.clone(),
             status: "Purchased".to_string(),
             redeem_key: ticket_response.ticket.redeem_key.clone(),

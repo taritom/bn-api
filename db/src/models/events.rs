@@ -705,8 +705,13 @@ impl Event {
         Wallet::find_default_for_organization(self.organization_id, conn)
     }
 
+    pub fn artists(&self, conn: &PgConnection) -> Result<Vec<DisplayEventArtist>, DatabaseError> {
+        EventArtist::find_all_from_event(self.id, conn)
+    }
+
     pub fn for_display(self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {
         let venue: Option<DisplayVenue> = self.venue(conn)?.and_then(|venue| Some(venue.into()));
+        let artists = self.artists(conn)?;
 
         Ok(DisplayEvent {
             id: self.id,
@@ -716,6 +721,7 @@ impl Event {
             promo_image_url: self.promo_image_url,
             additional_info: self.additional_info,
             top_line_info: self.top_line_info,
+            artists,
             venue,
             max_ticket_price: self.max_ticket_price,
             min_ticket_price: self.min_ticket_price,
@@ -733,6 +739,7 @@ pub struct DisplayEvent {
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub top_line_info: Option<String>,
+    pub artists: Vec<DisplayEventArtist>,
     pub venue: Option<DisplayVenue>,
     pub min_ticket_price: Option<i64>,
     pub max_ticket_price: Option<i64>,

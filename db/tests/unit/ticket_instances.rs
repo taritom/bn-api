@@ -140,6 +140,8 @@ pub fn find() {
     //let _d_user: DisplayUser = user.into();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let ticket_pricing = ticket_type.current_ticket_pricing(connection).unwrap();
+
     let display_event = event.for_display(connection).unwrap();
     cart.update_quantities(
         &[UpdateOrderItem {
@@ -160,6 +162,8 @@ pub fn find() {
         .remove(0);
     let expected_ticket = DisplayTicket {
         id: ticket.id,
+        order_id: cart.id,
+        price_in_cents: Some(ticket_pricing.price_in_cents as u32),
         ticket_type_name: ticket_type.name.clone(),
         status: "Reserved".to_string(),
         redeem_key: ticket.redeem_key,

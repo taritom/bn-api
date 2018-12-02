@@ -4,7 +4,7 @@ use diesel::dsl::*;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
-use diesel::sql_types::{Bigint, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use rand;
@@ -12,10 +12,8 @@ use rand::Rng;
 use schema::{
     assets, events, order_items, orders, ticket_instances, ticket_types, users, venues, wallets,
 };
-use tari_client::{
-    convert_bytes_to_hexstring, convert_hexstring_to_bytes, cryptographic_signature,
-    cryptographic_verify,
-};
+use std::collections::HashMap;
+use tari_client::*;
 use time::Duration;
 use utils::errors::*;
 use uuid::Uuid;
@@ -52,12 +50,17 @@ impl TicketInstance {
     ) -> Result<(DisplayEvent, Option<DisplayUser>, DisplayTicket), DatabaseError> {
         let ticket_intermediary = ticket_instances::table
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
-            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            ).inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
             .filter(ticket_instances::id.eq(id))
             .select((
                 ticket_instances::id,
+                order_items::order_id,
+                assets::ticket_type_id,
                 ticket_types::name,
                 wallets::user_id,
                 events::id,
@@ -72,7 +75,13 @@ impl TicketInstance {
             Some(uid) => Some(User::find(uid, conn)?.into()),
             None => None,
         };
-        Ok((event, user, ticket_intermediary.into()))
+        let ticket_type = TicketType::find(ticket_intermediary.ticket_type_id, conn)?;
+        let ticket_pricing = ticket_type.current_ticket_pricing(conn).optional()?;
+        Ok((
+            event,
+            user,
+            ticket_intermediary.for_display(ticket_pricing.map(|p| p.price_in_cents as u32)),
+        ))
     }
 
     pub fn find_for_processing(
@@ -113,7 +122,10 @@ impl TicketInstance {
         let mut query =
             ticket_instances::table
                 .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
-                .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+                .inner_join(
+                    order_items::table
+                        .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+                ).inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
                 .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
                 .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
                 .filter(events::event_start.gt(
@@ -130,6 +142,8 @@ impl TicketInstance {
         let tickets = query
             .select((
                 ticket_instances::id,
+                order_items::order_id,
+                assets::ticket_type_id,
                 ticket_types::name,
                 wallets::user_id,
                 events::id,
@@ -142,11 +156,37 @@ impl TicketInstance {
             .load::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load user tickets")?;
 
+        let mut ticket_type_ids = tickets
+            .iter()
+            .map(|t| t.ticket_type_id)
+            .collect::<Vec<Uuid>>();
+        ticket_type_ids.sort();
+        ticket_type_ids.dedup();
+
+        let mut ticket_type_pricing_map = HashMap::new();
+        for ticket_type_id in ticket_type_ids {
+            let ticket_type_pricing = TicketType::find(ticket_type_id, conn)?
+                .current_ticket_pricing(conn)
+                .optional()?;
+            ticket_type_pricing_map.insert(
+                ticket_type_id,
+                ticket_type_pricing.map(|p| p.price_in_cents as u32),
+            );
+        }
+
         let mut grouped_display_tickets = Vec::new();
         for (key, group) in &tickets.into_iter().group_by(|ticket| ticket.event_id) {
             let event = Event::find(key, conn)?.for_display(conn)?;
-            let display_tickets: Vec<DisplayTicket> =
-                group.into_iter().map(|ticket| ticket.into()).collect();
+            let display_tickets: Vec<DisplayTicket> = group
+                .into_iter()
+                .map(|ticket| {
+                    ticket.for_display(
+                        ticket_type_pricing_map
+                            .get(&ticket.ticket_type_id)
+                            .map(|p| p.clone())
+                            .unwrap_or(None),
+                    )
+                }).collect();
             grouped_display_tickets.push((event, display_tickets));
         }
 
@@ -213,7 +253,7 @@ impl TicketInstance {
             .bind::<sql_types::Timestamp, _>(order_expires_at)
             .bind::<sql_types::Uuid, _>(ticket_type_id)
             .bind::<sql_types::Nullable<sql_types::Uuid>, _>(ticket_holding_id)
-            .bind::<Bigint, _>(quantity as i64);
+            .bind::<BigInt, _>(quantity as i64);
         let tickets: Vec<TicketInstance> = q
             .get_results(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not reserve tickets")?;
@@ -236,7 +276,7 @@ impl TicketInstance {
         let query = include_str!("../queries/release_tickets.sql");
         let q = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(order_item.id)
-            .bind::<Bigint, _>(quantity as i64);
+            .bind::<BigInt, _>(quantity as i64);
         let tickets: Vec<TicketInstance> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not release tickets")?;
@@ -261,7 +301,7 @@ impl TicketInstance {
         let q = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(hold_id)
             .bind::<sql_types::Uuid, _>(ticket_type_id)
-            .bind::<Bigint, _>(quantity as i64)
+            .bind::<BigInt, _>(quantity as i64)
             .bind::<Nullable<sql_types::Uuid>, _>(from_hold_id);
 
         let tickets: Vec<TicketInstance> = q
@@ -288,7 +328,7 @@ impl TicketInstance {
         let q = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(hold_id)
             .bind::<sql_types::Uuid, _>(ticket_type_id)
-            .bind::<Bigint, _>(quantity as i64);
+            .bind::<BigInt, _>(quantity as i64);
 
         let tickets: Vec<TicketInstance> = q.get_results(conn).to_db_error(
             ErrorCode::QueryError,
@@ -631,7 +671,7 @@ impl TicketInstance {
         let query = include_str!("../queries/nullify_tickets.sql");
         let q = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(asset_id)
-            .bind::<sql_types::Bigint, _>(quantity as i64);
+            .bind::<sql_types::BigInt, _>(quantity as i64);
         let updated_ticket_instances: Vec<TicketInstance> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not nullify tickets")?;
@@ -651,6 +691,8 @@ pub struct TransferAuthorization {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct DisplayTicket {
     pub id: Uuid,
+    pub order_id: Uuid,
+    pub price_in_cents: Option<u32>,
     pub ticket_type_name: String,
     pub status: String,
     pub redeem_key: Option<String>,
@@ -660,6 +702,10 @@ pub struct DisplayTicket {
 pub struct DisplayTicketIntermediary {
     #[sql_type = "dUuid"]
     pub id: Uuid,
+    #[sql_type = "dUuid"]
+    pub order_id: Uuid,
+    #[sql_type = "dUuid"]
+    pub ticket_type_id: Uuid,
     #[sql_type = "Text"]
     pub name: String,
     #[sql_type = "Nullable<dUuid>"]
@@ -676,19 +722,21 @@ pub struct DisplayTicketIntermediary {
     pub redeem_date: Option<NaiveDateTime>,
 }
 
-impl From<DisplayTicketIntermediary> for DisplayTicket {
-    fn from(ticket_intermediary: DisplayTicketIntermediary) -> Self {
-        let redeem_key = if ticket_intermediary.redeem_date.is_some()
-            && ticket_intermediary.redeem_date.unwrap() > Utc::now().naive_utc()
-        {
-            None //Redeem key not available yet. Should this be an error?
-        } else {
-            ticket_intermediary.redeem_key.clone()
-        };
+impl DisplayTicketIntermediary {
+    pub fn for_display(&self, price_in_cents: Option<u32>) -> DisplayTicket {
+        let redeem_key =
+            if self.redeem_date.is_some() && self.redeem_date.unwrap() > Utc::now().naive_utc() {
+                None //Redeem key not available yet. Should this be an error?
+            } else {
+                self.redeem_key.clone()
+            };
+
         DisplayTicket {
-            id: ticket_intermediary.id.clone(),
-            ticket_type_name: ticket_intermediary.name.clone(),
-            status: ticket_intermediary.status.clone(),
+            id: self.id,
+            order_id: self.order_id,
+            price_in_cents: price_in_cents,
+            ticket_type_name: self.name.clone(),
+            status: self.status.clone(),
             redeem_key,
         }
     }

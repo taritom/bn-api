@@ -90,7 +90,7 @@ impl EventArtist {
     }
 }
 
-#[derive(Serialize, PartialEq, Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct DisplayEventArtist {
     pub event_id: Uuid,
     pub artist: Artist,
