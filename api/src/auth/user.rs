@@ -6,6 +6,7 @@ use diesel::PgConnection;
 use errors::*;
 use jwt::{decode, Validation};
 use log::Level::Warn;
+use logging::*;
 use middleware::RequestConnection;
 use serde_json::Value;
 use server::AppState;

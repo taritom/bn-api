@@ -117,14 +117,14 @@ mod destroy_tests {
 #[test]
 fn create_with_validation_errors() {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let hold = database
         .create_hold()
         .with_hold_type(HoldTypes::Comp)
         .finish();
-    let event = Event::find(hold.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
+    let event = Event::find(hold.event_id, connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
@@ -146,7 +146,7 @@ fn create_with_validation_errors() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = hold.id;
 
-    let response = comps::create((database.connection.into(), json, path, auth_user));
+    let response = comps::create((database.connection.clone(), json, path, auth_user));
     let err = response.err().unwrap();
 
     let response: HttpResponse = err.error_response();
@@ -162,11 +162,11 @@ fn create_with_validation_errors() {
 #[test]
 fn update_with_validation_errors() {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let comp = database.create_comp().finish();
-    let event = Event::find(comp.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
+    let event = Event::find(comp.event_id, connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
@@ -181,7 +181,7 @@ fn update_with_validation_errors() {
     });
 
     let response: HttpResponse =
-        comps::update((database.connection.into(), json, path, auth_user)).into();
+        comps::update((database.connection.clone(), json, path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 

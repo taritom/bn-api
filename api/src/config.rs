@@ -18,11 +18,13 @@ pub struct Config {
     pub api_port: String,
     pub app_name: String,
     pub database_url: String,
+    pub database_pool_size: u32,
     pub domain: String,
     pub environment: Environment,
     pub facebook_app_id: Option<String>,
     pub facebook_app_secret: Option<String>,
     pub google_recaptcha_secret_key: Option<String>,
+    pub http_keep_alive: usize,
     pub block_external_comms: bool,
     pub mail_from_email: String,
     pub mail_from_name: String,
@@ -44,6 +46,7 @@ const APP_NAME: &str = "APP_NAME";
 const API_URL: &str = "API_URL";
 const API_PORT: &str = "API_PORT";
 const DATABASE_URL: &str = "DATABASE_URL";
+const DATABASE_POOL_SIZE: &str = "DATABASE_POOL_SIZE";
 const DOMAIN: &str = "DOMAIN";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
@@ -54,6 +57,7 @@ const TARI_URL: &str = "TARI_URL";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
 const TOKEN_SECRET: &str = "TOKEN_SECRET";
 const TOKEN_ISSUER: &str = "TOKEN_ISSUER";
+const HTTP_KEEP_ALIVE: &str = "HTTP_KEEP_ALIVE";
 // Blocks all external communications from occurring
 const BLOCK_EXTERNAL_COMMS: &str = "BLOCK_EXTERNAL_COMMS";
 // Mail settings
@@ -87,6 +91,12 @@ impl Config {
             _ => env::var(&DATABASE_URL)
                 .unwrap_or_else(|_| panic!("{} must be defined.", DATABASE_URL)),
         };
+
+        let database_pool_size = env::var(&DATABASE_POOL_SIZE)
+            .map(|s| {
+                s.parse()
+                    .expect("Not a valid integer for database pool size")
+            }).unwrap_or(20);
         let domain = env::var(&DOMAIN).unwrap_or_else(|_| "api.bigneon.com".to_string());
         let mail_from_email = env::var(&MAIL_FROM_EMAIL)
             .unwrap_or_else(|_| panic!("{} must be defined.", MAIL_FROM_EMAIL));
@@ -181,17 +191,24 @@ impl Config {
             _ => true,
         };
 
+        let http_keep_alive = env::var(&HTTP_KEEP_ALIVE)
+            .unwrap_or("10".to_string())
+            .parse()
+            .unwrap();
+
         Config {
             allowed_origins,
             app_name,
             api_url,
             api_port,
             database_url,
+            database_pool_size,
             domain,
             environment,
             facebook_app_id,
             facebook_app_secret,
             google_recaptcha_secret_key,
+            http_keep_alive,
             block_external_comms,
             mail_from_name,
             mail_from_email,

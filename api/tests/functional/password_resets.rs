@@ -21,7 +21,6 @@ use uuid::Uuid;
 #[test]
 fn create() {
     let database = TestDatabase::new();
-    let connection_object: BigNeonConnection = database.connection.clone().into();
     let email = "joe@tari.com";
 
     let user = database
@@ -37,10 +36,11 @@ fn create() {
     let json = Json(CreatePasswordResetParameters {
         email: email.to_string(),
     });
-    let response: HttpResponse = password_resets::create((state, connection_object, json)).into();
+    let response: HttpResponse =
+        password_resets::create((state, database.connection.clone(), json)).into();
 
     // Reload user
-    let user = User::find(user.id, &*database.connection).expect("User to reload");
+    let user = User::find(user.id, database.connection.get()).expect("User to reload");
     let mail_transport = test_request.test_transport();
 
     {
@@ -79,8 +79,7 @@ fn create_fake_email() {
     let json = Json(CreatePasswordResetParameters {
         email: email.to_string(),
     });
-    let response: HttpResponse =
-        password_resets::create((state, database.connection.into(), json)).into();
+    let response: HttpResponse = password_resets::create((state, database.connection, json)).into();
 
     let mail_transport = test_request.test_transport();
 
@@ -100,7 +99,7 @@ fn update() {
 
     let user = database.create_user().finish();
     let user = user
-        .create_password_reset_token(&*database.connection)
+        .create_password_reset_token(database.connection.get())
         .unwrap();
     let new_password = "newPassword";
     assert!(!user.check_password(&new_password));
@@ -114,7 +113,7 @@ fn update() {
     });
     let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
 
-    let user = User::find(user.id, &*database.connection).unwrap();
+    let user = User::find(user.id, database.connection.get()).unwrap();
     assert!(user.password_reset_token.is_none());
     assert!(user.password_reset_requested_at.is_none());
     assert!(user.check_password(&new_password));
@@ -152,7 +151,7 @@ fn update_expired_token() {
         .set(PasswordReset {
             password_reset_token: Some(token),
             password_reset_requested_at: Some(Utc::now().naive_utc() - Duration::days(3)),
-        }).get_result(&*database.connection)
+        }).get_result(database.connection.get())
         .unwrap();
     let new_password = "newPassword";
     assert!(!user.check_password(&new_password));
@@ -165,7 +164,7 @@ fn update_expired_token() {
     });
     let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
 
-    let user = User::find(user.id, &*database.connection).unwrap();
+    let user = User::find(user.id, database.connection.get()).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));
@@ -179,7 +178,7 @@ fn update_incorrect_token() {
     let connection_object: BigNeonConnection = database.connection.clone().into();
     let user = database.create_user().finish();
     let user = user
-        .create_password_reset_token(&*database.connection)
+        .create_password_reset_token(database.connection.get())
         .unwrap();
     let new_password = "newPassword";
     let token = user.password_reset_token.unwrap();
@@ -193,7 +192,7 @@ fn update_incorrect_token() {
     });
     let response: HttpResponse = password_resets::update((state, connection_object, json)).into();
 
-    let user = User::find(user.id, &*database.connection).unwrap();
+    let user = User::find(user.id, database.connection.get()).unwrap();
     assert_eq!(user.password_reset_token.unwrap(), token);
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));

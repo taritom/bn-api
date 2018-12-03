@@ -2,10 +2,13 @@ use actix_web::http;
 use actix_web::middleware::cors::Cors;
 use actix_web::middleware::Logger;
 use actix_web::{server, App};
+
 use config::Config;
 use db::*;
+use domain_events::DomainActionMonitor;
 use middleware::{AppVersionHeader, DatabaseTransaction};
 use routing;
+use std::io;
 use utils::ServiceLocator;
 
 pub struct AppState {
@@ -15,9 +18,9 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: Config) -> AppState {
+    pub fn new(config: Config, database: Database) -> AppState {
         AppState {
-            database: Database::from_config(&config),
+            database,
             service_locator: ServiceLocator::new(&config),
             config,
         }
@@ -28,17 +31,38 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn start(config: Config) {
+    pub fn start(
+        config: Config,
+        process_actions: bool,
+        process_http: bool,
+        process_actions_til_empty: bool,
+    ) {
         let bind_addr = format!("{}:{}", config.api_url, config.api_port);
-        info!("Listening on {}", bind_addr);
-        server::new({
-            move || {
-                App::with_state(AppState::new(config.clone()))
-                    .middleware(DatabaseTransaction::new())
-                    .middleware(AppVersionHeader::new())
-                    .middleware(Logger::new(
-                        r#"{\"remote_ip\":\"%a\", \"user_agent\": \"%{User-Agent}i\", \"request\": \"%r\", \"status_code\": %s, \"response_time\": %D}"#,
-                    )).configure(|a| {
+
+        let database = Database::from_config(&config);
+
+        let mut domain_action_monitor =
+            DomainActionMonitor::new(config.clone(), database.clone(), 1);
+        if process_actions_til_empty {
+            domain_action_monitor.run_til_empty().unwrap();
+            return;
+        }
+
+        if process_actions {
+            domain_action_monitor.start()
+        }
+
+        if process_http {
+            info!("Listening on {}", bind_addr);
+            let keep_alive = config.http_keep_alive;
+            server::new({
+                move || {
+                    App::with_state(AppState::new(config.clone(), database.clone()))
+                        .middleware(DatabaseTransaction::new())
+                        .middleware(AppVersionHeader::new())
+                        .middleware(Logger::new(
+                            r#"{\"remote_ip\":\"%a\", \"user_agent\": \"%{User-Agent}i\", \"request\": \"%r\", \"status_code\": %s, \"response_time\": %D}"#,
+                        )).configure(|a| {
                         let mut cors_config = Cors::for_app(a);
                         match config.allowed_origins.as_ref() {
                             "*" => cors_config.send_wildcard(),
@@ -55,10 +79,19 @@ impl Server {
 
                         routing::routes(&mut cors_config)
                     })
-            }
-        }).keep_alive(server::KeepAlive::Tcp(10))
-        .bind(&bind_addr)
-        .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
-        .run();
+                }
+            }).keep_alive(server::KeepAlive::Tcp(keep_alive))
+                .bind(&bind_addr)
+                .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
+                .run();
+        } else {
+            info!("Press enter to stop");
+            let mut input = String::new();
+            let _ = io::stdin().read_line(&mut input);
+        }
+
+        if process_actions {
+            domain_action_monitor.stop()
+        }
     }
 }

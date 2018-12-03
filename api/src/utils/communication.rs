@@ -1,17 +1,28 @@
+use std::collections::HashMap;
+
+use chrono::{Duration, Utc};
+use diesel::Connection;
+use diesel::PgConnection;
+use futures::Future;
+use tokio::prelude::*;
+use uuid::Uuid;
+
+use bigneon_db::models::enums::*;
+use bigneon_db::models::*;
 use config::{Config, Environment};
 use errors::*;
-use std::collections::HashMap;
-use utils::sendgrid::*;
+use futures::future::Either;
+use utils::sendgrid;
 
 pub type TemplateData = HashMap<String, String>;
 
+#[derive(Serialize, Deserialize)]
 pub enum CommunicationType {
     Email,
     EmailTemplate,
-    Sms,
-    PushNotification,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct CommAddress {
     addresses: Vec<String>,
 }
@@ -52,7 +63,7 @@ impl CommAddress {
         self.addresses.push(address.clone());
     }
 }
-
+#[derive(Serialize, Deserialize)]
 pub struct Communication {
     pub comm_type: CommunicationType,
     pub title: String,
@@ -84,63 +95,69 @@ impl Communication {
         }
     }
 
-    pub fn send(&self, config: &Config) -> Result<(), BigNeonError> {
+    pub fn queue(&self, connection: &PgConnection) -> Result<(), BigNeonError> {
+        DomainAction::create(
+            None,
+            DomainActionTypes::Communication,
+            Some(CommunicationChannelType::Email),
+            json!(self),
+            "event".to_string(),
+            Uuid::new_v4(),
+            Utc::now().naive_utc(),
+            (Utc::now().naive_utc())
+                .checked_add_signed(Duration::days(1))
+                .unwrap(),
+            3,
+        ).commit(connection)?;
+        Ok(())
+    }
+
+    pub fn send_async(
+        domain_action: &DomainAction,
+        config: &Config,
+    ) -> impl Future<Item = (), Error = BigNeonError> {
+        let communication: Communication =
+            match serde_json::from_value(domain_action.payload.clone()) {
+                Ok(v) => v,
+                Err(e) => return Either::A(future::err(e.into())),
+            };
         match config.environment {
             //TODO Maybe remove this environment check and just rely on the BLOCK_EXTERNAL_COMMS .env
-            Environment::Test => Ok(()), //Disable communication system when testing
+            Environment::Test => Either::A(future::ok(())), //Disable communication system when testing
             _ => {
-                match config.block_external_comms {
-                    true => Ok(()), //Disable communication system when block_external_comms is true,
+                let res = match config.block_external_comms {
+                    true => Either::A(future::ok(())), //Disable communication system when block_external_comms is true,
                     _ => {
-                        let destination_addresses = self.destinations.get();
-                        match self.comm_type {
+                        let destination_addresses = communication.destinations.get();
+                        let future = match communication.comm_type {
                             CommunicationType::Email => {
-                                if let (Some(source), Some(_body)) =
-                                    (self.source.as_ref(), self.body.as_ref())
-                                {
-                                    let source_address = source.get_first()?;
-                                    send_email(
-                                        &config.sendgrid_api_key.clone(),
-                                        &source_address,
-                                        &destination_addresses,
-                                        &self.title,
-                                        &self.body,
-                                    )
-                                } else {
-                                    Err(ApplicationError::new(
-                                        "Email source not specified".to_string(),
-                                    ).into())
-                                }
+                                let source_address =
+                                    communication.source.as_ref().unwrap().get_first().unwrap();
+                                sendgrid::send_email_async(
+                                    &config.sendgrid_api_key.clone(),
+                                    source_address,
+                                    destination_addresses,
+                                    communication.title.clone(),
+                                    communication.body.clone(),
+                                )
                             }
                             CommunicationType::EmailTemplate => {
-                                if let (Some(source), Some(template_id), Some(template_data)) = (
-                                    self.source.as_ref(),
-                                    self.template_id.as_ref(),
-                                    self.template_data.as_ref(),
-                                ) {
-                                    let source_address = source.get_first()?;
-                                    send_email_template(
-                                        &config.sendgrid_api_key.clone(),
-                                        &source_address,
-                                        &destination_addresses,
-                                        &template_id,
-                                        &template_data,
-                                    )
-                                } else {
-                                    Err(ApplicationError::new(
-                                        "Email source not specified".to_string(),
-                                    ).into())
-                                }
+                                let source_address =
+                                    communication.source.as_ref().unwrap().get_first().unwrap();
+
+                                sendgrid::send_email_template_async(
+                                    &config.sendgrid_api_key.clone(),
+                                    source_address,
+                                    &destination_addresses,
+                                    communication.template_id.clone().unwrap(),
+                                    communication.template_data.as_ref().unwrap(),
+                                )
                             }
-                            CommunicationType::Sms => Err(ApplicationError::new(
-                                "SMS communication not implemented".to_string(),
-                            ).into()),
-                            CommunicationType::PushNotification => Err(ApplicationError::new(
-                                "Push notifications not implemented".to_string(),
-                            ).into()),
-                        }
+                        };
+                        Either::B(future)
                     }
-                }
+                };
+                res
             }
         }
     }

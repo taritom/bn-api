@@ -254,8 +254,10 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         .with_security_token(None)
         .finish();
 
-    OrganizationInvite::get_invite_details(&invite.security_token.unwrap(), &database.connection)
-        .unwrap();
+    OrganizationInvite::get_invite_details(
+        &invite.security_token.unwrap(),
+        database.connection.get(),
+    ).unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(
@@ -298,8 +300,10 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
         .with_security_token(None)
         .finish();
 
-    OrganizationInvite::get_invite_details(&invite.security_token.unwrap(), &database.connection)
-        .unwrap();
+    OrganizationInvite::get_invite_details(
+        &invite.security_token.unwrap(),
+        database.connection.get(),
+    ).unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(

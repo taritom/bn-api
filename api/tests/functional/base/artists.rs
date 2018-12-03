@@ -195,7 +195,7 @@ pub fn update_with_organization(role: Roles, should_test_succeed: bool, is_priva
         .finish();
 
     if is_private {
-        artist = artist.set_privacy(true, &database.connection).unwrap();
+        artist = artist.set_privacy(true, database.connection.get()).unwrap();
     }
 
     let name = "New Name";

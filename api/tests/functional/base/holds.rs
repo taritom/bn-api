@@ -33,7 +33,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         end_at: None,
         max_per_order: None,
         quantity: 2,
-        ticket_type_id: event.ticket_types(&database.connection.clone()).unwrap()[0].id,
+        ticket_type_id: event.ticket_types(database.connection.get()).unwrap()[0].id,
     });
 
     let test_request = TestRequest::create();
@@ -57,11 +57,11 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
 pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let hold = database.create_hold().finish();
-    let event = Event::find(hold.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
+    let event = Event::find(hold.event_id, connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let name = "New Name";
@@ -77,7 +77,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     });
 
     let response: HttpResponse =
-        holds::update((database.connection.into(), json, path, auth_user)).into();
+        holds::update((database.connection.clone(), json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {

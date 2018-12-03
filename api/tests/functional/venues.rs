@@ -28,7 +28,7 @@ fn index_with_org_linked_and_private_venues() {
         .with_name("Venue3".to_string())
         .finish();
     let venue3 = venue3
-        .add_to_organization(&organization.id, &database.connection)
+        .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
 
     let venue4 = database
@@ -37,7 +37,7 @@ fn index_with_org_linked_and_private_venues() {
         .with_name("Venue4".to_string())
         .finish();
     let venue4 = venue4
-        .add_to_organization(&organization.id, &database.connection)
+        .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters =
@@ -75,7 +75,7 @@ fn index_with_org_linked_and_private_venues() {
     assert_eq!(body, expected_json);
 
     //now with user that DOES belong to org
-    let _ = organization.add_user(auth_user.id(), None, &database.connection.clone());
+    let _ = organization.add_user(auth_user.id(), None, database.connection.get());
     expected_venues.push(venue4);
 
     let query_parameters =
@@ -289,10 +289,10 @@ pub fn show_from_organizations_private_venue_same_org() {
         .make_private()
         .finish();
     let venue = venue
-        .add_to_organization(&organization.id, &database.connection)
+        .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
     let venue2 = venue2
-        .add_to_organization(&organization.id, &database.connection)
+        .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
 
     let user2 = database.create_user().finish();

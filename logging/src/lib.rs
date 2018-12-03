@@ -4,6 +4,8 @@ extern crate log;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
 
+extern crate chrono;
+
 /// A convenience wrapper around the log! macro for writing log messages that ElasticSearch can
 /// ingest.
 /// You can use the default logging form:
@@ -21,18 +23,26 @@ extern crate serde_json;
 macro_rules! jlog {
     ($t:path, $msg:expr) => {{
         use $crate::transform_message;
-        transform_message($t, $msg, "")
+        transform_message($t, None, $msg, "")
     }};
     ($t:path, $msg:expr, $json:tt) => {{
         use $crate::transform_message;
         let meta = json!($json).to_string();
-        transform_message($t, $msg, &meta)
+        transform_message($t, None, $msg, &meta)
+    }};
+    ($t:path, $target: expr, $msg:expr, $json:tt) => {{
+        use $crate::transform_message;
+        let meta = json!($json).to_string();
+        transform_message($t, Some($target), $msg, &meta)
     }};
 }
 
-pub fn transform_message(level: log::Level, msg: &str, meta: &str) {
+pub fn transform_message(level: log::Level, target: Option<&str>, msg: &str, meta: &str) {
     let inner = format_message(msg, meta);
-    log!(level, "{}", inner);
+    match target {
+        Some(t) => log!(target: t, level, "{}", inner),
+        None => log!(level, "{}", inner),
+    }
 }
 
 fn format_message(msg: &str, meta: &str) -> String {
@@ -57,8 +67,12 @@ pub fn setup_logger() -> Result<(), fern::InitError> {
             if !is_in_message_format(&msg) {
                 msg = format_message(&msg, "");
             }
+
+            use chrono;
+
             out.finish(format_args!(
-                "{{ \"level\": \"{}\", \"target\": \"{}\", {} }}",
+                "{{ \"time\": \"{}\", \"level\": \"{}\", \"target\": \"{}\", {} }}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
                 record.level(),
                 record.target(),
                 msg,

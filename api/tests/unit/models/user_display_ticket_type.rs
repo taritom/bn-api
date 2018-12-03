@@ -15,7 +15,7 @@ fn from_ticket_type() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let conn = &database.connection;
+    let conn = database.connection.get();
 
     let ticket_type = event.ticket_types(conn).unwrap().remove(0);
     let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();

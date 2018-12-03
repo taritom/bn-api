@@ -3,7 +3,7 @@ cd ../db
 cargo run create -c $DATABASE_URL -f -e superuser@test.com -p password -m 8883
 cd ../api
 cargo build
-cargo run &
+cargo run -- -t false &
 export SERVER_PID=$!$1
 # Run newman tests
 apt-get install nodejs
@@ -13,4 +13,10 @@ npm config set strict-ssl false
 npm install -g newman
 
 newman run ../integration-tests/bigneon-tests.postman_collection.json -e ../integration-tests/travis.postman_environment.json
+export NEWMAN_EXIT_CODE=$?
 kill -s SIGTERM $SERVER_PID
+if [ $NEWMAN_EXIT_CODE -ne 0 ]
+then
+    exit $NEWMAN_EXIT_CODE
+fi
+cargo run -- -b true

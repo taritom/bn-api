@@ -11,14 +11,14 @@ use support::test_request::TestRequest;
 
 pub fn index(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let hold = database
         .create_hold()
         .with_hold_type(HoldTypes::Comp)
         .finish();
-    let event = Event::find(hold.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
+    let event = Event::find(hold.event_id, connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let comp1 = database
@@ -43,7 +43,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     path.id = hold.id;
 
     let response = comps::index((
-        database.connection.into(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         auth_user,
@@ -75,22 +75,23 @@ pub fn index(role: Roles, should_test_succeed: bool) {
 
 pub fn show(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let comp = database.create_comp().finish();
     let comp_id = comp.id;
-    let event = Event::find(comp.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
+    let event = Event::find(comp.event_id, connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
-    let expected_json = serde_json::to_string(&comp.into_display(&connection).unwrap()).unwrap();
+    let expected_json = serde_json::to_string(&comp.into_display(connection).unwrap()).unwrap();
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id"]);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = comp_id;
 
-    let response: HttpResponse = comps::show((database.connection.into(), path, auth_user)).into();
+    let response: HttpResponse =
+        comps::show((database.connection.clone().into(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -103,14 +104,14 @@ pub fn show(role: Roles, should_succeed: bool) {
 
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let hold = database
         .create_hold()
         .with_hold_type(HoldTypes::Comp)
         .finish();
-    let event = Event::find(hold.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
+    let event = Event::find(hold.event_id, connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -132,7 +133,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = hold.id;
 
-    let response = comps::create((database.connection.into(), json, path, auth_user));
+    let response = comps::create((database.connection.clone().into(), json, path, auth_user));
 
     if should_test_succeed {
         let response = response.unwrap();
@@ -152,11 +153,11 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
 pub fn destroy(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let comp = database.create_comp().finish();
-    let event = Event::find(comp.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
+    let event = Event::find(comp.event_id, connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -165,11 +166,11 @@ pub fn destroy(role: Roles, should_succeed: bool) {
     path.id = comp.id;
 
     let response: HttpResponse =
-        comps::destroy((database.connection.into(), path, auth_user)).into();
+        comps::destroy((database.connection.clone().into(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        let comp = Hold::find(comp.id, &connection);
+        let comp = Hold::find(comp.id, connection);
         assert!(comp.is_err());
     } else {
         support::expects_unauthorized(&response);
@@ -178,11 +179,11 @@ pub fn destroy(role: Roles, should_succeed: bool) {
 
 pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let comp = database.create_comp().finish();
-    let event = Event::find(comp.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
+    let event = Event::find(comp.event_id, connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -197,7 +198,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     });
 
     let response: HttpResponse =
-        comps::update((database.connection.into(), json, path, auth_user)).into();
+        comps::update((database.connection.clone().into(), json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {

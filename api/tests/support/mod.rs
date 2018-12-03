@@ -47,7 +47,7 @@ pub fn create_auth_user_from_user(
 ) -> AuthUser {
     let test_request = TestRequest::create();
     if [Roles::Admin, Roles::User].contains(&role) {
-        let user = user.add_role(role, &database.connection).unwrap();
+        let user = user.add_role(role, database.connection.get()).unwrap();
         AuthUser::new(user, &test_request.request)
     } else {
         let organization = match organization {
@@ -57,11 +57,11 @@ pub fn create_auth_user_from_user(
 
         if role == Roles::OrgOwner {
             organization
-                .set_owner(user.id, &database.connection)
+                .set_owner(user.id, database.connection.get())
                 .unwrap();
         } else {
             organization
-                .add_user(user.id, None, &database.connection)
+                .add_user(user.id, None, database.connection.get())
                 .unwrap();
         }
 

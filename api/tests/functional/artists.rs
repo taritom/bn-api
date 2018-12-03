@@ -111,7 +111,7 @@ fn index_with_org_linked_and_private_venues() {
     assert_eq!(body, expected_json);
 
     //now with user that DOES belong to org
-    let _ = org1.add_user(user_id, None, &database.connection.clone());
+    let _ = org1.add_user(user_id, None, database.connection.clone().get());
     expected_artists.push(artist4);
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();

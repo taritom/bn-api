@@ -188,5 +188,4 @@ pub fn decline_request(
     recipient_name: str,
     connection : Connection)
 {
-
 }*/

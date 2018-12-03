@@ -1,21 +1,24 @@
 use errors::*;
+use futures::future::Either;
+use reqwest::async::Client as AsyncClient;
 use reqwest::Client;
 use serde_json;
 use std::collections::HashMap;
+use tokio::prelude::*;
 use utils::communication::*;
 
 const SENDGRID_API_URL: &'static str = "https://api.sendgrid.com/v3/mail/send";
 
 pub fn send_email(
-    sg_api_key: &String,
-    source_email_address: &String,
-    dest_email_addresses: &Vec<String>,
-    title: &String,
-    body: &Option<String>,
+    sg_api_key: &str,
+    source_email_address: String,
+    dest_email_addresses: Vec<String>,
+    title: String,
+    body: Option<String>,
 ) -> Result<(), BigNeonError> {
     let mut sg_message = SGMailMessage::new();
-    sg_message.subject = Some(title.clone());
-    sg_message.from = SGEmail::from(&source_email_address);
+    sg_message.subject = Some(title);
+    sg_message.from = SGEmail::from(source_email_address);
 
     let mut msg_personalization = SGPersonalization::new();
     for email_address in dest_email_addresses {
@@ -29,18 +32,44 @@ pub fn send_email(
     }
     sg_message.content.push(msg_content);
 
-    match sg_message.send(&sg_api_key) {
+    match sg_message.send(sg_api_key) {
         Ok(_body) => Ok(()),
         Err(err) => Err(ApplicationError::new(err.to_string()).into()),
     }
 }
 
+pub fn send_email_async(
+    sg_api_key: &str,
+    source_email_address: String,
+    dest_email_addresses: Vec<String>,
+    title: String,
+    body: Option<String>,
+) -> Box<Future<Item = (), Error = BigNeonError>> {
+    let mut sg_message = SGMailMessage::new();
+    sg_message.subject = Some(title);
+    sg_message.from = SGEmail::from(source_email_address);
+
+    let mut msg_personalization = SGPersonalization::new();
+    for email_address in dest_email_addresses {
+        msg_personalization.to.push(SGEmail::from(email_address));
+    }
+    sg_message.personalizations.push(msg_personalization);
+
+    let mut msg_content = SGContent::new();
+    if let Some(body) = body {
+        msg_content.value = body;
+    }
+    sg_message.content.push(msg_content);
+
+    Box::new(sg_message.send_async(sg_api_key))
+}
+
 pub fn send_email_template(
-    sg_api_key: &String,
-    source_email_address: &String,
-    dest_email_addresses: &Vec<String>,
-    template_id: &String,
-    template_data: &Vec<TemplateData>,
+    sg_api_key: &str,
+    source_email_address: String,
+    dest_email_addresses: Vec<&str>,
+    template_id: String,
+    template_data: &[&TemplateData],
 ) -> Result<(), BigNeonError> {
     if dest_email_addresses.len() != template_data.len() {
         return Err(ApplicationError::new(
@@ -48,14 +77,14 @@ pub fn send_email_template(
         ).into());
     }
     let mut sg_message = SGMailMessage::new();
-    sg_message.from = SGEmail::from(&source_email_address);
-    sg_message.template_id = Some(template_id.clone());
+    sg_message.from = SGEmail::from(source_email_address);
+    sg_message.template_id = Some(template_id);
 
     for i in 0..dest_email_addresses.len() {
         let mut msg_personalization = SGPersonalization::new();
         msg_personalization
             .to
-            .push(SGEmail::from(&dest_email_addresses[i]));
+            .push(SGEmail::from(dest_email_addresses[i].to_string()));
         msg_personalization.add_template_data(template_data[i].clone());
         sg_message.personalizations.push(msg_personalization);
     }
@@ -67,6 +96,40 @@ pub fn send_email_template(
         Ok(_body) => Ok(()),
         Err(err) => Err(ApplicationError::new(err.to_string()).into()),
     }
+}
+
+pub fn send_email_template_async(
+    sg_api_key: &str,
+    source_email_address: String,
+    dest_email_addresses: &[String],
+    template_id: String,
+    template_data: &[TemplateData],
+) -> Box<Future<Item = (), Error = BigNeonError>> {
+    Box::new(if dest_email_addresses.len() != template_data.len() {
+        Either::A(future::err(
+            ApplicationError::new(
+                "Destination addresses mismatched with template data".to_string(),
+            ).into(),
+        ))
+    } else {
+        let mut sg_message = SGMailMessage::new();
+        sg_message.from = SGEmail::from(source_email_address);
+        sg_message.template_id = Some(template_id);
+
+        for i in 0..dest_email_addresses.len() {
+            let mut msg_personalization = SGPersonalization::new();
+            msg_personalization
+                .to
+                .push(SGEmail::from(dest_email_addresses[i].to_string()));
+            msg_personalization.add_template_data(template_data[i].clone());
+            sg_message.personalizations.push(msg_personalization);
+        }
+
+        let msg_content = SGContent::new();
+        sg_message.content.push(msg_content);
+
+        Either::B(sg_message.send_async(&sg_api_key))
+    })
 }
 
 #[derive(Clone, Default, Serialize)]
@@ -84,11 +147,8 @@ impl SGEmail {
         }
     }
 
-    pub fn from(email: &String) -> SGEmail {
-        SGEmail {
-            email: email.clone(),
-            name: None,
-        }
+    pub fn from(email: String) -> SGEmail {
+        SGEmail { email, name: None }
     }
 }
 
@@ -171,7 +231,7 @@ impl SGMailMessage {
         }
     }
 
-    fn send(&self, sq_api_key: &String) -> Result<(), BigNeonError> {
+    fn send(&self, sq_api_key: &str) -> Result<(), BigNeonError> {
         let reqwest_client = Client::new();
         let msg_body = self.to_json();
         match reqwest_client
@@ -186,6 +246,22 @@ impl SGMailMessage {
             Ok(_res) => Ok(()),
             Err(err) => Err(ApplicationError::new(err.to_string()).into()),
         }
+    }
+
+    fn send_async(&self, sq_api_key: &str) -> impl Future<Item = (), Error = BigNeonError> {
+        let reqwest_client = AsyncClient::new();
+        let msg_body = self.to_json();
+        reqwest_client
+            .post(SENDGRID_API_URL)
+            //.headers(reqwest_headers)
+            .header("Authorization", format!("Bearer {}", sq_api_key))
+            .header("Content-Type", "application/json")
+            .header("user-agent", "sendgrid-rs")
+            .body(msg_body)
+            .send()
+            .and_then(|r| future::result(r.error_for_status()))
+            .map(|_| ())
+            .map_err(|err| ApplicationError::new(err.to_string()).into())
     }
 
     fn to_json(&self) -> String {

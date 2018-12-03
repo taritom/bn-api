@@ -1,14 +1,16 @@
 use bigneon_api::config::{Config, Environment};
+use bigneon_api::db::Connection as DbConnection;
 use bigneon_db::dev::*;
 use bigneon_db::prelude::*;
+
 use diesel::Connection;
 use diesel::PgConnection;
-use std::sync::Arc;
+use std::error::Error;
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct TestDatabase {
-    pub connection: Arc<PgConnection>,
+    pub connection: DbConnection,
 }
 
 #[allow(dead_code)]
@@ -16,17 +18,18 @@ impl TestDatabase {
     pub fn new() -> TestDatabase {
         let config = Config::new(Environment::Test);
 
-        let connection = PgConnection::establish(&config.database_url).unwrap_or_else(|_| {
+        let connection = PgConnection::establish(&config.database_url).unwrap_or_else(|e| {
             panic!(
-                "Connection to {} could not be established.",
-                config.database_url
+                "Connection to {} could not be established:{}",
+                config.database_url,
+                e.description()
             )
         });
 
         connection.begin_test_transaction().unwrap();
 
         TestDatabase {
-            connection: Arc::new(connection),
+            connection: connection.into(),
         }
     }
 
@@ -40,59 +43,59 @@ impl TestDatabase {
     }
 
     pub fn create_artist(&self) -> ArtistBuilder {
-        ArtistBuilder::new(&self.connection)
+        ArtistBuilder::new(self.connection.get())
     }
 
     pub fn create_cart(&self) -> OrderBuilder {
-        OrderBuilder::new(&self.connection)
+        OrderBuilder::new(self.connection.get())
     }
 
     pub fn create_code(&self) -> CodeBuilder {
-        CodeBuilder::new(&self.connection)
+        CodeBuilder::new(self.connection.get())
     }
 
     pub fn create_comp(&self) -> CompBuilder {
-        CompBuilder::new(&self.connection)
+        CompBuilder::new(self.connection.get())
     }
 
     pub fn create_event(&self) -> EventBuilder {
-        EventBuilder::new(&self.connection)
+        EventBuilder::new(self.connection.get())
     }
 
     pub fn create_hold(&self) -> HoldBuilder {
-        HoldBuilder::new(&self.connection)
+        HoldBuilder::new(self.connection.get())
     }
 
     pub fn create_order(&self) -> OrderBuilder {
-        OrderBuilder::new(&self.connection)
+        OrderBuilder::new(self.connection.get())
     }
 
     pub fn create_organization(&self) -> OrganizationBuilder {
-        OrganizationBuilder::new(&self.connection)
+        OrganizationBuilder::new(self.connection.get())
     }
 
     pub fn create_organization_invite(&self) -> OrgInviteBuilder {
-        OrgInviteBuilder::new(&self.connection)
+        OrgInviteBuilder::new(self.connection.get())
     }
 
     pub fn create_payment_method(&self) -> PaymentMethodBuilder {
-        PaymentMethodBuilder::new(&self.connection)
+        PaymentMethodBuilder::new(self.connection.get())
     }
 
     pub fn create_region(&self) -> RegionBuilder {
-        RegionBuilder::new(&self.connection)
+        RegionBuilder::new(self.connection.get())
     }
 
     pub fn create_user(&self) -> UserBuilder {
-        UserBuilder::new(&self.connection)
+        UserBuilder::new(self.connection.get())
     }
 
     pub fn create_venue(&self) -> VenueBuilder {
-        VenueBuilder::new(&self.connection)
+        VenueBuilder::new(self.connection.get())
     }
 
     pub fn create_fee_schedule(&self) -> FeeScheduleBuilder {
-        FeeScheduleBuilder::new(&self.connection)
+        FeeScheduleBuilder::new(self.connection.get())
     }
 
     pub fn create_purchased_tickets(
@@ -101,7 +104,7 @@ impl TestDatabase {
         ticket_type_id: Uuid,
         quantity: u32,
     ) -> Vec<TicketInstance> {
-        let mut cart = Order::find_or_create_cart(user, &self.connection).unwrap();
+        let mut cart = Order::find_or_create_cart(user, self.connection.get()).unwrap();
         cart.update_quantities(
             &[UpdateOrderItem {
                 ticket_type_id,
@@ -109,12 +112,12 @@ impl TestDatabase {
                 redemption_code: None,
             }],
             false,
-            &self.connection,
+            self.connection.get(),
         ).unwrap();
 
-        let total = cart.calculate_total(&self.connection).unwrap();
-        cart.add_external_payment("test".to_string(), user.id, total, &self.connection)
+        let total = cart.calculate_total(self.connection.get()).unwrap();
+        cart.add_external_payment("test".to_string(), user.id, total, self.connection.get())
             .unwrap();
-        TicketInstance::find_for_user(user.id, &self.connection).unwrap()
+        TicketInstance::find_for_user(user.id, self.connection.get()).unwrap()
     }
 }

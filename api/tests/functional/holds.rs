@@ -69,13 +69,13 @@ fn create_with_validation_errors() {
 
     let json = Json(CreateHoldRequest {
         name: name.clone(),
-        redemption_code: redemption_code,
+        redemption_code,
         discount_in_cents: None,
         hold_type,
         end_at: None,
         max_per_order: None,
         quantity: 2,
-        ticket_type_id: event.ticket_types(&database.connection.clone()).unwrap()[0].id,
+        ticket_type_id: event.ticket_types(database.connection.get()).unwrap()[0].id,
     });
 
     let test_request = TestRequest::create();
@@ -99,14 +99,14 @@ fn create_with_validation_errors() {
 #[test]
 fn update_with_validation_errors() {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let hold = database
         .create_hold()
         .with_hold_type(HoldTypes::Comp)
         .finish();
-    let event = Event::find(hold.event_id, &connection).unwrap();
-    let organization = event.organization(&connection).unwrap();
+    let event = Event::find(hold.event_id, connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
     let name = "New Name";
@@ -122,7 +122,7 @@ fn update_with_validation_errors() {
     });
 
     let response: HttpResponse =
-        holds::update((database.connection.into(), json, path, auth_user)).into();
+        holds::update((database.connection.clone(), json, path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -154,13 +154,13 @@ pub fn read_hold() {
 
     let json = Json(CreateHoldRequest {
         name: name.clone(),
-        redemption_code: redemption_code,
+        redemption_code,
         discount_in_cents: Some(100),
         hold_type,
         end_at: None,
         max_per_order: None,
         quantity: 2,
-        ticket_type_id: event.ticket_types(&database.connection.clone()).unwrap()[0].id,
+        ticket_type_id: event.ticket_types(database.connection.get()).unwrap()[0].id,
     });
 
     let test_request = TestRequest::create();

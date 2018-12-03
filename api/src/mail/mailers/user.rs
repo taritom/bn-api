@@ -1,5 +1,6 @@
 use bigneon_db::models::User;
 use config::Config;
+use diesel::PgConnection;
 use errors::*;
 use mail::mailers::Mailer;
 use utils::communication::*;
@@ -8,6 +9,7 @@ pub fn user_registered(
     user_first_name: &String,
     user_email: &String,
     config: &Config,
+    conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
     let source = CommAddress::from(&config.communication_default_source_email);
     let destinations = CommAddress::from(user_email);
@@ -23,7 +25,7 @@ pub fn user_registered(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
-    ).send(&config)
+    ).queue(conn)
 }
 
 pub fn password_reset_email(config: &Config, user: &User) -> Mailer {

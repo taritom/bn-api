@@ -69,6 +69,7 @@ impl Payment {
             "Could not change the status of payment to completed.",
         )?;
 
+        println!("Saved payment");
         DomainEvent::create(
             DomainEventTypes::PaymentCompleted,
             "Payment was completed".to_string(),
@@ -76,6 +77,8 @@ impl Payment {
             Some(self.id),
             Some(raw_data),
         ).commit(conn)?;
+
+        println!("Domain Action created");
 
         self.order(conn)?.complete_if_fully_paid(conn)?;
 

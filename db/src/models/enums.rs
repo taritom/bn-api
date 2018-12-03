@@ -5,7 +5,7 @@ use utils::errors::EnumParseError;
 macro_rules! string_enum {
     ($name:ident [$($value:ident),+]) => {
 
-        #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
+        #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug, Eq, Hash)]
         pub enum $name {
             $(
                 $value,
@@ -45,7 +45,10 @@ macro_rules! string_enum {
 
 string_enum! { AssetStatus [Unsynced] }
 string_enum! { CodeTypes [Access, Discount] }
-string_enum! { DomainEventTypes [PaymentCreated, PaymentCompleted, PaymentMethodCreated, PaymentMethodUpdated]}
+string_enum! { CommunicationChannelType [Email, Sms, Push]}
+string_enum! { DomainEventTypes [PaymentCreated, PaymentCompleted, PaymentMethodCreated, PaymentMethodUpdated, UserRegistration, LostPassword, PurchaseCompleted]}
+string_enum! { DomainActionTypes [Communication]}
+string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { FanSortField [FirstName, LastName, Email, Phone, Orders, FirstOrder, LastOrder, Revenue] }
 string_enum! { HistoryType [Purchase]}

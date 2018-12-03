@@ -234,7 +234,13 @@ pub fn checkout(
 
         //Communicate purchase completed to user
         if let (Some(first_name), Some(email)) = (user.user.first_name, user.user.email) {
-            mailers::cart::purchase_completed(&first_name, &email, display_order, &state.config)?;
+            mailers::cart::purchase_completed(
+                &first_name,
+                &email,
+                display_order,
+                &state.config,
+                connection.get(),
+            )?;
         }
     }
 
@@ -390,6 +396,7 @@ fn checkout_payment_processor(
     info!("CART: Completing auth with payment provider");
     let charge_result = client.complete_authed_charge(&auth_result.id)?;
     info!("CART: Completing payment on order");
+    info!("charge_result:{:?}", charge_result);
     match payment.mark_complete(charge_result.to_json()?, connection) {
         Ok(_) => Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id}))),
         Err(e) => {

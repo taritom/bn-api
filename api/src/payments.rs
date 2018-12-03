@@ -82,6 +82,7 @@ impl ChargeAuthResult {
     }
 }
 
+#[derive(Debug)]
 pub struct ChargeResult {
     pub id: String,
     raw: String,

@@ -5,6 +5,7 @@ CREATE TABLE domain_events (
     event_data json NULL,
     main_table TEXT NOT NULL,
     main_id uuid NULL,
+    published_at TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     updated_at TIMESTAMP NOT NULL DEFAULT now()
 );

@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 pub fn profile(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let organization = database
@@ -28,8 +28,8 @@ pub fn profile(role: Roles, should_test_true: bool) {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let ticket_type = &event.ticket_types(&*connection).unwrap()[0];
-    let mut cart = Order::find_or_create_cart(&user2, &*connection).unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let mut cart = Order::find_or_create_cart(&user2, connection).unwrap();
     cart.update_quantities(
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
@@ -40,7 +40,7 @@ pub fn profile(role: Roles, should_test_true: bool) {
         &*connection,
     ).unwrap();
     assert_eq!(cart.calculate_total(&*connection).unwrap(), 1700);
-    cart.add_external_payment("test".to_string(), user.id, 1700, &*connection)
+    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
 
@@ -49,7 +49,7 @@ pub fn profile(role: Roles, should_test_true: bool) {
     path.id = organization.id;
     path.user_id = user2.id;
     let response: HttpResponse = users::profile((
-        database.connection.into(),
+        database.connection.clone().into(),
         path,
         auth_user.clone(),
         test_request.request,
@@ -82,7 +82,7 @@ pub fn profile(role: Roles, should_test_true: bool) {
 
 pub fn history(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let organization = database
@@ -97,8 +97,8 @@ pub fn history(role: Roles, should_test_true: bool) {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let ticket_type = &event.ticket_types(&*connection).unwrap()[0];
-    let mut cart = Order::find_or_create_cart(&user2, &*connection).unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let mut cart = Order::find_or_create_cart(&user2, connection).unwrap();
     cart.update_quantities(
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
@@ -108,8 +108,8 @@ pub fn history(role: Roles, should_test_true: bool) {
         false,
         &*connection,
     ).unwrap();
-    assert_eq!(cart.calculate_total(&*connection).unwrap(), 1700);
-    cart.add_external_payment("test".to_string(), user.id, 1700, &*connection)
+    assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
+    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
 
@@ -120,7 +120,7 @@ pub fn history(role: Roles, should_test_true: bool) {
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
     let response: Result<WebPayload<HistoryItem>, BigNeonError> = users::history((
-        database.connection.into(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         auth_user.clone(),

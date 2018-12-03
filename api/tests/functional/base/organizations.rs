@@ -29,7 +29,7 @@ pub fn index(role: Roles) {
 
     let user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     // reload organization
-    let organization = Organization::find(organization.id, &database.connection).unwrap();
+    let organization = Organization::find(organization.id, database.connection.get()).unwrap();
     let expected_organizations = if role != Roles::User {
         vec![organization.clone(), organization2]
     } else {
@@ -68,7 +68,7 @@ pub fn show(role: Roles, should_succeed: bool) {
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     // reload organization
-    let organization = Organization::find(organization.id, &database.connection).unwrap();
+    let organization = Organization::find(organization.id, database.connection.get()).unwrap();
     let organization_expected_json = serde_json::to_string(&organization).unwrap();
 
     let test_request = TestRequest::create();
@@ -161,7 +161,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
             min_price: 0,
             fee_in_cents: 0,
         }],
-    ).commit(&*database.connection)
+    ).commit(database.connection.get())
     .unwrap();
 
     let json = Json(NewOrganizationRequest {
@@ -392,7 +392,7 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
     let mut organization_members = Vec::new();
     if role != Roles::OrgOwner {
         organization_members.push(DisplayUser::from(
-            organization.owner(&database.connection).unwrap(),
+            organization.owner(database.connection.get()).unwrap(),
         ));
     }
 
@@ -442,7 +442,7 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let fee_schedule = database.create_fee_schedule().finish();
-    let fee_schedule_ranges = fee_schedule.ranges(&database.connection);
+    let fee_schedule_ranges = fee_schedule.ranges(database.connection.get());
     let organization = database
         .create_organization()
         .with_fee_schedule(&fee_schedule)

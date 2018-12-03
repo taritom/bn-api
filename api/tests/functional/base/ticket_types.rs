@@ -82,13 +82,10 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         .finish();
 
     //Retrieve created ticket type and pricing
-    let created_ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
-    let created_ticket_capacity = created_ticket_type
-        .ticket_capacity(&database.connection)
-        .unwrap();
-    let created_ticket_pricing = created_ticket_type
-        .ticket_pricing(&database.connection)
-        .unwrap();
+    let conn = database.connection.get();
+    let created_ticket_type = &event.ticket_types(conn).unwrap()[0];
+    let created_ticket_capacity = created_ticket_type.ticket_capacity(conn).unwrap();
+    let created_ticket_pricing = created_ticket_type.ticket_pricing(conn).unwrap();
 
     //Construct update request
     let test_request =
@@ -141,13 +138,9 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     )).into();
 
     //Check if fields have been updated by retrieving the ticket type and pricing
-    let updated_ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
-    let updated_ticket_capacity = updated_ticket_type
-        .ticket_capacity(&database.connection)
-        .unwrap();
-    let updated_ticket_pricing = updated_ticket_type
-        .ticket_pricing(&database.connection)
-        .unwrap();
+    let updated_ticket_type = &event.ticket_types(conn).unwrap()[0];
+    let updated_ticket_capacity = updated_ticket_type.ticket_capacity(conn).unwrap();
+    let updated_ticket_pricing = updated_ticket_type.ticket_pricing(conn).unwrap();
     let mut new_ticket_pricing: Vec<UpdateTicketPricingRequest> = Vec::new();
     new_ticket_pricing.reserve(updated_ticket_pricing.len());
     for current_ticket_pricing in &updated_ticket_pricing {
@@ -192,8 +185,8 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let user = database.create_user().finish();
     let request = TestRequest::create();
     let organization = database.create_organization().finish();
-    let fee_schedule =
-        FeeSchedule::find(organization.fee_schedule_id, &database.connection).unwrap();
+    let conn = database.connection.get();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, conn).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -217,13 +210,9 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let ticket_type = &event.ticket_types(&database.connection).unwrap()[0];
+        let ticket_type = &event.ticket_types(conn).unwrap()[0];
         let expected_ticket_types = vec![
-            AdminDisplayTicketType::from_ticket_type(
-                ticket_type,
-                &fee_schedule,
-                &database.connection,
-            ).unwrap(),
+            AdminDisplayTicketType::from_ticket_type(ticket_type, &fee_schedule, conn).unwrap(),
         ];
         let ticket_types_response: Payload<AdminDisplayTicketType> =
             serde_json::from_str(&body).unwrap();

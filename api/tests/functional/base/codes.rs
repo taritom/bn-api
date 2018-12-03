@@ -12,20 +12,20 @@ use support::test_request::TestRequest;
 
 pub fn show(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let event = database.create_event().finish();
-    let organization = event.organization(&connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let code = database.create_code().with_event(&event).finish();
-    let expected_json = serde_json::to_string(&code.for_display(&connection).unwrap()).unwrap();
+    let expected_json = serde_json::to_string(&code.for_display(connection).unwrap()).unwrap();
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = code.id;
 
-    let response: HttpResponse = codes::show((database.connection.into(), path, auth_user)).into();
+    let response: HttpResponse = codes::show((database.connection.clone(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -38,10 +38,10 @@ pub fn show(role: Roles, should_succeed: bool) {
 
 pub fn destroy(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let event = database.create_event().finish();
-    let organization = event.organization(&connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let code = database.create_code().with_event(&event).finish();
@@ -51,11 +51,11 @@ pub fn destroy(role: Roles, should_succeed: bool) {
     path.id = code.id;
 
     let response: HttpResponse =
-        codes::destroy((database.connection.into(), path, auth_user)).into();
+        codes::destroy((database.connection.clone().into(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        let code = Code::find(code.id, &connection);
+        let code = Code::find(code.id, connection);
         assert!(code.is_err());
     } else {
         support::expects_unauthorized(&response);
@@ -64,11 +64,11 @@ pub fn destroy(role: Roles, should_succeed: bool) {
 
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let event = database.create_event().with_ticket_pricing().finish();
-    let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
-    let organization = event.organization(&connection).unwrap();
+    let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -94,7 +94,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     path.id = event.id;
 
     let response: HttpResponse =
-        codes::create((database.connection.into(), json, path, auth_user)).into();
+        codes::create((database.connection.clone().into(), json, path, auth_user)).into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -112,12 +112,12 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
 pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let event = database.create_event().with_ticket_pricing().finish();
-    let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
+    let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
     let code = database.create_code().with_event(&event).finish();
-    let organization = event.organization(&connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -133,7 +133,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     });
 
     let response: HttpResponse =
-        codes::update((database.connection.into(), json, path, auth_user)).into();
+        codes::update((database.connection.clone().into(), json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {

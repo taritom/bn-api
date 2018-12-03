@@ -35,7 +35,7 @@ pub fn index() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let conn = &database.connection;
+    let conn = database.connection.get();
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket_type = &event.ticket_types(conn).unwrap()[0];
     let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
@@ -176,7 +176,7 @@ pub fn show() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let conn = &database.connection;
+    let conn = database.connection.get();
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket_type = &event.ticket_types(conn).unwrap()[0];
     let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
@@ -297,7 +297,7 @@ fn ticket_transfer_authorization() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let conn = &database.connection;
+    let conn = database.connection.get();
 
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket_type = &event.ticket_types(conn).unwrap()[0];
@@ -373,7 +373,7 @@ fn receive_ticket_transfer() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let conn = &database.connection;
+    let conn = database.connection.get();
 
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket_type = &event.ticket_types(conn).unwrap()[0];

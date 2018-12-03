@@ -17,9 +17,10 @@ pub fn show() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let mut order = database.create_order().for_user(&user).finish();
-    let total = order.calculate_total(&database.connection).unwrap();
+    let conn = database.connection.get();
+    let total = order.calculate_total(conn).unwrap();
     order
-        .add_external_payment("test".to_string(), user.id, total, &database.connection)
+        .add_external_payment("test".to_string(), user.id, total, conn)
         .unwrap();
     assert_eq!(order.status, OrderStatus::Paid.to_string());
 
@@ -28,7 +29,8 @@ pub fn show() {
     path.id = order.id;
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
-    let response: HttpResponse = orders::show((database.connection.into(), path, auth_user)).into();
+    let response: HttpResponse =
+        orders::show((database.connection.clone(), path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_order: DisplayOrder = serde_json::from_str(&body).unwrap();
@@ -47,7 +49,8 @@ pub fn show_for_draft_returns_forbidden() {
     path.id = order.id;
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
-    let response: HttpResponse = orders::show((database.connection.into(), path, auth_user)).into();
+    let response: HttpResponse =
+        orders::show((database.connection.clone(), path, auth_user)).into();
     support::expects_forbidden(&response, Some("You do not have access to this order"));
 }
 
@@ -58,26 +61,23 @@ pub fn index() {
     let mut order1 = database.create_order().for_user(&user).finish();
     let date1 = NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11);
     let date2 = NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11);
-    let total = order1.calculate_total(&database.connection).unwrap();
+    let conn = database.connection.get();
+    let total = order1.calculate_total(conn).unwrap();
     order1
-        .add_external_payment("test".to_string(), user.id, total, &database.connection)
+        .add_external_payment("test".to_string(), user.id, total, conn)
         .unwrap();
     order1 = diesel::update(&order1)
         .set(schema::orders::order_date.eq(date1))
-        .get_result(&*database.connection)
+        .get_result(conn)
         .unwrap();
     let mut order2 = database.create_order().for_user(&user).finish();
-    let total = order2.calculate_total(&database.connection).unwrap();
+    let total = order2.calculate_total(conn).unwrap();
     order2
-        .add_external_payment(
-            "test".to_string(),
-            user.id,
-            total - 100,
-            &database.connection,
-        ).unwrap();
+        .add_external_payment("test".to_string(), user.id, total - 100, conn)
+        .unwrap();
     order2 = diesel::update(&order2)
         .set(schema::orders::order_date.eq(date2))
-        .get_result(&*database.connection)
+        .get_result(conn)
         .unwrap();
 
     assert_eq!(order1.status, OrderStatus::Paid.to_string());
@@ -87,11 +87,8 @@ pub fn index() {
     let test_request = TestRequest::create_with_uri(&format!("/?"));
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
-    let response: HttpResponse = orders::index((
-        database.connection.clone().into(),
-        query_parameters,
-        auth_user,
-    )).into();
+    let response: HttpResponse =
+        orders::index((database.connection.clone(), query_parameters, auth_user)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

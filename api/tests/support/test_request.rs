@@ -1,5 +1,6 @@
 use actix_web::{test, FromRequest, HttpRequest, State};
 use bigneon_api::config::{Config, Environment};
+use bigneon_api::db::Database;
 use bigneon_api::mail::transports::TestTransport;
 use bigneon_api::server::AppState;
 
@@ -33,7 +34,10 @@ impl TestRequest {
         config.mail_from_email = "support@bigneon.com".to_string();
         config.mail_from_name = "Big Neon".to_string();
 
-        let test_request = test::TestRequest::with_state(AppState::new(config.clone()));
+        let test_request = test::TestRequest::with_state(AppState::new(
+            config.clone(),
+            Database::from_config(&config),
+        ));
 
         // TODO: actix-web test requests do not allow router customization except
         // within crate. Forcing an ID here so the extractor can still build the

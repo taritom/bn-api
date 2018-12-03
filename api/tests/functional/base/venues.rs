@@ -166,7 +166,7 @@ pub fn update_with_organization(role: Roles, should_succeed: bool, is_private: b
         .finish();
 
     if is_private {
-        venue = venue.set_privacy(true, &database.connection).unwrap();
+        venue = venue.set_privacy(true, database.connection.get()).unwrap();
     }
     let new_name = "New Name";
 
@@ -203,10 +203,10 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
         .with_name("Venue 2".to_string())
         .finish();
     let venue = venue
-        .add_to_organization(&organization.id, &database.connection)
+        .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
     let venue2 = venue2
-        .add_to_organization(&organization.id, &database.connection)
+        .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
 
     let all_venues = vec![venue, venue2];
@@ -286,7 +286,7 @@ pub fn add_to_organization_where_link_already_exists(role: Roles, should_succeed
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let venue = venue
-        .add_to_organization(&organization.id, &database.connection)
+        .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
 
     let test_request = TestRequest::create();

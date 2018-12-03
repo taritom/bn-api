@@ -97,11 +97,11 @@ mod destroy_tests {
 #[test]
 fn create_with_validation_errors() {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let event = database.create_event().with_ticket_pricing().finish();
-    let ticket_type_id = event.ticket_types(&connection).unwrap()[0].id;
-    let organization = event.organization(&connection).unwrap();
+    let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
@@ -124,7 +124,7 @@ fn create_with_validation_errors() {
     path.id = event.id;
 
     let response: HttpResponse =
-        codes::create((database.connection.into(), json, path, auth_user)).into();
+        codes::create((database.connection.clone().into(), json, path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -146,12 +146,12 @@ fn create_with_validation_errors() {
 #[test]
 fn create_fails_adding_ticket_type_id_from_other_event() {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let event = database.create_event().with_ticket_pricing().finish();
     let event2 = database.create_event().with_ticket_pricing().finish();
-    let ticket_type_id = event2.ticket_types(&connection).unwrap()[0].id;
-    let organization = event.organization(&connection).unwrap();
+    let ticket_type_id = event2.ticket_types(connection).unwrap()[0].id;
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
@@ -174,7 +174,7 @@ fn create_fails_adding_ticket_type_id_from_other_event() {
     path.id = event.id;
 
     let response: HttpResponse =
-        codes::create((database.connection.into(), json, path, auth_user)).into();
+        codes::create((database.connection.clone().into(), json, path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -190,11 +190,11 @@ fn create_fails_adding_ticket_type_id_from_other_event() {
 #[test]
 fn update_with_validation_errors() {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let event = database.create_event().finish();
     let code = database.create_code().with_event(&event).finish();
-    let organization = event.organization(&connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
@@ -212,7 +212,7 @@ fn update_with_validation_errors() {
     });
 
     let response: HttpResponse =
-        codes::update((database.connection.into(), json, path, auth_user)).into();
+        codes::update((database.connection.clone().into(), json, path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -234,13 +234,13 @@ fn update_with_validation_errors() {
 #[test]
 fn update_fails_adding_ticket_type_id_from_other_event() {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let event = database.create_event().finish();
     let event2 = database.create_event().with_ticket_pricing().finish();
-    let ticket_type_id = event2.ticket_types(&connection).unwrap()[0].id;
+    let ticket_type_id = event2.ticket_types(connection).unwrap()[0].id;
     let code = database.create_code().with_event(&event).finish();
-    let organization = event.organization(&connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
@@ -254,7 +254,7 @@ fn update_fails_adding_ticket_type_id_from_other_event() {
     });
 
     let response: HttpResponse =
-        codes::update((database.connection.into(), json, path, auth_user)).into();
+        codes::update((database.connection.clone().into(), json, path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -270,14 +270,14 @@ fn update_fails_adding_ticket_type_id_from_other_event() {
 #[test]
 pub fn update_adding_keeping_and_removing_ticket_types() {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let event = database
         .create_event()
         .with_ticket_pricing()
         .with_ticket_type_count(3)
         .finish();
-    let ticket_types = event.ticket_types(&connection).unwrap();
+    let ticket_types = event.ticket_types(connection).unwrap();
     let ticket_type = &ticket_types[0];
     let ticket_type2 = &ticket_types[1];
     let ticket_type3 = &ticket_types[2];
@@ -287,13 +287,13 @@ pub fn update_adding_keeping_and_removing_ticket_types() {
         .for_ticket_type(&ticket_type)
         .for_ticket_type(&ticket_type2)
         .finish();
-    let mut display_code = code.for_display(&connection).unwrap();
+    let mut display_code = code.for_display(connection).unwrap();
     assert_eq!(
         display_code.ticket_type_ids.sort(),
         vec![ticket_type.id, ticket_type2.id].sort()
     );
 
-    let organization = event.organization(&connection).unwrap();
+    let organization = event.organization(connection).unwrap();
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
@@ -308,7 +308,7 @@ pub fn update_adding_keeping_and_removing_ticket_types() {
     });
 
     let response: HttpResponse =
-        codes::update((database.connection.into(), json, path, auth_user)).into();
+        codes::update((database.connection.clone().into(), json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);

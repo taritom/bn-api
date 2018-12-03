@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::enums::*;
 use schema::*;
@@ -7,7 +8,7 @@ use serde_json;
 use utils::errors::*;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Identifiable, Queryable)]
+#[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 pub struct DomainEvent {
     pub id: Uuid,
     pub event_type: String,
@@ -15,11 +16,32 @@ pub struct DomainEvent {
     pub event_data: Option<serde_json::Value>,
     pub main_table: String,
     pub main_id: Option<Uuid>,
+    pub published_at: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
 
 impl DomainEvent {
+    pub fn create(
+        event_type: DomainEventTypes,
+        display_text: String,
+        main_table: Tables,
+        main_id: Option<Uuid>,
+        event_data: Option<serde_json::Value>,
+    ) -> NewDomainEvent {
+        NewDomainEvent {
+            event_type: event_type.to_string(),
+            display_text,
+            event_data,
+            main_table: main_table.to_string(),
+            main_id,
+        }
+    }
+
+    pub fn event_type(&self) -> Result<DomainEventTypes, DatabaseError> {
+        Ok(self.event_type.parse()?)
+    }
+
     pub fn find(
         main_table: Tables,
         main_id: Option<Uuid>,
@@ -41,20 +63,29 @@ impl DomainEvent {
             .to_db_error(ErrorCode::QueryError, "Could not load domain events")
     }
 
-    pub fn create(
-        event_type: DomainEventTypes,
-        display_text: String,
-        main_table: Tables,
-        main_id: Option<Uuid>,
-        event_data: Option<serde_json::Value>,
-    ) -> NewDomainEvent {
-        NewDomainEvent {
-            event_type: event_type.to_string(),
-            display_text,
-            event_data,
-            main_table: main_table.to_string(),
-            main_id,
-        }
+    pub fn find_unpublished(
+        limit: u32,
+        conn: &PgConnection,
+    ) -> Result<Vec<DomainEvent>, DatabaseError> {
+        domain_events::table
+            .filter(domain_events::published_at.is_null())
+            .order_by(domain_events::created_at)
+            .limit(limit as i64)
+            .get_results(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load unpublished domain events",
+            )
+    }
+
+    pub fn mark_as_published(self, conn: &PgConnection) -> Result<DomainEvent, DatabaseError> {
+        diesel::update(&self)
+            .set(domain_events::published_at.eq(dsl::now.nullable()))
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not mark domain event as published",
+            )
     }
 }
 

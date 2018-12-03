@@ -245,19 +245,20 @@ fn show() {
 
     let artist1 = database.create_artist().finish();
     let artist2 = database.create_artist().finish();
+    let conn = database.connection.get();
 
-    event.add_artist(artist1.id, &database.connection).unwrap();
-    event.add_artist(artist2.id, &database.connection).unwrap();
+    event.add_artist(artist1.id, conn).unwrap();
+    event.add_artist(artist2.id, conn).unwrap();
 
-    let _event_interest = EventInterest::create(event.id, user.id).commit(&database.connection);
-    let event_expected_json = expected_show_json(event, organization, venue, &database.connection);
+    let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
+    let event_expected_json = expected_show_json(event, organization, venue, conn);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event_id;
 
     let response: HttpResponse =
-        events::show((database.connection.into(), path, Some(auth_user))).into();
+        events::show((database.connection.clone(), path, Some(auth_user))).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);
@@ -521,7 +522,7 @@ mod holds_tests {
 #[test]
 fn dashboard_with_default_range() {
     let database = TestDatabase::new();
-    let connection = &database.connection;
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database
         .create_organization()

@@ -7,3 +7,4 @@ authors = ["CjS77 <cayle.sharrock@gmail.com>"]
 log = "0.4"
 serde_json = "1.0"
 fern = "0.5"
+chrono = "0.4"

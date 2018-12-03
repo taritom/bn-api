@@ -1,5 +1,6 @@
 use bigneon_db::models::DisplayOrder;
 use config::Config;
+use diesel::PgConnection;
 use errors::*;
 use utils::communication::*;
 
@@ -8,6 +9,7 @@ pub fn purchase_completed(
     user_email: &String,
     display_order: DisplayOrder,
     config: &Config,
+    conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
     let source = CommAddress::from(&config.communication_default_source_email);
     let destinations = CommAddress::from(&user_email);
@@ -43,6 +45,7 @@ pub fn purchase_completed(
     );
     template_data.insert("item_breakdown".to_string(), item_breakdown);
 
+    // TODO: Perhaps move this to an event subscription
     Communication::new(
         CommunicationType::EmailTemplate,
         title,
@@ -51,5 +54,5 @@ pub fn purchase_completed(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
-    ).send(&config)
+    ).queue(conn)
 }

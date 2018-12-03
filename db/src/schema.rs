@@ -50,6 +50,28 @@ table! {
 }
 
 table! {
+    domain_actions (id) {
+        id -> Uuid,
+        domain_event_id -> Nullable<Uuid>,
+        domain_action_type -> Text,
+        communication_channel_type -> Nullable<Text>,
+        payload -> Json,
+        main_table -> Text,
+        main_table_id -> Uuid,
+        scheduled_at -> Timestamp,
+        expires_at -> Timestamp,
+        last_attempted_at -> Nullable<Timestamp>,
+        attempt_count -> Int8,
+        max_attempt_count -> Int8,
+        status -> Text,
+        last_failure_reason -> Nullable<Text>,
+        blocked_until -> Timestamp,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     domain_events (id) {
         id -> Uuid,
         event_type -> Text,
@@ -57,6 +79,7 @@ table! {
         event_data -> Nullable<Json>,
         main_table -> Text,
         main_id -> Nullable<Uuid>,
+        published_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -397,6 +420,7 @@ table! {
 joinable!(artists -> organizations (organization_id));
 joinable!(assets -> ticket_types (ticket_type_id));
 joinable!(codes -> events (event_id));
+joinable!(domain_actions -> domain_events (domain_event_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
 joinable!(event_interest -> events (event_id));
@@ -439,6 +463,7 @@ allow_tables_to_appear_in_same_query!(
     artists,
     assets,
     codes,
+    domain_actions,
     domain_events,
     event_artists,
     event_interest,

@@ -150,8 +150,9 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let event = database.create_event().finish();
     let primary_user = support::create_auth_user(role, None, &database);
+    let conn = database.connection.get();
     EventInterest::create(event.id, primary_user.id())
-        .commit(&database.connection)
+        .commit(conn)
         .unwrap();
     let n_secondary_users = 5;
     let mut secondary_users: Vec<DisplayEventInterestedUser> = Vec::new();
@@ -159,7 +160,7 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     for _u_id in 0..n_secondary_users {
         let current_secondary_user = database.create_user().finish();
         EventInterest::create(event.id, current_secondary_user.id)
-            .commit(&database.connection)
+            .commit(conn)
             .unwrap();
         let current_user_entry = DisplayEventInterestedUser {
             user_id: current_secondary_user.id,
@@ -189,7 +190,7 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path_parameters.id = event.id;
     let response: HttpResponse = events::list_interested_users((
-        database.connection.into(),
+        database.connection.clone(),
         path_parameters,
         query_parameters,
         primary_user,
@@ -243,7 +244,7 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
     let user = database.create_user().finish();
     let event = database.create_event().finish();
     EventInterest::create(event.id, user.id)
-        .commit(&database.connection)
+        .commit(database.connection.get())
         .unwrap();
 
     let user = support::create_auth_user_from_user(&user, role, None, &database);
@@ -311,7 +312,7 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
 
 pub fn dashboard(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = &database.connection;
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database
         .create_organization()
@@ -423,7 +424,7 @@ pub fn guest_list(role: Roles, should_test_succeed: bool) {
 
 pub fn codes(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let connection = database.connection.clone();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let auth_user =
@@ -439,7 +440,7 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
         .with_event(&event)
         .with_code_type(CodeTypes::Discount)
         .finish()
-        .for_display(&connection)
+        .for_display(connection)
         .unwrap();
     let code2 = database
         .create_code()
@@ -447,7 +448,7 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
         .with_event(&event)
         .with_code_type(CodeTypes::Discount)
         .finish()
-        .for_display(&connection)
+        .for_display(connection)
         .unwrap();
     let _code3 = database
         .create_code()
@@ -455,7 +456,7 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
         .with_event(&event)
         .with_code_type(CodeTypes::Access)
         .finish()
-        .for_display(&connection)
+        .for_display(connection)
         .unwrap();
 
     let all_discounts = vec![code, code2];
@@ -468,7 +469,7 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
 
     let response: HttpResponse = events::codes((
-        database.connection.into(),
+        database.connection.clone().into(),
         query_parameters,
         path,
         auth_user,

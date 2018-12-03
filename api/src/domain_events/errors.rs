@@ -1,0 +1,53 @@
+use bigneon_db::prelude::*;
+use diesel;
+use diesel::prelude::ConnectionError;
+use std::error;
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug)]
+pub enum DomainActionError {
+    Simple(String),
+    CausedBy(Box<error::Error + Send>),
+}
+
+impl Error for DomainActionError {
+    fn description(&self) -> &str {
+        match self {
+            DomainActionError::Simple(s) => s,
+            DomainActionError::CausedBy(c) => c.description(),
+        }
+    }
+}
+
+impl From<DatabaseError> for DomainActionError {
+    fn from(de: DatabaseError) -> Self {
+        DomainActionError::CausedBy(Box::new(de))
+    }
+}
+
+impl From<EnumParseError> for DomainActionError {
+    fn from(e: EnumParseError) -> Self {
+        let db_error: DatabaseError = e.into();
+        db_error.into()
+    }
+}
+
+impl From<ConnectionError> for DomainActionError {
+    fn from(e: ConnectionError) -> Self {
+        let db_error: DatabaseError = e.into();
+        db_error.into()
+    }
+}
+
+impl From<diesel::result::Error> for DomainActionError {
+    fn from(e: diesel::result::Error) -> Self {
+        DomainActionError::CausedBy(Box::new(e))
+    }
+}
+
+impl fmt::Display for DomainActionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.description())
+    }
+}
