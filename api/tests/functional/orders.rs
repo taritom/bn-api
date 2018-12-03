@@ -20,7 +20,7 @@ pub fn show() {
     let conn = database.connection.get();
     let total = order.calculate_total(conn).unwrap();
     order
-        .add_external_payment("test".to_string(), user.id, total, conn)
+        .add_external_payment(Some("test".to_string()), user.id, total, conn)
         .unwrap();
     assert_eq!(order.status, OrderStatus::Paid.to_string());
 
@@ -64,7 +64,7 @@ pub fn index() {
     let conn = database.connection.get();
     let total = order1.calculate_total(conn).unwrap();
     order1
-        .add_external_payment("test".to_string(), user.id, total, conn)
+        .add_external_payment(Some("test".to_string()), user.id, total, conn)
         .unwrap();
     order1 = diesel::update(&order1)
         .set(schema::orders::order_date.eq(date1))
@@ -73,7 +73,7 @@ pub fn index() {
     let mut order2 = database.create_order().for_user(&user).finish();
     let total = order2.calculate_total(conn).unwrap();
     order2
-        .add_external_payment("test".to_string(), user.id, total - 100, conn)
+        .add_external_payment(Some("test".to_string()), user.id, total - 100, conn)
         .unwrap();
     order2 = diesel::update(&order2)
         .set(schema::orders::order_date.eq(date2))

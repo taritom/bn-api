@@ -8,8 +8,8 @@ pub struct RedeemableTicket {
     pub id: Uuid,
     #[sql_type = "Text"]
     pub ticket_type: String,
-    #[sql_type = "dUuid"]
-    pub user_id: Uuid,
+    #[sql_type = "Nullable<dUuid>"]
+    pub user_id: Option<Uuid>,
     #[sql_type = "Nullable<Text>"]
     pub first_name: Option<String>,
     #[sql_type = "Nullable<Text>"]
@@ -34,6 +34,6 @@ pub struct RedeemableTicket {
     pub event_start: Option<NaiveDateTime>,
     #[sql_type = "Nullable<dUuid>"]
     pub venue_id: Option<Uuid>,
-    #[sql_type = "Text"]
-    pub venue_name: String,
+    #[sql_type = "Nullable<Text>"]
+    pub venue_name: Option<String>,
 }

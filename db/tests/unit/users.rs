@@ -18,9 +18,14 @@ fn commit() {
     let email = Some("jeff@tari.com".to_string());
     let phone_number = Some("555-555-5555".to_string());
     let password = "examplePassword";
-    let user = User::create(&first_name, &last_name, &email, &phone_number, password)
-        .commit(project.get_connection())
-        .unwrap();
+    let user = User::create(
+        first_name.clone(),
+        last_name.clone(),
+        email.clone(),
+        phone_number.clone(),
+        password,
+    ).commit(project.get_connection())
+    .unwrap();
 
     assert_eq!(user.first_name, first_name);
     assert_eq!(user.last_name, last_name);
@@ -43,7 +48,7 @@ fn commit_duplicate_email() {
     let email = user1.email;
     let phone_number = Some("555-555-5555".to_string());
     let password = "examplePassword";
-    let result = User::create(&first_name, &last_name, &email, &phone_number, password)
+    let result = User::create(first_name, last_name, email, phone_number, password)
         .commit(project.get_connection());
 
     assert_eq!(result.is_err(), true);
@@ -178,7 +183,7 @@ fn get_profile_for_organization() {
 
     // Checkout which changes sales data
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
+    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
     assert_eq!(
@@ -211,7 +216,7 @@ fn get_profile_for_organization() {
         connection,
     ).unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
-    cart.add_external_payment("test".to_string(), user.id, 170, connection)
+    cart.add_external_payment(Some("test".to_string()), user.id, 170, connection)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
     assert_eq!(
@@ -244,7 +249,7 @@ fn get_profile_for_organization() {
         connection,
     ).unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
-    cart.add_external_payment("test".to_string(), user.id, 170, connection)
+    cart.add_external_payment(Some("test".to_string()), user.id, 170, connection)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
     assert_eq!(
@@ -309,7 +314,7 @@ fn get_history_for_organization() {
 
     // User checks out so has a paid order so history exists
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
+    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
 
@@ -352,7 +357,7 @@ fn get_history_for_organization() {
 
     assert_eq!(cart2.calculate_total(connection).unwrap(), 170);
     cart2
-        .add_external_payment("test".to_string(), user.id, 170, connection)
+        .add_external_payment(Some("test".to_string()), user.id, 170, connection)
         .unwrap();
     assert_eq!(cart2.status().unwrap(), OrderStatus::Paid);
 
@@ -528,10 +533,10 @@ fn update() {
 fn new_user_validate() {
     let email = "abc";
     let user = User::create(
-        &Some("First".to_string()),
-        &Some("Last".to_string()),
-        &Some(email.to_string()),
-        &Some("123".to_string()),
+        Some("First".to_string()),
+        Some("Last".to_string()),
+        Some(email.to_string()),
+        Some("123".to_string()),
         &"Password",
     );
     let result = user.validate();

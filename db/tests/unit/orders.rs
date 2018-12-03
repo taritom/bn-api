@@ -637,10 +637,10 @@ fn add_external_payment() {
         conn,
     ).unwrap();
     assert_eq!(cart.calculate_total(conn).unwrap(), 2000);
-    cart.add_external_payment("test".to_string(), user.id, 1500, conn)
+    cart.add_external_payment(Some("test".to_string()), user.id, 1500, conn)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::PartiallyPaid);
-    cart.add_external_payment("test2".to_string(), user.id, 500, conn)
+    cart.add_external_payment(Some("test2".to_string()), user.id, 500, conn)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
 }
@@ -651,12 +651,20 @@ fn find_for_user_for_display() {
     let user = project.create_user().finish();
     let mut order1 = project.create_order().for_user(&user).finish();
     order1
-        .add_external_payment("test".to_string(), user.id, 2000, project.get_connection())
-        .unwrap();
+        .add_external_payment(
+            Some("test".to_string()),
+            user.id,
+            2000,
+            project.get_connection(),
+        ).unwrap();
     let mut order2 = project.create_order().for_user(&user).finish();
     order2
-        .add_external_payment("test".to_string(), user.id, 500, project.get_connection())
-        .unwrap();
+        .add_external_payment(
+            Some("test".to_string()),
+            user.id,
+            500,
+            project.get_connection(),
+        ).unwrap();
 
     assert_eq!(order1.status, OrderStatus::Paid.to_string());
     assert_eq!(order2.status, OrderStatus::PartiallyPaid.to_string());
@@ -834,4 +842,19 @@ fn adding_event_fees() {
         }
     }
     assert_eq!(event_fees_count, 3);
+}
+
+#[test]
+pub fn update() {
+    let project = TestProject::new();
+    let order = project.create_order().finish();
+
+    let attrs = UpdateOrderAttributes {
+        note: Some(Some("Client will pick up at 18h00".to_string())),
+    };
+    let updated = order.update(attrs, &project.connection).unwrap();
+    assert_eq!(
+        updated.note,
+        Some("Client will pick up at 18h00".to_string())
+    );
 }

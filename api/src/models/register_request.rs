@@ -15,10 +15,10 @@ pub struct RegisterRequest {
 impl From<RegisterRequest> for NewUser {
     fn from(attributes: RegisterRequest) -> Self {
         User::create(
-            &attributes.first_name,
-            &attributes.last_name,
-            &Some(attributes.email),
-            &attributes.phone,
+            attributes.first_name,
+            attributes.last_name,
+            Some(attributes.email),
+            attributes.phone,
             &attributes.password,
         )
     }

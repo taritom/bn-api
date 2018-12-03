@@ -55,7 +55,7 @@ pub fn find_for_user_for_display() {
 
     let total = cart2.calculate_total(connection).unwrap();
     cart2
-        .add_external_payment("test".to_string(), user.id, total, connection)
+        .add_external_payment(Some("test".to_string()), user.id, total, connection)
         .unwrap();
 
     let found_tickets =
@@ -204,7 +204,7 @@ pub fn find_for_user() {
     ).unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment("test".to_string(), user.id, total, connection)
+    cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
         .unwrap();
 
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
@@ -386,7 +386,7 @@ pub fn authorize_ticket_transfer() {
     ).unwrap();
     let total = cart.calculate_total(connection).unwrap();
 
-    cart.add_external_payment("test".to_string(), user.id, total, connection)
+    cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
         .unwrap();
 
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
@@ -443,7 +443,7 @@ pub fn receive_ticket_transfer() {
     ).unwrap();
     let total = cart.calculate_total(connection).unwrap();
 
-    cart.add_external_payment("test".to_string(), user.id, total, connection)
+    cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
         .unwrap();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();

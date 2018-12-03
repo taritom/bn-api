@@ -168,10 +168,10 @@ fn create_db_and_user(matches: &ArgMatches) {
 
     let db_connection = get_connection(conn_string);
     let user = User::create(
-        &Some("System".to_string()),
-        &Some("Administrator".to_string()),
-        &Some(username.to_string()),
-        &Some(phone.to_string()),
+        Some("System".to_string()),
+        Some("Administrator".to_string()),
+        Some(username.to_string()),
+        Some(phone.to_string()),
         &password,
     ).commit(&db_connection)
     .expect("Failed to create system admin");

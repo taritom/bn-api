@@ -653,7 +653,12 @@ fn checkout_external() {
     let input = Json(cart::CheckoutCartRequest {
         amount: 100,
         method: PaymentRequest::External {
-            reference: "TestRef".to_string(),
+            reference: Some("TestRef".to_string()),
+            first_name: "First".to_string(),
+            last_name: "Last".to_string(),
+            email: Some("easdf@test.com".to_string()),
+            phone: None,
+            note: None,
         },
     });
 

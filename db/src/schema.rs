@@ -212,6 +212,8 @@ table! {
         order_date -> Timestamp,
         expires_at -> Timestamp,
         version -> Int8,
+        note -> Nullable<Text>,
+        on_behalf_of_user_id -> Nullable<Uuid>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -286,7 +288,7 @@ table! {
         payment_method -> Text,
         amount -> Int8,
         provider -> Text,
-        external_reference -> Text,
+        external_reference -> Nullable<Text>,
         raw_data -> Nullable<Json>,
         created_at -> Timestamp,
         updated_at -> Timestamp,

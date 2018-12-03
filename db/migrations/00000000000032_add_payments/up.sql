@@ -6,7 +6,7 @@ CREATE TABLE payments (
   payment_method TEXT NOT NULL,
   amount BIGINT NOT NULL,
   provider TEXT NOT NULL,
-  external_reference TEXT NOT NULL,
+  external_reference TEXT NULL CHECK ( external_reference is not null or payment_method <> 'External' ),
   raw_data json NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()

@@ -46,10 +46,10 @@ impl<'a> UserBuilder<'a> {
 
     pub fn finish(&self) -> User {
         User::create(
-            &Some(self.first_name.to_string()),
-            &Some(self.last_name.to_string()),
-            &Some(self.email.to_string()),
-            &Some(self.phone.to_string()),
+            Some(self.first_name.to_string()),
+            Some(self.last_name.to_string()),
+            Some(self.email.to_string()),
+            Some(self.phone.to_string()),
             &self.password,
         ).commit(self.connection)
         .unwrap()

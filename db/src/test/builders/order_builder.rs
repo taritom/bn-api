@@ -73,7 +73,7 @@ impl<'a> OrderBuilder<'a> {
         let mut cart = cart;
         if self.is_paid {
             cart.add_external_payment(
-                "blah".to_string(),
+                Some("blah".to_string()),
                 self.user.unwrap().id,
                 total,
                 self.connection,

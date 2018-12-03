@@ -100,12 +100,13 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
     )).into();
 
     if should_test_succeed {
-        assert_ne!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         //Now try with redeem code being correct
         let request_data = TicketRedeemRequest {
             redeem_key: ticket.redeem_key.unwrap(),
         };
 
+        println!("{:?}", request_data);
         let response: HttpResponse = events::redeem_ticket((
             database.connection.clone().into(),
             path2,
@@ -148,7 +149,7 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
         conn,
     ).unwrap();
     let total = cart.calculate_total(conn).unwrap();
-    cart.add_external_payment("test".to_string(), user2.id, total, conn)
+    cart.add_external_payment(Some("test".to_string()), user2.id, total, conn)
         .unwrap();
 
     let ticket = TicketInstance::find_for_user(user2.id, conn)

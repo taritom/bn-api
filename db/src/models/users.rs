@@ -111,10 +111,10 @@ impl NewUser {
 
 impl User {
     pub fn create(
-        first_name: &Option<String>,
-        last_name: &Option<String>,
-        email: &Option<String>,
-        phone: &Option<String>,
+        first_name: Option<String>,
+        last_name: Option<String>,
+        email: Option<String>,
+        phone: Option<String>,
         password: &str,
     ) -> NewUser {
         let hash = PasswordHash::generate(password, None);
@@ -126,6 +126,49 @@ impl User {
             hashed_pw: hash.to_string(),
             role: vec![Roles::User.to_string()],
         }
+    }
+
+    pub fn create_from_external_login(
+        external_user_id: String,
+        first_name: String,
+        last_name: String,
+        email: String,
+        site: String,
+        access_token: String,
+        conn: &PgConnection,
+    ) -> Result<User, DatabaseError> {
+        let hash = PasswordHash::generate("random", None);
+        let new_user = NewUser {
+            first_name: Some(first_name),
+            last_name: Some(last_name),
+            email: Some(email),
+            phone: None,
+            hashed_pw: hash.to_string(),
+            role: vec![Roles::User.to_string()],
+        };
+        new_user.commit(conn).and_then(|user| {
+            user.add_external_login(external_user_id, site, access_token, conn)?;
+            Ok(user)
+        })
+    }
+
+    pub fn create_stub(
+        first_name: String,
+        last_name: String,
+        email: Option<String>,
+        phone: Option<String>,
+        conn: &PgConnection,
+    ) -> Result<User, DatabaseError> {
+        let hash = PasswordHash::generate("random", None);
+        let new_user = NewUser {
+            first_name: Some(first_name),
+            last_name: Some(last_name),
+            email,
+            phone,
+            hashed_pw: hash.to_string(),
+            role: vec![Roles::User.to_string()],
+        };
+        new_user.commit(conn)
     }
 
     pub fn get_history_for_organization(
@@ -268,6 +311,16 @@ impl User {
         )
     }
 
+    pub fn find_by_phone(phone: &str, conn: &PgConnection) -> Result<User, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::QueryError,
+            "Error loading user",
+            users::table
+                .filter(users::phone.eq(phone))
+                .first::<User>(conn),
+        )
+    }
+
     pub fn update(
         &self,
         attributes: &UserEditableAttributes,
@@ -315,6 +368,7 @@ impl User {
     pub fn is_admin(&self) -> bool {
         self.has_role(Roles::Admin)
     }
+
     pub fn get_global_scopes(&self) -> Vec<String> {
         scopes::get_scopes(self.role.clone())
     }
@@ -466,30 +520,6 @@ impl User {
         conn: &PgConnection,
     ) -> Result<ExternalLogin, DatabaseError> {
         ExternalLogin::create(external_user_id, site, self.id, access_token).commit(conn)
-    }
-
-    pub fn create_from_external_login(
-        external_user_id: String,
-        first_name: String,
-        last_name: String,
-        email: String,
-        site: String,
-        access_token: String,
-        conn: &PgConnection,
-    ) -> Result<User, DatabaseError> {
-        let hash = PasswordHash::generate("random", None);
-        let new_user = NewUser {
-            first_name: Some(first_name.to_string()),
-            last_name: Some(last_name.to_string()),
-            email: Some(email.to_string()),
-            phone: None,
-            hashed_pw: hash.to_string(),
-            role: vec![Roles::User.to_string()],
-        };
-        new_user.commit(&*conn).and_then(|user| {
-            user.add_external_login(external_user_id, site, access_token, conn)?;
-            Ok(user)
-        })
     }
 
     pub fn can_read_user(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {

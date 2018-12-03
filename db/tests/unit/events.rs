@@ -145,7 +145,7 @@ fn get_sales_by_date_range() {
         connection,
     ).unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment("test".to_string(), user.id, 1700, connection)
+    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
 

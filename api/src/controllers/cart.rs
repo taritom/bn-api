@@ -2,6 +2,7 @@ use actix_web::Json;
 use actix_web::State;
 use actix_web::{http::StatusCode, HttpResponse};
 use auth::user::User;
+use bigneon_db::models::User as DbUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
 use db::Connection;
@@ -95,7 +96,16 @@ pub struct CheckoutCartRequest {
 #[serde(tag = "type")]
 pub enum PaymentRequest {
     External {
-        reference: String,
+        #[serde(default, deserialize_with = "deserialize_unless_blank")]
+        reference: Option<String>,
+        first_name: String,
+        last_name: String,
+        #[serde(default, deserialize_with = "deserialize_unless_blank")]
+        email: Option<String>,
+        #[serde(default, deserialize_with = "deserialize_unless_blank")]
+        phone: Option<String>,
+        #[serde(default, deserialize_with = "deserialize_unless_blank")]
+        note: Option<String>,
     },
     Card {
         token: String,
@@ -151,9 +161,27 @@ pub fn checkout(
     }
 
     let payment_response = match &req.method {
-        PaymentRequest::External { reference } => {
+        PaymentRequest::External {
+            reference,
+            first_name,
+            last_name,
+            email,
+            phone,
+            note,
+        } => {
             info!("CART: Received external payment");
-            checkout_external(&connection, &mut order, reference, &req, &user)?
+            checkout_external(
+                &connection,
+                order,
+                reference.clone(),
+                first_name.to_string(),
+                last_name.to_string(),
+                email.clone(),
+                phone.clone(),
+                note.clone(),
+                &req,
+                &user,
+            )?
         }
         PaymentRequest::PaymentMethod { provider } => {
             info!("CART: Received provider payment");
@@ -251,28 +279,48 @@ pub fn checkout(
 // user will not be calling this.
 fn checkout_external(
     conn: &Connection,
-    order: &mut Order,
-    reference: &str,
+    order: Order,
+    reference: Option<String>,
+    first_name: String,
+    last_name: String,
+    email: Option<String>,
+    phone: Option<String>,
+    note: Option<String>,
     checkout_request: &CheckoutCartRequest,
     user: &User,
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::OrderMakeExternalPayment)?;
 
-    let connection = conn.get();
+    let conn = conn.get();
     if order.status()? != OrderStatus::Draft {
         return application::unprocessable(
             "Could not complete this cart because it is not in the correct status",
         );
     }
 
-    let payment = order.add_external_payment(
-        reference.to_string(),
-        user.id(),
-        checkout_request.amount,
-        connection,
-    )?;
+    let mut guest: Option<DbUser> = None;
 
-    Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id})))
+    if email.is_some() {
+        guest = DbUser::find_by_email(email.as_ref().unwrap(), conn).optional()?;
+    };
+    if guest.is_none() {
+        if phone.is_some() {
+            guest = DbUser::find_by_phone(phone.as_ref().unwrap(), conn).optional()?;
+        }
+    }
+    if guest.is_none() {
+        guest = Some(DbUser::create_stub(
+            first_name, last_name, email, phone, conn,
+        )?);
+    }
+
+    let mut order = order.update(UpdateOrderAttributes { note: Some(note) }, conn)?;
+    order.set_behalf_of_user(guest.unwrap(), conn)?;
+
+    order.add_external_payment(reference, user.id(), checkout_request.amount, conn)?;
+
+    let order = Order::find(order.id, conn)?;
+    Ok(HttpResponse::Ok().json(json!(order.for_display(conn)?)))
 }
 
 fn checkout_payment_processor(
@@ -398,7 +446,10 @@ fn checkout_payment_processor(
     info!("CART: Completing payment on order");
     info!("charge_result:{:?}", charge_result);
     match payment.mark_complete(charge_result.to_json()?, connection) {
-        Ok(_) => Ok(HttpResponse::Ok().json(json!({"payment_id": payment.id}))),
+        Ok(_) => {
+            let order = Order::find(order.id, connection)?;
+            Ok(HttpResponse::Ok().json(json!(order.for_display(connection)?)))
+        }
         Err(e) => {
             client.refund(&auth_result.id)?;
             Err(e.into())

@@ -10,6 +10,7 @@ use log::Level;
 use models::*;
 use schema::{order_items, orders, users};
 use serde_json;
+use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::cmp;
 use std::collections::HashMap;
@@ -31,6 +32,8 @@ pub struct Order {
     pub order_date: NaiveDateTime,
     pub expires_at: NaiveDateTime,
     pub version: i64,
+    pub note: Option<String>,
+    pub on_behalf_of_user_id: Option<Uuid>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -55,6 +58,13 @@ impl NewOrder {
                 .get_result(conn),
         )
     }
+}
+
+#[derive(AsChangeset, Deserialize)]
+#[table_name = "orders"]
+pub struct UpdateOrderAttributes {
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub note: Option<Option<String>>,
 }
 
 impl Order {
@@ -201,6 +211,18 @@ impl Order {
             return DatabaseError::concurrency_error("Could not update expiry time.");
         }
         Ok(())
+    }
+
+    pub fn update(
+        self,
+        attrs: UpdateOrderAttributes,
+        conn: &PgConnection,
+    ) -> Result<Order, DatabaseError> {
+        diesel::update(&self)
+            .set((attrs, orders::updated_at.eq(dsl::now)))
+            .execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
+        Order::find(self.id, conn)
     }
 
     pub fn update_quantities(
@@ -549,8 +571,11 @@ impl Order {
     ) -> Result<Vec<DisplayOrder>, DatabaseError> {
         use schema::*;
         let orders: Vec<Order> = orders::table
-            .filter(orders::user_id.eq(user_id))
-            .filter(orders::status.ne(OrderStatus::Draft.to_string()))
+            .filter(
+                orders::user_id
+                    .eq(user_id)
+                    .or(orders::on_behalf_of_user_id.eq(user_id)),
+            ).filter(orders::status.ne(OrderStatus::Draft.to_string()))
             .order_by(orders::order_date.desc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
@@ -606,6 +631,8 @@ impl Order {
             items: self.items_for_display(conn)?,
             total_in_cents: self.calculate_total(conn)?,
             seconds_until_expiry,
+            user_id: self.user_id,
+            note: self.note.clone(),
         })
     }
 
@@ -648,7 +675,7 @@ impl Order {
 
     pub fn add_external_payment(
         &mut self,
-        external_reference: String,
+        external_reference: Option<String>,
         current_user_id: Uuid,
         amount: i64,
         conn: &PgConnection,
@@ -682,7 +709,7 @@ impl Order {
             status,
             PaymentMethods::CreditCard,
             provider,
-            external_reference,
+            Some(external_reference),
             amount,
             Some(provider_data),
         );
@@ -852,6 +879,44 @@ impl Order {
         self.version = self.version + 1;
         Ok(())
     }
+
+    pub fn set_behalf_of_user(
+        &mut self,
+        user: User,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if self.status()? != OrderStatus::Draft {
+            return DatabaseError::validation_error(
+                "status",
+                "Cannot change the order user unless the order is in draft status",
+            );
+        }
+
+        self.lock_version(conn)?;
+
+        let old_id = self.on_behalf_of_user_id;
+        self.on_behalf_of_user_id = Some(user.id);
+        diesel::update(&*self)
+            .set((
+                orders::on_behalf_of_user_id.eq(user.id),
+                orders::updated_at.eq(dsl::now),
+            )).execute(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not change the behalf of  user for this order",
+            )?;
+
+        DomainEvent::create(
+            DomainEventTypes::OrderBehalfOfUserChanged,
+            "Behalf of user on order was changed".to_string(),
+            Tables::Orders,
+            Some(self.id),
+            Some(json!({
+            "old_user" : old_id, "new_user": user.id
+            })),
+        ).commit(conn)?;
+        Ok(())
+    }
 }
 
 #[derive(QueryableByName, Deserialize, Serialize, Debug)]
@@ -871,6 +936,8 @@ pub struct DisplayOrder {
     pub status: String,
     pub items: Vec<DisplayOrderItem>,
     pub total_in_cents: i64,
+    pub user_id: Uuid,
+    pub note: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug)]

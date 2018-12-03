@@ -46,7 +46,7 @@ macro_rules! string_enum {
 string_enum! { AssetStatus [Unsynced] }
 string_enum! { CodeTypes [Access, Discount] }
 string_enum! { CommunicationChannelType [Email, Sms, Push]}
-string_enum! { DomainEventTypes [PaymentCreated, PaymentCompleted, PaymentMethodCreated, PaymentMethodUpdated, UserRegistration, LostPassword, PurchaseCompleted]}
+string_enum! { DomainEventTypes [OrderBehalfOfUserChanged, PaymentCreated, PaymentCompleted, PaymentMethodCreated, PaymentMethodUpdated, UserRegistration, LostPassword, PurchaseCompleted]}
 string_enum! { DomainActionTypes [Communication]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
@@ -61,7 +61,7 @@ string_enum! { PaymentStatus [Authorized, Completed] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Roles [Admin, OrgMember, OrgOwner, OrgBoxOffice, OrgScanner, User] }
 string_enum! { SortingDir[ Asc, Desc ] }
-string_enum! { Tables [Payments, PaymentMethods] }
+string_enum! { Tables [Orders, Payments, PaymentMethods] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut] }

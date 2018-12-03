@@ -9,9 +9,7 @@ use itertools::Itertools;
 use models::*;
 use rand;
 use rand::Rng;
-use schema::{
-    assets, events, order_items, orders, ticket_instances, ticket_types, users, venues, wallets,
-};
+use schema::{assets, events, order_items, ticket_instances, ticket_types, users, venues, wallets};
 use std::collections::HashMap;
 use tari_client::*;
 use time::Duration;
@@ -88,7 +86,7 @@ impl TicketInstance {
         id: Uuid,
         event_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<(DisplayEvent, ProcessingTicket), DatabaseError> {
+    ) -> Result<ProcessingTicketIntermediary, DatabaseError> {
         let ticket_intermediary = ticket_instances::table
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
@@ -108,8 +106,8 @@ impl TicketInstance {
             )).first::<ProcessingTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
 
-        let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
-        Ok((event, ticket_intermediary.into()))
+        //let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
+        Ok(ticket_intermediary)
     }
 
     pub fn find_for_user_for_display(
@@ -480,18 +478,15 @@ impl TicketInstance {
         let mut ticket_data = ticket_instances::table
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .inner_join(
-                order_items::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-            .inner_join(users::table.on(orders::user_id.eq(users::id)))
-            .inner_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
+            .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
+            .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
             .filter(ticket_instances::id.eq(ticket_id))
             .select((
                 ticket_instances::id,
                 ticket_types::name,
-                orders::user_id,
+                wallets::user_id,
                 users::first_name,
                 users::last_name,
                 users::email,
@@ -504,7 +499,7 @@ impl TicketInstance {
                 events::door_time,
                 events::event_start,
                 events::venue_id,
-                venues::name,
+                venues::name.nullable(),
             )).first::<RedeemableTicket>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
 
