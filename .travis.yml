@@ -40,10 +40,7 @@ before_script: []
 after_script: []
 deploy:
   - provider: script
-    script:
-    - 'git checkout master'
-    - './init-github-ssh.sh'
-    - './bump-version.sh --with-git'
+    script: bash scripts/deploy.sh master
     on:
       branch: master
 env:
