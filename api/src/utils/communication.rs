@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use chrono::{Duration, Utc};
-use diesel::Connection;
 use diesel::PgConnection;
 use futures::Future;
 use tokio::prelude::*;

@@ -19,4 +19,4 @@ if [ $NEWMAN_EXIT_CODE -ne 0 ]
 then
     exit $NEWMAN_EXIT_CODE
 fi
-cargo run -- -b true
+cargo run --release -- -b true
