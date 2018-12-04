@@ -152,6 +152,8 @@ table! {
         fee_schedule_id -> Uuid,
         min_price -> Int8,
         fee_in_cents -> Int8,
+        company_fee_in_cents -> Int8,
+        client_fee_in_cents -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -195,6 +197,8 @@ table! {
         event_id -> Nullable<Uuid>,
         quantity -> Int8,
         unit_price_in_cents -> Int8,
+        company_fee_in_cents -> Int8,
+        client_fee_in_cents -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         ticket_pricing_id -> Nullable<Uuid>,

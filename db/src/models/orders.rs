@@ -340,6 +340,8 @@ impl Order {
                                 event_id: Some(ticket_type.event_id),
                                 fee_schedule_range_id: fee_schedule_range.id,
                                 unit_price_in_cents: price_in_cents,
+                                company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
+                                client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
                                 hold_id: *hold_id,
                                 code_id: None,
                             }.commit(conn)?;
@@ -424,6 +426,8 @@ impl Order {
                 event_id: Some(ticket_type.event_id),
                 fee_schedule_range_id: fee_schedule_range.id,
                 unit_price_in_cents: price_in_cents,
+                company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
+                client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
                 hold_id: hold_id,
                 code_id: None,
             }.commit(conn)?;
@@ -526,6 +530,8 @@ impl Order {
                 item_type: OrderItemTypes::EventFees.to_string(),
                 event_id: Some(event.id),
                 unit_price_in_cents: 0,
+                company_fee_in_cents: 0,
+                client_fee_in_cents: 0,
                 quantity: 1,
                 parent_id: None,
             };

@@ -27,6 +27,8 @@ pub struct OrderItem {
     pub event_id: Option<Uuid>,
     pub quantity: i64,
     unit_price_in_cents: i64,
+    company_fee_in_cents: i64,
+    client_fee_in_cents: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub ticket_pricing_id: Option<Uuid>,
@@ -86,6 +88,8 @@ impl OrderItem {
             Some(mut fee_item) => {
                 fee_item.quantity = self.quantity;
                 fee_item.unit_price_in_cents = fee_schedule_range.fee_in_cents;
+                fee_item.company_fee_in_cents = fee_schedule_range.company_fee_in_cents;
+                fee_item.client_fee_in_cents = fee_schedule_range.client_fee_in_cents;
                 fee_item.update(conn)
             }
             None => {
@@ -94,6 +98,8 @@ impl OrderItem {
                     item_type: OrderItemTypes::PerUnitFees.to_string(),
                     event_id: self.event_id,
                     unit_price_in_cents: fee_schedule_range.fee_in_cents,
+                    company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
+                    client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
                     quantity: self.quantity,
                     parent_id: Some(self.id),
                 }.commit(conn)?;
@@ -318,6 +324,8 @@ pub(crate) struct NewTicketsOrderItem {
     pub event_id: Option<Uuid>,
     pub quantity: i64,
     pub unit_price_in_cents: i64,
+    pub company_fee_in_cents: i64,
+    pub client_fee_in_cents: i64,
     pub ticket_type_id: Uuid,
     pub ticket_pricing_id: Uuid,
     pub fee_schedule_range_id: Uuid,
@@ -374,6 +382,8 @@ pub(crate) struct NewFeesOrderItem {
     pub event_id: Option<Uuid>,
     pub quantity: i64,
     pub unit_price_in_cents: i64,
+    pub company_fee_in_cents: i64,
+    pub client_fee_in_cents: i64,
     pub parent_id: Option<Uuid>,
 }
 
