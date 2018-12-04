@@ -44,6 +44,8 @@ pub struct Event {
     #[column_name = "max_ticket_price_cache"]
     pub max_ticket_price: Option<i64>,
     pub video_url: Option<String>,
+    pub is_external: bool,
+    pub external_url: Option<String>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate)]
@@ -76,6 +78,11 @@ pub struct NewEvent {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,
+    #[serde(default = "NewEvent::default_is_external",)]
+    pub is_external: bool,
+    #[validate(url(message = "External URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub external_url: Option<String>,
 }
 
 #[derive(AsChangeset)]
@@ -97,6 +104,9 @@ impl NewEvent {
 
     pub fn default_status() -> String {
         EventStatus::Draft.to_string()
+    }
+    pub fn default_is_external() -> bool {
+        false
     }
 }
 
@@ -126,6 +136,10 @@ pub struct EventEditableAttributes {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,
+    pub is_external: Option<bool>,
+    #[validate(url(message = "External URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub external_url: Option<String>,
 }
 
 impl Event {
@@ -378,6 +392,10 @@ impl Event {
             on_sale: Option<NaiveDateTime>,
             #[sql_type = "N<sql_types::BigInt>"]
             sales_total_in_cents: Option<i64>,
+            #[sql_type = "sql_types::Bool"]
+            is_external: bool,
+            #[sql_type = "N<sql_types::Text>"]
+            external_url: Option<String>,
         }
 
         let query_events = include_str!("../queries/find_all_events_for_organization.sql");
@@ -451,6 +469,8 @@ impl Event {
                     tickets_held: 0,
                     sales_total_in_cents: r.sales_total_in_cents.unwrap_or(0) as u32,
                     ticket_types: vec![],
+                    is_external: r.is_external,
+                    external_url: r.external_url,
                 };
 
                 for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
@@ -726,6 +746,8 @@ impl Event {
             max_ticket_price: self.max_ticket_price,
             min_ticket_price: self.min_ticket_price,
             video_url: self.video_url,
+            is_external: self.is_external,
+            external_url: self.external_url,
         })
     }
 }
@@ -744,6 +766,8 @@ pub struct DisplayEvent {
     pub min_ticket_price: Option<i64>,
     pub max_ticket_price: Option<i64>,
     pub video_url: Option<String>,
+    pub is_external: bool,
+    pub external_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -772,6 +796,8 @@ pub struct EventSummaryResult {
     pub tickets_held: u32,
     pub sales_total_in_cents: u32,
     pub ticket_types: Vec<EventSummaryResultTicketType>,
+    pub is_external: bool,
+    pub external_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]

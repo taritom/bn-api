@@ -200,6 +200,8 @@ pub fn index_search_with_filter() {
         venue: None,
         min_ticket_price: None,
         max_ticket_price: None,
+        is_external: false,
+        external_url: None,
     }];
 
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
@@ -785,6 +787,8 @@ fn expected_show_json(
         user_is_interested: bool,
         min_ticket_price: Option<i64>,
         max_ticket_price: Option<i64>,
+        is_external: bool,
+        external_url: Option<String>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -825,6 +829,8 @@ fn expected_show_json(
         user_is_interested: true,
         min_ticket_price: None,
         max_ticket_price: None,
+        is_external: event.is_external,
+        external_url: event.external_url,
     }).unwrap()
 }
 
@@ -847,6 +853,8 @@ struct EventVenueEntry {
     venue: Option<Venue>,
     min_ticket_price: Option<i64>,
     max_ticket_price: Option<i64>,
+    is_external: bool,
+    external_url: Option<String>,
 }
 
 fn event_venue_entry(event: &Event, venue: &Venue) -> EventVenueEntry {
@@ -868,5 +876,7 @@ fn event_venue_entry(event: &Event, venue: &Venue) -> EventVenueEntry {
         venue: Some(venue.clone()),
         min_ticket_price: event.min_ticket_price.clone(),
         max_ticket_price: event.max_ticket_price.clone(),
+        is_external: event.is_external.clone(),
+        external_url: event.external_url.clone(),
     }
 }

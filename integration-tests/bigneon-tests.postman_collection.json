@@ -841,6 +841,59 @@
 					"response": []
 				},
 				{
+					"name": "Admin  - Create Event That is External",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"pm.environment.set(\"last_event_id\", JSON.parse(responseBody).id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Admin  - Create Event",
 					"event": [
 						{
@@ -1157,7 +1210,7 @@
 									"let r = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"should be one result\", function(){",
-									"    pm.expect(r.data.length).to.equal(1);",
+									"    pm.expect(r.data.length).to.equal(2);",
 									"})"
 								],
 								"type": "text/javascript"

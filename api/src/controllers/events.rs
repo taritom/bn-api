@@ -118,6 +118,8 @@ pub fn index(
         venue: Option<Venue>,
         min_ticket_price: Option<i64>,
         max_ticket_price: Option<i64>,
+        is_external: bool,
+        external_url: Option<String>,
     }
 
     let mut venue_ids: Vec<Uuid> = events
@@ -153,6 +155,8 @@ pub fn index(
             cancelled_at: event.cancelled_at,
             min_ticket_price: event.min_ticket_price,
             max_ticket_price: event.max_ticket_price,
+            is_external: event.is_external,
+            external_url: event.external_url,
         });
         results
     });
@@ -219,6 +223,8 @@ pub fn show(
         user_is_interested: bool,
         min_ticket_price: Option<i64>,
         max_ticket_price: Option<i64>,
+        is_external: bool,
+        external_url: Option<String>,
     }
 
     Ok(HttpResponse::Ok().json(&R {
@@ -248,6 +254,8 @@ pub fn show(
         user_is_interested: user_interest,
         min_ticket_price: event.min_ticket_price,
         max_ticket_price: event.max_ticket_price,
+        is_external: event.is_external,
+        external_url: event.external_url,
     }))
 }
 
