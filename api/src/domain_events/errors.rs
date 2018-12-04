@@ -4,6 +4,7 @@ use diesel::prelude::ConnectionError;
 use std::error;
 use std::error::Error;
 use std::fmt;
+use std::io;
 
 #[derive(Debug)]
 pub enum DomainActionError {
@@ -40,6 +41,11 @@ impl From<ConnectionError> for DomainActionError {
     }
 }
 
+impl From<io::Error> for DomainActionError {
+    fn from(e: io::Error) -> Self {
+        DomainActionError::CausedBy(Box::new(e))
+    }
+}
 impl From<diesel::result::Error> for DomainActionError {
     fn from(e: diesel::result::Error) -> Self {
         DomainActionError::CausedBy(Box::new(e))

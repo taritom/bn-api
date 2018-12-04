@@ -17,12 +17,13 @@ use domain_events::routing::DomainActionRouter;
 use logging::*;
 use tokio::prelude::*;
 use tokio::runtime::current_thread;
+use tokio::runtime::Runtime;
 use tokio::timer::Timeout;
-
-fn example_subscription(_: &DomainEvent) -> Option<NewDomainAction> {
-    // Other subscriptions should conform to this signature
-    None
-}
+//
+//fn example_subscription(_: &DomainEvent) -> Option<NewDomainAction> {
+//    // Other subscriptions should conform to this signature
+//    None
+//}
 
 pub struct DomainActionMonitor {
     config: Config,
@@ -195,6 +196,8 @@ impl DomainActionMonitor {
     ) -> Result<(), DomainActionError> {
         let router = DomainActionMonitor::create_router(&conf);
 
+        let mut runtime = Runtime::new()?;
+
         //let connection = database.get_connection();
 
         loop {
@@ -210,10 +213,15 @@ impl DomainActionMonitor {
             //Check for actions that are due to be processed
 
             let futures = DomainActionMonitor::find_actions(&database, &router)?;
+
+            if futures.len() == 0 {
+                thread::sleep(Duration::from_secs(interval));
+            }
+
             for f in futures {
                 let timeout = Timeout::new(f, Duration::from_secs(55));
 
-                tokio::spawn(timeout.or_else(|err| {
+                runtime.spawn(timeout.or_else(|err| {
                     jlog! {Error,"bigneon::domain_actions", "Action:  failed", {"error": err.to_string()}};
                     Err(())
                 }));
