@@ -73,7 +73,7 @@ impl NewFeeSchedule {
     pub fn commit(self, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
         let previous_version = fee_schedules::table
             .filter(fee_schedules::name.eq(&self.name))
-            .order_by(fee_schedules::id.desc())
+            .order_by(fee_schedules::version.desc())
             .first::<FeeSchedule>(conn)
             .optional()
             .to_db_error(ErrorCode::QueryError, "Error loading Fee Schedule")?;
