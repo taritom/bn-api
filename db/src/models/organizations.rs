@@ -2,15 +2,15 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
+use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Text, Timestamp};
-use serde_with::rust::double_option;
-use uuid::Uuid;
-use diesel::expression::sql_literal::sql;
 use models::scopes;
 use models::*;
 use schema::{events, organization_users, organizations, users, venues};
+use serde_with::rust::double_option;
 use utils::errors::*;
+use uuid::Uuid;
 
 #[derive(Identifiable, Associations, Queryable, QueryableByName, AsChangeset)]
 #[belongs_to(User, foreign_key = "owner_user_id")]
