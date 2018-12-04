@@ -105,7 +105,7 @@ impl NewFeeSchedule {
             ranges.push(I {
                 fee_schedule_id: result.id,
                 min_price: range.min_price,
-                fee_in_cents: range.fee_in_cents,
+                fee_in_cents: range.company_fee_in_cents + range.client_fee_in_cents,
                 company_fee_in_cents: range.company_fee_in_cents,
                 client_fee_in_cents: range.client_fee_in_cents,
             })

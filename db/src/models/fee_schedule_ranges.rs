@@ -23,7 +23,6 @@ pub struct FeeScheduleRange {
 #[derive(Serialize, Deserialize)]
 pub struct NewFeeScheduleRange {
     pub min_price: i64,
-    pub fee_in_cents: i64,
     pub company_fee_in_cents: i64,
     pub client_fee_in_cents: i64,
 }

@@ -74,7 +74,6 @@ impl<'a> OrganizationBuilder<'a> {
                 format!("{} fees.{}", self.name, x).into(),
                 vec![NewFeeScheduleRange {
                     min_price: 0,
-                    fee_in_cents: 50,
                     company_fee_in_cents: 20,
                     client_fee_in_cents: 30,
                 }],

@@ -11,7 +11,6 @@ fn create() {
         format!("Zero fees",).into(),
         vec![NewFeeScheduleRange {
             min_price: 0,
-            fee_in_cents: 0,
             company_fee_in_cents: 0,
             client_fee_in_cents: 0,
         }],
@@ -456,7 +455,6 @@ fn change_owner() {
         format!("Zero fees",).into(),
         vec![NewFeeScheduleRange {
             min_price: 0,
-            fee_in_cents: 0,
             company_fee_in_cents: 0,
             client_fee_in_cents: 0,
         }],
