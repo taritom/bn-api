@@ -62,7 +62,7 @@ pub struct DisplayUser {
     pub is_org_owner: bool,
 }
 
-#[derive(AsChangeset, Default, Deserialize, Validate)]
+#[derive(AsChangeset, Default, Deserialize, Validate, Clone)]
 #[table_name = "users"]
 pub struct UserEditableAttributes {
     pub first_name: Option<String>,
@@ -118,10 +118,11 @@ impl User {
         password: &str,
     ) -> NewUser {
         let hash = PasswordHash::generate(password, None);
+        let lower_email = email.clone().map(|e| e.to_lowercase());
         NewUser {
             first_name: first_name.clone(),
             last_name: last_name.clone(),
-            email: email.clone(),
+            email: lower_email,
             phone: phone.clone(),
             hashed_pw: hash.to_string(),
             role: vec![Roles::User.to_string()],
@@ -138,10 +139,11 @@ impl User {
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         let hash = PasswordHash::generate("random", None);
+        let lower_email = email.to_lowercase();
         let new_user = NewUser {
             first_name: Some(first_name),
             last_name: Some(last_name),
-            email: Some(email),
+            email: Some(lower_email.to_string()),
             phone: None,
             hashed_pw: hash.to_string(),
             role: vec![Roles::User.to_string()],
@@ -302,11 +304,12 @@ impl User {
     }
 
     pub fn find_by_email(email: &str, conn: &PgConnection) -> Result<User, DatabaseError> {
+        let lower_email = email.to_lowercase();
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading user",
             users::table
-                .filter(users::email.eq(email))
+                .filter(users::email.eq(lower_email))
                 .first::<User>(conn),
         )
     }
@@ -326,8 +329,13 @@ impl User {
         attributes: &UserEditableAttributes,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
-        attributes.validate()?;
-        let query = diesel::update(self).set((attributes, users::updated_at.eq(dsl::now)));
+        let mut lower_cased_attributes = (*attributes).clone();
+        lower_cased_attributes.validate()?;
+        if let Some(i) = lower_cased_attributes.email {
+            lower_cased_attributes.email = Some(i.to_lowercase());
+        }
+        let query =
+            diesel::update(self).set((lower_cased_attributes, users::updated_at.eq(dsl::now)));
 
         DatabaseError::wrap(
             ErrorCode::UpdateError,
