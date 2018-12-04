@@ -6,7 +6,7 @@ CREATE TABLE orders (
   status TEXT NOT NULL,
   order_type TEXT not null,
   order_date TIMESTAMP NOT NULL DEFAULT now(),
-  expires_at TIMESTAMP NOT NULL,
+  expires_at TIMESTAMP NULL,
   version BIGINT NOT NULL default 0,
   note TEXT NULL,
   on_behalf_of_user_id uuid null REFERENCES users(id),

@@ -684,25 +684,32 @@ fn find_for_user_for_display() {
 #[test]
 fn for_display() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let order = project.create_order().finish();
 
     // 1 minute from now expires
     let one_minute_from_now = NaiveDateTime::from(Utc::now().naive_utc() + Duration::minutes(1));
-    let order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
+    let mut order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
         .set(orders::expires_at.eq(one_minute_from_now))
-        .get_result::<Order>(project.get_connection())
+        .get_result::<Order>(connection)
         .unwrap();
-    let display_order = order.for_display(project.get_connection()).unwrap();
-    assert!(display_order.seconds_until_expiry <= 60 && display_order.seconds_until_expiry >= 59);
+    let display_order = order.for_display(connection).unwrap();
+    // Check both 59 and 60 for the purposes of the test to avoid timing errors
+    assert!(vec![59, 60].contains(&display_order.seconds_until_expiry.unwrap()));
+
+    // No expiration
+    order.remove_expiry(connection).unwrap();
+    let display_order = order.for_display(connection).unwrap();
+    assert_eq!(None, display_order.seconds_until_expiry);
 
     // 1 minute ago expires
     let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
     let order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
         .set(orders::expires_at.eq(one_minute_ago))
-        .get_result::<Order>(project.get_connection())
+        .get_result::<Order>(connection)
         .unwrap();
-    let display_order = order.for_display(project.get_connection()).unwrap();
-    assert_eq!(0, display_order.seconds_until_expiry);
+    let display_order = order.for_display(connection).unwrap();
+    assert_eq!(Some(0), display_order.seconds_until_expiry);
 }
 
 #[test]

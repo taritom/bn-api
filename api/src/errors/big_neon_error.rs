@@ -8,6 +8,7 @@ use jwt::errors::Error as JwtError;
 use lettre::smtp::error::Error as SmtpError;
 use lettre_email::error::Error as EmailBuilderError;
 use payments::PaymentProcessorError;
+use r2d2;
 use reqwest::header::ToStrError as ReqwestToStrError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
@@ -32,6 +33,7 @@ macro_rules! error_conversion {
 error_conversion!(ApplicationError);
 error_conversion!(AuthError);
 error_conversion!(DatabaseError);
+error_conversion!(r2d2::Error);
 error_conversion!(DieselError);
 error_conversion!(EmailBuilderError);
 error_conversion!(EnumParseError);

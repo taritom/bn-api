@@ -3,6 +3,7 @@ use db::Connection;
 use db::ConnectionType;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel::PgConnection;
+use r2d2::Error as R2D2Error;
 
 type R2D2Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -17,12 +18,8 @@ impl Database {
         }
     }
 
-    pub fn get_connection(&self) -> Connection {
-        ConnectionType::R2D2(
-            self.connection_pool
-                .get()
-                .expect("Failed to get connection from pool"),
-        ).into()
+    pub fn get_connection(&self) -> Result<Connection, R2D2Error> {
+        Ok(ConnectionType::R2D2(self.connection_pool.get()?).into())
     }
 }
 

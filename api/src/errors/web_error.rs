@@ -7,6 +7,7 @@ use jwt::errors::Error as JwtError;
 use lettre::smtp::error::Error as SmtpError;
 use lettre_email::error::Error as EmailBuilderError;
 use payments::PaymentProcessorError;
+use r2d2;
 use reqwest::header::ToStrError as ReqwestToStrError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
@@ -53,6 +54,13 @@ impl ConvertToWebError for Error {
 impl ConvertToWebError for DieselError {
     fn to_response(&self) -> HttpResponse {
         error!("Diesel error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for r2d2::Error {
+    fn to_response(&self) -> HttpResponse {
+        error!("R2D2 error: {}", self);
         internal_error("Internal error")
     }
 }
