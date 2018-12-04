@@ -239,12 +239,17 @@ impl TicketInstance {
 
     pub fn reserve_tickets(
         order_item: &OrderItem,
-        order_expires_at: NaiveDateTime,
+        expires_at: Option<NaiveDateTime>,
         ticket_type_id: Uuid,
         ticket_holding_id: Option<Uuid>,
         quantity: u32,
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        let order_expires_at = expires_at.ok_or(DatabaseError::new(
+            ErrorCode::BusinessProcessError,
+            Some("Expiration date was not set on cart prior to reserving tickets".to_string()),
+        ))?;
+
         let query = include_str!("../queries/reserve_tickets.sql");
         let q = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(order_item.id)
