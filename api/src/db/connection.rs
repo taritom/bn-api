@@ -70,7 +70,7 @@ impl FromRequest<AppState> for Connection {
             return Ok(connection.clone());
         }
 
-        let connection = request.state().database.get_connection();
+        let connection = request.state().database.get_connection()?;
         {
             let connection_object = connection.get();
             connection_object

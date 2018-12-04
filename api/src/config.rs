@@ -192,7 +192,7 @@ impl Config {
         };
 
         let http_keep_alive = env::var(&HTTP_KEEP_ALIVE)
-            .unwrap_or("10".to_string())
+            .unwrap_or("75".to_string())
             .parse()
             .unwrap();
 

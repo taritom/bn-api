@@ -1,9 +1,11 @@
 use bigneon_db::prelude::*;
 use diesel;
 use diesel::prelude::ConnectionError;
+use r2d2;
 use std::error;
 use std::error::Error;
 use std::fmt;
+use std::io;
 
 #[derive(Debug)]
 pub enum DomainActionError {
@@ -40,8 +42,18 @@ impl From<ConnectionError> for DomainActionError {
     }
 }
 
+impl From<io::Error> for DomainActionError {
+    fn from(e: io::Error) -> Self {
+        DomainActionError::CausedBy(Box::new(e))
+    }
+}
 impl From<diesel::result::Error> for DomainActionError {
     fn from(e: diesel::result::Error) -> Self {
+        DomainActionError::CausedBy(Box::new(e))
+    }
+}
+impl From<r2d2::Error> for DomainActionError {
+    fn from(e: r2d2::Error) -> Self {
         DomainActionError::CausedBy(Box::new(e))
     }
 }

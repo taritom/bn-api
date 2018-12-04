@@ -80,7 +80,8 @@ impl Server {
                         routing::routes(&mut cors_config)
                     })
                 }
-            }).keep_alive(server::KeepAlive::Tcp(keep_alive))
+            })
+                .keep_alive(Some(keep_alive))
                 .bind(&bind_addr)
                 .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
                 .run();
