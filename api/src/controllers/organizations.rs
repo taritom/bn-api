@@ -24,7 +24,7 @@ pub struct FeeScheduleWithRanges {
     pub name: String,
     pub version: i16,
     pub created_at: NaiveDateTime,
-    pub ranges: Vec<DisplayFeeScheduleRange>,
+    pub ranges: Vec<FeeScheduleRange>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -256,12 +256,9 @@ pub fn show_fee_schedule(
     let organization = Organization::find(parameters.id, connection)?;
     user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
 
+    //This is an OrgOwner / Admin only call so we need to show the breakdown
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
-    let fee_schedule_ranges: Vec<DisplayFeeScheduleRange> = fee_schedule
-        .ranges(connection)?
-        .iter()
-        .map(|f| DisplayFeeScheduleRange::from(f.clone()))
-        .collect();
+    let fee_schedule_ranges = fee_schedule.ranges(connection)?;
 
     Ok(HttpResponse::Ok().json(FeeScheduleWithRanges {
         id: fee_schedule.id,
@@ -284,11 +281,7 @@ pub fn add_fee_schedule(
     let connection = connection.get();
 
     let fee_schedule = json.into_inner().commit(connection)?;
-    let fee_schedule_ranges = fee_schedule
-        .ranges(connection)?
-        .iter()
-        .map(|f| DisplayFeeScheduleRange::from(f.clone()))
-        .collect();
+    let fee_schedule_ranges = fee_schedule.ranges(connection)?;
 
     Organization::find(parameters.id, connection)?.add_fee_schedule(&fee_schedule, connection)?;
 
