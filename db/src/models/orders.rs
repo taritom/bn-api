@@ -30,7 +30,7 @@ pub struct Order {
     pub status: String,
     order_type: String,
     pub order_date: NaiveDateTime,
-    pub expires_at: NaiveDateTime,
+    pub expires_at: Option<NaiveDateTime>,
     pub version: i64,
     pub note: Option<String>,
     pub on_behalf_of_user_id: Option<Uuid>,
@@ -43,7 +43,7 @@ pub struct Order {
 pub struct NewOrder {
     user_id: Uuid,
     status: String,
-    expires_at: NaiveDateTime,
+    expires_at: Option<NaiveDateTime>,
     order_type: String,
 }
 
@@ -129,7 +129,7 @@ impl Order {
 
         let query = r#"
             INSERT INTO Orders (user_id, status, expires_at, order_type)
-            SELECT $1 as user_id, 'Draft' as status, $2 as expires_at, 'Cart' as order_type
+            SELECT $1 as user_id, 'Draft' as status, null as expires_at, 'Cart' as order_type
             WHERE NOT EXISTS
             ( SELECT o.id FROM orders o
                 WHERE o.user_id = $1
@@ -147,9 +147,7 @@ impl Order {
 
         let cart_id: Vec<R> = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(user.id)
-            .bind::<sql_types::Timestamp, _>(
-                Utc::now().naive_utc() + Duration::minutes(CART_EXPIRY_TIME_MINUTES),
-            ).get_results(conn)
+            .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find or create cart")?;
 
         if cart_id.is_empty() || cart_id[0].id.is_none() || cart_id.len() > 1 {
@@ -180,8 +178,11 @@ impl Order {
             .filter(orders::user_id.eq(user_id))
             .filter(orders::status.eq("Draft"))
             .filter(orders::order_type.eq("Cart"))
-            .filter(orders::expires_at.ge(dsl::now))
-            .select(orders::all_columns)
+            .filter(
+                orders::expires_at
+                    .is_null()
+                    .or(orders::expires_at.ge(dsl::now.nullable())),
+            ).select(orders::all_columns)
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load cart for user")
             .optional()
@@ -194,22 +195,52 @@ impl Order {
             .to_db_error(ErrorCode::QueryError, "Could not find order")
     }
 
-    pub fn extend_expiry(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn set_expiry(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        self.expires_at =
+            Some(Utc::now().naive_utc() + Duration::minutes(CART_EXPIRY_TIME_MINUTES));
+        self.updated_at = Utc::now().naive_utc();
+
         let affected_rows = diesel::update(
             orders::table.filter(
                 orders::id
                     .eq(self.id)
                     .and(orders::version.eq(self.version))
-                    .and(orders::expires_at.gt(Utc::now().naive_utc())),
+                    .and(orders::expires_at.is_null()),
             ),
-        ).set(
-            orders::expires_at
-                .eq(Utc::now().naive_utc() + Duration::minutes(CART_EXPIRY_TIME_MINUTES)),
-        ).execute(conn)
+        ).set((
+            orders::expires_at.eq(self.expires_at),
+            orders::updated_at.eq(self.updated_at),
+        )).execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update expiry time")?;
         if affected_rows != 1 {
             return DatabaseError::concurrency_error("Could not update expiry time.");
         }
+        Ok(())
+    }
+
+    pub fn remove_expiry(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        self.updated_at = Utc::now().naive_utc();
+        self.expires_at = None;
+        let affected_rows = diesel::update(
+            orders::table.filter(
+                orders::id
+                    .eq(self.id)
+                    .and(orders::version.eq(self.version))
+                    .and(
+                        orders::expires_at
+                            .is_null()
+                            .or(orders::expires_at.gt(Some(Utc::now().naive_utc()))),
+                    ),
+            ),
+        ).set((
+            orders::expires_at.eq::<Option<NaiveDateTime>>(None),
+            orders::updated_at.eq(self.updated_at),
+        )).execute(conn)
+        .to_db_error(ErrorCode::UpdateError, "Could not update expiry time")?;
+        if affected_rows != 1 {
+            return DatabaseError::concurrency_error("Could not update expiry time.");
+        }
+
         Ok(())
     }
 
@@ -382,10 +413,9 @@ impl Order {
             }
         }
 
-        // if the cart is empty at this point, it is effectively a new cart, extend the time
-
-        if self.items(conn)?.len() == 0 {
-            self.extend_expiry(conn)?;
+        // Set cart expiration time if not currently set (empty carts have no expiration)
+        if self.expires_at.is_none() {
+            self.set_expiry(conn)?;
         }
 
         for (_, hold_id, hold, new_line) in mapped {
@@ -440,6 +470,11 @@ impl Order {
                 new_line.quantity,
                 conn,
             )?;
+        }
+
+        // if the cart is empty at this point, it is effectively a new cart, remove expiration
+        if self.items(conn)?.len() == 0 {
+            self.remove_expiry(conn)?;
         }
 
         for limit_check in check_ticket_limits {
@@ -622,12 +657,14 @@ impl Order {
 
     pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayOrder, DatabaseError> {
         let now = Utc::now().naive_utc();
-        let seconds_until_expiry = if self.expires_at >= now {
-            let duration = self.expires_at.signed_duration_since(now);
-            duration.num_seconds() as u32
-        } else {
-            0
-        };
+        let seconds_until_expiry = self.expires_at.map(|expires_at| {
+            if expires_at >= now {
+                let duration = expires_at.signed_duration_since(now);
+                duration.num_seconds() as u32
+            } else {
+                0
+            }
+        });
 
         Ok(DisplayOrder {
             id: self.id,
@@ -751,17 +788,16 @@ impl Order {
     fn mark_partially_paid(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
         // TODO: The multiple queries in this method could probably be combined into a single query
         let now_plus_one_day = Utc::now().naive_utc() + Duration::days(1);
-
         let result = diesel::update(
             orders::table.filter(
                 orders::id
                     .eq(self.id)
                     .and(orders::version.eq(self.version))
-                    .and(orders::expires_at.gt(dsl::now)),
+                    .and(orders::expires_at.ge(Some(Utc::now().naive_utc()))),
             ),
         ).set((
             orders::status.eq(OrderStatus::PartiallyPaid.to_string()),
-            orders::expires_at.eq(now_plus_one_day),
+            orders::expires_at.eq(Some(now_plus_one_day)),
             orders::updated_at.eq(dsl::now),
         )).execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update order status")?;
@@ -937,8 +973,8 @@ pub struct ResultForTicketTypeTotal {
 pub struct DisplayOrder {
     pub id: Uuid,
     pub date: NaiveDateTime,
-    pub expires_at: NaiveDateTime,
-    pub seconds_until_expiry: u32,
+    pub expires_at: Option<NaiveDateTime>,
+    pub seconds_until_expiry: Option<u32>,
     pub status: String,
     pub items: Vec<DisplayOrderItem>,
     pub total_in_cents: i64,

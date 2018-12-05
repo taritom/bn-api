@@ -216,7 +216,7 @@ table! {
         status -> Text,
         order_type -> Text,
         order_date -> Timestamp,
-        expires_at -> Timestamp,
+        expires_at -> Nullable<Timestamp>,
         version -> Int8,
         note -> Nullable<Text>,
         on_behalf_of_user_id -> Nullable<Uuid>,

@@ -40,11 +40,7 @@ before_script: []
 after_script: []
 deploy:
   - provider: script
-    script:
-    - 'git checkout master'
-    - 'cd $(git rev-parse --show-toplevel)'
-    - './scripts/init-github-ssh.sh'
-    - './scripts/bump-version.sh --with-git'
+    script: bash scripts/travis_tag.sh master
     on:
       branch: master
 env:
