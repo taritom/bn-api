@@ -6,8 +6,6 @@ CREATE TABLE order_items (
   event_id uuid null references events,
   quantity bigint not null,
   unit_price_in_cents bigint not null,
-  company_fee_in_cents bigint not null,
-  client_fee_in_cents bigint not null,
   created_at TIMESTAMP not null default now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 

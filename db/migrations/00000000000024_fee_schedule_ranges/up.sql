@@ -3,8 +3,6 @@ CREATE TABLE fee_schedule_ranges (
   fee_schedule_id uuid not null REFERENCES fee_schedules(id),
   min_price bigint NOT NULL,
   fee_in_cents bigint NOT NULL,
-  company_fee_in_cents bigint NOT NULL,
-  client_fee_in_cents bigint NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
