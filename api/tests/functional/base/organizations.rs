@@ -443,7 +443,12 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let fee_schedule = database.create_fee_schedule().finish();
-    let fee_schedule_ranges = fee_schedule.ranges(database.connection.get());
+    let fee_schedule_ranges: Vec<DisplayFeeScheduleRange> = fee_schedule
+        .ranges(database.connection.get())
+        .unwrap()
+        .iter()
+        .map(|f| DisplayFeeScheduleRange::from(f.clone()))
+        .collect();
     let organization = database
         .create_organization()
         .with_fee_schedule(&fee_schedule)
@@ -457,7 +462,7 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
         name: String,
         version: i64,
         created_at: NaiveDateTime,
-        ranges: Vec<FeeScheduleRange>,
+        ranges: Vec<DisplayFeeScheduleRange>,
     }
 
     let expected_data = FeeScheduleWithRanges {
@@ -465,7 +470,7 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
         name: fee_schedule.name,
         version: 0,
         created_at: fee_schedule.created_at,
-        ranges: fee_schedule_ranges.unwrap(),
+        ranges: fee_schedule_ranges,
     };
 
     let expected_json = serde_json::to_string(&expected_data).unwrap();

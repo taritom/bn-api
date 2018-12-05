@@ -257,7 +257,9 @@ pub fn show_fee_schedule(
     user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
-    let fee_schedule_ranges:Vec<DisplayFeeScheduleRange> = fee_schedule.ranges(connection)?.iter()
+    let fee_schedule_ranges: Vec<DisplayFeeScheduleRange> = fee_schedule
+        .ranges(connection)?
+        .iter()
         .map(|f| DisplayFeeScheduleRange::from(f.clone()))
         .collect();
 
@@ -282,7 +284,9 @@ pub fn add_fee_schedule(
     let connection = connection.get();
 
     let fee_schedule = json.into_inner().commit(connection)?;
-    let fee_schedule_ranges = fee_schedule.ranges(connection)?.iter()
+    let fee_schedule_ranges = fee_schedule
+        .ranges(connection)?
+        .iter()
         .map(|f| DisplayFeeScheduleRange::from(f.clone()))
         .collect();
 
