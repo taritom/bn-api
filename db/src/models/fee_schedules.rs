@@ -73,7 +73,7 @@ impl NewFeeSchedule {
     pub fn commit(self, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
         let previous_version = fee_schedules::table
             .filter(fee_schedules::name.eq(&self.name))
-            .order_by(fee_schedules::id.desc())
+            .order_by(fee_schedules::version.desc())
             .first::<FeeSchedule>(conn)
             .optional()
             .to_db_error(ErrorCode::QueryError, "Error loading Fee Schedule")?;
@@ -97,13 +97,17 @@ impl NewFeeSchedule {
             fee_schedule_id: Uuid,
             min_price: i64,
             fee_in_cents: i64,
+            company_fee_in_cents: i64,
+            client_fee_in_cents: i64,
         }
         let mut ranges = Vec::<I>::new();
         for range in &self.ranges {
             ranges.push(I {
                 fee_schedule_id: result.id,
                 min_price: range.min_price,
-                fee_in_cents: range.fee_in_cents,
+                fee_in_cents: range.company_fee_in_cents + range.client_fee_in_cents,
+                company_fee_in_cents: range.company_fee_in_cents,
+                client_fee_in_cents: range.client_fee_in_cents,
             })
         }
         diesel::insert_into(fee_schedule_ranges::table)

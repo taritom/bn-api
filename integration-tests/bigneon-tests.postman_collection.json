@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "152aef46-2e3d-40ac-9377-72dce1023eca",
+		"_postman_id": "16335372-cb7f-4c89-98cd-78dc1ff5ec7a",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -264,7 +264,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"name\": \"Fee_schedule_{{$timestamp}}\",\n\"ranges\": [\n\t{\n\t\t\"min_price\": 0,\n\t\t\"fee_in_cents\": 10\n\t}\n]\n}"
+							"raw": "{\n\"name\": \"Fee_schedule_{{$timestamp}}\",\n\"ranges\": [\n\t{\n\t\t\"min_price\": 0,\n\t\t\"company_fee_in_cents\": 4,\n\t\t\"client_fee_in_cents\": 6\n\t}\n]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",

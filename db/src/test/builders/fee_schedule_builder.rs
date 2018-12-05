@@ -20,11 +20,13 @@ impl<'a> FeeScheduleBuilder<'a> {
             vec![
                 NewFeeScheduleRange {
                     min_price: 50,
-                    fee_in_cents: 10,
+                    company_fee_in_cents: 4,
+                    client_fee_in_cents: 6,
                 },
                 NewFeeScheduleRange {
                     min_price: 100,
-                    fee_in_cents: 20,
+                    company_fee_in_cents: 8,
+                    client_fee_in_cents: 12,
                 },
             ],
         ).commit(self.connection)

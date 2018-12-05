@@ -154,6 +154,8 @@ table! {
         fee_in_cents -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        company_fee_in_cents -> Int8,
+        client_fee_in_cents -> Int8,
     }
 }
 
@@ -202,6 +204,8 @@ table! {
         parent_id -> Nullable<Uuid>,
         hold_id -> Nullable<Uuid>,
         code_id -> Nullable<Uuid>,
+        company_fee_in_cents -> Int8,
+        client_fee_in_cents -> Int8,
     }
 }
 

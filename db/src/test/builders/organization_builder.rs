@@ -14,6 +14,8 @@ pub struct OrganizationBuilder<'a> {
     connection: &'a PgConnection,
     fee_schedule: Option<FeeSchedule>,
     event_fee_in_cents: Option<i64>,
+    company_fee_in_cents: Option<i64>,
+    client_fee_in_cents: Option<i64>,
     use_address: bool,
 }
 
@@ -28,6 +30,8 @@ impl<'a> OrganizationBuilder<'a> {
             connection,
             use_address: false,
             event_fee_in_cents: None,
+            company_fee_in_cents: None,
+            client_fee_in_cents: None,
         }
     }
 
@@ -58,6 +62,8 @@ impl<'a> OrganizationBuilder<'a> {
 
     pub fn with_event_fee(mut self) -> Self {
         self.event_fee_in_cents = Some(250);
+        self.company_fee_in_cents = Some(100);
+        self.client_fee_in_cents = Some(150);
         self
     }
 
@@ -68,7 +74,8 @@ impl<'a> OrganizationBuilder<'a> {
                 format!("{} fees.{}", self.name, x).into(),
                 vec![NewFeeScheduleRange {
                     min_price: 0,
-                    fee_in_cents: 50,
+                    company_fee_in_cents: 20,
+                    client_fee_in_cents: 30,
                 }],
             ).commit(self.connection);
             self.fee_schedule = Some(fee_schedule.unwrap());
