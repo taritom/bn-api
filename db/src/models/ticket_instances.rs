@@ -464,7 +464,10 @@ impl TicketInstance {
         conn: &PgConnection,
     ) -> Result<RedeemableTicket, DatabaseError> {
         let mut ticket_data = ticket_instances::table
-            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            ).inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
@@ -475,6 +478,16 @@ impl TicketInstance {
                 ticket_instances::id,
                 ticket_types::name,
                 wallets::user_id,
+                order_items::order_id,
+                sql::<BigInt>(
+                    "cast(unit_price_in_cents +
+                    coalesce((
+                        select sum(unit_price_in_cents)
+                        from order_items
+                        where parent_id = ticket_instances.order_item_id),
+                    0) as BigInt) AS price_in_cents
+                    ",
+                ),
                 users::first_name,
                 users::last_name,
                 users::email,
