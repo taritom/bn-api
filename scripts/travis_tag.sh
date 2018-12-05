@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}"  )" >/dev/null && pwd  )"
-git checkout $1
-. $DIR/init-github-ssh.sh
-. $DIR/bump-version.sh --with-git
+if [[ -z "$CI" ]]; then
+    echo "Script should be run in travis only"
+    exit 1
+fi
+
+echo "+git checkout master"
+git checkout master
+echo "+./scripts/init-github-ssh.sh"
+./scripts/init-github-ssh.sh
+echo "+./scripts/bump-version.sh --with-git"
+./scripts/bump-version.sh --with-git

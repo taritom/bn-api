@@ -2,6 +2,8 @@
 
 set -e
 
+# Ensure we are in the root of the git repo
+cd $(git rev-parse --show-toplevel)
 new_version=""
 
 function bump_patch {

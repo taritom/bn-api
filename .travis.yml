@@ -39,7 +39,7 @@ before_script: []
 after_script: []
 deploy:
   - provider: script
-    script: bash scripts/travis_tag.sh master
+    script: bash scripts/travis_tag.sh
     on:
       branch: master
 env:
