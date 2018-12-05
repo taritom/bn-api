@@ -30,8 +30,7 @@ matrix:
     - DATABASE_URL=NA
   fast_finish: true
 script:
-- cd scripts
-- "./$TEST_SCRIPT"
+- "./scripts/$TEST_SCRIPT"
 before_install:
 - export PATH="$PATH:$HOME/.cargo/bin"
 - rustup component add rustfmt-preview
