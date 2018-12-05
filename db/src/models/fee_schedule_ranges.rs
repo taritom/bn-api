@@ -14,10 +14,10 @@ pub struct FeeScheduleRange {
     fee_schedule_id: Uuid,
     pub min_price: i64,
     pub fee_in_cents: i64,
-    pub company_fee_in_cents: i64,
-    pub client_fee_in_cents: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub company_fee_in_cents: i64,
+    pub client_fee_in_cents: i64,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -27,8 +27,6 @@ pub struct OrderItem {
     pub event_id: Option<Uuid>,
     pub quantity: i64,
     unit_price_in_cents: i64,
-    company_fee_in_cents: i64,
-    client_fee_in_cents: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub ticket_pricing_id: Option<Uuid>,
@@ -36,6 +34,8 @@ pub struct OrderItem {
     pub parent_id: Option<Uuid>,
     pub hold_id: Option<Uuid>,
     pub code_id: Option<Uuid>,
+    company_fee_in_cents: i64,
+    client_fee_in_cents: i64,
 }
 
 impl OrderItem {
