@@ -211,9 +211,9 @@ pub fn update(role: Roles, should_succeed: bool) {
         postal_code: Some("postal_code".to_string()),
         phone: Some("phone".to_string()),
         event_fee_in_cents: Some(Some(100)),
-        sendgrid_api_key: Some("sendgrid_api_key".to_string()),
-        google_ga_key: Some("google_ga_key".to_string()),
-        facebook_pixel_key: Some("facebook_pixel_key".to_string()),
+        sendgrid_api_key: Some(Some("sendgrid_api_key".to_string())),
+        google_ga_key: Some(Some("google_ga_key".to_string())),
+        facebook_pixel_key: Some(Some("facebook_pixel_key".to_string())),
     });
 
     let response: HttpResponse =

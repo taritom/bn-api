@@ -2,16 +2,15 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
+use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Text, Timestamp};
-use serde_with::rust::double_option;
-use uuid::Uuid;
-
-use diesel::expression::sql_literal::sql;
 use models::scopes;
 use models::*;
 use schema::{events, organization_users, organizations, users, venues};
+use serde_with::rust::double_option;
 use utils::errors::*;
+use uuid::Uuid;
 
 #[derive(Identifiable, Associations, Queryable, QueryableByName, AsChangeset)]
 #[belongs_to(User, foreign_key = "owner_user_id")]
@@ -56,8 +55,11 @@ pub struct NewOrganization {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub sendgrid_api_key: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub google_ga_key: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_pixel_key: Option<String>,
 }
 
@@ -90,12 +92,12 @@ pub struct OrganizationEditableAttributes {
     pub phone: Option<String>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub event_fee_in_cents: Option<Option<i64>>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub sendgrid_api_key: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub google_ga_key: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub facebook_pixel_key: Option<String>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub sendgrid_api_key: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub google_ga_key: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub facebook_pixel_key: Option<Option<String>>,
 }
 
 impl Organization {
