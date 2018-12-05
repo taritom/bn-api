@@ -278,7 +278,7 @@ impl Order {
         for (index, item) in items.iter().enumerate() {
             mapped.push(match &item.redemption_code {
                 Some(r) => match Hold::find_by_redemption_code(r, conn).optional()? {
-                    Some(hold) => (index, Some(hold.id), Some(hold), item),
+                    Some(hold) => (Some(index), Some(hold.id), Some(hold), item),
                     None => {
                         return DatabaseError::validation_error(
                             "redemption_code",
@@ -286,7 +286,7 @@ impl Order {
                         )
                     }
                 },
-                None => (index, None, None, item),
+                None => (Some(index), None, None, item),
             });
         }
 
@@ -298,14 +298,15 @@ impl Order {
             let mut index_to_remove: Option<usize> = None;
             {
                 let matching_result: Vec<&(
-                    usize,
+                    Option<usize>,
                     Option<Uuid>,
                     Option<Hold>,
                     &UpdateOrderItem,
                 )> = mapped
                     .iter()
-                    .filter(|(_, hold_id, _, item)| {
-                        Some(item.ticket_type_id) == current_line.ticket_type_id
+                    .filter(|(index, hold_id, _, item)| {
+                        index.is_some()
+                            && Some(item.ticket_type_id) == current_line.ticket_type_id
                             && *hold_id == current_line.hold_id
                     }).collect();
                 let matching_result = matching_result.first();
@@ -313,7 +314,7 @@ impl Order {
                 if let Some(matching_result) = matching_result {
                     jlog!(Level::Debug, "Found an existing cart item, replacing");
                     let (index, hold_id, hold, mut matching_line) = matching_result;
-                    index_to_remove = Some(*index);
+                    index_to_remove = *index;
                     if current_line.quantity as u32 > matching_line.quantity {
                         jlog!(Level::Debug, "Reducing quantity of cart item");
                         TicketInstance::release_tickets(
@@ -345,7 +346,6 @@ impl Order {
                         });
 
                         // TODO: Move this to an external processer
-
                         if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
                             let mut price_in_cents = ticket_pricing.price_in_cents;
                             if let Some(h) = hold.as_ref() {
@@ -409,7 +409,7 @@ impl Order {
                 }
             }
             if let Some(index) = index_to_remove {
-                mapped.remove(index);
+                mapped[index].0 = None;
             }
         }
 
@@ -418,8 +418,8 @@ impl Order {
             self.set_expiry(conn)?;
         }
 
-        for (_, hold_id, hold, new_line) in mapped {
-            if new_line.quantity == 0 {
+        for (index, hold_id, hold, new_line) in mapped {
+            if new_line.quantity == 0 || index.is_none() {
                 continue;
             }
 
@@ -480,7 +480,6 @@ impl Order {
         for limit_check in check_ticket_limits {
             let quantities_ordered =
                 Order::quantity_for_user_for_event(&self.user_id, &limit_check.event_id, &conn)?;
-
             if &limit_check.limit_per_person > &0
                 && quantities_ordered.contains_key(&limit_check.ticket_type_id)
             {
