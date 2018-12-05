@@ -120,7 +120,7 @@ impl Spotify {
                     .send()?
                     .text()?;
 
-                let artist: Value = serde_json::from_str(&res).unwrap();
+                let artist: Value = serde_json::from_str(&res)?;
                 if artist.get("error").is_some() {
                     return Err(ApplicationError::new(
                         artist["error"]["message"]
