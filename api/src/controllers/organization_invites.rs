@@ -3,14 +3,11 @@ use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
 use db::Connection;
-use diesel::Connection as dConnection;
-use diesel::PgConnection;
 use errors::*;
 use helpers::application;
 use mail::mailers;
 use models::PathParameters;
 use server::AppState;
-use std::thread;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -103,20 +100,13 @@ pub fn create(
     let invite = invite.commit(connection)?;
     let organization = Organization::find(invite.organization_id, connection)?;
 
-    let thread_config = state.config.clone();
-    let thread_invite = invite.clone();
-    thread::spawn(move || {
-        let thread_connection = PgConnection::establish(&thread_config.database_url);
-        if let Ok(_v) = mailers::organization_invites::invite_user_to_organization_email(
-            &thread_config,
-            &thread_invite,
-            &organization,
-            &recipient,
-        ).deliver()
-        {
-            let _unused = thread_invite.change_sent_status(true, &thread_connection.unwrap());
-        }
-    });
+    mailers::organization_invites::invite_user_to_organization_email(
+        &state.config,
+        &invite,
+        &organization,
+        &recipient,
+        connection,
+    )?;
     Ok(HttpResponse::Created().json(invite))
 }
 
