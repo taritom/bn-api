@@ -157,13 +157,15 @@ pub fn find() {
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type.id))
         .unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let ticket = TicketInstance::find_for_order_item(order_item.id, connection)
         .unwrap()
         .remove(0);
     let expected_ticket = DisplayTicket {
         id: ticket.id,
         order_id: cart.id,
-        price_in_cents: Some(ticket_pricing.price_in_cents as u32),
+        price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type.name.clone(),
         status: "Reserved".to_string(),
         redeem_key: ticket.redeem_key,

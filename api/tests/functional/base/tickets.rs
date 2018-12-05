@@ -10,6 +10,7 @@ use support::test_request::TestRequest;
 
 pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let request = TestRequest::create();
     let organization = database.create_organization().finish();
@@ -39,10 +40,13 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         let body = support::unwrap_body_to_string(&response).unwrap();
         let ticket_response: ShowTicketResponse = serde_json::from_str(&body).unwrap();
+        let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
+        let fee_schedule_range = &fee_schedule.ranges(connection).unwrap()[0];
         let expected_ticket = DisplayTicket {
             id: ticket.id,
             order_id: cart.id,
-            price_in_cents: Some(ticket_pricing.price_in_cents as u32),
+            price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents)
+                as u32,
             ticket_type_name: ticket_type.name.clone(),
             status: "Purchased".to_string(),
             redeem_key: ticket_response.ticket.redeem_key.clone(),

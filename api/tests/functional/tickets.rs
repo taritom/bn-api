@@ -15,9 +15,12 @@ use uuid::Uuid;
 #[test]
 pub fn index() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let test_request = TestRequest::create();
     let organization = database.create_organization().finish();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
+    let fee_schedule_range = &fee_schedule.ranges(connection).unwrap()[0];
     let venue = database.create_venue().finish();
     let event = database
         .create_event()
@@ -96,7 +99,7 @@ pub fn index() {
     let expected_ticket = DisplayTicket {
         id: ticket_id,
         order_id: cart.id,
-        price_in_cents: Some(ticket_pricing.price_in_cents as u32),
+        price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type.name.clone(),
         status: "Purchased".to_string(),
         redeem_key: ticket.redeem_key,
@@ -120,7 +123,7 @@ pub fn index() {
     let expected_ticket2 = DisplayTicket {
         id: ticket2_id,
         order_id: cart.id,
-        price_in_cents: Some(ticket_pricing2.price_in_cents as u32),
+        price_in_cents: (ticket_pricing2.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type2.name.clone(),
         status: "Purchased".to_string(),
         redeem_key: ticket2.redeem_key,
@@ -168,9 +171,12 @@ pub fn index() {
 #[test]
 pub fn show() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let request = TestRequest::create();
     let organization = database.create_organization().finish();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
+    let fee_schedule_range = &fee_schedule.ranges(connection).unwrap()[0];
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -205,7 +211,7 @@ pub fn show() {
     let expected_ticket = DisplayTicket {
         id: ticket.id,
         order_id: cart.id,
-        price_in_cents: Some(ticket_pricing.price_in_cents as u32),
+        price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type.name.clone(),
         status: "Purchased".to_string(),
         redeem_key: ticket.redeem_key,
