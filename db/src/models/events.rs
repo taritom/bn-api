@@ -6,6 +6,7 @@ use diesel::sql_types;
 use log::Level;
 use models::*;
 use schema::{artists, event_artists, events, organization_users, organizations, venues};
+use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
@@ -46,6 +47,7 @@ pub struct Event {
     pub video_url: Option<String>,
     pub is_external: bool,
     pub external_url: Option<String>,
+    pub override_status: Option<String>, //EventOverrideStatus
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate)]
@@ -83,6 +85,8 @@ pub struct NewEvent {
     #[validate(url(message = "External URL is invalid"))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub external_url: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub override_status: Option<String>, //EventOverrideStatus
 }
 
 #[derive(AsChangeset)]
@@ -140,6 +144,8 @@ pub struct EventEditableAttributes {
     #[validate(url(message = "External URL is invalid"))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub external_url: Option<String>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub override_status: Option<Option<String>>, //EventOverrideStatus
 }
 
 impl Event {
@@ -396,6 +402,8 @@ impl Event {
             is_external: bool,
             #[sql_type = "N<sql_types::Text>"]
             external_url: Option<String>,
+            #[sql_type = "N<sql_types::Text>"]
+            override_status: Option<String>,
         }
 
         let query_events = include_str!("../queries/find_all_events_for_organization.sql");
@@ -471,6 +479,7 @@ impl Event {
                     ticket_types: vec![],
                     is_external: r.is_external,
                     external_url: r.external_url,
+                    override_status: r.override_status,
                 };
 
                 for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
@@ -748,6 +757,7 @@ impl Event {
             video_url: self.video_url,
             is_external: self.is_external,
             external_url: self.external_url,
+            override_status: self.override_status,
         })
     }
 }
@@ -768,6 +778,7 @@ pub struct DisplayEvent {
     pub video_url: Option<String>,
     pub is_external: bool,
     pub external_url: Option<String>,
+    pub override_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -798,6 +809,7 @@ pub struct EventSummaryResult {
     pub ticket_types: Vec<EventSummaryResultTicketType>,
     pub is_external: bool,
     pub external_url: Option<String>,
+    pub override_status: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]

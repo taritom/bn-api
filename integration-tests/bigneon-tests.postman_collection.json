@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "16335372-cb7f-4c89-98cd-78dc1ff5ec7a",
+		"_postman_id": "5de52509-02df-4892-bc13-d0909811a62f",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -1188,7 +1188,7 @@
 									"    pm.response.to.have.status(201);",
 									"})",
 									"",
-									"pm.environment.set(\"last_event_id\", JSON.parse(responseBody).id);"
+									"pm.environment.set(\"external_event_id\", JSON.parse(responseBody).id);"
 								],
 								"type": "text/javascript"
 							}
@@ -1224,6 +1224,64 @@
 							],
 							"path": [
 								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin  - Update External Event To Be Sold Out",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should have correct fee_in_cents\", function(){",
+									"    pm.expect(r.override_status).to.equal(\"SoldOut\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"override_status\": \"SoldOut\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{external_event_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{external_event_id}}"
 							]
 						}
 					},
@@ -6345,9 +6403,6 @@
 							}
 						}
 					],
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
 					"request": {
 						"auth": {
 							"type": "bearer",

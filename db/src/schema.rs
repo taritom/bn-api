@@ -131,6 +131,7 @@ table! {
         video_url -> Nullable<Text>,
         is_external -> Bool,
         external_url -> Nullable<Text>,
+        override_status -> Nullable<Text>,
     }
 }
 
