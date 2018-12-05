@@ -35,3 +35,26 @@ impl FeeScheduleRange {
             .to_db_error(ErrorCode::QueryError, "Error loading fee schedule range")
     }
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct DisplayFeeScheduleRange {
+    pub id: Uuid,
+    pub fee_schedule_id: Uuid,
+    pub min_price: i64,
+    pub fee_in_cents: i64,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+impl From<FeeScheduleRange> for DisplayFeeScheduleRange {
+    fn from(fee_schedule_range: FeeScheduleRange) -> Self {
+        DisplayFeeScheduleRange {
+            id: fee_schedule_range.id,
+            fee_schedule_id: fee_schedule_range.fee_schedule_id,
+            min_price: fee_schedule_range.min_price,
+            fee_in_cents: fee_schedule_range.fee_in_cents,
+            created_at: fee_schedule_range.created_at,
+            updated_at: fee_schedule_range.updated_at,
+        }
+    }
+}
