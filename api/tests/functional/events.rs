@@ -789,6 +789,7 @@ fn expected_show_json(
         max_ticket_price: Option<i64>,
         is_external: bool,
         external_url: Option<String>,
+        override_status: Option<String>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -831,6 +832,7 @@ fn expected_show_json(
         max_ticket_price: None,
         is_external: event.is_external,
         external_url: event.external_url,
+        override_status: event.override_status,
     }).unwrap()
 }
 

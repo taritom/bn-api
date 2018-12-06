@@ -225,6 +225,7 @@ pub fn show(
         max_ticket_price: Option<i64>,
         is_external: bool,
         external_url: Option<String>,
+        override_status: Option<String>,
     }
 
     Ok(HttpResponse::Ok().json(&R {
@@ -256,6 +257,7 @@ pub fn show(
         max_ticket_price: event.max_ticket_price,
         is_external: event.is_external,
         external_url: event.external_url,
+        override_status: event.override_status,
     }))
 }
 
