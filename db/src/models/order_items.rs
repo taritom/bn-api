@@ -68,10 +68,17 @@ impl OrderItem {
         }
 
         let fee_item = self.find_fee_item(conn)?;
-        let fee_schedule_range = match self.fee_schedule_range_id {
-            Some(fee_schedule_range_id) => FeeScheduleRange::find(fee_schedule_range_id, conn)?,
-            None => return DatabaseError::no_results("Expected fee schedule range for order item"),
+
+        let ticket_type = match self.ticket_type_id {
+            Some(ticket_type_id) => TicketType::find(ticket_type_id, conn)?,
+            None => {
+                return DatabaseError::no_results("Order item does not have a valid ticket type")
+            }
         };
+
+        let fee_schedule_range = ticket_type
+            .fee_schedule(conn)?
+            .get_range(self.unit_price_in_cents, conn)?;
 
         // If the hold is a comp, then there are no fees.
         if let Some(hold_id) = self.hold_id {
@@ -98,6 +105,7 @@ impl OrderItem {
                     item_type: OrderItemTypes::PerUnitFees.to_string(),
                     event_id: self.event_id,
                     unit_price_in_cents: fee_schedule_range.fee_in_cents,
+                    fee_schedule_range_id: Some(fee_schedule_range.id),
                     company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
                     client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
                     quantity: self.quantity,
@@ -324,11 +332,8 @@ pub(crate) struct NewTicketsOrderItem {
     pub event_id: Option<Uuid>,
     pub quantity: i64,
     pub unit_price_in_cents: i64,
-    pub company_fee_in_cents: i64,
-    pub client_fee_in_cents: i64,
     pub ticket_type_id: Uuid,
     pub ticket_pricing_id: Uuid,
-    pub fee_schedule_range_id: Uuid,
     pub hold_id: Option<Uuid>,
     pub code_id: Option<Uuid>,
 }
@@ -381,6 +386,7 @@ pub(crate) struct NewFeesOrderItem {
     pub item_type: String,
     pub event_id: Option<Uuid>,
     pub quantity: i64,
+    pub fee_schedule_range_id: Option<Uuid>,
     pub unit_price_in_cents: i64,
     pub company_fee_in_cents: i64,
     pub client_fee_in_cents: i64,
