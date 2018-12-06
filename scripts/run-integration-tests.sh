@@ -5,7 +5,7 @@ cd $(git rev-parse --show-toplevel)
 cd db
 cargo run --release create -c $DATABASE_URL -f -e superuser@test.com -p password -m 8883
 cd ../api
-cargo build
+cargo build --release
 cargo run --release -- -t false &
 export SERVER_PID=$!$1
 # Run newman tests

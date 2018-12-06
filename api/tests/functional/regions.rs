@@ -4,10 +4,10 @@ use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use functional::base;
 use serde_json;
-use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use uuid::Uuid;
 
 #[test]
 fn index() {
@@ -25,23 +25,12 @@ fn index() {
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters =
         Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
-    let response: HttpResponse =
-        regions::index((database.connection.into(), query_parameters)).into();
-    let wrapped_expected_regions = Payload {
-        data: expected_regions,
-        paging: Paging {
-            page: 0,
-            limit: 100,
-            sort: "".to_string(),
-            dir: SortingDir::Asc,
-            total: 2,
-            tags: HashMap::new(),
-        },
-    };
-    let expected_json = serde_json::to_string(&wrapped_expected_regions).unwrap();
+    let response = regions::index((database.connection.into(), query_parameters)).unwrap();
+
     assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, expected_json);
+    assert_eq!(response.payload().data[0].id, Uuid::nil());
+    assert_eq!(response.payload().data[1], expected_regions[0]);
+    assert_eq!(response.payload().data[2], expected_regions[1]);
 }
 
 #[test]

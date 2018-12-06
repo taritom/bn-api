@@ -141,29 +141,7 @@ fn publish() {
 
     assert_eq!(event.status().unwrap(), EventStatus::Draft);
 
-    let event_id = event.id;
-    let venue = event.venue(project.get_connection()).unwrap().unwrap();
-    let result = event.publish(project.get_connection());
-    assert!(result.is_err());
-
-    let venue_update = VenueEditableAttributes {
-        address: Some("address".to_string()),
-        city: Some("city".to_string()),
-        state: Some("state".to_string()),
-        country: Some("country".to_string()),
-        postal_code: Some("333".to_string()),
-        phone: Some("33333".to_string()),
-        ..Default::default()
-    };
-
-    venue
-        .update(venue_update, project.get_connection())
-        .unwrap();
-
-    let event = Event::find(event_id, project.get_connection())
-        .unwrap()
-        .publish(project.get_connection())
-        .unwrap();
+    let event = event.publish(project.get_connection()).unwrap();
 
     assert_eq!(event.status().unwrap(), EventStatus::Published);
     assert!(event.publish_date.is_some());
