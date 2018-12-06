@@ -28,7 +28,7 @@ for target in "${FILES[@]}"; do
 done
 
 if [[ $1 == "--with-git" ]]; then
-    git commit -m  "Version bump to ${new_version}"
+    git commit -m  "Version bump to ${new_version} [skip ci]"
     git tag ${new_version}
     git push sshremote master
     git push sshremote ${new_version}
