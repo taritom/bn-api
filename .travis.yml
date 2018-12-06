@@ -37,11 +37,13 @@ before_install:
 - cargo fmt --all -- --check
 before_script: []
 after_script: []
+before_deploy:
+- './scripts/init-github-ssh.sh'
 deploy:
-  - provider: script
-    script: bash scripts/travis_tag.sh
-    on:
-      branch: master
+- provider: script
+  script: bash scripts/travis_tag.sh
+  on:
+    branch: master
 env:
   global:
   - FRONT_END_URL="http://localhost"
@@ -64,7 +66,7 @@ env:
   - SENDGRID_TEMPLATE_BN_USER_REGISTERED="d-9ba23272db854578a5609e4e4c608f9f"
   - SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED="d-c23ba549dd0749bbb3b244b758c05dd7"
   - SENDGRID_TEMPLATE_BN_ORG_INVITE="d-19ea07c6169e4fe887b6527ef16cb1ea"
-  - GH_USER_EMAIL=''
+  - GH_USER_EMAIL='sdbondi@users.noreply.github.com'
   - GH_USER_NAME='Travis CI'
   - HTTP_KEEP_ALIVE=75
   - BLOCK_EXTERNAL_COMMS=1

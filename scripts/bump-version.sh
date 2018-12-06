@@ -30,6 +30,6 @@ done
 if [[ $1 == "--with-git" ]]; then
     git commit -m  "Version bump to ${new_version}"
     git tag ${new_version}
-    git push origin
-    git push --tags
+    git push sshremote master
+    git push sshremote ${new_version}
 fi
