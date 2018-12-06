@@ -82,7 +82,8 @@ pub fn create(
         req.max_per_order,
         req.hold_type,
         req.ticket_type_id,
-    ).commit(conn)?;
+    )
+    .commit(conn)?;
 
     hold.set_quantity(req.quantity, conn)?;
 

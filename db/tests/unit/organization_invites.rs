@@ -32,7 +32,8 @@ fn create_with_validation_errors() {
         user.id,
         &"invalid-email".to_string(),
         Some(user.id),
-    ).commit(project.get_connection());
+    )
+    .commit(project.get_connection());
 
     match result {
         Ok(_) => {
@@ -106,7 +107,8 @@ fn view_invitation() {
     let display_invite = OrganizationInvite::get_invite_display(
         &org_invite.security_token.unwrap(),
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
 
     assert_eq!(display_invite.organization_name, organization.name);
     assert_eq!(
@@ -131,7 +133,8 @@ fn test_token_validity() {
     let recovered_invite = OrganizationInvite::get_invite_details(
         &org_invite.security_token.unwrap(),
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(org_invite, recovered_invite);
     org_invite.created_at = NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11);
     org_invite = update(&org_invite, &project.get_connection()).unwrap();

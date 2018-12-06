@@ -106,7 +106,8 @@ pub fn create(
             company_fee_in_cents: 0,
             client_fee_in_cents: 0,
         }],
-    ).commit(connection)?;
+    )
+    .commit(connection)?;
 
     let new_organization_with_fee_schedule = NewOrganization {
         owner_user_id: new_organization.owner_user_id,

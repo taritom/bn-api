@@ -27,7 +27,8 @@ fn create() {
         .finish();
     let expected_json = json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", email)
-    }).to_string();
+    })
+    .to_string();
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -49,7 +50,8 @@ fn create_fake_email() {
 
     let expected_json = json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", email)
-    }).to_string();
+    })
+    .to_string();
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -103,7 +105,8 @@ fn update() {
         &token_response.access_token,
         token_secret.as_bytes(),
         &Validation::default(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(access_token.claims.get_id().unwrap(), user.id);
 
     let mut validation = Validation::default();
@@ -112,7 +115,8 @@ fn update() {
         &token_response.refresh_token,
         token_secret.as_bytes(),
         &validation,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(refresh_token.claims.get_id().unwrap(), user.id);
 }
 
@@ -128,7 +132,8 @@ fn update_expired_token() {
         .set(PasswordReset {
             password_reset_token: Some(token),
             password_reset_requested_at: Some(Utc::now().naive_utc() - Duration::days(3)),
-        }).get_result(database.connection.get())
+        })
+        .get_result(database.connection.get())
         .unwrap();
     let new_password = "newPassword";
     assert!(!user.check_password(&new_password));

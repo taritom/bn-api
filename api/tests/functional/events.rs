@@ -551,7 +551,8 @@ fn dashboard_with_default_range() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
@@ -568,7 +569,8 @@ fn dashboard_with_default_range() {
         path_parameters,
         query_parameters,
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -595,7 +597,8 @@ pub fn show_from_organizations_past() {
         .with_event_start(
             &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
-        ).with_organization(&organization)
+        )
+        .with_organization(&organization)
         .finish();
     let _event2 = database
         .create_event()
@@ -603,7 +606,8 @@ pub fn show_from_organizations_past() {
         .with_event_start(
             &NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
-        ).with_organization(&organization)
+        )
+        .with_organization(&organization)
         .finish();
 
     let user = database.create_user().finish();
@@ -627,7 +631,8 @@ pub fn show_from_organizations_past() {
         path,
         query_parameters,
         auth_user,
-    )).unwrap();
+    ))
+    .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
@@ -652,14 +657,16 @@ pub fn show_from_organizations_upcoming() {
         .with_event_start(
             &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
-        ).with_organization(&organization)
+        )
+        .with_organization(&organization)
         .finish();
     let event2 = database
         .create_event()
         .with_event_start(
             &NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
-        ).with_name("NewEvent2".to_string())
+        )
+        .with_name("NewEvent2".to_string())
         .with_organization(&organization)
         .finish();
 
@@ -683,7 +690,8 @@ pub fn show_from_organizations_upcoming() {
         path,
         query_parameters,
         auth_user,
-    )).unwrap();
+    ))
+    .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         expected_events,
@@ -801,7 +809,8 @@ fn expected_show_json(
         .iter()
         .map(|ticket_type| {
             UserDisplayTicketType::from_ticket_type(ticket_type, &fee_schedule, connection).unwrap()
-        }).collect();
+        })
+        .collect();
 
     serde_json::to_string(&R {
         id: event.id,
@@ -833,7 +842,8 @@ fn expected_show_json(
         is_external: event.is_external,
         external_url: event.external_url,
         override_status: event.override_status,
-    }).unwrap()
+    })
+    .unwrap()
 }
 
 #[derive(Serialize)]

@@ -60,7 +60,8 @@ fn hashes_with_salt() {
 fn verify_password() {
     let sh = PasswordHash::from_str(
         "$argon2i$m=4096,t=3,p=1$c29tZXNhbHQ$rVJmrKufM5nm57O4lxgQoBmRXtL42QhxbKzskhnBaMg",
-    ).unwrap();
+    )
+    .unwrap();
     assert!(sh.verify("test"));
     assert!(!sh.verify("wrong_password"));
 }

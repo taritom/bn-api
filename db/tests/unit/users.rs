@@ -24,7 +24,8 @@ fn commit() {
         email.clone(),
         phone_number.clone(),
         password,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     assert_eq!(user.first_name, first_name);
@@ -77,7 +78,8 @@ fn find_external_login() {
             FACEBOOK_SITE.to_string(),
             "123".to_string(),
             connection,
-        ).unwrap();
+        )
+        .unwrap();
     assert_eq!(
         Some(external_login),
         user.find_external_login(FACEBOOK_SITE, connection).unwrap()
@@ -133,7 +135,8 @@ fn get_profile_for_organization() {
         FACEBOOK_SITE.to_string(),
         "123".to_string(),
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(
         user.get_profile_for_organization(&organization, connection)
             .unwrap(),
@@ -162,7 +165,8 @@ fn get_profile_for_organization() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(
         user.get_profile_for_organization(&organization, connection)
             .unwrap(),
@@ -214,7 +218,8 @@ fn get_profile_for_organization() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
     cart.add_external_payment(Some("test".to_string()), user.id, 170, connection)
         .unwrap();
@@ -247,7 +252,8 @@ fn get_profile_for_organization() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
     cart.add_external_payment(Some("test".to_string()), user.id, 170, connection)
         .unwrap();
@@ -289,11 +295,10 @@ fn get_history_for_organization() {
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
 
     // No history to date
-    assert!(
-        user.get_history_for_organization(&organization, 0, 100, SortingDir::Desc, connection)
-            .unwrap()
-            .is_empty()
-    );
+    assert!(user
+        .get_history_for_organization(&organization, 0, 100, SortingDir::Desc, connection)
+        .unwrap()
+        .is_empty());
 
     // User adds item to cart but does not checkout so no history
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -305,12 +310,12 @@ fn get_history_for_organization() {
         }],
         false,
         connection,
-    ).unwrap();
-    assert!(
-        user.get_history_for_organization(&organization, 0, 100, SortingDir::Desc, connection)
-            .unwrap()
-            .is_empty()
-    );
+    )
+    .unwrap();
+    assert!(user
+        .get_history_for_organization(&organization, 0, 100, SortingDir::Desc, connection)
+        .unwrap()
+        .is_empty());
 
     // User checks out so has a paid order so history exists
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
@@ -347,7 +352,8 @@ fn get_history_for_organization() {
             }],
             false,
             connection,
-        ).unwrap();
+        )
+        .unwrap();
 
     // Update cart2 to a future date to avoid test timing errors
     let mut cart2 = diesel::update(orders::table.filter(orders::id.eq(cart2.id)))
@@ -411,10 +417,9 @@ fn find() {
 fn payment_method() {
     let project = TestProject::new();
     let user = project.create_user().finish();
-    assert!(
-        user.payment_method("Nothing".into(), project.get_connection())
-            .is_err()
-    );
+    assert!(user
+        .payment_method("Nothing".into(), project.get_connection())
+        .is_err());
 
     let payment_method = project
         .create_payment_method()
@@ -588,7 +593,8 @@ fn create_from_external_login() {
         site.to_string(),
         access_token.to_string(),
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let external_login = ExternalLogin::find_user(external_id, site, project.get_connection())
         .unwrap()
@@ -806,7 +812,8 @@ pub fn get_scopes_by_organization() {
             "ticket:transfer",
             "user:read",
             "venue:write",
-        ].into_iter()
+        ]
+        .into_iter()
         .map(|scope| scope.to_string())
         .collect(),
     );
@@ -830,7 +837,8 @@ pub fn get_scopes_by_organization() {
             "ticket:admin",
             "ticket:transfer",
             "venue:write",
-        ].into_iter()
+        ]
+        .into_iter()
         .map(|scope| scope.to_string())
         .collect(),
     );

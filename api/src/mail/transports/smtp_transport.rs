@@ -41,7 +41,8 @@ impl SmtpTransport {
         SmtpTransportBuilder::new(
             (self.host.clone().as_str(), self.port),
             ClientSecurity::None,
-        ).expect("Failed to create transport")
+        )
+        .expect("Failed to create transport")
         .smtp_utf8(true)
         .connection_reuse(ConnectionReuseParameters::NoReuse)
         .build()

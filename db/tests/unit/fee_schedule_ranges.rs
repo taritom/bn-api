@@ -18,7 +18,8 @@ fn find() {
                 client_fee_in_cents: 12,
             },
         ],
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     let fee_schedule_range = fee_schedule

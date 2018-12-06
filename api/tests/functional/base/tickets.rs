@@ -101,7 +101,8 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
         Json(request_data),
         auth_user.clone(),
         request.extract_state(),
-    )).into();
+    ))
+    .into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
@@ -117,7 +118,8 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
             Json(request_data),
             auth_user,
             request.extract_state(),
-        )).into();
+        ))
+        .into();
 
         assert_eq!(response.status(), StatusCode::OK);
     } else {
@@ -151,7 +153,8 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
     let total = cart.calculate_total(conn).unwrap();
     cart.add_external_payment(Some("test".to_string()), user2.id, total, conn)
         .unwrap();
@@ -167,7 +170,8 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
         database.connection.clone().into(),
         path,
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();

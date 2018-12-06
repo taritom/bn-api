@@ -117,7 +117,8 @@ pub fn create_with_validation_errors() {
         Json(request_data),
         auth_user,
         state,
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -177,7 +178,8 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         Json(request_data),
         auth_user,
         state,
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -246,7 +248,8 @@ pub fn create_with_overlapping_periods() {
         Json(request_data),
         auth_user,
         state,
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -335,7 +338,8 @@ pub fn update_with_invalid_id() {
         Json(request_data),
         auth_user,
         request.extract_state(),
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     assert!(response.error().is_some());
@@ -399,7 +403,8 @@ pub fn update_with_validation_errors() {
         Json(request_data),
         auth_user,
         request.extract_state(),
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -474,7 +479,8 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
         Json(request_data),
         auth_user,
         request.extract_state(),
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -561,7 +567,8 @@ pub fn update_with_overlapping_periods() {
         Json(request_data),
         auth_user,
         request.extract_state(),
-    )).into();
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);

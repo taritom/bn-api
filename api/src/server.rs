@@ -62,7 +62,8 @@ impl Server {
                         .middleware(AppVersionHeader::new())
                         .middleware(Logger::new(
                             r#"{\"remote_ip\":\"%a\", \"user_agent\": \"%{User-Agent}i\", \"request\": \"%r\", \"status_code\": %s, \"response_time\": %D}"#,
-                        )).configure(|a| {
+                        ))
+                        .configure(|a| {
                         let mut cors_config = Cors::for_app(a);
                         match config.allowed_origins.as_ref() {
                             "*" => cors_config.send_wildcard(),

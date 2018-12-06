@@ -111,7 +111,8 @@ fn all() {
     let all_found_venues = Venue::all(
         Some(&User::find(organization.owner_user_id, conn).unwrap()),
         conn,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_venues, all_found_venues);
 }
 

@@ -61,7 +61,8 @@ fn from_ticket_type() {
             }],
             false,
             conn,
-        ).unwrap();
+        )
+        .unwrap();
     let display_ticket_type =
         UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 0);
@@ -80,7 +81,8 @@ fn from_ticket_type() {
             }],
             false,
             conn,
-        ).unwrap();
+        )
+        .unwrap();
     let display_ticket_type =
         UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 10);

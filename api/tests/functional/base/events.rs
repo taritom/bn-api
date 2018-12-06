@@ -194,7 +194,8 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
         path_parameters,
         query_parameters,
         primary_user,
-    )).into();
+    ))
+    .into();
     let response_body = support::unwrap_body_to_string(&response).unwrap();
     //Construct expected output
     let len = secondary_users.len() as u64;
@@ -297,7 +298,8 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
         path,
         Json(payload),
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -339,7 +341,8 @@ pub fn dashboard(role: Roles, should_test_succeed: bool) {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
@@ -362,7 +365,8 @@ pub fn dashboard(role: Roles, should_test_succeed: bool) {
         path_parameters,
         query_parameters,
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -413,7 +417,8 @@ pub fn guest_list(role: Roles, should_test_succeed: bool) {
         query_parameters,
         path_parameters,
         auth_user,
-    )).into();
+    ))
+    .into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -473,7 +478,8 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
         query_parameters,
         path,
         auth_user,
-    )).into();
+    ))
+    .into();
 
     let mut expected_tags: HashMap<String, Value> = HashMap::new();
     expected_tags.insert("type".to_string(), json!("Discount"));
@@ -580,7 +586,8 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         query_parameters,
         path,
         auth_user,
-    )).into();
+    ))
+    .into();
     let expected_holds = Payload {
         data: all_holds,
         paging: Paging {

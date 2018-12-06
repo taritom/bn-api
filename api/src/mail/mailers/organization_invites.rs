@@ -42,5 +42,6 @@ pub fn invite_user_to_organization_email(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
-    ).queue(conn)
+    )
+    .queue(conn)
 }

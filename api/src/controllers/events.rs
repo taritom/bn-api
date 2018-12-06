@@ -58,7 +58,8 @@ impl From<SearchParameters> for Paging {
             sort: s.sort,
             dir: s.dir,
             tags: default_tags,
-        }.into()
+        }
+        .into()
     }
 }
 
@@ -521,7 +522,8 @@ pub fn add_artist(
         event_artist.artist_id,
         event_artist.rank,
         event_artist.set_time,
-    ).commit(connection)?;
+    )
+    .commit(connection)?;
     Ok(HttpResponse::Created().json(&event_artist))
 }
 

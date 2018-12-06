@@ -107,7 +107,8 @@ fn list_interested_users() {
             request_from_page as u32,
             request_limit as u32,
             project.get_connection(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let n_sublist_entries = desired_user_id_completelist.len();
         for u_id in 0..n_sublist_entries {

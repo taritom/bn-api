@@ -16,7 +16,8 @@ fn create() {
         Some(4),
         HoldTypes::Discount,
         event.ticket_types(db.get_connection()).unwrap()[0].id,
-    ).commit(db.get_connection())
+    )
+    .commit(db.get_connection())
     .unwrap();
 }
 
@@ -33,7 +34,8 @@ fn create_with_validation_errors() {
         Some(4),
         HoldTypes::Discount,
         event.ticket_types(db.get_connection()).unwrap()[0].id,
-    ).commit(db.get_connection());
+    )
+    .commit(db.get_connection());
 
     match result {
         Ok(_) => {
@@ -60,7 +62,8 @@ fn create_with_validation_errors() {
         Some(4),
         HoldTypes::Discount,
         event.ticket_types(db.get_connection()).unwrap()[0].id,
-    ).commit(db.get_connection());
+    )
+    .commit(db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -86,7 +89,8 @@ fn create_with_validation_errors() {
         Some(4),
         HoldTypes::Discount,
         event.ticket_types(db.get_connection()).unwrap()[0].id,
-    ).commit(db.get_connection());
+    )
+    .commit(db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -214,7 +218,8 @@ fn update_with_validation_errors() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 #[test]
@@ -296,7 +301,8 @@ fn find_by_parent_hold_id() {
         0,
         1000,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(comp, found_comp.data[0]);
 
     // Comp does not exist for hold so returns error
@@ -306,14 +312,13 @@ fn find_by_parent_hold_id() {
             .is_empty()
     );
 
-    assert!(
-        Hold::find_by_parent_id(
-            comp.parent_hold_id.unwrap(),
-            HoldTypes::Discount,
-            0,
-            1000,
-            connection
-        ).unwrap()
-        .is_empty()
-    );
+    assert!(Hold::find_by_parent_id(
+        comp.parent_hold_id.unwrap(),
+        HoldTypes::Discount,
+        0,
+        1000,
+        connection
+    )
+    .unwrap()
+    .is_empty());
 }

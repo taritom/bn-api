@@ -74,7 +74,8 @@ pub fn send_email_template(
     if dest_email_addresses.len() != template_data.len() {
         return Err(ApplicationError::new(
             "Destination addresses mismatched with template data".to_string(),
-        ).into());
+        )
+        .into());
     }
     let mut sg_message = SGMailMessage::new();
     sg_message.from = SGEmail::from(source_email_address);
@@ -109,7 +110,8 @@ pub fn send_email_template_async(
         Either::A(future::err(
             ApplicationError::new(
                 "Destination addresses mismatched with template data".to_string(),
-            ).into(),
+            )
+            .into(),
         ))
     } else {
         let mut sg_message = SGMailMessage::new();

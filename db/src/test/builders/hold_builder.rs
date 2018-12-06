@@ -66,7 +66,8 @@ impl<'a> HoldBuilder<'a> {
             None,
             self.hold_type,
             ticket_type_id,
-        ).commit(self.connection)
+        )
+        .commit(self.connection)
         .unwrap();
 
         hold.set_quantity(10, self.connection).unwrap();

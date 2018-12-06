@@ -80,7 +80,7 @@ pub struct NewEvent {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,
-    #[serde(default = "NewEvent::default_is_external",)]
+    #[serde(default = "NewEvent::default_is_external")]
     pub is_external: bool,
     #[validate(url(message = "External URL is invalid"))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
@@ -211,7 +211,8 @@ impl Event {
                         },
                     },
                     events::updated_at.eq(dsl::now),
-                )).get_result(conn),
+                ))
+                .get_result(conn),
         )
     }
 
@@ -252,7 +253,8 @@ impl Event {
                 events::status.eq(EventStatus::Published.to_string()),
                 events::publish_date.eq(dsl::now.nullable()),
                 events::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not publish record")?;
 
         Event::find(self.id, conn)
@@ -307,7 +309,8 @@ impl Event {
             WHERE e.organization_id = $1
             AND CASE WHEN $2 THEN e.event_start >= now() ELSE e.event_start < now() END;
         "#,
-        ).bind::<sql_types::Uuid, _>(organization_id)
+        )
+        .bind::<sql_types::Uuid, _>(organization_id)
         .bind::<sql_types::Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
         .get_results(conn)
         .to_db_error(
@@ -490,7 +493,8 @@ impl Event {
                 }
 
                 result
-            }).collect();
+            })
+            .collect();
 
         Ok(results)
     }
@@ -601,38 +605,42 @@ impl Event {
             Some(n) => format!("%{}%", n),
             None => "%".to_string(),
         };
-        let mut query = events::table
-            .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
-            .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
-            .left_join(
-                organization_users::table
-                    .on(organization_users::organization_id.eq(organizations::id)),
-            ).left_join(
-                event_artists::table
-                    .inner_join(
-                        artists::table.on(event_artists::artist_id
-                            .eq(artists::id)
-                            .and(artists::name.ilike(query_like.clone()))),
-                    ).on(events::id.eq(event_artists::event_id)),
-            ).filter(
-                events::name
-                    .ilike(query_like.clone())
-                    .or(venues::id
-                        .is_not_null()
-                        .and(venues::name.ilike(query_like.clone()))).or(artists::id.is_not_null()),
-            ).filter(
-                events::event_start
-                    .gt(start_time
-                        .unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0))),
-            ).filter(
-                events::event_start
-                    .lt(end_time
-                        .unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))),
-            ).select(events::all_columns)
-            .distinct()
-            .order_by(events::event_start.asc())
-            .then_order_by(events::name.asc())
-            .into_boxed();
+        let mut query =
+            events::table
+                .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
+                .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
+                .left_join(
+                    organization_users::table
+                        .on(organization_users::organization_id.eq(organizations::id)),
+                )
+                .left_join(
+                    event_artists::table
+                        .inner_join(
+                            artists::table.on(event_artists::artist_id
+                                .eq(artists::id)
+                                .and(artists::name.ilike(query_like.clone()))),
+                        )
+                        .on(events::id.eq(event_artists::event_id)),
+                )
+                .filter(
+                    events::name
+                        .ilike(query_like.clone())
+                        .or(venues::id
+                            .is_not_null()
+                            .and(venues::name.ilike(query_like.clone())))
+                        .or(artists::id.is_not_null()),
+                )
+                .filter(events::event_start.gt(
+                    start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
+                ))
+                .filter(events::event_start.lt(
+                    end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
+                ))
+                .select(events::all_columns)
+                .distinct()
+                .order_by(events::event_start.asc())
+                .then_order_by(events::name.asc())
+                .into_boxed();
 
         match user {
             Some(user) => {
@@ -715,7 +723,8 @@ impl Event {
             end_date,
             increment,
             limit_per_person,
-        ).commit(conn)?;
+        )
+        .commit(conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;
         TicketInstance::create_multiple(asset.id, 0, quantity, wallet_id, conn)?;
         Ok(ticket_type)

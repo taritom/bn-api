@@ -47,7 +47,8 @@ impl TicketType {
         ticket_types::table
             .inner_join(
                 events::table.inner_join(organizations::table.inner_join(fee_schedules::table)),
-            ).filter(ticket_types::id.eq(self.id))
+            )
+            .filter(ticket_types::id.eq(self.id))
             .select(fee_schedules::all_columns)
             .first(conn)
             .to_db_error(
@@ -96,7 +97,8 @@ impl TicketType {
         ticket_types::table
             .inner_join(
                 ticket_type_codes::table.on(ticket_type_codes::ticket_type_id.eq(ticket_types::id)),
-            ).filter(ticket_type_codes::code_id.eq(code_id))
+            )
+            .filter(ticket_type_codes::code_id.eq(code_id))
             .select(ticket_types::all_columns)
             .get_results(conn)
             .to_db_error(
@@ -184,7 +186,8 @@ impl TicketType {
                 ticket_instances::reserved_until
                     .lt(dsl::now.nullable())
                     .or(ticket_instances::reserved_until.is_null()),
-            ).select(dsl::count(ticket_instances::id))
+            )
+            .select(dsl::count(ticket_instances::id))
             .first(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -267,7 +270,8 @@ impl TicketType {
             end_date,
             price_in_cents,
             is_box_office_only,
-        ).commit(conn)
+        )
+        .commit(conn)
     }
 
     pub fn status(&self) -> Result<TicketTypeStatus, EnumParseError> {

@@ -130,7 +130,8 @@ impl Hold {
             holds::table
                 .filter(holds::id.eq(self.id))
                 .filter(holds::updated_at.eq(self.updated_at)),
-        ).set((update_attrs, holds::updated_at.eq(dsl::now)))
+        )
+        .set((update_attrs, holds::updated_at.eq(dsl::now)))
         .get_result(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update hold")
     }
@@ -154,7 +155,8 @@ impl Hold {
                 holds::hold_type
                     .eq(hold_type.to_string())
                     .and(holds::parent_hold_id.eq(parent_id)),
-            ).count()
+            )
+            .count()
             .first(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -168,7 +170,8 @@ impl Hold {
                     holds::hold_type
                         .eq(hold_type.to_string())
                         .and(holds::parent_hold_id.eq(parent_id)),
-                ).order_by(holds::name)
+                )
+                .order_by(holds::name)
                 .limit(limit as i64)
                 .offset((page * limit) as i64)
                 .load(conn)

@@ -90,7 +90,8 @@ impl PaymentMethod {
             Tables::PaymentMethods,
             Some(self.id),
             Some(self.provider_data.clone()),
-        ).commit(conn)?;
+        )
+        .commit(conn)?;
 
         let query =
             diesel::update(self).set((attributes, payment_methods::updated_at.eq(dsl::now)));
@@ -132,7 +133,8 @@ impl NewPaymentMethod {
             Tables::PaymentMethods,
             Some(payment_method.id),
             Some(payment_method.provider_data.clone()),
-        ).commit(conn)?;
+        )
+        .commit(conn)?;
 
         Ok(payment_method)
     }

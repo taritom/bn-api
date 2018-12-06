@@ -19,7 +19,8 @@ pub fn redemption_code_unique_per_event_validation(
         id.unwrap_or(Uuid::default()),
         table,
         redemption_code.clone(),
-    )).get_result::<bool>(conn)
+    ))
+    .get_result::<bool>(conn)
     .to_db_error(
         if id.is_none() {
             ErrorCode::InsertError

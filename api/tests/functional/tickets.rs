@@ -52,7 +52,8 @@ pub fn index() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     cart.update_quantities(
         &[UpdateOrderItem {
@@ -62,7 +63,8 @@ pub fn index() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     let total = cart.calculate_total(conn).unwrap();
     cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
@@ -92,7 +94,8 @@ pub fn index() {
         path,
         parameters,
         auth_user.clone(),
-    )).unwrap();
+    ))
+    .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_data: Payload<DisplayTicket> = serde_json::from_str(&body).unwrap();
@@ -114,7 +117,8 @@ pub fn index() {
         path,
         parameters,
         auth_user.clone(),
-    )).unwrap();
+    ))
+    .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
@@ -153,7 +157,8 @@ pub fn index() {
         path,
         parameters,
         auth_user,
-    )).unwrap();
+    ))
+    .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
@@ -194,7 +199,8 @@ pub fn show() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
     let total = cart.calculate_total(conn).unwrap();
     cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
         .unwrap();
@@ -316,7 +322,8 @@ fn ticket_transfer_authorization() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     let tickets = cart.tickets(ticket_type.id, conn).unwrap();
     //Try transfer before paying for the tickets
@@ -342,7 +349,8 @@ fn ticket_transfer_authorization() {
         database.connection.clone().into(),
         Json(ticket_transfer_request.clone()),
         auth_user.clone(),
-    )).unwrap();
+    ))
+    .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -392,7 +400,8 @@ fn receive_ticket_transfer() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     let total = cart.calculate_total(conn).unwrap();
     cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
@@ -404,7 +413,8 @@ fn receive_ticket_transfer() {
         vec![tickets[0].id, tickets[1].id],
         3600,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     //Try receive transfer
     let user2 = database.create_user().finish();
@@ -415,7 +425,8 @@ fn receive_ticket_transfer() {
         Json(transfer_auth.clone()),
         auth_user2.clone(),
         request.extract_state(),
-    )).unwrap();
+    ))
+    .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
 }

@@ -354,7 +354,8 @@ fn reduce() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(connection).unwrap();
     let order_item = items
         .iter()
@@ -432,7 +433,8 @@ fn remove() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(connection).unwrap();
     let order_item = items
         .iter()
@@ -504,7 +506,8 @@ fn remove_with_increment() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(connection).unwrap();
     let order_item = items
         .iter()
@@ -588,7 +591,8 @@ fn remove_with_increment_failure_invalid_quantity() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(connection).unwrap();
     let order_item = items
         .iter()
@@ -670,6 +674,7 @@ fn checkout_external() {
         input,
         user,
         request.extract_state(),
-    )).unwrap();
+    ))
+    .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 }

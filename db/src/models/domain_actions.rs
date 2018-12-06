@@ -110,7 +110,8 @@ impl DomainAction {
             .set((
                 domain_actions::blocked_until.eq(timeout),
                 domain_actions::updated_at.eq(dsl::now),
-            )).get_result(conn)
+            ))
+            .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action");
         if let Err(i) = result {
             return Err(i);
@@ -123,7 +124,8 @@ impl DomainAction {
             .set((
                 domain_actions::status.eq(DomainActionStatus::Success.to_string()),
                 domain_actions::updated_at.eq(dsl::now),
-            )).get_result(conn)
+            ))
+            .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action")
     }
 
@@ -144,7 +146,8 @@ impl DomainAction {
                     domain_actions::attempt_count.eq(self.attempt_count + 1),
                     domain_actions::blocked_until.eq(dsl::now),
                     domain_actions::updated_at.eq(dsl::now),
-                )).get_result(conn)
+                ))
+                .get_result(conn)
                 .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action")
         } else {
             // Intentionally leave checked out
@@ -153,7 +156,8 @@ impl DomainAction {
                     domain_actions::last_failure_reason.eq(reason),
                     domain_actions::attempt_count.eq(self.attempt_count + 1),
                     domain_actions::updated_at.eq(dsl::now),
-                )).get_result(conn)
+                ))
+                .get_result(conn)
                 .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action")
         }
     }
@@ -172,7 +176,8 @@ impl DomainAction {
                 domain_actions::status.eq(DomainActionStatus::Errored.to_string()),
                 domain_actions::blocked_until.eq(dsl::now),
                 domain_actions::updated_at.eq(dsl::now),
-            )).get_result(conn)
+            ))
+            .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action")
     }
 

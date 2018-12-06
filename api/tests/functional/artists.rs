@@ -105,7 +105,8 @@ fn index_with_org_linked_and_private_venues() {
         database.connection.clone().into(),
         query_parameters,
         Some(user.clone()),
-    )).into();
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_json);
@@ -119,7 +120,8 @@ fn index_with_org_linked_and_private_venues() {
         database.connection.clone().into(),
         query_parameters,
         Some(user),
-    )).into();
+    ))
+    .into();
     let wrapped_expected_artists = Payload {
         data: expected_artists.clone(),
         paging: Paging {
@@ -174,7 +176,8 @@ pub fn search_no_spotify() {
         database.connection.into(),
         query_parameters,
         None,
-    )).unwrap();
+    ))
+    .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
     let collected_ids = response
@@ -203,7 +206,8 @@ pub fn search_with_spotify() {
         database.connection.into(),
         query_parameters,
         None,
-    )).unwrap();
+    ))
+    .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -293,7 +297,8 @@ pub fn show_from_organizations_private_artist_same_org() {
         path,
         query_parameters,
         Some(user),
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

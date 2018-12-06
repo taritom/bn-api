@@ -107,7 +107,8 @@ impl<'a> EventBuilder<'a> {
                 .or_else(|| Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))),
             Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10)),
             None,
-        ).commit(self.connection)
+        )
+        .commit(self.connection)
         .unwrap();
 
         let update_event_fee = EventEditableAttributes {
@@ -140,7 +141,8 @@ impl<'a> EventBuilder<'a> {
                         None,
                         0,
                         self.connection,
-                    ).unwrap();
+                    )
+                    .unwrap();
 
                 if self.with_ticket_pricing {
                     ticket_type
@@ -151,7 +153,8 @@ impl<'a> EventBuilder<'a> {
                             100,
                             false,
                             self.connection,
-                        ).unwrap();
+                        )
+                        .unwrap();
 
                     ticket_type
                         .add_ticket_pricing(
@@ -161,7 +164,8 @@ impl<'a> EventBuilder<'a> {
                             150,
                             false,
                             self.connection,
-                        ).unwrap();
+                        )
+                        .unwrap();
                 }
 
                 Asset::find_by_ticket_type(&ticket_type.id, self.connection)
@@ -169,7 +173,8 @@ impl<'a> EventBuilder<'a> {
                     .update_blockchain_id(
                         format!("{}.{}", event.name, ticket_type.name).to_string(),
                         self.connection,
-                    ).unwrap();
+                    )
+                    .unwrap();
             }
         }
 

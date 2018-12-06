@@ -84,7 +84,8 @@ pub fn create(
         req.start_date,
         req.end_date,
         req.max_tickets_per_user,
-    ).commit(conn)?;
+    )
+    .commit(conn)?;
 
     code.update_ticket_types(req.ticket_type_ids.clone(), conn)?;
     application::created(json!(code.for_display(conn)?))

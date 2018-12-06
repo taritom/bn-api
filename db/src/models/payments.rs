@@ -60,10 +60,12 @@ impl Payment {
                     .eq(self.id)
                     .and(payments::updated_at.eq(self.updated_at)),
             ),
-        ).set((
+        )
+        .set((
             payments::status.eq(PaymentStatus::Completed.to_string()),
             payments::updated_at.eq(dsl::now),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(
             ErrorCode::UpdateError,
             "Could not change the status of payment to completed.",
@@ -76,7 +78,8 @@ impl Payment {
             Tables::Payments,
             Some(self.id),
             Some(raw_data),
-        ).commit(conn)?;
+        )
+        .commit(conn)?;
 
         println!("Domain Action created");
 
@@ -120,7 +123,8 @@ impl NewPayment {
             Tables::Payments,
             Some(res.id),
             self.raw_data,
-        ).commit(conn)?;
+        )
+        .commit(conn)?;
         Ok(res)
     }
 }

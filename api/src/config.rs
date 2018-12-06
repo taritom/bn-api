@@ -102,7 +102,8 @@ impl Config {
             .map(|s| {
                 s.parse()
                     .expect("Not a valid integer for database pool size")
-            }).unwrap_or(20);
+            })
+            .unwrap_or(20);
         let domain = env::var(&DOMAIN).unwrap_or_else(|_| "api.bigneon.com".to_string());
         let mail_from_email = env::var(&MAIL_FROM_EMAIL)
             .unwrap_or_else(|_| panic!("{} must be defined.", MAIL_FROM_EMAIL));
@@ -159,11 +160,13 @@ impl Config {
             Environment::Test => {
                 Box::new(TariTestClient::new(tari_uri)) as Box<TariClient + Send + Sync>
             }
-            _ => if tari_uri == "TEST" {
-                Box::new(TariTestClient::new(tari_uri)) as Box<TariClient + Send + Sync>
-            } else {
-                Box::new(HttpTariClient::new(tari_uri)) as Box<TariClient + Send + Sync>
-            },
+            _ => {
+                if tari_uri == "TEST" {
+                    Box::new(TariTestClient::new(tari_uri)) as Box<TariClient + Send + Sync>
+                } else {
+                    Box::new(HttpTariClient::new(tari_uri)) as Box<TariClient + Send + Sync>
+                }
+            }
         };
 
         let google_recaptcha_secret_key = env::var(&GOOGLE_RECAPTCHA_SECRET_KEY).ok();

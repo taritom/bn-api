@@ -46,7 +46,8 @@ impl<'a> ArtistBuilder<'a> {
             self.organization_id,
             &self.bio,
             &self.website_url,
-        ).commit(self.connection)
+        )
+        .commit(self.connection)
         .unwrap();
         artist
             .set_privacy(self.is_private, self.connection)

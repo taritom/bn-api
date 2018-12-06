@@ -69,7 +69,8 @@ impl DomainActionMonitor {
                 runtime.block_on(timeout.or_else(|err| {
                     jlog! {Error,"bigneon::domain_actions", "Action:  failed", {"error": err.to_string()}};
                     Err(())
-                })).unwrap();
+                }))
+                .unwrap();
                 num_processed += 1;
             }
 
@@ -156,11 +157,11 @@ impl DomainActionMonitor {
         }
 
         jlog!(
-                            Debug,
-                            "bigneon::domain_actions",
-                            "Found actions to process",
-                            { "action_count": pending_actions.len() }
-                            );
+        Debug,
+        "bigneon::domain_actions",
+        "Found actions to process",
+        { "action_count": pending_actions.len() }
+        );
 
         let mut result = vec![];
 
@@ -177,11 +178,11 @@ impl DomainActionMonitor {
                 Err(e) => {
                     // Assume connection pool is full
                     jlog!(
-                            Info,
-                            "bigneon::domain_actions",
-                            "Hit connection pool maximum",
-                            { "number_of_connections_used": index, "pending_actions": len, "connection_error": e.description() }
-                            );
+                    Info,
+                    "bigneon::domain_actions",
+                    "Hit connection pool maximum",
+                    { "number_of_connections_used": index, "pending_actions": len, "connection_error": e.description() }
+                    );
 
                     break;
                 }
@@ -276,10 +277,10 @@ impl DomainActionMonitor {
                 match DomainActionMonitor::run_actions(config, database, interval, rx) {
                     Ok(_) => (),
                     Err(e) => jlog!(
-                    Error,
-                    "bigneon::domain_actions",
-                    "Domain action monitor failed", {"error": e.description()}
-                ),
+                        Error,
+                        "bigneon::domain_actions",
+                        "Domain action monitor failed", {"error": e.description()}
+                    ),
                 };
                 Ok(())
             }),

@@ -24,7 +24,8 @@ pub fn user_registered(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
-    ).queue(conn)
+    )
+    .queue(conn)
 }
 
 pub fn password_reset_email(config: &Config, user: &User) -> Communication {

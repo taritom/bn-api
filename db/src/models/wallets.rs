@@ -54,7 +54,8 @@ impl Wallet {
             public_key: convert_bytes_to_hexstring(&public_key),
             default_flag,
             ..Default::default()
-        }.commit(conn))
+        }
+        .commit(conn))
     }
 
     pub fn create_for_organization(
@@ -77,7 +78,8 @@ impl Wallet {
             public_key: convert_bytes_to_hexstring(&public_key),
             default_flag,
             ..Default::default()
-        }.commit(conn))
+        }
+        .commit(conn))
     }
 
     pub fn find_for_user(user_id: Uuid, conn: &PgConnection) -> Result<Vec<Wallet>, DatabaseError> {

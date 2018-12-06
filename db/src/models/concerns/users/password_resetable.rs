@@ -59,7 +59,8 @@ impl PasswordResetable for User {
                                     password_reset_token: None,
                                     password_reset_requested_at: None,
                                 },
-                            )).get_result(conn),
+                            ))
+                            .get_result(conn),
                     )
                 } else {
                     Err(DatabaseError::new(
