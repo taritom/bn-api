@@ -10,6 +10,7 @@ pub struct OrderBuilder<'a> {
     connection: &'a PgConnection,
     quantity: u32,
     is_paid: bool,
+    on_behalf_of_user: Option<User>,
 }
 
 impl<'a> OrderBuilder<'a> {
@@ -20,11 +21,17 @@ impl<'a> OrderBuilder<'a> {
             ticket_type_id: None,
             quantity: 10,
             is_paid: false,
+            on_behalf_of_user: None,
         }
     }
 
     pub fn for_user(mut self, user: &User) -> OrderBuilder<'a> {
         self.user = Some(user.clone());
+        self
+    }
+
+    pub fn on_behalf_of_user(mut self, user: &User) -> OrderBuilder<'a> {
+        self.on_behalf_of_user = Some(user.clone());
         self
     }
 
@@ -67,6 +74,11 @@ impl<'a> OrderBuilder<'a> {
             false,
             self.connection,
         ).unwrap();
+
+        if let Some(on_behalf_of_user) = self.on_behalf_of_user {
+            cart.set_behalf_of_user(on_behalf_of_user, self.connection)
+                .unwrap();
+        }
 
         let total = cart.calculate_total(self.connection).unwrap();
 

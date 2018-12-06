@@ -357,6 +357,21 @@ fn show_redeemable_ticket() {
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_some());
+
+    // Set order on behalf of (should show user information for the on_behalf_of_user user)
+    let user2 = project.create_user().finish();
+    let order = project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .on_behalf_of_user(&user2)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket_type = &event.ticket_types(&connection).unwrap()[0];
+    let ticket = order.tickets(ticket_type.id, connection).unwrap().remove(0);
+    let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
+    assert_eq!(result.user_id, Some(user2.id));
 }
 
 #[test]

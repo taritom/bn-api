@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use uuid::Uuid;
 
-#[derive(Queryable, QueryableByName, Serialize, Deserialize, Debug)]
+#[derive(Queryable, QueryableByName, PartialEq, Serialize, Deserialize, Debug)]
 pub struct RedeemableTicket {
     #[sql_type = "dUuid"]
     pub id: Uuid,
