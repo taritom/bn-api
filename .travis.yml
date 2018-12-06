@@ -35,8 +35,7 @@ before_install:
 - export PATH="$PATH:$HOME/.cargo/bin"
 - rustup component add rustfmt-preview
 - cargo fmt --all -- --check
-before_script:
-- [[ "$TRAVIS_BRANCH" == "master" ]] && ./scripts/init-github-ssh.sh "$encrypted_319ed1854cd7_key" "$encrypted_319ed1854cd7_iv"
+before_script: []
 after_script: []
 deploy:
   - provider: script
