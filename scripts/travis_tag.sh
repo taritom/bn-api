@@ -7,7 +7,5 @@ fi
 
 echo "+git checkout master"
 git checkout master
-echo "+./scripts/init-github-ssh.sh"
-./scripts/init-github-ssh.sh
 echo "+./scripts/bump-version.sh --with-git"
 ./scripts/bump-version.sh --with-git
