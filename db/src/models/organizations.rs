@@ -201,7 +201,7 @@ impl Organization {
         conn: &PgConnection,
     ) -> Result<Vec<String>, DatabaseError> {
         let mut roles = Vec::new();
-        if user.id == self.owner_user_id {
+        if user.id == self.owner_user_id || user.is_admin() {
             roles.push(Roles::OrgOwner.to_string());
             roles.push(Roles::OrgMember.to_string());
         } else {
