@@ -129,10 +129,10 @@ pub fn checkout(
         Some(o) => o,
         None => return application::unprocessable("No cart exists for user"),
     };
+    let order_id = order.id;
     order.lock_version(connection.get())?;
 
     let order_items = order.items(connection.get())?;
-    let display_order = order.for_display(connection.get())?;
 
     //Assemble token ids and ticket instance ids for each asset in the order
     let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
@@ -236,9 +236,10 @@ pub fn checkout(
     };
 
     if payment_response.status() == StatusCode::OK {
-        let new_owner_wallet = Wallet::find_default_for_user(user.id(), connection.get())?;
+        let conn = connection.get();
+        let new_owner_wallet = Wallet::find_default_for_user(user.id(), conn)?;
         for (asset_id, token_ids) in &tokens_per_asset {
-            let asset = Asset::find(*asset_id, connection.get())?;
+            let asset = Asset::find(*asset_id, conn)?;
             match asset.blockchain_asset_id {
                 Some(a) => {
                     let wallet_id = match wallet_id_per_asset.get(asset_id) {
@@ -247,7 +248,7 @@ pub fn checkout(
                             "Could not complete this checkout because wallet id not found for asset",
                         ),
                     };
-                    let org_wallet = Wallet::find(wallet_id, connection.get())?;
+                    let org_wallet = Wallet::find(wallet_id, conn)?;
                     state.config.tari_client.transfer_tokens(&org_wallet.secret_key, &org_wallet.public_key,
                                                              &a,
                                                              token_ids.clone(),
@@ -260,14 +261,20 @@ pub fn checkout(
             }
         }
 
+        let order = Order::find(order_id, conn)?;
+
+        let display_order = order.for_display(conn)?;
+
+        let user = DbUser::find(order.on_behalf_of_user_id.unwrap_or(order.user_id), conn)?;
+
         //Communicate purchase completed to user
-        if let (Some(first_name), Some(email)) = (user.user.first_name, user.user.email) {
+        if let (Some(first_name), Some(email)) = (user.first_name, user.email) {
             mailers::cart::purchase_completed(
                 &first_name,
                 &email,
                 display_order,
                 &state.config,
-                connection.get(),
+                conn,
             )?;
         }
     }
