@@ -157,8 +157,11 @@ pub fn find() {
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type.id))
         .unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    let fee_schedule_range = ticket_type
+        .fee_schedule(connection)
+        .unwrap()
+        .get_range(ticket_pricing.price_in_cents, connection)
+        .unwrap();
     let ticket = TicketInstance::find_for_order_item(order_item.id, connection)
         .unwrap()
         .remove(0);

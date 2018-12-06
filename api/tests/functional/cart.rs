@@ -95,9 +95,9 @@ fn update() {
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 2);
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(&connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -164,12 +164,12 @@ fn update_multiple() {
 
     assert_eq!(order_item.quantity, 2);
     assert_eq!(order_item2.quantity, 3);
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
-    let fee_schedule_range2 =
-        FeeScheduleRange::find(order_item2.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     let fee_item2 = order_item2.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    let fee_schedule_range2 =
+        FeeScheduleRange::find(fee_item2.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -230,9 +230,9 @@ fn add_with_increment() {
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 4);
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -320,9 +320,9 @@ fn update_with_existing_cart() {
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 2);
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -362,10 +362,10 @@ fn reduce() {
         .unwrap();
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 10);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -441,10 +441,10 @@ fn remove() {
 
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 10);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -513,10 +513,10 @@ fn remove_with_increment() {
 
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 12);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -597,10 +597,10 @@ fn remove_with_increment_failure_invalid_quantity() {
 
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 12);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents

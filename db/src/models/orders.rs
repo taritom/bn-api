@@ -358,9 +358,6 @@ impl Order {
                                     HoldTypes::Comp => 0,
                                 }
                             }
-                            let fee_schedule_range = ticket_type
-                                .fee_schedule(conn)?
-                                .get_range(price_in_cents, conn)?;
 
                             let order_item = NewTicketsOrderItem {
                                 order_id: self.id,
@@ -369,10 +366,7 @@ impl Order {
                                 ticket_type_id: ticket_type.id,
                                 ticket_pricing_id: ticket_pricing.id,
                                 event_id: Some(ticket_type.event_id),
-                                fee_schedule_range_id: fee_schedule_range.id,
                                 unit_price_in_cents: price_in_cents,
-                                company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
-                                client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
                                 hold_id: *hold_id,
                                 code_id: None,
                             }.commit(conn)?;
@@ -444,9 +438,6 @@ impl Order {
                 }
             }
             // TODO: Move this to an external processer
-            let fee_schedule_range = ticket_type
-                .fee_schedule(conn)?
-                .get_range(ticket_pricing.price_in_cents, conn)?;
             let order_item = NewTicketsOrderItem {
                 order_id: self.id,
                 item_type: OrderItemTypes::Tickets.to_string(),
@@ -454,10 +445,7 @@ impl Order {
                 ticket_type_id: ticket_type.id,
                 ticket_pricing_id: ticket_pricing.id,
                 event_id: Some(ticket_type.event_id),
-                fee_schedule_range_id: fee_schedule_range.id,
                 unit_price_in_cents: price_in_cents,
-                company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
-                client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
                 hold_id: hold_id,
                 code_id: None,
             }.commit(conn)?;
@@ -564,6 +552,7 @@ impl Order {
                 item_type: OrderItemTypes::EventFees.to_string(),
                 event_id: Some(event.id),
                 unit_price_in_cents: 0,
+                fee_schedule_range_id: None,
                 company_fee_in_cents: 0,
                 client_fee_in_cents: 0,
                 quantity: 1,
