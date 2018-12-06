@@ -10,9 +10,7 @@ use chrono::{Duration, Utc};
 use diesel;
 use diesel::prelude::*;
 use jwt::{decode, Validation};
-use lettre::SendableEmail;
 use serde_json;
-use std::str;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -23,7 +21,7 @@ fn create() {
     let database = TestDatabase::new();
     let email = "joe@tari.com";
 
-    let user = database
+    database
         .create_user()
         .with_email(email.to_string())
         .finish();
@@ -38,27 +36,6 @@ fn create() {
     });
     let response: HttpResponse =
         password_resets::create((state, database.connection.clone(), json)).into();
-
-    // Reload user
-    let user = User::find(user.id, database.connection.get()).expect("User to reload");
-    let mail_transport = test_request.test_transport();
-
-    {
-        let sent = mail_transport.sent.lock().unwrap();
-        let mail = sent.first().expect("A password reset mail was expected");
-        let envelope = mail.envelope();
-        let email_body = str::from_utf8(*mail.message()).unwrap();
-        assert_eq!(
-            format!("{:?}", envelope.to()),
-            format!("[EmailAddress(\"{}\")]", email)
-        );
-        assert_eq!(
-            format!("{:?}", envelope.from().unwrap()),
-            "EmailAddress(\"support@bigneon.com\")"
-        );
-        assert!(email_body.contains("This password reset link is valid for 24 hours"));
-        assert!(email_body.contains(user.password_reset_token.unwrap().to_string().as_str()));
-    }
 
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();

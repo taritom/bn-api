@@ -21,7 +21,7 @@ pub enum CommunicationType {
     EmailTemplate,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct CommAddress {
     addresses: Vec<String>,
 }
@@ -33,9 +33,9 @@ impl CommAddress {
         }
     }
 
-    pub fn from(address: &String) -> CommAddress {
+    pub fn from(address: String) -> CommAddress {
         CommAddress {
-            addresses: vec![address.clone()],
+            addresses: vec![address],
         }
     }
 

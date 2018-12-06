@@ -25,8 +25,8 @@ pub fn invite_user_to_organization_email(
         invite.security_token.expect("Security token is not set")
     );
 
-    let source = CommAddress::from(&config.communication_default_source_email);
-    let destinations = CommAddress::from(&invite.user_email);
+    let source = CommAddress::from(config.communication_default_source_email.clone());
+    let destinations = CommAddress::from(invite.user_email.clone());
     let title = "BigNeon Invites".to_string();
     let template_id = config.sendgrid_template_bn_org_invite.clone();
     let mut template_data = TemplateData::new();

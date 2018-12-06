@@ -146,13 +146,14 @@ pub fn send_via_email(
 
     mailers::tickets::send_tickets(
         &state.config,
-        &send_tickets_request.email,
+        send_tickets_request.email.clone(),
         &authorization.sender_user_id.to_string(),
         authorization.num_tickets,
         &authorization.transfer_key.to_string(),
         &authorization.signature,
         &auth_user.user,
-    ).deliver()?;
+        connection,
+    )?;
 
     Ok(HttpResponse::Ok().finish())
 }

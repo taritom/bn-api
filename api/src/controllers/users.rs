@@ -171,7 +171,7 @@ pub fn register(
     new_user.commit(connection.get())?;
 
     if let (Some(first_name), Some(email)) = (new_user.first_name, new_user.email) {
-        mailers::user::user_registered(&first_name, &email, &state.config, connection.get())?;
+        mailers::user::user_registered(first_name, email, &state.config, connection.get())?;
     }
 
     Ok(HttpResponse::Created().finish())
@@ -193,7 +193,7 @@ pub fn register_and_login(
     let token_response = auth::token((http_request, connection.clone(), json))?;
 
     if let (Some(first_name), Some(email)) = (new_user.first_name, new_user.email) {
-        mailers::user::user_registered(&first_name, &email, &state.config, connection.get())?;
+        mailers::user::user_registered(first_name, email, &state.config, connection.get())?;
     }
 
     Ok(HttpResponse::Created().json(token_response))

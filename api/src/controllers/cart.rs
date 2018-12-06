@@ -271,7 +271,7 @@ pub fn checkout(
         if let (Some(first_name), Some(email)) = (user.first_name, user.email) {
             mailers::cart::purchase_completed(
                 &first_name,
-                &email,
+                email,
                 display_order,
                 &state.config,
                 conn,

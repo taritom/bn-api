@@ -37,7 +37,7 @@ pub fn create(
     };
 
     let user = user.create_password_reset_token(connection)?;
-    mailers::user::password_reset_email(&state.config, &user).deliver()?;
+    mailers::user::password_reset_email(&state.config, &user).queue(connection)?;
 
     request_pending_response
 }
