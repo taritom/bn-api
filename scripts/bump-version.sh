@@ -13,7 +13,7 @@ function bump_patch {
     local search='^(version[[:space:]]*=[[:space:]]*).+'
     local replace="\1\"${new_version}\""
 
-    sed -i ".tmp" -E "s/${search}/${replace}/g" "$1"
+    sed -i.tmp -E "s/${search}/${replace}/g" "$1"
     echo "$file bumped from $version to $new_version"
     rm "$1.tmp"
 }
