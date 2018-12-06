@@ -1,5 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::{Region, RegionEditableAttributes};
+use uuid::Uuid;
 
 #[test]
 fn create() {
@@ -33,7 +34,7 @@ fn find() {
     let project = TestProject::new();
     let region = project.create_region().finish();
 
-    let found_region = Region::find(&region.id, project.get_connection()).unwrap();
+    let found_region = Region::find(region.id, project.get_connection()).unwrap();
     assert_eq!(region, found_region);
 }
 
@@ -42,8 +43,9 @@ fn all() {
     let project = TestProject::new();
     let region = project.create_region().with_name("Region1".into()).finish();
     let region2 = project.create_region().with_name("Region2".into()).finish();
+    let other_region = Region::find(Uuid::nil(), project.get_connection()).unwrap();
 
     let all_found_regions = Region::all(project.get_connection()).unwrap();
-    let all_regions = vec![region, region2];
+    let all_regions = vec![other_region, region, region2];
     assert_eq!(all_regions, all_found_regions);
 }

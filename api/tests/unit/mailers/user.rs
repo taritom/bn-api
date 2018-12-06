@@ -1,5 +1,6 @@
 use bigneon_api::config::{Config, Environment};
 use bigneon_api::mail::mailers;
+use bigneon_api::utils::communication::CommAddress;
 use bigneon_db::models::concerns::users::password_resetable::PasswordResetable;
 use support::database::TestDatabase;
 
@@ -16,30 +17,12 @@ fn password_reset_email() {
         .unwrap();
 
     let password_reset_email = mailers::user::password_reset_email(&config, &user);
-    let name = user.full_name();
     assert_eq!(
-        password_reset_email.to(),
-        (user.email.unwrap().to_string(), name.to_string())
-    );
-    assert_eq!(
-        password_reset_email.from(),
-        (
-            "support@bigneon.com".to_string(),
-            "Big Neon Support".to_string()
-        )
+        password_reset_email.destinations,
+        CommAddress::from(user.email.unwrap().to_string())
     );
     assert_eq!(
-        password_reset_email.subject(),
-        "Big Neon: Password reset request".to_string()
+        password_reset_email.source,
+        Some(CommAddress::from("noreply@bigneon.com".to_string()))
     );
-    assert!(
-        password_reset_email
-            .body()
-            .contains("This password reset link is valid for 24 hours")
-    );
-    assert!(password_reset_email.body().contains(&format!(
-        "{}/password-reset?token={}",
-        config.front_end_url,
-        user.password_reset_token.unwrap()
-    )));
 }

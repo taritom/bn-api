@@ -39,6 +39,8 @@ pub struct Config {
     pub sendgrid_template_bn_user_registered: String,
     pub sendgrid_template_bn_purchase_completed: String,
     pub sendgrid_template_bn_org_invite: String,
+    pub sendgrid_template_bn_transfer_tickets: String,
+    pub sendgrid_template_bn_password_reset: String,
     pub spotify_auth_token: Option<String>,
 }
 
@@ -77,6 +79,8 @@ const SENDGRID_API_KEY: &str = "SENDGRID_API_KEY";
 const SENDGRID_TEMPLATE_BN_USER_REGISTERED: &str = "SENDGRID_TEMPLATE_BN_USER_REGISTERED";
 const SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED: &str = "SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED";
 const SENDGRID_TEMPLATE_BN_ORG_INVITE: &str = "SENDGRID_TEMPLATE_BN_ORG_INVITE";
+const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS";
+const SENDGRID_TEMPLATE_BN_PASSWORD_RESET: &str = "SENDGRID_TEMPLATE_BN_PASSWORD_RESET";
 
 //Spotify settings
 const SPOTIFY_AUTH_TOKEN: &str = "SPOTIFY_AUTH_TOKEN";
@@ -184,6 +188,13 @@ impl Config {
             });
         let sendgrid_template_bn_org_invite = env::var(&SENDGRID_TEMPLATE_BN_ORG_INVITE)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_ORG_INVITE));
+        let sendgrid_template_bn_transfer_tickets =
+            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS).unwrap_or_else(|_| {
+                panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS)
+            });
+
+        let sendgrid_template_bn_password_reset = env::var(&SENDGRID_TEMPLATE_BN_PASSWORD_RESET)
+            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_PASSWORD_RESET));
 
         let spotify_auth_token = env::var(&SPOTIFY_AUTH_TOKEN).ok();
 
@@ -228,6 +239,8 @@ impl Config {
             sendgrid_template_bn_user_registered,
             sendgrid_template_bn_purchase_completed,
             sendgrid_template_bn_org_invite,
+            sendgrid_template_bn_transfer_tickets,
+            sendgrid_template_bn_password_reset,
             spotify_auth_token,
         }
     }

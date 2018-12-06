@@ -29,7 +29,7 @@ fn update() {
 
     let updated_venue = venue.update(parameters, project.get_connection()).unwrap();
     assert_eq!(updated_venue.name, new_name);
-    assert_eq!(updated_venue.address.unwrap(), new_address);
+    assert_eq!(updated_venue.address, new_address);
 }
 
 #[test]
@@ -201,34 +201,4 @@ fn organization() {
         venue.organization(project.get_connection())
     );
     assert_eq!(Ok(None), venue2.organization(project.get_connection()));
-}
-
-#[test]
-fn validate_for_publish() {
-    let project = TestProject::new();
-    let mut venue = project.create_venue().finish();
-
-    // Null values set for the required fields
-    let result = venue.validate_for_publish();
-    assert!(result.is_err());
-    let errors = result.unwrap_err().field_errors();
-    assert!(errors.contains_key("venue.address"));
-    assert!(errors.contains_key("venue.city"));
-    assert!(errors.contains_key("venue.country"));
-    assert!(errors.contains_key("venue.postal_code"));
-    assert!(errors.contains_key("venue.state"));
-    assert_eq!(errors["venue.city"][0].code, "required");
-    assert_eq!(errors["venue.address"][0].code, "required");
-    assert_eq!(errors["venue.state"][0].code, "required");
-    assert_eq!(errors["venue.country"][0].code, "required");
-    assert_eq!(errors["venue.postal_code"][0].code, "required");
-
-    // Validation errors not present if present
-    venue.city = Some("City".into());
-    venue.address = Some("111 Address".into());
-    venue.state = Some("MA".into());
-    venue.country = Some("US".into());
-    venue.postal_code = Some("01103".into());
-    let result = venue.validate_for_publish();
-    assert!(result.is_ok());
 }

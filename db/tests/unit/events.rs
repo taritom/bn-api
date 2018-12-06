@@ -49,6 +49,81 @@ fn update() {
 }
 
 #[test]
+fn guest_list() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let venue = project.create_venue().finish();
+    let event = project
+        .create_event()
+        .with_venue(&venue)
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let user4 = project.create_user().finish();
+
+    // 1 normal order, 2 orders made on behalf of users by box office user 2
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user2)
+        .on_behalf_of_user(&user3)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user2)
+        .on_behalf_of_user(&user4)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let guest_list = event.guest_list("", connection).unwrap();
+    assert_eq!(3, guest_list.len());
+    let guest_ids = guest_list
+        .iter()
+        .map(|r| r.user_id)
+        .collect::<Vec<Option<Uuid>>>();
+    assert!(guest_ids.contains(&Some(user.id)));
+    assert!(!guest_ids.contains(&Some(user2.id)));
+    assert!(guest_ids.contains(&Some(user3.id)));
+    assert!(guest_ids.contains(&Some(user4.id)));
+
+    // User 2 (the box office user) purchases a ticket for themselves
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user2)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let guest_list = event.guest_list("", connection).unwrap();
+    assert_eq!(4, guest_list.len());
+    let guest_ids = guest_list
+        .iter()
+        .map(|r| r.user_id)
+        .collect::<Vec<Option<Uuid>>>();
+    assert!(guest_ids.contains(&Some(user.id)));
+    assert!(guest_ids.contains(&Some(user2.id)));
+    assert!(guest_ids.contains(&Some(user3.id)));
+    assert!(guest_ids.contains(&Some(user4.id)));
+}
+
+#[test]
 fn publish() {
     //create event
     let project = TestProject::new();
@@ -66,29 +141,7 @@ fn publish() {
 
     assert_eq!(event.status().unwrap(), EventStatus::Draft);
 
-    let event_id = event.id;
-    let venue = event.venue(project.get_connection()).unwrap().unwrap();
-    let result = event.publish(project.get_connection());
-    assert!(result.is_err());
-
-    let venue_update = VenueEditableAttributes {
-        address: Some("address".to_string()),
-        city: Some("city".to_string()),
-        state: Some("state".to_string()),
-        country: Some("country".to_string()),
-        postal_code: Some("333".to_string()),
-        phone: Some("33333".to_string()),
-        ..Default::default()
-    };
-
-    venue
-        .update(venue_update, project.get_connection())
-        .unwrap();
-
-    let event = Event::find(event_id, project.get_connection())
-        .unwrap()
-        .publish(project.get_connection())
-        .unwrap();
+    let event = event.publish(project.get_connection()).unwrap();
 
     assert_eq!(event.status().unwrap(), EventStatus::Published);
     assert!(event.publish_date.is_some());

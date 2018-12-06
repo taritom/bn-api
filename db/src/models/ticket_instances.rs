@@ -9,7 +9,9 @@ use itertools::Itertools;
 use models::*;
 use rand;
 use rand::Rng;
-use schema::{assets, events, order_items, ticket_instances, ticket_types, users, venues, wallets};
+use schema::{
+    assets, events, order_items, orders, ticket_instances, ticket_types, users, venues, wallets,
+};
 use tari_client::*;
 use time::Duration;
 use utils::errors::*;
@@ -467,17 +469,19 @@ impl TicketInstance {
             .inner_join(
                 order_items::table
                     .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            ).inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            ).inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
             .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
-            .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
-            .filter(ticket_instances::id.eq(ticket_id))
+            .inner_join(users::table.on(sql(
+                "coalesce(orders.on_behalf_of_user_id, wallets.user_id) = users.id",
+            ))).filter(ticket_instances::id.eq(ticket_id))
             .select((
                 ticket_instances::id,
                 ticket_types::name,
-                wallets::user_id,
+                sql::<Nullable<dUuid>>("users.id as user_id"),
                 order_items::order_id,
                 sql::<BigInt>(
                     "cast(unit_price_in_cents +

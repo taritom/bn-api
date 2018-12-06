@@ -24,9 +24,10 @@ SELECT ti.id,
 FROM ticket_instances ti
        INNER JOIN assets a ON ti.asset_id = a.id
        INNER JOIN order_items oi ON ti.order_item_id = oi.id
+       INNER JOIN orders o ON o.id = oi.order_id
        INNER JOIN ticket_types t2 ON a.ticket_type_id = t2.id
        INNER JOIN wallets w ON ti.wallet_id = w.id
-       INNER JOIN users u ON w.user_id = u.id
+       INNER JOIN users u ON coalesce(o.on_behalf_of_user_id, w.user_id) = u.id
        INNER JOIN events e ON t2.event_id = e.id
        INNER JOIN venues v ON e.venue_id = v.id
 WHERE t2.event_id = $1

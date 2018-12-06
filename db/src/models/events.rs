@@ -236,18 +236,13 @@ impl Event {
         }
 
         let mut errors = ValidationErrors::new();
-        match self.venue_id {
-            Some(venue_id) => {
-                let venue = Venue::find(venue_id, conn)?;
-                venue.validate_for_publish()?;
-            }
-            None => {
-                let mut validation_error =
-                    create_validation_error("required", "Event can't be published without a venue");
-                validation_error.add_param(Cow::from("event_id"), &self.id);
-                errors.add("venue_id", validation_error);
-            }
+        if self.venue_id.is_none() {
+            let mut validation_error =
+                create_validation_error("required", "Event can't be published without a venue");
+            validation_error.add_param(Cow::from("event_id"), &self.id);
+            errors.add("venue_id", validation_error);
         }
+
         if !errors.is_empty() {
             return Err(errors.into());
         }

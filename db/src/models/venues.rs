@@ -5,13 +5,10 @@ use diesel::prelude::*;
 use models::users::User;
 use models::*;
 use schema::{organization_users, organizations, venues};
-use std::borrow::Cow;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
-use validator::ValidationErrors;
-use validators::*;
 
 #[derive(
     Clone,
@@ -28,19 +25,22 @@ use validators::*;
 #[table_name = "venues"]
 pub struct Venue {
     pub id: Uuid,
-    pub region_id: Option<Uuid>,
+    pub region_id: Uuid,
     pub organization_id: Option<Uuid>,
     pub is_private: bool,
     pub name: String,
-    pub address: Option<String>,
-    pub city: Option<String>,
-    pub state: Option<String>,
-    pub country: Option<String>,
-    pub postal_code: Option<String>,
+    pub address: String,
+    pub city: String,
+    pub state: String,
+    pub country: String,
+    pub postal_code: String,
     pub phone: Option<String>,
     pub promo_image_url: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub google_place_id: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -62,37 +62,48 @@ pub struct VenueEditableAttributes {
     pub phone: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub promo_image_url: Option<String>,
+
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub google_place_id: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
 }
 
-#[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[table_name = "venues"]
 pub struct NewVenue {
     pub name: String,
     pub region_id: Option<Uuid>,
     pub organization_id: Option<Uuid>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub address: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub city: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub state: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub country: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub postal_code: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub address: String,
+    pub city: String,
+    pub state: String,
+    pub country: String,
+    pub postal_code: String,
     pub phone: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub promo_image_url: Option<String>,
+    pub google_place_id: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
 }
 
 impl NewVenue {
     pub fn commit(&self, connection: &PgConnection) -> Result<Venue, DatabaseError> {
+        let mut record = self.clone();
+
+        if self.region_id.is_none() {
+            let region = match Region::find_by_name(&self.state, connection)? {
+                Some(r) => r,
+                None => Region::create(self.state.clone()).commit(connection)?,
+            };
+            record.region_id = Some(region.id);
+        }
+
         DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new venue",
             diesel::insert_into(venues::table)
-                .values(self)
+                .values(record)
                 .get_result(connection),
         )
     }
@@ -241,56 +252,17 @@ impl Venue {
             None => Ok(None),
         }
     }
-
-    pub fn validate_for_publish(&self) -> Result<(), ValidationErrors> {
-        let mut res = ValidationErrors::new();
-
-        if self.address.is_none() {
-            let mut validation_error =
-                create_validation_error("required", "Address is required before publishing");
-            validation_error.add_param(Cow::from("venue_id"), &self.id);
-            res.add("venue.address", validation_error);
-        }
-        if self.city.is_none() {
-            let mut validation_error =
-                create_validation_error("required", "City is required before publishing");
-            validation_error.add_param(Cow::from("venue_id"), &self.id);
-            res.add("venue.city", validation_error);
-        }
-        if self.country.is_none() {
-            let mut validation_error =
-                create_validation_error("required", "Country is required before publishing");
-            validation_error.add_param(Cow::from("venue_id"), &self.id);
-            res.add("venue.country", validation_error);
-        }
-        if self.postal_code.is_none() {
-            let mut validation_error =
-                create_validation_error("required", "Postal code is required before publishing");
-            validation_error.add_param(Cow::from("venue_id"), &self.id);
-            res.add("venue.postal_code", validation_error);
-        }
-        if self.state.is_none() {
-            let mut validation_error =
-                create_validation_error("required", "State is required before publishing");
-            validation_error.add_param(Cow::from("venue_id"), &self.id);
-            res.add("venue.state", validation_error);
-        }
-        if !res.is_empty() {
-            return Err(res);
-        }
-        Ok(())
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct DisplayVenue {
     pub id: Uuid,
     pub name: String,
-    pub address: Option<String>,
-    pub city: Option<String>,
-    pub state: Option<String>,
-    pub country: Option<String>,
-    pub postal_code: Option<String>,
+    pub address: String,
+    pub city: String,
+    pub state: String,
+    pub country: String,
+    pub postal_code: String,
     pub phone: Option<String>,
     pub promo_image_url: Option<String>,
 }

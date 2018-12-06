@@ -353,6 +353,7 @@ pub fn get_roles_for_user() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let mut user3 = project.create_user().finish();
+    let user4 = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_owner(&user)
@@ -368,9 +369,13 @@ pub fn get_roles_for_user() {
         organization.get_roles_for_user(&user2, connection).unwrap(),
         vec!["OrgMember"]
     );
+    assert_eq!(
+        organization.get_roles_for_user(&user3, connection).unwrap(),
+        vec!["OrgOwner", "OrgMember"]
+    );
     assert!(
         organization
-            .get_roles_for_user(&user3, connection)
+            .get_roles_for_user(&user4, connection)
             .unwrap()
             .is_empty()
     );
@@ -383,6 +388,7 @@ pub fn get_scopes_for_user() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let mut user3 = project.create_user().finish();
+    let user4 = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_owner(&user)
@@ -438,9 +444,35 @@ pub fn get_scopes_for_user() {
             "venue:write",
         ]
     );
-    assert!(
+    assert_eq!(
         organization
             .get_scopes_for_user(&user3, connection)
+            .unwrap(),
+        vec![
+            "artist:write",
+            "code:read",
+            "code:write",
+            "comp:read",
+            "comp:write",
+            "event:interest",
+            "event:scan",
+            "event:view-guests",
+            "event:write",
+            "hold:read",
+            "hold:write",
+            "order:read",
+            "org:fans",
+            "org:read",
+            "org:write",
+            "ticket:admin",
+            "ticket:transfer",
+            "user:read",
+            "venue:write"
+        ]
+    );
+    assert!(
+        organization
+            .get_scopes_for_user(&user4, connection)
             .unwrap()
             .is_empty()
     );

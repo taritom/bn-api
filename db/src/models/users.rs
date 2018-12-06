@@ -4,6 +4,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
+use diesel::sql_types;
 use diesel::sql_types::BigInt;
 use models::*;
 use schema::{events, organization_users, organizations, users};
@@ -415,7 +416,8 @@ impl User {
             .filter(
                 organization_users::user_id
                     .eq(self.id)
-                    .or(organizations::owner_user_id.eq(self.id)),
+                    .or(organizations::owner_user_id.eq(self.id))
+                    .or(sql("true=").bind::<sql_types::Bool, _>(self.is_admin())),
             ).select(organizations::all_columns)
             .order_by(organizations::name.asc())
             .load::<Organization>(conn)
