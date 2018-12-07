@@ -7827,6 +7827,62 @@
 					"response": []
 				},
 				{
+					"name": "User - Add 1 more Push Notification Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "e712cc16-4004-4316-9ea5-1ea5608d4c1a",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"token_source\": \"example_token_source\",\n    \"token\": \"example_token\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/users/tokens",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users",
+								"tokens"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "User - Show Push Notification Tokens",
 					"event": [
 						{
@@ -7869,62 +7925,6 @@
 						"body": {
 							"mode": "raw",
 							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/users/tokens",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"users",
-								"tokens"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "User - Add 1 more Push Notification Token",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "e712cc16-4004-4316-9ea5-1ea5608d4c1a",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{user_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"name": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"token_source\": \"example_token_source\",\n    \"token\": \"example_token\"\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/users/tokens",
