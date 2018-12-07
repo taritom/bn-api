@@ -88,7 +88,7 @@ pub fn index() {
     // Test with specified event
     let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
     path.id = Some(event.id);
-    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response = tickets::index((
         database.connection.clone().into(),
         path,
@@ -111,7 +111,7 @@ pub fn index() {
     // Test without specified event
     let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
     path.id = None;
-    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response = tickets::index((
         database.connection.clone().into(),
         path,
@@ -149,8 +149,7 @@ pub fn index() {
     // Test with search parameter
     let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
     path.id = None;
-    let mut parameters =
-        Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let mut parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     parameters.start_utc = Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11));
     let response = tickets::index((
         database.connection.clone().into(),

@@ -39,7 +39,7 @@ pub fn index() {
     ];
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
-    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
         events::index((database.connection.into(), parameters, None)).into();
 
@@ -95,7 +95,7 @@ pub fn index_with_draft_for_organization_user() {
     ];
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
-    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
         events::index((database.connection.into(), parameters, Some(auth_user))).into();
 
@@ -144,7 +144,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
     let expected_results = vec![event_venue_entry(&event, &venue)];
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
-    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
         events::index((database.connection.into(), parameters, Some(auth_user))).into();
 
@@ -205,7 +205,7 @@ pub fn index_search_with_filter() {
     }];
 
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
-    let parameters = Query::<SearchParameters>::from_request(&test_request.request, &()).unwrap();
+    let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
         events::index((database.connection.into(), parameters, None)).into();
 
@@ -559,8 +559,7 @@ fn dashboard_with_default_range() {
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
 
     let test_request = TestRequest::create_with_uri(&format!("/events/{}/dashboard?", event.id));
-    let query_parameters =
-        Query::<DashboardParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<DashboardParameters>::extract(&test_request.request).unwrap();
     let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path_parameters.id = event.id;
 
@@ -624,8 +623,7 @@ pub fn show_from_organizations_past() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let test_request = TestRequest::create_with_uri(&format!("/events?past_or_upcoming=Past"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response = events::show_from_organizations((
         database.connection.into(),
         path,
@@ -683,8 +681,7 @@ pub fn show_from_organizations_upcoming() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let test_request = TestRequest::create_with_uri(&format!("/events?past_or_upcoming=Upcoming"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response = events::show_from_organizations((
         database.connection.into(),
         path,
@@ -738,8 +735,7 @@ pub fn show_from_venues() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
         events::show_from_venues((database.connection.into(), path, query_parameters)).into();
     let wrapped_expected_events = Payload {

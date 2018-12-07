@@ -35,8 +35,7 @@ pub fn index(role: Roles, should_succeed: bool) {
     let expected_json = serde_json::to_string(&wrapped_expected_venues).unwrap();
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
 
     let user = support::create_auth_user(role, None, &database);
     let response: HttpResponse =
@@ -235,8 +234,7 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
     };
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
         venues::show_from_organizations((database.connection.into(), path, query_parameters, user))
             .into();

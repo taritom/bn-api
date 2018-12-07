@@ -8,11 +8,11 @@ INNER JOIN
 INNER JOIN
     ticket_instances ON (ticket_instances.order_item_id = order_items.id)
 WHERE
-    orders.user_id = $1
+    ((orders.user_id = $1 AND orders.on_behalf_of_user_id IS NULL) OR orders.on_behalf_of_user_id = $1)
     AND order_items.event_id = $2
     AND order_items.ticket_type_id IS NOT NULL
     AND ticket_instances.reserved_until > now()
-    AND orders.on_behalf_of_user_id IS NULL
+
 GROUP BY
     order_items.event_id,
     order_items.ticket_type_id
