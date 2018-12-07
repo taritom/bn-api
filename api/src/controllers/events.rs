@@ -96,7 +96,7 @@ pub fn index(
         } else {
             Some(query.status.clone())
         },
-        user,
+        user.clone(),
         connection,
     )?;
 
@@ -121,6 +121,7 @@ pub fn index(
         max_ticket_price: Option<i64>,
         is_external: bool,
         external_url: Option<String>,
+        user_is_interested: bool,
     }
 
     let mut venue_ids: Vec<Uuid> = events
@@ -136,6 +137,15 @@ pub fn index(
         map.insert(v.id, v.clone());
         map
     });
+
+    let event_interest = match user {
+        Some(u) => EventInterest::find_interest_by_event_ids_for_user(
+            events.iter().map(|e| e.id).collect::<Vec<Uuid>>(),
+            u.id,
+            connection,
+        )?,
+        None => HashMap::new(),
+    };
 
     let results = events.into_iter().fold(Vec::new(), |mut results, event| {
         results.push(EventVenueEntry {
@@ -158,6 +168,10 @@ pub fn index(
             max_ticket_price: event.max_ticket_price,
             is_external: event.is_external,
             external_url: event.external_url,
+            user_is_interested: event_interest
+                .get(&event.id)
+                .map(|i| i.to_owned())
+                .unwrap_or(false),
         });
         results
     });

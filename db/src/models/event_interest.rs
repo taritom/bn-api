@@ -4,6 +4,7 @@ use diesel::expression::dsl::count;
 use diesel::prelude::*;
 use models::*;
 use schema::{event_interest, users};
+use std::collections::HashMap;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
@@ -68,6 +69,26 @@ impl EventInterest {
             )
             .execute(conn),
         )
+    }
+
+    pub fn find_interest_by_event_ids_for_user(
+        event_ids: Vec<Uuid>,
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<HashMap<Uuid, bool>, DatabaseError> {
+        let mut event_interest_map: HashMap<Uuid, bool> = HashMap::new();
+        let result = event_interest::table
+            .filter(event_interest::event_id.eq_any(event_ids.clone()))
+            .filter(event_interest::user_id.eq(user_id))
+            .load::<EventInterest>(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading event interests")?;
+
+        let found_records: Vec<Uuid> = result.iter().map(|ei| ei.event_id).collect();
+        for event_id in event_ids {
+            event_interest_map.insert(event_id, found_records.contains(&event_id));
+        }
+
+        Ok(event_interest_map)
     }
 
     pub fn total_interest(event_id: Uuid, conn: &PgConnection) -> Result<u32, DatabaseError> {

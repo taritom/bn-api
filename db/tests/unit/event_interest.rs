@@ -18,6 +18,68 @@ fn create() {
 }
 
 #[test]
+fn find_interest_by_event_ids_for_user() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event1 = project.create_event().finish();
+    let event2 = project.create_event().finish();
+    let event3 = project.create_event().finish();
+
+    // User 1 has event interests in event 1 and event 3
+    let user1 = project.create_user().finish();
+    EventInterest::create(event1.id, user1.id)
+        .commit(connection)
+        .unwrap();
+    EventInterest::create(event3.id, user1.id)
+        .commit(connection)
+        .unwrap();
+
+    // User 2 has event interests in event 2
+    let user2 = project.create_user().finish();
+    EventInterest::create(event2.id, user2.id)
+        .commit(connection)
+        .unwrap();
+
+    // User 3 has no event interests
+    let user3 = project.create_user().finish();
+
+    let all_event_ids = vec![event1.id, event2.id, event3.id];
+
+    // User 1
+    let found_interest = EventInterest::find_interest_by_event_ids_for_user(
+        all_event_ids.clone(),
+        user1.id,
+        connection,
+    )
+    .unwrap();
+    assert!(found_interest.get(&event1.id).unwrap());
+    assert!(!found_interest.get(&event2.id).unwrap());
+    assert!(found_interest.get(&event3.id).unwrap());
+
+    // User 2
+    let found_interest = EventInterest::find_interest_by_event_ids_for_user(
+        all_event_ids.clone(),
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert!(!found_interest.get(&event1.id).unwrap());
+    assert!(found_interest.get(&event2.id).unwrap());
+    assert!(!found_interest.get(&event3.id).unwrap());
+
+    // User 3
+    let found_interest = EventInterest::find_interest_by_event_ids_for_user(
+        all_event_ids.clone(),
+        user3.id,
+        connection,
+    )
+    .unwrap();
+    assert!(!found_interest.get(&event1.id).unwrap());
+    assert!(!found_interest.get(&event2.id).unwrap());
+    assert!(!found_interest.get(&event3.id).unwrap());
+}
+
+#[test]
 fn total_interest() {
     let project = TestProject::new();
     let user1 = project.create_user().finish();

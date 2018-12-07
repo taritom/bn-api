@@ -18,6 +18,7 @@ use uuid::Uuid;
 #[test]
 pub fn index() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let organization = database.create_organization().finish();
     let venue = database.create_venue().finish();
     let event = database
@@ -34,14 +35,70 @@ pub fn index() {
         .finish();
 
     let expected_results = vec![
-        event_venue_entry(&event, &venue),
-        event_venue_entry(&event2, &venue),
+        event_venue_entry(&event, &venue, None, &*connection),
+        event_venue_entry(&event2, &venue, None, &*connection),
     ];
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
-        events::index((database.connection.into(), parameters, None)).into();
+        events::index((database.connection.clone().into(), parameters, None)).into();
+
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    let mut expected_tags: HashMap<String, Value> = HashMap::new();
+    expected_tags.insert("query".to_string(), json!("New"));
+    let wrapped_expected_events = Payload {
+        data: expected_results,
+        paging: Paging {
+            page: 0,
+            limit: 100,
+            sort: "".to_string(),
+            dir: SortingDir::Asc,
+            total: 2,
+            tags: expected_tags,
+        },
+    };
+    let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, expected_json);
+}
+
+#[test]
+pub fn index_for_user() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let organization = database.create_organization().finish();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent1".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    let _event_interest = EventInterest::create(event.id, user.id).commit(connection);
+    let event2 = database
+        .create_event()
+        .with_name("NewEvent2".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
+    let expected_results = vec![
+        event_venue_entry(&event, &venue, Some(user.clone()), &*connection),
+        event_venue_entry(&event2, &venue, Some(user), &*connection),
+    ];
+
+    let test_request = TestRequest::create_with_uri("/events?query=New");
+    let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
+    let response: HttpResponse = events::index((
+        database.connection.clone().into(),
+        parameters,
+        Some(auth_user),
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -66,6 +123,7 @@ pub fn index() {
 #[test]
 pub fn index_with_draft_for_organization_user() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let auth_user = support::create_auth_user_from_user(
@@ -90,14 +148,18 @@ pub fn index_with_draft_for_organization_user() {
         .finish();
 
     let expected_results = vec![
-        event_venue_entry(&event, &venue),
-        event_venue_entry(&event2, &venue),
+        event_venue_entry(&event, &venue, None, &*connection),
+        event_venue_entry(&event2, &venue, None, &*connection),
     ];
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        events::index((database.connection.into(), parameters, Some(auth_user))).into();
+    let response: HttpResponse = events::index((
+        database.connection.clone().into(),
+        parameters,
+        Some(auth_user),
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -123,6 +185,7 @@ pub fn index_with_draft_for_organization_user() {
 #[test]
 pub fn index_with_draft_for_user_ignores_drafts() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let organization = database.create_organization().finish();
@@ -141,12 +204,16 @@ pub fn index_with_draft_for_user_ignores_drafts() {
         .with_venue(&venue)
         .finish();
 
-    let expected_results = vec![event_venue_entry(&event, &venue)];
+    let expected_results = vec![event_venue_entry(&event, &venue, None, &*connection)];
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        events::index((database.connection.into(), parameters, Some(auth_user))).into();
+    let response: HttpResponse = events::index((
+        database.connection.clone().into(),
+        parameters,
+        Some(auth_user),
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     let mut expected_tags: HashMap<String, Value> = HashMap::new();
@@ -202,6 +269,7 @@ pub fn index_search_with_filter() {
         max_ticket_price: None,
         is_external: false,
         external_url: None,
+        user_is_interested: false,
     }];
 
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
@@ -863,9 +931,15 @@ struct EventVenueEntry {
     max_ticket_price: Option<i64>,
     is_external: bool,
     external_url: Option<String>,
+    user_is_interested: bool,
 }
 
-fn event_venue_entry(event: &Event, venue: &Venue) -> EventVenueEntry {
+fn event_venue_entry(
+    event: &Event,
+    venue: &Venue,
+    user: Option<User>,
+    connection: &PgConnection,
+) -> EventVenueEntry {
     EventVenueEntry {
         id: event.id,
         name: event.name.clone(),
@@ -886,5 +960,8 @@ fn event_venue_entry(event: &Event, venue: &Venue) -> EventVenueEntry {
         max_ticket_price: event.max_ticket_price.clone(),
         is_external: event.is_external.clone(),
         external_url: event.external_url.clone(),
+        user_is_interested: user
+            .map(|u| EventInterest::user_interest(event.id, u.id, connection).unwrap())
+            .unwrap_or(false),
     }
 }
