@@ -44,7 +44,8 @@ impl TestProject {
         select(sql::<Bool>(&format!(
             "EXISTS(SELECT 1 FROM pg_database WHERE datname='{}')",
             name
-        ))).get_result(&self.admin)
+        )))
+        .get_result(&self.admin)
         .unwrap()
     }
 
@@ -55,7 +56,8 @@ impl TestProject {
              FROM information_schema.tables \
              WHERE table_name = '{}')",
             table
-        ))).get_result(&self.admin)
+        )))
+        .get_result(&self.admin)
         .unwrap()
     }
 

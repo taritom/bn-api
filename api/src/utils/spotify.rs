@@ -80,7 +80,8 @@ impl Spotify {
                             .as_str()
                             .unwrap_or("Invalid Spotify Response")
                             .to_string(),
-                    ).into());
+                    )
+                    .into());
                 }
                 let spotify_artists = result["artists"]["items"]
                     .as_array()
@@ -96,7 +97,8 @@ impl Spotify {
                             image_url,
                             ..Default::default()
                         }
-                    }).collect();
+                    })
+                    .collect();
                 Ok(spotify_artists)
             }
             None => Ok(vec![]),
@@ -120,14 +122,15 @@ impl Spotify {
                     .send()?
                     .text()?;
 
-                let artist: Value = serde_json::from_str(&res).unwrap();
+                let artist: Value = serde_json::from_str(&res)?;
                 if artist.get("error").is_some() {
                     return Err(ApplicationError::new(
                         artist["error"]["message"]
                             .as_str()
                             .unwrap_or("Invalid Spotify Response")
                             .to_string(),
-                    ).into());
+                    )
+                    .into());
                 } else {
                     let image_url = Spotify::get_image_from_artist(&artist["images"], Some(0));
 
@@ -157,7 +160,8 @@ impl Spotify {
                     Some(index) => arr.get(index),
                 };
                 val.map(|v| v)
-            }).unwrap_or(None);
+            })
+            .unwrap_or(None);
         image
             .map(|m| m["url"].as_str().map(|s| s.to_string()))
             .unwrap_or(None)

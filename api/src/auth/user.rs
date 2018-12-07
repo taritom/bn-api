@@ -84,7 +84,8 @@ impl User {
         Err(AuthError::new(
             AuthErrorType::Unauthorized,
             "User does not have the required permissions".to_string(),
-        ).into())
+        )
+        .into())
     }
 
     pub fn requires_scope_for_organization(
@@ -99,7 +100,8 @@ impl User {
         Err(AuthError::new(
             AuthErrorType::Unauthorized,
             "User does not have the required permissions".to_string(),
-        ).into())
+        )
+        .into())
     }
 }
 
@@ -126,7 +128,8 @@ impl FromRequest<AppState> for User {
                             &access_token,
                             (*req.state()).config.token_secret.as_bytes(),
                             &Validation::default(),
-                        ).map_err(|e| BigNeonError::from(e))?;
+                        )
+                        .map_err(|e| BigNeonError::from(e))?;
                         let connection = req.connection()?;
                         match DbUser::find(token.claims.get_id()?, connection.get()) {
                             Ok(user) => Ok(User::new(user, req)),

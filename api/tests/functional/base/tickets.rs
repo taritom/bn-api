@@ -10,6 +10,7 @@ use support::test_request::TestRequest;
 
 pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let request = TestRequest::create();
     let organization = database.create_organization().finish();
@@ -39,10 +40,13 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         let body = support::unwrap_body_to_string(&response).unwrap();
         let ticket_response: ShowTicketResponse = serde_json::from_str(&body).unwrap();
+        let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
+        let fee_schedule_range = &fee_schedule.ranges(connection).unwrap()[0];
         let expected_ticket = DisplayTicket {
             id: ticket.id,
             order_id: cart.id,
-            price_in_cents: Some(ticket_pricing.price_in_cents as u32),
+            price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents)
+                as u32,
             ticket_type_name: ticket_type.name.clone(),
             status: "Purchased".to_string(),
             redeem_key: ticket_response.ticket.redeem_key.clone(),
@@ -97,7 +101,8 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
         Json(request_data),
         auth_user.clone(),
         request.extract_state(),
-    )).into();
+    ))
+    .into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
@@ -113,7 +118,8 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
             Json(request_data),
             auth_user,
             request.extract_state(),
-        )).into();
+        ))
+        .into();
 
         assert_eq!(response.status(), StatusCode::OK);
     } else {
@@ -147,7 +153,8 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
     let total = cart.calculate_total(conn).unwrap();
     cart.add_external_payment(Some("test".to_string()), user2.id, total, conn)
         .unwrap();
@@ -163,7 +170,8 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
         database.connection.clone().into(),
         path,
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();

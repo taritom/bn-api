@@ -88,7 +88,8 @@ impl NewFeeSchedule {
             .values((
                 fee_schedules::name.eq(&self.name),
                 fee_schedules::version.eq(next_version),
-            )).get_result(conn)
+            ))
+            .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create fee schedule")?;
 
         #[derive(Insertable)]

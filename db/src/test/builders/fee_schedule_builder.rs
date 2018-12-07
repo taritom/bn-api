@@ -29,7 +29,8 @@ impl<'a> FeeScheduleBuilder<'a> {
                     client_fee_in_cents: 12,
                 },
             ],
-        ).commit(self.connection)
+        )
+        .commit(self.connection)
         .unwrap()
     }
 }

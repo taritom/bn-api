@@ -131,6 +131,7 @@ table! {
         video_url -> Nullable<Text>,
         is_external -> Bool,
         external_url -> Nullable<Text>,
+        override_status -> Nullable<Text>,
     }
 }
 
@@ -404,19 +405,22 @@ table! {
 table! {
     venues (id) {
         id -> Uuid,
-        region_id -> Nullable<Uuid>,
+        region_id -> Uuid,
         organization_id -> Nullable<Uuid>,
         is_private -> Bool,
         name -> Text,
-        address -> Nullable<Text>,
-        city -> Nullable<Text>,
-        state -> Nullable<Text>,
-        country -> Nullable<Text>,
-        postal_code -> Nullable<Text>,
+        address -> Text,
+        city -> Text,
+        state -> Text,
+        country -> Text,
+        postal_code -> Text,
         phone -> Nullable<Text>,
         promo_image_url -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        google_place_id -> Nullable<Text>,
+        latitude -> Nullable<Float8>,
+        longitude -> Nullable<Float8>,
     }
 }
 

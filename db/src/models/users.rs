@@ -4,6 +4,7 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
+use diesel::sql_types;
 use diesel::sql_types::BigInt;
 use models::*;
 use schema::{events, organization_users, organizations, users};
@@ -204,7 +205,8 @@ impl User {
                     "cast(sum(order_items.unit_price_in_cents * order_items.quantity) as bigint)",
                 ),
                 sql::<BigInt>("count(*) over()"),
-            )).order_by(sql::<()>(&format!("orders.order_date {}", sort_direction)))
+            ))
+            .order_by(sql::<()>(&format!("orders.order_date {}", sort_direction)))
             .limit(limit as i64)
             .offset((limit * page) as i64);
 
@@ -236,7 +238,8 @@ impl User {
                 event_name: r.event_name,
                 ticket_sales: r.ticket_sales as u32,
                 revenue_in_cents: r.revenue_in_cents as u32,
-            }).collect();
+            })
+            .collect();
 
         let mut payload = Payload::new(history, paging);
         payload.paging.total = total;
@@ -415,8 +418,10 @@ impl User {
             .filter(
                 organization_users::user_id
                     .eq(self.id)
-                    .or(organizations::owner_user_id.eq(self.id)),
-            ).select(organizations::all_columns)
+                    .or(organizations::owner_user_id.eq(self.id))
+                    .or(sql("true=").bind::<sql_types::Bool, _>(self.is_admin())),
+            )
+            .select(organizations::all_columns)
             .order_by(organizations::name.asc())
             .load::<Organization>(conn)
             .to_db_error(
@@ -509,7 +514,8 @@ impl User {
         vec![
             self.first_name.clone().unwrap_or("".to_string()),
             self.last_name.clone().unwrap_or("".to_string()),
-        ].join(" ")
+        ]
+        .join(" ")
     }
 
     pub fn find_external_login(
@@ -578,20 +584,23 @@ impl User {
                     .filter(users::id.eq(self.id))
                     .filter(users::updated_at.eq(self.updated_at))
                     .filter(users::last_cart_id.is_null()),
-            ).into_boxed()
+            )
+            .into_boxed()
         } else {
             diesel::update(
                 users::table
                     .filter(users::id.eq(self.id))
                     .filter(users::updated_at.eq(self.updated_at))
                     .filter(users::last_cart_id.eq(self.last_cart_id)),
-            ).into_boxed()
+            )
+            .into_boxed()
         };
         let rows_affected = query
             .set((
                 users::last_cart_id.eq(new_cart_id),
                 users::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update last cart on user")?;
 
         match rows_affected {

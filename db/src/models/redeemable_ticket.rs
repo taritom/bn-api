@@ -1,8 +1,8 @@
 use chrono::prelude::*;
-use diesel::sql_types::{Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use uuid::Uuid;
 
-#[derive(Queryable, QueryableByName, Serialize, Deserialize, Debug)]
+#[derive(Queryable, QueryableByName, PartialEq, Serialize, Deserialize, Debug)]
 pub struct RedeemableTicket {
     #[sql_type = "dUuid"]
     pub id: Uuid,
@@ -10,6 +10,10 @@ pub struct RedeemableTicket {
     pub ticket_type: String,
     #[sql_type = "Nullable<dUuid>"]
     pub user_id: Option<Uuid>,
+    #[sql_type = "dUuid"]
+    pub order_id: Uuid,
+    #[sql_type = "BigInt"]
+    pub price_in_cents: i64,
     #[sql_type = "Nullable<Text>"]
     pub first_name: Option<String>,
     #[sql_type = "Nullable<Text>"]

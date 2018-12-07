@@ -12,6 +12,7 @@ WHERE
     AND order_items.event_id = $2
     AND order_items.ticket_type_id IS NOT NULL
     AND ticket_instances.reserved_until > now()
+    AND orders.on_behalf_of_user_id IS NULL
 GROUP BY
     order_items.event_id,
     order_items.ticket_type_id

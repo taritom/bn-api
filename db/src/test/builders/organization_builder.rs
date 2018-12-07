@@ -77,7 +77,8 @@ impl<'a> OrganizationBuilder<'a> {
                     company_fee_in_cents: 20,
                     client_fee_in_cents: 30,
                 }],
-            ).commit(self.connection);
+            )
+            .commit(self.connection);
             self.fee_schedule = Some(fee_schedule.unwrap());
         }
 
@@ -87,7 +88,8 @@ impl<'a> OrganizationBuilder<'a> {
                 .unwrap(),
             &self.name,
             self.fee_schedule.unwrap().id,
-        ).commit(self.connection)
+        )
+        .commit(self.connection)
         .unwrap();
 
         let event_fee_update = OrganizationEditableAttributes {
@@ -109,7 +111,8 @@ impl<'a> OrganizationBuilder<'a> {
             organization.id,
             String::from("Default wallet"),
             self.connection,
-        ).unwrap();
+        )
+        .unwrap();
 
         if self.use_address {
             let mut attrs: OrganizationEditableAttributes = Default::default();

@@ -69,7 +69,8 @@ fn index_with_org_linked_and_private_venues() {
         database.connection.clone().into(),
         query_parameters,
         Some(auth_user.clone()),
-    )).into();
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_json);
@@ -84,7 +85,8 @@ fn index_with_org_linked_and_private_venues() {
         database.connection.into(),
         query_parameters,
         Some(auth_user),
-    )).into();
+    ))
+    .into();
     let wrapped_expected_venues = Payload {
         data: expected_venues,
         paging: Paging {
@@ -330,7 +332,8 @@ pub fn show_from_organizations_private_venue_same_org() {
         path,
         query_parameters,
         Some(auth_user),
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();

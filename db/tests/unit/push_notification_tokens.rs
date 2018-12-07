@@ -7,12 +7,12 @@ fn create_and_find_by_user_id() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     //Create two push notification tokens for user
-    let pnt1_request = NewPushNotificationToken {
+    let mut pnt1_request = NewPushNotificationToken {
         user_id: user.id,
         token_source: "example_token1_source".to_string(),
         token: "example_token1".to_string(),
     };
-    let pnt2_request = NewPushNotificationToken {
+    let mut pnt2_request = NewPushNotificationToken {
         user_id: user.id,
         token_source: "example_token2_source".to_string(),
         token: "example_token2".to_string(),
@@ -23,6 +23,12 @@ fn create_and_find_by_user_id() {
     let push_notification_tokens =
         PushNotificationToken::find_by_user_id(user.id, connection).unwrap();
     assert_eq!(push_notification_tokens.len(), 2);
+    if push_notification_tokens[0].token_source != pnt1_request.token_source {
+        //Switch order
+        let temp = pnt1_request;
+        pnt1_request = pnt2_request;
+        pnt2_request = temp;
+    }
     assert_eq!(push_notification_tokens[0].user_id, pnt1_request.user_id);
     assert_eq!(
         push_notification_tokens[0].token_source,

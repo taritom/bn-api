@@ -58,6 +58,7 @@ impl<'a> CompBuilder<'a> {
             None,
             self.quantity,
             self.connection,
-        ).unwrap()
+        )
+        .unwrap()
     }
 }

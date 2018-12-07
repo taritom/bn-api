@@ -57,7 +57,8 @@ impl Asset {
             .set((
                 assets::blockchain_asset_id.eq(id),
                 assets::updated_at.eq(dsl::now),
-            )).get_result(conn)
+            ))
+            .get_result(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not update asset blockchain id",

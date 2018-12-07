@@ -130,7 +130,8 @@ impl Organization {
             .set((
                 organizations::owner_user_id.eq(owner_user_id),
                 organizations::updated_at.eq(dsl::now),
-            )).get_result(conn)
+            ))
+            .get_result(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not update organization owner",
@@ -180,7 +181,8 @@ impl Organization {
                 .filter(orders::status.eq(OrderStatus::Paid.to_string()))
                 .filter(events::organization_id.eq(self.id))
                 .filter(orders::user_id.eq(user.id)),
-        )).get_result(conn)
+        ))
+        .get_result(conn)
         .to_db_error(
             ErrorCode::QueryError,
             "Could not check if organization has fan",
@@ -201,7 +203,7 @@ impl Organization {
         conn: &PgConnection,
     ) -> Result<Vec<String>, DatabaseError> {
         let mut roles = Vec::new();
-        if user.id == self.owner_user_id {
+        if user.id == self.owner_user_id || user.is_admin() {
             roles.push(Roles::OrgOwner.to_string());
             roles.push(Roles::OrgMember.to_string());
         } else {
@@ -324,7 +326,8 @@ impl Organization {
             organization_users::table
                 .filter(organization_users::user_id.eq(user_id))
                 .filter(organization_users::organization_id.eq(self.id)),
-        ).execute(conn)
+        )
+        .execute(conn)
         .to_db_error(ErrorCode::DeleteError, "Error removing user")
     }
 
@@ -349,7 +352,8 @@ impl Organization {
                     organization_users::user_id
                         .eq(user.id)
                         .and(organization_users::organization_id.eq(self.id)),
-                ).select(organization_users::organization_id),
+                )
+                .select(organization_users::organization_id),
         ));
         query
             .get_result(conn)
@@ -365,7 +369,8 @@ impl Organization {
             .set((
                 organizations::fee_schedule_id.eq(fee_schedule.id),
                 organizations::updated_at.eq(dsl::now),
-            )).get_result(conn)
+            ))
+            .get_result(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not set the fee schedule for this organization",
@@ -411,14 +416,16 @@ impl Organization {
                     .bind::<Text, _>(&search_filter)
                     .sql("or users.phone ilike ")
                     .bind::<Text, _>(&search_filter),
-            ).group_by((
+            )
+            .group_by((
                 events::organization_id,
                 users::first_name,
                 users::last_name,
                 users::email,
                 users::phone,
                 users::id,
-            )).select((
+            ))
+            .select((
                 events::organization_id,
                 users::first_name,
                 users::last_name,
@@ -434,7 +441,8 @@ impl Organization {
                     "cast(sum(order_items.unit_price_in_cents * order_items.quantity) as bigint)",
                 ),
                 sql::<BigInt>("count(*) over()"),
-            )).order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)));
+            ))
+            .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)));
 
         let query = query.limit(limit as i64).offset((limit * page) as i64);
 
@@ -481,7 +489,8 @@ impl Organization {
                 first_order_time: r.first_order_time,
                 last_order_time: r.last_order_time,
                 revenue_in_cents: r.revenue_in_cents,
-            }).collect();
+            })
+            .collect();
 
         let mut p = Payload::new(fans, paging);
         p.paging.total = total;

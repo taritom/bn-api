@@ -49,6 +49,81 @@ fn update() {
 }
 
 #[test]
+fn guest_list() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .finish();
+    let venue = project.create_venue().finish();
+    let event = project
+        .create_event()
+        .with_venue(&venue)
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let user4 = project.create_user().finish();
+
+    // 1 normal order, 2 orders made on behalf of users by box office user 2
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user2)
+        .on_behalf_of_user(&user3)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user2)
+        .on_behalf_of_user(&user4)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let guest_list = event.guest_list("", connection).unwrap();
+    assert_eq!(3, guest_list.len());
+    let guest_ids = guest_list
+        .iter()
+        .map(|r| r.user_id)
+        .collect::<Vec<Option<Uuid>>>();
+    assert!(guest_ids.contains(&Some(user.id)));
+    assert!(!guest_ids.contains(&Some(user2.id)));
+    assert!(guest_ids.contains(&Some(user3.id)));
+    assert!(guest_ids.contains(&Some(user4.id)));
+
+    // User 2 (the box office user) purchases a ticket for themselves
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user2)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let guest_list = event.guest_list("", connection).unwrap();
+    assert_eq!(4, guest_list.len());
+    let guest_ids = guest_list
+        .iter()
+        .map(|r| r.user_id)
+        .collect::<Vec<Option<Uuid>>>();
+    assert!(guest_ids.contains(&Some(user.id)));
+    assert!(guest_ids.contains(&Some(user2.id)));
+    assert!(guest_ids.contains(&Some(user3.id)));
+    assert!(guest_ids.contains(&Some(user4.id)));
+}
+
+#[test]
 fn publish() {
     //create event
     let project = TestProject::new();
@@ -66,29 +141,7 @@ fn publish() {
 
     assert_eq!(event.status().unwrap(), EventStatus::Draft);
 
-    let event_id = event.id;
-    let venue = event.venue(project.get_connection()).unwrap().unwrap();
-    let result = event.publish(project.get_connection());
-    assert!(result.is_err());
-
-    let venue_update = VenueEditableAttributes {
-        address: Some("address".to_string()),
-        city: Some("city".to_string()),
-        state: Some("state".to_string()),
-        country: Some("country".to_string()),
-        postal_code: Some("333".to_string()),
-        phone: Some("33333".to_string()),
-        ..Default::default()
-    };
-
-    venue
-        .update(venue_update, project.get_connection())
-        .unwrap();
-
-    let event = Event::find(event_id, project.get_connection())
-        .unwrap()
-        .publish(project.get_connection())
-        .unwrap();
+    let event = event.publish(project.get_connection()).unwrap();
 
     assert_eq!(event.status().unwrap(), EventStatus::Published);
     assert!(event.publish_date.is_some());
@@ -143,7 +196,8 @@ fn get_sales_by_date_range() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
@@ -160,7 +214,8 @@ fn get_sales_by_date_range() {
             }],
             false,
             connection,
-        ).unwrap();
+        )
+        .unwrap();
 
     // A day ago to today
     let start_utc = Utc::now().naive_utc().date() - Duration::days(1);
@@ -263,7 +318,8 @@ fn find_individuals() {
         0,
         100,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(found_event_via_organization.data[0].id, found_event.id);
 
     //find event via venue
@@ -381,7 +437,8 @@ fn search() {
         None,
         Some(organization_owner),
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_events_for_organization, all_found_events);
 
     // All events organization user
@@ -393,7 +450,8 @@ fn search() {
         None,
         Some(organization_user),
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_events_for_organization, all_found_events);
 
     // All events normal user not part of event organization
@@ -405,7 +463,8 @@ fn search() {
         None,
         Some(user),
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_events, all_found_events);
 
     // All events for admin
@@ -417,7 +476,8 @@ fn search() {
         None,
         Some(admin),
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_events_for_admin, all_found_events);
 
     // No name specified
@@ -429,7 +489,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_events, all_found_events);
 
     // Limited by just Published and Offline events
@@ -441,7 +502,8 @@ fn search() {
         Some(vec![EventStatus::Published, EventStatus::Offline]),
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 2);
     assert_eq!(all_events[0], all_found_events[0]);
     assert_eq!(all_events[2], all_found_events[1]);
@@ -455,7 +517,8 @@ fn search() {
         Some(vec![EventStatus::Closed]),
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[1], all_found_events[0]);
 
@@ -468,7 +531,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 2);
     assert_eq!(all_events[1], all_found_events[0]);
     assert_eq!(all_events[2], all_found_events[1]);
@@ -482,7 +546,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 
@@ -495,7 +560,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 2);
     assert_eq!(all_events[0], all_found_events[0]);
     assert_eq!(all_events[1], all_found_events[1]);
@@ -509,7 +575,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 
@@ -522,7 +589,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_events, all_found_events);
 
     // Match events belonging to given region
@@ -534,7 +602,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 
@@ -547,7 +616,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 2);
     assert_eq!(all_events[1], all_found_events[0]);
     assert_eq!(all_events[2], all_found_events[1]);
@@ -561,7 +631,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 0);
 
     // Combination of query and region resulting in records
@@ -573,7 +644,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 
@@ -585,7 +657,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 2);
     assert_eq!(all_events[1], all_found_events[0]);
     assert_eq!(all_events[2], all_found_events[1]);
@@ -598,7 +671,8 @@ fn search() {
         None,
         None,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(all_found_events.len(), 1);
     assert_eq!(all_events[0], all_found_events[0]);
 }
@@ -621,7 +695,8 @@ fn find_for_organization_and_venue() {
         .with_event_start(
             &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
-        ).with_organization(&organization)
+        )
+        .with_organization(&organization)
         .with_venue(&venue1)
         .finish();
     event
@@ -638,7 +713,8 @@ fn find_for_organization_and_venue() {
         .with_event_start(
             &NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
-        ).with_organization(&organization)
+        )
+        .with_organization(&organization)
         .with_venue(&venue2)
         .finish();
     event2
@@ -654,7 +730,8 @@ fn find_for_organization_and_venue() {
         0,
         100,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(
         found_event_via_organizations
             .data
@@ -722,7 +799,8 @@ fn add_ticket_type() {
             None,
             0,
             conn,
-        ).unwrap();
+        )
+        .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
     assert_eq!(ticket_type.name, "General Admission".to_string());
@@ -747,7 +825,8 @@ fn ticket_types() {
             None,
             0,
             conn,
-        ).unwrap();
+        )
+        .unwrap();
     let ticket_type_vip = event
         .add_ticket_type(
             "VIP".to_string(),
@@ -759,7 +838,8 @@ fn ticket_types() {
             None,
             0,
             conn,
-        ).unwrap();
+        )
+        .unwrap();
 
     let ticket_types = event.ticket_types(conn).unwrap();
 

@@ -113,7 +113,8 @@ impl TestDatabase {
             }],
             false,
             self.connection.get(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let total = cart.calculate_total(self.connection.get()).unwrap();
         cart.add_external_payment(
@@ -121,7 +122,8 @@ impl TestDatabase {
             user.id,
             total,
             self.connection.get(),
-        ).unwrap();
+        )
+        .unwrap();
         TicketInstance::find_for_user(user.id, self.connection.get()).unwrap()
     }
 }

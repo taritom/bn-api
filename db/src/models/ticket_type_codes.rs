@@ -78,7 +78,8 @@ impl TicketTypeCode {
                 ticket_type_codes::table
                     .filter(ticket_type_codes::code_id.eq(code_id))
                     .filter(ticket_type_codes::ticket_type_id.eq_any(ticket_type_ids)),
-            ).execute(conn),
+            )
+            .execute(conn),
         )
     }
 
@@ -90,7 +91,8 @@ impl TicketTypeCode {
         let result = select(ticket_type_code_ticket_type_id_valid(
             code_id,
             ticket_type_id,
-        )).get_result::<bool>(conn)
+        ))
+        .get_result::<bool>(conn)
         .to_db_error(
             ErrorCode::InsertError,
             "Could not confirm if ticket type id valid for code",

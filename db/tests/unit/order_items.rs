@@ -29,7 +29,8 @@ fn find_fee_item() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 
     let items = cart.items(&connection).unwrap();
     let order_item = items
@@ -68,7 +69,8 @@ fn update_with_validation_errors() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let code = project
         .create_code()
         .with_event(&event)
@@ -93,7 +95,8 @@ fn update_with_validation_errors() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = cart.update_quantities(
         &[UpdateOrderItem {
@@ -134,7 +137,8 @@ fn update_with_validation_errors() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let order_item = cart.items(connection).unwrap().remove(0);
     diesel::update(order_items::table.filter(order_items::id.eq(order_item.id)))
         .set(order_items::code_id.eq(code.id))
@@ -149,7 +153,8 @@ fn update_with_validation_errors() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 #[test]
@@ -177,7 +182,8 @@ fn calculate_quantity() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 
     let items = cart.items(&connection).unwrap();
     let order_item = items

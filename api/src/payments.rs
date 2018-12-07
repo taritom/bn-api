@@ -143,7 +143,8 @@ impl PaymentProcessor for StripePaymentProcessor {
                 description,
                 token,
                 Vec::<(String, String)>::new(),
-            ).map(|r| RepeatChargeToken {
+            )
+            .map(|r| RepeatChargeToken {
                 token: r.id,
                 raw: r.raw_data,
             })?)

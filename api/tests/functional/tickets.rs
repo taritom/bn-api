@@ -15,9 +15,12 @@ use uuid::Uuid;
 #[test]
 pub fn index() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let test_request = TestRequest::create();
     let organization = database.create_organization().finish();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
+    let fee_schedule_range = &fee_schedule.ranges(connection).unwrap()[0];
     let venue = database.create_venue().finish();
     let event = database
         .create_event()
@@ -49,7 +52,8 @@ pub fn index() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     cart.update_quantities(
         &[UpdateOrderItem {
@@ -59,7 +63,8 @@ pub fn index() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     let total = cart.calculate_total(conn).unwrap();
     cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
@@ -89,14 +94,15 @@ pub fn index() {
         path,
         parameters,
         auth_user.clone(),
-    )).unwrap();
+    ))
+    .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_data: Payload<DisplayTicket> = serde_json::from_str(&body).unwrap();
     let expected_ticket = DisplayTicket {
         id: ticket_id,
         order_id: cart.id,
-        price_in_cents: Some(ticket_pricing.price_in_cents as u32),
+        price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type.name.clone(),
         status: "Purchased".to_string(),
         redeem_key: ticket.redeem_key,
@@ -111,7 +117,8 @@ pub fn index() {
         path,
         parameters,
         auth_user.clone(),
-    )).unwrap();
+    ))
+    .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
@@ -120,7 +127,7 @@ pub fn index() {
     let expected_ticket2 = DisplayTicket {
         id: ticket2_id,
         order_id: cart.id,
-        price_in_cents: Some(ticket_pricing2.price_in_cents as u32),
+        price_in_cents: (ticket_pricing2.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type2.name.clone(),
         status: "Purchased".to_string(),
         redeem_key: ticket2.redeem_key,
@@ -150,7 +157,8 @@ pub fn index() {
         path,
         parameters,
         auth_user,
-    )).unwrap();
+    ))
+    .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
@@ -168,9 +176,12 @@ pub fn index() {
 #[test]
 pub fn show() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let request = TestRequest::create();
     let organization = database.create_organization().finish();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
+    let fee_schedule_range = &fee_schedule.ranges(connection).unwrap()[0];
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -188,7 +199,8 @@ pub fn show() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
     let total = cart.calculate_total(conn).unwrap();
     cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
         .unwrap();
@@ -205,7 +217,7 @@ pub fn show() {
     let expected_ticket = DisplayTicket {
         id: ticket.id,
         order_id: cart.id,
-        price_in_cents: Some(ticket_pricing.price_in_cents as u32),
+        price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type.name.clone(),
         status: "Purchased".to_string(),
         redeem_key: ticket.redeem_key,
@@ -310,7 +322,8 @@ fn ticket_transfer_authorization() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     let tickets = cart.tickets(ticket_type.id, conn).unwrap();
     //Try transfer before paying for the tickets
@@ -336,7 +349,8 @@ fn ticket_transfer_authorization() {
         database.connection.clone().into(),
         Json(ticket_transfer_request.clone()),
         auth_user.clone(),
-    )).unwrap();
+    ))
+    .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -386,7 +400,8 @@ fn receive_ticket_transfer() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     let total = cart.calculate_total(conn).unwrap();
     cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
@@ -398,7 +413,8 @@ fn receive_ticket_transfer() {
         vec![tickets[0].id, tickets[1].id],
         3600,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     //Try receive transfer
     let user2 = database.create_user().finish();
@@ -409,7 +425,8 @@ fn receive_ticket_transfer() {
         Json(transfer_auth.clone()),
         auth_user2.clone(),
         request.extract_state(),
-    )).unwrap();
+    ))
+    .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
 }

@@ -6,13 +6,13 @@ use utils::communication::*;
 
 pub fn purchase_completed(
     user_first_name: &String,
-    user_email: &String,
+    user_email: String,
     display_order: DisplayOrder,
     config: &Config,
     conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
-    let source = CommAddress::from(&config.communication_default_source_email);
-    let destinations = CommAddress::from(&user_email);
+    let source = CommAddress::from(config.communication_default_source_email.clone());
+    let destinations = CommAddress::from(user_email);
     let title = "BigNeon Purchase Completed".to_string();
     let template_id = config.sendgrid_template_bn_purchase_completed.clone();
     let mut template_data = TemplateData::new();
@@ -54,5 +54,6 @@ pub fn purchase_completed(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
-    ).queue(conn)
+    )
+    .queue(conn)
 }

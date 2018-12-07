@@ -2,10 +2,7 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::organization_invites::{self, *};
 use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
-use lettre::SendableEmail;
 use serde_json;
-use std::str;
-use std::{thread, time};
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -18,7 +15,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let email = "jeff2@tari.com";
-    let invited_user = database
+    let _invited_user = database
         .create_user()
         .with_email(email.to_string())
         .finish();
@@ -38,7 +35,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         json,
         path,
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -46,33 +44,6 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
         assert_eq!(org_in.inviter_id, user.id);
-        //wait for thread to create email before testing for it
-        let ten_millis = time::Duration::from_millis(1000);
-        thread::sleep(ten_millis);
-        let mail_transport = test_request.test_transport();
-
-        {
-            let sent = mail_transport.sent.lock().unwrap();
-            let mail = sent.first().expect("An invite mail was expected");
-            let envelope = mail.envelope();
-            let email_body = str::from_utf8(*mail.message()).unwrap();
-            assert_eq!(
-                format!("{:?}", envelope.to()),
-                format!("[EmailAddress(\"{}\")]", email)
-            );
-            assert_eq!(
-                format!("{:?}", envelope.from().unwrap()),
-                "EmailAddress(\"support@bigneon.com\")"
-            );
-
-            assert!(email_body.contains(&format!(
-                "Hi {} {}",
-                invited_user.first_name.unwrap_or("".to_string()),
-                invited_user.last_name.unwrap_or("".to_string())
-            )));
-            assert!(email_body.contains("This invite link is valid for 7 days."));
-            assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
-        }
     } else {
         support::expects_unauthorized(&response);
     }
@@ -110,33 +81,6 @@ pub fn create_for_existing_user_via_user_id(role: Roles, should_test_succeed: bo
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
         assert_eq!(org_in.inviter_id, user.id);
-        //wait for thread to create email before testing for it
-        let ten_millis = time::Duration::from_millis(1000);
-        thread::sleep(ten_millis);
-        let mail_transport = test_request.test_transport();
-
-        {
-            let sent = mail_transport.sent.lock().unwrap();
-            let mail = sent.first().expect("An invite mail was expected");
-            let envelope = mail.envelope();
-            let email_body = str::from_utf8(*mail.message()).unwrap();
-            assert_eq!(
-                format!("{:?}", envelope.to()),
-                format!("[EmailAddress(\"{}\")]", email)
-            );
-            assert_eq!(
-                format!("{:?}", envelope.from().unwrap()),
-                "EmailAddress(\"support@bigneon.com\")"
-            );
-
-            assert!(email_body.contains(&format!(
-                "Hi {} {}",
-                invited_user.first_name.unwrap_or("".to_string()),
-                invited_user.last_name.unwrap_or("".to_string())
-            )));
-            assert!(email_body.contains("This invite link is valid for 7 days."));
-            assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
-        }
     } else {
         support::expects_unauthorized(&response);
     }
@@ -169,30 +113,6 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
         let org_in: OrganizationInvite = serde_json::from_str(&body).unwrap();
         assert_eq!(org_in.organization_id, organization.id);
         assert_eq!(org_in.inviter_id, user.id);
-        //wait for thread to create email before testing for it
-        let ten_millis = time::Duration::from_millis(1000);
-        thread::sleep(ten_millis);
-        let mail_transport = test_request.test_transport();
-
-        {
-            let sent = mail_transport.sent.lock().unwrap();
-            let mail = sent.first().expect("An invite mail was expected");
-            let envelope = mail.envelope();
-            let email_body = str::from_utf8(*mail.message()).unwrap();
-
-            assert_eq!(
-                format!("{:?}", envelope.to()),
-                format!("[EmailAddress(\"{}\")]", email)
-            );
-            assert_eq!(
-                format!("{:?}", envelope.from().unwrap()),
-                "EmailAddress(\"support@bigneon.com\")"
-            );
-
-            assert!(email_body.contains("Hi New user"));
-            assert!(email_body.contains("This invite link is valid for 7 days."));
-            assert!(email_body.contains(org_in.security_token.unwrap().to_string().as_str()));
-        }
     } else {
         support::expects_unauthorized(&response);
     }
@@ -257,13 +177,15 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
     OrganizationInvite::get_invite_details(
         &invite.security_token.unwrap(),
         database.connection.get(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(
             "/accept_invite?security_token={}",
             &invite.security_token.unwrap().to_string()
-        ).as_str(),
+        )
+        .as_str(),
     );
     let parameters =
         Query::<InviteResponseQuery>::from_request(&test_request.request, &()).unwrap();
@@ -273,7 +195,8 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         parameters,
         Some(auth_user),
         test_request.request,
-    )).into();
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -303,13 +226,15 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
     OrganizationInvite::get_invite_details(
         &invite.security_token.unwrap(),
         database.connection.get(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(
             "/decline_invite?security_token={}",
             &invite.security_token.unwrap().to_string()
-        ).as_str(),
+        )
+        .as_str(),
     );
 
     let parameters =
@@ -319,7 +244,8 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
         database.connection.into(),
         parameters,
         Some(auth_user),
-    )).into();
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_true {

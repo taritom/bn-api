@@ -173,7 +173,8 @@ fn create_db_and_user(matches: &ArgMatches) {
         Some(username.to_string()),
         Some(phone.to_string()),
         &password,
-    ).commit(&db_connection)
+    )
+    .commit(&db_connection)
     .expect("Failed to create system admin");
     user.add_role(Roles::Admin, &db_connection)
         .expect("Could not assign System Administrator role to the user");
@@ -208,5 +209,6 @@ fn drop_db(matches: &ArgMatches) {
     execute_sql(
         &postgres_conn_string,
         &format!("DROP DATABASE IF EXISTS \"{}\"", db),
-    ).expect("Error dropping database");
+    )
+    .expect("Error dropping database");
 }

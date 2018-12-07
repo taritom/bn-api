@@ -25,7 +25,8 @@ fn create() {
             None,
             0,
             conn,
-        ).unwrap();
+        )
+        .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
     assert_eq!(ticket_type.name, "VIP".to_string())
@@ -127,7 +128,8 @@ fn create_large_amount() {
             None,
             0,
             conn,
-        ).unwrap();
+        )
+        .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
     assert_eq!(ticket_type.name, "VIP".to_string())
@@ -149,7 +151,8 @@ fn validate_ticket_pricing() {
         end_date1,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
     let ticket_pricing = TicketPricing::create(
         ticket_type.id,
@@ -158,7 +161,8 @@ fn validate_ticket_pricing() {
         end_date2,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
     let mut ticket_pricing_parameters: TicketPricingEditableAttributes = Default::default();
 
@@ -189,7 +193,8 @@ fn validate_ticket_pricing() {
                 _ => panic!("Expected validation error"),
             }
             Err(Error::RollbackTransaction)
-        }).unwrap_err();
+        })
+        .unwrap_err();
 
     // Period adjusted to not overlap (after existing record)
     project
@@ -206,7 +211,8 @@ fn validate_ticket_pricing() {
                 .validate_ticket_pricing(project.get_connection())
                 .unwrap();
             Err(Error::RollbackTransaction)
-        }).unwrap_err();
+        })
+        .unwrap_err();
 
     // Period adjusted to not overlap (prior to existing record)
     ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 4).and_hms(4, 10, 11));
@@ -238,7 +244,8 @@ pub fn remaining_ticket_count() {
             }],
             false,
             connection,
-        ).unwrap();
+        )
+        .unwrap();
     assert_eq!(80, ticket_type.remaining_ticket_count(connection).unwrap());
 
     order
@@ -250,7 +257,8 @@ pub fn remaining_ticket_count() {
             }],
             false,
             connection,
-        ).unwrap();
+        )
+        .unwrap();
     assert_eq!(84, ticket_type.remaining_ticket_count(connection).unwrap());
 }
 

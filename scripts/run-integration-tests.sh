@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
+
 # Ensure we are in the root of the git repo
 cd $(git rev-parse --show-toplevel)
 cd db
-cargo run create -c $DATABASE_URL -f -e superuser@test.com -p password -m 8883
+cargo run --release create -c $DATABASE_URL -f -e superuser@test.com -p password -m 8883
 cd ../api
-cargo build
-cargo run -- -t false &
+cargo build --release
+cargo run --release -- -t false &
 export SERVER_PID=$!$1
 # Run newman tests
 apt-get install nodejs
@@ -22,3 +23,4 @@ then
     exit $NEWMAN_EXIT_CODE
 fi
 cargo run --release -- -b true
+

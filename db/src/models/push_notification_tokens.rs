@@ -73,7 +73,8 @@ impl PushNotificationToken {
                 push_notification_tokens::table
                     .filter(push_notification_tokens::user_id.eq(user_id))
                     .filter(push_notification_tokens::id.eq(push_notification_tokens_id)),
-            ).execute(conn),
+            )
+            .execute(conn),
         )
     }
 }

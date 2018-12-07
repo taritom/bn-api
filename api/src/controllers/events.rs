@@ -58,7 +58,8 @@ impl From<SearchParameters> for Paging {
             sort: s.sort,
             dir: s.dir,
             tags: default_tags,
-        }.into()
+        }
+        .into()
     }
 }
 
@@ -225,6 +226,7 @@ pub fn show(
         max_ticket_price: Option<i64>,
         is_external: bool,
         external_url: Option<String>,
+        override_status: Option<String>,
     }
 
     Ok(HttpResponse::Ok().json(&R {
@@ -256,6 +258,7 @@ pub fn show(
         max_ticket_price: event.max_ticket_price,
         is_external: event.is_external,
         external_url: event.external_url,
+        override_status: event.override_status,
     }))
 }
 
@@ -519,7 +522,8 @@ pub fn add_artist(
         event_artist.artist_id,
         event_artist.rank,
         event_artist.set_time,
-    ).commit(connection)?;
+    )
+    .commit(connection)?;
     Ok(HttpResponse::Created().json(&event_artist))
 }
 

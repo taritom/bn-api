@@ -54,7 +54,7 @@ impl Server {
 
         if process_http {
             info!("Listening on {}", bind_addr);
-            let keep_alive = config.http_keep_alive;
+            let keep_alive = server::KeepAlive::Tcp(config.http_keep_alive);
             server::new({
                 move || {
                     App::with_state(AppState::new(config.clone(), database.clone()))
@@ -62,7 +62,8 @@ impl Server {
                         .middleware(AppVersionHeader::new())
                         .middleware(Logger::new(
                             r#"{\"remote_ip\":\"%a\", \"user_agent\": \"%{User-Agent}i\", \"request\": \"%r\", \"status_code\": %s, \"response_time\": %D}"#,
-                        )).configure(|a| {
+                        ))
+                        .configure(|a| {
                         let mut cors_config = Cors::for_app(a);
                         match config.allowed_origins.as_ref() {
                             "*" => cors_config.send_wildcard(),
@@ -81,7 +82,7 @@ impl Server {
                     })
                 }
             })
-                .keep_alive(Some(keep_alive))
+                .keep_alive(keep_alive)
                 .bind(&bind_addr)
                 .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
                 .run();

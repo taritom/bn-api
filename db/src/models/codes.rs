@@ -203,7 +203,8 @@ impl Code {
             .bind::<diesel::sql_types::Uuid, _>(event_id)
             .bind::<diesel::sql_types::Nullable<diesel::sql_types::Text>, _>(
                 code_type.map(|s| s.to_string()),
-            ).get_results(conn)
+            )
+            .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Cannot find for events")
     }
 
@@ -273,7 +274,8 @@ impl Code {
             codes::table
                 .filter(codes::id.eq(self.id))
                 .filter(codes::updated_at.eq(self.updated_at)),
-        ).set((update_attrs, codes::updated_at.eq(dsl::now)))
+        )
+        .set((update_attrs, codes::updated_at.eq(dsl::now)))
         .get_result(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update code")
     }

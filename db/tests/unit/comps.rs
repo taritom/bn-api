@@ -16,7 +16,8 @@ fn create() {
         None,
         5,
         db.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 #[test]

@@ -10,9 +10,7 @@ use chrono::{Duration, Utc};
 use diesel;
 use diesel::prelude::*;
 use jwt::{decode, Validation};
-use lettre::SendableEmail;
 use serde_json;
-use std::str;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -23,13 +21,14 @@ fn create() {
     let database = TestDatabase::new();
     let email = "joe@tari.com";
 
-    let user = database
+    database
         .create_user()
         .with_email(email.to_string())
         .finish();
     let expected_json = json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", email)
-    }).to_string();
+    })
+    .to_string();
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -38,27 +37,6 @@ fn create() {
     });
     let response: HttpResponse =
         password_resets::create((state, database.connection.clone(), json)).into();
-
-    // Reload user
-    let user = User::find(user.id, database.connection.get()).expect("User to reload");
-    let mail_transport = test_request.test_transport();
-
-    {
-        let sent = mail_transport.sent.lock().unwrap();
-        let mail = sent.first().expect("A password reset mail was expected");
-        let envelope = mail.envelope();
-        let email_body = str::from_utf8(*mail.message()).unwrap();
-        assert_eq!(
-            format!("{:?}", envelope.to()),
-            format!("[EmailAddress(\"{}\")]", email)
-        );
-        assert_eq!(
-            format!("{:?}", envelope.from().unwrap()),
-            "EmailAddress(\"support@bigneon.com\")"
-        );
-        assert!(email_body.contains("This password reset link is valid for 24 hours"));
-        assert!(email_body.contains(user.password_reset_token.unwrap().to_string().as_str()));
-    }
 
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -72,7 +50,8 @@ fn create_fake_email() {
 
     let expected_json = json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", email)
-    }).to_string();
+    })
+    .to_string();
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -126,7 +105,8 @@ fn update() {
         &token_response.access_token,
         token_secret.as_bytes(),
         &Validation::default(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(access_token.claims.get_id().unwrap(), user.id);
 
     let mut validation = Validation::default();
@@ -135,7 +115,8 @@ fn update() {
         &token_response.refresh_token,
         token_secret.as_bytes(),
         &validation,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(refresh_token.claims.get_id().unwrap(), user.id);
 }
 
@@ -151,7 +132,8 @@ fn update_expired_token() {
         .set(PasswordReset {
             password_reset_token: Some(token),
             password_reset_requested_at: Some(Utc::now().naive_utc() - Duration::days(3)),
-        }).get_result(database.connection.get())
+        })
+        .get_result(database.connection.get())
         .unwrap();
     let new_password = "newPassword";
     assert!(!user.check_password(&new_password));

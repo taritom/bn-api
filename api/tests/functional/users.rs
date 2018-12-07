@@ -310,7 +310,8 @@ fn register_succeeds_with_login() {
         database.connection.into(),
         json,
         request.extract_state(),
-    )).into();
+    ))
+    .into();
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let token_response: TokenResponse = serde_json::from_str(&body).unwrap();
@@ -449,7 +450,8 @@ fn current_user_organization_owner() {
             "ticket:transfer",
             "user:read",
             "venue:write",
-        ].into_iter()
+        ]
+        .into_iter()
         .map(|scope| scope.to_string())
         .collect(),
     );
@@ -507,7 +509,8 @@ fn current_user_organization_member() {
             "ticket:admin",
             "ticket:transfer",
             "venue:write",
-        ].into_iter()
+        ]
+        .into_iter()
         .map(|scope| scope.to_string())
         .collect(),
     );

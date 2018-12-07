@@ -47,11 +47,15 @@ pub fn find_for_user_for_display() {
         .finish();
 
     // Order is not paid so tickets are not accessible
-    assert!(
-        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
-            .unwrap()
-            .is_empty()
-    );
+    assert!(TicketInstance::find_for_user_for_display(
+        user.id,
+        Some(event.id),
+        None,
+        None,
+        connection
+    )
+    .unwrap()
+    .is_empty());
 
     let total = cart2.calculate_total(connection).unwrap();
     cart2
@@ -89,7 +93,8 @@ pub fn find_for_user_for_display() {
         Some(NaiveDate::from_ymd(2015, 7, 8).and_hms(9, 0, 11)),
         None,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(found_tickets.len(), 2);
     assert_eq!(found_tickets[0].0.id, event.id);
     assert_eq!(found_tickets[0].1.len(), 2);
@@ -104,7 +109,8 @@ pub fn find_for_user_for_display() {
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(found_tickets.len(), 1);
     assert_eq!(found_tickets[0].0.id, event2.id);
     assert_eq!(found_tickets[0].1.len(), 2);
@@ -116,7 +122,8 @@ pub fn find_for_user_for_display() {
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(found_tickets.len(), 1);
     assert_eq!(found_tickets[0].0.id, event.id);
     assert_eq!(found_tickets[0].1.len(), 2);
@@ -151,11 +158,17 @@ pub fn find() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(&connection).unwrap();
     let order_item = items
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let fee_schedule_range = ticket_type
+        .fee_schedule(connection)
+        .unwrap()
+        .get_range(ticket_pricing.price_in_cents, connection)
         .unwrap();
     let ticket = TicketInstance::find_for_order_item(order_item.id, connection)
         .unwrap()
@@ -163,7 +176,7 @@ pub fn find() {
     let expected_ticket = DisplayTicket {
         id: ticket.id,
         order_id: cart.id,
-        price_in_cents: Some(ticket_pricing.price_in_cents as u32),
+        price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type.name.clone(),
         status: "Reserved".to_string(),
         redeem_key: ticket.redeem_key,
@@ -201,7 +214,8 @@ pub fn find_for_user() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
     cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
@@ -230,7 +244,8 @@ pub fn release_tickets() {
             }],
             false,
             connection,
-        ).unwrap();
+        )
+        .unwrap();
 
     let items = order.items(&connection).unwrap();
     let order_item = items
@@ -242,20 +257,16 @@ pub fn release_tickets() {
     let released_tickets = TicketInstance::release_tickets(&order_item, 4, connection).unwrap();
 
     assert_eq!(released_tickets.len(), 4);
-    assert!(
-        released_tickets
-            .iter()
-            .filter(|&ticket| ticket.order_item_id == Some(order_item.id))
-            .collect::<Vec<&TicketInstance>>()
-            .is_empty()
-    );
-    assert!(
-        released_tickets
-            .iter()
-            .filter(|&ticket| ticket.reserved_until.is_some())
-            .collect::<Vec<&TicketInstance>>()
-            .is_empty()
-    );
+    assert!(released_tickets
+        .iter()
+        .filter(|&ticket| ticket.order_item_id == Some(order_item.id))
+        .collect::<Vec<&TicketInstance>>()
+        .is_empty());
+    assert!(released_tickets
+        .iter()
+        .filter(|&ticket| ticket.reserved_until.is_some())
+        .collect::<Vec<&TicketInstance>>()
+        .is_empty());
 
     project
         .get_connection()
@@ -265,7 +276,8 @@ pub fn release_tickets() {
             assert_eq!(released_tickets.unwrap_err().code, 7200,);
 
             Err(Error::RollbackTransaction)
-        }).unwrap_err();
+        })
+        .unwrap_err();
 }
 
 #[test]
@@ -355,6 +367,21 @@ fn show_redeemable_ticket() {
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_some());
+
+    // Set order on behalf of (should show user information for the on_behalf_of_user user)
+    let user2 = project.create_user().finish();
+    let order = project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .on_behalf_of_user(&user2)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket_type = &event.ticket_types(&connection).unwrap()[0];
+    let ticket = order.tickets(ticket_type.id, connection).unwrap().remove(0);
+    let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
+    assert_eq!(result.user_id, Some(user2.id));
 }
 
 #[test]
@@ -383,7 +410,8 @@ pub fn authorize_ticket_transfer() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let total = cart.calculate_total(connection).unwrap();
 
     cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
@@ -440,7 +468,8 @@ pub fn receive_ticket_transfer() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let total = cart.calculate_total(connection).unwrap();
 
     cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
@@ -460,7 +489,8 @@ pub fn receive_ticket_transfer() {
         SET transfer_expiry_date = '2018-06-06 09:49:09.643207'
         WHERE id = $1;
         "#,
-    ).bind::<sql_types::Uuid, _>(ticket_ids[0])
+    )
+    .bind::<sql_types::Uuid, _>(ticket_ids[0])
     .get_results(connection)
     .unwrap();
 

@@ -50,7 +50,8 @@ fn add_tickets() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(&connection).unwrap();
     let order_item = items
         .iter()
@@ -65,9 +66,9 @@ fn add_tickets() {
         ticket_pricing.price_in_cents
     );
 
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -83,7 +84,8 @@ fn add_tickets() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(connection).unwrap();
 
     assert_eq!(items.len(), 2);
@@ -150,7 +152,8 @@ fn add_tickets_with_increment() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 
     cart.update_quantities(
         &[UpdateOrderItem {
@@ -160,7 +163,8 @@ fn add_tickets_with_increment() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(&connection).unwrap();
     let order_item = items
         .iter()
@@ -195,7 +199,8 @@ fn replace_tickets() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(&connection).unwrap();
     let order_item = items
         .iter()
@@ -210,9 +215,9 @@ fn replace_tickets() {
         ticket_pricing.price_in_cents
     );
 
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -228,7 +233,8 @@ fn replace_tickets() {
         }],
         true,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(connection).unwrap();
 
     assert_eq!(items.len(), 2);
@@ -260,7 +266,8 @@ fn remove_tickets() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(&connection).unwrap();
     let order_item = items
         .iter()
@@ -275,9 +282,9 @@ fn remove_tickets() {
         ticket_pricing.price_in_cents
     );
 
-    let fee_schedule_range =
-        FeeScheduleRange::find(order_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(
         fee_item.unit_price_in_cents(),
         fee_schedule_range.fee_in_cents
@@ -285,8 +292,8 @@ fn remove_tickets() {
     assert_eq!(fee_item.quantity, 10);
 
     // Remove tickets
-    assert!(
-        cart.update_quantities(
+    assert!(cart
+        .update_quantities(
             &[UpdateOrderItem {
                 ticket_type_id: ticket_type.id,
                 quantity: 6,
@@ -294,8 +301,8 @@ fn remove_tickets() {
             }],
             false,
             connection
-        ).is_ok()
-    );
+        )
+        .is_ok());
     let items = cart.items(&connection).unwrap();
     let order_item = items
         .iter()
@@ -321,7 +328,8 @@ fn remove_tickets() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     // Item removed from cart completely
     assert!(cart.items(connection).unwrap().is_empty());
 }
@@ -346,7 +354,8 @@ fn clear_tickets() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Remove tickets
     assert!(cart.update_quantities(&[], true, connection).is_ok());
@@ -397,7 +406,8 @@ fn remove_tickets_with_increment() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let items = cart.items(&connection).unwrap();
     let order_item = items
         .iter()
@@ -453,7 +463,8 @@ fn find_item() {
             }],
             false,
             connection,
-        ).unwrap();
+        )
+        .unwrap();
     let mut order2 = Order::find_or_create_cart(&user2, connection).unwrap();
     order2
         .update_quantities(
@@ -464,7 +475,8 @@ fn find_item() {
             }],
             false,
             connection,
-        ).unwrap();
+        )
+        .unwrap();
 
     let items = order.items(&connection).unwrap();
     let order_item = items
@@ -554,7 +566,8 @@ fn has_items() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert!(cart.has_items(connection).unwrap());
 }
 
@@ -597,7 +610,8 @@ fn calculate_cart_total() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
 
     let total = cart.calculate_total(conn).unwrap();
     assert_eq!(total, 1700);
@@ -610,7 +624,8 @@ fn calculate_cart_total() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
     let total = cart.calculate_total(conn).unwrap();
     assert_eq!(total, 5100);
 }
@@ -635,7 +650,8 @@ fn add_external_payment() {
         }],
         false,
         conn,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(cart.calculate_total(conn).unwrap(), 2000);
     cart.add_external_payment(Some("test".to_string()), user.id, 1500, conn)
         .unwrap();
@@ -656,7 +672,8 @@ fn find_for_user_for_display() {
             user.id,
             2000,
             project.get_connection(),
-        ).unwrap();
+        )
+        .unwrap();
     let mut order2 = project.create_order().for_user(&user).finish();
     order2
         .add_external_payment(
@@ -664,7 +681,8 @@ fn find_for_user_for_display() {
             user.id,
             500,
             project.get_connection(),
-        ).unwrap();
+        )
+        .unwrap();
 
     assert_eq!(order1.status, OrderStatus::Paid.to_string());
     assert_eq!(order2.status, OrderStatus::PartiallyPaid.to_string());
@@ -765,7 +783,8 @@ fn adding_event_fees() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 
     let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
 
@@ -786,7 +805,8 @@ fn adding_event_fees() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     cart.update_quantities(
         &[UpdateOrderItem {
             ticket_type_id: ticket2.id,
@@ -795,7 +815,8 @@ fn adding_event_fees() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
 
     let mut event_fees_count = 0;
@@ -817,7 +838,8 @@ fn adding_event_fees() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
 
     let mut event_fees_count = 0;
@@ -839,7 +861,8 @@ fn adding_event_fees() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     let order_items = OrderItem::find_for_order(cart.id, connection).unwrap();
 
     let mut event_fees_count = 0;

@@ -91,8 +91,8 @@ where
 #[test]
 fn deserialize_unless_blank_properly_deserializes() {
     let venue_data = r#"{"name": "Venue"}"#;
-    let venue: NewVenue = serde_json::from_str(&venue_data).unwrap();
-    assert_eq!(venue.name, "Venue".to_string());
+    let venue: VenueEditableAttributes = serde_json::from_str(&venue_data).unwrap();
+    assert_eq!(venue.name, Some("Venue".to_string()));
     assert_eq!(venue.city, None);
     assert_eq!(venue.state, None);
     assert_eq!(venue.address, None);
@@ -107,8 +107,8 @@ fn deserialize_unless_blank_properly_deserializes() {
         "country": null,
         "postal_code": null
     }"#;
-    let venue: NewVenue = serde_json::from_str(&venue_data).unwrap();
-    assert_eq!(venue.name, "Venue".to_string());
+    let venue: VenueEditableAttributes = serde_json::from_str(&venue_data).unwrap();
+    assert_eq!(venue.name, Some("Venue".to_string()));
     assert_eq!(venue.city, None);
     assert_eq!(venue.state, None);
     assert_eq!(venue.address, None);
@@ -123,8 +123,8 @@ fn deserialize_unless_blank_properly_deserializes() {
         "country": "",
         "postal_code": ""
     }"#;
-    let venue: NewVenue = serde_json::from_str(&venue_data).unwrap();
-    assert_eq!(venue.name, "Venue".to_string());
+    let venue: VenueEditableAttributes = serde_json::from_str(&venue_data).unwrap();
+    assert_eq!(venue.name, Some("Venue".to_string()));
     assert_eq!(venue.city, None);
     assert_eq!(venue.state, None);
     assert_eq!(venue.address, None);
@@ -139,8 +139,8 @@ fn deserialize_unless_blank_properly_deserializes() {
         "country": "US",
         "postal_code": "01103"
     }"#;
-    let venue: NewVenue = serde_json::from_str(&venue_data).unwrap();
-    assert_eq!(venue.name, "Venue".to_string());
+    let venue: VenueEditableAttributes = serde_json::from_str(&venue_data).unwrap();
+    assert_eq!(venue.name, Some("Venue".to_string()));
     assert_eq!(venue.city, Some("Springfield".to_string()));
     assert_eq!(venue.state, Some("MA".to_string()));
     assert_eq!(venue.address, Some("111 Main Street".to_string()));

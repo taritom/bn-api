@@ -75,7 +75,8 @@ impl Order {
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not find user attached to this cart",
-            ).optional()?;
+            )
+            .optional()?;
 
         if let Some(user) = cart_user {
             user.update_last_cart(None, conn)?;
@@ -182,7 +183,8 @@ impl Order {
                 orders::expires_at
                     .is_null()
                     .or(orders::expires_at.ge(dsl::now.nullable())),
-            ).select(orders::all_columns)
+            )
+            .select(orders::all_columns)
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load cart for user")
             .optional()
@@ -207,10 +209,12 @@ impl Order {
                     .and(orders::version.eq(self.version))
                     .and(orders::expires_at.is_null()),
             ),
-        ).set((
+        )
+        .set((
             orders::expires_at.eq(self.expires_at),
             orders::updated_at.eq(self.updated_at),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update expiry time")?;
         if affected_rows != 1 {
             return DatabaseError::concurrency_error("Could not update expiry time.");
@@ -232,10 +236,12 @@ impl Order {
                             .or(orders::expires_at.gt(Some(Utc::now().naive_utc()))),
                     ),
             ),
-        ).set((
+        )
+        .set((
             orders::expires_at.eq::<Option<NaiveDateTime>>(None),
             orders::updated_at.eq(self.updated_at),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update expiry time")?;
         if affected_rows != 1 {
             return DatabaseError::concurrency_error("Could not update expiry time.");
@@ -278,7 +284,7 @@ impl Order {
         for (index, item) in items.iter().enumerate() {
             mapped.push(match &item.redemption_code {
                 Some(r) => match Hold::find_by_redemption_code(r, conn).optional()? {
-                    Some(hold) => (index, Some(hold.id), Some(hold), item),
+                    Some(hold) => (Some(index), Some(hold.id), Some(hold), item),
                     None => {
                         return DatabaseError::validation_error(
                             "redemption_code",
@@ -286,7 +292,7 @@ impl Order {
                         )
                     }
                 },
-                None => (index, None, None, item),
+                None => (Some(index), None, None, item),
             });
         }
 
@@ -298,22 +304,24 @@ impl Order {
             let mut index_to_remove: Option<usize> = None;
             {
                 let matching_result: Vec<&(
-                    usize,
+                    Option<usize>,
                     Option<Uuid>,
                     Option<Hold>,
                     &UpdateOrderItem,
                 )> = mapped
                     .iter()
-                    .filter(|(_, hold_id, _, item)| {
-                        Some(item.ticket_type_id) == current_line.ticket_type_id
+                    .filter(|(index, hold_id, _, item)| {
+                        index.is_some()
+                            && Some(item.ticket_type_id) == current_line.ticket_type_id
                             && *hold_id == current_line.hold_id
-                    }).collect();
+                    })
+                    .collect();
                 let matching_result = matching_result.first();
 
                 if let Some(matching_result) = matching_result {
                     jlog!(Level::Debug, "Found an existing cart item, replacing");
                     let (index, hold_id, hold, mut matching_line) = matching_result;
-                    index_to_remove = Some(*index);
+                    index_to_remove = *index;
                     if current_line.quantity as u32 > matching_line.quantity {
                         jlog!(Level::Debug, "Reducing quantity of cart item");
                         TicketInstance::release_tickets(
@@ -345,7 +353,6 @@ impl Order {
                         });
 
                         // TODO: Move this to an external processer
-
                         if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
                             let mut price_in_cents = ticket_pricing.price_in_cents;
                             if let Some(h) = hold.as_ref() {
@@ -358,9 +365,6 @@ impl Order {
                                     HoldTypes::Comp => 0,
                                 }
                             }
-                            let fee_schedule_range = ticket_type
-                                .fee_schedule(conn)?
-                                .get_range(price_in_cents, conn)?;
 
                             let order_item = NewTicketsOrderItem {
                                 order_id: self.id,
@@ -369,13 +373,11 @@ impl Order {
                                 ticket_type_id: ticket_type.id,
                                 ticket_pricing_id: ticket_pricing.id,
                                 event_id: Some(ticket_type.event_id),
-                                fee_schedule_range_id: fee_schedule_range.id,
                                 unit_price_in_cents: price_in_cents,
-                                company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
-                                client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
                                 hold_id: *hold_id,
                                 code_id: None,
-                            }.commit(conn)?;
+                            }
+                            .commit(conn)?;
                             TicketInstance::reserve_tickets(
                                 &order_item,
                                 self.expires_at,
@@ -409,7 +411,7 @@ impl Order {
                 }
             }
             if let Some(index) = index_to_remove {
-                mapped.remove(index);
+                mapped[index].0 = None;
             }
         }
 
@@ -418,8 +420,8 @@ impl Order {
             self.set_expiry(conn)?;
         }
 
-        for (_, hold_id, hold, new_line) in mapped {
-            if new_line.quantity == 0 {
+        for (index, hold_id, hold, new_line) in mapped {
+            if new_line.quantity == 0 || index.is_none() {
                 continue;
             }
 
@@ -444,9 +446,6 @@ impl Order {
                 }
             }
             // TODO: Move this to an external processer
-            let fee_schedule_range = ticket_type
-                .fee_schedule(conn)?
-                .get_range(ticket_pricing.price_in_cents, conn)?;
             let order_item = NewTicketsOrderItem {
                 order_id: self.id,
                 item_type: OrderItemTypes::Tickets.to_string(),
@@ -454,13 +453,11 @@ impl Order {
                 ticket_type_id: ticket_type.id,
                 ticket_pricing_id: ticket_pricing.id,
                 event_id: Some(ticket_type.event_id),
-                fee_schedule_range_id: fee_schedule_range.id,
                 unit_price_in_cents: price_in_cents,
-                company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
-                client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
                 hold_id: hold_id,
                 code_id: None,
-            }.commit(conn)?;
+            }
+            .commit(conn)?;
 
             TicketInstance::reserve_tickets(
                 &order_item,
@@ -480,7 +477,6 @@ impl Order {
         for limit_check in check_ticket_limits {
             let quantities_ordered =
                 Order::quantity_for_user_for_event(&self.user_id, &limit_check.event_id, &conn)?;
-
             if &limit_check.limit_per_person > &0
                 && quantities_ordered.contains_key(&limit_check.ticket_type_id)
             {
@@ -518,7 +514,8 @@ impl Order {
     pub fn has_items(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
         select(exists(
             order_items::table.filter(order_items::order_id.eq(self.id)),
-        )).get_result(conn)
+        ))
+        .get_result(conn)
         .to_db_error(
             ErrorCode::QueryError,
             "Could not check if order items exist",
@@ -565,6 +562,7 @@ impl Order {
                 item_type: OrderItemTypes::EventFees.to_string(),
                 event_id: Some(event.id),
                 unit_price_in_cents: 0,
+                fee_schedule_range_id: None,
                 company_fee_in_cents: 0,
                 client_fee_in_cents: 0,
                 quantity: 1,
@@ -616,7 +614,8 @@ impl Order {
                 orders::user_id
                     .eq(user_id)
                     .or(orders::on_behalf_of_user_id.eq(user_id)),
-            ).filter(orders::status.ne(OrderStatus::Draft.to_string()))
+            )
+            .filter(orders::status.ne(OrderStatus::Draft.to_string()))
             .order_by(orders::order_date.desc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
@@ -705,7 +704,8 @@ impl Order {
             .into_iter()
             .filter(|i| {
                 i.ticket_type_id == Some(ticket_type_id) && i.item_type == item_type.to_string()
-            }).collect();
+            })
+            .collect();
 
         match order_item.pop() {
             Some(o) => Ok(o),
@@ -795,11 +795,13 @@ impl Order {
                     .and(orders::version.eq(self.version))
                     .and(orders::expires_at.ge(Some(Utc::now().naive_utc()))),
             ),
-        ).set((
+        )
+        .set((
             orders::status.eq(OrderStatus::PartiallyPaid.to_string()),
             orders::expires_at.eq(Some(now_plus_one_day)),
             orders::updated_at.eq(dsl::now),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update order status")?;
 
         let db_record = Order::find(self.id, conn)?;
@@ -848,7 +850,8 @@ impl Order {
                 .to_db_error(
                     ErrorCode::QueryError,
                     "Could not find user attached to this cart",
-                ).optional()?;
+                )
+                .optional()?;
 
             if let Some(user) = cart_user {
                 user.update_last_cart(None, conn)?;
@@ -865,7 +868,8 @@ impl Order {
         };
         let query = diesel::sql_query(
             "SELECT CAST(SUM(amount) as BigInt) as s FROM payments WHERE order_id = $1 AND status='Completed';",
-        ).bind::<diesel::sql_types::Uuid, _>(self.id);
+        )
+        .bind::<diesel::sql_types::Uuid, _>(self.id);
 
         let sum: ResultForSum = query.get_result(conn).to_db_error(
             ErrorCode::QueryError,
@@ -884,7 +888,8 @@ impl Order {
             .set((
                 orders::status.eq(&self.status),
                 orders::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
 
         Ok(())
@@ -908,10 +913,12 @@ impl Order {
             orders::table
                 .filter(orders::id.eq(self.id))
                 .filter(orders::version.eq(self.version)),
-        ).set((
+        )
+        .set((
             orders::version.eq(self.version + 1),
             orders::updated_at.eq(dsl::now),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not lock order")?;
         if rows_affected == 0 {
             return DatabaseError::concurrency_error(
@@ -942,7 +949,8 @@ impl Order {
             .set((
                 orders::on_behalf_of_user_id.eq(user.id),
                 orders::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not change the behalf of  user for this order",
@@ -956,7 +964,8 @@ impl Order {
             Some(json!({
             "old_user" : old_id, "new_user": user.id
             })),
-        ).commit(conn)?;
+        )
+        .commit(conn)?;
         Ok(())
     }
 }

@@ -32,17 +32,20 @@ fn main() {
                 .help("Fetches and processes events and actions from the database")
                 .short("t")
                 .default_value("true"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("process-http")
                 .help("Runs an HTTP API server processing requests")
                 .short("a")
                 .default_value("true"),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("run-til-empty")
                 .help("Process all pending domain actions and then exits")
                 .short("b")
                 .default_value("false"),
-        ).get_matches();
+        )
+        .get_matches();
 
     jlog!(Info, "Starting server", {"app_name": config.app_name});
     Server::start(

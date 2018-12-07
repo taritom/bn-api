@@ -6,6 +6,7 @@ use diesel::sql_types;
 use log::Level;
 use models::*;
 use schema::{artists, event_artists, events, organization_users, organizations, venues};
+use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
@@ -46,6 +47,7 @@ pub struct Event {
     pub video_url: Option<String>,
     pub is_external: bool,
     pub external_url: Option<String>,
+    pub override_status: Option<String>, //EventOverrideStatus
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate)]
@@ -78,11 +80,13 @@ pub struct NewEvent {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     #[validate(url(message = "Video URL is invalid"))]
     pub video_url: Option<String>,
-    #[serde(default = "NewEvent::default_is_external",)]
+    #[serde(default = "NewEvent::default_is_external")]
     pub is_external: bool,
     #[validate(url(message = "External URL is invalid"))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub external_url: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub override_status: Option<String>, //EventOverrideStatus
 }
 
 #[derive(AsChangeset)]
@@ -140,6 +144,8 @@ pub struct EventEditableAttributes {
     #[validate(url(message = "External URL is invalid"))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub external_url: Option<String>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub override_status: Option<Option<String>>, //EventOverrideStatus
 }
 
 impl Event {
@@ -205,7 +211,8 @@ impl Event {
                         },
                     },
                     events::updated_at.eq(dsl::now),
-                )).get_result(conn),
+                ))
+                .get_result(conn),
         )
     }
 
@@ -230,18 +237,13 @@ impl Event {
         }
 
         let mut errors = ValidationErrors::new();
-        match self.venue_id {
-            Some(venue_id) => {
-                let venue = Venue::find(venue_id, conn)?;
-                venue.validate_for_publish()?;
-            }
-            None => {
-                let mut validation_error =
-                    create_validation_error("required", "Event can't be published without a venue");
-                validation_error.add_param(Cow::from("event_id"), &self.id);
-                errors.add("venue_id", validation_error);
-            }
+        if self.venue_id.is_none() {
+            let mut validation_error =
+                create_validation_error("required", "Event can't be published without a venue");
+            validation_error.add_param(Cow::from("event_id"), &self.id);
+            errors.add("venue_id", validation_error);
         }
+
         if !errors.is_empty() {
             return Err(errors.into());
         }
@@ -251,7 +253,8 @@ impl Event {
                 events::status.eq(EventStatus::Published.to_string()),
                 events::publish_date.eq(dsl::now.nullable()),
                 events::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not publish record")?;
 
         Event::find(self.id, conn)
@@ -306,7 +309,8 @@ impl Event {
             WHERE e.organization_id = $1
             AND CASE WHEN $2 THEN e.event_start >= now() ELSE e.event_start < now() END;
         "#,
-        ).bind::<sql_types::Uuid, _>(organization_id)
+        )
+        .bind::<sql_types::Uuid, _>(organization_id)
         .bind::<sql_types::Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
         .get_results(conn)
         .to_db_error(
@@ -396,6 +400,8 @@ impl Event {
             is_external: bool,
             #[sql_type = "N<sql_types::Text>"]
             external_url: Option<String>,
+            #[sql_type = "N<sql_types::Text>"]
+            override_status: Option<String>,
         }
 
         let query_events = include_str!("../queries/find_all_events_for_organization.sql");
@@ -471,6 +477,7 @@ impl Event {
                     ticket_types: vec![],
                     is_external: r.is_external,
                     external_url: r.external_url,
+                    override_status: r.override_status,
                 };
 
                 for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
@@ -486,7 +493,8 @@ impl Event {
                 }
 
                 result
-            }).collect();
+            })
+            .collect();
 
         Ok(results)
     }
@@ -597,38 +605,42 @@ impl Event {
             Some(n) => format!("%{}%", n),
             None => "%".to_string(),
         };
-        let mut query = events::table
-            .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
-            .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
-            .left_join(
-                organization_users::table
-                    .on(organization_users::organization_id.eq(organizations::id)),
-            ).left_join(
-                event_artists::table
-                    .inner_join(
-                        artists::table.on(event_artists::artist_id
-                            .eq(artists::id)
-                            .and(artists::name.ilike(query_like.clone()))),
-                    ).on(events::id.eq(event_artists::event_id)),
-            ).filter(
-                events::name
-                    .ilike(query_like.clone())
-                    .or(venues::id
-                        .is_not_null()
-                        .and(venues::name.ilike(query_like.clone()))).or(artists::id.is_not_null()),
-            ).filter(
-                events::event_start
-                    .gt(start_time
-                        .unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0))),
-            ).filter(
-                events::event_start
-                    .lt(end_time
-                        .unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))),
-            ).select(events::all_columns)
-            .distinct()
-            .order_by(events::event_start.asc())
-            .then_order_by(events::name.asc())
-            .into_boxed();
+        let mut query =
+            events::table
+                .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
+                .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
+                .left_join(
+                    organization_users::table
+                        .on(organization_users::organization_id.eq(organizations::id)),
+                )
+                .left_join(
+                    event_artists::table
+                        .inner_join(
+                            artists::table.on(event_artists::artist_id
+                                .eq(artists::id)
+                                .and(artists::name.ilike(query_like.clone()))),
+                        )
+                        .on(events::id.eq(event_artists::event_id)),
+                )
+                .filter(
+                    events::name
+                        .ilike(query_like.clone())
+                        .or(venues::id
+                            .is_not_null()
+                            .and(venues::name.ilike(query_like.clone())))
+                        .or(artists::id.is_not_null()),
+                )
+                .filter(events::event_start.gt(
+                    start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
+                ))
+                .filter(events::event_start.lt(
+                    end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
+                ))
+                .select(events::all_columns)
+                .distinct()
+                .order_by(events::event_start.asc())
+                .then_order_by(events::name.asc())
+                .into_boxed();
 
         match user {
             Some(user) => {
@@ -711,7 +723,8 @@ impl Event {
             end_date,
             increment,
             limit_per_person,
-        ).commit(conn)?;
+        )
+        .commit(conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;
         TicketInstance::create_multiple(asset.id, 0, quantity, wallet_id, conn)?;
         Ok(ticket_type)
@@ -748,6 +761,7 @@ impl Event {
             video_url: self.video_url,
             is_external: self.is_external,
             external_url: self.external_url,
+            override_status: self.override_status,
         })
     }
 }
@@ -768,6 +782,7 @@ pub struct DisplayEvent {
     pub video_url: Option<String>,
     pub is_external: bool,
     pub external_url: Option<String>,
+    pub override_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -798,6 +813,7 @@ pub struct EventSummaryResult {
     pub ticket_types: Vec<EventSummaryResultTicketType>,
     pub is_external: bool,
     pub external_url: Option<String>,
+    pub override_status: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]

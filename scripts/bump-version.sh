@@ -13,7 +13,7 @@ function bump_patch {
     local search='^(version[[:space:]]*=[[:space:]]*).+'
     local replace="\1\"${new_version}\""
 
-    sed -i ".tmp" -E "s/${search}/${replace}/g" "$1"
+    sed -i.tmp -E "s/${search}/${replace}/g" "$1"
     echo "$file bumped from $version to $new_version"
     rm "$1.tmp"
 }
@@ -28,8 +28,8 @@ for target in "${FILES[@]}"; do
 done
 
 if [[ $1 == "--with-git" ]]; then
-    git commit -m  "Version bump to ${new_version}"
+    git commit -m  "Version bump to ${new_version} [skip ci]"
     git tag ${new_version}
-    git push origin
-    git push --tags
+    git push sshremote master
+    git push sshremote ${new_version}
 fi

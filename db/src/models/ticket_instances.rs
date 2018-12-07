@@ -9,8 +9,9 @@ use itertools::Itertools;
 use models::*;
 use rand;
 use rand::Rng;
-use schema::{assets, events, order_items, ticket_instances, ticket_types, users, venues, wallets};
-use std::collections::HashMap;
+use schema::{
+    assets, events, order_items, orders, ticket_instances, ticket_types, users, venues, wallets,
+};
 use tari_client::*;
 use time::Duration;
 use utils::errors::*;
@@ -51,14 +52,23 @@ impl TicketInstance {
             .inner_join(
                 order_items::table
                     .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            ).inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            )
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
             .filter(ticket_instances::id.eq(id))
             .select((
                 ticket_instances::id,
                 order_items::order_id,
-                assets::ticket_type_id,
+                sql::<BigInt>(
+                    "cast(unit_price_in_cents +
+                    coalesce((
+                        select sum(unit_price_in_cents)
+                        from order_items
+                        where parent_id = ticket_instances.order_item_id),
+                    0) as BigInt)
+                    ",
+                ),
                 ticket_types::name,
                 wallets::user_id,
                 events::id,
@@ -66,20 +76,15 @@ impl TicketInstance {
                 ticket_instances::status,
                 ticket_instances::redeem_key,
                 events::redeem_date,
-            )).first::<DisplayTicketIntermediary>(conn)
+            ))
+            .first::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
         let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
         let user: Option<DisplayUser> = match ticket_intermediary.user_id {
             Some(uid) => Some(User::find(uid, conn)?.into()),
             None => None,
         };
-        let ticket_type = TicketType::find(ticket_intermediary.ticket_type_id, conn)?;
-        let ticket_pricing = ticket_type.current_ticket_pricing(conn).optional()?;
-        Ok((
-            event,
-            user,
-            ticket_intermediary.for_display(ticket_pricing.map(|p| p.price_in_cents as u32)),
-        ))
+        Ok((event, user, ticket_intermediary.into()))
     }
 
     pub fn find_for_processing(
@@ -103,7 +108,8 @@ impl TicketInstance {
                 wallets::user_id,
                 events::id,
                 events::venue_id,
-            )).first::<ProcessingTicketIntermediary>(conn)
+            ))
+            .first::<ProcessingTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
 
         //let event = Event::find(ticket_intermediary.event_id, conn)?.for_display(conn)?;
@@ -123,14 +129,17 @@ impl TicketInstance {
                 .inner_join(
                     order_items::table
                         .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-                ).inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+                )
+                .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
                 .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
                 .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
                 .filter(events::event_start.gt(
                     start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
-                )).filter(events::event_start.lt(
+                ))
+                .filter(events::event_start.lt(
                     end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
-                )).filter(wallets::user_id.eq(user_id))
+                ))
+                .filter(wallets::user_id.eq(user_id))
                 .into_boxed();
 
         if let Some(event_id) = event_id {
@@ -141,7 +150,15 @@ impl TicketInstance {
             .select((
                 ticket_instances::id,
                 order_items::order_id,
-                assets::ticket_type_id,
+                sql::<BigInt>(
+                    "cast(unit_price_in_cents +
+                    coalesce((
+                        select sum(unit_price_in_cents)
+                        from order_items
+                        where parent_id = ticket_instances.order_item_id),
+                    0) as BigInt)
+                    ",
+                ),
                 ticket_types::name,
                 wallets::user_id,
                 events::id,
@@ -149,42 +166,17 @@ impl TicketInstance {
                 ticket_instances::status,
                 ticket_instances::redeem_key,
                 events::redeem_date,
-            )).order_by(events::event_start.asc())
+            ))
+            .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
             .load::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load user tickets")?;
 
-        let mut ticket_type_ids = tickets
-            .iter()
-            .map(|t| t.ticket_type_id)
-            .collect::<Vec<Uuid>>();
-        ticket_type_ids.sort();
-        ticket_type_ids.dedup();
-
-        let mut ticket_type_pricing_map = HashMap::new();
-        for ticket_type_id in ticket_type_ids {
-            let ticket_type_pricing = TicketType::find(ticket_type_id, conn)?
-                .current_ticket_pricing(conn)
-                .optional()?;
-            ticket_type_pricing_map.insert(
-                ticket_type_id,
-                ticket_type_pricing.map(|p| p.price_in_cents as u32),
-            );
-        }
-
         let mut grouped_display_tickets = Vec::new();
         for (key, group) in &tickets.into_iter().group_by(|ticket| ticket.event_id) {
             let event = Event::find(key, conn)?.for_display(conn)?;
-            let display_tickets: Vec<DisplayTicket> = group
-                .into_iter()
-                .map(|ticket| {
-                    ticket.for_display(
-                        ticket_type_pricing_map
-                            .get(&ticket.ticket_type_id)
-                            .map(|p| p.clone())
-                            .unwrap_or(None),
-                    )
-                }).collect();
+            let display_tickets: Vec<DisplayTicket> =
+                group.into_iter().map(|ticket| ticket.into()).collect();
             grouped_display_tickets.push((event, display_tickets));
         }
 
@@ -370,11 +362,13 @@ impl TicketInstance {
                 sql::<sql_types::Nullable<sql_types::BigInt>>(
                     "SUM(CASE WHEN ticket_instances.status='Available' THEN 1 ELSE 0 END)",
                 ),
-            )).first::<R>(conn)
+            ))
+            .first::<R>(conn)
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not retrieve the number of tickets in this hold",
-            ).optional()?
+            )
+            .optional()?
         {
             Some(r) => Ok((
                 r.ticket_count.unwrap_or(0) as u32,
@@ -401,10 +395,12 @@ impl TicketInstance {
     ) -> Result<(), DatabaseError> {
         diesel::update(
             ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
-        ).set((
+        )
+        .set((
             ticket_instances::reserved_until.eq(reserved_time),
             ticket_instances::updated_at.eq(dsl::now),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(
             ErrorCode::UpdateError,
             "Could not update ticket_instance reserved time.",
@@ -428,11 +424,13 @@ impl TicketInstance {
 
         let tickets = diesel::update(
             ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
-        ).set((
+        )
+        .set((
             ticket_instances::wallet_id.eq(wallet[0].id()),
             ticket_instances::status.eq(TicketInstanceStatus::Purchased.to_string()),
             ticket_instances::updated_at.eq(dsl::now),
-        )).get_results::<TicketInstance>(conn)
+        ))
+        .get_results::<TicketInstance>(conn)
         .to_db_error(
             ErrorCode::UpdateError,
             "Could not update ticket_instance status to purchased.",
@@ -481,17 +479,34 @@ impl TicketInstance {
         conn: &PgConnection,
     ) -> Result<RedeemableTicket, DatabaseError> {
         let mut ticket_data = ticket_instances::table
+            .inner_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            )
+            .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
             .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
-            .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
+            .inner_join(users::table.on(sql(
+                "coalesce(orders.on_behalf_of_user_id, wallets.user_id) = users.id",
+            )))
             .filter(ticket_instances::id.eq(ticket_id))
             .select((
                 ticket_instances::id,
                 ticket_types::name,
-                wallets::user_id,
+                sql::<Nullable<dUuid>>("users.id as user_id"),
+                order_items::order_id,
+                sql::<BigInt>(
+                    "cast(unit_price_in_cents +
+                    coalesce((
+                        select sum(unit_price_in_cents)
+                        from order_items
+                        where parent_id = ticket_instances.order_item_id),
+                    0) as BigInt) AS price_in_cents
+                    ",
+                ),
                 users::first_name,
                 users::last_name,
                 users::email,
@@ -505,7 +520,8 @@ impl TicketInstance {
                 events::event_start,
                 events::venue_id,
                 venues::name.nullable(),
-            )).first::<RedeemableTicket>(conn)
+            ))
+            .first::<RedeemableTicket>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
 
         if ticket_data.redeem_date.is_some()
@@ -565,11 +581,13 @@ impl TicketInstance {
                     .filter(ticket_instances::id.eq(t_id))
                     .filter(ticket_instances::updated_at.eq(t_updated_at))
                     .filter(ticket_instances::wallet_id.eq(wallet_id)),
-            ).set((
+            )
+            .set((
                 ticket_instances::transfer_key.eq(&transfer_key),
                 ticket_instances::transfer_expiry_date.eq(&transfer_expiry_date),
                 ticket_instances::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
         }
 
@@ -646,10 +664,12 @@ impl TicketInstance {
                 ticket_instances::table
                     .filter(ticket_instances::id.eq(t_id))
                     .filter(ticket_instances::updated_at.eq(updated_at)),
-            ).set((
+            )
+            .set((
                 ticket_instances::wallet_id.eq(receiver_wallet_id),
                 ticket_instances::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
         }
 
@@ -692,7 +712,7 @@ pub struct TransferAuthorization {
 pub struct DisplayTicket {
     pub id: Uuid,
     pub order_id: Uuid,
-    pub price_in_cents: Option<u32>,
+    pub price_in_cents: u32,
     pub ticket_type_name: String,
     pub status: String,
     pub redeem_key: Option<String>,
@@ -704,8 +724,8 @@ pub struct DisplayTicketIntermediary {
     pub id: Uuid,
     #[sql_type = "dUuid"]
     pub order_id: Uuid,
-    #[sql_type = "dUuid"]
-    pub ticket_type_id: Uuid,
+    #[sql_type = "BigInt"]
+    pub unit_price_in_cents: i64,
     #[sql_type = "Text"]
     pub name: String,
     #[sql_type = "Nullable<dUuid>"]
@@ -722,21 +742,22 @@ pub struct DisplayTicketIntermediary {
     pub redeem_date: Option<NaiveDateTime>,
 }
 
-impl DisplayTicketIntermediary {
-    pub fn for_display(&self, price_in_cents: Option<u32>) -> DisplayTicket {
-        let redeem_key =
-            if self.redeem_date.is_some() && self.redeem_date.unwrap() > Utc::now().naive_utc() {
-                None //Redeem key not available yet. Should this be an error?
-            } else {
-                self.redeem_key.clone()
-            };
+impl From<DisplayTicketIntermediary> for DisplayTicket {
+    fn from(ticket_intermediary: DisplayTicketIntermediary) -> Self {
+        let redeem_key = if ticket_intermediary.redeem_date.is_some()
+            && ticket_intermediary.redeem_date.unwrap() > Utc::now().naive_utc()
+        {
+            None //Redeem key not available yet. Should this be an error?
+        } else {
+            ticket_intermediary.redeem_key.clone()
+        };
 
         DisplayTicket {
-            id: self.id,
-            order_id: self.order_id,
-            price_in_cents: price_in_cents,
-            ticket_type_name: self.name.clone(),
-            status: self.status.clone(),
+            id: ticket_intermediary.id,
+            order_id: ticket_intermediary.order_id,
+            price_in_cents: ticket_intermediary.unit_price_in_cents as u32,
+            ticket_type_name: ticket_intermediary.name.clone(),
+            status: ticket_intermediary.status.clone(),
             redeem_key,
         }
     }

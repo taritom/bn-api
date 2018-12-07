@@ -14,7 +14,8 @@ fn create() {
             company_fee_in_cents: 0,
             client_fee_in_cents: 0,
         }],
-    ).commit(connection)
+    )
+    .commit(connection)
     .unwrap();
     let organization = Organization::create(user.id, "Organization", fee_schedule.id)
         .commit(connection)
@@ -24,12 +25,10 @@ fn create() {
     assert_eq!(organization.id.to_string().is_empty(), false);
 
     let user2 = User::find(user.id, connection).unwrap();
-    assert!(
-        organization
-            .get_roles_for_user(&user2, connection)
-            .unwrap()
-            .contains(&"OrgOwner".into())
-    );
+    assert!(organization
+        .get_roles_for_user(&user2, connection)
+        .unwrap()
+        .contains(&"OrgOwner".into()));
 }
 
 #[test]
@@ -62,7 +61,8 @@ fn has_fan() {
         }],
         false,
         connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert!(!organization.has_fan(&user, connection).unwrap());
 
     // User checks out so has a paid order so relationship exists
@@ -100,7 +100,8 @@ fn update() {
         &edited_organization,
         changed_attrs,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(edited_organization, updated_organization);
 }
 
@@ -353,6 +354,7 @@ pub fn get_roles_for_user() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let mut user3 = project.create_user().finish();
+    let user4 = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_owner(&user)
@@ -368,12 +370,14 @@ pub fn get_roles_for_user() {
         organization.get_roles_for_user(&user2, connection).unwrap(),
         vec!["OrgMember"]
     );
-    assert!(
-        organization
-            .get_roles_for_user(&user3, connection)
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        organization.get_roles_for_user(&user3, connection).unwrap(),
+        vec!["OrgOwner", "OrgMember"]
     );
+    assert!(organization
+        .get_roles_for_user(&user4, connection)
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
@@ -383,6 +387,7 @@ pub fn get_scopes_for_user() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let mut user3 = project.create_user().finish();
+    let user4 = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_owner(&user)
@@ -438,12 +443,36 @@ pub fn get_scopes_for_user() {
             "venue:write",
         ]
     );
-    assert!(
+    assert_eq!(
         organization
             .get_scopes_for_user(&user3, connection)
-            .unwrap()
-            .is_empty()
+            .unwrap(),
+        vec![
+            "artist:write",
+            "code:read",
+            "code:write",
+            "comp:read",
+            "comp:write",
+            "event:interest",
+            "event:scan",
+            "event:view-guests",
+            "event:write",
+            "hold:read",
+            "hold:write",
+            "order:read",
+            "org:fans",
+            "org:read",
+            "org:write",
+            "ticket:admin",
+            "ticket:transfer",
+            "user:read",
+            "venue:write"
+        ]
     );
+    assert!(organization
+        .get_scopes_for_user(&user4, connection)
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
@@ -458,7 +487,8 @@ fn change_owner() {
             company_fee_in_cents: 0,
             client_fee_in_cents: 0,
         }],
-    ).commit(connection)
+    )
+    .commit(connection)
     .unwrap();
     let mut organization = Organization::create(user.id, "Organization", fee_schedule.id)
         .commit(connection)
@@ -467,18 +497,14 @@ fn change_owner() {
     let user2 = project.create_user().finish();
 
     organization = organization.set_owner(user2.id, connection).unwrap();
-    assert!(
-        !organization
-            .get_roles_for_user(&user, connection)
-            .unwrap()
-            .contains(&"OrgOwner".into())
-    );
-    assert!(
-        organization
-            .get_roles_for_user(&user2, connection)
-            .unwrap()
-            .contains(&"OrgOwner".into())
-    );
+    assert!(!organization
+        .get_roles_for_user(&user, connection)
+        .unwrap()
+        .contains(&"OrgOwner".into()));
+    assert!(organization
+        .get_roles_for_user(&user2, connection)
+        .unwrap()
+        .contains(&"OrgOwner".into()));
 }
 
 #[test]
@@ -494,12 +520,10 @@ fn add_user() {
     assert_eq!(organization_user.organization_id, organization.id);
     assert_eq!(organization_user.id.to_string().is_empty(), false);
     let user2 = User::find(user2.id, connection).unwrap();
-    assert!(
-        organization
-            .get_roles_for_user(&user2, connection)
-            .unwrap()
-            .contains(&"OrgMember".into())
-    );
+    assert!(organization
+        .get_roles_for_user(&user2, connection)
+        .unwrap()
+        .contains(&"OrgMember".into()));
 }
 
 #[test]
@@ -548,7 +572,8 @@ fn search_fans() {
             FanSortField::FirstName,
             SortingDir::Asc,
             &project.connection,
-        ).unwrap();
+        )
+        .unwrap();
     assert_eq!(search_results.data[0].user_id, user.id);
     let search_results = organization
         .search_fans(
@@ -558,6 +583,7 @@ fn search_fans() {
             FanSortField::FirstName,
             SortingDir::Asc,
             &project.connection,
-        ).unwrap();
+        )
+        .unwrap();
     assert_eq!(search_results.data.len(), 0);
 }

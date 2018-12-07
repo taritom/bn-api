@@ -65,7 +65,8 @@ impl EventInterest {
                 event_interest::table
                     .filter(event_interest::user_id.eq(user_id))
                     .filter(event_interest::event_id.eq(event_id)),
-            ).execute(conn),
+            )
+            .execute(conn),
         )
     }
 
