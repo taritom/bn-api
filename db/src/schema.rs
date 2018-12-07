@@ -303,6 +303,17 @@ table! {
 }
 
 table! {
+    push_notification_tokens (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        token_source -> Text,
+        token -> Text,
+        last_notification_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
     regions (id) {
         id -> Uuid,
         name -> Text,
@@ -458,6 +469,7 @@ joinable!(organizations -> users (owner_user_id));
 joinable!(payment_methods -> users (user_id));
 joinable!(payments -> orders (order_id));
 joinable!(payments -> users (created_by));
+joinable!(push_notification_tokens -> users (user_id));
 joinable!(ticket_instances -> assets (asset_id));
 joinable!(ticket_instances -> holds (hold_id));
 joinable!(ticket_instances -> order_items (order_item_id));
@@ -491,6 +503,7 @@ allow_tables_to_appear_in_same_query!(
     organization_users,
     payment_methods,
     payments,
+    push_notification_tokens,
     regions,
     ticket_instances,
     ticket_pricing,

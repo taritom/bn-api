@@ -86,6 +86,106 @@ mod user_list_organizations_tests {
 }
 
 #[cfg(test)]
+mod show_push_notification_tokens_for_user_id_tests {
+    use super::*;
+
+    #[test]
+    fn show_push_notification_tokens_for_user_id_org_member() {
+        base::users::show_push_notification_tokens_for_user_id(Roles::OrgMember, false);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_for_user_id_admin() {
+        base::users::show_push_notification_tokens_for_user_id(Roles::Admin, true);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_for_user_id_user() {
+        base::users::show_push_notification_tokens_for_user_id(Roles::User, false);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_for_user_id_org_owner() {
+        base::users::show_push_notification_tokens_for_user_id(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod show_push_notification_tokens_tests {
+    use super::*;
+
+    #[test]
+    fn show_push_notification_tokens_org_member() {
+        base::users::show_push_notification_tokens(Roles::OrgMember, true);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_admin() {
+        base::users::show_push_notification_tokens(Roles::Admin, true);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_user() {
+        base::users::show_push_notification_tokens(Roles::User, true);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_org_owner() {
+        base::users::show_push_notification_tokens(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod add_push_notification_token_tests {
+    use super::*;
+
+    #[test]
+    fn add_push_notification_token_org_member() {
+        base::users::add_push_notification_token(Roles::OrgMember, true);
+    }
+
+    #[test]
+    fn add_push_notification_token_admin() {
+        base::users::add_push_notification_token(Roles::Admin, true);
+    }
+
+    #[test]
+    fn add_push_notification_token_user() {
+        base::users::add_push_notification_token(Roles::User, true);
+    }
+
+    #[test]
+    fn add_push_notification_token_org_owner() {
+        base::users::add_push_notification_token(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod remove_push_notification_token_tests {
+    use super::*;
+
+    #[test]
+    fn remove_push_notification_token_org_member() {
+        base::users::remove_push_notification_token(Roles::OrgMember, true);
+    }
+
+    #[test]
+    fn remove_push_notification_token_admin() {
+        base::users::remove_push_notification_token(Roles::Admin, true);
+    }
+
+    #[test]
+    fn remove_push_notification_token_user() {
+        base::users::remove_push_notification_token(Roles::User, true);
+    }
+
+    #[test]
+    fn remove_push_notification_token_owner() {
+        base::users::remove_push_notification_token(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
 mod find_by_email_tests {
     use super::*;
 
