@@ -43,14 +43,14 @@ impl FeeSchedule {
     ) -> Result<FeeScheduleRange, DatabaseError> {
         let ranges: Vec<FeeScheduleRange> = fee_schedule_ranges::table
             .filter(fee_schedule_ranges::fee_schedule_id.eq(self.id))
-            .order_by(fee_schedule_ranges::min_price.asc())
+            .order_by(fee_schedule_ranges::min_price_in_cents.asc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load fee schedule ranges")?;
 
         let mut found_range = None;
 
         for r in 0..ranges.len() {
-            if ranges[r].min_price > price {
+            if ranges[r].min_price_in_cents > price {
                 break;
             }
             found_range = Some(ranges[r].clone());
@@ -96,7 +96,7 @@ impl NewFeeSchedule {
         #[table_name = "fee_schedule_ranges"]
         struct I {
             fee_schedule_id: Uuid,
-            min_price: i64,
+            min_price_in_cents: i64,
             fee_in_cents: i64,
             company_fee_in_cents: i64,
             client_fee_in_cents: i64,
@@ -105,7 +105,7 @@ impl NewFeeSchedule {
         for range in &self.ranges {
             ranges.push(I {
                 fee_schedule_id: result.id,
-                min_price: range.min_price,
+                min_price_in_cents: range.min_price_in_cents,
                 fee_in_cents: range.company_fee_in_cents + range.client_fee_in_cents,
                 company_fee_in_cents: range.company_fee_in_cents,
                 client_fee_in_cents: range.client_fee_in_cents,

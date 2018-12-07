@@ -8,7 +8,7 @@ INSERT INTO public.wallets (id, user_id, organization_id, name, secret_key, publ
 INSERT INTO public.wallets (id, user_id, organization_id, name, secret_key, public_key, default_flag, created_at, updated_at) VALUES ('e1b1c3f8-07ae-47f4-abff-d5b605dcff90', '6813cac9-997d-40cf-b68f-079bdf5140f3', null, 'Default', 'c2872f00c46d5c56994f7cc94bcf323c791c3e7bf815e4087c75a4584ef48ff9', '0233bed9d6ea3973af7854133b5945d32ec888b9c9a9315aba1ff0304474dab707', true, '2018-10-11 11:05:59.408121', '2018-10-11 11:05:59.408121');
 INSERT INTO public.wallets (id, user_id, organization_id, name, secret_key, public_key, default_flag, created_at, updated_at) VALUES ('10a6d419-5c9e-47ce-afee-aba9a3ab7b0a', '25757204-2839-4553-aeb3-626785890857', null, 'Default', 'cb12d24fcd3ce0a923f0cebc4781c87a2721dbea259f5202b6ed2f20775b96ce', '02daf4e4284d5610046d200c7f5a94b06d7ee2229019a1409602abfdc1e4b90be5', true, '2018-10-12 08:56:15.288727', '2018-10-12 08:56:15.288727');
 INSERT INTO public.fee_schedules (id, name, version, created_at, updated_at) VALUES ('7730da06-b35c-4e7b-8608-baec34041fc2', 'Zero', 1, '2018-09-27 12:15:47.841257', '2018-09-27 12:15:47.841257');
-INSERT INTO public.fee_schedule_ranges(fee_schedule_id, min_price, fee_in_cents) VALUES ('7730da06-b35c-4e7b-8608-baec34041fc2',0,0);
+INSERT INTO public.fee_schedule_ranges(fee_schedule_id, min_price_in_cents, fee_in_cents) VALUES ('7730da06-b35c-4e7b-8608-baec34041fc2',0,0);
 
 INSERT INTO public.organizations (id, owner_user_id, name, address, city, state, country, postal_code, phone, fee_schedule_id) VALUES ('ac1e48f2-6765-4a18-b43c-d3c9836bc4c3', '380ec4a0-871e-40f2-b2b4-49d99df1e59c', 'Jazzy', null, null, null, null, null, null, '7730da06-b35c-4e7b-8608-baec34041fc2');
 

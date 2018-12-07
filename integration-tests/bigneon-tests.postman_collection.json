@@ -565,8 +565,8 @@
 									"    pm.expect(r.ranges.length).to.equal(1);",
 									"});",
 									"",
-									"pm.test(\"should have correct min_price\", function(){",
-									"    pm.expect(r.ranges[0].min_price).to.equal(0);",
+									"pm.test(\"should have correct min_price_in_cents\", function(){",
+									"    pm.expect(r.ranges[0].min_price_in_cents).to.equal(0);",
 									"});",
 									"",
 									"pm.test(\"should have correct fee_in_cents\", function(){",
@@ -600,7 +600,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"name\": \"Fee_schedule_{{$timestamp}}\",\n\"ranges\": [\n\t{\n\t\t\"min_price\": 0,\n\t\t\"company_fee_in_cents\": 4,\n\t\t\"client_fee_in_cents\": 6\n\t}\n]\n}"
+							"raw": "{\n\"name\": \"Fee_schedule_{{$timestamp}}\",\n\"ranges\": [\n\t{\n\t\t\"min_price_in_cents\": 0,\n\t\t\"company_fee_in_cents\": 4,\n\t\t\"client_fee_in_cents\": 6\n\t}\n]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",
@@ -754,8 +754,8 @@
 									"    pm.expect(r.ranges.length).to.equal(1);",
 									"});",
 									"",
-									"pm.test(\"should have correct min_price\", function(){",
-									"    pm.expect(r.ranges[0].min_price).to.equal(0);",
+									"pm.test(\"should have correct min_price_in_cents\", function(){",
+									"    pm.expect(r.ranges[0].min_price_in_cents).to.equal(0);",
 									"});",
 									"",
 									"pm.test(\"should have correct fee_in_cents\", function(){",

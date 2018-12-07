@@ -12,7 +12,7 @@ pub struct FeeScheduleRange {
     pub id: Uuid,
     #[allow(dead_code)]
     fee_schedule_id: Uuid,
-    pub min_price: i64,
+    pub min_price_in_cents: i64,
     pub fee_in_cents: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
@@ -22,7 +22,7 @@ pub struct FeeScheduleRange {
 
 #[derive(Serialize, Deserialize)]
 pub struct NewFeeScheduleRange {
-    pub min_price: i64,
+    pub min_price_in_cents: i64,
     pub company_fee_in_cents: i64,
     pub client_fee_in_cents: i64,
 }
@@ -40,7 +40,7 @@ impl FeeScheduleRange {
 pub struct DisplayFeeScheduleRange {
     pub id: Uuid,
     pub fee_schedule_id: Uuid,
-    pub min_price: i64,
+    pub min_price_in_cents: i64,
     pub fee_in_cents: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
@@ -51,7 +51,7 @@ impl From<FeeScheduleRange> for DisplayFeeScheduleRange {
         DisplayFeeScheduleRange {
             id: fee_schedule_range.id,
             fee_schedule_id: fee_schedule_range.fee_schedule_id,
-            min_price: fee_schedule_range.min_price,
+            min_price_in_cents: fee_schedule_range.min_price_in_cents,
             fee_in_cents: fee_schedule_range.fee_in_cents,
             created_at: fee_schedule_range.created_at,
             updated_at: fee_schedule_range.updated_at,

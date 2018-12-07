@@ -151,7 +151,7 @@ table! {
     fee_schedule_ranges (id) {
         id -> Uuid,
         fee_schedule_id -> Uuid,
-        min_price -> Int8,
+        min_price_in_cents -> Int8,
         fee_in_cents -> Int8,
         created_at -> Timestamp,
         updated_at -> Timestamp,
@@ -242,6 +242,17 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        role -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         owner_user_id -> Uuid,
@@ -259,17 +270,6 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Uuid,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        role -> Text,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -499,8 +499,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     payment_methods,
     payments,
     push_notification_tokens,

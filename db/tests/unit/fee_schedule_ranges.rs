@@ -8,12 +8,12 @@ fn find() {
         "default".to_string(),
         vec![
             NewFeeScheduleRange {
-                min_price: 20,
+                min_price_in_cents: 20,
                 company_fee_in_cents: 4,
                 client_fee_in_cents: 6,
             },
             NewFeeScheduleRange {
-                min_price: 100,
+                min_price_in_cents: 100,
                 company_fee_in_cents: 8,
                 client_fee_in_cents: 12,
             },

@@ -158,7 +158,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     FeeSchedule::create(
         "Zero fees".to_string(),
         vec![NewFeeScheduleRange {
-            min_price: 0,
+            min_price_in_cents: 0,
             client_fee_in_cents: 0,
             company_fee_in_cents: 0,
         }],
@@ -496,12 +496,12 @@ pub fn add_fee_schedule(role: Roles, should_succeed: bool) {
         name: "Fees".to_string(),
         ranges: vec![
             NewFeeScheduleRange {
-                min_price: 20,
+                min_price_in_cents: 20,
                 company_fee_in_cents: 4,
                 client_fee_in_cents: 6,
             },
             NewFeeScheduleRange {
-                min_price: 1000,
+                min_price_in_cents: 1000,
                 company_fee_in_cents: 40,
                 client_fee_in_cents: 60,
             },
