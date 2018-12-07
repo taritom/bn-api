@@ -37,8 +37,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     ];
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = hold.id;
 

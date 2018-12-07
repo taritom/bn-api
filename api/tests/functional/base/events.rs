@@ -185,8 +185,7 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
         page.to_string(),
         limit.to_string()
     ));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path_parameters.id = event.id;
     let response: HttpResponse = events::list_interested_users((
@@ -355,8 +354,7 @@ pub fn dashboard(role: Roles, should_test_succeed: bool) {
         "/events/{}/dashboard?start_utc={:?}&end_utc={:?}",
         event.id, start_utc, end_utc
     ));
-    let query_parameters =
-        Query::<DashboardParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<DashboardParameters>::extract(&test_request.request).unwrap();
     let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path_parameters.id = event.id;
 
@@ -409,7 +407,7 @@ pub fn guest_list(role: Roles, should_test_succeed: bool) {
 
     let test_request = TestRequest::create_with_uri(&format!("/events/{}/guest?query=", event.id,));
     let query_parameters =
-        Query::<GuestListQueryParameters>::from_request(&test_request.request, &()).unwrap();
+        Query::<GuestListQueryParameters>::extract(&test_request.request).unwrap();
     let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path_parameters.id = event.id;
     let response: HttpResponse = events::guest_list((
@@ -470,8 +468,7 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
     let test_request = TestRequest::create_with_uri(&format!("/codes?type=Discount"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::codes((
         database.connection.clone().into(),
@@ -578,8 +575,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
     let test_request = TestRequest::create_with_uri(&format!("/holds"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::holds((
         database.connection.into(),

@@ -24,8 +24,7 @@ fn index() {
 
     let expected_artists = vec![artist, artist2];
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
         artists::index((database.connection.into(), query_parameters, None)).into();
 
@@ -73,8 +72,7 @@ fn index_with_org_linked_and_private_venues() {
         .finish();
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     //first try with no user
     let response: HttpResponse =
         artists::index((database.connection.clone().into(), query_parameters, None)).into();
@@ -99,8 +97,7 @@ fn index_with_org_linked_and_private_venues() {
     //now try with user that does not belong to org
     let user = support::create_auth_user(Roles::User, None, &database);
     let user_id = user.id();
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = artists::index((
         database.connection.clone().into(),
         query_parameters,
@@ -114,8 +111,7 @@ fn index_with_org_linked_and_private_venues() {
     //now with user that DOES belong to org
     let _ = org1.add_user(user_id, None, database.connection.clone().get());
     expected_artists.push(artist4);
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = artists::index((
         database.connection.clone().into(),
         query_parameters,
@@ -139,8 +135,7 @@ fn index_with_org_linked_and_private_venues() {
 
     //now with an admin user
     let admin = support::create_auth_user(Roles::Admin, None, &database);
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
         artists::index((database.connection.into(), query_parameters, Some(admin))).into();
     let wrapped_expected_artists = Payload {
@@ -169,8 +164,7 @@ pub fn search_no_spotify() {
 
     let expected_artists = vec![artist.id];
     let test_request = TestRequest::create_with_uri(&format!("/?q=Artist&spotify=1"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response = artists::search((
         test_request.extract_state(),
         database.connection.into(),
@@ -199,8 +193,7 @@ pub fn search_with_spotify() {
         .finish();
 
     let test_request = TestRequest::create_with_uri(&format!("/?q=Powerwolf&spotify=1"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response = artists::search((
         test_request.extract_state(),
         database.connection.into(),
@@ -290,8 +283,7 @@ pub fn show_from_organizations_private_artist_same_org() {
     );
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = artists::show_from_organizations((
         database.connection.into(),
         path,

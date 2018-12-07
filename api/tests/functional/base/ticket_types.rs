@@ -201,8 +201,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = event.id;
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = ticket_types::index((
         database.connection.clone().into(),
         path,

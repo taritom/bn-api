@@ -23,8 +23,7 @@ fn index() {
 
     let expected_regions = vec![region, region2];
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response = regions::index((database.connection.into(), query_parameters)).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);

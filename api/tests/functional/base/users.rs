@@ -120,8 +120,7 @@ pub fn history(role: Roles, should_test_true: bool) {
     let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     path.user_id = user2.id;
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: Result<WebPayload<HistoryItem>, BigNeonError> = users::history((
         database.connection.clone().into(),
         path,
@@ -165,8 +164,7 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = user2.id;
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = users::list_organizations((
         database.connection.into(),
         path,
@@ -224,7 +222,7 @@ pub fn find_by_email(role: Roles, should_test_true: bool) {
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri(&format!("/?email={}", email));
-    let data = Query::<SearchUserByEmail>::from_request(&test_request.request, &()).unwrap();
+    let data = Query::<SearchUserByEmail>::extract(&test_request.request).unwrap();
     let response: HttpResponse = users::find_by_email((
         database.connection.into(),
         data,

@@ -187,8 +187,7 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         )
         .as_str(),
     );
-    let parameters =
-        Query::<InviteResponseQuery>::from_request(&test_request.request, &()).unwrap();
+    let parameters = Query::<InviteResponseQuery>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = organization_invites::accept_request((
         database.connection.into(),
@@ -237,8 +236,7 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
         .as_str(),
     );
 
-    let parameters =
-        Query::<InviteResponseQuery>::from_request(&test_request.request, &()).unwrap();
+    let parameters = Query::<InviteResponseQuery>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = organization_invites::decline_request((
         database.connection.into(),

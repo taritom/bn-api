@@ -40,8 +40,7 @@ fn index_with_org_linked_and_private_venues() {
         .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     //first try with no user
     let response: HttpResponse =
         venues::index((database.connection.clone().into(), query_parameters, None)).into();
@@ -62,8 +61,7 @@ fn index_with_org_linked_and_private_venues() {
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_json);
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     //now try with user that does not belong to org
     let response: HttpResponse = venues::index((
         database.connection.clone().into(),
@@ -79,8 +77,7 @@ fn index_with_org_linked_and_private_venues() {
     let _ = organization.add_user(auth_user.id(), None, database.connection.get());
     expected_venues.push(venue4);
 
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = venues::index((
         database.connection.into(),
         query_parameters,
@@ -325,8 +322,7 @@ pub fn show_from_organizations_private_venue_same_org() {
     path.id = organization.id;
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = venues::show_from_organizations((
         database.connection.into(),
         path,

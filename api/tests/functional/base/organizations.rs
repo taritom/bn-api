@@ -38,8 +38,7 @@ pub fn index(role: Roles) {
     };
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
         organizations::index((database.connection.into(), query_parameters, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -117,8 +116,7 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = organizations::index_for_all_orgs((
         database.connection.into(),
         query_parameters,
@@ -424,8 +422,7 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters =
-        Query::<PagingParameters>::from_request(&test_request.request, &()).unwrap();
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = organizations::list_organization_members((
         database.connection.into(),
         path,
