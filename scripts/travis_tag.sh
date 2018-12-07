@@ -5,9 +5,11 @@ if [[ -z "$CI" ]]; then
     exit 1
 fi
 
+echo "+init-github-ssh.sh"
+./scripts/init-github-ssh.sh
 echo "+git checkout master"
 git checkout master
 echo "+git remote add sshremote git@github.com:big-neon/bn-api.git"
 git remote add sshremote git@github.com:big-neon/bn-api.git
-echo "+./scripts/bump-version.sh --with-git"
+echo "+bump-version.sh --with-git"
 ./scripts/bump-version.sh --with-git
