@@ -38,7 +38,7 @@ matrix:
       provider: script
       script: bash scripts/travis_tag.sh
       on:
-	branch: master
+        branch: master
   fast_finish: true
 script:
 - "./scripts/$TEST_SCRIPT"
