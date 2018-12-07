@@ -75,7 +75,8 @@ impl Order {
             .to_db_error(
                 ErrorCode::QueryError,
                 "Could not find user attached to this cart",
-            ).optional()?;
+            )
+            .optional()?;
 
         if let Some(user) = cart_user {
             user.update_last_cart(None, conn)?;
@@ -182,7 +183,8 @@ impl Order {
                 orders::expires_at
                     .is_null()
                     .or(orders::expires_at.ge(dsl::now.nullable())),
-            ).select(orders::all_columns)
+            )
+            .select(orders::all_columns)
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load cart for user")
             .optional()
@@ -207,10 +209,12 @@ impl Order {
                     .and(orders::version.eq(self.version))
                     .and(orders::expires_at.is_null()),
             ),
-        ).set((
+        )
+        .set((
             orders::expires_at.eq(self.expires_at),
             orders::updated_at.eq(self.updated_at),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update expiry time")?;
         if affected_rows != 1 {
             return DatabaseError::concurrency_error("Could not update expiry time.");
@@ -232,10 +236,12 @@ impl Order {
                             .or(orders::expires_at.gt(Some(Utc::now().naive_utc()))),
                     ),
             ),
-        ).set((
+        )
+        .set((
             orders::expires_at.eq::<Option<NaiveDateTime>>(None),
             orders::updated_at.eq(self.updated_at),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update expiry time")?;
         if affected_rows != 1 {
             return DatabaseError::concurrency_error("Could not update expiry time.");
@@ -308,7 +314,8 @@ impl Order {
                         index.is_some()
                             && Some(item.ticket_type_id) == current_line.ticket_type_id
                             && *hold_id == current_line.hold_id
-                    }).collect();
+                    })
+                    .collect();
                 let matching_result = matching_result.first();
 
                 if let Some(matching_result) = matching_result {
@@ -369,7 +376,8 @@ impl Order {
                                 unit_price_in_cents: price_in_cents,
                                 hold_id: *hold_id,
                                 code_id: None,
-                            }.commit(conn)?;
+                            }
+                            .commit(conn)?;
                             TicketInstance::reserve_tickets(
                                 &order_item,
                                 self.expires_at,
@@ -448,7 +456,8 @@ impl Order {
                 unit_price_in_cents: price_in_cents,
                 hold_id: hold_id,
                 code_id: None,
-            }.commit(conn)?;
+            }
+            .commit(conn)?;
 
             TicketInstance::reserve_tickets(
                 &order_item,
@@ -505,7 +514,8 @@ impl Order {
     pub fn has_items(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
         select(exists(
             order_items::table.filter(order_items::order_id.eq(self.id)),
-        )).get_result(conn)
+        ))
+        .get_result(conn)
         .to_db_error(
             ErrorCode::QueryError,
             "Could not check if order items exist",
@@ -604,7 +614,8 @@ impl Order {
                 orders::user_id
                     .eq(user_id)
                     .or(orders::on_behalf_of_user_id.eq(user_id)),
-            ).filter(orders::status.ne(OrderStatus::Draft.to_string()))
+            )
+            .filter(orders::status.ne(OrderStatus::Draft.to_string()))
             .order_by(orders::order_date.desc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
@@ -693,7 +704,8 @@ impl Order {
             .into_iter()
             .filter(|i| {
                 i.ticket_type_id == Some(ticket_type_id) && i.item_type == item_type.to_string()
-            }).collect();
+            })
+            .collect();
 
         match order_item.pop() {
             Some(o) => Ok(o),
@@ -783,11 +795,13 @@ impl Order {
                     .and(orders::version.eq(self.version))
                     .and(orders::expires_at.ge(Some(Utc::now().naive_utc()))),
             ),
-        ).set((
+        )
+        .set((
             orders::status.eq(OrderStatus::PartiallyPaid.to_string()),
             orders::expires_at.eq(Some(now_plus_one_day)),
             orders::updated_at.eq(dsl::now),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not update order status")?;
 
         let db_record = Order::find(self.id, conn)?;
@@ -836,7 +850,8 @@ impl Order {
                 .to_db_error(
                     ErrorCode::QueryError,
                     "Could not find user attached to this cart",
-                ).optional()?;
+                )
+                .optional()?;
 
             if let Some(user) = cart_user {
                 user.update_last_cart(None, conn)?;
@@ -853,7 +868,8 @@ impl Order {
         };
         let query = diesel::sql_query(
             "SELECT CAST(SUM(amount) as BigInt) as s FROM payments WHERE order_id = $1 AND status='Completed';",
-        ).bind::<diesel::sql_types::Uuid, _>(self.id);
+        )
+        .bind::<diesel::sql_types::Uuid, _>(self.id);
 
         let sum: ResultForSum = query.get_result(conn).to_db_error(
             ErrorCode::QueryError,
@@ -872,7 +888,8 @@ impl Order {
             .set((
                 orders::status.eq(&self.status),
                 orders::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
 
         Ok(())
@@ -896,10 +913,12 @@ impl Order {
             orders::table
                 .filter(orders::id.eq(self.id))
                 .filter(orders::version.eq(self.version)),
-        ).set((
+        )
+        .set((
             orders::version.eq(self.version + 1),
             orders::updated_at.eq(dsl::now),
-        )).execute(conn)
+        ))
+        .execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not lock order")?;
         if rows_affected == 0 {
             return DatabaseError::concurrency_error(
@@ -930,7 +949,8 @@ impl Order {
             .set((
                 orders::on_behalf_of_user_id.eq(user.id),
                 orders::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not change the behalf of  user for this order",
@@ -944,7 +964,8 @@ impl Order {
             Some(json!({
             "old_user" : old_id, "new_user": user.id
             })),
-        ).commit(conn)?;
+        )
+        .commit(conn)?;
         Ok(())
     }
 }

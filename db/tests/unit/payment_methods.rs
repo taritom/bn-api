@@ -15,7 +15,8 @@ fn create() {
         true,
         "cus_example".into(),
         "abc".into(),
-    ).commit(connection)
+    )
+    .commit(connection)
     .unwrap();
 
     let domain_events = DomainEvent::find(
@@ -23,7 +24,8 @@ fn create() {
         Some(payment_method.id),
         Some(DomainEventTypes::PaymentMethodCreated),
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert!(domain_events.len() == 1);
     assert_eq!(
@@ -42,15 +44,14 @@ fn update() {
         "\"abc\"".to_string()
     );
 
-    assert!(
-        DomainEvent::find(
-            Tables::PaymentMethods,
-            Some(payment_method.id),
-            Some(DomainEventTypes::PaymentMethodUpdated),
-            connection,
-        ).unwrap()
-        .is_empty()
-    );
+    assert!(DomainEvent::find(
+        Tables::PaymentMethods,
+        Some(payment_method.id),
+        Some(DomainEventTypes::PaymentMethodUpdated),
+        connection,
+    )
+    .unwrap()
+    .is_empty());
 
     let payment_method_parameters = PaymentMethodEditableAttributes {
         provider_data: Some("test".into()),
@@ -69,7 +70,8 @@ fn update() {
         Some(payment_method.id),
         Some(DomainEventTypes::PaymentMethodUpdated),
         connection,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert!(domain_events.len() == 1);
     assert_eq!(

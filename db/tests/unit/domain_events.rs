@@ -22,7 +22,8 @@ fn find() {
         Tables::PaymentMethods,
         Some(id),
         Some("".into()),
-    ).commit(connection)
+    )
+    .commit(connection)
     .unwrap();
 
     let domain_event2 = DomainEvent::create(
@@ -31,7 +32,8 @@ fn find() {
         Tables::PaymentMethods,
         Some(id),
         Some("".into()),
-    ).commit(connection)
+    )
+    .commit(connection)
     .unwrap();
 
     assert_eq!(
@@ -43,15 +45,14 @@ fn find() {
             .unwrap()
             .is_empty()
     );
-    assert!(
-        DomainEvent::find(
-            Tables::PaymentMethods,
-            Some(Uuid::new_v4()),
-            None,
-            connection,
-        ).unwrap()
-        .is_empty()
-    );
+    assert!(DomainEvent::find(
+        Tables::PaymentMethods,
+        Some(Uuid::new_v4()),
+        None,
+        connection,
+    )
+    .unwrap()
+    .is_empty());
 
     // Filtered by type
     assert_eq!(
@@ -60,7 +61,8 @@ fn find() {
             Some(id),
             Some(DomainEventTypes::PaymentMethodCreated),
             connection,
-        ).unwrap(),
+        )
+        .unwrap(),
         [domain_event]
     );
     assert_eq!(
@@ -69,7 +71,8 @@ fn find() {
             Some(id),
             Some(DomainEventTypes::PaymentMethodUpdated),
             connection,
-        ).unwrap(),
+        )
+        .unwrap(),
         [domain_event2]
     );
 }
@@ -86,7 +89,8 @@ pub fn find_unpublished() {
         Tables::PaymentMethods,
         Some(id),
         Some("".into()),
-    ).commit(connection)
+    )
+    .commit(connection)
     .unwrap();
 
     let mut found_events = DomainEvent::find_unpublished(100, connection).unwrap();

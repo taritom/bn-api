@@ -35,7 +35,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         json,
         path,
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -176,13 +177,15 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
     OrganizationInvite::get_invite_details(
         &invite.security_token.unwrap(),
         database.connection.get(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(
             "/accept_invite?security_token={}",
             &invite.security_token.unwrap().to_string()
-        ).as_str(),
+        )
+        .as_str(),
     );
     let parameters =
         Query::<InviteResponseQuery>::from_request(&test_request.request, &()).unwrap();
@@ -192,7 +195,8 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         parameters,
         Some(auth_user),
         test_request.request,
-    )).into();
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -222,13 +226,15 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
     OrganizationInvite::get_invite_details(
         &invite.security_token.unwrap(),
         database.connection.get(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(
             "/decline_invite?security_token={}",
             &invite.security_token.unwrap().to_string()
-        ).as_str(),
+        )
+        .as_str(),
     );
 
     let parameters =
@@ -238,7 +244,8 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
         database.connection.into(),
         parameters,
         Some(auth_user),
-    )).into();
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_true {

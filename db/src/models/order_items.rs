@@ -110,7 +110,8 @@ impl OrderItem {
                     client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
                     quantity: self.quantity,
                     parent_id: Some(self.id),
-                }.commit(conn)?;
+                }
+                .commit(conn)?;
 
                 Ok(())
             }
@@ -124,7 +125,8 @@ impl OrderItem {
                 order_items::quantity.eq(self.quantity),
                 order_items::unit_price_in_cents.eq(self.unit_price_in_cents),
                 order_items::updated_at.eq(dsl::now),
-            )).execute(conn)
+            ))
+            .execute(conn)
             .map(|_| ())
             .to_db_error(ErrorCode::UpdateError, "Could not update order item")
     }
@@ -179,7 +181,8 @@ impl OrderItem {
                     order_id,
                     code_id,
                     quantity,
-                )).get_result::<bool>(conn)
+                ))
+                .get_result::<bool>(conn)
                 .to_db_error(
                     if id.is_none() {
                         ErrorCode::InsertError
@@ -244,7 +247,8 @@ impl OrderItem {
             item_type,
             quantity,
             ticket_pricing_id,
-        )).get_result::<bool>(conn)
+        ))
+        .get_result::<bool>(conn)
         .to_db_error(
             if new_record {
                 ErrorCode::InsertError
@@ -293,7 +297,8 @@ impl OrderItem {
         WHERE oi.order_id = $1
         ORDER BY oi.item_type DESC
         "#,
-        ).bind::<sql_types::Uuid, _>(order_id)
+        )
+        .bind::<sql_types::Uuid, _>(order_id)
         .load(conn)
         .to_db_error(ErrorCode::QueryError, "Could not load order items")
     }

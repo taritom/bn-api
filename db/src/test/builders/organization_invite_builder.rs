@@ -70,7 +70,8 @@ impl<'a> OrgInviteBuilder<'a> {
             self.invitee_id.unwrap(),
             &self.user_email,
             self.user_id,
-        ).commit(self.connection)
+        )
+        .commit(self.connection)
         .unwrap();
         orginvite
     }

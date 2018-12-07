@@ -54,5 +54,6 @@ pub fn purchase_completed(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
-    ).queue(conn)
+    )
+    .queue(conn)
 }

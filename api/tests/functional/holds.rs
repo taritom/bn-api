@@ -172,7 +172,8 @@ pub fn read_hold() {
         json,
         path,
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     let created_hold: DisplayHold = serde_json::from_str(body).unwrap();
 

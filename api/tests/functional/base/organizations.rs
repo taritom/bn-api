@@ -24,7 +24,8 @@ pub fn index(role: Roles) {
         database.create_organization_with_user(&user, role == Roles::OrgOwner)
     } else {
         database.create_organization()
-    }.with_name("Organization 2".to_string())
+    }
+    .with_name("Organization 2".to_string())
     .finish();
 
     let user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
@@ -122,7 +123,8 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
         database.connection.into(),
         query_parameters,
         auth_user,
-    )).into();
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -162,7 +164,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
             client_fee_in_cents: 0,
             company_fee_in_cents: 0,
         }],
-    ).commit(database.connection.get())
+    )
+    .commit(database.connection.get())
     .unwrap();
 
     let json = Json(NewOrganizationRequest {
@@ -428,7 +431,8 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
         path,
         query_parameters,
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
 
     if !should_succeed {
         support::expects_unauthorized(&response);

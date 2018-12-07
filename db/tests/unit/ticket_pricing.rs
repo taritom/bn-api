@@ -20,7 +20,8 @@ fn create() {
         ed1,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     let pricing2 = TicketPricing::create(
@@ -30,7 +31,8 @@ fn create() {
         ed2,
         500,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     let pricing = ticket_type
@@ -57,7 +59,8 @@ fn ticket_pricing_no_overlapping_periods() {
         end_date1,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     let ticket_pricing2 = TicketPricing::create(
@@ -67,7 +70,8 @@ fn ticket_pricing_no_overlapping_periods() {
         end_date2,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     let ticket_pricing3 = TicketPricing::create(
@@ -77,45 +81,43 @@ fn ticket_pricing_no_overlapping_periods() {
         end_date3,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     // ticket_pricing1 and ticket_pricing2 overlap
-    assert!(
-        TicketPricing::ticket_pricing_no_overlapping_periods(
-            ticket_pricing1.id,
-            ticket_type.id,
-            start_date1,
-            end_date1,
-            false,
-            project.get_connection()
-        ).unwrap()
-        .is_err()
-    );
-    assert!(
-        TicketPricing::ticket_pricing_no_overlapping_periods(
-            ticket_pricing2.id,
-            ticket_type.id,
-            start_date2,
-            end_date2,
-            false,
-            project.get_connection()
-        ).unwrap()
-        .is_err()
-    );
+    assert!(TicketPricing::ticket_pricing_no_overlapping_periods(
+        ticket_pricing1.id,
+        ticket_type.id,
+        start_date1,
+        end_date1,
+        false,
+        project.get_connection()
+    )
+    .unwrap()
+    .is_err());
+    assert!(TicketPricing::ticket_pricing_no_overlapping_periods(
+        ticket_pricing2.id,
+        ticket_type.id,
+        start_date2,
+        end_date2,
+        false,
+        project.get_connection()
+    )
+    .unwrap()
+    .is_err());
 
     // ticket_pricing3 does not overlap
-    assert!(
-        TicketPricing::ticket_pricing_no_overlapping_periods(
-            ticket_pricing3.id,
-            ticket_type.id,
-            start_date3,
-            end_date3,
-            false,
-            project.get_connection()
-        ).unwrap()
-        .is_ok()
-    );
+    assert!(TicketPricing::ticket_pricing_no_overlapping_periods(
+        ticket_pricing3.id,
+        ticket_type.id,
+        start_date3,
+        end_date3,
+        false,
+        project.get_connection()
+    )
+    .unwrap()
+    .is_ok());
 }
 
 #[test]
@@ -134,7 +136,8 @@ fn create_with_validation_errors() {
         end_date1,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     let mut ticket_pricing = TicketPricing::create(
@@ -195,7 +198,8 @@ fn update_with_validation_errors() {
         end_date1,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
     let ticket_pricing = TicketPricing::create(
         ticket_type.id,
@@ -204,7 +208,8 @@ fn update_with_validation_errors() {
         end_date2,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     let mut ticket_pricing_parameters: TicketPricingEditableAttributes = Default::default();
@@ -258,7 +263,8 @@ fn update() {
         end_date,
         100,
         false,
-    ).commit(connection)
+    )
+    .commit(connection)
     .unwrap();
     //Change editable parameter and submit ticket pricing update request
     let update_name = String::from("updated_event_name");
@@ -297,7 +303,8 @@ fn remove() {
         end_date,
         100,
         false,
-    ).commit(connection)
+    )
+    .commit(connection)
     .unwrap();
 
     let start_date = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
@@ -309,7 +316,8 @@ fn remove() {
         end_date,
         200,
         false,
-    ).commit(connection)
+    )
+    .commit(connection)
     .unwrap();
     //Remove ticket pricing and check if it is still available
     ticket_pricing1.destroy(connection).unwrap();
@@ -338,7 +346,8 @@ fn find() {
         ed1,
         100,
         false,
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
     let found_ticket_pricing =
         TicketPricing::find(ticket_pricing.id, project.get_connection()).unwrap();

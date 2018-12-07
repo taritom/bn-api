@@ -30,7 +30,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         database.connection.into(),
         json,
         auth_user,
-    )).into();
+    ))
+    .into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -68,7 +69,8 @@ pub fn create_with_organization(role: Roles, should_test_succeed: bool) {
         database.connection.into(),
         json,
         auth_user.clone(),
-    )).into();
+    ))
+    .into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -101,7 +103,8 @@ pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
         database.connection.into(),
         json,
         user,
-    )).into();
+    ))
+    .into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);

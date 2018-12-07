@@ -103,7 +103,8 @@ impl OrganizationInvite {
                     organization_invites::security_token.eq(null),
                     organization_invites::accepted.eq(change_status),
                     organization_invites::updated_at.eq(dsl::now),
-                )).get_result(conn),
+                ))
+                .get_result(conn),
         )
     }
 
@@ -126,7 +127,8 @@ impl OrganizationInvite {
             .inner_join(
                 organizations::table
                     .on(organizations::id.eq(organization_invites::organization_id)),
-            ).filter(organization_invites::accepted.is_null())
+            )
+            .filter(organization_invites::accepted.is_null())
             .filter(organization_invites::security_token.eq(token))
             .filter(organization_invites::created_at.gt(expiry_date))
             .select((
@@ -134,7 +136,8 @@ impl OrganizationInvite {
                 sql("CONCAT(users.first_name, ' ',  users.last_name) AS inviter_name"),
                 sql::<Timestamp>("organization_invites.created_at + (INTERVAL '1' day) * ")
                     .bind::<diesel::sql_types::BigInt, _>(INVITE_EXPIRATION_PERIOD_IN_DAYS),
-            )).get_result(conn)
+            ))
+            .get_result(conn)
             .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
     }
 

@@ -48,7 +48,8 @@ pub fn update_cart(
             quantity: i.quantity,
             ticket_type_id: i.ticket_type_id,
             redemption_code: i.redemption_code.clone(),
-        }).collect();
+        })
+        .collect();
     cart.update_quantities(&order_items, false, connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
@@ -70,7 +71,8 @@ pub fn replace_cart(
             quantity: i.quantity,
             ticket_type_id: i.ticket_type_id,
             redemption_code: i.redemption_code.clone(),
-        }).collect();
+        })
+        .collect();
 
     cart.update_quantities(&order_items, true, connection)?;
 
@@ -410,7 +412,8 @@ fn checkout_payment_processor(
                         set_default,
                         repeat_token.token.clone(),
                         repeat_token.to_json()?,
-                    ).commit(connection)?;
+                    )
+                    .commit(connection)?;
                     repeat_token.token
                 }
             }

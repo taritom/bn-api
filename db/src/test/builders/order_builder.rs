@@ -73,7 +73,8 @@ impl<'a> OrderBuilder<'a> {
             }],
             false,
             self.connection,
-        ).unwrap();
+        )
+        .unwrap();
 
         if let Some(on_behalf_of_user) = self.on_behalf_of_user {
             cart.set_behalf_of_user(on_behalf_of_user, self.connection)
@@ -89,7 +90,8 @@ impl<'a> OrderBuilder<'a> {
                 self.user.unwrap().id,
                 total,
                 self.connection,
-            ).unwrap();
+            )
+            .unwrap();
         }
 
         cart

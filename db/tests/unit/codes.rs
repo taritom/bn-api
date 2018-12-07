@@ -22,7 +22,8 @@ fn create() {
         start_date,
         end_date,
         None,
-    ).commit(db.get_connection())
+    )
+    .commit(db.get_connection())
     .unwrap();
 }
 
@@ -42,7 +43,8 @@ pub fn create_with_validation_errors() {
         start_date,
         end_date,
         None,
-    ).commit(db.get_connection());
+    )
+    .commit(db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -106,7 +108,8 @@ pub fn create_with_validation_errors() {
         start_date,
         end_date,
         None,
-    ).commit(db.get_connection());
+    )
+    .commit(db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -143,7 +146,8 @@ pub fn create_with_validation_errors() {
         start_date,
         end_date,
         None,
-    ).commit(db.get_connection());
+    )
+    .commit(db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -179,7 +183,8 @@ pub fn create_with_validation_errors() {
         start_date,
         end_date,
         None,
-    ).commit(db.get_connection());
+    )
+    .commit(db.get_connection());
     assert!(result.is_ok());
 }
 

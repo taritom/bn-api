@@ -55,6 +55,7 @@ impl DomainActionRouter {
         self.add_executor(
             DomainActionTypes::Communication,
             find_executor(DomainActionTypes::Communication),
-        ).expect("Configuration error");
+        )
+        .expect("Configuration error");
     }
 }

@@ -49,7 +49,8 @@ impl<'a> PaymentMethodBuilder<'a> {
             self.is_default,
             "cus_example".into(),
             "abc".into(),
-        ).commit(self.connection)
+        )
+        .commit(self.connection)
         .unwrap()
     }
 }

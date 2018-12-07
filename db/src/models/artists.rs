@@ -108,16 +108,19 @@ impl Artist {
                     organization_users::table.on(artists::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u.id))),
-                ).left_join(
+                )
+                .left_join(
                     organizations::table
                         .on(artists::organization_id.eq(organizations::id.nullable())),
-                ).filter(
+                )
+                .filter(
                     organization_users::user_id
                         .eq(u.id)
                         .or(organizations::owner_user_id.eq(u.id))
                         .or(artists::is_private.eq(false))
                         .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
-                ).filter(artists::name.ilike(query_like.clone()))
+                )
+                .filter(artists::name.ilike(query_like.clone()))
                 .order_by(artists::name)
                 .select(artists::all_columns)
                 .load(conn),
@@ -140,16 +143,19 @@ impl Artist {
                     organization_users::table.on(artists::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u.id))),
-                ).left_join(
+                )
+                .left_join(
                     organizations::table
                         .on(artists::organization_id.eq(organizations::id.nullable())),
-                ).filter(
+                )
+                .filter(
                     organization_users::user_id
                         .eq(u.id)
                         .or(organizations::owner_user_id.eq(u.id))
                         .or(artists::is_private.eq(false))
                         .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
-                ).order_by(artists::name)
+                )
+                .order_by(artists::name)
                 .select(artists::all_columns)
                 .load(conn),
             None => artists::table
@@ -181,15 +187,18 @@ impl Artist {
                     organization_users::table.on(artists::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u))),
-                ).left_join(
+                )
+                .left_join(
                     organizations::table
                         .on(artists::organization_id.eq(organizations::id.nullable())),
-                ).filter(
+                )
+                .filter(
                     organization_users::user_id
                         .eq(u)
                         .or(organizations::owner_user_id.eq(u))
                         .or(artists::is_private.eq(false)),
-                ).filter(artists::organization_id.eq(organization_id))
+                )
+                .filter(artists::organization_id.eq(organization_id))
                 .order_by(artists::name)
                 .select(artists::all_columns)
                 .load(conn),
@@ -246,7 +255,8 @@ impl Artist {
                 .set((
                     artists::is_private.eq(is_private),
                     artists::updated_at.eq(dsl::now),
-                )).get_result(conn),
+                ))
+                .get_result(conn),
         )
     }
 }

@@ -38,7 +38,8 @@ pub fn profile(role: Roles, should_test_true: bool) {
         }],
         false,
         &*connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(cart.calculate_total(&*connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
@@ -53,7 +54,8 @@ pub fn profile(role: Roles, should_test_true: bool) {
         path,
         auth_user.clone(),
         test_request.request,
-    )).into();
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {
@@ -107,7 +109,8 @@ pub fn history(role: Roles, should_test_true: bool) {
         }],
         false,
         &*connection,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
@@ -170,7 +173,8 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
         query_parameters,
         auth_user.clone(),
         test_request.request,
-    )).into();
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {
@@ -226,7 +230,8 @@ pub fn find_by_email(role: Roles, should_test_true: bool) {
         data,
         auth_user.clone(),
         test_request.request,
-    )).into();
+    ))
+    .into();
     let display_user: DisplayUser = user2.into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -258,7 +263,8 @@ pub fn show(role: Roles, should_test_true: bool) {
         path,
         auth_user.clone(),
         test_request.request,
-    )).into();
+    ))
+    .into();
     if should_test_true {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);

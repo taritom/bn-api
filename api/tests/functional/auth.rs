@@ -31,7 +31,8 @@ fn token() {
         &response.access_token,
         state.config.token_secret.as_bytes(),
         &Validation::default(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let mut validation = Validation::default();
     validation.validate_exp = false;
@@ -39,7 +40,8 @@ fn token() {
         &response.refresh_token,
         state.config.token_secret.as_bytes(),
         &validation,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert_eq!(access_token.claims.get_id().unwrap(), user.id);
     assert_eq!(refresh_token.claims.get_id().unwrap(), user.id);
@@ -95,7 +97,8 @@ fn token_refresh() {
         &Header::default(),
         &refresh_token_claims,
         token_secret.as_bytes(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let json = Json(RefreshRequest::new(&refresh_token));
 
@@ -104,7 +107,8 @@ fn token_refresh() {
         database.connection.into(),
         json,
         test_request.request,
-    )).into();
+    ))
+    .into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let response: TokenResponse = serde_json::from_str(&body).unwrap();
@@ -113,7 +117,8 @@ fn token_refresh() {
         &response.access_token,
         token_secret.as_bytes(),
         &Validation::default(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(response.refresh_token, refresh_token);
     assert_eq!(access_token.claims.get_id().unwrap(), user.id);
 }
@@ -130,7 +135,8 @@ fn token_refresh_invalid_refresh_token_secret() {
         &Header::default(),
         &refresh_token_claims,
         b"incorrect-secret",
-    ).unwrap();
+    )
+    .unwrap();
 
     let json = Json(RefreshRequest::new(&refresh_token));
 
@@ -139,7 +145,8 @@ fn token_refresh_invalid_refresh_token_secret() {
         database.connection.into(),
         json,
         test_request.request,
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -161,7 +168,8 @@ fn token_refresh_invalid_refresh_token() {
         database.connection.into(),
         json,
         test_request.request,
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -183,7 +191,8 @@ fn token_refresh_user_does_not_exist() {
         &Header::default(),
         &refresh_token_claims,
         state.config.token_secret.as_bytes(),
-    ).unwrap();
+    )
+    .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
     let response: HttpResponse = auth::token_refresh((
@@ -191,7 +200,8 @@ fn token_refresh_user_does_not_exist() {
         database.connection.into(),
         json,
         test_request.request,
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -214,7 +224,8 @@ fn token_refresh_password_reset_since_issued() {
         &Header::default(),
         &refresh_token_claims,
         state.config.token_secret.as_bytes(),
-    ).unwrap();
+    )
+    .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
     let response: HttpResponse = auth::token_refresh((
@@ -222,7 +233,8 @@ fn token_refresh_password_reset_since_issued() {
         database.connection.into(),
         json,
         test_request.request,
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -248,7 +260,8 @@ fn token_refreshed_after_password_change() {
         &Header::default(),
         &refresh_token_claims,
         token_secret.as_bytes(),
-    ).unwrap();
+    )
+    .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
     let response: HttpResponse = auth::token_refresh((
@@ -256,7 +269,8 @@ fn token_refreshed_after_password_change() {
         database.connection.into(),
         json,
         test_request.request,
-    )).into();
+    ))
+    .into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -266,7 +280,8 @@ fn token_refreshed_after_password_change() {
         &response.access_token,
         token_secret.as_bytes(),
         &Validation::default(),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(response.refresh_token, refresh_token);
     assert_eq!(access_token.claims.get_id().unwrap(), user.id);
 }

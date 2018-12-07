@@ -100,7 +100,8 @@ impl TicketPricing {
             start_date,
             end_date,
             is_box_office_only,
-        )).get_result::<bool>(conn)
+        ))
+        .get_result::<bool>(conn)
         .to_db_error(
             ErrorCode::UpdateError,
             "Could not confirm periods do not overlap",

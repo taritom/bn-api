@@ -18,7 +18,8 @@ fn fee_schedule_create() {
                 client_fee_in_cents: 60,
             },
         ],
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     let ranges = fee_schedule.ranges(project.get_connection()).unwrap();
@@ -45,7 +46,8 @@ fn fee_schedule_create() {
                 client_fee_in_cents: 60,
             },
         ],
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     assert_eq!(fee_schedule2.version, 1);
@@ -68,7 +70,8 @@ fn get_fee_schedule_range() {
                 client_fee_in_cents: 12,
             },
         ],
-    ).commit(project.get_connection())
+    )
+    .commit(project.get_connection())
     .unwrap();
 
     let fee_schedule_range1 = fee_schedule

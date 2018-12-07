@@ -107,7 +107,8 @@ impl Communication {
                 .checked_add_signed(Duration::days(1))
                 .unwrap(),
             3,
-        ).commit(connection)?;
+        )
+        .commit(connection)?;
         Ok(())
     }
 

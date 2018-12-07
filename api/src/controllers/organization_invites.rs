@@ -79,8 +79,8 @@ pub fn create(
             }
             None => {
                 return Ok(HttpResponse::BadRequest().json(json!({
-                        "error": "Missing required parameters, `user_id` or `user_email` required"
-                    })));
+                    "error": "Missing required parameters, `user_id` or `user_email` required"
+                })));
             }
         },
     }

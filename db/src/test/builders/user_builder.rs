@@ -51,7 +51,8 @@ impl<'a> UserBuilder<'a> {
             Some(self.email.to_string()),
             Some(self.phone.to_string()),
             &self.password,
-        ).commit(self.connection)
+        )
+        .commit(self.connection)
         .unwrap()
     }
 }

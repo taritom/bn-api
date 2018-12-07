@@ -17,7 +17,8 @@ fn find_by_password_reset_token() {
     let found_user = User::find_by_password_reset_token(
         &user.password_reset_token.unwrap(),
         project.get_connection(),
-    ).expect("User was not found");
+    )
+    .expect("User was not found");
     assert_eq!(found_user.id, user.id);
     assert_eq!(
         found_user.password_reset_token.unwrap(),
@@ -51,7 +52,8 @@ fn consume_password_reset_token() {
         &user.password_reset_token.unwrap(),
         &password,
         project.get_connection(),
-    ).unwrap();
+    )
+    .unwrap();
     assert!(user.check_password(&password));
     assert!(user.password_reset_token.is_none());
     assert!(user.password_reset_requested_at.is_none());
@@ -62,7 +64,8 @@ fn consume_password_reset_token() {
         .set(PasswordReset {
             password_reset_token: Some(Uuid::new_v4()),
             password_reset_requested_at: Some(Utc::now().naive_utc() - Duration::days(3)),
-        }).get_result(project.get_connection())
+        })
+        .get_result(project.get_connection())
         .unwrap();
     let pw_modified_at = user.password_modified_at;
     let password = "newPassword2";

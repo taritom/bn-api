@@ -58,7 +58,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         Json(request_data),
         auth_user,
         state,
-    )).into();
+    ))
+    .into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -135,7 +136,8 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         Json(request_data),
         auth_user,
         request.extract_state(),
-    )).into();
+    ))
+    .into();
 
     //Check if fields have been updated by retrieving the ticket type and pricing
     let updated_ticket_type = &event.ticket_types(conn).unwrap()[0];
@@ -206,14 +208,16 @@ pub fn index(role: Roles, should_test_succeed: bool) {
         path,
         query_parameters,
         auth_user,
-    )).into();
+    ))
+    .into();
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let ticket_type = &event.ticket_types(conn).unwrap()[0];
-        let expected_ticket_types = vec![
-            AdminDisplayTicketType::from_ticket_type(ticket_type, &fee_schedule, conn).unwrap(),
-        ];
+        let expected_ticket_types =
+            vec![
+                AdminDisplayTicketType::from_ticket_type(ticket_type, &fee_schedule, conn).unwrap(),
+            ];
         let ticket_types_response: Payload<AdminDisplayTicketType> =
             serde_json::from_str(&body).unwrap();
         assert_eq!(ticket_types_response.data, expected_ticket_types);

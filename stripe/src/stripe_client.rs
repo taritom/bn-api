@@ -100,7 +100,8 @@ impl StripeClient {
             .post(&format!(
                 "https://api.stripe.com/v1/charges/{}/capture",
                 charge_id
-            )).basic_auth(&self.api_key, Some(""))
+            ))
+            .basic_auth(&self.api_key, Some(""))
             .send()?;
         match resp.status() {
             reqwest::StatusCode::OK => {
@@ -130,7 +131,8 @@ impl StripeClient {
             .post(&format!(
                 "https://api.stripe.com/v1/customers/{}",
                 client_id,
-            )).basic_auth(&self.api_key, Some(""))
+            ))
+            .basic_auth(&self.api_key, Some(""))
             .form(&params)
             .send()?;
         match resp.status() {

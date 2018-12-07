@@ -161,16 +161,19 @@ impl Venue {
                     organization_users::table.on(venues::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u.id))),
-                ).left_join(
+                )
+                .left_join(
                     organizations::table
                         .on(venues::organization_id.eq(organizations::id.nullable())),
-                ).filter(
+                )
+                .filter(
                     organization_users::user_id
                         .eq(u.id)
                         .or(organizations::owner_user_id.eq(u.id))
                         .or(venues::is_private.eq(false))
                         .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
-                ).order_by(venues::name)
+                )
+                .order_by(venues::name)
                 .select(venues::all_columns)
                 .load(conn),
             None => venues::table
@@ -194,15 +197,18 @@ impl Venue {
                     organization_users::table.on(venues::organization_id
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u))),
-                ).left_join(
+                )
+                .left_join(
                     organizations::table
                         .on(venues::organization_id.eq(organizations::id.nullable())),
-                ).filter(
+                )
+                .filter(
                     organization_users::user_id
                         .eq(u)
                         .or(organizations::owner_user_id.eq(u))
                         .or(venues::is_private.eq(false)),
-                ).filter(venues::organization_id.eq(organization_id))
+                )
+                .filter(venues::organization_id.eq(organization_id))
                 .order_by(venues::name)
                 .select(venues::all_columns)
                 .load(conn),
@@ -242,7 +248,8 @@ impl Venue {
                 .set((
                     venues::is_private.eq(is_private),
                     venues::updated_at.eq(dsl::now),
-                )).get_result(conn),
+                ))
+                .get_result(conn),
         )
     }
 

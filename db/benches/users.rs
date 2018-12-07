@@ -21,7 +21,8 @@ pub fn benchmark_user_create(c: &mut Criterion) {
                 format!("email{}@test.com", x),
                 Some(format!("222{}", x).to_string()),
                 &format!("password{}", x),
-            ).commit(&connection)
+            )
+            .commit(&connection)
             .unwrap()
         })
     });
