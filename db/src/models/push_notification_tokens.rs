@@ -1,3 +1,4 @@
+use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
 use schema::push_notification_tokens;
@@ -29,12 +30,14 @@ impl NewPushNotificationToken {
     }
 }
 
-#[derive(Queryable, Serialize, PartialEq, Debug, Clone)]
+#[derive(Queryable, Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct PushNotificationToken {
     pub id: Uuid,
     pub user_id: Uuid,
     pub token_source: String,
     pub token: String,
+    pub last_notification_at: Option<NaiveDateTime>,
+    pub created_at: NaiveDateTime,
 }
 
 impl PushNotificationToken {
@@ -84,6 +87,8 @@ pub struct DisplayPushNotificationToken {
     pub id: Uuid,
     pub token_source: String,
     pub token: String,
+    pub last_notification_at: Option<NaiveDateTime>,
+    pub created_at: NaiveDateTime,
 }
 
 impl From<PushNotificationToken> for DisplayPushNotificationToken {
@@ -92,6 +97,8 @@ impl From<PushNotificationToken> for DisplayPushNotificationToken {
             id: push_notification_token.id,
             token_source: push_notification_token.token_source,
             token: push_notification_token.token,
+            last_notification_at: push_notification_token.last_notification_at,
+            created_at: push_notification_token.created_at,
         }
     }
 }

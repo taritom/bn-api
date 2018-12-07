@@ -308,6 +308,8 @@ table! {
         user_id -> Uuid,
         token_source -> Text,
         token -> Text,
+        last_notification_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
     }
 }
 

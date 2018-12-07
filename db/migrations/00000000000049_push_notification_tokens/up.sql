@@ -3,7 +3,9 @@ CREATE TABLE push_notification_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   user_id uuid NOT NULL REFERENCES users (id),
   token_source TEXT NOT NULL,
-  token TEXT NOT NULL
+  token TEXT NOT NULL,
+  last_notification_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- Indices
