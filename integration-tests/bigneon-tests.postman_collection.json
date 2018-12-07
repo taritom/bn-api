@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "16335372-cb7f-4c89-98cd-78dc1ff5ec7a",
+		"_postman_id": "11a83a3c-9bdc-4e32-a904-2ad17ede7386",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -7650,6 +7650,403 @@
 							],
 							"path": [
 								"orders"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Push Notifications",
+			"item": [
+				{
+					"name": "User - login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d3677e01-0ed8-4cd2-9673-0e6dacae9a53",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.environment.set(\"user_token\", json.access_token);",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"email\":\"{{last_email}}\", \"password\":\"itsasecret\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/auth/token",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"auth",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - Current Me",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d3677e01-0ed8-4cd2-9673-0e6dacae9a53",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.environment.set(\"last_user_id\", json.user.id);",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"email\":\"{{last_email}}\", \"password\":\"itsasecret\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/users/me",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - Add Push Notification Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "e712cc16-4004-4316-9ea5-1ea5608d4c1a",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"token_source\": \"example_token_source\",\n    \"token\": \"example_token\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/users/tokens",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users",
+								"tokens"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - Show Push Notification Tokens",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "8c0a835f-c1ec-4316-ba26-232f97e66de0",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"push notification tokens should be present\", function(){",
+									"    pm.expect(json.length).to.equal(2);",
+									"    pm.expect(json[0].token_source).to.equal(\"example_token_source\");",
+									"    pm.expect(json[0].token_source).to.equal(\"example_token_source\");",
+									"    pm.expect(json[0].token).to.equal(\"example_token\");",
+									"});",
+									"",
+									"pm.environment.set(\"last_push_notification_token_id\", json[0].id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/users/tokens",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users",
+								"tokens"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - Add 1 more Push Notification Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "e712cc16-4004-4316-9ea5-1ea5608d4c1a",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"token_source\": \"example_token_source\",\n    \"token\": \"example_token\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/users/tokens",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users",
+								"tokens"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - Remove Push Notification Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "007abc26-ee03-417b-a697-76e9fbd9f775",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/users/tokens/{{last_push_notification_token_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users",
+								"tokens",
+								"{{last_push_notification_token_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - Show Specific Users Push Notification Tokens",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3a43b32d-797c-4fb5-8830-0623c9283d9b",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"one push notification token should be removed\", function(){",
+									"    pm.expect(json.length).to.equal(1);",
+									"    pm.expect(json[0].token_source).to.equal(\"example_token_source\");",
+									"    pm.expect(json[0].token_source).to.equal(\"example_token_source\");",
+									"    pm.expect(json[0].token).to.equal(\"example_token\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{user_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/users/{{last_user_id}}/tokens",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"users",
+								"{{last_user_id}}",
+								"tokens"
 							]
 						}
 					},

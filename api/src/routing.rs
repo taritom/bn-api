@@ -156,6 +156,17 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::PUT).with(users::update_current_user);
     }).resource("/users/register", |r| {
         r.method(Method::POST).with(users::register)
+    }).resource("/users/{id}/tokens", |r| {
+        r.method(Method::GET)
+            .with(users::show_push_notification_tokens_for_user_id);
+    }).resource("/users/tokens", |r| {
+        r.method(Method::GET)
+            .with(users::show_push_notification_tokens);
+        r.method(Method::POST)
+            .with(users::add_push_notification_token);
+    }).resource("/users/tokens/{id}", |r| {
+        r.method(Method::DELETE)
+            .with(users::remove_push_notification_token);
     }).resource("/users", |r| {
         r.method(Method::GET).with(users::find_by_email);
         r.method(Method::POST).with(users::register_and_login);

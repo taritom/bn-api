@@ -29,6 +29,12 @@ pub struct CurrentUser {
     pub organization_scopes: HashMap<Uuid, Vec<String>>,
 }
 
+#[derive(Deserialize, Clone)]
+pub struct InputPushNotificationTokens {
+    pub token_source: String,
+    pub token: String,
+}
+
 pub fn current_user(
     (connection, auth_user): (Connection, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -141,6 +147,68 @@ pub fn list_organizations(
         query_parameters.page(),
         query_parameters.limit(),
     )))
+}
+
+pub fn show_push_notification_tokens_for_user_id(
+    (connection, parameters, auth_user, request): (
+        Connection,
+        Path<PathParameters>,
+        AuthUser,
+        HttpRequest<AppState>,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let user = User::find(parameters.id, connection)?;
+    if !auth_user.user.can_read_user(&user, connection)? {
+        return application::unauthorized(&request, Some(auth_user));
+    }
+
+    let push_notification_tokens: Vec<DisplayPushNotificationToken> =
+        PushNotificationToken::find_by_user_id(parameters.id, connection)?
+            .iter()
+            .map(|t| DisplayPushNotificationToken::from(t.clone()))
+            .collect();
+
+    Ok(HttpResponse::Ok().json(&push_notification_tokens))
+}
+
+pub fn show_push_notification_tokens(
+    (connection, auth_user): (Connection, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+
+    let push_notification_tokens: Vec<DisplayPushNotificationToken> =
+        PushNotificationToken::find_by_user_id(auth_user.user.id, connection)?
+            .iter()
+            .map(|t| DisplayPushNotificationToken::from(t.clone()))
+            .collect();
+
+    Ok(HttpResponse::Ok().json(&push_notification_tokens))
+}
+
+pub fn add_push_notification_token(
+    (connection, add_request, auth_user): (Connection, Json<InputPushNotificationTokens>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+
+    let add_push_notification_token_request = add_request.into_inner();
+    PushNotificationToken::create(
+        auth_user.user.id,
+        add_push_notification_token_request.token_source.clone(),
+        add_push_notification_token_request.token.clone(),
+    ).commit(connection)?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+pub fn remove_push_notification_token(
+    (connection, parameters, auth_user): (Connection, Path<PathParameters>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+
+    PushNotificationToken::remove(auth_user.user.id, parameters.id, connection)?;
+
+    Ok(HttpResponse::Ok().finish())
 }
 
 pub fn find_by_email(

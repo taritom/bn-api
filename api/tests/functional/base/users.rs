@@ -1,6 +1,6 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
 use bigneon_api::controllers::users;
-use bigneon_api::controllers::users::SearchUserByEmail;
+use bigneon_api::controllers::users::{InputPushNotificationTokens, SearchUserByEmail};
 use bigneon_api::errors::*;
 use bigneon_api::models::*;
 use bigneon_db::models::*;
@@ -204,6 +204,156 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
         support::expects_unauthorized(&response);
     }
     assert_eq!(true, true);
+}
+
+pub fn show_push_notification_tokens_for_user_id(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database.create_organization().with_user(&user2).finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    //create push notification token for user2
+    let created_token = NewPushNotificationToken {
+        user_id: user2.id,
+        token_source: "example_token_source".to_string(),
+        token: "example_token".to_string(),
+    };
+    created_token.commit(&connection).unwrap();
+    //Retrieve push notification token
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = user2.id;
+
+    let response: HttpResponse = users::show_push_notification_tokens_for_user_id((
+        database.connection.clone().into(),
+        path,
+        auth_user.clone(),
+        test_request.request,
+    )).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    if should_test_true {
+        assert_eq!(response.status(), StatusCode::OK);
+        let retrieved_tokens: Vec<DisplayPushNotificationToken> =
+            serde_json::from_str(&body).unwrap();
+        assert_eq!(retrieved_tokens.len(), 1);
+        if retrieved_tokens.len() >= 1 {
+            assert_eq!(retrieved_tokens[0].token_source, created_token.token_source);
+            assert_eq!(retrieved_tokens[0].token, created_token.token);
+        }
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
+pub fn show_push_notification_tokens(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().with_user(&user).finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    //create push notification token
+    let created_token = NewPushNotificationToken {
+        user_id: user.id,
+        token_source: "example_token_source".to_string(),
+        token: "example_token".to_string(),
+    };
+    created_token.commit(&connection).unwrap();
+    //Retrieve push notification tokens
+    let response: HttpResponse = users::show_push_notification_tokens((
+        database.connection.clone().into(),
+        auth_user.clone(),
+    )).into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+
+    if should_test_true {
+        assert_eq!(response.status(), StatusCode::OK);
+        let retrieved_tokens: Vec<DisplayPushNotificationToken> =
+            serde_json::from_str(&body).unwrap();
+        assert_eq!(retrieved_tokens.len(), 1);
+        if retrieved_tokens.len() >= 1 {
+            assert_eq!(retrieved_tokens[0].token_source, created_token.token_source);
+            assert_eq!(retrieved_tokens[0].token, created_token.token);
+        }
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
+pub fn add_push_notification_token(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().with_user(&user).finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    //create push notification token for user
+    let created_token = InputPushNotificationTokens {
+        token_source: "example_token_source".to_string(),
+        token: "example_token".to_string(),
+    };
+    let json = Json(created_token.clone());
+
+    let response: HttpResponse = users::add_push_notification_token((
+        database.connection.clone().into(),
+        json,
+        auth_user.clone(),
+    )).into();
+
+    if should_test_true {
+        assert_eq!(response.status(), StatusCode::OK);
+        //Check if token was added to storage
+        let retrieved_tokens = PushNotificationToken::find_by_user_id(user.id, connection).unwrap();
+        assert_eq!(retrieved_tokens.len(), 1);
+        if retrieved_tokens.len() >= 1 {
+            assert_eq!(retrieved_tokens[0].user_id, user.id);
+            assert_eq!(retrieved_tokens[0].token_source, created_token.token_source);
+            assert_eq!(retrieved_tokens[0].token, created_token.token);
+        }
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
+pub fn remove_push_notification_token(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().with_user(&user).finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    //create push notification token
+    NewPushNotificationToken {
+        user_id: user.id,
+        token_source: "example_token_source".to_string(),
+        token: "example_token".to_string(),
+    }.commit(&connection)
+    .unwrap();
+    //check that it was created
+    let stored_tokens = PushNotificationToken::find_by_user_id(user.id, connection).unwrap();
+    assert_eq!(stored_tokens.len(), 1);
+    //Remove push notification token
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = stored_tokens[0].id;
+
+    let response: HttpResponse = users::remove_push_notification_token((
+        database.connection.clone().into(),
+        path,
+        auth_user.clone(),
+    )).into();
+
+    if should_test_true {
+        assert_eq!(response.status(), StatusCode::OK);
+        //Check that token was removed
+        let stored_tokens = PushNotificationToken::find_by_user_id(user.id, connection).unwrap();
+        assert_eq!(stored_tokens.len(), 0);
+    } else {
+        support::expects_unauthorized(&response);
+    }
 }
 
 pub fn find_by_email(role: Roles, should_test_true: bool) {
