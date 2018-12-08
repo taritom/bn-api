@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "11a83a3c-9bdc-4e32-a904-2ad17ede7386",
+		"_postman_id": "a58ec2fc-df89-4bce-b4c3-77b39c7d9e27",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -1851,6 +1851,75 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}_With_Box_Office\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t},\n\t{\n\t\t\t\"name\": \"Test_{{$timestamp}}_box_office_only\",\n\t\"price_in_cents\": 8000,\n\t\"is_box_office_only\": true,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"ticket_types"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - create tickets - fails due to validation errors",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
+								"exec": [
+									"pm.test(\"should be 422\", function() {",
+									"    pm.response.to.have.status(422);",
+									"})",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should have validation error\", function(){",
+									"    pm.expect(r.error).to.equal(\"Validation error\");",
+									"    ",
+									"    pm.expect(r.fields[\"ticket_pricing.end_date\"].length).to.equal(1);",
+									"    pm.expect(r.fields[\"ticket_pricing.end_date\"][0].code).to.equal(\"ticket_pricing_overlapping_ticket_type_end_date\");",
+									"    pm.expect(r.fields[\"ticket_pricing.end_date\"][0].message).to.equal(\"Ticket pricing dates overlap ticket type end date\");",
+									"    pm.expect(r.fields[\"ticket_pricing.end_date\"][0].params.end_date).to.equal(\"2022-02-01T02:22:00\");",
+									"    ",
+									"    pm.expect(r.fields[\"ticket_pricing.start_date\"].length).to.equal(1);",
+									"    pm.expect(r.fields[\"ticket_pricing.start_date\"][0].code).to.equal(\"ticket_pricing_overlapping_ticket_type_start_date\");",
+									"    pm.expect(r.fields[\"ticket_pricing.start_date\"][0].message).to.equal(\"Ticket pricing dates overlap ticket type start date\");",
+									"    pm.expect(r.fields[\"ticket_pricing.start_date\"][0].params.start_date).to.equal(\"1981-02-01T02:22:00\");",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2021-01-10T02:22:00\",\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[\n\t\t{\n\t\t\t\"name\": \"Standard\",\n\t\t\t\"price_in_cents\": 3000,\n\t\t\t\"start_date\":\"1981-02-01T02:22:00\",\n\t\t\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",

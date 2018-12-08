@@ -146,6 +146,22 @@ impl TicketType {
                     conn,
                 )?,
             );
+            validation_errors = validators::append_validation_error(
+                validation_errors,
+                "ticket_pricing.start_date",
+                TicketPricing::ticket_pricing_does_not_overlap_ticket_type_start_date(
+                    self,
+                    ticket_pricing.start_date,
+                )?,
+            );
+            validation_errors = validators::append_validation_error(
+                validation_errors,
+                "ticket_pricing.end_date",
+                TicketPricing::ticket_pricing_does_not_overlap_ticket_type_end_date(
+                    self,
+                    ticket_pricing.end_date,
+                )?,
+            );
         }
 
         Ok(validation_errors?)

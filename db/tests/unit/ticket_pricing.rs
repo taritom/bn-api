@@ -121,6 +121,55 @@ fn ticket_pricing_no_overlapping_periods() {
 }
 
 #[test]
+fn create_with_same_date_validation_errors() {
+    let project = TestProject::new();
+    let event = project.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(project.get_connection()).unwrap()[0];
+    let same_date = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
+
+    let mut ticket_pricing = TicketPricing::create(
+        ticket_type.id,
+        "Early Bird".to_string(),
+        same_date,
+        same_date,
+        100,
+        false,
+    );
+
+    let result = ticket_pricing.clone().commit(project.get_connection());
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("ticket_pricing.start_date"));
+                assert_eq!(errors["ticket_pricing.start_date"].len(), 1);
+                assert_eq!(
+                    errors["ticket_pricing.start_date"][0].code,
+                    "start_date_must_be_before_end_date"
+                );
+                assert_eq!(
+                    &errors["ticket_pricing.start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    // Period without start date validation
+    ticket_pricing.start_date = same_date;
+    ticket_pricing.end_date = NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11);
+    let result = ticket_pricing.clone().commit(project.get_connection());
+    assert!(result.is_ok());
+}
+
+#[test]
 fn create_with_validation_errors() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();

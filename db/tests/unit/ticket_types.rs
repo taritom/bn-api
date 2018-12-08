@@ -2,8 +2,6 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::NaiveDate;
-use diesel::result::Error;
-use diesel::Connection;
 use uuid::Uuid;
 
 #[test]
@@ -136,10 +134,67 @@ fn create_large_amount() {
 }
 
 #[test]
+pub fn create_with_same_date_validation_errors() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().finish();
+    let wallet_id = event.issuer_wallet(connection).unwrap().id;
+    let same_date = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
+    let result = event.add_ticket_type(
+        "VIP".to_string(),
+        None,
+        100,
+        same_date,
+        same_date,
+        wallet_id,
+        None,
+        0,
+        connection,
+    );
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("start_date"));
+                assert_eq!(errors["start_date"].len(), 1);
+                assert_eq!(
+                    errors["start_date"][0].code,
+                    "start_date_must_be_before_end_date"
+                );
+                assert_eq!(
+                    &errors["start_date"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Start date must be before end date"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+}
+
+#[test]
 fn validate_ticket_pricing() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
     let ticket_type = &event.ticket_types(project.get_connection()).unwrap()[0];
+
+    // Set short window for validations to detect dates outside of ticket type window
+    let ticket_type = ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                start_date: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
+                end_date: Some(NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11)),
+                ..Default::default()
+            },
+            project.get_connection(),
+        )
+        .unwrap();
+
     let start_date1 = NaiveDate::from_ymd(2016, 7, 6).and_hms(4, 10, 11);
     let end_date1 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
     let start_date2 = NaiveDate::from_ymd(2016, 7, 7).and_hms(4, 10, 11);
@@ -166,53 +221,81 @@ fn validate_ticket_pricing() {
     .unwrap();
     let mut ticket_pricing_parameters: TicketPricingEditableAttributes = Default::default();
 
-    // Overlapping period
-    project
-        .get_connection()
-        .transaction::<(), Error, _>(|| {
-            let validation_results = ticket_type.validate_ticket_pricing(project.get_connection());
-            assert!(validation_results.is_err());
-            let error = validation_results.unwrap_err();
-            match &error.error_code {
-                ErrorCode::ValidationError { errors } => {
-                    assert!(errors.contains_key("ticket_pricing"));
-                    assert_eq!(errors["ticket_pricing"].len(), 2);
-                    assert_eq!(
-                        errors["ticket_pricing"][0].code,
-                        "ticket_pricing_overlapping_periods"
-                    );
-                    assert_eq!(
-                        &errors["ticket_pricing"][0]
-                            .message
-                            .clone()
-                            .unwrap()
-                            .into_owned(),
-                        "Ticket pricing dates overlap another ticket pricing period"
-                    );
-                }
-                _ => panic!("Expected validation error"),
-            }
-            Err(Error::RollbackTransaction)
-        })
-        .unwrap_err();
+    // Overlapping period and overlapping ticket type window
+    let validation_results = ticket_type.validate_ticket_pricing(project.get_connection());
+    assert!(validation_results.is_err());
+    let error = validation_results.unwrap_err();
+    match &error.error_code {
+        ErrorCode::ValidationError { errors } => {
+            assert!(errors.contains_key("ticket_pricing"));
+            assert_eq!(errors["ticket_pricing"].len(), 2);
+            assert_eq!(
+                errors["ticket_pricing"][0].code,
+                "ticket_pricing_overlapping_periods"
+            );
+            assert_eq!(
+                &errors["ticket_pricing"][0]
+                    .message
+                    .clone()
+                    .unwrap()
+                    .into_owned(),
+                "Ticket pricing dates overlap another ticket pricing period"
+            );
+
+            assert!(errors.contains_key("ticket_pricing.start_date"));
+            assert_eq!(errors["ticket_pricing.start_date"].len(), 2);
+            assert_eq!(
+                errors["ticket_pricing.start_date"][0].code,
+                "ticket_pricing_overlapping_ticket_type_start_date"
+            );
+            assert_eq!(
+                &errors["ticket_pricing.start_date"][0]
+                    .message
+                    .clone()
+                    .unwrap()
+                    .into_owned(),
+                "Ticket pricing dates overlap ticket type start date"
+            );
+
+            assert!(errors.contains_key("ticket_pricing.end_date"));
+            assert_eq!(errors["ticket_pricing.end_date"].len(), 2);
+            assert_eq!(
+                errors["ticket_pricing.end_date"][0].code,
+                "ticket_pricing_overlapping_ticket_type_end_date"
+            );
+            assert_eq!(
+                &errors["ticket_pricing.end_date"][0]
+                    .message
+                    .clone()
+                    .unwrap()
+                    .into_owned(),
+                "Ticket pricing dates overlap ticket type end date"
+            );
+        }
+        _ => panic!("Expected validation error"),
+    }
+
+    // Ticket type adjusted so ticket pricing inclusive of its dates
+    let ticket_type = ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                start_date: Some(NaiveDate::from_ymd(2016, 6, 1).and_hms(4, 10, 11)),
+                end_date: Some(NaiveDate::from_ymd(2055, 7, 6).and_hms(4, 10, 11)),
+                ..Default::default()
+            },
+            project.get_connection(),
+        )
+        .unwrap();
 
     // Period adjusted to not overlap (after existing record)
-    project
-        .get_connection()
-        .transaction::<(), Error, _>(|| {
-            ticket_pricing_parameters.start_date = Some(end_date1);
-            ticket_pricing_parameters.end_date =
-                Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
-            ticket_pricing
-                .update(ticket_pricing_parameters.clone(), project.get_connection())
-                .unwrap();
-
-            ticket_type
-                .validate_ticket_pricing(project.get_connection())
-                .unwrap();
-            Err(Error::RollbackTransaction)
-        })
-        .unwrap_err();
+    ticket_pricing_parameters.start_date = Some(end_date1);
+    ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
+    ticket_pricing
+        .update(ticket_pricing_parameters.clone(), project.get_connection())
+        .unwrap();
+    ticket_type
+        .validate_ticket_pricing(project.get_connection())
+        .unwrap();
 
     // Period adjusted to not overlap (prior to existing record)
     ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 4).and_hms(4, 10, 11));

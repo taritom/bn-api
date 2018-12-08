@@ -86,6 +86,40 @@ impl TicketPricing {
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing")
     }
 
+    pub fn ticket_pricing_does_not_overlap_ticket_type_start_date(
+        ticket_type: &TicketType,
+        start_date: NaiveDateTime,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        if ticket_type.start_date > start_date {
+            let mut validation_error = create_validation_error(
+                "ticket_pricing_overlapping_ticket_type_start_date",
+                "Ticket pricing dates overlap ticket type start date",
+            );
+            validation_error.add_param(Cow::from("ticket_type_id"), &ticket_type.id);
+            validation_error.add_param(Cow::from("start_date"), &start_date);
+
+            return Ok(Err(validation_error));
+        }
+        Ok(Ok(()))
+    }
+
+    pub fn ticket_pricing_does_not_overlap_ticket_type_end_date(
+        ticket_type: &TicketType,
+        end_date: NaiveDateTime,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        if ticket_type.end_date < end_date {
+            let mut validation_error = create_validation_error(
+                "ticket_pricing_overlapping_ticket_type_end_date",
+                "Ticket pricing dates overlap ticket type end date",
+            );
+            validation_error.add_param(Cow::from("ticket_type_id"), &ticket_type.id);
+            validation_error.add_param(Cow::from("end_date"), &end_date);
+
+            return Ok(Err(validation_error));
+        }
+        Ok(Ok(()))
+    }
+
     pub fn ticket_pricing_no_overlapping_periods(
         id: Uuid,
         ticket_type_id: Uuid,
