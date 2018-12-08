@@ -146,13 +146,6 @@ pub fn create_failure_missing_required_parameters(role: Roles, should_test_succe
             json!({"error": "Missing required parameters, `user_id` or `user_email` required"})
                 .to_string();
         assert_eq!(body, expected_json);
-
-        let mail_transport = test_request.test_transport();
-
-        {
-            let sent = mail_transport.sent.lock().unwrap();
-            assert!(sent.first().is_none());
-        }
     } else {
         support::expects_unauthorized(&response);
     }

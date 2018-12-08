@@ -3,10 +3,10 @@ use actix_web::{HttpResponse, Json, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
+use communications::{mailers, smsers};
 use db::Connection;
 use errors::*;
 use helpers::application;
-use mail::mailers;
 use models::{OptionalPathParameters, PathParameters};
 use serde_json::Value;
 use server::AppState;
@@ -124,7 +124,7 @@ pub fn show_redeemable_ticket(
     Ok(HttpResponse::Ok().json(&redeemable_ticket))
 }
 
-pub fn send_via_email(
+pub fn send_via_email_or_phone(
     (connection, send_tickets_request, auth_user, state): (
         Connection,
         Json<SendTicketsRequest>,
@@ -144,16 +144,29 @@ pub fn send_via_email(
         connection,
     )?;
 
-    mailers::tickets::send_tickets(
-        &state.config,
-        send_tickets_request.email.clone(),
-        &authorization.sender_user_id.to_string(),
-        authorization.num_tickets,
-        &authorization.transfer_key.to_string(),
-        &authorization.signature,
-        &auth_user.user,
-        connection,
-    )?;
+    if send_tickets_request.email_or_phone.contains("@") {
+        mailers::tickets::send_tickets(
+            &state.config,
+            send_tickets_request.email_or_phone.clone(),
+            &authorization.sender_user_id.to_string(),
+            authorization.num_tickets,
+            &authorization.transfer_key.to_string(),
+            &authorization.signature,
+            &auth_user.user,
+            connection,
+        )?;
+    } else {
+        smsers::tickets::send_tickets(
+            &state.config,
+            send_tickets_request.email_or_phone.clone(),
+            &authorization.sender_user_id.to_string(),
+            authorization.num_tickets,
+            &authorization.transfer_key.to_string(),
+            &authorization.signature,
+            &auth_user.user,
+            connection,
+        )?;
+    }
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -162,7 +175,7 @@ pub fn send_via_email(
 pub struct SendTicketsRequest {
     pub ticket_ids: Vec<Uuid>,
     pub validity_period_in_seconds: Option<i64>,
-    pub email: String,
+    pub email_or_phone: String,
 }
 
 pub fn transfer_authorization(

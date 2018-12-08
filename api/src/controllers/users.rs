@@ -2,13 +2,13 @@ use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Json, Path, Query, 
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
+use communications::mailers;
 use controllers::auth;
 use controllers::auth::LoginRequest;
 use db::Connection;
 use diesel::PgConnection;
 use errors::*;
 use helpers::application;
-use mail::mailers;
 use models::*;
 use server::AppState;
 use std::collections::HashMap;

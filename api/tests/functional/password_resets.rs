@@ -60,12 +60,6 @@ fn create_fake_email() {
     });
     let response: HttpResponse = password_resets::create((state, database.connection, json)).into();
 
-    let mail_transport = test_request.test_transport();
-
-    {
-        assert_eq!(mail_transport.sent.lock().unwrap().len(), 0);
-    }
-
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_json);

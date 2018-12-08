@@ -1,5 +1,5 @@
+use bigneon_api::communications::mailers;
 use bigneon_api::config::{Config, Environment};
-use bigneon_api::mail::mailers;
 use bigneon_api::utils::communication::CommAddress;
 use bigneon_db::models::concerns::users::password_resetable::PasswordResetable;
 use support::database::TestDatabase;
@@ -7,8 +7,6 @@ use support::database::TestDatabase;
 #[test]
 fn password_reset_email() {
     let mut config = Config::new(Environment::Test);
-    config.mail_from_name = "Big Neon Support".to_string();
-    config.mail_from_email = "support@bigneon.com".to_string();
     let database = TestDatabase::new();
 
     let user = database.create_user().finish();

@@ -31,6 +31,9 @@ serde_with = "0.2"
 stripe = {path="../stripe"}
 tari-client= {path="../tari-client"}
 tokio = "0.1"
+# TODO move this to the bigneon org? Currently just testing this lib, so if we
+# are still using it in a few months, fork it into /bigneon
+twilio= { git = "https://github.com/mikethetike/twilio-rs" , rev="c6440d9"}
 uuid = { version = "0.6", features = ["serde", "v4"] }
 validator = "0.8"
 validator_derive = "0.8"

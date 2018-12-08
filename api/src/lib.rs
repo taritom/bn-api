@@ -31,19 +31,20 @@ extern crate serde_with;
 extern crate stripe;
 extern crate tari_client;
 extern crate tokio;
+extern crate twilio;
 extern crate uuid;
 extern crate validator;
 #[macro_use]
 extern crate validator_derive;
 
 pub mod auth;
+pub mod communications;
 pub mod config;
 pub mod controllers;
 pub mod db;
 pub mod domain_events;
 pub mod errors;
 pub mod helpers;
-pub mod mail;
 pub mod middleware;
 pub mod models;
 mod payments;

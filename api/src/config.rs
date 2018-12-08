@@ -1,5 +1,4 @@
 use dotenv::dotenv;
-use mail::transports::{SmtpTransport, TestTransport, Transport};
 use std::env;
 use tari_client::{HttpTariClient, TariClient, TariTestClient};
 
@@ -26,15 +25,13 @@ pub struct Config {
     pub google_recaptcha_secret_key: Option<String>,
     pub http_keep_alive: usize,
     pub block_external_comms: bool,
-    pub mail_from_email: String,
-    pub mail_from_name: String,
-    pub mail_transport: Box<Transport + Send + Sync>,
     pub primary_currency: String,
     pub stripe_secret_key: String,
     pub token_secret: String,
     pub token_issuer: String,
     pub tari_client: Box<TariClient + Send + Sync>,
     pub communication_default_source_email: String,
+    pub communication_default_source_phone: String,
     pub sendgrid_api_key: String,
     pub sendgrid_template_bn_user_registered: String,
     pub sendgrid_template_bn_purchase_completed: String,
@@ -42,6 +39,8 @@ pub struct Config {
     pub sendgrid_template_bn_transfer_tickets: String,
     pub sendgrid_template_bn_password_reset: String,
     pub spotify_auth_token: Option<String>,
+    pub twilio_account_id: String,
+    pub twilio_api_key: String,
 }
 
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
@@ -63,16 +62,11 @@ const TOKEN_ISSUER: &str = "TOKEN_ISSUER";
 const HTTP_KEEP_ALIVE: &str = "HTTP_KEEP_ALIVE";
 // Blocks all external communications from occurring
 const BLOCK_EXTERNAL_COMMS: &str = "BLOCK_EXTERNAL_COMMS";
-// Mail settings
-const MAIL_FROM_EMAIL: &str = "MAIL_FROM_EMAIL";
-const MAIL_FROM_NAME: &str = "MAIL_FROM_NAME";
-// Optional for test environment, required for other environments
-const MAIL_SMTP_HOST: &str = "MAIL_SMTP_HOST";
-const MAIL_SMTP_PORT: &str = "MAIL_SMTP_PORT";
 const FRONT_END_URL: &str = "FRONT_END_URL";
 
 //Communication settings
 const COMMUNICATION_DEFAULT_SOURCE_EMAIL: &str = "COMMUNICATION_DEFAULT_SOURCE_EMAIL";
+const COMMUNICATION_DEFAULT_SOURCE_PHONE: &str = "COMMUNICATION_DEFAULT_SOURCE_PHONE";
 
 //SendGrid settings
 const SENDGRID_API_KEY: &str = "SENDGRID_API_KEY";
@@ -84,6 +78,9 @@ const SENDGRID_TEMPLATE_BN_PASSWORD_RESET: &str = "SENDGRID_TEMPLATE_BN_PASSWORD
 
 //Spotify settings
 const SPOTIFY_AUTH_TOKEN: &str = "SPOTIFY_AUTH_TOKEN";
+
+const TWILIO_API_KEY: &str = "TWILIO_API_KEY";
+const TWILIO_ACCOUNT_ID: &str = "TWILIO_ACCOUNT_ID";
 
 impl Config {
     pub fn new(environment: Environment) -> Self {
@@ -105,33 +102,6 @@ impl Config {
             })
             .unwrap_or(20);
         let domain = env::var(&DOMAIN).unwrap_or_else(|_| "api.bigneon.com".to_string());
-        let mail_from_email = env::var(&MAIL_FROM_EMAIL)
-            .unwrap_or_else(|_| panic!("{} must be defined.", MAIL_FROM_EMAIL));
-        let mail_from_name = env::var(&MAIL_FROM_NAME)
-            .unwrap_or_else(|_| panic!("{} must be defined.", MAIL_FROM_NAME));
-
-        let mail_transport = match environment {
-            Environment::Test => Box::new(TestTransport::new()) as Box<Transport + Send + Sync>,
-            _ => {
-                let host = env::var(&MAIL_SMTP_HOST)
-                    .unwrap_or_else(|_| panic!("{} must be defined.", MAIL_SMTP_HOST));
-
-                if host == "test" {
-                    Box::new(TestTransport::new()) as Box<Transport + Send + Sync>
-                } else {
-                    let port = env::var(&MAIL_SMTP_PORT)
-                        .unwrap_or_else(|_| panic!("{} must be defined.", MAIL_SMTP_PORT));
-
-                    info!("Mail configured {}:{}", host, port);
-
-                    Box::new(SmtpTransport::new(
-                        &domain,
-                        &host,
-                        port.parse::<u16>().unwrap(),
-                    )) as Box<Transport + Send + Sync>
-                }
-            }
-        };
 
         let allowed_origins = env::var(&ALLOWED_ORIGINS).unwrap_or_else(|_| "*".to_string());
         let api_url = env::var(&API_URL).unwrap_or_else(|_| "127.0.0.1".to_string());
@@ -173,6 +143,8 @@ impl Config {
 
         let communication_default_source_email = env::var(&COMMUNICATION_DEFAULT_SOURCE_EMAIL)
             .unwrap_or_else(|_| panic!("{} must be defined.", COMMUNICATION_DEFAULT_SOURCE_EMAIL));
+        let communication_default_source_phone = env::var(&COMMUNICATION_DEFAULT_SOURCE_PHONE)
+            .unwrap_or_else(|_| panic!("{} must be defined.", COMMUNICATION_DEFAULT_SOURCE_PHONE));
 
         let sendgrid_api_key = env::var(&SENDGRID_API_KEY)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_API_KEY));
@@ -200,6 +172,12 @@ impl Config {
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_PASSWORD_RESET));
 
         let spotify_auth_token = env::var(&SPOTIFY_AUTH_TOKEN).ok();
+        let twilio_api_key = env::var(&TWILIO_API_KEY)
+            .unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_API_KEY));;
+
+        let twilio_account_id = env::var(&TWILIO_ACCOUNT_ID)
+            .unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_ACCOUNT_ID));;
+
 
         let block_external_comms = match env::var(&BLOCK_EXTERNAL_COMMS)
             .unwrap_or_else(|_| "0".to_string())
@@ -228,9 +206,6 @@ impl Config {
             google_recaptcha_secret_key,
             http_keep_alive,
             block_external_comms,
-            mail_from_name,
-            mail_from_email,
-            mail_transport,
             primary_currency,
             stripe_secret_key,
             token_secret,
@@ -238,6 +213,7 @@ impl Config {
             front_end_url,
             tari_client,
             communication_default_source_email,
+            communication_default_source_phone,
             sendgrid_api_key,
             sendgrid_template_bn_user_registered,
             sendgrid_template_bn_purchase_completed,
@@ -245,6 +221,8 @@ impl Config {
             sendgrid_template_bn_transfer_tickets,
             sendgrid_template_bn_password_reset,
             spotify_auth_token,
+            twilio_api_key,
+            twilio_account_id,
         }
     }
 }

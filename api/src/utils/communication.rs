@@ -12,6 +12,7 @@ use config::{Config, Environment};
 use errors::*;
 use futures::future::Either;
 use utils::sendgrid;
+use utils::twilio;
 
 pub type TemplateData = HashMap<String, String>;
 
@@ -19,6 +20,7 @@ pub type TemplateData = HashMap<String, String>;
 pub enum CommunicationType {
     Email,
     EmailTemplate,
+    Sms,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -98,7 +100,11 @@ impl Communication {
         DomainAction::create(
             None,
             DomainActionTypes::Communication,
-            Some(CommunicationChannelType::Email),
+            match self.comm_type {
+                CommunicationType::Email => Some(CommunicationChannelType::Email),
+                CommunicationType::EmailTemplate => Some(CommunicationChannelType::Email),
+                CommunicationType::Sms => Some(CommunicationChannelType::Sms),
+            },
             json!(self),
             "event".to_string(),
             Uuid::new_v4(),
@@ -129,30 +135,33 @@ impl Communication {
                     true => Either::A(future::ok(())), //Disable communication system when block_external_comms is true,
                     _ => {
                         let destination_addresses = communication.destinations.get();
-                        let future = match communication.comm_type {
-                            CommunicationType::Email => {
-                                let source_address =
-                                    communication.source.as_ref().unwrap().get_first().unwrap();
-                                sendgrid::send_email_async(
-                                    &config.sendgrid_api_key.clone(),
-                                    source_address,
-                                    destination_addresses,
-                                    communication.title.clone(),
-                                    communication.body.clone(),
-                                )
-                            }
-                            CommunicationType::EmailTemplate => {
-                                let source_address =
-                                    communication.source.as_ref().unwrap().get_first().unwrap();
+                        let source_address =
+                            communication.source.as_ref().unwrap().get_first().unwrap();
 
+                        let future = match communication.comm_type {
+                            CommunicationType::Email => sendgrid::send_email_async(
+                                &config.sendgrid_api_key,
+                                source_address,
+                                destination_addresses,
+                                communication.title.clone(),
+                                communication.body.clone(),
+                            ),
+                            CommunicationType::EmailTemplate => {
                                 sendgrid::send_email_template_async(
-                                    &config.sendgrid_api_key.clone(),
+                                    &config.sendgrid_api_key,
                                     source_address,
                                     &destination_addresses,
                                     communication.template_id.clone().unwrap(),
                                     communication.template_data.as_ref().unwrap(),
                                 )
                             }
+                            CommunicationType::Sms => twilio::send_sms_async(
+                                &config.twilio_account_id,
+                                &config.twilio_api_key,
+                                source_address,
+                                destination_addresses,
+                                &communication.body.unwrap_or(communication.title),
+                            ),
                         };
                         Either::B(future)
                     }

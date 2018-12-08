@@ -195,7 +195,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(tickets::receive_transfer);
     })
     .resource("/tickets/send", |r| {
-        r.method(Method::POST).with(tickets::send_via_email);
+        r.method(Method::POST)
+            .with(tickets::send_via_email_or_phone);
     })
     .resource("/tickets/{id}", |r| {
         r.method(Method::GET).with(tickets::show);
