@@ -133,12 +133,14 @@ impl Spotify {
                     .into());
                 } else {
                     let image_url = Spotify::get_image_from_artist(&artist["images"], Some(0));
+                    let thumb_image_url = Spotify::get_image_from_artist(&artist["images"], None);
 
                     let create_artist = CreateArtistRequest {
                         name: artist["name"].as_str().map(|s| s.to_string()),
                         bio: Some("".to_string()),
                         spotify_id: artist["id"].as_str().map(|s| s.to_string()),
                         image_url,
+                        thumb_image_url,
                         ..Default::default()
                     };
                     Ok(Some(create_artist))
