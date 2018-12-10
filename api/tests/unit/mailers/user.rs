@@ -6,7 +6,7 @@ use support::database::TestDatabase;
 
 #[test]
 fn password_reset_email() {
-    let mut config = Config::new(Environment::Test);
+    let config = Config::new(Environment::Test);
     let database = TestDatabase::new();
 
     let user = database.create_user().finish();

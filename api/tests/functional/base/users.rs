@@ -49,13 +49,8 @@ pub fn profile(role: Roles, should_test_true: bool) {
     let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     path.user_id = user2.id;
-    let response: HttpResponse = users::profile((
-        database.connection.clone().into(),
-        path,
-        auth_user.clone(),
-        test_request.request,
-    ))
-    .into();
+    let response: HttpResponse =
+        users::profile((database.connection.clone().into(), path, auth_user.clone())).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {
