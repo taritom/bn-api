@@ -74,6 +74,42 @@ impl NewArtist {
                 .get_result(conn),
         )
     }
+
+    pub fn merge(&mut self, new_artist: NewArtist) {
+        if self.bio == "" {
+            self.bio = new_artist.bio;
+        }
+        if let None = self.image_url {
+            self.image_url = new_artist.image_url;
+        }
+        if let None = self.thumb_image_url {
+            self.thumb_image_url = new_artist.thumb_image_url;
+        }
+        if let None = self.website_url {
+            self.website_url = new_artist.website_url;
+        }
+        if let None = self.youtube_video_urls {
+            self.youtube_video_urls = new_artist.youtube_video_urls;
+        }
+        if let None = self.facebook_username {
+            self.facebook_username = new_artist.facebook_username;
+        }
+        if let None = self.instagram_username {
+            self.instagram_username = new_artist.instagram_username;
+        }
+        if let None = self.snapchat_username {
+            self.snapchat_username = new_artist.snapchat_username;
+        }
+        if let None = self.soundcloud_username {
+            self.soundcloud_username = new_artist.soundcloud_username;
+        }
+        if let None = self.bandcamp_username {
+            self.bandcamp_username = new_artist.bandcamp_username;
+        }
+        if let None = self.spotify_id {
+            self.spotify_id = new_artist.spotify_id;
+        }
+    }
 }
 
 impl Artist {

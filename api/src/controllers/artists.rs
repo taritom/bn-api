@@ -80,11 +80,12 @@ pub fn create(
         Some(spotify_id) => {
             let auth_token = state.config.spotify_auth_token.clone();
             let spotify_client = Spotify::connect(auth_token)?;
-            println!("Spotify ID {}", spotify_id);
             let spotify_artist_result = spotify_client.read_artist(&spotify_id)?;
             match spotify_artist_result {
                 Some(artist) => {
-                    let new_artist: NewArtist = artist.into();
+                    let mut new_artist: NewArtist = artist.into();
+                    let client_data: NewArtist = create_artist.clone().into();
+                    new_artist.merge(client_data);
                     new_artist.commit(connection)?
                 }
                 None => return application::not_found(),
