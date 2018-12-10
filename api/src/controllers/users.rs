@@ -44,12 +44,7 @@ pub fn current_user(
 }
 
 pub fn profile(
-    (connection, path, auth_user, request): (
-        Connection,
-        Path<OrganizationFanPathParameters>,
-        AuthUser,
-        HttpRequest<AppState>,
-    ),
+    (connection, path, auth_user): (Connection, Path<OrganizationFanPathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
@@ -59,7 +54,7 @@ pub fn profile(
 
     // Confirm organization has specified user as a fan
     if !organization.has_fan(&user, connection)? {
-        return application::unauthorized(&request, Some(auth_user));
+        return application::forbidden("Fan does not belong to this organization");
     }
 
     Ok(HttpResponse::Ok().json(&user.get_profile_for_organization(&organization, connection)?))
