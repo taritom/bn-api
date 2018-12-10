@@ -2,6 +2,7 @@ use actix_web::Json;
 use actix_web::State;
 use actix_web::{http::StatusCode, HttpResponse};
 use auth::user::User;
+use bigneon_db::models::TicketType as Dbticket_types;
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
@@ -50,6 +51,13 @@ pub fn update_cart(
             redemption_code: i.redemption_code.clone(),
         })
         .collect();
+    for order_item in &order_items {
+        if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
+            return Ok(
+                HttpResponse::BadRequest().json(json!({"error": "Event is invalid.".to_string()}))
+            );
+        }
+    }
     cart.update_quantities(&order_items, false, connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
@@ -73,7 +81,13 @@ pub fn replace_cart(
             redemption_code: i.redemption_code.clone(),
         })
         .collect();
-
+    for order_item in &order_items {
+        if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
+            return Ok(
+                HttpResponse::BadRequest().json(json!({"error": "Event is invalid.".to_string()}))
+            );
+        }
+    }
     cart.update_quantities(&order_items, true, connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))

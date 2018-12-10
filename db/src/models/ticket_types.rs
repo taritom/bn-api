@@ -244,6 +244,26 @@ impl TicketType {
             )
     }
 
+    pub fn is_event_not_draft(
+        ticket_type_id: &Uuid,
+        conn: &PgConnection,
+    ) -> Result<bool, DatabaseError> {
+        let valid_ticket_count: i64 = ticket_types::table
+            .inner_join(events::table)
+            .filter(ticket_types::id.eq(ticket_type_id))
+            .filter(events::status.ne(EventStatus::Draft.to_string()))
+            .select(dsl::count(ticket_types::id))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load ticket pricing for ticket type",
+            )?;
+        if valid_ticket_count <= 0 {
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
     pub fn valid_ticket_pricing(
         &self,
         conn: &PgConnection,

@@ -110,6 +110,34 @@ fn update() {
 }
 
 #[test]
+fn update_with_draft_event() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let event = database
+        .create_event()
+        .with_status(EventStatus::Draft)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let user = database.create_user().finish();
+    let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
+
+    let input = Json(cart::UpdateCartRequest {
+        items: vec![cart::CartItem {
+            ticket_type_id,
+            quantity: 2,
+            redemption_code: None,
+        }],
+    });
+
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let response =
+        cart::update_cart((database.connection.clone().into(), input, auth_user)).unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[test]
 fn update_multiple() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
@@ -124,7 +152,6 @@ fn update_multiple() {
     let ticket_types = event.ticket_types(connection).unwrap();
     let ticket_type_id = ticket_types[0].id;
     let ticket_type_id2 = ticket_types[1].id;
-
     let input = Json(cart::UpdateCartRequest {
         items: vec![
             cart::CartItem {
@@ -139,12 +166,10 @@ fn update_multiple() {
             },
         ],
     });
-
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response =
         cart::update_cart((database.connection.clone().into(), input, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-
     let cart = Order::find_cart_for_user(user.id, connection)
         .unwrap()
         .unwrap();
@@ -156,12 +181,10 @@ fn update_multiple() {
         .collect::<Vec<OrderItem>>();
     let order_item = &cart_items[0];
     let order_item2 = &cart_items[1];
-
     let ticket_pricing =
         TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     let ticket_pricing2 =
         TicketPricing::find(order_item2.ticket_pricing_id.unwrap(), connection).unwrap();
-
     assert_eq!(order_item.quantity, 2);
     assert_eq!(order_item2.quantity, 3);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
