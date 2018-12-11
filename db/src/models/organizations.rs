@@ -26,7 +26,7 @@ pub struct Organization {
     pub country: Option<String>,
     pub postal_code: Option<String>,
     pub phone: Option<String>,
-    pub event_fee_in_cents: Option<i64>,
+    pub event_fee_in_cents: i64,
     pub sendgrid_api_key: Option<String>,
     pub google_ga_key: Option<String>,
     pub facebook_pixel_key: Option<String>,
@@ -90,8 +90,7 @@ pub struct OrganizationEditableAttributes {
     pub postal_code: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
-    #[serde(default, deserialize_with = "double_option::deserialize")]
-    pub event_fee_in_cents: Option<Option<i64>>,
+    pub event_fee_in_cents: Option<i64>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub sendgrid_api_key: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option::deserialize")]

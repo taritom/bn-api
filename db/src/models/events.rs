@@ -33,7 +33,7 @@ pub struct Event {
     pub status: String,
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
-    pub fee_in_cents: Option<i64>,
+    pub fee_in_cents: i64,
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,

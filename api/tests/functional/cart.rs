@@ -188,9 +188,12 @@ fn update_multiple() {
     assert_eq!(order_item.quantity, 2);
     assert_eq!(order_item2.quantity, 3);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+
     let fee_item2 = order_item2.find_fee_item(connection).unwrap().unwrap();
+
     let fee_schedule_range =
         FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+
     let fee_schedule_range2 =
         FeeScheduleRange::find(fee_item2.fee_schedule_range_id.unwrap(), connection).unwrap();
     assert_eq!(

@@ -222,7 +222,7 @@ pub fn show(
         created_at: NaiveDateTime,
         event_start: Option<NaiveDateTime>,
         door_time: Option<NaiveDateTime>,
-        fee_in_cents: Option<i64>,
+        fee_in_cents: i64,
         status: String,
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,

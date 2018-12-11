@@ -845,7 +845,6 @@ fn adding_event_fees() {
     let mut event_fees_count = 0;
     for o in &order_items {
         if o.item_type().unwrap() == OrderItemTypes::EventFees {
-            println!("Order item {:?}", o);
             event_fees_count += 1;
         }
     }
@@ -871,7 +870,7 @@ fn adding_event_fees() {
             event_fees_count += 1;
         }
     }
-    assert_eq!(event_fees_count, 3);
+    assert_eq!(event_fees_count, 2);
 }
 
 #[test]

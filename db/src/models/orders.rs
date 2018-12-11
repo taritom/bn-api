@@ -549,7 +549,6 @@ impl Order {
             }
 
             let event = Event::find(event_id.unwrap(), conn)?;
-            let organization = Organization::find(event.organization_id, conn)?;
             for o in items {
                 match o.item_type()? {
                     OrderItemTypes::Tickets => o.update_fees(&self, conn)?,
@@ -568,11 +567,9 @@ impl Order {
                 quantity: 1,
                 parent_id: None,
             };
-            if let Some(event_fee_in_cents) = event.fee_in_cents {
-                new_event_fee.unit_price_in_cents = event_fee_in_cents;
-                new_event_fee.commit(conn)?;
-            } else if let Some(organization_event_fee_in_cents) = organization.event_fee_in_cents {
-                new_event_fee.unit_price_in_cents = organization_event_fee_in_cents;
+            if event.fee_in_cents > 0 {
+                //we dont want to create 0 fee order item
+                new_event_fee.unit_price_in_cents = event.fee_in_cents;
                 new_event_fee.commit(conn)?;
             }
         }
