@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "a58ec2fc-df89-4bce-b4c3-77b39c7d9e27",
+		"_postman_id": "4accf565-5867-4db6-aff2-733b12c611a5",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -509,9 +509,6 @@
 							}
 						}
 					],
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -934,12 +931,21 @@
 									"    pm.response.to.have.status(200);",
 									"})",
 									"",
-									"pm.test(\"Spotify result should contain spotify_id\",function() {",
+									"//If data is blank, no spotify key was provided",
+									"",
+									"",
+									"pm.test(\"Spotify result should contain spotify_id or data should be blank\",function() {",
 									"    pm.environment.set(\"last_spotify_artist_id\", \"\");",
-									"    JSON.parse(responseBody).data.forEach(item => {",
-									"        pm.expect(item.spotify_id).to.not.be.a(\"null\");",
-									"        pm.environment.set(\"last_spotify_artist_id\", \"5HFkc3t0HYETL4JeEbDB1v\");",
-									"    })",
+									"    let data = JSON.parse(responseBody).data;",
+									"    if(data.length === 0) {",
+									"        postman.setNextRequest(\"Admin - Create Venue\");",
+									"    } else {",
+									"        data.forEach(item => {",
+									"            pm.expect(item.spotify_id).to.not.be.a(\"null\");",
+									"            pm.environment.set(\"last_spotify_artist_id\", \"5HFkc3t0HYETL4JeEbDB1v\");",
+									"        })    ",
+									"    }",
+									"    ",
 									"});"
 								],
 								"type": "text/javascript"
@@ -1056,7 +1062,7 @@
 					"response": []
 				},
 				{
-					"name": "Admin - Create venue",
+					"name": "Admin - Create Venue",
 					"event": [
 						{
 							"listen": "test",
@@ -8339,9 +8345,6 @@
 							}
 						}
 					],
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
 					"request": {
 						"auth": {
 							"type": "bearer",
