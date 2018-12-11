@@ -407,14 +407,16 @@ impl Organization {
             .filter(orders::status.eq(OrderStatus::Paid.to_string()))
             .filter(events::organization_id.eq(self.id))
             .filter(
-                sql("users.first_name ilike ")
+                sql("(")
+                    .sql("users.first_name ilike ")
                     .bind::<Text, _>(&search_filter)
                     .sql(" OR users.last_name ilike ")
                     .bind::<Text, _>(&search_filter)
                     .sql(" OR users.email ilike ")
                     .bind::<Text, _>(&search_filter)
-                    .sql("or users.phone ilike ")
-                    .bind::<Text, _>(&search_filter),
+                    .sql(" OR users.phone ilike ")
+                    .bind::<Text, _>(&search_filter)
+                    .sql(")"),
             )
             .group_by((
                 events::organization_id,

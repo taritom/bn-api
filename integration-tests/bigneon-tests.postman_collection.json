@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "a58ec2fc-df89-4bce-b4c3-77b39c7d9e27",
+		"_postman_id": "b4cee717-e2ca-448d-bd45-bdcd5ab7ff3c",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -7351,283 +7351,6 @@
 			]
 		},
 		{
-			"name": "Dashboards",
-			"item": [
-				{
-					"name": "Admin - View Event Dashboard",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "d481afe5-174e-4720-914d-483d6b75535e",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let json = JSON.parse(responseBody);",
-									"",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/dashboard",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events",
-								"{{last_event_id}}",
-								"dashboard"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - View Fans Page",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "d481afe5-174e-4720-914d-483d6b75535e",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let json = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"fans should be present\", function(){",
-									"    pm.expect(json.data.length).to.equal(2);",
-									"});",
-									"",
-									"pm.test(\"last user fan data should be present\", function(){",
-									"    let user_id = pm.environment.get(\"last_user_id\");",
-									"    pm.expect(json.data[1].user_id).to.equal(user_id);",
-									"    pm.expect(json.data[1].first_name).to.equal(\"Mike\");",
-									"    pm.expect(json.data[1].last_name).to.equal(\"Surname\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/fans?page=0&limit=10&sort=Email&dir=Asc",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}",
-								"fans"
-							],
-							"query": [
-								{
-									"key": "page",
-									"value": "0"
-								},
-								{
-									"key": "limit",
-									"value": "10"
-								},
-								{
-									"key": "sort",
-									"value": "Email"
-								},
-								{
-									"key": "dir",
-									"value": "Asc"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - View Fan Page",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "d481afe5-174e-4720-914d-483d6b75535e",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let json = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"user should be present\", function(){",
-									"    pm.expect(json.first_name).to.equal(\"Mike\");",
-									"    pm.expect(json.last_name).to.equal(\"Surname\");",
-									"    pm.expect(json.facebook_linked).to.equal(false);",
-									"    pm.expect(json.event_count).to.equal(1);",
-									"    pm.expect(json.revenue_in_cents).to.equal(21470);",
-									"    pm.expect(json.ticket_sales).to.equal(7);",
-									"    pm.expect(json.thumb_profile_pic_url).to.equal(null);",
-									"    pm.expect(json.cover_photo_url).to.equal(null);",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/fans/{{last_user_id}}",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}",
-								"fans",
-								"{{last_user_id}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - View Fan Page History",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "d481afe5-174e-4720-914d-483d6b75535e",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let json = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"orders should be present\", function(){",
-									"    pm.expect(json.data.length).to.equal(4);",
-									"});",
-									"",
-									"pm.test(\"orders should have correct information\", function(){",
-									"    pm.expect(json.data[0].revenue_in_cents).to.equal(6120);",
-									"    pm.expect(json.data[0].event_name).to.equal(\"It's my party\");",
-									"    pm.expect(json.data[0].ticket_sales).to.equal(2);",
-									"    pm.expect(json.data[0].type).to.equal(\"Purchase\");",
-									"    ",
-									"    pm.expect(json.data[1].revenue_in_cents).to.equal(6120);",
-									"    pm.expect(json.data[1].event_name).to.equal(\"It's my party\");",
-									"    pm.expect(json.data[1].ticket_sales).to.equal(2);",
-									"    pm.expect(json.data[1].type).to.equal(\"Purchase\");",
-									"    ",
-									"    pm.expect(json.data[2].revenue_in_cents).to.equal(6120);",
-									"    pm.expect(json.data[2].event_name).to.equal(\"It's my party\");",
-									"    pm.expect(json.data[2].ticket_sales).to.equal(2);",
-									"    pm.expect(json.data[2].type).to.equal(\"Purchase\");",
-									"    ",
-									"    pm.expect(json.data[3].revenue_in_cents).to.equal(3110);",
-									"    pm.expect(json.data[3].event_name).to.equal(\"It's my party\");",
-									"    pm.expect(json.data[3].ticket_sales).to.equal(1);",
-									"    pm.expect(json.data[3].type).to.equal(\"Purchase\");",
-									"});",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/fans/{{last_user_id}}/history",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}",
-								"fans",
-								"{{last_user_id}}",
-								"history"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
 			"name": "Box Office",
 			"item": [
 				{
@@ -8201,6 +7924,283 @@
 							],
 							"path": [
 								"cart"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Dashboards",
+			"item": [
+				{
+					"name": "Admin - View Event Dashboard",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d481afe5-174e-4720-914d-483d6b75535e",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/dashboard",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"dashboard"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - View Fans Page",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d481afe5-174e-4720-914d-483d6b75535e",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"fans should be present\", function(){",
+									"    pm.expect(json.data.length).to.equal(2);",
+									"});",
+									"",
+									"pm.test(\"last user fan data should be present\", function(){",
+									"    let user_id = pm.environment.get(\"last_user_id\");",
+									"    pm.expect([json.data[0].user_id, json.data[1].user_id]).to.include(user_id);",
+									"    pm.expect([json.data[0].first_name, json.data[1].first_name]).to.include(\"Mike\");",
+									"    pm.expect([json.data[0].last_name, json.data[1].last_name]).to.include(\"Surname\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/fans?page=0&limit=10&sort=Email&dir=Asc",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"organizations",
+								"{{last_org_id}}",
+								"fans"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "sort",
+									"value": "Email"
+								},
+								{
+									"key": "dir",
+									"value": "Asc"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - View Fan Page",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d481afe5-174e-4720-914d-483d6b75535e",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"user should be present\", function(){",
+									"    pm.expect(json.first_name).to.equal(\"Mike\");",
+									"    pm.expect(json.last_name).to.equal(\"Surname\");",
+									"    pm.expect(json.facebook_linked).to.equal(false);",
+									"    pm.expect(json.event_count).to.equal(1);",
+									"    pm.expect(json.revenue_in_cents).to.equal(21470);",
+									"    pm.expect(json.ticket_sales).to.equal(7);",
+									"    pm.expect(json.thumb_profile_pic_url).to.equal(null);",
+									"    pm.expect(json.cover_photo_url).to.equal(null);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/fans/{{last_user_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"organizations",
+								"{{last_org_id}}",
+								"fans",
+								"{{last_user_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - View Fan Page History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "d481afe5-174e-4720-914d-483d6b75535e",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"orders should be present\", function(){",
+									"    pm.expect(json.data.length).to.equal(4);",
+									"});",
+									"",
+									"pm.test(\"orders should have correct information\", function(){",
+									"    pm.expect(json.data[0].revenue_in_cents).to.equal(6120);",
+									"    pm.expect(json.data[0].event_name).to.equal(\"It's my party\");",
+									"    pm.expect(json.data[0].ticket_sales).to.equal(2);",
+									"    pm.expect(json.data[0].type).to.equal(\"Purchase\");",
+									"    ",
+									"    pm.expect(json.data[1].revenue_in_cents).to.equal(6120);",
+									"    pm.expect(json.data[1].event_name).to.equal(\"It's my party\");",
+									"    pm.expect(json.data[1].ticket_sales).to.equal(2);",
+									"    pm.expect(json.data[1].type).to.equal(\"Purchase\");",
+									"    ",
+									"    pm.expect(json.data[2].revenue_in_cents).to.equal(6120);",
+									"    pm.expect(json.data[2].event_name).to.equal(\"It's my party\");",
+									"    pm.expect(json.data[2].ticket_sales).to.equal(2);",
+									"    pm.expect(json.data[2].type).to.equal(\"Purchase\");",
+									"    ",
+									"    pm.expect(json.data[3].revenue_in_cents).to.equal(3110);",
+									"    pm.expect(json.data[3].event_name).to.equal(\"It's my party\");",
+									"    pm.expect(json.data[3].ticket_sales).to.equal(1);",
+									"    pm.expect(json.data[3].type).to.equal(\"Purchase\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/fans/{{last_user_id}}/history",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"organizations",
+								"{{last_org_id}}",
+								"fans",
+								"{{last_user_id}}",
+								"history"
 							]
 						}
 					},

@@ -551,11 +551,13 @@ fn owner() {
 #[test]
 fn search_fans() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let user = project.create_user().finish();
     let organization = project.create_organization().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
+        .with_tickets()
         .with_ticket_pricing()
         .finish();
     project
@@ -563,6 +565,23 @@ fn search_fans() {
         .for_event(&event)
         .for_user(&user)
         .finish();
+
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 5,
+            redemption_code: None,
+        }],
+        false,
+        connection,
+    )
+    .unwrap();
+    let total = cart.calculate_total(connection).unwrap();
+
+    cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
+        .unwrap();
 
     let search_results = organization
         .search_fans(
