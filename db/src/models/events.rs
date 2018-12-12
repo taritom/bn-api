@@ -275,7 +275,7 @@ impl Event {
             .to_db_error(ErrorCode::UpdateError, "Could not update event")
     }
 
-    pub fn find_all_events_for_venue(
+    pub fn find_all_active_events_for_venue(
         venue_id: &Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
@@ -284,6 +284,8 @@ impl Event {
             "Error loading event via venue",
             events::table
                 .filter(events::venue_id.eq(venue_id))
+                .filter(events::status.eq(EventStatus::Published.to_string()))
+                .filter(events::cancelled_at.is_null())
                 .order_by(events::name)
                 .load(conn),
         )

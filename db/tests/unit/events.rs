@@ -324,7 +324,7 @@ fn find_individuals() {
 
     //find event via venue
     let found_event_via_venue =
-        Event::find_all_events_for_venue(&event.venue_id.unwrap(), project.get_connection())
+        Event::find_all_active_events_for_venue(&event.venue_id.unwrap(), project.get_connection())
             .unwrap();
     assert_eq!(found_event_via_venue[0], event);
 }
@@ -678,7 +678,7 @@ fn search() {
 }
 
 #[test]
-fn find_for_organization_and_venue() {
+fn find_for_organization() {
     //create event
     let project = TestProject::new();
     let venue1 = project.create_venue().finish();
@@ -740,12 +740,57 @@ fn find_for_organization_and_venue() {
             .collect::<Vec<Uuid>>(),
         all_events
     );
+}
 
-    //find all events via venue
-    let found_event_via_venues =
-        Event::find_all_events_for_venue(&venue1.id, project.get_connection()).unwrap();
-    assert_eq!(found_event_via_venues.len(), 1);
-    assert_eq!(found_event_via_venues[0].id, all_events[1]);
+#[test]
+fn find_active_for_venue() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let venue = project.create_venue().finish();
+    let user = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+
+    let artist1 = project.create_artist().finish();
+    let artist2 = project.create_artist().finish();
+    //create two events
+    let event = project
+        .create_event()
+        .with_name("Event1".into())
+        .with_event_start(
+            &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    event
+        .add_artist(artist1.id, project.get_connection())
+        .unwrap();
+    event
+        .add_artist(artist2.id, project.get_connection())
+        .unwrap();
+    let event2 = project
+        .create_event()
+        .with_name("Event2".into())
+        .with_event_start(
+            &NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    event2
+        .add_artist(artist1.id, project.get_connection())
+        .unwrap();
+    //Cancel first event
+    event.cancel(connection).unwrap();
+
+    //find all active events via venue
+    let found_events =
+        Event::find_all_active_events_for_venue(&venue.id, project.get_connection()).unwrap();
+
+    assert_eq!(found_events.len(), 1);
+    assert_eq!(found_events[0].id, event2.id);
 }
 
 #[test]

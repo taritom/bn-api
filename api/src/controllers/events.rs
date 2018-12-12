@@ -411,7 +411,7 @@ pub fn show_from_venues(
         Query<PagingParameters>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    let events = Event::find_all_events_for_venue(&venue_id.id, connection.get())?;
+    let events = Event::find_all_active_events_for_venue(&venue_id.id, connection.get())?;
     let payload = Payload::from_data(events, query_parameters.page(), query_parameters.limit());
     Ok(HttpResponse::Ok().json(&payload))
 }
