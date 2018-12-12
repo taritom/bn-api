@@ -1,6 +1,7 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::organizations;
 use bigneon_api::controllers::organizations::*;
+use bigneon_api::extractors::*;
 use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;

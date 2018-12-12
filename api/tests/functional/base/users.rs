@@ -1,7 +1,8 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::users;
 use bigneon_api::controllers::users::{InputPushNotificationTokens, SearchUserByEmail};
 use bigneon_api::errors::*;
+use bigneon_api::extractors::*;
 use bigneon_api::models::*;
 use bigneon_db::models::*;
 use serde_json;

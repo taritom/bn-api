@@ -44,6 +44,7 @@ pub mod controllers;
 pub mod db;
 pub mod domain_events;
 pub mod errors;
+pub mod extractors;
 pub mod helpers;
 pub mod middleware;
 pub mod models;

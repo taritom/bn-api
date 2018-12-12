@@ -1,9 +1,9 @@
-use actix_web::Json;
 use actix_web::{HttpResponse, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use db::Connection;
 use errors::BigNeonError;
+use extractors::*;
 use helpers::application;
 use models::PathParameters;
 use uuid::Uuid;

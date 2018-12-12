@@ -1,7 +1,8 @@
-use actix_web::{http::StatusCode, HttpResponse, Json};
+use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_api::auth::{claims::AccessToken, claims::RefreshToken, TokenResponse};
 use bigneon_api::controllers::auth;
 use bigneon_api::controllers::auth::{LoginRequest, RefreshRequest};
+use bigneon_api::extractors::*;
 use jwt::{decode, encode, Header, Validation};
 use serde_json;
 use support;

@@ -1,10 +1,11 @@
-use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query, State};
+use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use chrono::Duration;
 use db::Connection;
 use errors::*;
+use extractors::*;
 use models::{PathParameters, RedeemTicketPathParameters, UserDisplayTicketType, WebPayload};
 use serde_json::Value;
 use serde_with::{self, CommaSeparator};

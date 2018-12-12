@@ -1,10 +1,11 @@
-use actix_web::{HttpResponse, Json, State};
+use actix_web::{HttpResponse, State};
 use auth::TokenResponse;
 use bigneon_db::models::concerns::users::password_resetable::*;
 use bigneon_db::models::User;
 use communications::mailers;
 use db::Connection;
 use errors::*;
+use extractors::*;
 use server::AppState;
 use uuid::Uuid;
 

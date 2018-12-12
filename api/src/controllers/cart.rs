@@ -1,4 +1,3 @@
-use actix_web::Json;
 use actix_web::State;
 use actix_web::{http::StatusCode, HttpResponse};
 use auth::user::User;
@@ -9,6 +8,7 @@ use bigneon_db::utils::errors::Optional;
 use communications::mailers;
 use db::Connection;
 use errors::BigNeonError;
+use extractors::*;
 use helpers::application;
 use payments::PaymentProcessor;
 use server::AppState;
@@ -59,6 +59,16 @@ pub fn update_cart(
         }
     }
     cart.update_quantities(&order_items, false, connection)?;
+
+    Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
+}
+
+pub fn destroy((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+
+    // Find the current cart of the user, if it exists.
+    let mut cart = Order::find_or_create_cart(&user.user, connection)?;
+    cart.update_quantities(&[], true, connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
 }

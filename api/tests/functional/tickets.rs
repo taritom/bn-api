@@ -1,7 +1,8 @@
-use actix_web::{http::StatusCode, FromRequest, Json, Path, Query};
+use actix_web::{http::StatusCode, FromRequest, Path, Query};
 use bigneon_api::controllers::tickets::{
     self, SearchParameters, ShowTicketResponse, TransferTicketRequest,
 };
+use bigneon_api::extractors::*;
 use bigneon_api::models::{OptionalPathParameters, PathParameters};
 use bigneon_db::prelude::*;
 use chrono::prelude::*;

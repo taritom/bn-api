@@ -1,6 +1,7 @@
-use actix_web::{http::StatusCode, HttpResponse, Json};
+use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_api::controllers::cart;
 use bigneon_api::controllers::cart::*;
+use bigneon_api::extractors::*;
 use bigneon_db::models::*;
 use bigneon_db::schema::orders;
 use chrono::prelude::*;
@@ -55,6 +56,64 @@ fn show_expired_cart() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, "{}");
+}
+
+#[test]
+fn destroy() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
+
+    // Cart has existing items
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type_id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    assert!(items.len() > 0);
+
+    let response = cart::destroy((database.connection.clone().into(), auth_user)).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Cart is cleared
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+    assert!(cart.expires_at.is_none());
+    let items = cart.items(&connection).unwrap();
+    assert_eq!(0, items.len());
+}
+
+#[test]
+fn destroy_without_existing_cart() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+
+    let response = cart::destroy((database.connection.clone().into(), auth_user)).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Cart is cleared
+    let cart = Order::find_cart_for_user(user.id, connection)
+        .unwrap()
+        .unwrap();
+    assert!(cart.expires_at.is_none());
+    let items = cart.items(&connection).unwrap();
+    assert_eq!(0, items.len());
 }
 
 #[test]
