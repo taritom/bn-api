@@ -24,6 +24,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(auth::token_refresh)
     })
     .resource("/cart", |r| {
+        r.method(Method::DELETE).with(cart::destroy);
         r.method(Method::POST).with(cart::update_cart);
         r.method(Method::PUT).with(cart::replace_cart);
         r.method(Method::GET).with(cart::show);

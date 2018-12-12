@@ -63,6 +63,16 @@ pub fn update_cart(
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
 }
 
+pub fn destroy((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+
+    // Find the current cart of the user, if it exists.
+    let mut cart = Order::find_or_create_cart(&user.user, connection)?;
+    cart.update_quantities(&[], true, connection)?;
+
+    Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
+}
+
 pub fn replace_cart(
     (connection, json, user): (Connection, Json<UpdateCartRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
