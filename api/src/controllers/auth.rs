@@ -1,8 +1,9 @@
-use actix_web::{HttpRequest, HttpResponse, Json, State};
+use actix_web::{HttpRequest, HttpResponse, State};
 use auth::{claims::RefreshToken, TokenResponse};
 use bigneon_db::models::{deserialize_unless_blank, User};
 use db::Connection;
 use errors::*;
+use extractors::*;
 use helpers::application;
 use jwt::{decode, Validation};
 use reqwest;

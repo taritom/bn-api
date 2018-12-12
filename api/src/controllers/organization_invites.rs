@@ -1,10 +1,11 @@
-use actix_web::{HttpRequest, HttpResponse, Json, Path, Query, State};
+use actix_web::{HttpRequest, HttpResponse, Path, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
 use communications::mailers;
 use db::Connection;
 use errors::*;
+use extractors::*;
 use helpers::application;
 use models::PathParameters;
 use server::AppState;

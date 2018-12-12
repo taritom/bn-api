@@ -258,6 +258,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .register()
     .default_resource(|r| {
         r.method(Method::GET)
-            .f(|_req| HttpResponse::NotFound().json(json!({"error": "Not found".to_string()})));
+            .f(|_req| HttpResponse::NotFound().json(json!({"error": "Not found"})));
     })
 }

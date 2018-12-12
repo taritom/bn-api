@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Json, Path, Query, State};
+use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::Optional;
@@ -8,6 +8,7 @@ use controllers::auth::LoginRequest;
 use db::Connection;
 use diesel::PgConnection;
 use errors::*;
+use extractors::*;
 use helpers::application;
 use models::*;
 use server::AppState;

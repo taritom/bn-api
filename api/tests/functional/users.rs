@@ -1,6 +1,7 @@
-use actix_web::{http::StatusCode, HttpResponse, Json};
+use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_api::auth::TokenResponse;
 use bigneon_api::controllers::users::{self, CurrentUser};
+use bigneon_api::extractors::*;
 use bigneon_api::models::{RegisterRequest, UserProfileAttributes};
 use bigneon_db::models::Roles;
 use functional::base;

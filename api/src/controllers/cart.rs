@@ -1,4 +1,3 @@
-use actix_web::Json;
 use actix_web::State;
 use actix_web::{http::StatusCode, HttpResponse};
 use auth::user::User;
@@ -9,6 +8,7 @@ use bigneon_db::utils::errors::Optional;
 use communications::mailers;
 use db::Connection;
 use errors::BigNeonError;
+use extractors::*;
 use helpers::application;
 use payments::PaymentProcessor;
 use server::AppState;

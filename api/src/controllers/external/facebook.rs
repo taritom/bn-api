@@ -1,8 +1,9 @@
-use actix_web::{HttpResponse, Json, State};
+use actix_web::{HttpResponse, State};
 use auth::TokenResponse;
 use bigneon_db::models::{ExternalLogin, User, FACEBOOK_SITE};
 use db::Connection;
 use errors::*;
+use extractors::*;
 use models::FacebookWebLoginToken;
 use reqwest;
 use serde_json;

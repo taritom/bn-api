@@ -1,8 +1,9 @@
-use actix_web::{HttpResponse, Json, Path, Query};
+use actix_web::{HttpResponse, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
+use extractors::*;
 use models::{AddVenueToOrganizationRequest, PathParameters};
 
 pub fn index(

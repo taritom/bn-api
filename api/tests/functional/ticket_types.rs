@@ -1,6 +1,7 @@
-use actix_web::{http::StatusCode, FromRequest, HttpResponse, Json, Path};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::ticket_types;
 use bigneon_api::controllers::ticket_types::*;
+use bigneon_api::extractors::*;
 use bigneon_api::models::{EventTicketPathParameters, PathParameters};
 use bigneon_db::models::*;
 use chrono::prelude::*;

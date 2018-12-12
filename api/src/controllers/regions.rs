@@ -1,8 +1,9 @@
-use actix_web::{http::StatusCode, HttpResponse, Json, Path, Query};
+use actix_web::{http::StatusCode, HttpResponse, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use db::Connection;
 use errors::*;
+use extractors::*;
 use models::PathParameters;
 use models::WebPayload;
 
