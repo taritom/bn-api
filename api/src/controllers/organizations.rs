@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpResponse, Path, Query};
+use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
@@ -7,6 +7,7 @@ use errors::*;
 use extractors::*;
 use models::PathParameters;
 use models::WebPayload;
+use server::AppState;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
@@ -85,17 +86,29 @@ pub fn index_for_all_orgs(
 }
 
 pub fn show(
-    (connection, parameters, user): (Connection, Path<PathParameters>, User),
+    (state, connection, parameters, user): (
+        State<AppState>,
+        Connection,
+        Path<PathParameters>,
+        User,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let organization = Organization::find(parameters.id, connection)?;
+    let mut organization = Organization::find(parameters.id, connection)?;
     user.requires_scope_for_organization(Scopes::OrgRead, &organization, connection)?;
+
+    organization.decrypt(&state.config.api_keys_encryption_key)?;
 
     Ok(HttpResponse::Ok().json(&organization))
 }
 
 pub fn create(
-    (connection, new_organization, user): (Connection, Json<NewOrganizationRequest>, User),
+    (state, connection, new_organization, user): (
+        State<AppState>,
+        Connection,
+        Json<NewOrganizationRequest>,
+        User,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
@@ -126,7 +139,10 @@ pub fn create(
         facebook_pixel_key: new_organization.facebook_pixel_key.clone(),
     };
 
-    let organization = new_organization_with_fee_schedule.commit(connection)?;
+    let mut organization = new_organization_with_fee_schedule
+        .commit(&state.config.api_keys_encryption_key, connection)?;
+
+    organization.decrypt(&state.config.api_keys_encryption_key)?;
 
     Wallet::create_for_organization(organization.id, "Default".to_string(), connection)?;
 
@@ -134,7 +150,8 @@ pub fn create(
 }
 
 pub fn update(
-    (connection, parameters, organization_parameters, user): (
+    (state, connection, parameters, organization_parameters, user): (
+        State<AppState>,
         Connection,
         Path<PathParameters>,
         Json<OrganizationEditableAttributes>,
@@ -145,12 +162,19 @@ pub fn update(
     let organization = Organization::find(parameters.id, connection)?;
     user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
     let organization_update = organization_parameters.into_inner();
-    let updated_organization = organization.update(organization_update, connection)?;
+    let mut updated_organization = organization.update(
+        organization_update,
+        &state.config.api_keys_encryption_key,
+        connection,
+    )?;
+
+    updated_organization.decrypt(&state.config.api_keys_encryption_key)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
 
 pub fn update_owner(
-    (connection, parameters, json, user): (
+    (state, connection, parameters, json, user): (
+        State<AppState>,
         Connection,
         Path<PathParameters>,
         Json<UpdateOwnerRequest>,
@@ -160,8 +184,9 @@ pub fn update_owner(
     user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    let updated_organization =
+    let mut updated_organization =
         organization.set_owner(json.into_inner().owner_user_id, connection)?;
+    updated_organization.decrypt(&state.config.api_keys_encryption_key)?;
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
 

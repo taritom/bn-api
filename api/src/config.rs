@@ -41,6 +41,7 @@ pub struct Config {
     pub spotify_auth_token: Option<String>,
     pub twilio_account_id: String,
     pub twilio_api_key: String,
+    pub api_keys_encryption_key: String,
 }
 
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
@@ -81,6 +82,8 @@ const SPOTIFY_AUTH_TOKEN: &str = "SPOTIFY_AUTH_TOKEN";
 
 const TWILIO_API_KEY: &str = "TWILIO_API_KEY";
 const TWILIO_ACCOUNT_ID: &str = "TWILIO_ACCOUNT_ID";
+
+const API_KEYS_ENCRYPTION_KEY: &str = "API_KEYS_ENCRYPTION_KEY";
 
 impl Config {
     pub fn new(environment: Environment) -> Self {
@@ -172,12 +175,15 @@ impl Config {
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_PASSWORD_RESET));
 
         let spotify_auth_token = env::var(&SPOTIFY_AUTH_TOKEN).ok();
+
         let twilio_api_key = env::var(&TWILIO_API_KEY)
             .unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_API_KEY));;
 
         let twilio_account_id = env::var(&TWILIO_ACCOUNT_ID)
             .unwrap_or_else(|_| panic!("{} must be defined.", TWILIO_ACCOUNT_ID));;
 
+        let api_keys_encryption_key = env::var(&API_KEYS_ENCRYPTION_KEY)
+            .unwrap_or_else(|_| panic!("{} must be defined.", API_KEYS_ENCRYPTION_KEY));
 
         let block_external_comms = match env::var(&BLOCK_EXTERNAL_COMMS)
             .unwrap_or_else(|_| "0".to_string())
@@ -223,6 +229,7 @@ impl Config {
             spotify_auth_token,
             twilio_api_key,
             twilio_account_id,
+            api_keys_encryption_key,
         }
     }
 }

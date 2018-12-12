@@ -75,8 +75,13 @@ pub fn show(role: Roles, should_succeed: bool) {
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let response: HttpResponse =
-        organizations::show((database.connection.into(), path, auth_user.clone())).into();
+    let response: HttpResponse = organizations::show((
+        test_request.extract_state(),
+        database.connection.into(),
+        path,
+        auth_user.clone(),
+    ))
+    .into();
 
     if !should_succeed {
         support::expects_unauthorized(&response);
@@ -182,8 +187,14 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         facebook_pixel_key: None,
     });
 
-    let response: HttpResponse =
-        organizations::create((database.connection.into(), json, auth_user)).into();
+    let test_request = TestRequest::create_with_uri("/organizations");
+    let response: HttpResponse = organizations::create((
+        test_request.extract_state(),
+        database.connection.into(),
+        json,
+        auth_user,
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -219,8 +230,14 @@ pub fn update(role: Roles, should_succeed: bool) {
         facebook_pixel_key: Some(Some("facebook_pixel_key".to_string())),
     });
 
-    let response: HttpResponse =
-        organizations::update((database.connection.into(), path, json, auth_user.clone())).into();
+    let response: HttpResponse = organizations::update((
+        test_request.extract_state(),
+        database.connection.into(),
+        path,
+        json,
+        auth_user.clone(),
+    ))
+    .into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;
@@ -365,8 +382,14 @@ pub fn update_owner(role: Roles, should_succeed: bool) {
 
     let json = Json(update_owner_request);
 
-    let response: HttpResponse =
-        organizations::update_owner((database.connection.into(), path, json, auth_user)).into();
+    let response: HttpResponse = organizations::update_owner((
+        test_request.extract_state(),
+        database.connection.into(),
+        path,
+        json,
+        auth_user,
+    ))
+    .into();
 
     if !should_succeed {
         support::expects_unauthorized(&response);

@@ -257,6 +257,15 @@ impl From<TariError> for DatabaseError {
     }
 }
 
+impl From<ring::error::Unspecified> for DatabaseError {
+    fn from(_e: ring::error::Unspecified) -> Self {
+        DatabaseError::new(
+            ErrorCode::InternalError,
+            Some("Encryption error".to_string()),
+        )
+    }
+}
+
 impl From<ValidationErrors> for DatabaseError {
     fn from(e: ValidationErrors) -> Self {
         let message = e.to_string();

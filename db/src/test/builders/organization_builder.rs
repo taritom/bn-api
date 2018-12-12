@@ -89,7 +89,7 @@ impl<'a> OrganizationBuilder<'a> {
             &self.name,
             self.fee_schedule.unwrap().id,
         )
-        .commit(self.connection)
+        .commit(&"encryption_key".to_string(), self.connection)
         .unwrap();
 
         let event_fee_update = OrganizationEditableAttributes {
@@ -98,7 +98,11 @@ impl<'a> OrganizationBuilder<'a> {
         };
 
         let _ = organization
-            .update(event_fee_update, self.connection)
+            .update(
+                event_fee_update,
+                &"encryption_key".to_string(),
+                self.connection,
+            )
             .unwrap();
 
         for user_id in self.members.clone() {
@@ -124,7 +128,9 @@ impl<'a> OrganizationBuilder<'a> {
             attrs.postal_code = Some(<String>::from("0124"));
             attrs.phone = Some(<String>::from("+27123456789"));
 
-            organization = organization.update(attrs, self.connection).unwrap();
+            organization = organization
+                .update(attrs, &"encryption_key".to_string(), self.connection)
+                .unwrap();
         }
         organization
     }

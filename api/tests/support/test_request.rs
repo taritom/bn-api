@@ -21,6 +21,7 @@ impl TestRequest {
         let mut config = Config::new(Environment::Test);
         config.token_secret = "test_secret".into();
         config.token_issuer = "bn-api-test".into();
+        config.api_keys_encryption_key = "test_encryption_key".to_string();
 
         let test_request = test::TestRequest::with_state(AppState::new(
             config.clone(),

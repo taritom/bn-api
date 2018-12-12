@@ -9,6 +9,7 @@ use models::scopes;
 use models::*;
 use schema::{events, organization_users, organizations, users, venues};
 use serde_with::rust::double_option;
+use utils::encryption::*;
 use utils::errors::*;
 use uuid::Uuid;
 
@@ -42,7 +43,7 @@ pub struct DisplayOrganizationLink {
     pub role: String,
 }
 
-#[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[table_name = "organizations"]
 pub struct NewOrganization {
     pub owner_user_id: Uuid,
@@ -64,9 +65,26 @@ pub struct NewOrganization {
 }
 
 impl NewOrganization {
-    pub fn commit(&self, conn: &PgConnection) -> Result<Organization, DatabaseError> {
+    pub fn commit(
+        &self,
+        encryption_key: &String,
+        conn: &PgConnection,
+    ) -> Result<Organization, DatabaseError> {
+        let mut updated_organisation = self.clone();
+        if encryption_key.len() > 0 {
+            if let Some(key) = updated_organisation.sendgrid_api_key.clone() {
+                updated_organisation.sendgrid_api_key = Some(encrypt(&key, encryption_key)?);
+            }
+            if let Some(key) = updated_organisation.google_ga_key.clone() {
+                updated_organisation.google_ga_key = Some(encrypt(&key, encryption_key)?);
+            }
+            if let Some(key) = updated_organisation.facebook_pixel_key.clone() {
+                updated_organisation.facebook_pixel_key = Some(encrypt(&key, encryption_key)?);
+            }
+        }
+
         let db_err = diesel::insert_into(organizations::table)
-            .values(self)
+            .values(&updated_organisation)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new organization")?;
 
@@ -111,10 +129,23 @@ impl Organization {
 
     pub fn update(
         &self,
-        attributes: OrganizationEditableAttributes,
+        mut attributes: OrganizationEditableAttributes,
+        encryption_key: &String,
         conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
-        diesel::update(self)
+        if encryption_key.len() > 0 {
+            if let Some(Some(key)) = attributes.sendgrid_api_key {
+                attributes.sendgrid_api_key = Some(Some(encrypt(&key, encryption_key)?));
+            }
+            if let Some(Some(key)) = attributes.google_ga_key {
+                attributes.google_ga_key = Some(Some(encrypt(&key, encryption_key)?));
+            }
+            if let Some(Some(key)) = attributes.facebook_pixel_key {
+                attributes.facebook_pixel_key = Some(Some(encrypt(&key, encryption_key)?));
+            }
+        }
+
+        diesel::update(&*self)
             .set((attributes, organizations::updated_at.eq(dsl::now)))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update organization")
@@ -496,6 +527,22 @@ impl Organization {
         let mut p = Payload::new(fans, paging);
         p.paging.total = total;
         Ok(p)
+    }
+
+    pub fn decrypt(&mut self, encryption_key: &String) -> Result<(), DatabaseError> {
+        if encryption_key.len() > 0 {
+            if let Some(key) = self.sendgrid_api_key.clone() {
+                self.sendgrid_api_key = Some(decrypt(&key, &encryption_key)?);
+            }
+            if let Some(key) = self.google_ga_key.clone() {
+                self.google_ga_key = Some(decrypt(&key, &encryption_key)?);
+            }
+            if let Some(key) = self.facebook_pixel_key.clone() {
+                self.facebook_pixel_key = Some(decrypt(&key, &encryption_key)?);
+            }
+        }
+
+        Ok(())
     }
 }
 

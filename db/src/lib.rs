@@ -15,12 +15,14 @@ extern crate diesel;
 extern crate argon2rs;
 extern crate backtrace;
 extern crate chrono;
+extern crate hex;
 extern crate itertools;
 //#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate logging;
 extern crate rand;
+extern crate ring;
 extern crate time;
 extern crate uuid;
 #[macro_use]

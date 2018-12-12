@@ -17,12 +17,25 @@ fn create() {
     )
     .commit(connection)
     .unwrap();
-    let organization = Organization::create(user.id, "Organization", fee_schedule.id)
-        .commit(connection)
+    let mut organization = Organization::create(user.id, "Organization", fee_schedule.id);
+    organization.sendgrid_api_key = Some("A_Test_Key".to_string());
+
+    let mut organization = organization
+        .commit(&"encryption_key".to_string(), connection)
         .unwrap();
 
     assert_eq!(organization.owner_user_id, user.id);
     assert_eq!(organization.id.to_string().is_empty(), false);
+
+    assert_ne!(
+        organization.sendgrid_api_key,
+        Some("A_Test_Key".to_string())
+    );
+    organization.decrypt(&"encryption_key".to_string()).unwrap();
+    assert_eq!(
+        organization.sendgrid_api_key,
+        Some("A_Test_Key".to_string())
+    );
 
     let user2 = User::find(user.id, connection).unwrap();
     assert!(organization
@@ -87,6 +100,7 @@ fn update() {
     edited_organization.country = Some("Test country".to_string());
     edited_organization.postal_code = Some("0124".to_string());
     edited_organization.phone = Some("+27123456789".to_string());
+    edited_organization.sendgrid_api_key = Some("A_Test_Key".to_string());
 
     let mut changed_attrs: OrganizationEditableAttributes = Default::default();
     changed_attrs.name = Some("Test Org".to_string());
@@ -96,12 +110,19 @@ fn update() {
     changed_attrs.country = Some("Test country".to_string());
     changed_attrs.postal_code = Some("0124".to_string());
     changed_attrs.phone = Some("+27123456789".to_string());
-    let updated_organization = Organization::update(
+    changed_attrs.sendgrid_api_key = Some(Some("A_Test_Key".to_string()));
+    let mut updated_organization = Organization::update(
         &edited_organization,
         changed_attrs,
+        &"encryption_key".to_string(),
         project.get_connection(),
     )
     .unwrap();
+
+    updated_organization
+        .decrypt(&"encryption_key".to_string())
+        .unwrap();
+
     assert_eq!(edited_organization, updated_organization);
 }
 
@@ -491,7 +512,7 @@ fn change_owner() {
     .commit(connection)
     .unwrap();
     let mut organization = Organization::create(user.id, "Organization", fee_schedule.id)
-        .commit(connection)
+        .commit(&"encryption_key".to_string(), connection)
         .unwrap();
 
     let user2 = project.create_user().finish();
