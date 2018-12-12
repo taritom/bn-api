@@ -21,6 +21,7 @@ use validator::ValidationErrors;
 use validators::*;
 
 const CART_EXPIRY_TIME_MINUTES: i64 = 15;
+const ORDER_NUMBER_LENGTH: usize = 8;
 
 #[derive(Associations, Debug, Identifiable, PartialEq, Queryable)]
 #[belongs_to(User)]
@@ -248,6 +249,15 @@ impl Order {
         }
 
         Ok(())
+    }
+
+    pub fn order_number(&self) -> String {
+        Order::parse_order_number(self.id)
+    }
+
+    pub fn parse_order_number(id: Uuid) -> String {
+        let id_string = id.to_string();
+        id_string[id_string.len() - ORDER_NUMBER_LENGTH..].to_string()
     }
 
     pub fn update(
@@ -672,6 +682,7 @@ impl Order {
             seconds_until_expiry,
             user_id: self.user_id,
             note: self.note.clone(),
+            order_number: self.order_number(),
         })
     }
 
@@ -986,6 +997,7 @@ pub struct DisplayOrder {
     pub total_in_cents: i64,
     pub user_id: Uuid,
     pub note: Option<String>,
+    pub order_number: String,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
@@ -993,4 +1005,10 @@ pub struct UpdateOrderItem {
     pub ticket_type_id: Uuid,
     pub quantity: u32,
     pub redemption_code: Option<String>,
+}
+
+#[test]
+fn parse_order_number() {
+    let id = Uuid::parse_str("01234567-1234-1234-1234-1234567890ab").unwrap();
+    assert_eq!("567890ab".to_string(), Order::parse_order_number(id));
 }
