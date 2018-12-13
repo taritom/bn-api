@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "faf83ff7-93c4-4aa5-8735-b916ce560225",
+		"_postman_id": "4a062fdc-3f8b-4ebe-874c-aeededc2a3f1",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -1334,7 +1334,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\"\n}"
+							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\"\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events",
@@ -3848,19 +3848,19 @@
 			"name": "Buy Tickets",
 			"item": [
 				{
-					"name": "User - search for event",
+					"name": "User - search for event - Past",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"id": "f40a2996-aa1a-4be7-925f-1e55828eb494",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 200\", function() {",
 									"    pm.response.to.have.status(200);",
 									"})",
 									""
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -3872,13 +3872,62 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "http://{{server}}/events",
+							"raw": "http://{{server}}/events?past_or_upcoming=past",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
 							],
 							"path": [
 								"events"
+							],
+							"query": [
+								{
+									"key": "past_or_upcoming",
+									"value": "past"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User - search for event - Upcoming",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "f40a2996-aa1a-4be7-925f-1e55828eb494",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events?past_or_upcoming=upcoming",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events"
+							],
+							"query": [
+								{
+									"key": "past_or_upcoming",
+									"value": "upcoming"
+								}
 							]
 						}
 					},

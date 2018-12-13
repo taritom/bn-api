@@ -26,7 +26,7 @@ pub fn index() {
     let event = database
         .create_event()
         .with_name("Event1".into())
-        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .with_venue(&venue)
         .with_organization(&organization)
         .with_ticket_pricing()
@@ -35,7 +35,7 @@ pub fn index() {
     let event2 = database
         .create_event()
         .with_name("Event2".into())
-        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
@@ -304,7 +304,7 @@ fn ticket_transfer_authorization() {
     let event = database
         .create_event()
         .with_name("Event1".into())
-        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .with_venue(&venue)
         .with_organization(&organization)
         .with_ticket_pricing()
@@ -382,7 +382,7 @@ fn receive_ticket_transfer() {
     let event = database
         .create_event()
         .with_name("Event1".into())
-        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .with_venue(&venue)
         .with_organization(&organization)
         .with_ticket_pricing()

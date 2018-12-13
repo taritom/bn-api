@@ -177,7 +177,7 @@ fn get_sales_by_date_range() {
     let event = project
         .create_event()
         .with_organization(&organization)
-        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .with_tickets()
         .with_ticket_pricing()
         .finish();
@@ -366,7 +366,7 @@ fn search() {
         .with_name("OldEvent".into())
         .with_organization(&organization)
         .with_venue(&venue1)
-        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     event
@@ -383,7 +383,7 @@ fn search() {
         .with_name("NewEvent".into())
         .with_organization(&organization)
         .with_venue(&venue2)
-        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     event2
@@ -396,7 +396,7 @@ fn search() {
         .with_status(EventStatus::Offline)
         .with_organization(&organization)
         .with_venue(&venue2)
-        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     // Event draft, not returned except for organization user or owner
@@ -406,7 +406,7 @@ fn search() {
         .with_status(EventStatus::Draft)
         .with_organization(&organization)
         .with_venue(&venue2)
-        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     // Event draft belonging to other organization
@@ -414,7 +414,7 @@ fn search() {
         .create_event()
         .with_name("NewEventDraft2".into())
         .with_status(EventStatus::Draft)
-        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     let all_events = vec![event, event2, event3];
@@ -424,8 +424,19 @@ fn search() {
     all_events_for_admin.push(event5);
 
     // All events unauthorized user
-    let all_found_events =
-        Event::search(None, None, None, None, None, None, project.get_connection()).unwrap();
+    let all_found_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        project.get_connection(),
+    )
+    .unwrap();
     assert_eq!(all_events, all_found_events);
 
     // All events organization owner
@@ -435,7 +446,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         Some(organization_owner),
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -448,7 +462,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         Some(organization_user),
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -461,7 +478,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         Some(user),
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -474,7 +494,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         Some(admin),
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -487,7 +510,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -500,7 +526,10 @@ fn search() {
         None,
         None,
         Some(vec![EventStatus::Published, EventStatus::Offline]),
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -515,7 +544,10 @@ fn search() {
         None,
         None,
         Some(vec![EventStatus::Closed]),
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -529,7 +561,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -544,7 +579,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -558,7 +596,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -573,7 +614,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -587,7 +631,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -600,7 +647,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -614,7 +664,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -629,7 +682,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -642,7 +698,10 @@ fn search() {
         None,
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -655,7 +714,10 @@ fn search() {
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -669,7 +731,10 @@ fn search() {
         None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
         None,
+        PastOrUpcoming::Past,
         project.get_connection(),
     )
     .unwrap();
@@ -693,7 +758,7 @@ fn find_for_organization() {
         .create_event()
         .with_name("Event1".into())
         .with_event_start(
-            &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+            NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
         .with_organization(&organization)
@@ -711,7 +776,7 @@ fn find_for_organization() {
         .create_event()
         .with_name("Event2".into())
         .with_event_start(
-            &NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
         .with_organization(&organization)
@@ -757,7 +822,7 @@ fn find_active_for_venue() {
         .create_event()
         .with_name("Event1".into())
         .with_event_start(
-            &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+            NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
         .with_organization(&organization)
@@ -773,7 +838,7 @@ fn find_active_for_venue() {
         .create_event()
         .with_name("Event2".into())
         .with_event_start(
-            &NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
         .with_organization(&organization)

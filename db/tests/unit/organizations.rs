@@ -309,9 +309,9 @@ fn all() {
 #[test]
 fn remove_users() {
     let project = TestProject::new();
-    let user = project.create_user().finish();
-    let user2 = project.create_user().finish();
-    let user3 = project.create_user().finish();
+    let user = project.create_user().with_last_name("user1").finish();
+    let user2 = project.create_user().with_last_name("user2").finish();
+    let user3 = project.create_user().with_last_name("user3").finish();
     let organization = project.create_organization().with_owner(&user).finish();
     OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
@@ -323,9 +323,9 @@ fn remove_users() {
 
     let mut user_results = organization.users(project.get_connection()).unwrap();
 
-    user_results.sort_by_key(|k| k.1.id);
+    user_results.sort_by_key(|k| k.1.last_name.clone());
     let mut users_before_delete = vec![user.clone(), user2, user3.clone()];
-    users_before_delete.sort_by_key(|k| k.id);
+    users_before_delete.sort_by_key(|k| k.last_name.clone());
 
     assert_eq!(user_results[0].1, users_before_delete[0]);
     assert_eq!(user_results[1].1, users_before_delete[1]);

@@ -1,6 +1,8 @@
 use chrono::prelude::*;
+use chrono::Utc;
 use diesel;
 use diesel::expression::dsl;
+use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
 use diesel::sql_types;
 use log::Level;
@@ -600,49 +602,73 @@ impl Event {
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
         status_filter: Option<Vec<EventStatus>>,
+        sort_field: EventSearchSortField,
+        sort_direction: SortingDir,
         user: Option<User>,
+        past_or_upcoming: PastOrUpcoming,
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
+        let sort_column = match sort_field {
+            EventSearchSortField::Name => "name",
+            EventSearchSortField::EventStart => "event_start",
+        };
+
+        let mut start_time = start_time;
+        let mut end_time = end_time;
+        let beginning_of_time = NaiveDate::from_ymd(1900, 1, 1).and_hms(12, 0, 0);
+        let end_of_time = NaiveDate::from_ymd(3100, 1, 1).and_hms(12, 0, 0);
+
+        let now = Utc::now().naive_utc();
+
+        if past_or_upcoming == PastOrUpcoming::Upcoming {
+            start_time = Some(NaiveDateTime::max(start_time.unwrap_or(now), now));
+            end_time = Some(NaiveDateTime::min(
+                end_time.unwrap_or(end_of_time),
+                end_of_time,
+            ));
+        } else {
+            start_time = Some(NaiveDateTime::max(
+                start_time.unwrap_or(beginning_of_time),
+                beginning_of_time,
+            ));
+            end_time = Some(NaiveDateTime::min(end_time.unwrap_or(now), now));
+        }
+
         let query_like = match query_filter {
             Some(n) => format!("%{}%", n),
             None => "%".to_string(),
         };
-        let mut query =
-            events::table
-                .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
-                .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
-                .left_join(
-                    organization_users::table
-                        .on(organization_users::organization_id.eq(organizations::id)),
-                )
-                .left_join(
-                    event_artists::table
-                        .inner_join(
-                            artists::table.on(event_artists::artist_id
-                                .eq(artists::id)
-                                .and(artists::name.ilike(query_like.clone()))),
-                        )
-                        .on(events::id.eq(event_artists::event_id)),
-                )
-                .filter(
-                    events::name
-                        .ilike(query_like.clone())
-                        .or(venues::id
-                            .is_not_null()
-                            .and(venues::name.ilike(query_like.clone())))
-                        .or(artists::id.is_not_null()),
-                )
-                .filter(events::event_start.gt(
-                    start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
-                ))
-                .filter(events::event_start.lt(
-                    end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
-                ))
-                .select(events::all_columns)
-                .distinct()
-                .order_by(events::event_start.asc())
-                .then_order_by(events::name.asc())
-                .into_boxed();
+        let mut query = events::table
+            .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
+            .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
+            .left_join(
+                organization_users::table
+                    .on(organization_users::organization_id.eq(organizations::id)),
+            )
+            .left_join(
+                event_artists::table
+                    .inner_join(
+                        artists::table.on(event_artists::artist_id
+                            .eq(artists::id)
+                            .and(artists::name.ilike(query_like.clone()))),
+                    )
+                    .on(events::id.eq(event_artists::event_id)),
+            )
+            .filter(
+                events::name
+                    .ilike(query_like.clone())
+                    .or(venues::id
+                        .is_not_null()
+                        .and(venues::name.ilike(query_like.clone())))
+                    .or(artists::id.is_not_null()),
+            )
+            .filter(events::event_start.gt(start_time.unwrap()))
+            .filter(events::event_start.lt(end_time.unwrap()))
+            .select(events::all_columns)
+            .distinct()
+            .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
+            .then_order_by(events::name.asc())
+            .into_boxed();
 
         match user {
             Some(user) => {
@@ -674,6 +700,9 @@ impl Event {
         if let Some(region_id) = region_id {
             query = query.filter(venues::region_id.eq(region_id));
         }
+
+        //let _debug = debug_query::<_, _>(&query);
+        //println!("{}", debug);
 
         let result = query.load(conn);
 

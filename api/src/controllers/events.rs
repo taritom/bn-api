@@ -30,6 +30,7 @@ pub struct SearchParameters {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     sort: Option<String>,
     dir: Option<SortingDir>,
+    past_or_upcoming: Option<String>,
 }
 
 impl From<SearchParameters> for Paging {
@@ -86,7 +87,28 @@ pub fn index(
     let query = query.into_inner();
 
     let user = auth_user.and_then(|auth_user| Some(auth_user.user));
-    //TODO remap query to use paging info
+
+    let past_or_upcoming = match query
+        .past_or_upcoming
+        .clone()
+        .unwrap_or("upcoming".to_string())
+        .as_str()
+    {
+        "past" => PastOrUpcoming::Past,
+        _ => PastOrUpcoming::Upcoming,
+    };
+
+    let sort_field = match query
+        .sort
+        .clone()
+        .unwrap_or("event_start".to_string())
+        .as_str()
+    {
+        "event_start" => EventSearchSortField::EventStart,
+        "name" => EventSearchSortField::Name,
+        _ => EventSearchSortField::EventStart,
+    };
+
     let events = Event::search(
         query.query.clone(),
         query.region_id,
@@ -97,7 +119,10 @@ pub fn index(
         } else {
             Some(query.status.clone())
         },
+        sort_field,
+        query.dir.clone().unwrap_or(SortingDir::Asc),
         user.clone(),
+        past_or_upcoming,
         connection,
     )?;
 

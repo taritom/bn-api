@@ -26,12 +26,14 @@ pub fn index() {
         .with_name("NewEvent1".to_string())
         .with_organization(&organization)
         .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
     let event2 = database
         .create_event()
         .with_name("NewEvent2".to_string())
         .with_organization(&organization)
         .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     let expected_results = vec![
@@ -77,6 +79,7 @@ pub fn index_for_user() {
         .with_name("NewEvent1".to_string())
         .with_organization(&organization)
         .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
     let _event_interest = EventInterest::create(event.id, user.id).commit(connection);
     let event2 = database
@@ -84,6 +87,7 @@ pub fn index_for_user() {
         .with_name("NewEvent2".to_string())
         .with_organization(&organization)
         .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     let expected_results = vec![
@@ -138,6 +142,7 @@ pub fn index_with_draft_for_organization_user() {
         .with_name("NewEvent1".to_string())
         .with_organization(&organization)
         .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
     let event2 = database
         .create_event()
@@ -145,6 +150,7 @@ pub fn index_with_draft_for_organization_user() {
         .with_status(EventStatus::Draft)
         .with_organization(&organization)
         .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     let expected_results = vec![
@@ -195,6 +201,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
         .with_name("NewEvent1".to_string())
         .with_organization(&organization)
         .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
     let _event2 = database
         .create_event()
@@ -202,6 +209,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
         .with_status(EventStatus::Draft)
         .with_organization(&organization)
         .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     let expected_results = vec![event_venue_entry(&event, &venue, None, &*connection)];
@@ -242,11 +250,13 @@ pub fn index_search_with_filter() {
         .create_event()
         .with_name("NewEvent1".to_string())
         .with_organization(&organization)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
     database
         .create_event()
         .with_name("NewEvent2".to_string())
         .with_organization(&organization)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     let expected_events = vec![EventVenueEntry {
@@ -603,7 +613,7 @@ fn dashboard_with_default_range() {
     let event = database
         .create_event()
         .with_organization(&organization)
-        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .with_tickets()
         .with_ticket_pricing()
         .finish();
@@ -662,7 +672,7 @@ pub fn show_from_organizations_past() {
         .create_event()
         .with_name("NewEvent".to_string())
         .with_event_start(
-            &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+            NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
         .with_organization(&organization)
@@ -671,7 +681,7 @@ pub fn show_from_organizations_past() {
         .create_event()
         .with_name("NewEvent2".to_string())
         .with_event_start(
-            &NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+            NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
         .with_organization(&organization)
@@ -721,7 +731,7 @@ pub fn show_from_organizations_upcoming() {
         .create_event()
         .with_name("NewEvent".to_string())
         .with_event_start(
-            &NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+            NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
         .with_organization(&organization)
@@ -729,7 +739,7 @@ pub fn show_from_organizations_upcoming() {
     let event2 = database
         .create_event()
         .with_event_start(
-            &NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+            NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
         .with_name("NewEvent2".to_string())

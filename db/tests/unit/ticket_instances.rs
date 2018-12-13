@@ -21,14 +21,14 @@ pub fn find_for_user_for_display() {
     let event = project
         .create_event()
         .with_organization(&organization)
-        .with_event_start(&NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .with_tickets()
         .with_ticket_pricing()
         .finish();
     let event2 = project
         .create_event()
         .with_organization(&organization)
-        .with_event_start(&NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .with_tickets()
         .with_ticket_pricing()
         .finish();

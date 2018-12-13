@@ -65,8 +65,8 @@ impl<'a> EventBuilder<'a> {
         self
     }
 
-    pub fn with_event_start(mut self, date: &NaiveDateTime) -> Self {
-        self.event_start = Some(date.clone());
+    pub fn with_event_start(mut self, date: NaiveDateTime) -> Self {
+        self.event_start = Some(date);
         self
     }
 

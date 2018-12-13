@@ -50,6 +50,7 @@ string_enum! { DomainEventTypes [OrderBehalfOfUserChanged, PaymentCreated, Payme
 string_enum! { DomainActionTypes [Communication]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
+string_enum! { EventSearchSortField [ Name, EventStart]}
 string_enum! { EventOverrideStatus [PurchaseTickets,SoldOut,OnSaleSoon,TicketsAtTheDoor,Free,Rescheduled,Cancelled,OffSale,Ended]}
 string_enum! { FanSortField [FirstName, LastName, Email, Phone, Orders, FirstOrder, LastOrder, Revenue] }
 string_enum! { HistoryType [Purchase]}

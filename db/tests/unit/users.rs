@@ -665,7 +665,7 @@ pub fn get_events_with_access_to_scan() {
     let _draft_event = project
         .create_event()
         .with_status(EventStatus::Draft)
-        .with_event_start(&Utc::now().naive_utc())
+        .with_event_start(Utc::now().naive_utc())
         .with_name("DraftEvent".into())
         .with_organization(&organization)
         .with_venue(&venue)
@@ -674,7 +674,7 @@ pub fn get_events_with_access_to_scan() {
     let _published_event = project
         .create_event()
         .with_status(EventStatus::Published)
-        .with_event_start(&Utc::now().naive_utc())
+        .with_event_start(Utc::now().naive_utc())
         .with_name("PublishedEvent".into())
         .with_organization(&organization)
         .with_venue(&venue)
