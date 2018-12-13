@@ -522,17 +522,17 @@ impl Event {
         }
 
         let query = r#"
-                SELECT CAST(o.order_date as Date) as date,
+                SELECT CAST(o.paid_at as Date) as date,
                 cast(COALESCE(sum(oi.unit_price_in_cents * oi.quantity), 0) AS bigint) as sales,
                 CAST( COALESCE(SUM(CASE WHEN oi.item_type = 'Tickets' THEN oi.quantity ELSE 0 END), 0)  as BigInt) as ticket_count
                 FROM order_items oi
                 INNER JOIN orders o ON oi.order_id = o.id
                 WHERE oi.event_id = $1
                 AND o.status = 'Paid'
-                AND o.order_date >= $2
-                AND o.order_date <= $3
-                GROUP BY CAST(o.order_date as Date)
-                ORDER BY CAST(o.order_date as Date) desc
+                AND o.paid_at >= $2
+                AND o.paid_at <= $3
+                GROUP BY CAST(o.paid_at as Date)
+                ORDER BY CAST(o.paid_at as Date) desc
                 "#;
 
         #[derive(QueryableByName)]

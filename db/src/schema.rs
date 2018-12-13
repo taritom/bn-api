@@ -223,6 +223,7 @@ table! {
         on_behalf_of_user_id -> Nullable<Uuid>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        paid_at -> Nullable<Timestamp>,
     }
 }
 
@@ -243,6 +244,17 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        role -> Array<Text>,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         name -> Text,
@@ -259,17 +271,6 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Uuid,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-        role -> Array<Text>,
     }
 }
 
@@ -498,8 +499,8 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     payment_methods,
     payments,
     push_notification_tokens,

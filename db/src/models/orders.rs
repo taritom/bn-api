@@ -37,6 +37,7 @@ pub struct Order {
     pub on_behalf_of_user_id: Option<Uuid>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub paid_at: Option<NaiveDateTime>,
 }
 
 #[derive(Insertable)]
@@ -683,6 +684,7 @@ impl Order {
             user_id: self.user_id,
             note: self.note.clone(),
             order_number: self.order_number(),
+            paid_at: self.paid_at,
         })
     }
 
@@ -892,13 +894,26 @@ impl Order {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         self.status = status.to_string();
-        diesel::update(&*self)
-            .set((
-                orders::status.eq(&self.status),
-                orders::updated_at.eq(dsl::now),
-            ))
-            .execute(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
+
+        if status == OrderStatus::Paid {
+            self.paid_at = Some(Utc::now().naive_utc());
+            diesel::update(&*self)
+                .set((
+                    orders::paid_at.eq(self.paid_at),
+                    orders::status.eq(&self.status),
+                    orders::updated_at.eq(dsl::now),
+                ))
+                .execute(conn)
+                .to_db_error(ErrorCode::UpdateError, "Could not mark order paid")?;
+        } else {
+            diesel::update(&*self)
+                .set((
+                    orders::status.eq(&self.status),
+                    orders::updated_at.eq(dsl::now),
+                ))
+                .execute(conn)
+                .to_db_error(ErrorCode::UpdateError, "Could not update order status")?;
+        }
 
         Ok(())
     }
@@ -998,6 +1013,7 @@ pub struct DisplayOrder {
     pub user_id: Uuid,
     pub note: Option<String>,
     pub order_number: String,
+    pub paid_at: Option<NaiveDateTime>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug)]

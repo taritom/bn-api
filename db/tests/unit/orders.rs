@@ -653,12 +653,19 @@ fn add_external_payment() {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(conn).unwrap(), 2000);
+    assert!(cart.paid_at.is_none());
+
+    // Partially paid
     cart.add_external_payment(Some("test".to_string()), user.id, 1500, conn)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::PartiallyPaid);
+    assert!(cart.paid_at.is_none());
+
+    // Fully paid
     cart.add_external_payment(Some("test2".to_string()), user.id, 500, conn)
         .unwrap();
     assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert!(cart.paid_at.is_some());
 }
 
 #[test]
