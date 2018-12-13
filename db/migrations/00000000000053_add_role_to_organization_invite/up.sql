@@ -3,12 +3,16 @@ alter table organization_users
 
 
 alter table organization_users
-    add "role" text[] not NULL;
+    add "role" text[] NULL;
 
 
 update organization_users
 set "role" = Array[old_role];
 
+
+
+alter table organization_users
+  alter column "role" set NOT NULL;
 
 alter table organization_users
 drop column old_role;
