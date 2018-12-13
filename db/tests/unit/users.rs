@@ -498,8 +498,8 @@ fn full_name() {
 
     let user = project
         .create_user()
-        .with_first_name(first_name.clone())
-        .with_last_name(last_name.clone())
+        .with_first_name(&first_name)
+        .with_last_name(&last_name)
         .finish();
     assert_eq!(user.full_name(), format!("{} {}", first_name, last_name));
 }
@@ -621,46 +621,6 @@ fn for_display() {
 }
 
 #[test]
-fn can_read_user() {
-    let project = TestProject::new();
-    let connection = project.get_connection();
-    let user1 = project.create_user().finish();
-    let user1 = user1.add_role(Roles::Admin, connection).unwrap();
-    let user2 = project.create_user().finish();
-    let user3 = project.create_user().finish();
-    let user4 = project.create_user().finish();
-    let _organization = project
-        .create_organization()
-        .with_owner(&user2)
-        .with_user(&user3)
-        .with_user(&user4)
-        .finish();
-
-    // Admin can read all
-    assert!(user1.can_read_user(&user1, connection).unwrap());
-    assert!(user1.can_read_user(&user2, connection).unwrap());
-    assert!(user1.can_read_user(&user3, connection).unwrap());
-    assert!(user1.can_read_user(&user4, connection).unwrap());
-
-    // Owner can read members but not admin
-    assert!(!user2.can_read_user(&user1, connection).unwrap());
-    assert!(user2.can_read_user(&user2, connection).unwrap());
-    assert!(user2.can_read_user(&user3, connection).unwrap());
-    assert!(user2.can_read_user(&user4, connection).unwrap());
-
-    // Org member cannot read other members or owner
-    assert!(!user3.can_read_user(&user1, connection).unwrap());
-    assert!(!user3.can_read_user(&user2, connection).unwrap());
-    assert!(user3.can_read_user(&user3, connection).unwrap());
-    assert!(!user3.can_read_user(&user4, connection).unwrap());
-
-    assert!(!user4.can_read_user(&user1, connection).unwrap());
-    assert!(!user4.can_read_user(&user2, connection).unwrap());
-    assert!(!user4.can_read_user(&user3, connection).unwrap());
-    assert!(user4.can_read_user(&user4, connection).unwrap());
-}
-
-#[test]
 pub fn organizations() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -753,14 +713,8 @@ pub fn get_roles_by_organization() {
         .finish();
 
     let mut expected_results = HashMap::new();
-    expected_results.insert(
-        organization.id.clone(),
-        vec!["OrgOwner", "OrgMember"]
-            .into_iter()
-            .map(|scope| scope.to_string())
-            .collect(),
-    );
-    expected_results.insert(organization2.id.clone(), vec!["OrgMember".to_string()]);
+    expected_results.insert(organization.id.clone(), vec![Roles::OrgOwner]);
+    expected_results.insert(organization2.id.clone(), vec![Roles::OrgMember]);
 
     assert_eq!(
         user.get_roles_by_organization(connection).unwrap(),
@@ -804,9 +758,12 @@ pub fn get_scopes_by_organization() {
             "event:write",
             "hold:read",
             "hold:write",
+            "order::make-external-payment",
             "order:read",
+            "org:admin-users",
             "org:fans",
             "org:read",
+            "org:users",
             "org:write",
             "ticket:admin",
             "ticket:transfer",
@@ -864,15 +821,15 @@ pub fn get_global_scopes() {
     user3 = user3.add_role(Roles::Admin, connection).unwrap();
 
     assert_eq!(
-        user.get_global_scopes(),
+        user.get_global_scopes().unwrap(),
         vec!["event:interest", "order:read", "ticket:transfer"]
     );
     assert_eq!(
-        user2.get_global_scopes(),
+        user2.get_global_scopes().unwrap(),
         vec!["event:interest", "order:read", "ticket:transfer"]
     );
     assert_eq!(
-        user3.get_global_scopes(),
+        user3.get_global_scopes().unwrap(),
         vec![
             "artist:write",
             "code:read",
@@ -888,8 +845,10 @@ pub fn get_global_scopes() {
             "order::make-external-payment",
             "order:read",
             "org:admin",
+            "org:admin-users",
             "org:fans",
             "org:read",
+            "org:users",
             "org:write",
             "region:write",
             "ticket:admin",

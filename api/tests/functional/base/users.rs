@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::users;
-use bigneon_api::controllers::users::{InputPushNotificationTokens, SearchUserByEmail};
+use bigneon_api::controllers::users::InputPushNotificationTokens;
 use bigneon_api::errors::*;
 use bigneon_api::extractors::*;
 use bigneon_api::models::*;
@@ -177,9 +177,9 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
         pub struct DisplayOrganizationLink {
             pub id: Uuid,
             pub name: String,
-            pub role: String,
+            pub role: Vec<String>,
         }
-        let role_owner_string = String::from("member");
+        let role_owner_string = vec![String::from("OrgMember")];
         let expected_data = DisplayOrganizationLink {
             id: organization.id,
             name: organization.name,
@@ -354,40 +354,6 @@ pub fn remove_push_notification_token(role: Roles, should_test_true: bool) {
         //Check that token was removed
         let stored_tokens = PushNotificationToken::find_by_user_id(user.id, connection).unwrap();
         assert_eq!(stored_tokens.len(), 0);
-    } else {
-        support::expects_unauthorized(&response);
-    }
-}
-
-pub fn find_by_email(role: Roles, should_test_true: bool) {
-    let database = TestDatabase::new();
-    let email = "test@test.com";
-
-    let user = database.create_user().finish();
-    let user2 = database
-        .create_user()
-        .with_email(email.to_string())
-        .finish();
-    let organization = database.create_organization().with_user(&user2).finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
-
-    let test_request = TestRequest::create_with_uri(&format!("/?email={}", email));
-    let data = Query::<SearchUserByEmail>::extract(&test_request.request).unwrap();
-    let response: HttpResponse = users::find_by_email((
-        database.connection.into(),
-        data,
-        auth_user.clone(),
-        test_request.request,
-    ))
-    .into();
-    let display_user: DisplayUser = user2.into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
-
-    if should_test_true {
-        assert_eq!(response.status(), StatusCode::OK);
-        let user: DisplayUser = serde_json::from_str(&body).unwrap();
-        assert_eq!(user, display_user);
     } else {
         support::expects_unauthorized(&response);
     }

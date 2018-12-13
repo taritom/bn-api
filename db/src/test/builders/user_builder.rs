@@ -24,13 +24,13 @@ impl<'a> UserBuilder<'a> {
         }
     }
 
-    pub fn with_first_name(mut self, first_name: String) -> Self {
-        self.first_name = first_name;
+    pub fn with_first_name(mut self, first_name: &str) -> Self {
+        self.first_name = first_name.to_string();
         self
     }
 
-    pub fn with_last_name(mut self, last_name: String) -> Self {
-        self.last_name = last_name;
+    pub fn with_last_name(mut self, last_name: &str) -> Self {
+        self.last_name = last_name.to_string();
         self
     }
 

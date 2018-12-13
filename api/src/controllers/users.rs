@@ -1,7 +1,6 @@
 use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
-use bigneon_db::utils::errors::Optional;
 use communications::mailers;
 use controllers::auth;
 use controllers::auth::LoginRequest;
@@ -26,7 +25,7 @@ pub struct CurrentUser {
     pub user: DisplayUser,
     pub roles: Vec<String>,
     pub scopes: Vec<String>,
-    pub organization_roles: HashMap<Uuid, Vec<String>>,
+    pub organization_roles: HashMap<Uuid, Vec<Roles>>,
     pub organization_scopes: HashMap<Uuid, Vec<String>>,
 }
 
@@ -114,7 +113,7 @@ pub fn show(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
-    if !auth_user.user.can_read_user(&user, connection)? {
+    if !(auth_user.user == user || auth_user.user.is_admin()) {
         return application::unauthorized(&request, Some(auth_user));
     }
 
@@ -132,7 +131,7 @@ pub fn list_organizations(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
-    if !auth_user.user.can_read_user(&user, connection)? {
+    if !(auth_user.user == user || auth_user.user.is_admin()) {
         return application::unauthorized(&request, Some(auth_user));
     }
     //TODO implement proper paging on db.
@@ -155,7 +154,7 @@ pub fn show_push_notification_tokens_for_user_id(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
-    if !auth_user.user.can_read_user(&user, connection)? {
+    if !(auth_user.user == user || auth_user.user.is_admin()) {
         return application::unauthorized(&request, Some(auth_user));
     }
 
@@ -208,27 +207,6 @@ pub fn remove_push_notification_token(
     Ok(HttpResponse::Ok().finish())
 }
 
-pub fn find_by_email(
-    (connection, query, auth_user, request): (
-        Connection,
-        Query<SearchUserByEmail>,
-        AuthUser,
-        HttpRequest<AppState>,
-    ),
-) -> Result<HttpResponse, BigNeonError> {
-    let connection = connection.get();
-    let user = match User::find_by_email(&query.into_inner().email, connection).optional()? {
-        Some(u) => u,
-        None => return Ok(HttpResponse::new(StatusCode::NO_CONTENT)),
-    };
-
-    if !auth_user.user.can_read_user(&user, connection)? {
-        return application::unauthorized(&request, Some(auth_user));
-    }
-
-    Ok(HttpResponse::Ok().json(&user.for_display()?))
-}
-
 pub fn register(
     (connection, parameters, state): (Connection, Json<RegisterRequest>, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -277,7 +255,7 @@ fn current_user_from_user(
     Ok(CurrentUser {
         user: user.clone().for_display()?,
         roles: user.role.clone(),
-        scopes: user.get_global_scopes(),
+        scopes: user.get_global_scopes()?,
         organization_roles: roles_by_organization,
         organization_scopes: scopes_by_organization,
     })

@@ -152,7 +152,6 @@ impl Artist {
                 .filter(
                     organization_users::user_id
                         .eq(u.id)
-                        .or(organizations::owner_user_id.eq(u.id))
                         .or(artists::is_private.eq(false))
                         .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
                 )
@@ -187,7 +186,6 @@ impl Artist {
                 .filter(
                     organization_users::user_id
                         .eq(u.id)
-                        .or(organizations::owner_user_id.eq(u.id))
                         .or(artists::is_private.eq(false))
                         .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
                 )
@@ -231,7 +229,6 @@ impl Artist {
                 .filter(
                     organization_users::user_id
                         .eq(u)
-                        .or(organizations::owner_user_id.eq(u))
                         .or(artists::is_private.eq(false)),
                 )
                 .filter(artists::organization_id.eq(organization_id))

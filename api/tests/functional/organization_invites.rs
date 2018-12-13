@@ -23,48 +23,6 @@ mod create_tests {
 }
 
 #[cfg(test)]
-mod create_failure_missing_required_parameters_tests {
-    use super::*;
-    #[test]
-    fn create_failure_missing_required_parameters_org_member() {
-        organization_invites::create_failure_missing_required_parameters(Roles::OrgMember, false);
-    }
-    #[test]
-    fn create_failure_missing_required_parameters_admin() {
-        organization_invites::create_failure_missing_required_parameters(Roles::Admin, true);
-    }
-    #[test]
-    fn create_failure_missing_required_parameters_user() {
-        organization_invites::create_failure_missing_required_parameters(Roles::User, false);
-    }
-    #[test]
-    fn create_failure_missing_required_parameters_org_owner() {
-        organization_invites::create_failure_missing_required_parameters(Roles::OrgOwner, true);
-    }
-}
-
-#[cfg(test)]
-mod create_for_existing_user_via_user_id_tests {
-    use super::*;
-    #[test]
-    fn create_for_existing_user_via_user_id_org_member() {
-        organization_invites::create_for_existing_user_via_user_id(Roles::OrgMember, false);
-    }
-    #[test]
-    fn create_for_existing_user_via_user_id_admin() {
-        organization_invites::create_for_existing_user_via_user_id(Roles::Admin, true);
-    }
-    #[test]
-    fn create_for_existing_user_via_user_id_user() {
-        organization_invites::create_for_existing_user_via_user_id(Roles::User, false);
-    }
-    #[test]
-    fn create_for_existing_user_via_user_id_org_owner() {
-        organization_invites::create_for_existing_user_via_user_id(Roles::OrgOwner, true);
-    }
-}
-
-#[cfg(test)]
 mod create_for_new_user_tests {
     use super::*;
     #[test]

@@ -17,9 +17,10 @@ pub struct OrganizationUser {
     pub id: Uuid,
     pub organization_id: Uuid,
     pub user_id: Uuid,
-    pub role: String,
+
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub role: Vec<String>,
 }
 
 #[derive(Insertable)]
@@ -27,42 +28,44 @@ pub struct OrganizationUser {
 pub struct NewOrganizationUser {
     pub organization_id: Uuid,
     pub user_id: Uuid,
-    pub role: String,
+    role: Vec<String>,
 }
 
 impl NewOrganizationUser {
-    pub fn commit(&self, conn: &PgConnection) -> Result<OrganizationUser, DatabaseError> {
-        match self.validate_record() {
-            Ok(_) => (),
-            Err(_e) => {
-                return Err(DatabaseError::new(
-                    ErrorCode::InvalidInput,
-                    Some("Invalid user role supplied".to_string()),
-                ));
+    pub fn commit(self, conn: &PgConnection) -> Result<OrganizationUser, DatabaseError> {
+        let existing_user =
+            OrganizationUser::find_by_user_id(self.user_id, self.organization_id, conn)
+                .optional()?;
+        match existing_user {
+            Some(mut user) => {
+                for role in self.role {
+                    if user.role.contains(&role) {
+                        continue;
+                    }
+                    user.role.push(role);
+                }
+                diesel::update(organization_users::table.filter(organization_users::id.eq(user.id)))
+                    .set(organization_users::role.eq(user.role))
+                    .get_result(conn)
+                    .to_db_error(
+                        ErrorCode::UpdateError,
+                        "Could not add role to existing organization user",
+                    )
             }
+            None => DatabaseError::wrap(
+                ErrorCode::InsertError,
+                "Could not create new organization user",
+                diesel::insert_into(organization_users::table)
+                    .values(self)
+                    .get_result(conn),
+            ),
         }
-        DatabaseError::wrap(
-            ErrorCode::InsertError,
-            "Could not create new organization user",
-            diesel::insert_into(organization_users::table)
-                .values(self)
-                .get_result(conn),
-        )
-    }
-
-    pub fn validate_record(&self) -> Result<(), EnumParseError> {
-        let _: Roles = self.role.parse()?;
-        Ok(())
     }
 }
 
 impl OrganizationUser {
-    pub fn create(
-        organization_id: Uuid,
-        user_id: Uuid,
-        role: Option<Roles>,
-    ) -> NewOrganizationUser {
-        let role = role.unwrap_or(Roles::OrgMember).to_string();
+    pub fn create(organization_id: Uuid, user_id: Uuid, roles: Vec<Roles>) -> NewOrganizationUser {
+        let role = roles.iter().map(|s| s.to_string()).collect();
         NewOrganizationUser {
             organization_id,
             user_id,
@@ -78,5 +81,23 @@ impl OrganizationUser {
             .filter(organization_users::organization_id.eq(organization_id))
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load organization users")
+    }
+
+    pub fn find_by_user_id(
+        user_id: Uuid,
+        organization_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<OrganizationUser, DatabaseError> {
+        organization_users::table
+            .filter(
+                organization_users::user_id
+                    .eq(user_id)
+                    .and(organization_users::organization_id.eq(organization_id)),
+            )
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not find user for organization",
+            )
     }
 }

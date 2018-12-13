@@ -1,6 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, Path, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
+use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::Optional;
 use communications::mailers;
 use db::Connection;
@@ -24,9 +25,8 @@ pub struct InviteResponseQuery {
 
 #[derive(Deserialize)]
 pub struct NewOrgInviteRequest {
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub user_email: Option<String>,
-    pub user_id: Option<Uuid>,
+    pub user_email: String,
+    pub role: Roles,
 }
 
 pub fn create(
@@ -40,62 +40,47 @@ pub fn create(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
-    auth_user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
+    auth_user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?;
 
-    let invite_args = new_org_invite.into_inner();
+    if &new_org_invite.role != &Roles::OrgOwner && &new_org_invite.role != &Roles::OrgMember {
+        let validation_error =
+            DatabaseError::validation_error("role", "Role must be either OrgOwner or OrgMember")?;
+
+        return validation_error;
+    }
 
     let mut invite: NewOrganizationInvite;
-    let email: String;
     let recipient: String;
     let user_id: Option<Uuid>;
 
-    match invite_args.user_id {
-        Some(user_id_value) => {
-            let user = User::find(user_id_value, connection)?;
-            recipient = user.full_name();
-            user_id = Some(user.id);
-            match user.email {
-                Some(user_email) => {
-                    email = user_email;
-                }
-                None => unimplemented!(),
-            }
-        }
-        None => match invite_args.user_email {
-            Some(user_email) => {
-                email = user_email;
-                match User::find_by_email(&email, connection).optional() {
-                    Ok(maybe_a_user) => match maybe_a_user {
-                        Some(user) => {
-                            recipient = user.full_name();
-                            user_id = Some(user.id);
-                        }
-                        None => {
-                            recipient = "New user".to_string();
-                            user_id = None;
-                        }
-                    },
-                    Err(e) => return Err(e.into()),
-                };
+    match User::find_by_email(&new_org_invite.user_email, connection).optional() {
+        Ok(maybe_a_user) => match maybe_a_user {
+            Some(user) => {
+                recipient = user.full_name();
+                user_id = Some(user.id);
             }
             None => {
-                return Ok(HttpResponse::BadRequest().json(json!({
-                    "error": "Missing required parameters, `user_id` or `user_email` required"
-                })));
+                recipient = "New user".to_string();
+                user_id = None;
             }
         },
-    }
+        Err(e) => return Err(e.into()),
+    };
+
     //If an active invite exists for this email then first expire it before issuing the new invite.
-    if let Some(i) = OrganizationInvite::find_active_invite_by_email(&email, connection)? {
+    if let Some(i) =
+        OrganizationInvite::find_active_invite_by_email(&new_org_invite.user_email, connection)?
+    {
         i.change_invite_status(0, connection)?;
     }
 
     invite = NewOrganizationInvite {
         organization_id: path.id,
         inviter_id: auth_user.id(),
-        user_email: email.clone(),
+        user_email: new_org_invite.user_email.clone(),
         security_token: None,
         user_id,
+        role: new_org_invite.role.to_string(),
     };
 
     let invite = invite.commit(connection)?;
@@ -151,7 +136,7 @@ pub fn accept_request(
             if valid_for_acceptance {
                 let accept_details = invite_details.change_invite_status(1, connection)?;
                 let org = Organization::find(accept_details.organization_id, connection)?;
-                org.add_user(u.id(), None, connection)?;
+                org.add_user(u.id(), vec![Roles::OrgMember], connection)?;
             } else {
                 return application::unauthorized(&request, Some(u));
             }
@@ -172,11 +157,3 @@ pub fn decline_request(
     invite_details.change_invite_status(0, connection)?;
     Ok(HttpResponse::Ok().json(json!({})))
 }
-
-/*async fn send_email(config: &Config,
-    invite: OrganizationInvite,
-    org: Organization,
-    recipient_name: str,
-    connection : Connection)
-{
-}*/

@@ -191,27 +191,6 @@ mod update_tests {
 }
 
 #[cfg(test)]
-mod update_owner_tests {
-    use super::*;
-    #[test]
-    fn update_owner_org_member() {
-        organizations::update_owner(Roles::OrgMember, false);
-    }
-    #[test]
-    fn update_owner_admin() {
-        organizations::update_owner(Roles::Admin, true);
-    }
-    #[test]
-    fn update_owner_user() {
-        organizations::update_owner(Roles::User, false);
-    }
-    #[test]
-    fn update_owner_org_owner() {
-        organizations::update_owner(Roles::OrgOwner, false);
-    }
-}
-
-#[cfg(test)]
 mod list_organization_members_tests {
     use super::*;
     #[test]

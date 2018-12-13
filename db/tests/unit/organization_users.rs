@@ -7,12 +7,13 @@ fn create() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let organization_user = OrganizationUser::create(organization.id, user2.id, None)
-        .commit(project.get_connection())
-        .unwrap();
+    let organization_user =
+        OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
+            .commit(project.get_connection())
+            .unwrap();
 
     assert_eq!(organization_user.user_id, user2.id);
     assert_eq!(organization_user.organization_id, organization.id);
-    assert_eq!(organization_user.role, Roles::OrgMember.to_string());
+    assert_eq!(organization_user.role, [Roles::OrgMember.to_string()]);
     assert_eq!(organization_user.id.to_string().is_empty(), false);
 }

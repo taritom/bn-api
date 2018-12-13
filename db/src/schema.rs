@@ -238,13 +238,13 @@ table! {
         accepted -> Nullable<Int2>,
         updated_at -> Timestamp,
         sent_invite -> Bool,
+        role -> Text,
     }
 }
 
 table! {
     organizations (id) {
         id -> Uuid,
-        owner_user_id -> Uuid,
         name -> Text,
         address -> Nullable<Text>,
         city -> Nullable<Text>,
@@ -267,9 +267,9 @@ table! {
         id -> Uuid,
         organization_id -> Uuid,
         user_id -> Uuid,
-        role -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        role -> Array<Text>,
     }
 }
 
@@ -465,7 +465,6 @@ joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
 joinable!(organizations -> fee_schedules (fee_schedule_id));
-joinable!(organizations -> users (owner_user_id));
 joinable!(payment_methods -> users (user_id));
 joinable!(payments -> orders (order_id));
 joinable!(payments -> users (created_by));

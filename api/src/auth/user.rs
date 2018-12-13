@@ -2,6 +2,7 @@ use actix_web::{error, error::Error, FromRequest, HttpRequest, Result};
 use auth::claims;
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::{Organization, Scopes};
+use bigneon_db::prelude::errors::EnumParseError;
 use diesel::PgConnection;
 use errors::*;
 use jwt::{decode, Validation};
@@ -23,15 +24,15 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(user: DbUser, request: &HttpRequest<AppState>) -> User {
-        let global_scopes = user.get_global_scopes();
-        User {
+    pub fn new(user: DbUser, request: &HttpRequest<AppState>) -> Result<User, EnumParseError> {
+        let global_scopes = user.get_global_scopes()?;
+        Ok(User {
             user,
             global_scopes,
             ip_address: request.connection_info().remote().map(|i| i.to_string()),
             uri: request.uri().to_string(),
             method: request.method().to_string(),
-        }
+        })
     }
 
     pub fn id(&self) -> Uuid {
@@ -132,7 +133,9 @@ impl FromRequest<AppState> for User {
                         .map_err(|e| BigNeonError::from(e))?;
                         let connection = req.connection()?;
                         match DbUser::find(token.claims.get_id()?, connection.get()) {
-                            Ok(user) => Ok(User::new(user, req)),
+                            Ok(user) => Ok(User::new(user, req).map_err(|_| {
+                                error::ErrorUnauthorized("User has invalid role data")
+                            })?),
                             Err(e) => Err(error::ErrorInternalServerError(e)),
                         }
                     }

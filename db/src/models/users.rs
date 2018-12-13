@@ -10,6 +10,7 @@ use models::*;
 use schema::{events, organization_users, organizations, users};
 use std::collections::HashMap;
 use time::Duration;
+use utils::errors::EnumParseError;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::passwords::PasswordHash;
 use uuid::Uuid;
@@ -380,14 +381,21 @@ impl User {
         self.has_role(Roles::Admin)
     }
 
-    pub fn get_global_scopes(&self) -> Vec<String> {
-        scopes::get_scopes(self.role.clone())
+    pub fn roles(&self) -> Result<Vec<Roles>, EnumParseError> {
+        let mut res: Vec<Roles> = vec![];
+        for r in &self.role {
+            res.push(r.parse()?);
+        }
+        Ok(res)
+    }
+    pub fn get_global_scopes(&self) -> Result<Vec<String>, EnumParseError> {
+        Ok(scopes::get_scopes(self.roles()?))
     }
 
     pub fn get_roles_by_organization(
         &self,
         conn: &PgConnection,
-    ) -> Result<HashMap<Uuid, Vec<String>>, DatabaseError> {
+    ) -> Result<HashMap<Uuid, Vec<Roles>>, DatabaseError> {
         let mut roles_by_organization = HashMap::new();
         for organization in self.organizations(conn)? {
             roles_by_organization.insert(
@@ -418,7 +426,6 @@ impl User {
             .filter(
                 organization_users::user_id
                     .eq(self.id)
-                    .or(organizations::owner_user_id.eq(self.id))
                     .or(sql("true=").bind::<sql_types::Bool, _>(self.is_admin())),
             )
             .select(organizations::all_columns)
@@ -534,38 +541,6 @@ impl User {
         conn: &PgConnection,
     ) -> Result<ExternalLogin, DatabaseError> {
         ExternalLogin::create(external_user_id, site, self.id, access_token).commit(conn)
-    }
-
-    pub fn can_read_user(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {
-        if self.has_role(Roles::Admin) || self == user {
-            return Ok(true);
-        }
-        // TODO: Once OrgAdmin is moved to the organization_users table this logic will need to be adjusted
-
-        let organizations = organizations::table
-            .filter(organizations::owner_user_id.eq(self.id))
-            .load::<Organization>(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve organizations owned by user",
-            )?;
-        let organizations2 = OrganizationUser::belonging_to(user)
-            .inner_join(organizations::table)
-            .select(organizations::all_columns)
-            .load::<Organization>(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve organizations for user",
-            )?;
-
-        let mut can_read = false;
-        for organization in organizations {
-            can_read = organizations2.contains(&organization);
-            if can_read {
-                break;
-            }
-        }
-        Ok(can_read)
     }
 
     pub fn wallets(&self, conn: &PgConnection) -> Result<Vec<Wallet>, DatabaseError> {

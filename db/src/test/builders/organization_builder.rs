@@ -1,10 +1,6 @@
 use diesel::prelude::*;
-use models::{
-    FeeSchedule, NewFeeScheduleRange, Organization, OrganizationEditableAttributes,
-    OrganizationUser, User, Wallet,
-};
+use models::*;
 use rand::prelude::*;
-use test::builders::*;
 use uuid::Uuid;
 
 pub struct OrganizationBuilder<'a> {
@@ -82,15 +78,9 @@ impl<'a> OrganizationBuilder<'a> {
             self.fee_schedule = Some(fee_schedule.unwrap());
         }
 
-        let mut organization = Organization::create(
-            self.owner_user_id
-                .or_else(|| Some(UserBuilder::new(self.connection).finish().id))
-                .unwrap(),
-            &self.name,
-            self.fee_schedule.unwrap().id,
-        )
-        .commit(&"encryption_key".to_string(), self.connection)
-        .unwrap();
+        let mut organization = Organization::create(&self.name, self.fee_schedule.unwrap().id)
+            .commit(&"encryption_key".to_string(), self.connection)
+            .unwrap();
 
         let event_fee_update = OrganizationEditableAttributes {
             event_fee_in_cents: self.event_fee_in_cents,
@@ -105,8 +95,14 @@ impl<'a> OrganizationBuilder<'a> {
             )
             .unwrap();
 
+        if let Some(user_id) = self.owner_user_id {
+            OrganizationUser::create(organization.id, user_id, vec![Roles::OrgOwner])
+                .commit(self.connection)
+                .unwrap();
+        }
+
         for user_id in self.members.clone() {
-            OrganizationUser::create(organization.id, user_id, None)
+            OrganizationUser::create(organization.id, user_id, vec![Roles::OrgMember])
                 .commit(self.connection)
                 .unwrap();
         }

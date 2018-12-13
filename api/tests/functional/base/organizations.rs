@@ -1,3 +1,4 @@
+use actix_web::ResponseError;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::organizations;
 use bigneon_api::controllers::organizations::*;
@@ -110,14 +111,7 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
         .with_owner(&user2)
         .finish();
 
-    let mut expected_organizations = vec![organization.clone(), organization2];
-    if role == Roles::OrgMember {
-        let index = expected_organizations
-            .iter()
-            .position(|x| x.owner_user_id == user2.id)
-            .unwrap();
-        expected_organizations.remove(index);
-    }
+    let expected_organizations = vec![organization.clone(), organization2];
 
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
@@ -157,7 +151,7 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let name = "Organization Example";
-    let user = database.create_user().finish();
+    let _user = database.create_user().finish();
 
     let auth_user = support::create_auth_user(role, None, &database);
 
@@ -173,7 +167,6 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     .unwrap();
 
     let json = Json(NewOrganizationRequest {
-        owner_user_id: user.id,
         name: name.to_string(),
         event_fee_in_cents: Some(0),
         address: None,
@@ -289,7 +282,10 @@ pub fn add_user(role: Roles, should_test_succeed: bool) {
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
-    let json = Json(organizations::AddUserRequest { user_id: user2.id });
+    let json = Json(organizations::AddUserRequest {
+        user_id: user2.id,
+        role: Roles::OrgMember,
+    });
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
@@ -365,42 +361,6 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     }
 }
 
-pub fn update_owner(role: Roles, should_succeed: bool) {
-    let database = TestDatabase::new();
-    let user = database.create_user().finish();
-    let new_owner = database.create_user().finish();
-    let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
-    let test_request = TestRequest::create();
-    let update_owner_request = UpdateOwnerRequest {
-        owner_user_id: new_owner.id,
-    };
-
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = organization.id;
-
-    let json = Json(update_owner_request);
-
-    let response: HttpResponse = organizations::update_owner((
-        test_request.extract_state(),
-        database.connection.into(),
-        path,
-        json,
-        auth_user,
-    ))
-    .into();
-
-    if !should_succeed {
-        support::expects_unauthorized(&response);
-        return;
-    }
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    let updated_organization: Organization = serde_json::from_str(&body).unwrap();
-    assert_eq!(updated_organization.owner_user_id, new_owner.id);
-}
-
 pub fn list_organization_members(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user1 = database
@@ -416,20 +376,28 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
         support::create_auth_user_from_user(&user1, role, Some(&organization), &database);
 
     let mut organization_members = Vec::new();
-    if role != Roles::OrgOwner {
-        organization_members.push(DisplayUser::from(
-            organization.owner(database.connection.get()).unwrap(),
-        ));
+    if role != Roles::Admin {
+        // create_auth_user_from_user adds the user to the organization if it is not an admin
+        organization_members.push(DisplayOrganizationUser {
+            user_id: Some(user1.id),
+            first_name: user1.first_name,
+            last_name: user1.last_name,
+            email: user1.email,
+            roles: vec![role.to_string()],
+            invite_or_member: "member".to_string(),
+        });
     }
-
-    if Roles::Admin != role {
-        organization_members.push(DisplayUser::from(user1.clone()));
-    }
-    organization_members.push(DisplayUser::from(user2.clone()));
-    organization_members[0].is_org_owner = true;
+    organization_members.push(DisplayOrganizationUser {
+        user_id: Some(user2.id),
+        first_name: user2.first_name,
+        last_name: user2.last_name,
+        email: user2.email,
+        roles: vec![Roles::OrgMember.to_string()],
+        invite_or_member: "member".to_string(),
+    });
 
     let count = organization_members.len();
-    let wrapped_expected_date = Payload {
+    let expected_data = Payload {
         data: organization_members,
         paging: Paging {
             page: 0,
@@ -440,28 +408,30 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
             tags: HashMap::new(),
         },
     };
-    let expected_json = serde_json::to_string(&wrapped_expected_date).unwrap();
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse = organizations::list_organization_members((
+    let response = organizations::list_organization_members((
         database.connection.into(),
         path,
         query_parameters,
         auth_user.clone(),
-    ))
-    .into();
+    ));
 
     if !should_succeed {
-        support::expects_unauthorized(&response);
+        let http_response = response.err().unwrap().error_response();
+        support::expects_unauthorized(&http_response);
         return;
     }
+
+    let response = response.unwrap();
+
     assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(body, expected_json.to_string());
+
+    assert_eq!(response.payload(), &expected_data);
 }
 
 pub fn show_fee_schedule(role: Roles, should_succeed: bool) {

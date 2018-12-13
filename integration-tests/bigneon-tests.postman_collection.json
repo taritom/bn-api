@@ -262,7 +262,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"user_email\": \"{{last_org_member_email}}\"\n}"
+							"raw": "{\n\"user_email\": \"{{last_org_member_email}}\",\n \"role\" : \"OrgMember\"\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/organizations/{{last_org_id}}/invite",

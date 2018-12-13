@@ -5,19 +5,16 @@ use chrono::NaiveDateTime;
 use db::Connection;
 use errors::*;
 use extractors::*;
+use helpers::application;
 use models::PathParameters;
 use models::WebPayload;
 use server::AppState;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize)]
-pub struct UpdateOwnerRequest {
-    pub owner_user_id: Uuid,
-}
-
 #[derive(Deserialize)]
 pub struct AddUserRequest {
     pub user_id: Uuid,
+    pub role: Roles,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -31,7 +28,6 @@ pub struct FeeScheduleWithRanges {
 
 #[derive(Serialize, Deserialize)]
 pub struct NewOrganizationRequest {
-    pub owner_user_id: Uuid,
     pub name: String,
     pub event_fee_in_cents: Option<i64>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
@@ -124,7 +120,6 @@ pub fn create(
     .commit(connection)?;
 
     let new_organization_with_fee_schedule = NewOrganization {
-        owner_user_id: new_organization.owner_user_id,
         name: new_organization.name.clone(),
         fee_schedule_id: fee_schedule.id,
         event_fee_in_cents: new_organization.event_fee_in_cents.clone(),
@@ -172,24 +167,6 @@ pub fn update(
     Ok(HttpResponse::Ok().json(&updated_organization))
 }
 
-pub fn update_owner(
-    (state, connection, parameters, json, user): (
-        State<AppState>,
-        Connection,
-        Path<PathParameters>,
-        Json<UpdateOwnerRequest>,
-        User,
-    ),
-) -> Result<HttpResponse, BigNeonError> {
-    user.requires_scope(Scopes::OrgAdmin)?;
-    let connection = connection.get();
-    let organization = Organization::find(parameters.id, connection)?;
-    let mut updated_organization =
-        organization.set_owner(json.into_inner().owner_user_id, connection)?;
-    updated_organization.decrypt(&state.config.api_keys_encryption_key)?;
-    Ok(HttpResponse::Ok().json(&updated_organization))
-}
-
 pub fn add_venue(
     (connection, parameters, new_venue, user): (
         Connection,
@@ -228,17 +205,33 @@ pub fn add_artist(
 }
 
 pub fn add_user(
-    (connection, path, add_request, user): (
-        Connection,
-        Path<PathParameters>,
-        Json<AddUserRequest>,
-        User,
-    ),
+    (connection, path, json, user): (Connection, Path<PathParameters>, Json<AddUserRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
-    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
-    organization.add_user(add_request.user_id, None, connection)?;
+
+    match json.role {
+        Roles::OrgOwner => {
+            user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?
+        }
+        Roles::OrgAdmin => user.requires_scope_for_organization(
+            Scopes::OrgManageAdminUsers,
+            &organization,
+            connection,
+        )?,
+        Roles::OrgMember => {
+            user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?
+        }
+        Roles::DoorPerson => {
+            user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?
+        }
+        Roles::OrgBoxOffice => {
+            user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?
+        }
+        _ => return application::forbidden("Role is not allowed for this user"),
+    };
+
+    organization.add_user(json.user_id, vec![json.role], connection)?;
     Ok(HttpResponse::Created().finish())
 }
 
@@ -247,7 +240,7 @@ pub fn remove_user(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
+    user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?;
 
     let organization = organization.remove_user(user_id.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(&organization))
@@ -260,20 +253,48 @@ pub fn list_organization_members(
         Query<PagingParameters>,
         User,
     ),
-) -> Result<HttpResponse, BigNeonError> {
+) -> Result<WebPayload<DisplayOrganizationUser>, BigNeonError> {
     let connection = connection.get();
     //TODO refactor Organization::find to use limits as in PagingParameters
     let organization = Organization::find(path_parameters.id, connection)?;
     user.requires_scope_for_organization(Scopes::OrgRead, &organization, connection)?;
 
-    let mut members: Vec<DisplayUser> = organization
+    let mut members: Vec<DisplayOrganizationUser> = organization
         .users(connection)?
-        .iter()
-        .map(|u| DisplayUser::from(u.clone()))
+        .into_iter()
+        .map(|u| DisplayOrganizationUser {
+            user_id: Some(u.1.id),
+            first_name: u.1.first_name,
+            last_name: u.1.last_name,
+            email: u.1.email,
+            roles: u.0.role,
+            invite_or_member: "member".to_string(),
+        })
         .collect();
-    members[0].is_org_owner = true;
+
+    for inv in organization.pending_invites(connection)? {
+        members.push(DisplayOrganizationUser {
+            user_id: inv.user_id,
+            first_name: None,
+            last_name: None,
+            email: Some(inv.user_email),
+            roles: vec![format!("{} (Invited)", inv.role)],
+            invite_or_member: "invite".to_string(),
+        });
+    }
+
     let payload = Payload::from_data(members, query_parameters.page(), query_parameters.limit());
-    Ok(HttpResponse::Ok().json(payload))
+    Ok(WebPayload::new(StatusCode::OK, payload))
+}
+
+#[derive(Serialize, PartialEq, Debug)]
+pub struct DisplayOrganizationUser {
+    pub user_id: Option<Uuid>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub email: Option<String>,
+    pub roles: Vec<String>,
+    pub invite_or_member: String,
 }
 
 pub fn show_fee_schedule(

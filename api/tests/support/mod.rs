@@ -48,24 +48,18 @@ pub fn create_auth_user_from_user(
     let test_request = TestRequest::create();
     if [Roles::Admin, Roles::User].contains(&role) {
         let user = user.add_role(role, database.connection.get()).unwrap();
-        AuthUser::new(user, &test_request.request)
+        AuthUser::new(user, &test_request.request).unwrap()
     } else {
         let organization = match organization {
             Some(organization) => (*organization).clone(),
             None => database.create_organization().finish(),
         };
 
-        if role == Roles::OrgOwner {
-            organization
-                .set_owner(user.id, database.connection.get())
-                .unwrap();
-        } else {
-            organization
-                .add_user(user.id, None, database.connection.get())
-                .unwrap();
-        }
+        organization
+            .add_user(user.id, vec![role], database.connection.get())
+            .unwrap();
 
-        AuthUser::new(user.clone(), &test_request.request)
+        AuthUser::new(user.clone(), &test_request.request).unwrap()
     }
 }
 

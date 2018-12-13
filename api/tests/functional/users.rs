@@ -82,7 +82,7 @@ mod user_list_organizations_tests {
 
     #[test]
     fn list_organizations_org_owner() {
-        base::users::list_organizations(Roles::OrgOwner, true);
+        base::users::list_organizations(Roles::OrgOwner, false);
     }
 }
 
@@ -107,7 +107,7 @@ mod show_push_notification_tokens_for_user_id_tests {
 
     #[test]
     fn show_push_notification_tokens_for_user_id_org_owner() {
-        base::users::show_push_notification_tokens_for_user_id(Roles::OrgOwner, true);
+        base::users::show_push_notification_tokens_for_user_id(Roles::OrgOwner, false);
     }
 }
 
@@ -187,31 +187,6 @@ mod remove_push_notification_token_tests {
 }
 
 #[cfg(test)]
-mod find_by_email_tests {
-    use super::*;
-
-    #[test]
-    fn find_by_email_org_member() {
-        base::users::find_by_email(Roles::OrgMember, false);
-    }
-
-    #[test]
-    fn find_by_email_admin() {
-        base::users::find_by_email(Roles::Admin, true);
-    }
-
-    #[test]
-    fn find_by_email_user() {
-        base::users::find_by_email(Roles::User, false);
-    }
-
-    #[test]
-    fn find_by_email_org_owner() {
-        base::users::find_by_email(Roles::OrgOwner, true);
-    }
-}
-
-#[cfg(test)]
 mod users_show_tests {
     use super::*;
 
@@ -232,7 +207,7 @@ mod users_show_tests {
 
     #[test]
     fn show_org_owner() {
-        base::users::show(Roles::OrgOwner, true);
+        base::users::show(Roles::OrgOwner, false);
     }
 }
 
@@ -395,8 +370,10 @@ fn current_user_admin() {
             "order::make-external-payment",
             "order:read",
             "org:admin",
+            "org:admin-users",
             "org:fans",
             "org:read",
+            "org:users",
             "org:write",
             "region:write",
             "ticket:admin",
@@ -443,9 +420,12 @@ fn current_user_organization_owner() {
             "event:write",
             "hold:read",
             "hold:write",
+            "order::make-external-payment",
             "order:read",
+            "org:admin-users",
             "org:fans",
             "org:read",
+            "org:users",
             "org:write",
             "ticket:admin",
             "ticket:transfer",
@@ -459,10 +439,7 @@ fn current_user_organization_owner() {
     assert_eq!(expected_results, current_user.organization_scopes);
 
     let mut expected_roles = HashMap::new();
-    expected_roles.insert(
-        organization.id,
-        vec!["OrgOwner".to_string(), "OrgMember".to_string()],
-    );
+    expected_roles.insert(organization.id, vec![Roles::OrgOwner]);
     assert_eq!(expected_roles, current_user.organization_roles);
 }
 
@@ -518,7 +495,7 @@ fn current_user_organization_member() {
     assert_eq!(expected_scopes, current_user.organization_scopes);
 
     let mut expected_roles = HashMap::new();
-    expected_roles.insert(organization.id, vec!["OrgMember".to_string()]);
+    expected_roles.insert(organization.id, vec![Roles::OrgMember]);
     assert_eq!(expected_roles, current_user.organization_roles);
 }
 

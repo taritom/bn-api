@@ -39,6 +39,7 @@ pub struct OrganizationInvite {
     pub accepted: Option<i16>,
     pub updated_at: NaiveDateTime,
     pub sent_invite: bool,
+    pub role: String,
 }
 
 #[derive(Insertable, PartialEq, Debug, Deserialize, Validate)]
@@ -50,6 +51,7 @@ pub struct NewOrganizationInvite {
     pub user_email: String,
     pub security_token: Option<Uuid>,
     pub user_id: Option<Uuid>,
+    pub role: String,
 }
 
 #[derive(Debug, Queryable, Serialize, QueryableByName)]
@@ -79,13 +81,17 @@ impl OrganizationInvite {
         invitee_id: Uuid,
         email: &str,
         user_id: Option<Uuid>,
+        roles: Vec<Roles>,
     ) -> NewOrganizationInvite {
+        let roles = roles.iter().map(|r| r.to_string()).collect();
+
         NewOrganizationInvite {
             organization_id: org_id,
             inviter_id: invitee_id,
             user_email: email.into(),
             security_token: None,
             user_id,
+            role: roles,
         }
     }
 
@@ -181,5 +187,20 @@ impl OrganizationInvite {
                 .set(organization_invites::sent_invite.eq(sent_status))
                 .get_result(conn),
         )
+    }
+
+    pub fn find_pending_by_organization(
+        organization_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<OrganizationInvite>, DatabaseError> {
+        organization_invites::table
+            .filter(organization_invites::organization_id.eq(organization_id))
+            .filter(organization_invites::accepted.is_null())
+            .order_by(organization_invites::user_email.asc())
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load invites for organization",
+            )
     }
 }

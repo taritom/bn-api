@@ -169,7 +169,6 @@ impl Venue {
                 .filter(
                     organization_users::user_id
                         .eq(u.id)
-                        .or(organizations::owner_user_id.eq(u.id))
                         .or(venues::is_private.eq(false))
                         .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
                 )
@@ -205,7 +204,6 @@ impl Venue {
                 .filter(
                     organization_users::user_id
                         .eq(u)
-                        .or(organizations::owner_user_id.eq(u))
                         .or(venues::is_private.eq(false)),
                 )
                 .filter(venues::organization_id.eq(organization_id))

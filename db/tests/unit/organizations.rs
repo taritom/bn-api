@@ -6,7 +6,6 @@ use uuid::Uuid;
 fn create() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let user = project.create_user().finish();
     let fee_schedule = FeeSchedule::create(
         format!("Zero fees",).into(),
         vec![NewFeeScheduleRange {
@@ -17,14 +16,12 @@ fn create() {
     )
     .commit(connection)
     .unwrap();
-    let mut organization = Organization::create(user.id, "Organization", fee_schedule.id);
+    let mut organization = Organization::create("Organization", fee_schedule.id);
     organization.sendgrid_api_key = Some("A_Test_Key".to_string());
 
     let mut organization = organization
         .commit(&"encryption_key".to_string(), connection)
         .unwrap();
-
-    assert_eq!(organization.owner_user_id, user.id);
     assert_eq!(organization.id.to_string().is_empty(), false);
 
     assert_ne!(
@@ -36,12 +33,6 @@ fn create() {
         organization.sendgrid_api_key,
         Some("A_Test_Key".to_string())
     );
-
-    let user2 = User::find(user.id, connection).unwrap();
-    assert!(organization
-        .get_roles_for_user(&user2, connection)
-        .unwrap()
-        .contains(&"OrgOwner".into()));
 }
 
 #[test]
@@ -127,23 +118,6 @@ fn update() {
 }
 
 #[test]
-fn update_owner() {
-    let project = TestProject::new();
-    let user = project.create_user().finish();
-    //Edit Organization
-    let organization = project.create_organization().with_owner(&user).finish();
-
-    let user2 = project.create_user().finish();
-
-    let updated_org = organization
-        .set_owner(user2.id, project.get_connection())
-        .unwrap();
-    let db_org = Organization::find(organization.id, project.get_connection()).unwrap();
-    assert_eq!(updated_org.owner_user_id, user2.id);
-    assert_eq!(db_org.owner_user_id, user2.id);
-}
-
-#[test]
 fn find() {
     let project = TestProject::new();
     let user = project.create_user().finish();
@@ -179,50 +153,50 @@ fn find_for_event() {
 #[test]
 fn users() {
     let project = TestProject::new();
-    let user = project.create_user().finish();
-    let user2 = project.create_user().finish();
-    let user3 = project.create_user().finish();
+    let user = project.create_user().with_last_name("User1").finish();
+    let user2 = project.create_user().with_last_name("User2").finish();
+    let user3 = project.create_user().with_last_name("User3").finish();
     let organization = project.create_organization().with_owner(&user).finish();
     let organization2 = project.create_organization().with_owner(&user3).finish();
-    OrganizationUser::create(organization2.id, user2.id, None)
+    OrganizationUser::create(organization2.id, user2.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
         .unwrap();
 
     // Owner is included in the user results for organization2 but not organization2
     let user_results = organization.users(project.get_connection()).unwrap();
     assert_eq!(user_results.len(), 1);
-    assert_eq!(user.id, user_results[0].id);
+    assert_eq!(user.id, user_results[0].1.id);
 
     let user_results = organization2.users(project.get_connection()).unwrap();
     assert_eq!(
-        vec![user3.id, user2.id],
-        user_results.iter().map(|u| u.id).collect::<Vec<Uuid>>()
+        vec![user2.id, user3.id],
+        user_results.iter().map(|u| u.1.id).collect::<Vec<Uuid>>()
     );
 
     // Explicitly make the organization user an org user
-    OrganizationUser::create(organization.id, user.id, None)
+    OrganizationUser::create(organization.id, user.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
         .unwrap();
     let user_results = organization.users(project.get_connection()).unwrap();
     assert_eq!(user_results.len(), 1);
-    assert_eq!(user.id, user_results[0].id);
+    assert_eq!(user.id, user_results[0].1.id);
     let user_results2 = organization2.users(project.get_connection()).unwrap();
     assert_eq!(user_results2.len(), 2);
-    assert_eq!(user3.id, user_results2[0].id);
-    assert_eq!(user2.id, user_results2[1].id);
+    assert_eq!(user2.id, user_results2[0].1.id);
+    assert_eq!(user3.id, user_results2[1].1.id);
 
     // Add a new user to the organization
-    OrganizationUser::create(organization.id, user2.id, None)
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
         .unwrap();
     let user_results = organization.users(project.get_connection()).unwrap();
-    assert!(user_results.len() == 2);
-    assert_eq!(user.id, user_results[0].id);
-    assert_eq!(user2.id, user_results[1].id);
+    assert_eq!(user_results.len(), 2);
+    assert_eq!(user.id, user_results[0].1.id);
+    assert_eq!(user2.id, user_results[1].1.id);
     let user_results2 = organization2.users(project.get_connection()).unwrap();
-    assert!(user_results2.len() == 2);
-    assert_eq!(user3.id, user_results2[0].id);
-    assert_eq!(user2.id, user_results2[1].id);
+    assert_eq!(user_results2.len(), 2);
+    assert_eq!(user2.id, user_results2[0].1.id);
+    assert_eq!(user3.id, user_results2[1].1.id);
 }
 
 #[test]
@@ -291,18 +265,16 @@ fn all_org_names_linked_to_user() {
         Organization::all_org_names_linked_to_user(user3.id, project.get_connection()).unwrap();
     let user4_links =
         Organization::all_org_names_linked_to_user(user4.id, project.get_connection()).unwrap();
-    let role_owner_string = String::from("owner");
-    let role_member_string = String::from("member");
+    let role_owner_string = [String::from("OrgOwner")];
+    let role_member_string = [String::from("OrgMember")];
     //User1 has 2 links, owner of Org1 and member of Org2
     assert_eq!(user1_links.len(), 2);
-    assert_eq!(
-        (user1_links[0].id == org1.id) && (user1_links[1].id == org2.id),
-        true
-    );
-    assert_eq!(
-        (user1_links[0].role == role_owner_string) && (user1_links[1].role == role_member_string),
-        true
-    );
+    assert_eq!(user1_links[0].id, org1.id);
+    assert_eq!(user1_links[1].id, org2.id);
+
+    assert_eq!(user1_links[0].role, role_owner_string);
+    assert_eq!(user1_links[1].role, role_member_string);
+
     //User2 has only 1 owner link with Org2
     assert_eq!(user2_links.len(), 1);
     assert_eq!(user2_links[0].id, org2.id);
@@ -341,28 +313,36 @@ fn remove_users() {
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    OrganizationUser::create(organization.id, user2.id, None)
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
         .unwrap();
-    OrganizationUser::create(organization.id, user3.id, None)
+    OrganizationUser::create(organization.id, user3.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
         .unwrap();
     let user2_id = user2.id;
 
-    let user_results = organization
-        .users(project.get_connection())
-        .unwrap()
-        .sort_by_key(|k| k.id);
-    let users_before_delete = vec![user.clone(), user2, user3.clone()].sort_by_key(|k| k.id);
+    let mut user_results = organization.users(project.get_connection()).unwrap();
 
-    assert_eq!(user_results, users_before_delete);
+    user_results.sort_by_key(|k| k.1.id);
+    let mut users_before_delete = vec![user.clone(), user2, user3.clone()];
+    users_before_delete.sort_by_key(|k| k.id);
+
+    assert_eq!(user_results[0].1, users_before_delete[0]);
+    assert_eq!(user_results[1].1, users_before_delete[1]);
+    assert_eq!(user_results[2].1, users_before_delete[2]);
+    assert_eq!(user_results.len(), 3);
 
     //remove user
     let result = organization
         .remove_user(user2_id, project.get_connection())
         .unwrap();
     assert_eq!(result, 1);
-    let user_results2 = organization.users(project.get_connection()).unwrap();
+    let user_results2: Vec<User> = organization
+        .users(project.get_connection())
+        .unwrap()
+        .into_iter()
+        .map(|u| u.1)
+        .collect();
     let users_post_delete = vec![user, user3];
 
     assert_eq!(user_results2, users_post_delete);
@@ -385,15 +365,15 @@ pub fn get_roles_for_user() {
 
     assert_eq!(
         organization.get_roles_for_user(&user, connection).unwrap(),
-        vec!["OrgOwner", "OrgMember"]
+        vec![Roles::OrgOwner]
     );
     assert_eq!(
         organization.get_roles_for_user(&user2, connection).unwrap(),
-        vec!["OrgMember"]
+        vec![Roles::OrgMember]
     );
     assert_eq!(
         organization.get_roles_for_user(&user3, connection).unwrap(),
-        vec!["OrgOwner", "OrgMember"]
+        vec![Roles::OrgOwner]
     );
     assert!(organization
         .get_roles_for_user(&user4, connection)
@@ -430,9 +410,12 @@ pub fn get_scopes_for_user() {
             "event:write",
             "hold:read",
             "hold:write",
+            "order::make-external-payment",
             "order:read",
+            "org:admin-users",
             "org:fans",
             "org:read",
+            "org:users",
             "org:write",
             "ticket:admin",
             "ticket:transfer",
@@ -480,9 +463,12 @@ pub fn get_scopes_for_user() {
             "event:write",
             "hold:read",
             "hold:write",
+            "order::make-external-payment",
             "order:read",
+            "org:admin-users",
             "org:fans",
             "org:read",
+            "org:users",
             "org:write",
             "ticket:admin",
             "ticket:transfer",
@@ -497,45 +483,15 @@ pub fn get_scopes_for_user() {
 }
 
 #[test]
-fn change_owner() {
-    let project = TestProject::new();
-    let connection = project.get_connection();
-    let user = project.create_user().finish();
-    let fee_schedule = FeeSchedule::create(
-        format!("Zero fees",).into(),
-        vec![NewFeeScheduleRange {
-            min_price_in_cents: 0,
-            company_fee_in_cents: 0,
-            client_fee_in_cents: 0,
-        }],
-    )
-    .commit(connection)
-    .unwrap();
-    let mut organization = Organization::create(user.id, "Organization", fee_schedule.id)
-        .commit(&"encryption_key".to_string(), connection)
-        .unwrap();
-
-    let user2 = project.create_user().finish();
-
-    organization = organization.set_owner(user2.id, connection).unwrap();
-    assert!(!organization
-        .get_roles_for_user(&user, connection)
-        .unwrap()
-        .contains(&"OrgOwner".into()));
-    assert!(organization
-        .get_roles_for_user(&user2, connection)
-        .unwrap()
-        .contains(&"OrgOwner".into()));
-}
-
-#[test]
 fn add_user() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let organization_user = organization.add_user(user2.id, None, connection).unwrap();
+    let organization_user = organization
+        .add_user(user2.id, vec![Roles::OrgMember], connection)
+        .unwrap();
 
     assert_eq!(organization_user.user_id, user2.id);
     assert_eq!(organization_user.organization_id, organization.id);
@@ -544,7 +500,7 @@ fn add_user() {
     assert!(organization
         .get_roles_for_user(&user2, connection)
         .unwrap()
-        .contains(&"OrgMember".into()));
+        .contains(&Roles::OrgMember));
 }
 
 #[test]
@@ -557,16 +513,6 @@ fn add_fee_schedule() {
         .unwrap();
     let organization = Organization::find(organization.id, project.get_connection()).unwrap();
     assert_eq!(organization.fee_schedule_id, fee_structure.id);
-}
-
-#[test]
-fn owner() {
-    let project = TestProject::new();
-    let owner = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&owner).finish();
-    let organization_owner = organization.owner(&project.get_connection()).unwrap();
-
-    assert_eq!(owner.id, organization_owner.id);
 }
 
 #[test]

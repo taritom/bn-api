@@ -648,13 +648,12 @@ impl Event {
             Some(user) => {
                 // Admin results include all drafts across organizations
                 if !user
-                    .get_global_scopes()
+                    .get_global_scopes()?
                     .contains(&Scopes::OrgAdmin.to_string())
                 {
                     query = query.filter(
                         events::status
                             .ne(EventStatus::Draft.to_string())
-                            .or(organizations::owner_user_id.eq(user.id))
                             .or(organization_users::user_id.eq(user.id)),
                     );
                 }

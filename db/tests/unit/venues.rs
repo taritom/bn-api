@@ -104,15 +104,13 @@ fn all() {
         .finish();
     let venue3 = venue3.add_to_organization(&organization.id, conn);
     let user = project.create_user().finish();
-    let _ = organization.add_user(user.id, None, conn).unwrap();
+    let _org_user = organization
+        .add_user(user.id, vec![Roles::OrgMember], conn)
+        .unwrap();
     all_venues.push(venue3.unwrap());
     let all_found_venues = Venue::all(Some(&user), conn).unwrap();
     assert_eq!(all_venues, all_found_venues);
-    let all_found_venues = Venue::all(
-        Some(&User::find(organization.owner_user_id, conn).unwrap()),
-        conn,
-    )
-    .unwrap();
+    let all_found_venues = Venue::all(Some(&User::find(user.id, conn).unwrap()), conn).unwrap();
     assert_eq!(all_venues, all_found_venues);
 }
 

@@ -1,6 +1,7 @@
 use chrono::prelude::*;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
+use models::*;
 use models::{Organization, OrganizationInvite, User};
 use uuid::Uuid;
 
@@ -70,6 +71,7 @@ impl<'a> OrgInviteBuilder<'a> {
             self.invitee_id.unwrap(),
             &self.user_email,
             self.user_id,
+            vec![Roles::OrgMember],
         )
         .commit(self.connection)
         .unwrap();

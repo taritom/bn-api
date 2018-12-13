@@ -1,6 +1,6 @@
 extern crate chrono;
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::OrganizationInvite;
+use bigneon_db::models::{OrganizationInvite, Roles};
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use bigneon_db::utils::errors::{DatabaseError, ErrorCode};
 use diesel;
@@ -32,6 +32,7 @@ fn create_with_validation_errors() {
         user.id,
         &"invalid-email".to_string(),
         Some(user.id),
+        vec![Roles::OrgMember],
     )
     .commit(project.get_connection());
 

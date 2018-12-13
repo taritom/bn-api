@@ -60,7 +60,7 @@ string_enum! { OrderTypes [Cart, BackOffice] }
 string_enum! { PaymentMethods [External, CreditCard] }
 string_enum! { PaymentStatus [Authorized, Completed] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
-string_enum! { Roles [Admin, OrgMember, OrgOwner, OrgBoxOffice, OrgScanner, User] }
+string_enum! { Roles [Admin, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, DoorPerson, User] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { Tables [Orders, Payments, PaymentMethods] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
@@ -73,7 +73,7 @@ fn display() {
     assert_eq!(Roles::OrgMember.to_string(), "OrgMember");
     assert_eq!(Roles::OrgOwner.to_string(), "OrgOwner");
     assert_eq!(Roles::OrgBoxOffice.to_string(), "OrgBoxOffice");
-    assert_eq!(Roles::OrgScanner.to_string(), "OrgScanner");
+    assert_eq!(Roles::DoorPerson.to_string(), "DoorPerson");
     assert_eq!(Roles::User.to_string(), "User");
 }
 
@@ -83,6 +83,5 @@ fn parse() {
     assert_eq!(Roles::OrgMember, "OrgMember".parse().unwrap());
     assert_eq!(Roles::OrgOwner, "OrgOwner".parse().unwrap());
     assert_eq!(Roles::OrgBoxOffice, "OrgBoxOffice".parse().unwrap());
-    assert_eq!(Roles::OrgScanner, "OrgScanner".parse().unwrap());
     assert!("Invalid Role".parse::<Roles>().is_err());
 }

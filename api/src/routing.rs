@@ -150,9 +150,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/organizations/{id}/invite", |r| {
         r.method(Method::POST).with(organization_invites::create);
     })
-    .resource("/organizations/{id}/owner", |r| {
-        r.method(Method::PUT).with(organizations::update_owner);
-    })
     .resource("/organizations/{id}/users", |r| {
         r.method(Method::POST).with(organizations::add_user);
         r.method(Method::DELETE).with(organizations::remove_user);
@@ -230,7 +227,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             .with(users::remove_push_notification_token);
     })
     .resource("/users", |r| {
-        r.method(Method::GET).with(users::find_by_email);
         r.method(Method::POST).with(users::register_and_login);
     })
     .resource("/users/{id}", |r| {

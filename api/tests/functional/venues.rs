@@ -74,7 +74,11 @@ fn index_with_org_linked_and_private_venues() {
     assert_eq!(body, expected_json);
 
     //now with user that DOES belong to org
-    let _ = organization.add_user(auth_user.id(), None, database.connection.get());
+    let _ = organization.add_user(
+        auth_user.id(),
+        vec![Roles::OrgMember],
+        database.connection.get(),
+    );
     expected_venues.push(venue4);
 
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
