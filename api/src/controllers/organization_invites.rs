@@ -10,6 +10,7 @@ use extractors::*;
 use helpers::application;
 use models::PathParameters;
 use server::AppState;
+use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -40,13 +41,40 @@ pub fn create(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
-    auth_user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?;
+    match &new_org_invite.role {
+        &Roles::OrgOwner => auth_user.requires_scope_for_organization(
+            Scopes::OrgAdmin,
+            &organization,
+            connection,
+        )?,
+        &Roles::OrgAdmin => auth_user.requires_scope_for_organization(
+            Scopes::OrgManageAdminUsers,
+            &organization,
+            connection,
+        )?,
+        &Roles::OrgMember => auth_user.requires_scope_for_organization(
+            Scopes::OrgManageUsers,
+            &organization,
+            connection,
+        )?,
+        &Roles::DoorPerson => auth_user.requires_scope_for_organization(
+            Scopes::OrgManageUsers,
+            &organization,
+            connection,
+        )?,
+        &Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
+            Scopes::OrgManageUsers,
+            &organization,
+            connection,
+        )?,
+        _ => {
+            let validation_error = DatabaseError::validation_error(
+                "role",
+                "Role must be either OrgOwner or OrgMember",
+            )?;
 
-    if &new_org_invite.role != &Roles::OrgOwner && &new_org_invite.role != &Roles::OrgMember {
-        let validation_error =
-            DatabaseError::validation_error("role", "Role must be either OrgOwner or OrgMember")?;
-
-        return validation_error;
+            return validation_error;
+        }
     }
 
     let mut invite: NewOrganizationInvite;
@@ -136,7 +164,11 @@ pub fn accept_request(
             if valid_for_acceptance {
                 let accept_details = invite_details.change_invite_status(1, connection)?;
                 let org = Organization::find(accept_details.organization_id, connection)?;
-                org.add_user(u.id(), vec![Roles::OrgMember], connection)?;
+                org.add_user(
+                    u.id(),
+                    vec![Roles::from_str(&invite_details.role).unwrap()],
+                    connection,
+                )?;
             } else {
                 return application::unauthorized(&request, Some(u));
             }
