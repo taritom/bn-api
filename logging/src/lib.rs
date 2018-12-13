@@ -46,8 +46,9 @@ pub fn transform_message(level: log::Level, target: Option<&str>, msg: &str, met
 }
 
 fn format_message(msg: &str, meta: &str) -> String {
-    match meta.len() {
-        0 => format!("\"message\": \"{}\"", msg.trim()),
+    match meta {
+        "" => format!("\"message\": \"{}\"", msg.trim()),
+        "{}" => format!("\"message\": \"{}\"", msg.trim()),
         _ => format!(
             "\"message\": \"{}\", {}",
             msg.trim(),
@@ -89,17 +90,20 @@ mod tests {
     use log::Level::*;
 
     #[test]
-    fn plain() {
-        jlog!(Info, "message");
-    }
-
-    #[test]
-    fn test1() {
-        jlog!(Info, "test", {"a": 1} );
-    }
-
-    #[test]
-    fn test2() {
+    fn test_jlog() {
+        // super::setup_logger().unwrap();
+        // Level, Message
+        jlog!(Warn, "message");
+        // Level, message, meta
+        jlog!(Warn, "test", {"a": 1} );
+        // Level, message, meta
         jlog!(Error, "test", {"a": 1, "b": "jake", "c": [3, 2, 1]});
+        // Level, target, message, meta
+        jlog!(
+            Debug,
+            "bigneon::domain_actions",
+            "Found no actions to process",
+            {}
+        );
     }
 }
