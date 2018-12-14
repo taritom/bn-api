@@ -117,11 +117,8 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         OrgBoxOffice => {
-            let mut roles = vec![
-                Scopes::EventViewGuests,
-                Scopes::OrderMakeExternalPayment,
-                Scopes::RedeemTicket,
-            ];
+            let mut roles = vec![Scopes::EventViewGuests, Scopes::OrderMakeExternalPayment];
+            roles.extend(get_scopes_for_role(Roles::DoorPerson));
             roles
         }
         DoorPerson => {
