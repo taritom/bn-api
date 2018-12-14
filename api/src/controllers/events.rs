@@ -71,7 +71,7 @@ impl From<SearchParameters> for Paging {
 pub fn checkins(
     (conn, query, auth_user): (Connection, Query<SearchParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    auth_user.requires_scope(Scopes::EventScan)?;
+    auth_user.requires_scope(Scopes::RedeemTicket)?;
 
     let events = auth_user.user.find_events_with_access_to_scan(conn.get())?;
     let mut payload = Payload::new(events, query.into_inner().into());
@@ -334,7 +334,7 @@ pub fn redeem_ticket(
     )?;
     let db_event = Event::find(ticket.event_id, connection)?;
     let organization = db_event.organization(connection)?;
-    auth_user.requires_scope_for_organization(Scopes::TicketAdmin, &organization, connection)?;
+    auth_user.requires_scope_for_organization(Scopes::RedeemTicket, &organization, connection)?;
 
     let redeemable =
         TicketInstance::show_redeemable_ticket(parameters.ticket_instance_id, connection)?;

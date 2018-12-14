@@ -10,9 +10,7 @@ pub enum Scopes {
     CompWrite,
     EventWrite,
     EventInterest,
-    EventScan,
     EventViewGuests,
-
     HoldRead,
     HoldWrite,
     OrderMakeExternalPayment,
@@ -23,6 +21,7 @@ pub enum Scopes {
     OrgWrite,
     OrgManageAdminUsers,
     OrgManageUsers,
+    RedeemTicket,
     RegionWrite,
     UserRead,
     TicketAdmin,
@@ -40,7 +39,6 @@ impl fmt::Display for Scopes {
             Scopes::CompWrite => "comp:write",
             Scopes::EventWrite => "event:write",
             Scopes::EventInterest => "event:interest",
-            Scopes::EventScan => "event:scan",
             Scopes::EventViewGuests => "event:view-guests",
             Scopes::HoldRead => "hold:read",
             Scopes::HoldWrite => "hold:write",
@@ -52,6 +50,7 @@ impl fmt::Display for Scopes {
             Scopes::OrgWrite => "org:write",
             Scopes::OrgManageAdminUsers => "org:admin-users",
             Scopes::OrgManageUsers => "org:users",
+            Scopes::RedeemTicket => "redeem:ticket",
             Scopes::RegionWrite => "region:write",
             Scopes::UserRead => "user:read",
             Scopes::VenueWrite => "venue:write",
@@ -91,13 +90,13 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::CodeWrite,
                 Scopes::CompRead,
                 Scopes::CompWrite,
-                Scopes::EventScan,
                 Scopes::EventViewGuests,
                 Scopes::EventWrite,
                 Scopes::HoldRead,
                 Scopes::HoldWrite,
                 Scopes::OrgRead,
                 Scopes::OrgReadFans,
+                Scopes::RedeemTicket,
                 Scopes::TicketAdmin,
                 Scopes::VenueWrite,
             ];
@@ -118,11 +117,15 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         OrgBoxOffice => {
-            let mut roles = vec![Scopes::EventViewGuests, Scopes::OrderMakeExternalPayment];
+            let mut roles = vec![
+                Scopes::EventViewGuests,
+                Scopes::OrderMakeExternalPayment,
+                Scopes::RedeemTicket,
+            ];
             roles
         }
         DoorPerson => {
-            let mut roles = vec![Scopes::EventScan];
+            let mut roles = vec![Scopes::RedeemTicket];
             roles
         }
         Admin => {
@@ -147,13 +150,13 @@ fn get_scopes_for_role_test() {
             Scopes::CodeWrite,
             Scopes::CompRead,
             Scopes::CompWrite,
-            Scopes::EventScan,
             Scopes::EventViewGuests,
             Scopes::EventWrite,
             Scopes::HoldRead,
             Scopes::HoldWrite,
             Scopes::OrgRead,
             Scopes::OrgReadFans,
+            Scopes::RedeemTicket,
             Scopes::TicketAdmin,
             Scopes::VenueWrite,
             Scopes::EventInterest,
@@ -161,7 +164,8 @@ fn get_scopes_for_role_test() {
             Scopes::TicketTransfer,
             Scopes::EventViewGuests,
             Scopes::OrderMakeExternalPayment,
-            Scopes::EventScan
+            Scopes::RedeemTicket,
+            Scopes::RedeemTicket,
         ],
         res
     );
@@ -184,7 +188,6 @@ fn get_scopes_test() {
             "comp:read",
             "comp:write",
             "event:interest",
-            "event:scan",
             "event:view-guests",
             "event:write",
             "hold:read",
@@ -196,6 +199,7 @@ fn get_scopes_test() {
             "org:read",
             "org:users",
             "org:write",
+            "redeem:ticket",
             "ticket:admin",
             "ticket:transfer",
             "user:read",
@@ -213,7 +217,6 @@ fn get_scopes_test() {
             "comp:read",
             "comp:write",
             "event:interest",
-            "event:scan",
             "event:view-guests",
             "event:write",
             "hold:read",
@@ -226,6 +229,7 @@ fn get_scopes_test() {
             "org:read",
             "org:users",
             "org:write",
+            "redeem:ticket",
             "region:write",
             "ticket:admin",
             "ticket:transfer",
@@ -244,7 +248,6 @@ fn get_scopes_test() {
             "comp:read",
             "comp:write",
             "event:interest",
-            "event:scan",
             "event:view-guests",
             "event:write",
             "hold:read",
@@ -257,6 +260,7 @@ fn get_scopes_test() {
             "org:read",
             "org:users",
             "org:write",
+            "redeem:ticket",
             "region:write",
             "ticket:admin",
             "ticket:transfer",
