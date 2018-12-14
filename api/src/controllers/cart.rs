@@ -12,6 +12,7 @@ use extractors::*;
 use helpers::application;
 use payments::PaymentProcessor;
 use server::AppState;
+use std::cmp;
 use std::collections::HashMap;
 use utils::ServiceLocator;
 use uuid::Uuid;
@@ -57,11 +58,14 @@ pub fn update_cart(
         if !order_items.iter().any(|oi| {
             oi.ticket_type_id == hold.ticket_type_id && oi.redemption_code == redemption_code
         }) {
+            let quantity = cmp::max(
+                hold.max_per_order
+                    .unwrap_or(hold.quantity(connection)?.1 as i64) as u32,
+                1,
+            );
+
             order_items.push(UpdateOrderItem {
-                quantity: hold
-                    .max_per_order
-                    .unwrap_or(hold.quantity(connection)?.1 as i64)
-                    as u32,
+                quantity,
                 ticket_type_id: hold.ticket_type_id,
                 redemption_code: Some(hold.redemption_code.clone()),
             })
@@ -116,11 +120,14 @@ pub fn replace_cart(
         if !order_items.iter().any(|oi| {
             oi.ticket_type_id == hold.ticket_type_id && oi.redemption_code == redemption_code
         }) {
+            let quantity = cmp::max(
+                hold.max_per_order
+                    .unwrap_or(hold.quantity(connection)?.1 as i64) as u32,
+                1,
+            );
+
             order_items.push(UpdateOrderItem {
-                quantity: hold
-                    .max_per_order
-                    .unwrap_or(hold.quantity(connection)?.1 as i64)
-                    as u32,
+                quantity,
                 ticket_type_id: hold.ticket_type_id,
                 redemption_code: Some(hold.redemption_code.clone()),
             })
