@@ -10,7 +10,7 @@ SELECT t2.event_id,
        CAST(sum(CASE
              WHEN ti.status = 'Purchased' AND ti.hold_id IS NOT NULL THEN 1
              ELSE 0 END)   as BigInt)                                                                    AS sold_held,
-       CAST(sum(CASE WHEN ti.status = 'Available' AND ti.hold_id IS NULL THEN 1 ELSE 0 END)   as BigInt)                             AS open,
+       CAST(sum(CASE WHEN ti.status in ('Available', 'Reserved') AND ti.hold_id IS NULL THEN 1 ELSE 0 END)   as BigInt)                             AS open,
        CAST(sum(CASE WHEN ti.hold_id IS NOT NULL THEN 1 ELSE 0 END)   as BigInt)                             AS held,
        (SELECT cast(sum(oi.unit_price_in_cents * oi.quantity) as BIGINT)
         FROM order_items oi
