@@ -744,20 +744,19 @@ fn adding_event_fees() {
     let organization = project
         .create_organization()
         .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_event_fee()
         .finish();
     let event1 = project
         .create_event()
         .with_organization(&organization)
         .with_tickets()
         .with_ticket_pricing()
-        .with_event_fee()
         .finish();
     let event2 = project
         .create_event()
         .with_organization(&organization)
         .with_tickets()
         .with_ticket_pricing()
-        .with_event_fee()
         .finish();
     let event3 = project
         .create_event()
@@ -855,7 +854,7 @@ fn adding_event_fees() {
             event_fees_count += 1;
         }
     }
-    assert_eq!(event_fees_count, 2);
+    assert_eq!(event_fees_count, 3);
 
     //Add tickets with null event fee and but default organization event_fee
 
@@ -877,7 +876,7 @@ fn adding_event_fees() {
             event_fees_count += 1;
         }
     }
-    assert_eq!(event_fees_count, 2);
+    assert_eq!(event_fees_count, 4);
 }
 
 #[test]
