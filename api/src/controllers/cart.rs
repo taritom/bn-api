@@ -187,11 +187,14 @@ pub enum PaymentRequest {
         #[serde(default, deserialize_with = "deserialize_unless_blank")]
         provider: Option<String>,
     },
+    // Only for 0 amount carts
+    Free,
 }
 
 pub fn checkout(
     (connection, json, user, state): (Connection, Json<CheckoutCartRequest>, User, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
+    // TODO: Change application::unprocesable's in this method to validation errors.
     let req = json.into_inner();
 
     info!("CART: Checking out");
@@ -231,6 +234,16 @@ pub fn checkout(
     }
 
     let payment_response = match &req.method {
+        PaymentRequest::Free => {
+            info!("CART: Received checkout for free cart");
+            if order.calculate_total(connection.get())? > 0 {
+                // TODO: make this line cleaner
+                return  application::unprocessable(
+                    "Could not use free payment method this cart because it has a total greater than zero",
+                );
+            }
+            checkout_free(&connection, order, &user)?
+        }
         PaymentRequest::External {
             reference,
             first_name,
@@ -350,6 +363,24 @@ pub fn checkout(
     }
 
     Ok(payment_response)
+}
+
+fn checkout_free(
+    conn: &Connection,
+    order: Order,
+    user: &User,
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    if order.status()? != OrderStatus::Draft {
+        return application::unprocessable(
+            "Could not complete this cart because it is not in the correct status",
+        );
+    }
+    let mut order = order;
+    order.add_external_payment(Some("Free Checkout".to_string()), user.id(), 0, conn)?;
+
+    let order = Order::find(order.id, conn)?;
+    Ok(HttpResponse::Ok().json(json!(order.for_display(conn)?)))
 }
 
 // TODO: This should actually probably move to an `orders` controller, since the
