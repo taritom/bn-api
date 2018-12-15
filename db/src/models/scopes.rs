@@ -10,6 +10,7 @@ pub enum Scopes {
     CompWrite,
     EventWrite,
     EventInterest,
+    EventScan,
     EventViewGuests,
     HoldRead,
     HoldWrite,
@@ -39,6 +40,7 @@ impl fmt::Display for Scopes {
             Scopes::CompWrite => "comp:write",
             Scopes::EventWrite => "event:write",
             Scopes::EventInterest => "event:interest",
+            Scopes::EventScan => "event:scan",
             Scopes::EventViewGuests => "event:view-guests",
             Scopes::HoldRead => "hold:read",
             Scopes::HoldWrite => "hold:write",
@@ -83,6 +85,15 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             ];
             roles
         }
+        DoorPerson => {
+            let mut roles = vec![Scopes::RedeemTicket, Scopes::HoldRead, Scopes::EventScan];
+            roles
+        }
+        OrgBoxOffice => {
+            let mut roles = vec![Scopes::EventViewGuests, Scopes::OrderMakeExternalPayment];
+            roles.extend(get_scopes_for_role(Roles::DoorPerson));
+            roles
+        }
         OrgMember => {
             let mut roles = vec![
                 Scopes::ArtistWrite,
@@ -90,6 +101,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::CodeWrite,
                 Scopes::CompRead,
                 Scopes::CompWrite,
+                Scopes::EventScan,
                 Scopes::EventViewGuests,
                 Scopes::EventWrite,
                 Scopes::HoldRead,
@@ -103,25 +115,19 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles.extend(get_scopes_for_role(Roles::User));
             roles
         }
+        OrgAdmin => {
+            let mut roles = vec![Scopes::OrgWrite, Scopes::UserRead, Scopes::OrgManageUsers];
+            roles.extend(get_scopes_for_role(OrgMember));
+            //Remove the duplicate event:scan from OrgBoxOffice because OrgMember contains it
+            let mut box_office_roles = get_scopes_for_role(Roles::OrgBoxOffice);
+            box_office_roles.retain(|&x| x != Scopes::EventScan);
+            roles.extend(box_office_roles);
+            roles
+        }
         OrgOwner => {
             let mut roles = vec![Scopes::OrgManageAdminUsers];
             roles.extend(get_scopes_for_role(Roles::OrgAdmin));
 
-            roles
-        }
-        OrgAdmin => {
-            let mut roles = vec![Scopes::OrgWrite, Scopes::UserRead, Scopes::OrgManageUsers];
-            roles.extend(get_scopes_for_role(OrgMember));
-            roles.extend(get_scopes_for_role(Roles::OrgBoxOffice));
-            roles
-        }
-        OrgBoxOffice => {
-            let mut roles = vec![Scopes::EventViewGuests, Scopes::OrderMakeExternalPayment];
-            roles.extend(get_scopes_for_role(Roles::DoorPerson));
-            roles
-        }
-        DoorPerson => {
-            let mut roles = vec![Scopes::RedeemTicket, Scopes::HoldRead];
             roles
         }
         Admin => {
@@ -146,6 +152,7 @@ fn get_scopes_for_role_test() {
             Scopes::CodeWrite,
             Scopes::CompRead,
             Scopes::CompWrite,
+            Scopes::EventScan,
             Scopes::EventViewGuests,
             Scopes::EventWrite,
             Scopes::HoldRead,
@@ -184,6 +191,7 @@ fn get_scopes_test() {
             "comp:read",
             "comp:write",
             "event:interest",
+            "event:scan",
             "event:view-guests",
             "event:write",
             "hold:read",
@@ -213,6 +221,7 @@ fn get_scopes_test() {
             "comp:read",
             "comp:write",
             "event:interest",
+            "event:scan",
             "event:view-guests",
             "event:write",
             "hold:read",
@@ -244,6 +253,7 @@ fn get_scopes_test() {
             "comp:read",
             "comp:write",
             "event:interest",
+            "event:scan",
             "event:view-guests",
             "event:write",
             "hold:read",
