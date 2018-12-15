@@ -120,11 +120,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles.extend(get_scopes_for_role(OrgMember));
             //Remove the duplicate event:scan from OrgBoxOffice because OrgMember contains it
             let mut box_office_roles = get_scopes_for_role(Roles::OrgBoxOffice);
-            box_office_roles
-                .iter()
-                .position(|&role| role == Scopes::EventScan)
-                .map(|e| box_office_roles.remove(e));
-
+            box_office_roles.retain(|&x| x != Scopes::EventScan);
             roles.extend(box_office_roles);
             roles
         }
