@@ -135,6 +135,7 @@ fn update() {
             quantity: 2,
             redemption_code: None,
         }],
+        redemption_code: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -188,6 +189,7 @@ fn update_with_draft_event() {
             quantity: 2,
             redemption_code: None,
         }],
+        redemption_code: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -224,6 +226,7 @@ fn update_multiple() {
                 redemption_code: None,
             },
         ],
+        redemption_code: None,
     });
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let response =
@@ -300,6 +303,7 @@ fn add_with_increment() {
             quantity: 4,
             redemption_code: None,
         }],
+        redemption_code: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -354,6 +358,7 @@ fn update_with_increment_failure_invalid_quantity() {
             quantity: 2,
             redemption_code: None,
         }],
+        redemption_code: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -390,6 +395,7 @@ fn update_with_existing_cart() {
             quantity: 2,
             redemption_code: None,
         }],
+        redemption_code: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -468,6 +474,7 @@ fn reduce() {
             quantity: 6,
             redemption_code: None,
         }],
+        redemption_code: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -548,6 +555,7 @@ fn remove() {
             quantity: 0,
             redemption_code: None,
         }],
+        redemption_code: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -621,6 +629,7 @@ fn remove_with_increment() {
             quantity: 8,
             redemption_code: None,
         }],
+        redemption_code: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -706,6 +715,7 @@ fn remove_with_increment_failure_invalid_quantity() {
             quantity: 5,
             redemption_code: None,
         }],
+        redemption_code: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
