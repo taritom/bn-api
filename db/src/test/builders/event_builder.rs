@@ -17,7 +17,6 @@ pub struct EventBuilder<'a> {
     connection: &'a PgConnection,
     with_tickets: bool,
     with_ticket_pricing: bool,
-    fee_in_cents: Option<i64>,
     ticket_quantity: u32,
     ticket_type_count: i64,
 }
@@ -34,7 +33,6 @@ impl<'a> EventBuilder<'a> {
             connection,
             with_tickets: false,
             with_ticket_pricing: false,
-            fee_in_cents: None,
             ticket_quantity: 100,
             ticket_type_count: 1,
         }
@@ -87,12 +85,6 @@ impl<'a> EventBuilder<'a> {
         self
     }
 
-    pub fn with_event_fee(mut self) -> Self {
-        let x: u32 = random();
-        self.fee_in_cents = Some(x as i64 % 500);
-        self
-    }
-
     pub fn finish(&mut self) -> Event {
         let organization_id = self
             .organization_id
@@ -110,13 +102,6 @@ impl<'a> EventBuilder<'a> {
         )
         .commit(self.connection)
         .unwrap();
-
-        let update_event_fee = EventEditableAttributes {
-            fee_in_cents: self.fee_in_cents,
-            ..Default::default()
-        };
-
-        let event = event.update(update_event_fee, self.connection).unwrap();
 
         if self.with_tickets {
             let early_bird_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));

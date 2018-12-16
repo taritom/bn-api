@@ -52,7 +52,7 @@ pub struct Event {
     pub override_status: Option<String>, //EventOverrideStatus
 }
 
-#[derive(Default, Insertable, Serialize, Deserialize, Validate)]
+#[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
 #[table_name = "events"]
 pub struct NewEvent {
     pub name: String,
@@ -102,8 +102,12 @@ impl NewEvent {
     pub fn commit(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         self.validate()?;
 
+        let mut update_self = self.clone();
+        let organization = Organization::find(self.organization_id, conn)?;
+        update_self.fee_in_cents = Some(organization.event_fee_in_cents);
+
         diesel::insert_into(events::table)
-            .values(self)
+            .values(&update_self)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new event")
     }
@@ -125,7 +129,6 @@ pub struct EventEditableAttributes {
     pub door_time: Option<NaiveDateTime>,
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
-    pub fee_in_cents: Option<i64>,
     #[validate(url(message = "Promo image URL is invalid"))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub promo_image_url: Option<String>,

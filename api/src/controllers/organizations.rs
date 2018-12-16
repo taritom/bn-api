@@ -6,8 +6,8 @@ use db::Connection;
 use errors::*;
 use extractors::*;
 use helpers::application;
-use models::PathParameters;
 use models::WebPayload;
+use models::{OrganizationUserPathParameters, PathParameters};
 use server::AppState;
 use uuid::Uuid;
 
@@ -236,13 +236,13 @@ pub fn add_user(
 }
 
 pub fn remove_user(
-    (connection, parameters, user_id, user): (Connection, Path<PathParameters>, Json<Uuid>, User),
+    (connection, parameters, user): (Connection, Path<OrganizationUserPathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
     user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?;
 
-    let organization = organization.remove_user(user_id.into_inner(), connection)?;
+    let organization = organization.remove_user(parameters.user_id, connection)?;
     Ok(HttpResponse::Ok().json(&organization))
 }
 

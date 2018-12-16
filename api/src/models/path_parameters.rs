@@ -34,6 +34,12 @@ pub struct OrganizationFanPathParameters {
 }
 
 #[derive(Deserialize)]
+pub struct OrganizationUserPathParameters {
+    pub id: Uuid, // Organization Id
+    pub user_id: Uuid,
+}
+
+#[derive(Deserialize)]
 pub struct CompPathParameters {
     pub hold_id: Uuid,
     pub comp_id: Uuid,

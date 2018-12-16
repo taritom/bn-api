@@ -3,7 +3,7 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::organizations;
 use bigneon_api::controllers::organizations::*;
 use bigneon_api::extractors::*;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{OrganizationUserPathParameters, PathParameters};
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
 use serde_json;
@@ -255,14 +255,13 @@ pub fn remove_user(role: Roles, should_test_succeed: bool) {
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
-    let test_request = TestRequest::create();
-    let json = Json(user3.id);
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
+    let mut path = Path::<OrganizationUserPathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
+    path.user_id = user3.id;
 
     let response: HttpResponse =
-        organizations::remove_user((database.connection.into(), path, json, auth_user.clone()))
-            .into();
+        organizations::remove_user((database.connection.into(), path, auth_user.clone())).into();
     let count = 1;
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
