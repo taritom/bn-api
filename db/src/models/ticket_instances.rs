@@ -360,7 +360,7 @@ impl TicketInstance {
                     "COUNT(DISTINCT ticket_instances.id)",
                 ),
                 sql::<sql_types::Nullable<sql_types::BigInt>>(
-                    "SUM(CASE WHEN ticket_instances.status='Available' THEN 1 ELSE 0 END)",
+                    "SUM(CASE WHEN ticket_instances.status IN ('Available', 'Reserved') THEN 1 ELSE 0 END)",
                 ),
             ))
             .first::<R>(conn)

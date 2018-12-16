@@ -12,6 +12,7 @@ use extractors::*;
 use helpers::application;
 use payments::PaymentProcessor;
 use server::AppState;
+use std::cmp;
 use std::collections::HashMap;
 use utils::ServiceLocator;
 use uuid::Uuid;
@@ -27,6 +28,8 @@ pub struct CartItem {
 #[derive(Deserialize)]
 pub struct UpdateCartRequest {
     pub items: Vec<CartItem>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub redemption_code: Option<String>,
 }
 
 pub fn update_cart(
@@ -34,14 +37,12 @@ pub fn update_cart(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
 
-    if json.items.is_empty() {
-        return application::unprocessable("Could not update cart as no items provided");
-    }
-
     // Find the current cart of the user, if it exists.
     let mut cart = Order::find_or_create_cart(&user.user, connection)?;
 
-    let order_items: Vec<UpdateOrderItem> = json
+    let redemption_code = json.redemption_code.clone();
+
+    let mut order_items: Vec<UpdateOrderItem> = json
         .into_inner()
         .items
         .iter()
@@ -51,6 +52,26 @@ pub fn update_cart(
             redemption_code: i.redemption_code.clone(),
         })
         .collect();
+
+    if redemption_code.is_some() {
+        let hold = Hold::find_by_redemption_code(redemption_code.as_ref().unwrap(), connection)?;
+        if !order_items.iter().any(|oi| {
+            oi.ticket_type_id == hold.ticket_type_id && oi.redemption_code == redemption_code
+        }) {
+            let quantity = cmp::max(
+                hold.max_per_order
+                    .unwrap_or(hold.quantity(connection)?.1 as i64) as u32,
+                1,
+            );
+
+            order_items.push(UpdateOrderItem {
+                quantity,
+                ticket_type_id: hold.ticket_type_id,
+                redemption_code: Some(hold.redemption_code.clone()),
+            })
+        }
+    }
+
     for order_item in &order_items {
         if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
             return Ok(
@@ -81,7 +102,9 @@ pub fn replace_cart(
     // Find the current cart of the user, if it exists.
     let mut cart = Order::find_or_create_cart(&user.user, connection)?;
 
-    let order_items: Vec<UpdateOrderItem> = json
+    let redemption_code = json.redemption_code.clone();
+
+    let mut order_items: Vec<UpdateOrderItem> = json
         .into_inner()
         .items
         .iter()
@@ -91,6 +114,26 @@ pub fn replace_cart(
             redemption_code: i.redemption_code.clone(),
         })
         .collect();
+
+    if redemption_code.is_some() {
+        let hold = Hold::find_by_redemption_code(redemption_code.as_ref().unwrap(), connection)?;
+        if !order_items.iter().any(|oi| {
+            oi.ticket_type_id == hold.ticket_type_id && oi.redemption_code == redemption_code
+        }) {
+            let quantity = cmp::max(
+                hold.max_per_order
+                    .unwrap_or(hold.quantity(connection)?.1 as i64) as u32,
+                1,
+            );
+
+            order_items.push(UpdateOrderItem {
+                quantity,
+                ticket_type_id: hold.ticket_type_id,
+                redemption_code: Some(hold.redemption_code.clone()),
+            })
+        }
+    }
+
     for order_item in &order_items {
         if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
             return Ok(
@@ -98,6 +141,7 @@ pub fn replace_cart(
             );
         }
     }
+
     cart.update_quantities(&order_items, true, connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
@@ -143,11 +187,14 @@ pub enum PaymentRequest {
         #[serde(default, deserialize_with = "deserialize_unless_blank")]
         provider: Option<String>,
     },
+    // Only for 0 amount carts
+    Free,
 }
 
 pub fn checkout(
     (connection, json, user, state): (Connection, Json<CheckoutCartRequest>, User, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
+    // TODO: Change application::unprocesable's in this method to validation errors.
     let req = json.into_inner();
 
     info!("CART: Checking out");
@@ -187,6 +234,16 @@ pub fn checkout(
     }
 
     let payment_response = match &req.method {
+        PaymentRequest::Free => {
+            info!("CART: Received checkout for free cart");
+            if order.calculate_total(connection.get())? > 0 {
+                // TODO: make this line cleaner
+                return  application::unprocessable(
+                    "Could not use free payment method this cart because it has a total greater than zero",
+                );
+            }
+            checkout_free(&connection, order, &user)?
+        }
         PaymentRequest::External {
             reference,
             first_name,
@@ -306,6 +363,24 @@ pub fn checkout(
     }
 
     Ok(payment_response)
+}
+
+fn checkout_free(
+    conn: &Connection,
+    order: Order,
+    user: &User,
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    if order.status()? != OrderStatus::Draft {
+        return application::unprocessable(
+            "Could not complete this cart because it is not in the correct status",
+        );
+    }
+    let mut order = order;
+    order.add_external_payment(Some("Free Checkout".to_string()), user.id(), 0, conn)?;
+
+    let order = Order::find(order.id, conn)?;
+    Ok(HttpResponse::Ok().json(json!(order.for_display(conn)?)))
 }
 
 // TODO: This should actually probably move to an `orders` controller, since the

@@ -4,4 +4,4 @@ cd $(git rev-parse --show-toplevel)
 ulimit -S -s 65536
 ulimit -s 65536
 ulimit -a
-cargo install cargo-audit --force && cargo audit
+cargo install cargo-audit --force && cargo audit -u https://github.com/RustSec/advisory-db.git
