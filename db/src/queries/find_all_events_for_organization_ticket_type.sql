@@ -5,10 +5,10 @@ SELECT t2.event_id,
        (SELECT max(tp.price_in_cents) FROM ticket_pricing tp WHERE tp.ticket_type_id = t2.id) AS max_price,
        count(*)                                                                               AS total,
        CAST(sum(CASE
-             WHEN ti.status = 'Purchased' AND ti.hold_id IS NULL THEN 1
+             WHEN ti.status in ( 'Purchased', 'Redeemed') AND ti.hold_id IS NULL THEN 1
              ELSE 0 END)     as BigInt)                                                                  AS sold_unreserved,
        CAST(sum(CASE
-             WHEN ti.status = 'Purchased' AND ti.hold_id IS NOT NULL THEN 1
+             WHEN ti.status IN ('Purchased', 'Redeemed') AND ti.hold_id IS NOT NULL THEN 1
              ELSE 0 END)   as BigInt)                                                                    AS sold_held,
        CAST(sum(CASE WHEN ti.status in ('Available', 'Reserved') AND ti.hold_id IS NULL THEN 1 ELSE 0 END)   as BigInt)                             AS open,
        CAST(sum(CASE WHEN ti.hold_id IS NOT NULL THEN 1 ELSE 0 END)   as BigInt)                             AS held,
