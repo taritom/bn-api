@@ -44,6 +44,10 @@ pub fn purchase_completed(
         (display_order.total_in_cents as f64 / 100.0).to_string(),
     );
     template_data.insert("item_breakdown".to_string(), item_breakdown);
+    template_data.insert(
+        "tickets_link".to_string(),
+        format!("{}/hub", config.front_end_url),
+    );
 
     // TODO: Perhaps move this to an event subscription
     Communication::new(
