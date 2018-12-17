@@ -1,5 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::venues;
+use bigneon_api::extractors::*;
 use bigneon_api::models::PathParameters;
 use bigneon_db::models::*;
 use functional::base;
@@ -42,8 +43,12 @@ fn index_with_org_linked_and_private_venues() {
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     //first try with no user
-    let response: HttpResponse =
-        venues::index((database.connection.clone().into(), query_parameters, None)).into();
+    let response: HttpResponse = venues::index((
+        database.connection.clone().into(),
+        query_parameters,
+        OptionalUser(None),
+    ))
+    .into();
 
     let mut expected_venues = vec![venue, venue2, venue3];
     let wrapped_expected_venues = Payload {
@@ -66,7 +71,7 @@ fn index_with_org_linked_and_private_venues() {
     let response: HttpResponse = venues::index((
         database.connection.clone().into(),
         query_parameters,
-        Some(auth_user.clone()),
+        OptionalUser(Some(auth_user.clone())),
     ))
     .into();
 
@@ -85,7 +90,7 @@ fn index_with_org_linked_and_private_venues() {
     let response: HttpResponse = venues::index((
         database.connection.into(),
         query_parameters,
-        Some(auth_user),
+        OptionalUser(Some(auth_user)),
     ))
     .into();
     let wrapped_expected_venues = Payload {
@@ -331,7 +336,7 @@ pub fn show_from_organizations_private_venue_same_org() {
         database.connection.into(),
         path,
         query_parameters,
-        Some(auth_user),
+        OptionalUser(Some(auth_user)),
     ))
     .into();
 

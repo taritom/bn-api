@@ -2,6 +2,7 @@ use actix_web::Query;
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::*;
+use bigneon_api::extractors::*;
 use bigneon_api::models::{PathParameters, UserDisplayTicketType};
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -43,8 +44,12 @@ pub fn index() {
 
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        events::index((database.connection.clone().into(), parameters, None)).into();
+    let response: HttpResponse = events::index((
+        database.connection.clone().into(),
+        parameters,
+        OptionalUser(None),
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -100,7 +105,7 @@ pub fn index_for_user() {
     let response: HttpResponse = events::index((
         database.connection.clone().into(),
         parameters,
-        Some(auth_user),
+        OptionalUser(Some(auth_user)),
     ))
     .into();
 
@@ -163,7 +168,7 @@ pub fn index_with_draft_for_organization_user() {
     let response: HttpResponse = events::index((
         database.connection.clone().into(),
         parameters,
-        Some(auth_user),
+        OptionalUser(Some(auth_user)),
     ))
     .into();
 
@@ -219,7 +224,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
     let response: HttpResponse = events::index((
         database.connection.clone().into(),
         parameters,
-        Some(auth_user),
+        OptionalUser(Some(auth_user)),
     ))
     .into();
 
@@ -285,7 +290,7 @@ pub fn index_search_with_filter() {
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse =
-        events::index((database.connection.into(), parameters, None)).into();
+        events::index((database.connection.into(), parameters, OptionalUser(None))).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     let mut expected_tags: HashMap<String, Value> = HashMap::new();
@@ -337,8 +342,12 @@ fn show() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event_id;
 
-    let response: HttpResponse =
-        events::show((database.connection.clone(), path, Some(auth_user))).into();
+    let response: HttpResponse = events::show((
+        database.connection.clone(),
+        path,
+        OptionalUser(Some(auth_user)),
+    ))
+    .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);

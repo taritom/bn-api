@@ -116,7 +116,7 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
     let response: HttpResponse = organization_invites::accept_request((
         database.connection.into(),
         parameters,
-        Some(auth_user),
+        OptionalUser(Some(auth_user)),
         test_request.request,
     ))
     .into();
@@ -165,7 +165,7 @@ pub fn decline_invite_status_of_invite(role: Roles, should_test_true: bool) {
     let response: HttpResponse = organization_invites::decline_request((
         database.connection.into(),
         parameters,
-        Some(auth_user),
+        OptionalUser(Some(auth_user)),
     ))
     .into();
 

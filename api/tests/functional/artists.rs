@@ -1,5 +1,6 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::artists;
+use bigneon_api::extractors::*;
 use bigneon_api::models::PathParameters;
 use bigneon_db::prelude::*;
 use functional::base;
@@ -25,8 +26,12 @@ fn index() {
     let expected_artists = vec![artist, artist2];
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        artists::index((database.connection.into(), query_parameters, None)).into();
+    let response: HttpResponse = artists::index((
+        database.connection.into(),
+        query_parameters,
+        OptionalUser(None),
+    ))
+    .into();
 
     let wrapped_expected_artists = Payload {
         data: expected_artists,
@@ -74,8 +79,12 @@ fn index_with_org_linked_and_private_venues() {
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     //first try with no user
-    let response: HttpResponse =
-        artists::index((database.connection.clone().into(), query_parameters, None)).into();
+    let response: HttpResponse = artists::index((
+        database.connection.clone().into(),
+        query_parameters,
+        OptionalUser(None),
+    ))
+    .into();
 
     let mut expected_artists = vec![artist, artist2, artist3];
 
@@ -101,7 +110,7 @@ fn index_with_org_linked_and_private_venues() {
     let response: HttpResponse = artists::index((
         database.connection.clone().into(),
         query_parameters,
-        Some(user.clone()),
+        OptionalUser(Some(user.clone())),
     ))
     .into();
 
@@ -119,7 +128,7 @@ fn index_with_org_linked_and_private_venues() {
     let response: HttpResponse = artists::index((
         database.connection.clone().into(),
         query_parameters,
-        Some(user),
+        OptionalUser(Some(user)),
     ))
     .into();
     let wrapped_expected_artists = Payload {
@@ -140,8 +149,12 @@ fn index_with_org_linked_and_private_venues() {
     //now with an admin user
     let admin = support::create_auth_user(Roles::Admin, None, &database);
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        artists::index((database.connection.into(), query_parameters, Some(admin))).into();
+    let response: HttpResponse = artists::index((
+        database.connection.into(),
+        query_parameters,
+        OptionalUser(Some(admin)),
+    ))
+    .into();
     let wrapped_expected_artists = Payload {
         data: expected_artists,
         paging: Paging {
@@ -173,7 +186,7 @@ pub fn search_no_spotify() {
         test_request.extract_state(),
         database.connection.into(),
         query_parameters,
-        None,
+        OptionalUser(None),
     ))
     .unwrap();
 
@@ -202,7 +215,7 @@ pub fn search_with_spotify() {
         test_request.extract_state(),
         database.connection.into(),
         query_parameters,
-        None,
+        OptionalUser(None),
     ))
     .unwrap();
 
@@ -292,7 +305,7 @@ pub fn show_from_organizations_private_artist_same_org() {
         database.connection.into(),
         path,
         query_parameters,
-        Some(user),
+        OptionalUser(Some(user)),
     ))
     .into();
 

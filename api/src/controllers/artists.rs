@@ -14,10 +14,10 @@ pub fn search(
         State<AppState>,
         Connection,
         Query<PagingParameters>,
-        Option<User>,
+        OptionalUser,
     ),
 ) -> Result<WebPayload<CreateArtistRequest>, BigNeonError> {
-    let db_user = user.map(|u| u.user);
+    let db_user = user.into_inner().map(|u| u.user);
     let artists = Artist::search(&db_user, query_parameters.get_tag("q"), connection.get())?;
 
     let try_spotify = query_parameters
@@ -44,9 +44,9 @@ pub fn search(
 }
 
 pub fn index(
-    (connection, query_parameters, user): (Connection, Query<PagingParameters>, Option<User>),
+    (connection, query_parameters, user): (Connection, Query<PagingParameters>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
-    let db_user = user.map(|u| u.user);
+    let db_user = user.into_inner().map(|u| u.user);
     let artists = Artist::search(&db_user, query_parameters.get_tag("q"), connection.get())?;
     let payload = Payload::from_data(artists, query_parameters.page(), query_parameters.limit());
     Ok(HttpResponse::Ok().json(&payload))
@@ -110,11 +110,11 @@ pub fn show_from_organizations(
         Connection,
         Path<PathParameters>,
         Query<PagingParameters>,
-        Option<User>,
+        OptionalUser,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO implement proper paging on db
-    let artists = match user {
+    let artists = match user.into_inner() {
         Some(u) => {
             Artist::find_for_organization(Some(u.id()), organization_id.id, connection.get())?
         }

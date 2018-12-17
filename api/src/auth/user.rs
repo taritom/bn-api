@@ -1,14 +1,11 @@
-use actix_web::{error, error::Error, FromRequest, HttpRequest, Result};
-use auth::claims;
+use actix_web::{HttpRequest, Result};
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::{Organization, Scopes};
 use bigneon_db::prelude::errors::EnumParseError;
 use diesel::PgConnection;
 use errors::*;
-use jwt::{decode, Validation};
 use log::Level::Warn;
 use logging::*;
-use middleware::RequestConnection;
 use serde_json::Value;
 use server::AppState;
 use std::collections::HashMap;
@@ -103,48 +100,5 @@ impl User {
             "User does not have the required permissions".to_string(),
         )
         .into())
-    }
-}
-
-impl FromRequest<AppState> for User {
-    type Config = ();
-    type Result = Result<User, Error>;
-
-    fn from_request(req: &HttpRequest<AppState>, _cfg: &Self::Config) -> Self::Result {
-        match req.headers().get("Authorization") {
-            Some(auth_header) => {
-                let mut parts = auth_header
-                    .to_str()
-                    .map_err(|e| BigNeonError::from(e))?
-                    .split_whitespace();
-                if str::ne(parts.next().unwrap_or("None"), "Bearer") {
-                    return Err(error::ErrorUnauthorized(
-                        "Authorization scheme not supported",
-                    ));
-                }
-
-                match parts.next() {
-                    Some(access_token) => {
-                        let token = decode::<claims::AccessToken>(
-                            &access_token,
-                            (*req.state()).config.token_secret.as_bytes(),
-                            &Validation::default(),
-                        )
-                        .map_err(|e| BigNeonError::from(e))?;
-                        let connection = req.connection()?;
-                        match DbUser::find(token.claims.get_id()?, connection.get()) {
-                            Ok(user) => Ok(User::new(user, req).map_err(|_| {
-                                error::ErrorUnauthorized("User has invalid role data")
-                            })?),
-                            Err(e) => Err(error::ErrorInternalServerError(e)),
-                        }
-                    }
-                    None => {
-                        return Err(error::ErrorUnauthorized("No access token provided"));
-                    }
-                }
-            }
-            None => Err(error::ErrorUnauthorized("Missing auth token")),
-        }
     }
 }

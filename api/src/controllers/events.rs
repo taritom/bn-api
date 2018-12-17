@@ -81,12 +81,14 @@ pub fn checkins(
 }
 
 pub fn index(
-    (connection, query, auth_user): (Connection, Query<SearchParameters>, Option<User>),
+    (connection, query, auth_user): (Connection, Query<SearchParameters>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let query = query.into_inner();
 
-    let user = auth_user.and_then(|auth_user| Some(auth_user.user));
+    let user = auth_user
+        .into_inner()
+        .and_then(|auth_user| Some(auth_user.user));
 
     let past_or_upcoming = match query
         .past_or_upcoming
@@ -208,7 +210,7 @@ pub fn index(
 }
 
 pub fn show(
-    (connection, parameters, user): (Connection, Path<PathParameters>, Option<User>),
+    (connection, parameters, user): (Connection, Path<PathParameters>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
@@ -218,7 +220,7 @@ pub fn show(
     let venue = event.venue(connection)?;
     let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
     let total_interest = EventInterest::total_interest(event.id, connection)?;
-    let user_interest = match user {
+    let user_interest = match user.into_inner() {
         Some(u) => EventInterest::user_interest(event.id, u.id(), connection)?,
         None => false,
     };

@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use server::AppState;
 use std::ops::Deref;
 
-const LIMIT_DEFAULT: usize = 262_144;
+const LIMIT_DEFAULT: usize = 262_144; // 256Kb
 
 pub struct Json<T>(pub T);
 
@@ -60,7 +60,7 @@ impl JsonConfig {
 impl Default for JsonConfig {
     fn default() -> Self {
         JsonConfig {
-            limit: LIMIT_DEFAULT, // 256Kb
+            limit: LIMIT_DEFAULT,
         }
     }
 }

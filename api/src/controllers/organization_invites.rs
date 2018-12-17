@@ -125,7 +125,7 @@ pub fn create(
 }
 
 pub fn view(
-    (connection, path, _user): (Connection, Path<PathParameters>, Option<AuthUser>),
+    (connection, path, _user): (Connection, Path<PathParameters>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
 
@@ -137,7 +137,7 @@ pub fn accept_request(
     (connection, query, user, request): (
         Connection,
         Query<InviteResponseQuery>,
-        Option<AuthUser>,
+        OptionalUser,
         HttpRequest<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -146,7 +146,7 @@ pub fn accept_request(
     let invite_details =
         OrganizationInvite::get_invite_details(&query_struct.security_token, connection)?;
     //Check that the user is logged in, that if the invite has a user_id associated with it that it is the currently logged in user
-    match user {
+    match user.into_inner() {
         Some(u) => {
             let valid_for_acceptance = match invite_details.user_id {
                 // If the user_id was provided confirm that the current user is the accepting user
@@ -179,7 +179,7 @@ pub fn accept_request(
 }
 
 pub fn decline_request(
-    (connection, query, _user): (Connection, Query<InviteResponseQuery>, Option<AuthUser>),
+    (connection, query, _user): (Connection, Query<InviteResponseQuery>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let query_struct = query.into_inner();
     let connection = connection.get();

@@ -7,10 +7,10 @@ use extractors::*;
 use models::{AddVenueToOrganizationRequest, PathParameters};
 
 pub fn index(
-    (connection, query_parameters, user): (Connection, Query<PagingParameters>, Option<User>),
+    (connection, query_parameters, user): (Connection, Query<PagingParameters>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO implement proper paging on db
-    let venues = match user {
+    let venues = match user.into_inner() {
         Some(u) => Venue::all(Some(&u.user), connection.get())?,
         None => Venue::all(None, connection.get())?,
     };
@@ -36,11 +36,11 @@ pub fn show_from_organizations(
         Connection,
         Path<PathParameters>,
         Query<PagingParameters>,
-        Option<User>,
+        OptionalUser,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     //TODO implement proper paging on db
-    let venues = match user {
+    let venues = match user.into_inner() {
         Some(u) => {
             Venue::find_for_organization(Some(u.id()), organization_id.id, connection.get())?
         }
