@@ -314,7 +314,7 @@ impl Event {
             SELECT CAST(count(*) as bigint) as total
             FROM events e
             WHERE e.organization_id = $1
-            AND CASE WHEN $2 THEN e.event_start >= now() ELSE e.event_start < now() END;
+            AND CASE WHEN $2 THEN COALESCE(e.event_start, '31 Dec 9999') >= now() ELSE e.event_start < now() END;
         "#,
         )
         .bind::<sql_types::Uuid, _>(organization_id)
