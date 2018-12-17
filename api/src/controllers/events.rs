@@ -18,6 +18,7 @@ pub struct SearchParameters {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     query: Option<String>,
     region_id: Option<Uuid>,
+    organization_id: Option<Uuid>,
     #[serde(
         default,
         with = "serde_with::rust::StringWithSeparator::<CommaSeparator>"
@@ -42,7 +43,9 @@ impl From<SearchParameters> for Paging {
         if let Some(ref i) = s.region_id {
             default_tags.insert("region_id".to_owned(), json!(i));
         }
-
+        if let Some(ref i) = s.organization_id {
+            default_tags.insert("organization_id".to_owned(), json!(i));
+        }
         for event_status in s.status.clone().into_iter() {
             default_tags.insert("status".to_owned(), json!(event_status));
         }
@@ -114,6 +117,7 @@ pub fn index(
     let events = Event::search(
         query.query.clone(),
         query.region_id,
+        query.organization_id,
         query.start_utc,
         query.end_utc,
         if query.status.is_empty() {

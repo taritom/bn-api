@@ -602,6 +602,7 @@ impl Event {
     pub fn search(
         query_filter: Option<String>,
         region_id: Option<Uuid>,
+        organization_id: Option<Uuid>,
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
         status_filter: Option<Vec<EventStatus>>,
@@ -690,6 +691,10 @@ impl Event {
             None => {
                 query = query.filter(events::status.ne(EventStatus::Draft.to_string()));
             }
+        }
+
+        if let Some(organization_id) = organization_id {
+            query = query.filter(events::organization_id.eq(organization_id));
         }
 
         if let Some(statuses) = status_filter {
