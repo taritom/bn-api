@@ -188,7 +188,16 @@ impl DomainActionMonitor {
                 }
             };
 
-            action.set_busy(60, connection)?;
+            match action.set_busy(60, connection) {
+                Ok(_) => {}
+                Err(e) => match e.error_code {
+                    ErrorCode::ConcurrencyError => {
+                        jlog! {Debug, &format!("Action was already checked out to another process: {}", action.id)};
+                        continue;
+                    }
+                    _ => return Err(e.into()),
+                },
+            };
             let command = router.get_executor_for(action.domain_action_type()?);
             if command.is_none() {
                 action.set_errored(

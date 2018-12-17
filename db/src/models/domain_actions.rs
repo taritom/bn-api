@@ -99,11 +99,11 @@ impl DomainAction {
         )
     }
 
-    pub fn set_busy(&self, timeout: i64, conn: &PgConnection) -> Result<bool, DatabaseError> {
+    pub fn set_busy(&self, timeout: i64, conn: &PgConnection) -> Result<(), DatabaseError> {
         let timeout = Utc::now().naive_utc() + Duration::seconds(timeout);
         let db_blocked = DomainAction::find(self.id, conn)?;
         if db_blocked.blocked_until > Utc::now().naive_utc() {
-            return Ok(false);
+            return DatabaseError::concurrency_error("Another process is busy with this action");
         };
         let result: Result<DomainAction, DatabaseError> = diesel::update(self)
             .filter(domain_actions::blocked_until.le(timeout))
@@ -116,7 +116,7 @@ impl DomainAction {
         if let Err(i) = result {
             return Err(i);
         };
-        return Ok(true);
+        return Ok(());
     }
 
     pub fn set_done(&self, conn: &PgConnection) -> Result<DomainAction, DatabaseError> {
