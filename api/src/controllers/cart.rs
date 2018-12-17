@@ -10,6 +10,7 @@ use db::Connection;
 use errors::BigNeonError;
 use extractors::*;
 use helpers::application;
+use itertools::Itertools;
 use payments::PaymentProcessor;
 use server::AppState;
 use std::cmp;
@@ -397,9 +398,20 @@ fn checkout_external(
     checkout_request: &CheckoutCartRequest,
     user: &User,
 ) -> Result<HttpResponse, BigNeonError> {
-    user.requires_scope(Scopes::OrderMakeExternalPayment)?;
-
     let conn = conn.get();
+
+    // User must have external checkout permissions for all events in the cart.
+    for (event_id, _) in &order.items(conn)?.into_iter().group_by(|oi| oi.event_id) {
+        if let Some(event_id) = event_id {
+            let organization = Organization::find_for_event(event_id, conn)?;
+            user.requires_scope_for_organization(
+                Scopes::OrderMakeExternalPayment,
+                &organization,
+                conn,
+            )?;
+        }
+    }
+
     if order.status()? != OrderStatus::Draft {
         return application::unprocessable(
             "Could not complete this cart because it is not in the correct status",
