@@ -132,6 +132,8 @@ table! {
         is_external -> Bool,
         external_url -> Nullable<Text>,
         override_status -> Nullable<Text>,
+        client_fee_in_cents -> Int8,
+        company_fee_in_cents -> Int8,
     }
 }
 
@@ -260,6 +262,8 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         fee_schedule_id -> Uuid,
+        client_event_fee_in_cents -> Int8,
+        company_event_fee_in_cents -> Int8,
     }
 }
 

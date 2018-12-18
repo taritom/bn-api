@@ -83,7 +83,8 @@ impl<'a> OrganizationBuilder<'a> {
             .unwrap();
 
         let event_fee_update = OrganizationEditableAttributes {
-            event_fee_in_cents: self.event_fee_in_cents,
+            company_event_fee_in_cents: self.company_fee_in_cents,
+            client_event_fee_in_cents: self.client_fee_in_cents,
             ..Default::default()
         };
 

@@ -42,6 +42,8 @@ pub struct Organization {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub fee_schedule_id: Uuid,
+    pub client_event_fee_in_cents: i64,
+    pub company_event_fee_in_cents: i64,
 }
 
 #[derive(Serialize)]
@@ -56,7 +58,6 @@ pub struct DisplayOrganizationLink {
 pub struct NewOrganization {
     pub name: String,
     pub fee_schedule_id: Uuid,
-    pub event_fee_in_cents: Option<i64>,
     pub address: Option<String>,
     pub city: Option<String>,
     pub state: Option<String>,
@@ -69,15 +70,17 @@ pub struct NewOrganization {
     pub google_ga_key: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_pixel_key: Option<String>,
+    pub client_event_fee_in_cents: Option<i64>,
+    pub company_event_fee_in_cents: Option<i64>,
 }
 
 impl NewOrganization {
     pub fn commit(
-        &self,
+        self,
         encryption_key: &String,
         conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
-        let mut updated_organisation = self.clone();
+        let mut updated_organisation = self;
         if encryption_key.len() > 0 {
             if let Some(key) = updated_organisation.sendgrid_api_key.clone() {
                 updated_organisation.sendgrid_api_key = Some(encrypt(&key, encryption_key)?);
@@ -91,7 +94,12 @@ impl NewOrganization {
         }
 
         let db_err = diesel::insert_into(organizations::table)
-            .values(&updated_organisation)
+            .values((
+                &updated_organisation,
+                organizations::event_fee_in_cents
+                    .eq(updated_organisation.client_event_fee_in_cents.unwrap_or(0)
+                        + updated_organisation.company_event_fee_in_cents.unwrap_or(0)),
+            ))
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new organization")?;
 
@@ -115,13 +123,14 @@ pub struct OrganizationEditableAttributes {
     pub postal_code: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
-    pub event_fee_in_cents: Option<i64>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub sendgrid_api_key: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub google_ga_key: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub facebook_pixel_key: Option<Option<String>>,
+    pub client_event_fee_in_cents: Option<i64>,
+    pub company_event_fee_in_cents: Option<i64>,
 }
 
 impl Organization {
@@ -151,8 +160,21 @@ impl Organization {
             }
         }
 
+        let event_fee = attributes
+            .client_event_fee_in_cents
+            .clone()
+            .unwrap_or(self.client_event_fee_in_cents)
+            + attributes
+                .company_event_fee_in_cents
+                .clone()
+                .unwrap_or(self.company_event_fee_in_cents);
+
         diesel::update(&*self)
-            .set((attributes, organizations::updated_at.eq(dsl::now)))
+            .set((
+                attributes,
+                organizations::updated_at.eq(dsl::now),
+                organizations::event_fee_in_cents.eq(event_fee),
+            ))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update organization")
     }

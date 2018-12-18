@@ -49,7 +49,9 @@ pub struct Event {
     pub video_url: Option<String>,
     pub is_external: bool,
     pub external_url: Option<String>,
-    pub override_status: Option<EventOverrideStatus>,
+    pub override_status: Option<EventOverrideStatus>, //EventOverrideStatus
+    pub client_fee_in_cents: i64,
+    pub company_fee_in_cents: i64,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
@@ -64,7 +66,6 @@ pub struct NewEvent {
     pub status: EventStatus,
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
-    pub fee_in_cents: Option<i64>,
     #[validate(url(message = "Promo image URL is invalid"))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub promo_image_url: Option<String>,
@@ -101,13 +102,15 @@ pub struct EventMinMaxCache {
 impl NewEvent {
     pub fn commit(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         self.validate()?;
-
-        let mut update_self = self.clone();
         let organization = Organization::find(self.organization_id, conn)?;
-        update_self.fee_in_cents = Some(organization.event_fee_in_cents);
 
         diesel::insert_into(events::table)
-            .values(&update_self)
+            .values((
+                self,
+                events::fee_in_cents.eq(organization.event_fee_in_cents),
+                events::client_fee_in_cents.eq(organization.client_event_fee_in_cents),
+                events::company_fee_in_cents.eq(organization.company_event_fee_in_cents),
+            ))
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new event")
     }

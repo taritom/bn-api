@@ -29,7 +29,8 @@ pub struct FeeScheduleWithRanges {
 #[derive(Serialize, Deserialize)]
 pub struct NewOrganizationRequest {
     pub name: String,
-    pub event_fee_in_cents: Option<i64>,
+    pub client_event_fee_in_cents: Option<i64>,
+    pub company_event_fee_in_cents: Option<i64>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub address: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
@@ -122,7 +123,8 @@ pub fn create(
     let new_organization_with_fee_schedule = NewOrganization {
         name: new_organization.name.clone(),
         fee_schedule_id: fee_schedule.id,
-        event_fee_in_cents: new_organization.event_fee_in_cents.clone(),
+        client_event_fee_in_cents: new_organization.client_event_fee_in_cents,
+        company_event_fee_in_cents: new_organization.company_event_fee_in_cents,
         address: new_organization.address.clone(),
         city: new_organization.city.clone(),
         state: new_organization.state.clone(),

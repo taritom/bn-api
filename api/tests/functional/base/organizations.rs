@@ -168,7 +168,6 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
     let json = Json(NewOrganizationRequest {
         name: name.to_string(),
-        event_fee_in_cents: Some(0),
         address: None,
         city: None,
         state: None,
@@ -178,6 +177,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         sendgrid_api_key: None,
         google_ga_key: None,
         facebook_pixel_key: None,
+        client_event_fee_in_cents: None,
+        company_event_fee_in_cents: None,
     });
 
     let test_request = TestRequest::create_with_uri("/organizations");
@@ -217,7 +218,8 @@ pub fn update(role: Roles, should_succeed: bool) {
         country: Some("country".to_string()),
         postal_code: Some("postal_code".to_string()),
         phone: Some("phone".to_string()),
-        event_fee_in_cents: (Some(100)),
+        company_event_fee_in_cents: (Some(100)),
+        client_event_fee_in_cents: None,
         sendgrid_api_key: Some(Some("sendgrid_api_key".to_string())),
         google_ga_key: Some(Some("google_ga_key".to_string())),
         facebook_pixel_key: Some(Some("facebook_pixel_key".to_string())),
