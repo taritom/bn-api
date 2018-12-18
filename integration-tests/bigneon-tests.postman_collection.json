@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "26ceb4c8-b500-4704-ba61-9174552d8c24",
+		"_postman_id": "72078451-447a-4be1-800e-b5d2dc065ce1",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -630,9 +630,6 @@
 									"});",
 									"",
 									"let r = JSON.parse(responseBody);",
-									"pm.test(\"event fee should be 10\", function() {",
-									"    pm.expect(r.event_fee_in_cents).to.equal(10);",
-									"});",
 									"",
 									"pm.test(\"state should be CA\", function() {",
 									"    pm.expect(r.state).to.equal(\"CA\");",
@@ -662,7 +659,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"event_fee_in_cents\": 10,\n\t\"state\" : \"CA\"\n\t\n}"
+							"raw": "{\n\t\"state\" : \"CA\"\n\t\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/organizations/{{last_org_id}}",
@@ -720,7 +717,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"event_fee_in_cents\": 100\n}"
+							"raw": "{\n\t\"company_event_fee_in_cents\": 100\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/organizations/{{last_org_id}}",
@@ -1389,7 +1386,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"fee_in_cents\": 100,\n    \"age_limit\": 18\n}"
+							"raw": "{\n    \"age_limit\": 18\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}",
