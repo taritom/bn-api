@@ -407,8 +407,8 @@ table! {
         password_reset_requested_at -> Nullable<Timestamp>,
         updated_at -> Timestamp,
         last_cart_id -> Nullable<Uuid>,
-    accepted_terms_date -> Nullable<Timestamp>,
-    invited_at -> Nullable<Timestamp>,
+        accepted_terms_date -> Nullable<Timestamp>,
+        invited_at -> Nullable<Timestamp>,
     }
 }
 
