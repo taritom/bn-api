@@ -283,13 +283,18 @@ pub fn add_user(role: Roles, should_test_succeed: bool) {
     let test_request = TestRequest::create();
     let json = Json(organizations::AddUserRequest {
         user_id: user2.id,
-        role: Roles::OrgMember,
+        roles: vec![Roles::OrgMember],
     });
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let response: HttpResponse =
-        organizations::add_user((database.connection.into(), path, json, auth_user.clone())).into();
+    let response: HttpResponse = organizations::add_or_replace_user((
+        database.connection.into(),
+        path,
+        json,
+        auth_user.clone(),
+    ))
+    .into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {

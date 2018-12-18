@@ -14,7 +14,7 @@ use uuid::Uuid;
 #[derive(Deserialize)]
 pub struct AddUserRequest {
     pub user_id: Uuid,
-    pub role: Roles,
+    pub roles: Vec<Roles>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -204,34 +204,44 @@ pub fn add_artist(
     Ok(HttpResponse::Created().json(&artist))
 }
 
-pub fn add_user(
+pub fn add_or_replace_user(
     (connection, path, json, user): (Connection, Path<PathParameters>, Json<AddUserRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
 
-    match json.role {
-        Roles::OrgOwner => {
-            user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?
-        }
-        Roles::OrgAdmin => user.requires_scope_for_organization(
-            Scopes::OrgManageAdminUsers,
-            &organization,
-            connection,
-        )?,
-        Roles::OrgMember => {
-            user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?
-        }
-        Roles::DoorPerson => {
-            user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?
-        }
-        Roles::OrgBoxOffice => {
-            user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?
-        }
-        _ => return application::forbidden("Role is not allowed for this user"),
-    };
+    let req = json.into_inner();
 
-    organization.add_user(json.user_id, vec![json.role], connection)?;
+    for role in req.roles.iter() {
+        match role {
+            Roles::OrgOwner => {
+                user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?
+            }
+            Roles::OrgAdmin => user.requires_scope_for_organization(
+                Scopes::OrgManageAdminUsers,
+                &organization,
+                connection,
+            )?,
+            Roles::OrgMember => user.requires_scope_for_organization(
+                Scopes::OrgManageUsers,
+                &organization,
+                connection,
+            )?,
+            Roles::DoorPerson => user.requires_scope_for_organization(
+                Scopes::OrgManageUsers,
+                &organization,
+                connection,
+            )?,
+            Roles::OrgBoxOffice => user.requires_scope_for_organization(
+                Scopes::OrgManageUsers,
+                &organization,
+                connection,
+            )?,
+            _ => return application::forbidden("Role is not allowed for this user"),
+        };
+    }
+
+    organization.add_user(req.user_id, req.roles, connection)?;
     Ok(HttpResponse::Created().finish())
 }
 

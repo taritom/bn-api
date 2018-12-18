@@ -38,12 +38,7 @@ impl NewOrganizationUser {
                 .optional()?;
         match existing_user {
             Some(mut user) => {
-                for role in self.role {
-                    if user.role.contains(&role) {
-                        continue;
-                    }
-                    user.role.push(role);
-                }
+                user.role = self.role;
                 diesel::update(organization_users::table.filter(organization_users::id.eq(user.id)))
                     .set(organization_users::role.eq(user.role))
                     .get_result(conn)
