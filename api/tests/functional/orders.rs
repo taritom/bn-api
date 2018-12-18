@@ -22,7 +22,7 @@ pub fn show() {
     order
         .add_external_payment(Some("test".to_string()), user.id, total, conn)
         .unwrap();
-    assert_eq!(order.status, OrderStatus::Paid.to_string());
+    assert_eq!(order.status, OrderStatus::Paid);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -42,7 +42,7 @@ pub fn show_for_draft_returns_forbidden() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let order = database.create_order().for_user(&user).finish();
-    assert_eq!(order.status, OrderStatus::Draft.to_string());
+    assert_eq!(order.status, OrderStatus::Draft);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -80,8 +80,8 @@ pub fn index() {
         .get_result(conn)
         .unwrap();
 
-    assert_eq!(order1.status, OrderStatus::Paid.to_string());
-    assert_eq!(order2.status, OrderStatus::PartiallyPaid.to_string());
+    assert_eq!(order1.status, OrderStatus::Paid);
+    assert_eq!(order2.status, OrderStatus::PartiallyPaid);
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let test_request = TestRequest::create_with_uri(&format!("/?"));

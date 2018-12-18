@@ -10,7 +10,6 @@ use models::*;
 use schema::{events, organization_users, organizations, users};
 use std::collections::HashMap;
 use time::Duration;
-use utils::errors::EnumParseError;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::passwords::PasswordHash;
 use uuid::Uuid;
@@ -25,7 +24,7 @@ pub struct NewUser {
     pub email: Option<String>,
     pub phone: Option<String>,
     pub hashed_pw: String,
-    role: Vec<String>,
+    role: Vec<Roles>,
 }
 
 #[derive(Queryable, Identifiable, PartialEq, Debug, Clone, QueryableByName)]
@@ -44,7 +43,7 @@ pub struct User {
     pub created_at: NaiveDateTime,
     pub last_used: Option<NaiveDateTime>,
     pub active: bool,
-    pub role: Vec<String>,
+    pub role: Vec<Roles>,
     pub password_reset_token: Option<Uuid>,
     pub password_reset_requested_at: Option<NaiveDateTime>,
     pub updated_at: NaiveDateTime,
@@ -73,7 +72,7 @@ pub struct UserEditableAttributes {
     pub email: Option<String>,
     pub phone: Option<String>,
     pub active: Option<bool>,
-    pub role: Option<Vec<String>>,
+    pub role: Option<Vec<Roles>>,
     #[validate(url(message = "Profile pic URL is invalid"))]
     pub profile_pic_url: Option<String>,
     #[validate(url(message = "Thumb profile pic URL is invalid"))]
@@ -127,7 +126,7 @@ impl User {
             email: lower_email,
             phone: phone.clone(),
             hashed_pw: hash.to_string(),
-            role: vec![Roles::User.to_string()],
+            role: vec![Roles::User],
         }
     }
 
@@ -148,7 +147,7 @@ impl User {
             email: Some(lower_email.to_string()),
             phone: None,
             hashed_pw: hash.to_string(),
-            role: vec![Roles::User.to_string()],
+            role: vec![Roles::User],
         };
         new_user.commit(conn).and_then(|user| {
             user.add_external_login(external_user_id, site, access_token, conn)?;
@@ -170,7 +169,7 @@ impl User {
             email,
             phone,
             hashed_pw: hash.to_string(),
-            role: vec![Roles::User.to_string()],
+            role: vec![Roles::User],
         };
         new_user.commit(conn)
     }
@@ -187,7 +186,7 @@ impl User {
         let query = order_items::table
             .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
             .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-            .filter(orders::status.eq(OrderStatus::Paid.to_string()))
+            .filter(orders::status.eq(OrderStatus::Paid))
             .filter(orders::user_id.eq(self.id))
             .filter(events::organization_id.eq(organization.id))
             .group_by((orders::id, orders::order_date, events::name))
@@ -256,7 +255,7 @@ impl User {
         let query = order_items::table
             .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
             .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-            .filter(orders::status.eq(OrderStatus::Paid.to_string()))
+            .filter(orders::status.eq(OrderStatus::Paid))
             .filter(events::organization_id.eq(organization.id))
             .filter(orders::user_id.eq(self.id))
             .select((
@@ -358,8 +357,8 @@ impl User {
 
     pub fn add_role(&self, r: Roles, conn: &PgConnection) -> Result<User, DatabaseError> {
         let mut new_roles = self.role.clone();
-        if !new_roles.contains(&r.to_string()) {
-            new_roles.push(r.to_string());
+        if !new_roles.contains(&r) {
+            new_roles.push(r);
         }
 
         self.update_role(new_roles, conn)
@@ -368,28 +367,21 @@ impl User {
     pub fn remove_role(&self, r: Roles, conn: &PgConnection) -> Result<User, DatabaseError> {
         let mut current_roles = self.role.clone();
 
-        current_roles.retain(|x| x.as_str() != &r.to_string());
+        current_roles.retain(|x| x != &r);
 
         self.update_role(current_roles, conn)
     }
 
     pub fn has_role(&self, role: Roles) -> bool {
-        self.role.contains(&role.to_string())
+        self.role.contains(&role)
     }
 
     pub fn is_admin(&self) -> bool {
         self.has_role(Roles::Admin)
     }
 
-    pub fn roles(&self) -> Result<Vec<Roles>, EnumParseError> {
-        let mut res: Vec<Roles> = vec![];
-        for r in &self.role {
-            res.push(r.parse()?);
-        }
-        Ok(res)
-    }
-    pub fn get_global_scopes(&self) -> Result<Vec<String>, EnumParseError> {
-        Ok(scopes::get_scopes(self.roles()?))
+    pub fn get_global_scopes(&self) -> Vec<String> {
+        scopes::get_scopes(self.role.clone())
     }
 
     pub fn get_roles_by_organization(
@@ -469,7 +461,7 @@ impl User {
 
     fn update_role(
         &self,
-        new_roles: Vec<String>,
+        new_roles: Vec<Roles>,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         DatabaseError::wrap(
@@ -492,7 +484,7 @@ impl User {
                 ErrorCode::QueryError,
                 "Error loading scannable events",
                 events::table
-                    .filter(events::status.eq(EventStatus::Published.to_string()))
+                    .filter(events::status.eq(EventStatus::Published))
                     .filter(events::event_start.ge(event_start))
                     .order_by(events::event_start.asc())
                     .load(conn),
@@ -503,7 +495,7 @@ impl User {
                 user_organizations.iter().map(|org| org.id).collect();
 
             let result = events::table
-                .filter(events::status.eq(EventStatus::Published.to_string()))
+                .filter(events::status.eq(EventStatus::Published))
                 .filter(events::event_start.ge(event_start))
                 .filter(events::organization_id.eq_any(user_organization_ids))
                 .order_by(events::event_start.asc());

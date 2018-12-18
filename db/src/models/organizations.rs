@@ -48,7 +48,7 @@ pub struct Organization {
 pub struct DisplayOrganizationLink {
     pub id: Uuid,
     pub name: String,
-    pub role: Vec<String>,
+    pub role: Vec<Roles>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -205,7 +205,7 @@ impl Organization {
             order_items::table
                 .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
                 .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-                .filter(orders::status.eq(OrderStatus::Paid.to_string()))
+                .filter(orders::status.eq(OrderStatus::Paid))
                 .filter(events::organization_id.eq(self.id))
                 .filter(orders::user_id.eq(user.id)),
         ))
@@ -239,13 +239,7 @@ impl Organization {
             let org_member =
                 OrganizationUser::find_by_user_id(user.id, self.id, conn).optional()?;
             match org_member {
-                Some(member) => {
-                    let mut res = vec![];
-                    for r in member.role {
-                        res.push(r.parse()?);
-                    }
-                    Ok(res)
-                }
+                Some(member) => Ok(member.role),
                 None => Ok(vec![]),
             }
         }
@@ -404,7 +398,7 @@ impl Organization {
             .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
             .inner_join(users::table.on(users::id.eq(orders::user_id)))
             .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-            .filter(orders::status.eq(OrderStatus::Paid.to_string()))
+            .filter(orders::status.eq(OrderStatus::Paid))
             .filter(events::organization_id.eq(self.id))
             .filter(
                 sql("(")

@@ -658,13 +658,13 @@ fn add_external_payment() {
     // Partially paid
     cart.add_external_payment(Some("test".to_string()), user.id, 1500, conn)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::PartiallyPaid);
+    assert_eq!(cart.status, OrderStatus::PartiallyPaid);
     assert!(cart.paid_at.is_none());
 
     // Fully paid
     cart.add_external_payment(Some("test2".to_string()), user.id, 500, conn)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
     assert!(cart.paid_at.is_some());
 }
 
@@ -691,8 +691,8 @@ fn find_for_user_for_display() {
         )
         .unwrap();
 
-    assert_eq!(order1.status, OrderStatus::Paid.to_string());
-    assert_eq!(order2.status, OrderStatus::PartiallyPaid.to_string());
+    assert_eq!(order1.status, OrderStatus::Paid);
+    assert_eq!(order2.status, OrderStatus::PartiallyPaid);
 
     let display_orders =
         Order::find_for_user_for_display(user.id, project.get_connection()).unwrap();
@@ -796,7 +796,7 @@ fn adding_event_fees() {
 
     let mut event_fees_count = 0;
     for o in &order_items {
-        if o.item_type == OrderItemTypes::EventFees.to_string() {
+        if o.item_type == OrderItemTypes::EventFees {
             event_fees_count += 1;
         }
     }
@@ -828,7 +828,7 @@ fn adding_event_fees() {
     let mut event_fees_count = 0;
 
     for o in &order_items {
-        if o.item_type == OrderItemTypes::EventFees.to_string() {
+        if o.item_type == OrderItemTypes::EventFees {
             event_fees_count += 1;
         }
     }
@@ -850,7 +850,7 @@ fn adding_event_fees() {
 
     let mut event_fees_count = 0;
     for o in &order_items {
-        if o.item_type().unwrap() == OrderItemTypes::EventFees {
+        if o.item_type == OrderItemTypes::EventFees {
             event_fees_count += 1;
         }
     }
@@ -872,7 +872,7 @@ fn adding_event_fees() {
 
     let mut event_fees_count = 0;
     for o in &order_items {
-        if o.item_type == OrderItemTypes::EventFees.to_string() {
+        if o.item_type == OrderItemTypes::EventFees {
             event_fees_count += 1;
         }
     }

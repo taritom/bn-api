@@ -267,7 +267,7 @@ pub fn list_organization_members(
             first_name: u.1.first_name,
             last_name: u.1.last_name,
             email: u.1.email,
-            roles: u.0.role,
+            roles: u.0.role.iter().map(|r| r.to_string()).collect(),
             invite_or_member: "member".to_string(),
         })
         .collect();

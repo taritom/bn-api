@@ -12,8 +12,8 @@ use uuid::Uuid;
 pub struct DomainAction {
     pub id: Uuid,
     pub domain_event_id: Option<Uuid>,
-    pub domain_action_type: String,
-    pub communication_channel_type: Option<String>,
+    pub domain_action_type: DomainActionTypes,
+    pub communication_channel_type: Option<CommunicationChannelType>,
     pub payload: serde_json::Value,
     pub main_table: String,
     pub main_table_id: Uuid,
@@ -22,7 +22,7 @@ pub struct DomainAction {
     pub last_attempted_at: Option<NaiveDateTime>,
     pub attempt_count: i64,
     pub max_attempt_count: i64,
-    pub status: String,
+    pub status: DomainActionStatus,
     pub last_failure_reason: Option<String>,
     pub blocked_until: NaiveDateTime,
     pub created_at: NaiveDateTime,
@@ -52,9 +52,8 @@ impl DomainAction {
     ) -> NewDomainAction {
         NewDomainAction {
             domain_event_id,
-            domain_action_type: domain_action_type.to_string(),
-            communication_channel_type: communication_channel_type
-                .map_or(None, |v| Some(v.to_string())),
+            domain_action_type,
+            communication_channel_type,
             payload,
             main_table: main_table,
             main_table_id,
@@ -63,12 +62,8 @@ impl DomainAction {
             last_attempted_at: None,
             attempt_count: 0,
             max_attempt_count,
-            status: DomainActionStatus::Pending.to_string(),
+            status: DomainActionStatus::Pending,
         }
-    }
-
-    pub fn domain_action_type(&self) -> Result<DomainActionTypes, EnumParseError> {
-        self.domain_action_type.parse::<DomainActionTypes>()
     }
 
     pub fn find_pending(
@@ -80,11 +75,11 @@ impl DomainAction {
             .filter(domain_actions::expires_at.gt(dsl::now))
             .filter(domain_actions::blocked_until.le(dsl::now))
             .filter(domain_actions::attempt_count.lt(domain_actions::max_attempt_count))
-            .filter(domain_actions::status.eq(DomainActionStatus::Pending.to_string()))
+            .filter(domain_actions::status.eq(DomainActionStatus::Pending))
             .into_boxed();
 
         if let Some(action_type) = domain_action_type {
-            query = query.filter(domain_actions::domain_action_type.eq(action_type.to_string()));
+            query = query.filter(domain_actions::domain_action_type.eq(action_type));
         }
 
         query
@@ -122,7 +117,7 @@ impl DomainAction {
     pub fn set_done(&self, conn: &PgConnection) -> Result<DomainAction, DatabaseError> {
         diesel::update(self)
             .set((
-                domain_actions::status.eq(DomainActionStatus::Success.to_string()),
+                domain_actions::status.eq(DomainActionStatus::Success),
                 domain_actions::updated_at.eq(dsl::now),
             ))
             .get_result(conn)
@@ -142,7 +137,7 @@ impl DomainAction {
             diesel::update(self)
                 .set((
                     domain_actions::last_failure_reason.eq(reason),
-                    domain_actions::status.eq(DomainActionStatus::RetriesExceeded.to_string()),
+                    domain_actions::status.eq(DomainActionStatus::RetriesExceeded),
                     domain_actions::attempt_count.eq(self.attempt_count + 1),
                     domain_actions::blocked_until.eq(dsl::now),
                     domain_actions::updated_at.eq(dsl::now),
@@ -173,7 +168,7 @@ impl DomainAction {
         diesel::update(self)
             .set((
                 domain_actions::last_failure_reason.eq(reason),
-                domain_actions::status.eq(DomainActionStatus::Errored.to_string()),
+                domain_actions::status.eq(DomainActionStatus::Errored),
                 domain_actions::blocked_until.eq(dsl::now),
                 domain_actions::updated_at.eq(dsl::now),
             ))
@@ -197,8 +192,8 @@ impl DomainAction {
 #[table_name = "domain_actions"]
 pub struct NewDomainAction {
     pub domain_event_id: Option<Uuid>,
-    pub domain_action_type: String,
-    pub communication_channel_type: Option<String>,
+    pub domain_action_type: DomainActionTypes,
+    pub communication_channel_type: Option<CommunicationChannelType>,
     pub payload: serde_json::Value,
     pub main_table: String,
     pub main_table_id: Uuid,
@@ -207,7 +202,7 @@ pub struct NewDomainAction {
     pub last_attempted_at: Option<NaiveDateTime>,
     pub attempt_count: i64,
     pub max_attempt_count: i64,
-    pub status: String,
+    pub status: DomainActionStatus,
 }
 
 impl NewDomainAction {

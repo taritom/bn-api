@@ -643,7 +643,7 @@ fn dashboard_with_default_range() {
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
 
     let test_request = TestRequest::create_with_uri(&format!("/events/{}/dashboard?", event.id));
     let query_parameters = Query::<DashboardParameters>::extract(&test_request.request).unwrap();
@@ -863,7 +863,7 @@ fn expected_show_json(
         event_start: Option<NaiveDateTime>,
         door_time: Option<NaiveDateTime>,
         fee_in_cents: i64,
-        status: String,
+        status: EventStatus,
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
         additional_info: Option<String>,
@@ -880,7 +880,7 @@ fn expected_show_json(
         max_ticket_price: Option<i64>,
         is_external: bool,
         external_url: Option<String>,
-        override_status: Option<String>,
+        override_status: Option<EventOverrideStatus>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -938,7 +938,7 @@ struct EventVenueEntry {
     created_at: NaiveDateTime,
     event_start: Option<NaiveDateTime>,
     door_time: Option<NaiveDateTime>,
-    status: String,
+    status: EventStatus,
     publish_date: Option<NaiveDateTime>,
     promo_image_url: Option<String>,
     additional_info: Option<String>,

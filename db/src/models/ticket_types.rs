@@ -20,7 +20,7 @@ pub struct TicketType {
     pub event_id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    status: String,
+    pub status: TicketTypeStatus,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub increment: i32,
@@ -70,7 +70,7 @@ impl TicketType {
             event_id,
             name,
             description,
-            status: TicketTypeStatus::Published.to_string(),
+            status: TicketTypeStatus::Published,
             start_date,
             end_date,
             increment,
@@ -216,7 +216,7 @@ impl TicketType {
         let valid_ticket_count: i64 = ticket_instances::table
             .inner_join(assets::table)
             .filter(assets::ticket_type_id.eq(self.id))
-            .filter(ticket_instances::status.ne(TicketInstanceStatus::Nullified.to_string()))
+            .filter(ticket_instances::status.ne(TicketInstanceStatus::Nullified))
             .select(dsl::count(ticket_instances::id))
             .first(conn)
             .to_db_error(
@@ -270,7 +270,7 @@ impl TicketType {
     ) -> Result<Vec<TicketPricing>, DatabaseError> {
         ticket_pricing::table
             .filter(ticket_pricing::ticket_type_id.eq(self.id))
-            .filter(ticket_pricing::status.ne(TicketPricingStatus::Deleted.to_string()))
+            .filter(ticket_pricing::status.ne(TicketPricingStatus::Deleted))
             .order_by(ticket_pricing::name)
             .load(conn)
             .to_db_error(
@@ -309,10 +309,6 @@ impl TicketType {
         )
         .commit(conn)
     }
-
-    pub fn status(&self) -> Result<TicketTypeStatus, EnumParseError> {
-        self.status.parse::<TicketTypeStatus>()
-    }
 }
 
 #[derive(Insertable)]
@@ -321,7 +317,7 @@ pub struct NewTicketType {
     event_id: Uuid,
     name: String,
     description: Option<String>,
-    status: String,
+    status: TicketTypeStatus,
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
     increment: Option<i32>,

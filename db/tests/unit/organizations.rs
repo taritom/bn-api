@@ -73,7 +73,7 @@ fn has_fan() {
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
     assert!(organization.has_fan(&user, connection).unwrap());
 }
 
@@ -265,24 +265,23 @@ fn all_org_names_linked_to_user() {
         Organization::all_org_names_linked_to_user(user3.id, project.get_connection()).unwrap();
     let user4_links =
         Organization::all_org_names_linked_to_user(user4.id, project.get_connection()).unwrap();
-    let role_owner_string = [String::from("OrgOwner")];
-    let role_member_string = [String::from("OrgMember")];
+
     //User1 has 2 links, owner of Org1 and member of Org2
     assert_eq!(user1_links.len(), 2);
     assert_eq!(user1_links[0].id, org1.id);
     assert_eq!(user1_links[1].id, org2.id);
 
-    assert_eq!(user1_links[0].role, role_owner_string);
-    assert_eq!(user1_links[1].role, role_member_string);
+    assert_eq!(user1_links[0].role, vec![Roles::OrgOwner]);
+    assert_eq!(user1_links[1].role, vec![Roles::OrgMember]);
 
     //User2 has only 1 owner link with Org2
     assert_eq!(user2_links.len(), 1);
     assert_eq!(user2_links[0].id, org2.id);
-    assert_eq!(user2_links[0].role, role_owner_string);
+    assert_eq!(user2_links[0].role, vec![Roles::OrgOwner]);
     //User3 has only 1 member link with Org1
     assert_eq!(user3_links.len(), 1);
     assert_eq!(user3_links[0].id, org1.id);
-    assert_eq!(user3_links[0].role, role_member_string);
+    assert_eq!(user3_links[0].role, vec![Roles::OrgMember]);
     //User4 has no links
     assert_eq!(user4_links.len(), 0);
 }

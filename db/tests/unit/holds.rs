@@ -133,7 +133,7 @@ fn update_with_validation_errors() {
     assert!(hold.discount_in_cents.is_none());
 
     let update_patch = UpdateHoldAttributes {
-        hold_type: Some(HoldTypes::Discount.to_string()),
+        hold_type: Some(HoldTypes::Discount),
         ..Default::default()
     };
     let result = hold.update(update_patch, connection);

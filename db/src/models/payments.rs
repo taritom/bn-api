@@ -16,8 +16,8 @@ pub struct Payment {
     pub id: Uuid,
     order_id: Uuid,
     created_by: Uuid,
-    status: String,
-    payment_method: String,
+    status: PaymentStatus,
+    payment_method: PaymentMethods,
     amount: i64,
     provider: String,
     external_reference: Option<String>,
@@ -31,7 +31,7 @@ impl Payment {
         order_id: Uuid,
         created_by: Uuid,
         status: PaymentStatus,
-        method: PaymentMethods,
+        payment_method: PaymentMethods,
         provider: String,
         external_reference: Option<String>,
         amount: i64,
@@ -40,8 +40,8 @@ impl Payment {
         NewPayment {
             order_id,
             created_by,
-            status: status.to_string(),
-            payment_method: method.to_string(),
+            status,
+            payment_method,
             provider,
             external_reference,
             amount,
@@ -62,7 +62,7 @@ impl Payment {
             ),
         )
         .set((
-            payments::status.eq(PaymentStatus::Completed.to_string()),
+            payments::status.eq(PaymentStatus::Completed),
             payments::updated_at.eq(dsl::now),
         ))
         .execute(conn)
@@ -102,8 +102,8 @@ impl Payment {
 pub struct NewPayment {
     order_id: Uuid,
     created_by: Uuid,
-    status: String,
-    payment_method: String,
+    status: PaymentStatus,
+    payment_method: PaymentMethods,
     external_reference: Option<String>,
     amount: i64,
     provider: String,

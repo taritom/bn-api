@@ -47,9 +47,7 @@ impl From<UpdateHoldRequest> for UpdateHoldAttributes {
     fn from(attributes: UpdateHoldRequest) -> Self {
         UpdateHoldAttributes {
             name: attributes.name,
-            hold_type: attributes
-                .hold_type
-                .and_then(|hold_type| Some(hold_type.to_string())),
+            hold_type: attributes.hold_type.and_then(|hold_type| Some(hold_type)),
             discount_in_cents: attributes.discount_in_cents,
             email: attributes.email,
             phone: attributes.phone,
@@ -97,7 +95,7 @@ pub fn create(
         pub discount_in_cents: Option<i64>,
         pub end_at: Option<NaiveDateTime>,
         pub max_per_order: Option<i64>,
-        pub hold_type: String,
+        pub hold_type: HoldTypes,
         pub ticket_type_id: Uuid,
         pub available: u32,
         pub quantity: u32,
@@ -159,7 +157,7 @@ pub fn show(
         pub discount_in_cents: Option<i64>,
         pub end_at: Option<NaiveDateTime>,
         pub max_per_order: Option<i64>,
-        pub hold_type: String,
+        pub hold_type: HoldTypes,
         pub ticket_type_id: Uuid,
         pub available: u32,
         pub quantity: u32,

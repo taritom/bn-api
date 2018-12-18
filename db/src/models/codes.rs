@@ -16,7 +16,7 @@ pub struct Code {
     pub id: Uuid,
     pub name: String,
     pub event_id: Uuid,
-    pub code_type: String,
+    pub code_type: CodeTypes,
     pub redemption_code: String,
     pub max_uses: i64,
     pub discount_in_cents: Option<i64>,
@@ -36,7 +36,7 @@ pub struct DisplayCode {
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
     #[sql_type = "Text"]
-    pub code_type: String,
+    pub code_type: CodeTypes,
     #[sql_type = "Text"]
     pub redemption_code: String,
     #[sql_type = "BigInt"]
@@ -150,7 +150,7 @@ impl Code {
         NewCode {
             name,
             event_id,
-            code_type: code_type.to_string(),
+            code_type,
             redemption_code,
             max_uses: max_uses as i64,
             discount_in_cents: discount_in_cents.map(|max| max as i64),
@@ -209,10 +209,10 @@ impl Code {
     }
 
     pub fn discount_present_for_discount_type(
-        code_type: String,
+        code_type: CodeTypes,
         discount_in_cents: Option<i64>,
     ) -> Result<(), ValidationError> {
-        if code_type == CodeTypes::Discount.to_string() && discount_in_cents.is_none() {
+        if code_type == CodeTypes::Discount && discount_in_cents.is_none() {
             let mut validation_error =
                 create_validation_error("required", "Discount required for Discount code type");
             validation_error.add_param(Cow::from("code_type"), &code_type);
@@ -301,7 +301,7 @@ impl Code {
 pub struct NewCode {
     pub name: String,
     pub event_id: Uuid,
-    pub code_type: String,
+    pub code_type: CodeTypes,
     #[validate(length(
         min = "6",
         message = "Redemption code must be at least 6 characters long"

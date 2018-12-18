@@ -23,7 +23,7 @@ pub struct SearchUserByEmail {
 #[derive(Serialize, Deserialize)]
 pub struct CurrentUser {
     pub user: DisplayUser,
-    pub roles: Vec<String>,
+    pub roles: Vec<Roles>,
     pub scopes: Vec<String>,
     pub organization_roles: HashMap<Uuid, Vec<Roles>>,
     pub organization_scopes: HashMap<Uuid, Vec<String>>,
@@ -255,7 +255,7 @@ fn current_user_from_user(
     Ok(CurrentUser {
         user: user.clone().for_display()?,
         roles: user.role.clone(),
-        scopes: user.get_global_scopes()?,
+        scopes: user.get_global_scopes(),
         organization_roles: roles_by_organization,
         organization_scopes: scopes_by_organization,
     })

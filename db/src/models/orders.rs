@@ -28,7 +28,7 @@ const ORDER_NUMBER_LENGTH: usize = 8;
 pub struct Order {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub status: String,
+    pub status: OrderStatus,
     order_type: String,
     pub order_date: NaiveDateTime,
     pub expires_at: Option<NaiveDateTime>,
@@ -44,7 +44,7 @@ pub struct Order {
 #[table_name = "orders"]
 pub struct NewOrder {
     user_id: Uuid,
-    status: String,
+    status: OrderStatus,
     expires_at: Option<NaiveDateTime>,
     order_type: String,
 }
@@ -96,7 +96,7 @@ impl Order {
         item_id: Uuid,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        if self.status()? != OrderStatus::Draft {
+        if self.status != OrderStatus::Draft {
             return DatabaseError::business_process_error(
                 "Cannot delete an order item for an order that is not in draft",
             );
@@ -112,10 +112,6 @@ impl Order {
             .execute(conn)
             .map(|_| ())
             .to_db_error(ErrorCode::DeleteError, "Could not delete order item")
-    }
-
-    pub fn status(&self) -> Result<OrderStatus, EnumParseError> {
-        self.status.parse::<OrderStatus>()
     }
 
     pub fn find_or_create_cart(user: &User, conn: &PgConnection) -> Result<Order, DatabaseError> {
@@ -308,7 +304,7 @@ impl Order {
         }
 
         for mut current_line in current_items {
-            if current_line.item_type()? != OrderItemTypes::Tickets {
+            if current_line.item_type != OrderItemTypes::Tickets {
                 continue;
             }
 
@@ -368,7 +364,7 @@ impl Order {
                             let mut price_in_cents = ticket_pricing.price_in_cents;
                             if let Some(h) = hold.as_ref() {
                                 let discount = h.discount_in_cents;
-                                let hold_type = h.hold_type();
+                                let hold_type = h.hold_type;
                                 price_in_cents = match hold_type {
                                     HoldTypes::Discount => {
                                         cmp::max(0, price_in_cents - discount.unwrap_or(0))
@@ -379,7 +375,7 @@ impl Order {
 
                             let order_item = NewTicketsOrderItem {
                                 order_id: self.id,
-                                item_type: OrderItemTypes::Tickets.to_string(),
+                                item_type: OrderItemTypes::Tickets,
                                 quantity: matching_line.quantity as i64,
                                 ticket_type_id: ticket_type.id,
                                 ticket_pricing_id: ticket_pricing.id,
@@ -450,7 +446,7 @@ impl Order {
             let mut price_in_cents = ticket_pricing.price_in_cents;
             if let Some(h) = hold.as_ref() {
                 let discount = h.discount_in_cents;
-                let hold_type = h.hold_type();
+                let hold_type = h.hold_type;
                 price_in_cents = match hold_type {
                     HoldTypes::Discount => cmp::max(0, price_in_cents - discount.unwrap_or(0)),
                     HoldTypes::Comp => 0,
@@ -459,7 +455,7 @@ impl Order {
             // TODO: Move this to an external processer
             let order_item = NewTicketsOrderItem {
                 order_id: self.id,
-                item_type: OrderItemTypes::Tickets.to_string(),
+                item_type: OrderItemTypes::Tickets,
                 quantity: new_line.quantity as i64,
                 ticket_type_id: ticket_type.id,
                 ticket_pricing_id: ticket_pricing.id,
@@ -537,7 +533,7 @@ impl Order {
         let items = self.items(conn)?;
 
         for o in items {
-            match o.item_type()? {
+            match o.item_type {
                 OrderItemTypes::EventFees => self.destroy_item(o.id, conn)?,
                 _ => {}
             }
@@ -554,14 +550,14 @@ impl Order {
             }
             if hold_id.is_some() {
                 let hold = Hold::find(hold_id.unwrap(), conn)?;
-                if hold.hold_type() == HoldTypes::Comp {
+                if hold.hold_type == HoldTypes::Comp {
                     continue;
                 }
             }
 
             let event = Event::find(event_id.unwrap(), conn)?;
             for o in items {
-                match o.item_type()? {
+                match o.item_type {
                     OrderItemTypes::Tickets => o.update_fees(&self, conn)?,
                     _ => {}
                 }
@@ -569,7 +565,7 @@ impl Order {
 
             let mut new_event_fee = NewFeesOrderItem {
                 order_id: self.id,
-                item_type: OrderItemTypes::EventFees.to_string(),
+                item_type: OrderItemTypes::EventFees,
                 event_id: Some(event.id),
                 unit_price_in_cents: 0,
                 fee_schedule_range_id: None,
@@ -623,7 +619,7 @@ impl Order {
                     .eq(user_id)
                     .or(orders::on_behalf_of_user_id.eq(user_id)),
             )
-            .filter(orders::status.ne(OrderStatus::Draft.to_string()))
+            .filter(orders::status.ne(OrderStatus::Draft))
             .order_by(orders::order_date.desc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
@@ -646,8 +642,7 @@ impl Order {
         let items = self.items(conn)?;
         let mut tickets: Vec<OrderItem> = Vec::new();
         for ci in items {
-            if ci.item_type()? == OrderItemTypes::Tickets
-                && ci.ticket_type_id == Some(ticket_type_id)
+            if ci.item_type == OrderItemTypes::Tickets && ci.ticket_type_id == Some(ticket_type_id)
             {
                 tickets.push(ci);
             }
@@ -712,9 +707,7 @@ impl Order {
         let items = self.items(conn)?;
         let mut order_item: Vec<OrderItem> = items
             .into_iter()
-            .filter(|i| {
-                i.ticket_type_id == Some(ticket_type_id) && i.item_type == item_type.to_string()
-            })
+            .filter(|i| i.ticket_type_id == Some(ticket_type_id) && i.item_type == item_type)
             .collect();
 
         match order_item.pop() {
@@ -775,22 +768,22 @@ impl Order {
         payment: NewPayment,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
-        let status = self.status()?;
-        if status == OrderStatus::Paid {
-            return DatabaseError::business_process_error("This order has already been paid");
-        }
-        // orders can only expire if the order is in draft
-        if status == OrderStatus::Draft {
-            self.mark_partially_paid(conn)?;
-        } else if status != OrderStatus::PartiallyPaid {
-            return DatabaseError::business_process_error(&format!(
-                "Order was in unexpected state when trying to make a payment: {}",
-                status
-            ));
+        match self.status {
+            OrderStatus::Paid => {
+                return DatabaseError::business_process_error("This order has already been paid")
+            }
+            // orders can only expire if the order is in draft
+            OrderStatus::Draft => self.mark_partially_paid(conn)?,
+            OrderStatus::PartiallyPaid => (),
+            _ => {
+                return DatabaseError::business_process_error(&format!(
+                    "Order was in unexpected state when trying to make a payment: {}",
+                    self.status
+                ))
+            }
         }
 
         let p = payment.commit(conn)?;
-
         self.complete_if_fully_paid(conn)?;
         Ok(p)
     }
@@ -807,7 +800,7 @@ impl Order {
             ),
         )
         .set((
-            orders::status.eq(OrderStatus::PartiallyPaid.to_string()),
+            orders::status.eq(OrderStatus::PartiallyPaid),
             orders::expires_at.eq(Some(now_plus_one_day)),
             orders::updated_at.eq(dsl::now),
         ))
@@ -893,7 +886,7 @@ impl Order {
         status: OrderStatus,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        self.status = status.to_string();
+        self.status = status;
 
         if status == OrderStatus::Paid {
             self.paid_at = Some(Utc::now().naive_utc());
@@ -957,7 +950,7 @@ impl Order {
         user: User,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        if self.status()? != OrderStatus::Draft {
+        if self.status != OrderStatus::Draft {
             return DatabaseError::validation_error(
                 "status",
                 "Cannot change the order user unless the order is in draft status",
@@ -1007,7 +1000,7 @@ pub struct DisplayOrder {
     pub date: NaiveDateTime,
     pub expires_at: Option<NaiveDateTime>,
     pub seconds_until_expiry: Option<u32>,
-    pub status: String,
+    pub status: OrderStatus,
     pub items: Vec<DisplayOrderItem>,
     pub total_in_cents: i64,
     pub user_id: Uuid,

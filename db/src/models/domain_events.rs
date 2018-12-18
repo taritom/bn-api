@@ -11,10 +11,10 @@ use uuid::Uuid;
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 pub struct DomainEvent {
     pub id: Uuid,
-    pub event_type: String,
+    pub event_type: DomainEventTypes,
     pub display_text: String,
     pub event_data: Option<serde_json::Value>,
-    pub main_table: String,
+    pub main_table: Tables,
     pub main_id: Option<Uuid>,
     pub published_at: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
@@ -30,16 +30,12 @@ impl DomainEvent {
         event_data: Option<serde_json::Value>,
     ) -> NewDomainEvent {
         NewDomainEvent {
-            event_type: event_type.to_string(),
+            event_type,
             display_text,
             event_data,
-            main_table: main_table.to_string(),
+            main_table,
             main_id,
         }
-    }
-
-    pub fn event_type(&self) -> Result<DomainEventTypes, DatabaseError> {
-        Ok(self.event_type.parse()?)
     }
 
     pub fn find(
@@ -49,12 +45,12 @@ impl DomainEvent {
         conn: &PgConnection,
     ) -> Result<Vec<DomainEvent>, DatabaseError> {
         let mut query = domain_events::table
-            .filter(domain_events::main_table.eq(main_table.to_string()))
+            .filter(domain_events::main_table.eq(main_table))
             .filter(domain_events::main_id.eq(main_id))
             .into_boxed();
 
         if let Some(event_type) = event_type {
-            query = query.filter(domain_events::event_type.eq(event_type.to_string()));
+            query = query.filter(domain_events::event_type.eq(event_type));
         }
 
         query
@@ -92,10 +88,10 @@ impl DomainEvent {
 #[derive(Insertable)]
 #[table_name = "domain_events"]
 pub struct NewDomainEvent {
-    pub event_type: String,
+    pub event_type: DomainEventTypes,
     pub display_text: String,
     pub event_data: Option<serde_json::Value>,
-    pub main_table: String,
+    pub main_table: Tables,
     pub main_id: Option<Uuid>,
 }
 

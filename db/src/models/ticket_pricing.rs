@@ -20,7 +20,7 @@ pub struct TicketPricing {
     pub id: Uuid,
     ticket_type_id: Uuid,
     pub name: String,
-    status: String,
+    pub status: TicketPricingStatus,
     pub price_in_cents: i64,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
@@ -51,7 +51,7 @@ impl TicketPricing {
         NewTicketPricing {
             ticket_type_id,
             name,
-            status: TicketPricingStatus::Published.to_string(),
+            status: TicketPricingStatus::Published,
             start_date,
             end_date,
             price_in_cents,
@@ -169,16 +169,11 @@ impl TicketPricing {
                 .to_db_error(ErrorCode::DeleteError, "Error removing ticket pricing")
         } else {
             //Ticket pricing is used -> mark status for deletion
-            #[derive(AsChangeset)]
-            #[table_name = "ticket_pricing"]
-            struct R {
-                pub status: String,
-            }
-            let status_attribute = R {
-                status: TicketPricingStatus::Deleted.to_string(),
-            };
             diesel::update(self)
-                .set((status_attribute, ticket_pricing::updated_at.eq(dsl::now)))
+                .set((
+                    ticket_pricing::status.eq(TicketPricingStatus::Deleted),
+                    ticket_pricing::updated_at.eq(dsl::now),
+                ))
                 //.get_result(conn)
                 .execute(conn)
                 .to_db_error(
@@ -194,10 +189,6 @@ impl TicketPricing {
             .find(id)
             .first::<TicketPricing>(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading ticket pricing")
-    }
-
-    pub fn status(&self) -> Result<TicketPricingStatus, EnumParseError> {
-        self.status.parse::<TicketPricingStatus>()
     }
 
     pub fn get_current_ticket_pricing(
@@ -237,7 +228,7 @@ impl TicketPricing {
 pub struct NewTicketPricing {
     ticket_type_id: Uuid,
     name: String,
-    status: String,
+    status: TicketPricingStatus,
     price_in_cents: i64,
     is_box_office_only: bool,
     pub start_date: NaiveDateTime,

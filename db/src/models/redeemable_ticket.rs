@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
+use models::*;
 use uuid::Uuid;
 
 #[derive(Queryable, QueryableByName, PartialEq, Serialize, Deserialize, Debug)]
@@ -27,7 +28,7 @@ pub struct RedeemableTicket {
     #[sql_type = "Nullable<Timestamp>"]
     pub redeem_date: Option<NaiveDateTime>,
     #[sql_type = "Text"]
-    pub status: String,
+    pub status: TicketInstanceStatus,
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
     #[sql_type = "Text"]

@@ -49,7 +49,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
             price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents)
                 as u32,
             ticket_type_name: ticket_type.name.clone(),
-            status: "Purchased".to_string(),
+            status: TicketInstanceStatus::Purchased,
             redeem_key: ticket_response.ticket.redeem_key.clone(),
         };
 

@@ -141,7 +141,7 @@ pub fn index(
         created_at: NaiveDateTime,
         event_start: Option<NaiveDateTime>,
         door_time: Option<NaiveDateTime>,
-        status: String,
+        status: EventStatus,
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
         additional_info: Option<String>,
@@ -255,7 +255,7 @@ pub fn show(
         event_start: Option<NaiveDateTime>,
         door_time: Option<NaiveDateTime>,
         fee_in_cents: i64,
-        status: String,
+        status: EventStatus,
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
         additional_info: Option<String>,
@@ -272,7 +272,7 @@ pub fn show(
         max_ticket_price: Option<i64>,
         is_external: bool,
         external_url: Option<String>,
-        override_status: Option<String>,
+        override_status: Option<EventOverrideStatus>,
     }
 
     Ok(HttpResponse::Ok().json(&R {
@@ -696,7 +696,7 @@ pub fn holds(
         pub discount_in_cents: Option<i64>,
         pub end_at: Option<NaiveDateTime>,
         pub max_per_order: Option<i64>,
-        pub hold_type: String,
+        pub hold_type: HoldTypes,
         pub ticket_type_id: Uuid,
         pub available: u32,
         pub quantity: u32,

@@ -17,7 +17,7 @@ pub struct Asset {
     blockchain_name: String,
     // TODO: This will be populated after it is created on the blockchain.
     pub blockchain_asset_id: Option<String>,
-    status: String,
+    status: AssetStatus,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -27,7 +27,7 @@ impl Asset {
         NewAsset {
             blockchain_name,
             ticket_type_id,
-            status: AssetStatus::Unsynced.to_string(),
+            status: AssetStatus::Unsynced,
         }
     }
 
@@ -70,7 +70,7 @@ impl Asset {
 #[table_name = "assets"]
 pub struct NewAsset {
     blockchain_name: String,
-    status: String,
+    status: AssetStatus,
     ticket_type_id: Uuid,
 }
 

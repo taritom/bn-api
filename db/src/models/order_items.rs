@@ -22,7 +22,7 @@ sql_function!(fn order_items_code_id_max_tickets_per_user_valid(order_item_id: d
 pub struct OrderItem {
     pub id: Uuid,
     pub order_id: Uuid,
-    pub item_type: String,
+    pub item_type: OrderItemTypes,
     pub ticket_type_id: Option<Uuid>,
     pub event_id: Option<Uuid>,
     pub quantity: i64,
@@ -43,14 +43,10 @@ impl OrderItem {
         self.unit_price_in_cents
     }
 
-    pub fn item_type(&self) -> Result<OrderItemTypes, EnumParseError> {
-        self.item_type.parse::<OrderItemTypes>()
-    }
-
     pub fn find_fee_item(&self, conn: &PgConnection) -> Result<Option<OrderItem>, DatabaseError> {
         order_items::table
             .filter(order_items::parent_id.eq(self.id))
-            .filter(order_items::item_type.eq(OrderItemTypes::PerUnitFees.to_string()))
+            .filter(order_items::item_type.eq(OrderItemTypes::PerUnitFees))
             .first(conn)
             .optional()
             .to_db_error(ErrorCode::QueryError, "Could not retrieve order item fees")
@@ -61,8 +57,8 @@ impl OrderItem {
         order: &Order,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        if self.item_type()? == OrderItemTypes::PerUnitFees
-            || self.item_type()? == OrderItemTypes::EventFees
+        if self.item_type == OrderItemTypes::PerUnitFees
+            || self.item_type == OrderItemTypes::EventFees
         {
             return Ok(());
         }
@@ -83,7 +79,7 @@ impl OrderItem {
         // If the hold is a comp, then there are no fees.
         if let Some(hold_id) = self.hold_id {
             let hold = Hold::find(hold_id, conn)?;
-            if hold.hold_type() == HoldTypes::Comp {
+            if hold.hold_type == HoldTypes::Comp {
                 if let Some(fee_item) = fee_item {
                     order.destroy_item(fee_item.id, conn)?;
                 }
@@ -102,7 +98,7 @@ impl OrderItem {
             None => {
                 NewFeesOrderItem {
                     order_id: self.order_id,
-                    item_type: OrderItemTypes::PerUnitFees.to_string(),
+                    item_type: OrderItemTypes::PerUnitFees,
                     event_id: self.event_id,
                     unit_price_in_cents: fee_schedule_range.fee_in_cents,
                     fee_schedule_range_id: Some(fee_schedule_range.id),
@@ -235,12 +231,12 @@ impl OrderItem {
 
     fn quantity_valid_increment(
         new_record: bool,
-        item_type: String,
+        item_type: OrderItemTypes,
         quantity: i64,
         ticket_pricing_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Result<(), ValidationError>, DatabaseError> {
-        if item_type != OrderItemTypes::Tickets.to_string() {
+        if item_type != OrderItemTypes::Tickets {
             return Ok(Ok(()));
         }
         let result = select(order_items_quantity_in_increments(
@@ -323,7 +319,7 @@ impl OrderItem {
         order_items::table
             .filter(order_items::order_id.eq(order_id))
             .filter(order_items::id.eq(order_item_id))
-            .filter(order_items::item_type.eq(OrderItemTypes::Tickets.to_string()))
+            .filter(order_items::item_type.eq(OrderItemTypes::Tickets))
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve order item")
     }
@@ -333,7 +329,7 @@ impl OrderItem {
 #[table_name = "order_items"]
 pub(crate) struct NewTicketsOrderItem {
     pub order_id: Uuid,
-    pub item_type: String,
+    pub item_type: OrderItemTypes,
     pub event_id: Option<Uuid>,
     pub quantity: i64,
     pub unit_price_in_cents: i64,
@@ -388,7 +384,7 @@ impl NewTicketsOrderItem {
 #[table_name = "order_items"]
 pub(crate) struct NewFeesOrderItem {
     pub order_id: Uuid,
-    pub item_type: String,
+    pub item_type: OrderItemTypes,
     pub event_id: Option<Uuid>,
     pub quantity: i64,
     pub fee_schedule_range_id: Option<Uuid>,
@@ -422,7 +418,7 @@ pub struct DisplayOrderItem {
     #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
     #[sql_type = "Text"]
-    pub item_type: String,
+    pub item_type: OrderItemTypes,
     #[sql_type = "Text"]
     pub description: String,
     #[sql_type = "Nullable<Text>"]

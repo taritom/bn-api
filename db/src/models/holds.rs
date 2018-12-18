@@ -20,7 +20,7 @@ pub struct Hold {
     pub discount_in_cents: Option<i64>,
     pub end_at: Option<NaiveDateTime>,
     pub max_per_order: Option<i64>,
-    pub hold_type: String,
+    pub hold_type: HoldTypes,
     pub ticket_type_id: Uuid,
     pub email: Option<String>,
     pub phone: Option<String>,
@@ -33,7 +33,7 @@ pub struct Hold {
 pub struct UpdateHoldAttributes {
     pub name: Option<String>,
     pub redemption_code: Option<String>,
-    pub hold_type: Option<String>,
+    pub hold_type: Option<HoldTypes>,
     pub discount_in_cents: Option<Option<i64>>,
     #[validate(email(message = "Email is invalid"))]
     pub email: Option<Option<String>>,
@@ -65,7 +65,7 @@ impl Hold {
             discount_in_cents: discount_in_cents.and_then(|discount| Some(discount as i64)),
             end_at,
             max_per_order: max_per_order.map(|m| m as i64),
-            hold_type: hold_type.to_string(),
+            hold_type,
             ticket_type_id,
         }
     }
@@ -96,7 +96,7 @@ impl Hold {
             discount_in_cents: None,
             end_at,
             max_per_order: max_per_order.map(|m| m as i64),
-            hold_type: HoldTypes::Comp.to_string(),
+            hold_type: HoldTypes::Comp,
             ticket_type_id: hold.ticket_type_id,
         };
 
@@ -107,10 +107,6 @@ impl Hold {
         Ok(new_hold)
     }
 
-    pub fn hold_type(&self) -> HoldTypes {
-        self.hold_type.parse().unwrap()
-    }
-
     /// Updates a hold. Note, the quantity in the hold must be updated using
     /// `set_quantity`.
     pub fn update(
@@ -119,7 +115,7 @@ impl Hold {
         conn: &PgConnection,
     ) -> Result<Hold, DatabaseError> {
         let mut update_attrs = update_attrs;
-        if update_attrs.hold_type == Some(HoldTypes::Comp.to_string()) {
+        if update_attrs.hold_type == Some(HoldTypes::Comp) {
             // Remove discount
             update_attrs.discount_in_cents = Some(None);
         }
@@ -153,7 +149,7 @@ impl Hold {
         let total: i64 = holds::table
             .filter(
                 holds::hold_type
-                    .eq(hold_type.to_string())
+                    .eq(hold_type)
                     .and(holds::parent_hold_id.eq(parent_id)),
             )
             .count()
@@ -168,7 +164,7 @@ impl Hold {
             holds::table
                 .filter(
                     holds::hold_type
-                        .eq(hold_type.to_string())
+                        .eq(hold_type)
                         .and(holds::parent_hold_id.eq(parent_id)),
                 )
                 .order_by(holds::name)
@@ -256,7 +252,7 @@ impl Hold {
             discount_in_cents: discount_in_cents.map(|m| m as i64),
             end_at,
             max_per_order: max_per_order.map(|m| m as i64),
-            hold_type: hold_type.to_string(),
+            hold_type: hold_type,
             ticket_type_id: self.ticket_type_id,
         };
 
@@ -286,10 +282,10 @@ impl Hold {
     }
 
     pub fn discount_in_cents_valid(
-        hold_type: String,
+        hold_type: HoldTypes,
         discount_in_cents: Option<i64>,
     ) -> Result<(), ValidationError> {
-        if hold_type == HoldTypes::Discount.to_string() && discount_in_cents.is_none() {
+        if hold_type == HoldTypes::Discount && discount_in_cents.is_none() {
             let validation_error =
                 create_validation_error("required", "Discount required for hold type Discount");
             return Err(validation_error);
@@ -401,13 +397,13 @@ pub struct NewHold {
     pub discount_in_cents: Option<i64>,
     pub end_at: Option<NaiveDateTime>,
     pub max_per_order: Option<i64>,
-    pub hold_type: String,
+    pub hold_type: HoldTypes,
     pub ticket_type_id: Uuid,
 }
 
 impl NewHold {
     pub fn commit(mut self, conn: &PgConnection) -> Result<Hold, DatabaseError> {
-        if self.hold_type == HoldTypes::Comp.to_string() {
+        if self.hold_type == HoldTypes::Comp {
             self.discount_in_cents = None
         }
         self.validate_record(conn)?;

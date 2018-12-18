@@ -43,7 +43,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::CREATED);
         let body = support::unwrap_body_to_string(&response).unwrap();
         let event: Event = serde_json::from_str(&body).unwrap();
-        assert_eq!(event.status, EventStatus::Draft.to_string());
+        assert_eq!(event.status, EventStatus::Draft);
     } else {
         support::expects_unauthorized(&response);
     }
@@ -346,7 +346,7 @@ pub fn dashboard(role: Roles, should_test_succeed: bool) {
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
 
     let start_utc = Utc::now().naive_utc().date() - Duration::days(1);
     let end_utc = Utc::now().naive_utc().date();
@@ -536,7 +536,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         pub discount_in_cents: Option<i64>,
         pub end_at: Option<NaiveDateTime>,
         pub max_per_order: Option<i64>,
-        pub hold_type: String,
+        pub hold_type: HoldTypes,
         pub ticket_type_id: Uuid,
         pub available: u32,
         pub quantity: u32,

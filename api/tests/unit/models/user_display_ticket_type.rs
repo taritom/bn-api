@@ -24,10 +24,7 @@ fn from_ticket_type() {
     let display_ticket_type =
         UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 100);
-    assert_eq!(
-        display_ticket_type.status,
-        TicketTypeStatus::Published.to_string()
-    );
+    assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
     assert_eq!(
         Some(
             DisplayTicketPricing::from_ticket_pricing(&ticket_pricing, &fee_schedule, conn)
@@ -46,10 +43,7 @@ fn from_ticket_type() {
     let display_ticket_type =
         UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 90);
-    assert_eq!(
-        display_ticket_type.status,
-        TicketTypeStatus::Published.to_string()
-    );
+    assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
 
     // Remaining tickets sold
     order
@@ -66,10 +60,7 @@ fn from_ticket_type() {
     let display_ticket_type =
         UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 0);
-    assert_eq!(
-        display_ticket_type.status,
-        TicketTypeStatus::SoldOut.to_string()
-    );
+    assert_eq!(display_ticket_type.status, TicketTypeStatus::SoldOut);
 
     // Release some tickets
     order
@@ -86,10 +77,7 @@ fn from_ticket_type() {
     let display_ticket_type =
         UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 10);
-    assert_eq!(
-        display_ticket_type.status,
-        TicketTypeStatus::Published.to_string()
-    );
+    assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
 
     // No active ticket pricing
     let event = database.create_event().with_tickets().finish();
@@ -99,6 +87,6 @@ fn from_ticket_type() {
     assert_eq!(display_ticket_type.available, 100);
     assert_eq!(
         display_ticket_type.status,
-        TicketTypeStatus::NoActivePricing.to_string()
+        TicketTypeStatus::NoActivePricing
     );
 }

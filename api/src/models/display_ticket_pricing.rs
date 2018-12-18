@@ -1,5 +1,4 @@
-use bigneon_db::models::{FeeSchedule, TicketPricing};
-use bigneon_db::utils::errors::DatabaseError;
+use bigneon_db::prelude::*;
 use chrono::NaiveDateTime;
 use diesel::PgConnection;
 use uuid::Uuid;
@@ -8,7 +7,7 @@ use uuid::Uuid;
 pub struct DisplayTicketPricing {
     pub id: Uuid,
     pub name: String,
-    pub status: String,
+    pub status: TicketPricingStatus,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub price_in_cents: i64,
@@ -28,7 +27,7 @@ impl DisplayTicketPricing {
         Ok(DisplayTicketPricing {
             id: ticket_pricing.id,
             name: ticket_pricing.name.clone(),
-            status: ticket_pricing.status()?.to_string(),
+            status: ticket_pricing.status,
             start_date: ticket_pricing.start_date,
             end_date: ticket_pricing.end_date,
             price_in_cents: ticket_pricing.price_in_cents,

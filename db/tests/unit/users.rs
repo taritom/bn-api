@@ -189,7 +189,7 @@ fn get_profile_for_organization() {
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
     assert_eq!(
         user.get_profile_for_organization(&organization, connection)
             .unwrap(),
@@ -223,7 +223,7 @@ fn get_profile_for_organization() {
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
     cart.add_external_payment(Some("test".to_string()), user.id, 170, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
     assert_eq!(
         user.get_profile_for_organization(&organization, connection)
             .unwrap(),
@@ -257,7 +257,7 @@ fn get_profile_for_organization() {
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
     cart.add_external_payment(Some("test".to_string()), user.id, 170, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
     assert_eq!(
         user.get_profile_for_organization(&organization, connection)
             .unwrap(),
@@ -321,7 +321,7 @@ fn get_history_for_organization() {
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
 
     let paging = Paging::new(0, 100);
     let mut payload = Payload::new(
@@ -365,7 +365,7 @@ fn get_history_for_organization() {
     cart2
         .add_external_payment(Some("test".to_string()), user.id, 170, connection)
         .unwrap();
-    assert_eq!(cart2.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart2.status, OrderStatus::Paid);
 
     let paging = Paging::new(0, 100);
     let mut payload = Payload::new(
@@ -823,15 +823,15 @@ pub fn get_global_scopes() {
     user3 = user3.add_role(Roles::Admin, connection).unwrap();
 
     assert_eq!(
-        user.get_global_scopes().unwrap(),
+        user.get_global_scopes(),
         vec!["event:interest", "order:read", "ticket:transfer"]
     );
     assert_eq!(
-        user2.get_global_scopes().unwrap(),
+        user2.get_global_scopes(),
         vec!["event:interest", "order:read", "ticket:transfer"]
     );
     assert_eq!(
-        user3.get_global_scopes().unwrap(),
+        user3.get_global_scopes(),
         vec![
             "artist:write",
             "code:read",
@@ -874,5 +874,5 @@ fn add_role() {
         .unwrap();
 
     let user2 = User::find(user.id, project.get_connection()).unwrap();
-    assert_eq!(user2.role, vec!["User", "Admin"]);
+    assert_eq!(user2.role, vec![Roles::User, Roles::Admin]);
 }

@@ -14,6 +14,6 @@ fn create() {
 
     assert_eq!(organization_user.user_id, user2.id);
     assert_eq!(organization_user.organization_id, organization.id);
-    assert_eq!(organization_user.role, [Roles::OrgMember.to_string()]);
+    assert_eq!(organization_user.role, [Roles::OrgMember]);
     assert_eq!(organization_user.id.to_string().is_empty(), false);
 }

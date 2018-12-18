@@ -1,5 +1,4 @@
-use bigneon_db::models::{FeeSchedule, TicketType};
-use bigneon_db::utils::errors::DatabaseError;
+use bigneon_db::prelude::*;
 use chrono::NaiveDateTime;
 use diesel::PgConnection;
 use models::DisplayTicketPricing;
@@ -11,7 +10,7 @@ pub struct AdminDisplayTicketType {
     pub name: String,
     pub description: Option<String>,
     pub capacity: u32,
-    pub status: String,
+    pub status: TicketTypeStatus,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub available: u32,
@@ -41,7 +40,7 @@ impl AdminDisplayTicketType {
             id: ticket_type.id,
             name: ticket_type.name.clone(),
             description: ticket_type.description.clone(),
-            status: ticket_type.status()?.to_string(),
+            status: ticket_type.status,
             start_date: ticket_type.start_date,
             end_date: ticket_type.end_date,
             ticket_pricing: ticket_pricing_list,

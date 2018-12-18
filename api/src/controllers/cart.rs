@@ -372,7 +372,7 @@ fn checkout_free(
     user: &User,
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
-    if order.status()? != OrderStatus::Draft {
+    if order.status != OrderStatus::Draft {
         return application::unprocessable(
             "Could not complete this cart because it is not in the correct status",
         );
@@ -412,7 +412,7 @@ fn checkout_external(
         }
     }
 
-    if order.status()? != OrderStatus::Draft {
+    if order.status != OrderStatus::Draft {
         return application::unprocessable(
             "Could not complete this cart because it is not in the correct status",
         );
@@ -461,7 +461,7 @@ fn checkout_payment_processor(
 
     if order.user_id != auth_user.id() {
         return application::forbidden("This cart does not belong to you");
-    } else if order.status()? != OrderStatus::Draft {
+    } else if order.status != OrderStatus::Draft {
         return application::unprocessable(
             "Could not complete this cart because it is not in the correct status",
         );

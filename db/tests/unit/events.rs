@@ -139,11 +139,11 @@ fn publish() {
         .with_venue(&venue)
         .finish();
 
-    assert_eq!(event.status().unwrap(), EventStatus::Draft);
+    assert_eq!(event.status, EventStatus::Draft);
 
     let event = event.publish(project.get_connection()).unwrap();
 
-    assert_eq!(event.status().unwrap(), EventStatus::Published);
+    assert_eq!(event.status, EventStatus::Published);
     assert!(event.publish_date.is_some());
 }
 
@@ -201,7 +201,7 @@ fn get_sales_by_date_range() {
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
 
     // Other user does not checkout
     let mut cart2 = Order::find_or_create_cart(&user2, connection).unwrap();

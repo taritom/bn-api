@@ -24,7 +24,7 @@ where
     }
 
     pub fn publish(&self, event: DomainEvent, conn: &PgConnection) -> Result<(), DatabaseError> {
-        let actions = self.subscriptions.get(&event.event_type()?);
+        let actions = self.subscriptions.get(&event.event_type);
         if let Some(action_list) = actions {
             for action_factory in action_list.iter() {
                 if let Some(action) = action_factory(&event) {

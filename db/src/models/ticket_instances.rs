@@ -30,7 +30,7 @@ pub struct TicketInstance {
     pub redeem_key: Option<String>,
     pub transfer_key: Option<Uuid>,
     pub transfer_expiry_date: Option<NaiveDateTime>,
-    pub status: String,
+    pub status: TicketInstanceStatus,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
 }
@@ -427,7 +427,7 @@ impl TicketInstance {
         )
         .set((
             ticket_instances::wallet_id.eq(wallet[0].id()),
-            ticket_instances::status.eq(TicketInstanceStatus::Purchased.to_string()),
+            ticket_instances::status.eq(TicketInstanceStatus::Purchased),
             ticket_instances::updated_at.eq(dsl::now),
         ))
         .get_results::<TicketInstance>(conn)
@@ -458,15 +458,15 @@ impl TicketInstance {
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
 
-        if ticket.status == TicketInstanceStatus::Purchased.to_string()
+        if ticket.status == TicketInstanceStatus::Purchased
             && ticket.redeem_key.is_some()
             && ticket.redeem_key.unwrap() == redeem_key
         {
             diesel::update(ticket_instances::table.filter(ticket_instances::id.eq(ticket_id)))
-                .set(ticket_instances::status.eq(TicketInstanceStatus::Redeemed.to_string()))
+                .set(ticket_instances::status.eq(TicketInstanceStatus::Redeemed))
                 .execute(conn)
                 .to_db_error(ErrorCode::UpdateError, "Could not set ticket to Redeemed")?;
-        } else if ticket.status == TicketInstanceStatus::Redeemed.to_string() {
+        } else if ticket.status == TicketInstanceStatus::Redeemed {
             return Ok(RedeemResults::TicketAlreadyRedeemed);
         } else {
             return Ok(RedeemResults::TicketInvalid);
@@ -549,7 +549,7 @@ impl TicketInstance {
         for ti in &ticket_ids {
             let mut found_and_purchased = false;
             for t in &tickets {
-                if t.id == *ti && t.status == TicketInstanceStatus::Purchased.to_string() {
+                if t.id == *ti && t.status == TicketInstanceStatus::Purchased {
                     found_and_purchased = true;
                     ticket_ids_and_updated_at.push((*ti, t.updated_at));
                     wallet_id = t.wallet_id;
@@ -714,7 +714,7 @@ pub struct DisplayTicket {
     pub order_id: Uuid,
     pub price_in_cents: u32,
     pub ticket_type_name: String,
-    pub status: String,
+    pub status: TicketInstanceStatus,
     pub redeem_key: Option<String>,
 }
 
@@ -735,7 +735,7 @@ pub struct DisplayTicketIntermediary {
     #[sql_type = "Nullable<dUuid>"]
     pub venue_id: Option<Uuid>,
     #[sql_type = "Text"]
-    pub status: String,
+    pub status: TicketInstanceStatus,
     #[sql_type = "Nullable<Text>"]
     pub redeem_key: Option<String>,
     #[sql_type = "Nullable<Timestamp>"]

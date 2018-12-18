@@ -178,7 +178,7 @@ pub fn find() {
         order_id: cart.id,
         price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type.name.clone(),
-        status: "Reserved".to_string(),
+        status: TicketInstanceStatus::Reserved,
         redeem_key: ticket.redeem_key,
     };
     assert_eq!(

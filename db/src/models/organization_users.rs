@@ -20,7 +20,7 @@ pub struct OrganizationUser {
 
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-    pub role: Vec<String>,
+    pub role: Vec<Roles>,
 }
 
 #[derive(Insertable)]
@@ -28,7 +28,7 @@ pub struct OrganizationUser {
 pub struct NewOrganizationUser {
     pub organization_id: Uuid,
     pub user_id: Uuid,
-    role: Vec<String>,
+    role: Vec<Roles>,
 }
 
 impl NewOrganizationUser {
@@ -64,8 +64,7 @@ impl NewOrganizationUser {
 }
 
 impl OrganizationUser {
-    pub fn create(organization_id: Uuid, user_id: Uuid, roles: Vec<Roles>) -> NewOrganizationUser {
-        let role = roles.iter().map(|s| s.to_string()).collect();
+    pub fn create(organization_id: Uuid, user_id: Uuid, role: Vec<Roles>) -> NewOrganizationUser {
         NewOrganizationUser {
             organization_id,
             user_id,

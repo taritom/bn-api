@@ -105,7 +105,7 @@ pub fn index() {
         order_id: cart.id,
         price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type.name.clone(),
-        status: "Purchased".to_string(),
+        status: TicketInstanceStatus::Purchased,
         redeem_key: ticket.redeem_key,
     };
     assert_eq!(vec![expected_ticket.clone()], found_data.data);
@@ -130,7 +130,7 @@ pub fn index() {
         order_id: cart.id,
         price_in_cents: (ticket_pricing2.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type2.name.clone(),
-        status: "Purchased".to_string(),
+        status: TicketInstanceStatus::Purchased,
         redeem_key: ticket2.redeem_key,
     };
     assert_eq!(
@@ -219,7 +219,7 @@ pub fn show() {
         order_id: cart.id,
         price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
         ticket_type_name: ticket_type.name.clone(),
-        status: "Purchased".to_string(),
+        status: TicketInstanceStatus::Purchased,
         redeem_key: ticket.redeem_key,
     };
 

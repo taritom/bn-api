@@ -1,5 +1,4 @@
-use bigneon_db::models::{FeeSchedule, TicketType, TicketTypeStatus};
-use bigneon_db::utils::errors::*;
+use bigneon_db::prelude::*;
 use chrono::NaiveDateTime;
 use diesel::PgConnection;
 use models::DisplayTicketPricing;
@@ -10,7 +9,7 @@ pub struct UserDisplayTicketType {
     pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub status: String,
+    pub status: TicketTypeStatus,
     pub available: u32,
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
@@ -25,8 +24,7 @@ impl UserDisplayTicketType {
         fee_schedule: &FeeSchedule,
         conn: &PgConnection,
     ) -> Result<UserDisplayTicketType, DatabaseError> {
-        let ticket_type_status = ticket_type.status()?;
-        let mut status = ticket_type_status.to_string();
+        let mut status = ticket_type.status;
         let available = ticket_type.remaining_ticket_count(conn)?;
 
         let ticket_pricing = match ticket_type.current_ticket_pricing(conn).optional()? {
@@ -38,11 +36,11 @@ impl UserDisplayTicketType {
             None => None,
         };
 
-        if ticket_type_status == TicketTypeStatus::Published {
+        if ticket_type.status == TicketTypeStatus::Published {
             if available == 0 {
-                status = TicketTypeStatus::SoldOut.to_string();
+                status = TicketTypeStatus::SoldOut;
             } else if ticket_pricing.is_none() {
-                status = TicketTypeStatus::NoActivePricing.to_string();
+                status = TicketTypeStatus::NoActivePricing;
             }
         }
 

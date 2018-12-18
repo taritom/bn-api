@@ -158,7 +158,7 @@ fn find_for_hold() {
         .finish();
 
     let update_patch = UpdateHoldAttributes {
-        hold_type: Some(HoldTypes::Discount.to_string()),
+        hold_type: Some(HoldTypes::Discount),
         discount_in_cents: Some(Some(0)),
         ..Default::default()
     };

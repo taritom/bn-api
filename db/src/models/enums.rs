@@ -1,15 +1,44 @@
+use diesel::deserialize::{self, FromSql};
+use diesel::pg::Pg;
+use diesel::serialize::{self, IsNull, Output, ToSql};
+use diesel::sql_types::*;
 use std::fmt;
+use std::io::Write;
+use std::str;
 use std::str::FromStr;
 use utils::errors::EnumParseError;
 
 macro_rules! string_enum {
     ($name:ident [$($value:ident),+]) => {
 
-        #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug, Eq, Hash)]
+        #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug, Eq, Hash, FromSqlRow, AsExpression)]
+        #[sql_type = "Text"]
         pub enum $name {
             $(
                 $value,
             )*
+        }
+
+        impl ToSql<Text, Pg> for $name {
+            fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+                match *self {
+                    $(
+                      $name::$value => out.write_all(stringify!($value).as_bytes())?,
+                    )*
+                }
+                Ok(IsNull::No)
+            }
+        }
+
+        impl FromSql<Text, Pg> for $name {
+            fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+                match str::from_utf8(not_none!(bytes))? {
+                    $(
+                        stringify!($value) => Ok($name::$value),
+                    )*
+                    _ => Err("Unrecognized enum variant".into()),
+                }
+            }
         }
 
         impl fmt::Display for $name {
@@ -67,6 +96,12 @@ string_enum! { Tables [Orders, Payments, PaymentMethods] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut] }
+
+impl Default for EventStatus {
+    fn default() -> EventStatus {
+        EventStatus::Draft
+    }
+}
 
 #[test]
 fn display() {

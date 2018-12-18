@@ -22,7 +22,7 @@ pub struct User {
 
 impl User {
     pub fn new(user: DbUser, request: &HttpRequest<AppState>) -> Result<User, EnumParseError> {
-        let global_scopes = user.get_global_scopes()?;
+        let global_scopes = user.get_global_scopes();
         Ok(User {
             user,
             global_scopes,

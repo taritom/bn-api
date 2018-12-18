@@ -25,7 +25,7 @@ pub fn show(
     user.requires_scope(Scopes::OrderRead)?;
     let order = Order::find(path.id, conn.get())?;
 
-    if order.user_id != user.id() || order.status == OrderStatus::Draft.to_string() {
+    if order.user_id != user.id() || order.status == OrderStatus::Draft {
         return application::forbidden("You do not have access to this order");
     }
 
@@ -69,7 +69,7 @@ pub fn tickets(
     for item in order
         .items(conn)?
         .iter()
-        .filter(|t| t.item_type() == Ok(OrderItemTypes::Tickets))
+        .filter(|t| t.item_type == OrderItemTypes::Tickets)
     {
         if order.user_id != user.id() && order.on_behalf_of_user_id != Some(user.id()) {
             if item.event_id.is_none()

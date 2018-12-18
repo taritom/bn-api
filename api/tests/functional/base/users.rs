@@ -44,7 +44,7 @@ pub fn profile(role: Roles, should_test_true: bool) {
     assert_eq!(cart.calculate_total(&*connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
     let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();
@@ -110,7 +110,7 @@ pub fn history(role: Roles, should_test_true: bool) {
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
     cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
         .unwrap();
-    assert_eq!(cart.status().unwrap(), OrderStatus::Paid);
+    assert_eq!(cart.status, OrderStatus::Paid);
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
     let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();

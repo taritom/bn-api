@@ -32,7 +32,7 @@ pub struct Event {
     pub created_at: NaiveDateTime,
     pub event_start: Option<NaiveDateTime>,
     pub door_time: Option<NaiveDateTime>,
-    pub status: String,
+    pub status: EventStatus,
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
     pub fee_in_cents: i64,
@@ -49,7 +49,7 @@ pub struct Event {
     pub video_url: Option<String>,
     pub is_external: bool,
     pub external_url: Option<String>,
-    pub override_status: Option<String>, //EventOverrideStatus
+    pub override_status: Option<EventOverrideStatus>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
@@ -61,7 +61,7 @@ pub struct NewEvent {
     pub event_start: Option<NaiveDateTime>,
     pub door_time: Option<NaiveDateTime>,
     #[serde(default = "NewEvent::default_status", skip_deserializing)]
-    pub status: String,
+    pub status: EventStatus,
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
     pub fee_in_cents: Option<i64>,
@@ -88,7 +88,7 @@ pub struct NewEvent {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub external_url: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub override_status: Option<String>, //EventOverrideStatus
+    pub override_status: Option<EventOverrideStatus>,
 }
 
 #[derive(AsChangeset)]
@@ -112,9 +112,10 @@ impl NewEvent {
             .to_db_error(ErrorCode::InsertError, "Could not create new event")
     }
 
-    pub fn default_status() -> String {
-        EventStatus::Draft.to_string()
+    pub fn default_status() -> EventStatus {
+        EventStatus::Draft
     }
+
     pub fn default_is_external() -> bool {
         false
     }
@@ -150,7 +151,7 @@ pub struct EventEditableAttributes {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub external_url: Option<String>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
-    pub override_status: Option<Option<String>>, //EventOverrideStatus
+    pub override_status: Option<Option<EventOverrideStatus>>,
 }
 
 impl Event {
@@ -165,7 +166,7 @@ impl Event {
     ) -> NewEvent {
         NewEvent {
             name: name.into(),
-            status: status.to_string(),
+            status,
             organization_id,
             venue_id,
             event_start,
@@ -173,10 +174,6 @@ impl Event {
             publish_date,
             ..Default::default()
         }
-    }
-
-    pub fn status(&self) -> Result<EventStatus, EnumParseError> {
-        self.status.parse::<EventStatus>()
     }
 
     pub fn update_cache(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
@@ -237,7 +234,7 @@ impl Event {
     }
 
     pub fn publish(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
-        if self.status()? == EventStatus::Published {
+        if self.status == EventStatus::Published {
             return Event::find(self.id, conn);
         }
 
@@ -255,7 +252,7 @@ impl Event {
 
         diesel::update(&self)
             .set((
-                events::status.eq(EventStatus::Published.to_string()),
+                events::status.eq(EventStatus::Published),
                 events::publish_date.eq(dsl::now.nullable()),
                 events::updated_at.eq(dsl::now),
             ))
@@ -289,7 +286,7 @@ impl Event {
             "Error loading event via venue",
             events::table
                 .filter(events::venue_id.eq(venue_id))
-                .filter(events::status.eq(EventStatus::Published.to_string()))
+                .filter(events::status.eq(EventStatus::Published))
                 .filter(events::cancelled_at.is_null())
                 .order_by(events::name)
                 .load(conn),
@@ -382,7 +379,7 @@ impl Event {
             #[sql_type = "N<sql_types::Timestamp>"]
             door_time: Option<NaiveDateTime>,
             #[sql_type = "sql_types::Text"]
-            status: String,
+            status: EventStatus,
             #[sql_type = "N<sql_types::Text>"]
             promo_image_url: Option<String>,
             #[sql_type = "N<sql_types::Text>"]
@@ -408,7 +405,7 @@ impl Event {
             #[sql_type = "N<sql_types::Text>"]
             external_url: Option<String>,
             #[sql_type = "N<sql_types::Text>"]
-            override_status: Option<String>,
+            override_status: Option<EventOverrideStatus>,
         }
 
         let query_events = include_str!("../queries/find_all_events_for_organization.sql");
@@ -678,18 +675,18 @@ impl Event {
             Some(user) => {
                 // Admin results include all drafts across organizations
                 if !user
-                    .get_global_scopes()?
+                    .get_global_scopes()
                     .contains(&Scopes::OrgAdmin.to_string())
                 {
                     query = query.filter(
                         events::status
-                            .ne(EventStatus::Draft.to_string())
+                            .ne(EventStatus::Draft)
                             .or(organization_users::user_id.eq(user.id)),
                     );
                 }
             }
             None => {
-                query = query.filter(events::status.ne(EventStatus::Draft.to_string()));
+                query = query.filter(events::status.ne(EventStatus::Draft));
             }
         }
 
@@ -698,10 +695,6 @@ impl Event {
         }
 
         if let Some(statuses) = status_filter {
-            let statuses: Vec<String> = statuses
-                .into_iter()
-                .map(|status| status.to_string())
-                .collect();
             query = query.filter(events::status.eq_any(statuses));
         }
 
@@ -820,7 +813,7 @@ pub struct DisplayEvent {
     pub video_url: Option<String>,
     pub is_external: bool,
     pub external_url: Option<String>,
-    pub override_status: Option<String>,
+    pub override_status: Option<EventOverrideStatus>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -832,7 +825,7 @@ pub struct EventSummaryResult {
     pub created_at: NaiveDateTime,
     pub event_start: Option<NaiveDateTime>,
     pub door_time: Option<NaiveDateTime>,
-    pub status: String,
+    pub status: EventStatus,
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub top_line_info: Option<String>,
@@ -851,7 +844,7 @@ pub struct EventSummaryResult {
     pub ticket_types: Vec<EventSummaryResultTicketType>,
     pub is_external: bool,
     pub external_url: Option<String>,
-    pub override_status: Option<String>,
+    pub override_status: Option<EventOverrideStatus>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]

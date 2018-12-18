@@ -198,7 +198,7 @@ impl DomainActionMonitor {
                     _ => return Err(e.into()),
                 },
             };
-            let command = router.get_executor_for(action.domain_action_type()?);
+            let command = router.get_executor_for(action.domain_action_type);
             if command.is_none() {
                 action.set_errored(
                     "Not executor has been created for this action type",
