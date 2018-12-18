@@ -39,7 +39,7 @@ pub struct OrganizationInvite {
     pub accepted: Option<i16>,
     pub updated_at: NaiveDateTime,
     pub sent_invite: bool,
-    pub role: String,
+    pub roles: Vec<Roles>,
 }
 
 #[derive(Insertable, PartialEq, Debug, Deserialize, Validate)]
@@ -51,7 +51,7 @@ pub struct NewOrganizationInvite {
     pub user_email: String,
     pub security_token: Option<Uuid>,
     pub user_id: Option<Uuid>,
-    pub role: String,
+    pub roles: Vec<Roles>,
 }
 
 #[derive(Debug, PartialEq, Queryable, Serialize, QueryableByName)]
@@ -85,15 +85,13 @@ impl OrganizationInvite {
         user_id: Option<Uuid>,
         roles: Vec<Roles>,
     ) -> NewOrganizationInvite {
-        let roles = roles.iter().map(|r| r.to_string()).collect();
-
         NewOrganizationInvite {
             organization_id: org_id,
             inviter_id: invitee_id,
             user_email: email.into(),
             security_token: None,
             user_id,
-            role: roles,
+            roles,
         }
     }
 

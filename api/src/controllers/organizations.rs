@@ -279,8 +279,9 @@ pub fn list_organization_members(
             first_name: u.1.first_name,
             last_name: u.1.last_name,
             email: u.1.email,
-            roles: u.0.role.iter().map(|r| r.to_string()).collect(),
+            roles: u.0.role,
             invite_or_member: "member".to_string(),
+            invite_id: None,
         })
         .collect();
 
@@ -290,8 +291,9 @@ pub fn list_organization_members(
             first_name: None,
             last_name: None,
             email: Some(inv.user_email),
-            roles: vec![format!("{} (Invited)", inv.role)],
+            roles: inv.roles,
             invite_or_member: "invite".to_string(),
+            invite_id: Some(inv.id),
         });
     }
 
@@ -305,8 +307,9 @@ pub struct DisplayOrganizationUser {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub email: Option<String>,
-    pub roles: Vec<String>,
+    pub roles: Vec<Roles>,
     pub invite_or_member: String,
+    pub invite_id: Option<Uuid>,
 }
 
 pub fn show_fee_schedule(

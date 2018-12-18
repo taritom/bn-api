@@ -10,7 +10,6 @@ use extractors::*;
 use helpers::application;
 use models::{OrganizationInvitePathParameters, PathParameters, WebPayload};
 use server::AppState;
-use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -27,7 +26,7 @@ pub struct InviteResponseQuery {
 #[derive(Deserialize)]
 pub struct NewOrgInviteRequest {
     pub user_email: String,
-    pub role: Roles,
+    pub roles: Vec<Roles>,
 }
 
 pub fn create(
@@ -41,33 +40,38 @@ pub fn create(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
-    match &new_org_invite.role {
-        &Roles::OrgOwner => auth_user.requires_scope_for_organization(
-            Scopes::OrgAdmin,
-            &organization,
-            connection,
-        )?,
-        &Roles::OrgAdmin => auth_user.requires_scope_for_organization(
-            Scopes::OrgManageAdminUsers,
-            &organization,
-            connection,
-        )?,
-        &Roles::OrgMember => auth_user.requires_scope_for_organization(
-            Scopes::OrgManageUsers,
-            &organization,
-            connection,
-        )?,
-        &Roles::DoorPerson => auth_user.requires_scope_for_organization(
-            Scopes::OrgManageUsers,
-            &organization,
-            connection,
-        )?,
-        &Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
-            Scopes::OrgManageUsers,
-            &organization,
-            connection,
-        )?,
-        _ => DatabaseError::validation_error("role", "Role must be either OrgOwner or OrgMember")?,
+    for role in &new_org_invite.roles {
+        match role {
+            &Roles::OrgOwner => auth_user.requires_scope_for_organization(
+                Scopes::OrgAdmin,
+                &organization,
+                connection,
+            )?,
+            &Roles::OrgAdmin => auth_user.requires_scope_for_organization(
+                Scopes::OrgManageAdminUsers,
+                &organization,
+                connection,
+            )?,
+            &Roles::OrgMember => auth_user.requires_scope_for_organization(
+                Scopes::OrgManageUsers,
+                &organization,
+                connection,
+            )?,
+            &Roles::DoorPerson => auth_user.requires_scope_for_organization(
+                Scopes::OrgManageUsers,
+                &organization,
+                connection,
+            )?,
+            &Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
+                Scopes::OrgManageUsers,
+                &organization,
+                connection,
+            )?,
+            _ => DatabaseError::validation_error(
+                "role",
+                "Role must be either OrgOwner or OrgMember",
+            )?,
+        }
     }
 
     let mut invite: NewOrganizationInvite;
@@ -95,14 +99,13 @@ pub fn create(
         i.change_invite_status(0, connection)?;
     }
 
-    invite = NewOrganizationInvite {
-        organization_id: path.id,
-        inviter_id: auth_user.id(),
-        user_email: new_org_invite.user_email.clone(),
-        security_token: None,
+    invite = OrganizationInvite::create(
+        path.id,
+        auth_user.id(),
+        new_org_invite.user_email.as_str(),
         user_id,
-        role: new_org_invite.role.to_string(),
-    };
+        new_org_invite.roles.clone(),
+    );
 
     let invite = invite.commit(connection)?;
     let organization = Organization::find(invite.organization_id, connection)?;
@@ -147,38 +150,40 @@ pub fn destroy(
     let organization = invite.organization(connection)?;
 
     // Level of access dependent on scope of the invited member
-    match invite.role.parse()? {
-        Roles::OrgOwner => auth_user.requires_scope_for_organization(
-            Scopes::OrgAdmin,
-            &organization,
-            connection,
-        )?,
-        Roles::OrgAdmin => auth_user.requires_scope_for_organization(
-            Scopes::OrgManageAdminUsers,
-            &organization,
-            connection,
-        )?,
-        Roles::OrgMember => auth_user.requires_scope_for_organization(
-            Scopes::OrgManageUsers,
-            &organization,
-            connection,
-        )?,
-        Roles::DoorPerson => auth_user.requires_scope_for_organization(
-            Scopes::OrgManageUsers,
-            &organization,
-            connection,
-        )?,
-        Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
-            Scopes::OrgManageUsers,
-            &organization,
-            connection,
-        )?,
-        // Should not happen but if it ever did allow admin to destroy record
-        _ => auth_user.requires_scope_for_organization(
-            Scopes::OrgAdmin,
-            &organization,
-            connection,
-        )?,
+    for role in &invite.roles {
+        match role {
+            &Roles::OrgOwner => auth_user.requires_scope_for_organization(
+                Scopes::OrgAdmin,
+                &organization,
+                connection,
+            )?,
+            &Roles::OrgAdmin => auth_user.requires_scope_for_organization(
+                Scopes::OrgManageAdminUsers,
+                &organization,
+                connection,
+            )?,
+            &Roles::OrgMember => auth_user.requires_scope_for_organization(
+                Scopes::OrgManageUsers,
+                &organization,
+                connection,
+            )?,
+            &Roles::DoorPerson => auth_user.requires_scope_for_organization(
+                Scopes::OrgManageUsers,
+                &organization,
+                connection,
+            )?,
+            &Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
+                Scopes::OrgManageUsers,
+                &organization,
+                connection,
+            )?,
+            // Should not happen but if it ever did allow admin to destroy record
+            _ => auth_user.requires_scope_for_organization(
+                Scopes::OrgAdmin,
+                &organization,
+                connection,
+            )?,
+        }
     }
 
     invite.destroy(connection)?;
@@ -225,11 +230,7 @@ pub fn accept_request(
             if valid_for_acceptance {
                 invite_details.change_invite_status(1, connection)?;
                 let org = Organization::find(invite_details.organization_id, connection)?;
-                org.add_user(
-                    u.id(),
-                    vec![Roles::from_str(&invite_details.role).unwrap()],
-                    connection,
-                )?;
+                org.add_user(u.id(), invite_details.roles, connection)?;
             } else {
                 return application::unauthorized(&request, Some(u));
             }

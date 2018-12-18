@@ -389,8 +389,9 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
             first_name: user1.first_name,
             last_name: user1.last_name,
             email: user1.email,
-            roles: vec![role.to_string()],
+            roles: vec![role],
             invite_or_member: "member".to_string(),
+            invite_id: None,
         });
     }
     organization_members.push(DisplayOrganizationUser {
@@ -398,8 +399,9 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
         first_name: user2.first_name,
         last_name: user2.last_name,
         email: user2.email,
-        roles: vec![Roles::OrgMember.to_string()],
+        roles: vec![Roles::OrgMember],
         invite_or_member: "member".to_string(),
+        invite_id: None,
     });
 
     let count = organization_members.len();

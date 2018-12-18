@@ -27,7 +27,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let state = test_request.extract_state();
     let json = Json(NewOrgInviteRequest {
         user_email: email.into(),
-        role: Roles::OrgMember,
+        roles: vec![Roles::OrgMember],
     });
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
@@ -64,7 +64,7 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
     let email = "jeff2@tari.com";
     let json = Json(NewOrgInviteRequest {
         user_email: email.into(),
-        role: Roles::OrgMember,
+        roles: vec![Roles::OrgMember],
     });
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;

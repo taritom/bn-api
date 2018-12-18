@@ -10,7 +10,7 @@ INSERT INTO public.wallets (id, user_id, organization_id, name, secret_key, publ
 INSERT INTO public.fee_schedules (id, name, version, created_at, updated_at) VALUES ('7730da06-b35c-4e7b-8608-baec34041fc2', 'Zero', 1, '2018-09-27 12:15:47.841257', '2018-09-27 12:15:47.841257');
 INSERT INTO public.fee_schedule_ranges(fee_schedule_id, min_price_in_cents, fee_in_cents) VALUES ('7730da06-b35c-4e7b-8608-baec34041fc2',0,0);
 
-INSERT INTO public.organizations (id, owner_user_id, name, address, city, state, country, postal_code, phone, fee_schedule_id) VALUES ('ac1e48f2-6765-4a18-b43c-d3c9836bc4c3', '380ec4a0-871e-40f2-b2b4-49d99df1e59c', 'Jazzy', null, null, null, null, null, null, '7730da06-b35c-4e7b-8608-baec34041fc2');
+INSERT INTO public.organizations (id, name, address, city, state, country, postal_code, phone, fee_schedule_id) VALUES ('ac1e48f2-6765-4a18-b43c-d3c9836bc4c3', 'Jazzy', null, null, null, null, null, null, '7730da06-b35c-4e7b-8608-baec34041fc2');
 
 INSERT INTO public.venues (id, region_id, name, address, city, state, country, postal_code, phone) VALUES ('bd24baee-c074-46a7-b5c9-8bdfefb10ef5', '00000000-0000-0000-0000-000000000000', 'Test venue 2', '123 place place', 'towntown', 'state', 'rsa', '1234', '1800123456');
 INSERT INTO public.venues (id, region_id,name, address, city, state, country, postal_code, phone) VALUES ('0eb7fa9d-6a80-4c21-ac5c-d0682ab7dae6', '00000000-0000-0000-0000-000000000000', 'Test venue 1', '123 place place', 'towntown', 'state', 'rsa', '1234', '1800123456');

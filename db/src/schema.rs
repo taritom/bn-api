@@ -242,7 +242,7 @@ table! {
         accepted -> Nullable<Int2>,
         updated_at -> Timestamp,
         sent_invite -> Bool,
-        role -> Text,
+    roles -> Array<Text>,
     }
 }
 
