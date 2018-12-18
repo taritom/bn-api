@@ -1,11 +1,10 @@
-extern crate chrono;
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{OrganizationInvite, Roles};
+use bigneon_db::prelude::*;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
-use bigneon_db::utils::errors::{DatabaseError, ErrorCode};
+use chrono::prelude::*;
+use chrono::Duration;
 use diesel;
 use diesel::prelude::*;
-use unit::organization_invites::chrono::prelude::*;
 
 #[test]
 fn create() {
@@ -65,13 +64,13 @@ fn change_invite_status_of_invite() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let organization = project.create_organization().with_owner(&user).finish();
-    let org_invite = project
+    let mut org_invite = project
         .create_organization_invite()
         .with_org(&organization)
         .with_invitee(&user)
         .link_to_user(&user2)
         .finish();
-    let org_invite2 = project
+    let mut org_invite2 = project
         .create_organization_invite()
         .with_org(&organization)
         .with_invitee(&user)
@@ -81,16 +80,16 @@ fn change_invite_status_of_invite() {
     we cant test for an exact date, as this will depend on the database write delay
     we will test for a period of 30 seconds
     */
-    let compare_true = org_invite.accept_invite(&project.get_connection()).unwrap();
-    let compare_false = org_invite2
+    assert!(org_invite.accept_invite(&project.get_connection()).is_ok());
+    assert!(org_invite2
         .decline_invite(&project.get_connection())
-        .unwrap();
+        .is_ok());
 
-    assert_eq!(compare_true.accepted, Some(1));
-    assert_eq!(compare_true.security_token, None);
+    assert_eq!(org_invite.accepted, Some(1));
+    assert_eq!(org_invite.security_token, None);
 
-    assert_eq!(compare_false.accepted, Some(0));
-    assert_eq!(compare_false.security_token, None);
+    assert_eq!(org_invite2.accepted, Some(0));
+    assert_eq!(org_invite2.security_token, None);
 }
 
 #[test]
@@ -153,6 +152,150 @@ fn test_token_validity() {
         Ok(_val) => assert_eq!(true, false), //this should not happen, so this should fail
         Err(val) => assert_eq!(error_value, val),
     }
+}
+
+#[test]
+fn find() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user1 = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user1).finish();
+    let invite = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_inviter(&user1)
+        .with_invitee(&user2)
+        .finish();
+    let result = OrganizationInvite::find(invite.id, connection);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), invite);
+}
+
+#[test]
+fn destroy() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user1 = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let user4 = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user1).finish();
+
+    let mut org_invite1 = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_inviter(&user1)
+        .with_invitee(&user2)
+        .finish();
+
+    let mut org_invite2 = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_inviter(&user1)
+        .with_invitee(&user3)
+        .finish();
+
+    let org_invite3 = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_inviter(&user1)
+        .with_invitee(&user4)
+        .finish();
+
+    // Decline first invite
+    org_invite1.change_invite_status(0, connection).unwrap();
+
+    // Accept second invite
+    org_invite2.change_invite_status(1, connection).unwrap();
+
+    let result = org_invite1.destroy(connection);
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err().cause,
+        Some("Cannot destroy invite it has already been declined.".into())
+    );
+
+    let result = org_invite2.destroy(connection);
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err().cause,
+        Some("Cannot destroy invite it has already been accepted.".into())
+    );
+
+    let result = org_invite3.destroy(connection);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn organization() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user1 = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user1).finish();
+
+    let org_invite = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_inviter(&user1)
+        .with_invitee(&user2)
+        .finish();
+
+    assert_eq!(organization, org_invite.organization(connection).unwrap());
+}
+
+#[test]
+fn find_pending_by_organization_paged() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user1 = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let user4 = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user1).finish();
+
+    let mut org_invite1 = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_inviter(&user1)
+        .with_invitee(&user2)
+        .finish();
+
+    let mut org_invite2 = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_inviter(&user1)
+        .with_invitee(&user3)
+        .finish();
+
+    let org_invite3 = project
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_inviter(&user1)
+        .with_invitee(&user4)
+        .finish();
+
+    // Decline first invite
+    org_invite1.change_invite_status(0, connection).unwrap();
+
+    // Accept second invite
+    org_invite2.change_invite_status(1, connection).unwrap();
+
+    let paged_invites =
+        OrganizationInvite::find_pending_by_organization_paged(organization.id, 0, 100, connection)
+            .unwrap();
+    assert_eq!(
+        vec![DisplayInvite {
+            id: org_invite3.id,
+            organization_name: organization.name,
+            inviter_name: format!("{} {}", user4.first_name.unwrap(), user4.last_name.unwrap())
+                .into(),
+            expires_at: org_invite3.created_at + Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS),
+        }],
+        paged_invites.data
+    );
+    assert_eq!(1, paged_invites.paging.total);
 }
 
 #[test]

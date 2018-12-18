@@ -147,7 +147,11 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/organizations/{id}/fans", |r| {
         r.method(Method::GET).with(organizations::search_fans);
     })
-    .resource("/organizations/{id}/invite", |r| {
+    .resource("/organizations/{id}/invites/{invite_id}", |r| {
+        r.method(Method::DELETE).with(organization_invites::destroy);
+    })
+    .resource("/organizations/{id}/invites", |r| {
+        r.method(Method::GET).with(organization_invites::index);
         r.method(Method::POST).with(organization_invites::create);
     })
     .resource("/organizations/{id}/users", |r| {

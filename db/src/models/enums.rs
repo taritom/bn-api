@@ -106,6 +106,7 @@ impl Default for EventStatus {
 #[test]
 fn display() {
     assert_eq!(Roles::Admin.to_string(), "Admin");
+    assert_eq!(Roles::OrgAdmin.to_string(), "OrgAdmin");
     assert_eq!(Roles::OrgMember.to_string(), "OrgMember");
     assert_eq!(Roles::OrgOwner.to_string(), "OrgOwner");
     assert_eq!(Roles::OrgBoxOffice.to_string(), "OrgBoxOffice");

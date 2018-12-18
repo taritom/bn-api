@@ -1,8 +1,8 @@
 use chrono::{Duration, NaiveDateTime, Utc};
 use diesel;
-use diesel::dsl::{self, sql};
+use diesel::dsl::sql;
 use diesel::prelude::*;
-use diesel::sql_types::{Text, Timestamp};
+use diesel::sql_types::{Text, Timestamp, Uuid as dUuid};
 use models::*;
 use schema::{organization_invites, organizations, users};
 use utils::errors::ConvertToDatabaseError;
@@ -10,7 +10,7 @@ use utils::errors::{DatabaseError, ErrorCode};
 use uuid::Uuid;
 use validator::Validate;
 
-const INVITE_EXPIRATION_PERIOD_IN_DAYS: i64 = 7;
+pub const INVITE_EXPIRATION_PERIOD_IN_DAYS: i64 = 7;
 
 #[derive(
     Associations,
@@ -54,8 +54,10 @@ pub struct NewOrganizationInvite {
     pub role: String,
 }
 
-#[derive(Debug, Queryable, Serialize, QueryableByName)]
+#[derive(Debug, PartialEq, Queryable, Serialize, QueryableByName)]
 pub struct DisplayInvite {
+    #[sql_type = "dUuid"]
+    pub id: Uuid,
     #[sql_type = "Text"]
     pub organization_name: String,
     #[sql_type = "Text"]
@@ -95,30 +97,38 @@ impl OrganizationInvite {
         }
     }
 
-    pub fn change_invite_status(
-        &self,
-        change_status: i16,
-        conn: &PgConnection,
-    ) -> Result<OrganizationInvite, DatabaseError> {
-        let null: Option<Uuid> = None; //this here so the compiler can infer the type of None
-        DatabaseError::wrap(
-            ErrorCode::UpdateError,
-            "Could not update organization invite table",
-            diesel::update(self)
-                .set((
-                    organization_invites::security_token.eq(null),
-                    organization_invites::accepted.eq(change_status),
-                    organization_invites::updated_at.eq(dsl::now),
-                ))
-                .get_result(conn),
-        )
+    pub fn organization(&self, conn: &PgConnection) -> Result<Organization, DatabaseError> {
+        Organization::find(self.organization_id, conn)
     }
 
-    pub fn accept_invite(&self, conn: &PgConnection) -> Result<OrganizationInvite, DatabaseError> {
+    pub fn change_invite_status(
+        &mut self,
+        change_status: i16,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        self.security_token = None;
+        self.accepted = Some(change_status);
+        self.updated_at = Utc::now().naive_utc();
+        diesel::update(organization_invites::table.filter(organization_invites::id.eq(self.id)))
+            .set((
+                organization_invites::security_token.eq(self.security_token),
+                organization_invites::accepted.eq(self.accepted),
+                organization_invites::updated_at.eq(self.updated_at),
+            ))
+            .execute(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not update organization invite table",
+            )?;
+
+        Ok(())
+    }
+
+    pub fn accept_invite(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
         self.change_invite_status(1, conn)
     }
 
-    pub fn decline_invite(&self, conn: &PgConnection) -> Result<OrganizationInvite, DatabaseError> {
+    pub fn decline_invite(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
         self.change_invite_status(0, conn)
     }
 
@@ -138,6 +148,7 @@ impl OrganizationInvite {
             .filter(organization_invites::security_token.eq(token))
             .filter(organization_invites::created_at.gt(expiry_date))
             .select((
+                organization_invites::id,
                 organizations::name,
                 sql("CONCAT(users.first_name, ' ',  users.last_name) AS inviter_name"),
                 sql::<Timestamp>("organization_invites.created_at + (INTERVAL '1' day) * ")
@@ -186,6 +197,90 @@ impl OrganizationInvite {
             diesel::update(self)
                 .set(organization_invites::sent_invite.eq(sent_status))
                 .get_result(conn),
+        )
+    }
+
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<OrganizationInvite, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::QueryError,
+            "Error loading organization invite",
+            organization_invites::table.find(id).first(conn),
+        )
+    }
+
+    pub fn find_pending_by_organization_paged(
+        organization_id: Uuid,
+        page: u32,
+        limit: u32,
+        conn: &PgConnection,
+    ) -> Result<Payload<DisplayInvite>, DatabaseError> {
+        let total: i64 = organization_invites::table
+            .filter(organization_invites::organization_id.eq(organization_id))
+            .filter(organization_invites::accepted.is_null())
+            .count()
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not get total invites for organization",
+            )?;
+
+        let paging = Paging::new(page, limit);
+        let mut payload = Payload::new(
+            organization_invites::table
+                .inner_join(users::table.on(users::id.eq(organization_invites::inviter_id)))
+                .inner_join(
+                    organizations::table
+                        .on(organizations::id.eq(organization_invites::organization_id)),
+                )
+                .filter(organization_invites::organization_id.eq(organization_id))
+                .filter(organization_invites::accepted.is_null())
+                .order_by(organization_invites::user_email.asc())
+                .limit(limit as i64)
+                .offset((page * limit) as i64)
+                .select((
+                    organization_invites::id,
+                    organizations::name,
+                    sql("CONCAT(users.first_name, ' ',  users.last_name) AS inviter_name"),
+                    sql::<Timestamp>("organization_invites.created_at + (INTERVAL '1' day) * ")
+                        .bind::<diesel::sql_types::BigInt, _>(INVITE_EXPIRATION_PERIOD_IN_DAYS),
+                ))
+                .load(conn)
+                .to_db_error(
+                    ErrorCode::QueryError,
+                    "Could not retrieve invites for organization",
+                )?,
+            paging,
+        );
+
+        // TODO: remove this when other structs implement paging
+        payload.paging.total = total as u64;
+        payload.paging.page = page;
+        payload.paging.limit = limit;
+        Ok(payload)
+    }
+
+    pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
+        if let Some(accepted) = self.accepted {
+            return Err(DatabaseError::new(
+                ErrorCode::BusinessProcessError,
+                Some(
+                    format!(
+                        "Cannot destroy invite it has already been {}.",
+                        if accepted == 1 {
+                            "accepted"
+                        } else {
+                            "declined"
+                        }
+                    )
+                    .to_string(),
+                ),
+            ));
+        }
+
+        DatabaseError::wrap(
+            ErrorCode::DeleteError,
+            "Failed to destroy organization invite",
+            diesel::delete(self).execute(conn),
         )
     }
 

@@ -265,7 +265,7 @@
 							"raw": "{\n\"user_email\": \"{{last_org_member_email}}\",\n \"role\" : \"OrgMember\"\n}"
 						},
 						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/invite",
+							"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
 							"protocol": "http",
 							"host": [
 								"{{server}}"
@@ -273,7 +273,7 @@
 							"path": [
 								"organizations",
 								"{{last_org_id}}",
-								"invite"
+								"invites"
 							]
 						}
 					},

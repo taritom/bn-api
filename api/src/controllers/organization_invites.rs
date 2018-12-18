@@ -1,4 +1,4 @@
-use actix_web::{HttpRequest, HttpResponse, Path, Query, State};
+use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::DatabaseError;
@@ -8,7 +8,7 @@ use db::Connection;
 use errors::*;
 use extractors::*;
 use helpers::application;
-use models::PathParameters;
+use models::{OrganizationInvitePathParameters, PathParameters, WebPayload};
 use server::AppState;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -67,14 +67,7 @@ pub fn create(
             &organization,
             connection,
         )?,
-        _ => {
-            let validation_error = DatabaseError::validation_error(
-                "role",
-                "Role must be either OrgOwner or OrgMember",
-            )?;
-
-            return validation_error;
-        }
+        _ => DatabaseError::validation_error("role", "Role must be either OrgOwner or OrgMember")?,
     }
 
     let mut invite: NewOrganizationInvite;
@@ -96,7 +89,7 @@ pub fn create(
     };
 
     //If an active invite exists for this email then first expire it before issuing the new invite.
-    if let Some(i) =
+    if let Some(mut i) =
         OrganizationInvite::find_active_invite_by_email(&new_org_invite.user_email, connection)?
     {
         i.change_invite_status(0, connection)?;
@@ -124,6 +117,74 @@ pub fn create(
     Ok(HttpResponse::Created().json(invite))
 }
 
+pub fn index(
+    (connection, path, query_parameters, auth_user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+        AuthUser,
+    ),
+) -> Result<WebPayload<DisplayInvite>, BigNeonError> {
+    let connection = connection.get();
+    let organization = Organization::find(path.id, connection)?;
+    auth_user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?;
+
+    let payload = OrganizationInvite::find_pending_by_organization_paged(
+        path.id,
+        query_parameters.page(),
+        query_parameters.limit(),
+        connection,
+    )?;
+
+    Ok(WebPayload::new(StatusCode::OK, payload))
+}
+
+pub fn destroy(
+    (connection, path, auth_user): (Connection, Path<OrganizationInvitePathParameters>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let invite = OrganizationInvite::find(path.invite_id, connection)?;
+    let organization = invite.organization(connection)?;
+
+    // Level of access dependent on scope of the invited member
+    match invite.role.parse()? {
+        Roles::OrgOwner => auth_user.requires_scope_for_organization(
+            Scopes::OrgAdmin,
+            &organization,
+            connection,
+        )?,
+        Roles::OrgAdmin => auth_user.requires_scope_for_organization(
+            Scopes::OrgManageAdminUsers,
+            &organization,
+            connection,
+        )?,
+        Roles::OrgMember => auth_user.requires_scope_for_organization(
+            Scopes::OrgManageUsers,
+            &organization,
+            connection,
+        )?,
+        Roles::DoorPerson => auth_user.requires_scope_for_organization(
+            Scopes::OrgManageUsers,
+            &organization,
+            connection,
+        )?,
+        Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
+            Scopes::OrgManageUsers,
+            &organization,
+            connection,
+        )?,
+        // Should not happen but if it ever did allow admin to destroy record
+        _ => auth_user.requires_scope_for_organization(
+            Scopes::OrgAdmin,
+            &organization,
+            connection,
+        )?,
+    }
+
+    invite.destroy(connection)?;
+    Ok(HttpResponse::Ok().json(json!({})))
+}
+
 pub fn view(
     (connection, path, _user): (Connection, Path<PathParameters>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -143,7 +204,7 @@ pub fn accept_request(
 ) -> Result<HttpResponse, BigNeonError> {
     let query_struct = query.into_inner();
     let connection = connection.get();
-    let invite_details =
+    let mut invite_details =
         OrganizationInvite::get_invite_details(&query_struct.security_token, connection)?;
     //Check that the user is logged in, that if the invite has a user_id associated with it that it is the currently logged in user
     match user.into_inner() {
@@ -162,8 +223,8 @@ pub fn accept_request(
             };
 
             if valid_for_acceptance {
-                let accept_details = invite_details.change_invite_status(1, connection)?;
-                let org = Organization::find(accept_details.organization_id, connection)?;
+                invite_details.change_invite_status(1, connection)?;
+                let org = Organization::find(invite_details.organization_id, connection)?;
                 org.add_user(
                     u.id(),
                     vec![Roles::from_str(&invite_details.role).unwrap()],
@@ -183,7 +244,7 @@ pub fn decline_request(
 ) -> Result<HttpResponse, BigNeonError> {
     let query_struct = query.into_inner();
     let connection = connection.get();
-    let invite_details =
+    let mut invite_details =
         OrganizationInvite::get_invite_details(&query_struct.security_token, connection)?;
 
     invite_details.change_invite_status(0, connection)?;

@@ -3,6 +3,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use models::*;
 use models::{Organization, OrganizationInvite, User};
+use test::builders::*;
 use uuid::Uuid;
 
 #[allow(dead_code)]
@@ -16,6 +17,7 @@ pub struct OrgInviteBuilder<'a> {
     user_id: Option<Uuid>,
     status_change_at: Option<NaiveDateTime>,
     accepted: Option<i16>,
+    role: Roles,
     connection: &'a PgConnection,
 }
 
@@ -31,12 +33,18 @@ impl<'a> OrgInviteBuilder<'a> {
             connection,
             user_id: None,
             status_change_at: None,
+            role: Roles::OrgMember,
             accepted: None,
         }
     }
 
     pub fn with_org(mut self, org: &Organization) -> OrgInviteBuilder<'a> {
         self.organization_id = Some(org.id.clone());
+        self
+    }
+
+    pub fn with_role(mut self, role: Roles) -> OrgInviteBuilder<'a> {
+        self.role = role;
         self
     }
 
@@ -66,12 +74,22 @@ impl<'a> OrgInviteBuilder<'a> {
     }
 
     pub fn finish(&self) -> OrganizationInvite {
+        let organization_id = self
+            .organization_id
+            .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
+            .unwrap();
+
+        let invitee_id = self
+            .invitee_id
+            .or_else(|| Some(UserBuilder::new(self.connection).finish().id))
+            .unwrap();
+
         let orginvite = OrganizationInvite::create(
-            self.organization_id.unwrap(),
-            self.invitee_id.unwrap(),
+            organization_id,
+            invitee_id,
             &self.user_email,
             self.user_id,
-            vec![Roles::OrgMember],
+            vec![self.role],
         )
         .commit(self.connection)
         .unwrap();
