@@ -24,7 +24,7 @@ pub fn purchase_completed(
         .push_str("<tr><th>Units</th><th>Description</th><th>Unit Price</th><th>Total</th></tr>");
     let mut total_fees = 0;
     for oi in &display_order.items {
-        if oi.item_type == OrderItemTypes::Tickets.to_string() {
+        if oi.item_type == OrderItemTypes::Tickets {
             item_breakdown.push_str(r#"<tr><th align="center">"#);
             item_breakdown.push_str(&oi.quantity.to_string());
             item_breakdown.push_str("</th><th>");
