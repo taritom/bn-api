@@ -17,6 +17,7 @@ table! {
         spotify_id -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        other_image_urls -> Nullable<Array<Text>>,
     }
 }
 

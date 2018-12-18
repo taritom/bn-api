@@ -21,6 +21,7 @@ pub struct CreateArtistRequest {
     pub spotify_id: Option<String>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub other_image_urls: Option<Vec<String>>,
 }
 
 impl Into<NewArtist> for CreateArtistRequest {
@@ -40,6 +41,7 @@ impl Into<NewArtist> for CreateArtistRequest {
             soundcloud_username: create_artist.soundcloud_username,
             bandcamp_username: create_artist.bandcamp_username,
             spotify_id: create_artist.spotify_id,
+            other_image_urls: create_artist.other_image_urls,
         }
     }
 }
@@ -64,6 +66,7 @@ impl From<Artist> for CreateArtistRequest {
             spotify_id: artist.spotify_id,
             created_at: Some(artist.created_at),
             updated_at: Some(artist.updated_at),
+            other_image_urls: artist.other_image_urls,
         }
     }
 }

@@ -30,6 +30,7 @@ pub struct Artist {
     pub spotify_id: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub other_image_urls: Option<Vec<String>>,
 }
 
 #[derive(Insertable, Default, Deserialize, Validate)]
@@ -61,6 +62,7 @@ pub struct NewArtist {
     pub bandcamp_username: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub spotify_id: Option<String>,
+    pub other_image_urls: Option<Vec<String>>,
 }
 
 impl NewArtist {

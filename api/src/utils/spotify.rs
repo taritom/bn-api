@@ -89,12 +89,20 @@ impl Spotify {
                     .into_iter()
                     .map(|item| {
                         let artist = item;
-                        let image_url = Spotify::get_image_from_artist(&artist["images"], None);
+                        let image_url =
+                            Spotify::get_image_from_artist(&artist["images"], Some(600), None);
                         CreateArtistRequest {
                             name: artist["name"].as_str().map(|s| s.to_string()),
                             bio: Some("".to_string()),
                             spotify_id: artist["id"].as_str().map(|s| s.to_string()),
                             image_url,
+                            other_image_urls: artist["images"].as_array().map(|a| {
+                                a.iter()
+                                    .map(|i| i["url"].as_str().map(|s| s.to_string()))
+                                    .filter(|i| i.is_some())
+                                    .map(|i| i.unwrap())
+                                    .collect()
+                            }),
                             ..Default::default()
                         }
                     })
@@ -132,8 +140,10 @@ impl Spotify {
                     )
                     .into());
                 } else {
-                    let image_url = Spotify::get_image_from_artist(&artist["images"], Some(0));
-                    let thumb_image_url = Spotify::get_image_from_artist(&artist["images"], None);
+                    let image_url =
+                        Spotify::get_image_from_artist(&artist["images"], Some(600), None);
+                    let thumb_image_url =
+                        Spotify::get_image_from_artist(&artist["images"], None, Some(300));
 
                     let create_artist = CreateArtistRequest {
                         name: artist["name"].as_str().map(|s| s.to_string()),
@@ -141,6 +151,14 @@ impl Spotify {
                         spotify_id: artist["id"].as_str().map(|s| s.to_string()),
                         image_url,
                         thumb_image_url,
+                        other_image_urls: artist["images"].as_array().map(|a| {
+                            a.iter()
+                                .map(|i| i["url"].as_str().map(|s| s.to_string()))
+                                .filter(|i| i.is_some())
+                                .map(|i| i.unwrap())
+                                .collect()
+                        }),
+
                         ..Default::default()
                     };
                     Ok(Some(create_artist))
@@ -152,20 +170,42 @@ impl Spotify {
 
     pub fn get_image_from_artist(
         image_array: &Value,
-        image_index: Option<usize>,
+        min_width: Option<i64>,
+        max_width: Option<i64>,
     ) -> Option<String> {
-        let image = image_array
-            .as_array()
-            .map(|ref arr| {
-                let val = match image_index {
-                    None => arr.last(),
-                    Some(index) => arr.get(index),
-                };
-                val.map(|v| v)
-            })
-            .unwrap_or(None);
-        image
-            .map(|m| m["url"].as_str().map(|s| s.to_string()))
-            .unwrap_or(None)
+        let array = match image_array.as_array() {
+            Some(u) => u,
+            None => return None,
+        };
+
+        if let Some(width) = min_width {
+            for i in 0..array.len() {
+                let value = array.get(i);
+                if value.is_none() {
+                    return None;
+                }
+                let value = value.unwrap();
+                if value["width"].as_i64().unwrap_or(0) < width {
+                    continue;
+                }
+                return value["url"].as_str().map(|s| s.to_string());
+            }
+        };
+
+        if let Some(width) = max_width {
+            for i in 0..array.len() {
+                let value = array.get(i);
+                if value.is_none() {
+                    return None;
+                }
+                let value = value.unwrap();
+                if value["width"].as_i64().unwrap_or(99999999) > width {
+                    continue;
+                }
+                return value["url"].as_str().map(|s| s.to_string());
+            }
+        }
+
+        None
     }
 }
