@@ -242,6 +242,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/users/{id}", |r| {
         r.method(Method::GET).with(users::show);
     })
+    .resource("/user_invites", |r| {
+        r.method(Method::POST).with(user_invites::create);
+    })
     .resource("/users/{id}/organizations", |r| {
         r.method(Method::GET).with(users::list_organizations);
     })

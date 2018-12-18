@@ -38,6 +38,7 @@ pub struct Config {
     pub sendgrid_template_bn_org_invite: String,
     pub sendgrid_template_bn_transfer_tickets: String,
     pub sendgrid_template_bn_password_reset: String,
+    pub sendgrid_template_bn_user_invite: String,
     pub spotify_auth_token: Option<String>,
     pub twilio_account_id: String,
     pub twilio_api_key: String,
@@ -76,6 +77,7 @@ const SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED: &str = "SENDGRID_TEMPLATE_BN_PURC
 const SENDGRID_TEMPLATE_BN_ORG_INVITE: &str = "SENDGRID_TEMPLATE_BN_ORG_INVITE";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS";
 const SENDGRID_TEMPLATE_BN_PASSWORD_RESET: &str = "SENDGRID_TEMPLATE_BN_PASSWORD_RESET";
+const SENDGRID_TEMPLATE_BN_USER_INVITE: &str = "SENDGRID_TEMPLATE_BN_USER_INVITE";
 
 //Spotify settings
 const SPOTIFY_AUTH_TOKEN: &str = "SPOTIFY_AUTH_TOKEN";
@@ -173,6 +175,8 @@ impl Config {
 
         let sendgrid_template_bn_password_reset = env::var(&SENDGRID_TEMPLATE_BN_PASSWORD_RESET)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_PASSWORD_RESET));
+        let sendgrid_template_bn_user_invite = env::var(&SENDGRID_TEMPLATE_BN_USER_INVITE)
+            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_INVITE));
 
         let spotify_auth_token = env::var(&SPOTIFY_AUTH_TOKEN).ok();
 
@@ -226,6 +230,7 @@ impl Config {
             sendgrid_template_bn_org_invite,
             sendgrid_template_bn_transfer_tickets,
             sendgrid_template_bn_password_reset,
+            sendgrid_template_bn_user_invite,
             spotify_auth_token,
             twilio_api_key,
             twilio_account_id,

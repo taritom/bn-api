@@ -14,5 +14,6 @@ mod payment_methods;
 mod regions;
 mod ticket_types;
 mod tickets;
+mod user_invites;
 mod users;
 mod venues;

@@ -14,5 +14,6 @@ pub mod payment_methods;
 pub mod regions;
 pub mod ticket_types;
 pub mod tickets;
+pub mod user_invites;
 pub mod users;
 pub mod venues;

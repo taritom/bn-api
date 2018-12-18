@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use time::Duration;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::passwords::PasswordHash;
+use utils::rand::random_alpha_string;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -48,6 +49,8 @@ pub struct User {
     pub password_reset_requested_at: Option<NaiveDateTime>,
     pub updated_at: NaiveDateTime,
     pub last_cart_id: Option<Uuid>,
+    pub accepted_terms_date: Option<NaiveDateTime>,
+    pub invited_at: Option<NaiveDateTime>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
@@ -130,6 +133,21 @@ impl User {
         }
     }
 
+    pub fn new_for_invite(
+        first_name: Option<String>,
+        last_name: Option<String>,
+        email: Option<String>,
+    ) -> NewUser {
+        let rand_password = random_alpha_string(16);
+        Self::create(
+            first_name.clone(),
+            last_name.clone(),
+            email.clone(),
+            None,
+            rand_password.as_str(),
+        )
+    }
+
     pub fn create_from_external_login(
         external_user_id: String,
         first_name: String,
@@ -139,7 +157,8 @@ impl User {
         access_token: String,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
-        let hash = PasswordHash::generate("random", None);
+        let rand_password = random_alpha_string(16);
+        let hash = PasswordHash::generate(rand_password.as_str(), None);
         let lower_email = email.to_lowercase();
         let new_user = NewUser {
             first_name: Some(first_name),

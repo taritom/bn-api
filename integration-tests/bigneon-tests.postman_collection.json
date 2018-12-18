@@ -8442,6 +8442,68 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "User - invites",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\t\"email\":\"new-random-email@test.com\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/user_invites",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"user_invites"
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},

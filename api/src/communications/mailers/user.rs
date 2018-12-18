@@ -58,3 +58,34 @@ pub fn password_reset_email(config: &Config, user: &User) -> Communication {
         Some(vec![template_data]),
     )
 }
+
+pub fn invite_user_email(config: &Config, user: &User) -> Communication {
+    let password_reset_link = format!(
+        "{}/password-reset?token={}&invite=true",
+        config.front_end_url.clone(),
+        user.password_reset_token
+            .expect("Password reset token is not set")
+    );
+
+    let email: &str = user
+        .email
+        .as_ref()
+        .expect("Password reset token is not set");
+
+    let source = CommAddress::from(config.communication_default_source_email.clone());
+    let destinations = CommAddress::from(email.to_string());
+    let title = "Big Neon Password reset request".to_string();
+    let template_id = config.sendgrid_template_bn_user_invite.clone();
+    let mut template_data = TemplateData::new();
+    template_data.insert("name".to_string(), user.full_name());
+    template_data.insert("invite_link".to_string(), password_reset_link);
+    Communication::new(
+        CommunicationType::EmailTemplate,
+        title,
+        None,
+        Some(source),
+        destinations,
+        Some(template_id),
+        Some(vec![template_data]),
+    )
+}
