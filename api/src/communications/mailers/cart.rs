@@ -1,3 +1,4 @@
+use bigneon_db::models::enums::OrderItemTypes;
 use bigneon_db::models::DisplayOrder;
 use config::Config;
 use diesel::PgConnection;
@@ -21,17 +22,26 @@ pub fn purchase_completed(
     let mut item_breakdown = r#"<table style="width:100%"><tbody>"#.to_string();
     item_breakdown
         .push_str("<tr><th>Units</th><th>Description</th><th>Unit Price</th><th>Total</th></tr>");
+    let mut total_fees = 0;
     for oi in &display_order.items {
-        item_breakdown.push_str("<tr><th>");
-        item_breakdown.push_str(&oi.quantity.to_string());
-        item_breakdown.push_str("</th><th>");
-        item_breakdown.push_str(&oi.description);
-        item_breakdown.push_str("</th><th>$");
-        item_breakdown.push_str(&(oi.unit_price_in_cents as f64 / 100.0).to_string());
-        item_breakdown.push_str("</th><th>$");
-        item_breakdown
-            .push_str(&((oi.quantity * oi.unit_price_in_cents) as f64 / 100.0).to_string());
-        item_breakdown.push_str("</th></tr>");
+        if oi.item_type == OrderItemTypes::Tickets.to_string() {
+            item_breakdown.push_str(r#"<tr><th align="center">"#);
+            item_breakdown.push_str(&oi.quantity.to_string());
+            item_breakdown.push_str("</th><th>");
+            item_breakdown.push_str(&oi.description);
+            item_breakdown.push_str(r#"</th><th align="right">$"#);
+            item_breakdown.push_str(&format!("{:.*}", 2, oi.unit_price_in_cents as f64 / 100.0));
+            item_breakdown.push_str(r#"</th><th align="right">$"#);
+            item_breakdown.push_str(&format!(
+                "{:.*}",
+                2,
+                (oi.quantity * oi.unit_price_in_cents) as f64 / 100.0
+            ));
+            item_breakdown.push_str("</th></tr>");
+        } else {
+            //Accumulate fees
+            total_fees += oi.quantity * oi.unit_price_in_cents;
+        }
     }
     item_breakdown.push_str("</tbody></table>");
 
@@ -40,8 +50,12 @@ pub fn purchase_completed(
         display_order.items.len().to_string(),
     );
     template_data.insert(
+        "total_fees".to_string(),
+        format!("{:.*}", 2, total_fees as f64 / 100.0),
+    );
+    template_data.insert(
         "total_price".to_string(),
-        (display_order.total_in_cents as f64 / 100.0).to_string(),
+        format!("{:.*}", 2, display_order.total_in_cents as f64 / 100.0),
     );
     template_data.insert("item_breakdown".to_string(), item_breakdown);
     template_data.insert(
