@@ -58,13 +58,12 @@ pub struct VenueEditableAttributes {
     pub country: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub postal_code: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub phone: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub promo_image_url: Option<String>,
-
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub google_place_id: Option<String>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub phone: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub promo_image_url: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub google_place_id: Option<Option<String>>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
 }
@@ -80,8 +79,11 @@ pub struct NewVenue {
     pub state: String,
     pub country: String,
     pub postal_code: String,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub promo_image_url: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub google_place_id: Option<String>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,

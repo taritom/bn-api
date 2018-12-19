@@ -88,6 +88,49 @@ where
     }
 }
 
+pub fn double_option_deserialize_unless_blank<'de, T, D>(
+    deserializer: D,
+) -> Result<Option<T>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    let value: Value = Deserialize::deserialize(deserializer)?;
+
+    if value.is_null() {
+        Ok(T::deserialize(Value::Null).ok())
+    } else {
+        if value.as_str().map_or(false, |v| !v.is_empty()) {
+            Ok(T::deserialize(value).ok())
+        } else {
+            Ok(T::deserialize(Value::Null).ok())
+        }
+    }
+}
+
+#[test]
+fn double_option_deserialize_unless_blank_properly_deserializes() {
+    let event_data = r#"{"name": "Event"}"#;
+    let event: EventEditableAttributes = serde_json::from_str(&event_data).unwrap();
+    assert_eq!(event.name, Some("Event".to_string()));
+    assert_eq!(event.top_line_info, None);
+
+    let event_data = r#"{"name": "Event", "top_line_info": null}"#;
+    let event: EventEditableAttributes = serde_json::from_str(&event_data).unwrap();
+    assert_eq!(event.name, Some("Event".to_string()));
+    assert_eq!(event.top_line_info, Some(None));
+
+    let event_data = r#"{"name": "Event", "top_line_info": ""}"#;
+    let event: EventEditableAttributes = serde_json::from_str(&event_data).unwrap();
+    assert_eq!(event.name, Some("Event".to_string()));
+    assert_eq!(event.top_line_info, Some(None));
+
+    let event_data = r#"{"name": "Event", "top_line_info": "Top line info"}"#;
+    let event: EventEditableAttributes = serde_json::from_str(&event_data).unwrap();
+    assert_eq!(event.name, Some("Event".to_string()));
+    assert_eq!(event.top_line_info, Some(Some("Top line info".to_string())));
+}
+
 #[test]
 fn deserialize_unless_blank_properly_deserializes() {
     let venue_data = r#"{"name": "Venue"}"#;

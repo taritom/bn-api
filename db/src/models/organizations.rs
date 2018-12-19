@@ -8,7 +8,6 @@ use diesel::sql_types::{BigInt, Text, Timestamp};
 use models::scopes;
 use models::*;
 use schema::{events, organization_users, organizations, users, venues};
-use serde_with::rust::double_option;
 use utils::encryption::*;
 use utils::errors::*;
 use uuid::Uuid;
@@ -123,11 +122,11 @@ pub struct OrganizationEditableAttributes {
     pub postal_code: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
-    #[serde(default, deserialize_with = "double_option::deserialize")]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub sendgrid_api_key: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option::deserialize")]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub google_ga_key: Option<Option<String>>,
-    #[serde(default, deserialize_with = "double_option::deserialize")]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub facebook_pixel_key: Option<Option<String>>,
     pub client_event_fee_in_cents: Option<i64>,
     pub company_event_fee_in_cents: Option<i64>,

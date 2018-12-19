@@ -508,7 +508,7 @@ pub fn update_current_user() {
     let user = support::create_auth_user(Roles::User, None, &database);
     let email = "new-email@tari.com";
     let mut attributes: UserProfileAttributes = Default::default();
-    attributes.email = Some(email.to_string());
+    attributes.email = Some(Some(email.to_string()));
     let json = Json(attributes);
 
     let response: HttpResponse =
@@ -524,7 +524,7 @@ pub fn update_current_user_with_validation_errors() {
     let database = TestDatabase::new();
     let user = support::create_auth_user(Roles::User, None, &database);
     let mut attributes: UserProfileAttributes = Default::default();
-    attributes.email = Some("bad-email".into());
+    attributes.email = Some(Some("bad-email".into()));
     let json = Json(attributes);
 
     let response: HttpResponse =
@@ -548,7 +548,7 @@ fn update_current_user_address_exists() {
 
     let user = support::create_auth_user(Roles::User, None, &database);
     let mut attributes: UserProfileAttributes = Default::default();
-    attributes.email = existing_user.email;
+    attributes.email = Some(existing_user.email);
     let json = Json(attributes);
 
     let response: HttpResponse =

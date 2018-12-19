@@ -30,13 +30,10 @@ pub struct UpdateHoldRequest {
     pub quantity: Option<u32>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub discount_in_cents: Option<Option<i64>>,
-
-    #[serde(default, deserialize_with = "double_option::deserialize")]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub email: Option<Option<String>>,
-
-    #[serde(default, deserialize_with = "double_option::deserialize")]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub phone: Option<Option<String>>,
-
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub end_at: Option<Option<NaiveDateTime>>,
     #[serde(default, deserialize_with = "double_option::deserialize")]

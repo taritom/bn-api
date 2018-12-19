@@ -8,7 +8,6 @@ use diesel::sql_types;
 use log::Level;
 use models::*;
 use schema::{artists, event_artists, events, organization_users, organizations, venues};
-use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
@@ -134,26 +133,26 @@ pub struct EventEditableAttributes {
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
     #[validate(url(message = "Promo image URL is invalid"))]
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub promo_image_url: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub additional_info: Option<String>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub promo_image_url: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub additional_info: Option<Option<String>>,
     pub age_limit: Option<i32>,
     pub cancelled_at: Option<NaiveDateTime>,
     #[validate(length(
         max = "100",
         message = "Top line info must be at most 100 characters long"
     ))]
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub top_line_info: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub top_line_info: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     #[validate(url(message = "Video URL is invalid"))]
-    pub video_url: Option<String>,
+    pub video_url: Option<Option<String>>,
     pub is_external: Option<bool>,
     #[validate(url(message = "External URL is invalid"))]
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub external_url: Option<String>,
-    #[serde(default, deserialize_with = "double_option::deserialize")]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub external_url: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub override_status: Option<Option<EventOverrideStatus>>,
 }
 

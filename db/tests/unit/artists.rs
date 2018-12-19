@@ -74,7 +74,7 @@ fn artist_editable_attributes_validate() {
     let mut artist_parameters = ArtistEditableAttributes::new();
     artist_parameters.name = Some("New Name".into());
     artist_parameters.bio = Some("Bio".into());
-    artist_parameters.website_url = Some("invalid.com".into());
+    artist_parameters.website_url = Some(Some("invalid.com".into()));
     artist_parameters.youtube_video_urls = Some(vec!["invalid".to_string()]);
 
     let result = artist_parameters.validate();
@@ -210,7 +210,7 @@ fn update() {
     let mut artist_parameters = ArtistEditableAttributes::new();
     artist_parameters.name = Some("New Name".into());
     artist_parameters.bio = Some("Bio".into());
-    artist_parameters.website_url = Some("http://www.example.com".into());
+    artist_parameters.website_url = Some(Some("http://www.example.com".into()));
     let updated_artist = artist
         .update(&artist_parameters, &project.get_connection())
         .unwrap();

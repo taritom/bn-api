@@ -69,19 +69,19 @@ pub struct DisplayUser {
 #[derive(AsChangeset, Default, Deserialize, Validate, Clone)]
 #[table_name = "users"]
 pub struct UserEditableAttributes {
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
+    pub first_name: Option<Option<String>>,
+    pub last_name: Option<Option<String>>,
     #[validate(email(message = "Email is invalid"))]
-    pub email: Option<String>,
-    pub phone: Option<String>,
+    pub email: Option<Option<String>>,
+    pub phone: Option<Option<String>>,
     pub active: Option<bool>,
     pub role: Option<Vec<Roles>>,
     #[validate(url(message = "Profile pic URL is invalid"))]
-    pub profile_pic_url: Option<String>,
+    pub profile_pic_url: Option<Option<String>>,
     #[validate(url(message = "Thumb profile pic URL is invalid"))]
-    pub thumb_profile_pic_url: Option<String>,
+    pub thumb_profile_pic_url: Option<Option<String>>,
     #[validate(url(message = "Cover photo URL is invalid"))]
-    pub cover_photo_url: Option<String>,
+    pub cover_photo_url: Option<Option<String>>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -353,9 +353,10 @@ impl User {
     ) -> Result<User, DatabaseError> {
         let mut lower_cased_attributes = (*attributes).clone();
         lower_cased_attributes.validate()?;
-        if let Some(i) = lower_cased_attributes.email {
-            lower_cased_attributes.email = Some(i.to_lowercase());
-        }
+        lower_cased_attributes.email = lower_cased_attributes
+            .email
+            .map(|o| o.map(|e| e.to_lowercase()));
+
         let query =
             diesel::update(self).set((lower_cased_attributes, users::updated_at.eq(dsl::now)));
 

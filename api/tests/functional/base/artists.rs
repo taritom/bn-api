@@ -168,7 +168,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let mut attributes: ArtistEditableAttributes = Default::default();
     attributes.name = Some(name.to_string());
     attributes.bio = Some(bio.to_string());
-    attributes.website_url = Some(website_url.to_string());
+    attributes.website_url = Some(Some(website_url.to_string()));
     attributes.youtube_video_urls = Some(Vec::new());
     let json = Json(attributes);
 
@@ -213,7 +213,7 @@ pub fn update_with_organization(role: Roles, should_test_succeed: bool, is_priva
     let mut attributes: ArtistEditableAttributes = Default::default();
     attributes.name = Some(name.to_string());
     attributes.bio = Some(bio.to_string());
-    attributes.website_url = Some(website_url.to_string());
+    attributes.website_url = Some(Some(website_url.to_string()));
     attributes.youtube_video_urls = Some(Vec::new());
     let json = Json(attributes);
 
@@ -244,7 +244,7 @@ pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
     let mut attributes: ArtistEditableAttributes = Default::default();
     attributes.name = Some(name.to_string());
     attributes.bio = Some(bio.to_string());
-    attributes.website_url = Some(website_url.to_string());
+    attributes.website_url = Some(Some(website_url.to_string()));
     attributes.youtube_video_urls = Some(vec!["invalid".to_string()]);
     let json = Json(attributes);
 

@@ -528,7 +528,7 @@ fn update() {
     let user = project.create_user().finish();
     let mut attributes: UserEditableAttributes = Default::default();
     let email = "new_email@tari.com";
-    attributes.email = Some(email.to_string());
+    attributes.email = Some(Some(email.to_string()));
 
     let updated_user = user.update(&attributes.into(), connection).unwrap();
     assert_eq!(updated_user.email, Some(email.into()));
@@ -560,7 +560,7 @@ fn new_user_validate() {
 #[test]
 fn user_editable_attributes_validate() {
     let mut user_parameters: UserEditableAttributes = Default::default();
-    user_parameters.email = Some("abc".into());
+    user_parameters.email = Some(Some("abc".into()));
 
     let result = user_parameters.validate();
     assert!(result.is_err());

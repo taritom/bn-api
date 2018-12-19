@@ -10,7 +10,6 @@ use log::Level;
 use models::*;
 use schema::{order_items, orders, users};
 use serde_json;
-use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::cmp;
 use std::collections::HashMap;
@@ -65,7 +64,7 @@ impl NewOrder {
 #[derive(AsChangeset, Deserialize)]
 #[table_name = "orders"]
 pub struct UpdateOrderAttributes {
-    #[serde(default, deserialize_with = "double_option::deserialize")]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub note: Option<Option<String>>,
 }
 
