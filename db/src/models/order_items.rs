@@ -72,45 +72,56 @@ impl OrderItem {
             }
         };
 
-        let fee_schedule_range = ticket_type
-            .fee_schedule(conn)?
-            .get_range(self.unit_price_in_cents, conn)?;
+        let fee_schedule_ranges = ticket_type.fee_schedule(conn)?.ranges(conn)?;
 
-        // If the hold is a comp, then there are no fees.
-        if let Some(hold_id) = self.hold_id {
-            let hold = Hold::find(hold_id, conn)?;
-            if hold.hold_type == HoldTypes::Comp {
-                if let Some(fee_item) = fee_item {
-                    order.destroy_item(fee_item.id, conn)?;
+        if fee_schedule_ranges.len() > 0
+            && self.unit_price_in_cents >= fee_schedule_ranges[0].min_price_in_cents
+        {
+            let fee_schedule_range = ticket_type
+                .fee_schedule(conn)?
+                .get_range(self.unit_price_in_cents, conn)?;
+
+            // If the hold is a comp, then there are no fees.
+            if let Some(hold_id) = self.hold_id {
+                let hold = Hold::find(hold_id, conn)?;
+                if hold.hold_type == HoldTypes::Comp {
+                    if let Some(fee_item) = fee_item {
+                        order.destroy_item(fee_item.id, conn)?;
+                    }
+                    return Ok(());
                 }
-                return Ok(());
             }
-        }
 
-        match fee_item {
-            Some(mut fee_item) => {
-                fee_item.quantity = self.quantity;
-                fee_item.unit_price_in_cents = fee_schedule_range.fee_in_cents;
-                fee_item.company_fee_in_cents = fee_schedule_range.company_fee_in_cents;
-                fee_item.client_fee_in_cents = fee_schedule_range.client_fee_in_cents;
-                fee_item.update(conn)
-            }
-            None => {
-                NewFeesOrderItem {
-                    order_id: self.order_id,
-                    item_type: OrderItemTypes::PerUnitFees,
-                    event_id: self.event_id,
-                    unit_price_in_cents: fee_schedule_range.fee_in_cents,
-                    fee_schedule_range_id: Some(fee_schedule_range.id),
-                    company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
-                    client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
-                    quantity: self.quantity,
-                    parent_id: Some(self.id),
+            match fee_item {
+                Some(mut fee_item) => {
+                    fee_item.quantity = self.quantity;
+                    fee_item.unit_price_in_cents = fee_schedule_range.fee_in_cents;
+                    fee_item.company_fee_in_cents = fee_schedule_range.company_fee_in_cents;
+                    fee_item.client_fee_in_cents = fee_schedule_range.client_fee_in_cents;
+                    fee_item.update(conn)
                 }
-                .commit(conn)?;
+                None => {
+                    NewFeesOrderItem {
+                        order_id: self.order_id,
+                        item_type: OrderItemTypes::PerUnitFees,
+                        event_id: self.event_id,
+                        unit_price_in_cents: fee_schedule_range.fee_in_cents,
+                        fee_schedule_range_id: Some(fee_schedule_range.id),
+                        company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
+                        client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
+                        quantity: self.quantity,
+                        parent_id: Some(self.id),
+                    }
+                    .commit(conn)?;
 
-                Ok(())
+                    Ok(())
+                }
             }
+        } else {
+            if let Some(fee_item) = fee_item {
+                order.destroy_item(fee_item.id, conn)?;
+            }
+            Ok(())
         }
     }
 

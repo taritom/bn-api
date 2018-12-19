@@ -555,28 +555,38 @@ impl Order {
             }
 
             let event = Event::find(event_id.unwrap(), conn)?;
+
+            let mut all_zero_price = true;
+
             for o in items {
                 match o.item_type {
-                    OrderItemTypes::Tickets => o.update_fees(&self, conn)?,
+                    OrderItemTypes::Tickets => {
+                        o.update_fees(&self, conn)?;
+                        if o.unit_price_in_cents() > 0 {
+                            all_zero_price = false;
+                        }
+                    }
                     _ => {}
                 }
             }
 
-            let mut new_event_fee = NewFeesOrderItem {
-                order_id: self.id,
-                item_type: OrderItemTypes::EventFees,
-                event_id: Some(event.id),
-                unit_price_in_cents: 0,
-                fee_schedule_range_id: None,
-                company_fee_in_cents: 0,
-                client_fee_in_cents: 0,
-                quantity: 1,
-                parent_id: None,
-            };
-            if event.fee_in_cents > 0 {
-                //we dont want to create 0 fee order item
-                new_event_fee.unit_price_in_cents = event.fee_in_cents;
-                new_event_fee.commit(conn)?;
+            if !all_zero_price {
+                let mut new_event_fee = NewFeesOrderItem {
+                    order_id: self.id,
+                    item_type: OrderItemTypes::EventFees,
+                    event_id: Some(event.id),
+                    unit_price_in_cents: 0,
+                    fee_schedule_range_id: None,
+                    company_fee_in_cents: 0,
+                    client_fee_in_cents: 0,
+                    quantity: 1,
+                    parent_id: None,
+                };
+                if event.fee_in_cents > 0 {
+                    //we dont want to create 0 fee order item
+                    new_event_fee.unit_price_in_cents = event.fee_in_cents;
+                    new_event_fee.commit(conn)?;
+                }
             }
         }
 

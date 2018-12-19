@@ -25,6 +25,7 @@ impl FeeSchedule {
     pub fn ranges(&self, conn: &PgConnection) -> Result<Vec<FeeScheduleRange>, DatabaseError> {
         fee_schedule_ranges::table
             .filter(fee_schedule_ranges::fee_schedule_id.eq(self.id))
+            .order_by(fee_schedule_ranges::min_price_in_cents.asc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load fee schedule ranges")
     }
