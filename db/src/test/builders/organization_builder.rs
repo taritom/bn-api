@@ -1,6 +1,7 @@
 use diesel::prelude::*;
 use models::*;
 use rand::prelude::*;
+use test::builders::user_builder::UserBuilder;
 use uuid::Uuid;
 
 pub struct OrganizationBuilder<'a> {
@@ -64,6 +65,10 @@ impl<'a> OrganizationBuilder<'a> {
     }
 
     pub fn finish(mut self) -> Organization {
+        let current_user_id = self
+            .owner_user_id
+            .unwrap_or_else(|| UserBuilder::new(self.connection).finish().id);
+
         if self.fee_schedule.is_none() {
             let x: u16 = random();
             let fee_schedule = FeeSchedule::create(
@@ -74,12 +79,12 @@ impl<'a> OrganizationBuilder<'a> {
                     client_fee_in_cents: 30,
                 }],
             )
-            .commit(self.connection);
+            .commit(current_user_id, self.connection);
             self.fee_schedule = Some(fee_schedule.unwrap());
         }
 
         let mut organization = Organization::create(&self.name, self.fee_schedule.unwrap().id)
-            .commit(&"encryption_key".to_string(), self.connection)
+            .commit("encryption_key", current_user_id, self.connection)
             .unwrap();
 
         let event_fee_update = OrganizationEditableAttributes {

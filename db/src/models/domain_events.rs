@@ -2,6 +2,7 @@ use chrono::prelude::*;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use log::Level::Info;
 use models::enums::*;
 use schema::*;
 use serde_json;
@@ -19,6 +20,7 @@ pub struct DomainEvent {
     pub published_at: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub user_id: Option<Uuid>,
 }
 
 impl DomainEvent {
@@ -27,6 +29,7 @@ impl DomainEvent {
         display_text: String,
         main_table: Tables,
         main_id: Option<Uuid>,
+        user_id: Option<Uuid>,
         event_data: Option<serde_json::Value>,
     ) -> NewDomainEvent {
         NewDomainEvent {
@@ -35,6 +38,7 @@ impl DomainEvent {
             event_data,
             main_table,
             main_id,
+            user_id,
         }
     }
 
@@ -85,7 +89,7 @@ impl DomainEvent {
     }
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Clone)]
 #[table_name = "domain_events"]
 pub struct NewDomainEvent {
     pub event_type: DomainEventTypes,
@@ -93,13 +97,22 @@ pub struct NewDomainEvent {
     pub event_data: Option<serde_json::Value>,
     pub main_table: Tables,
     pub main_id: Option<Uuid>,
+    pub user_id: Option<Uuid>,
 }
 
 impl NewDomainEvent {
     pub fn commit(self, conn: &PgConnection) -> Result<DomainEvent, DatabaseError> {
-        diesel::insert_into(domain_events::table)
-            .values(self)
+        let result: DomainEvent = diesel::insert_into(domain_events::table)
+            .values(&self)
             .get_result(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not insert domain event")
+            .to_db_error(ErrorCode::InsertError, "Could not insert domain event")?;
+
+        jlog!(Info, &format!("Domain Event: {} `{}` on {}:{}", self.event_type,
+            self.display_text, self.main_table, self.main_id.map(|i| i.to_string()).unwrap_or_default()),{"domain_event_id": result.id,
+
+
+            "event_type": self.event_type.clone(), "main_table": self.main_table.clone(), "main_id": self.main_id});
+
+        Ok(result)
     }
 }

@@ -16,7 +16,7 @@ fn create() {
         "cus_example".into(),
         "abc".into(),
     )
-    .commit(connection)
+    .commit(user.id, connection)
     .unwrap();
 
     let domain_events = DomainEvent::find(
@@ -37,6 +37,8 @@ fn create() {
 #[test]
 fn update() {
     let project = TestProject::new();
+    let payer = project.create_user().finish();
+
     let connection = project.get_connection();
     let payment_method = project.create_payment_method().finish();
     assert_eq!(
@@ -57,7 +59,11 @@ fn update() {
         provider_data: Some("test".into()),
     };
     let updated_payment_method = payment_method
-        .update(&payment_method_parameters, &project.get_connection())
+        .update(
+            &payment_method_parameters,
+            payer.id,
+            &project.get_connection(),
+        )
         .unwrap();
 
     assert_eq!(

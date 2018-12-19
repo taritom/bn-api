@@ -83,6 +83,7 @@ table! {
         published_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        user_id -> Nullable<Uuid>,
     }
 }
 
@@ -452,6 +453,7 @@ joinable!(artists -> organizations (organization_id));
 joinable!(assets -> ticket_types (ticket_type_id));
 joinable!(codes -> events (event_id));
 joinable!(domain_actions -> domain_events (domain_event_id));
+joinable!(domain_events -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
 joinable!(event_interest -> events (event_id));

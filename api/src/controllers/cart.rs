@@ -435,7 +435,7 @@ fn checkout_external(
     }
 
     let mut order = order.update(UpdateOrderAttributes { note: Some(note) }, conn)?;
-    order.set_behalf_of_user(guest.unwrap(), conn)?;
+    order.set_behalf_of_user(guest.unwrap(), user.id(), conn)?;
 
     order.add_external_payment(reference, user.id(), checkout_request.amount, conn)?;
 
@@ -510,7 +510,11 @@ fn checkout_payment_processor(
                     let payment_method_parameters = PaymentMethodEditableAttributes {
                         provider_data: Some(client_response.to_json()?),
                     };
-                    payment_method.update(&payment_method_parameters, connection)?;
+                    payment_method.update(
+                        &payment_method_parameters,
+                        auth_user.id(),
+                        connection,
+                    )?;
 
                     payment_method.provider
                 }
@@ -524,7 +528,7 @@ fn checkout_payment_processor(
                         repeat_token.token.clone(),
                         repeat_token.to_json()?,
                     )
-                    .commit(connection)?;
+                    .commit(auth_user.id(), connection)?;
                     repeat_token.token
                 }
             }
@@ -566,7 +570,7 @@ fn checkout_payment_processor(
     let charge_result = client.complete_authed_charge(&auth_result.id)?;
     info!("CART: Completing payment on order");
     info!("charge_result:{:?}", charge_result);
-    match payment.mark_complete(charge_result.to_json()?, connection) {
+    match payment.mark_complete(charge_result.to_json()?, auth_user.id(), connection) {
         Ok(_) => {
             let order = Order::find(order.id, connection)?;
             Ok(HttpResponse::Ok().json(json!(order.for_display(connection)?)))

@@ -611,14 +611,20 @@ mod holds_tests {
 #[test]
 fn dashboard_with_default_range() {
     let database = TestDatabase::new();
+
+    let admin = database.create_user().finish();
     let connection = database.connection.get();
-    let user = database.create_user().finish();
+    let org_admin = database.create_user().finish();
     let organization = database
         .create_organization()
-        .with_fee_schedule(&database.create_fee_schedule().finish())
+        .with_fee_schedule(&database.create_fee_schedule().finish(admin.id))
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(
+        &org_admin,
+        Roles::OrgOwner,
+        Some(&organization),
+        &database,
+    );
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -628,8 +634,8 @@ fn dashboard_with_default_range() {
         .finish();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
 
-    // user purchases 10 tickets
-    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    // org_admin purchases 10 tickets
+    let mut cart = Order::find_or_create_cart(&org_admin, connection).unwrap();
     cart.update_quantities(
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
@@ -641,7 +647,7 @@ fn dashboard_with_default_range() {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
+    cart.add_external_payment(Some("test".to_string()), org_admin.id, 1700, connection)
         .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
 

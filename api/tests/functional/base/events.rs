@@ -314,11 +314,13 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
 
 pub fn dashboard(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
+    let admin = database.create_user().finish();
+
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database
         .create_organization()
-        .with_fee_schedule(&database.create_fee_schedule().finish())
+        .with_fee_schedule(&database.create_fee_schedule().finish(admin.id))
         .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);

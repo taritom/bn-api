@@ -43,14 +43,16 @@ impl<'a> PaymentMethodBuilder<'a> {
             self.user_id = Some(user.id);
         }
 
+        let user_id = self.user_id.unwrap();
+
         PaymentMethod::create(
-            self.user_id.unwrap(),
+            user_id,
             self.name,
             self.is_default,
             "cus_example".into(),
             "abc".into(),
         )
-        .commit(self.connection)
+        .commit(user_id, self.connection)
         .unwrap()
     }
 }

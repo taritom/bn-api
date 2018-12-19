@@ -76,7 +76,8 @@ pub struct NewOrganization {
 impl NewOrganization {
     pub fn commit(
         self,
-        encryption_key: &String,
+        encryption_key: &str,
+        current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
         let mut updated_organisation = self;
@@ -92,7 +93,7 @@ impl NewOrganization {
             }
         }
 
-        let db_err = diesel::insert_into(organizations::table)
+        let org: Organization = diesel::insert_into(organizations::table)
             .values((
                 &updated_organisation,
                 organizations::event_fee_in_cents
@@ -102,7 +103,17 @@ impl NewOrganization {
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new organization")?;
 
-        Ok(db_err)
+        DomainEvent::create(
+            DomainEventTypes::OrganizationCreated,
+            "Organization created".to_string(),
+            Tables::Organizations,
+            Some(org.id),
+            Some(current_user_id),
+            Some(json!(updated_organisation)),
+        )
+        .commit(conn)?;
+
+        Ok(org)
     }
 }
 

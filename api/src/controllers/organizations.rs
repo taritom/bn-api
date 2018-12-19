@@ -118,7 +118,7 @@ pub fn create(
             client_fee_in_cents: 0,
         }],
     )
-    .commit(connection)?;
+    .commit(user.id(), connection)?;
 
     let new_organization_with_fee_schedule = NewOrganization {
         name: new_organization.name.clone(),
@@ -136,8 +136,11 @@ pub fn create(
         facebook_pixel_key: new_organization.facebook_pixel_key.clone(),
     };
 
-    let mut organization = new_organization_with_fee_schedule
-        .commit(&state.config.api_keys_encryption_key, connection)?;
+    let mut organization = new_organization_with_fee_schedule.commit(
+        &state.config.api_keys_encryption_key,
+        user.id(),
+        connection,
+    )?;
 
     organization.decrypt(&state.config.api_keys_encryption_key)?;
 
@@ -343,7 +346,7 @@ pub fn add_fee_schedule(
     user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
 
-    let fee_schedule = json.into_inner().commit(connection)?;
+    let fee_schedule = json.into_inner().commit(user.id(), connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;
 
     Organization::find(parameters.id, connection)?.add_fee_schedule(&fee_schedule, connection)?;

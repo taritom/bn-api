@@ -52,6 +52,7 @@ impl Payment {
     pub fn mark_complete(
         &self,
         raw_data: serde_json::Value,
+        current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         diesel::update(
@@ -77,6 +78,7 @@ impl Payment {
             "Payment was completed".to_string(),
             Tables::Payments,
             Some(self.id),
+            Some(current_user_id),
             Some(raw_data),
         )
         .commit(conn)?;
@@ -111,7 +113,11 @@ pub struct NewPayment {
 }
 
 impl NewPayment {
-    pub(crate) fn commit(self, conn: &PgConnection) -> Result<Payment, DatabaseError> {
+    pub(crate) fn commit(
+        self,
+        current_user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Payment, DatabaseError> {
         let res: Payment = diesel::insert_into(payments::table)
             .values(&self)
             .get_result(conn)
@@ -122,6 +128,7 @@ impl NewPayment {
             "Payment created".to_string(),
             Tables::Payments,
             Some(res.id),
+            Some(current_user_id),
             self.raw_data,
         )
         .commit(conn)?;

@@ -4,6 +4,8 @@ use bigneon_db::models::{FeeSchedule, FeeScheduleRange, NewFeeScheduleRange};
 #[test]
 fn find() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let fee_schedule = FeeSchedule::create(
         "default".to_string(),
         vec![
@@ -19,7 +21,7 @@ fn find() {
             },
         ],
     )
-    .commit(project.get_connection())
+    .commit(creator.id, project.get_connection())
     .unwrap();
 
     let fee_schedule_range = fee_schedule

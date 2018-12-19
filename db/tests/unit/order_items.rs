@@ -8,9 +8,11 @@ use diesel::prelude::*;
 fn find_fee_item() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let creator = project.create_user().finish();
+
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let event = project
         .create_event()
@@ -47,10 +49,12 @@ fn find_fee_item() {
 #[test]
 fn update_with_validation_errors() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let event = project
         .create_event()
@@ -160,10 +164,12 @@ fn update_with_validation_errors() {
 #[test]
 fn calculate_quantity() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let event = project
         .create_event()

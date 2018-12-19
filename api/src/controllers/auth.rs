@@ -6,6 +6,7 @@ use errors::*;
 use extractors::*;
 use helpers::application;
 use jwt::{decode, Validation};
+use log::Level::Info;
 use reqwest;
 use serde_json;
 use server::AppState;
@@ -106,6 +107,7 @@ pub fn token(
         return application::unauthorized_with_message(login_failure_messaging, &http_request, None);
     }
 
+    jlog!(Info, "User logged in via email and password", {"id": user.id, "email": user.email.clone()});
     let response = TokenResponse::create_from_user(
         &state.config.token_secret,
         &state.config.token_issuer,
@@ -143,6 +145,8 @@ pub fn token_refresh(
         &user.id,
         &refresh_request.refresh_token,
     )?;
+    jlog!(Info, "User refreshed token", {"id": user.id, "email": user.email.clone()});
+
     Ok(HttpResponse::Ok().json(response))
 }
 

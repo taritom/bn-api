@@ -13,10 +13,12 @@ use uuid::Uuid;
 #[test]
 pub fn find_for_user_for_display() {
     let project = TestProject::new();
+    let admin = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
         .finish();
     let event = project
         .create_event()
@@ -132,10 +134,12 @@ pub fn find_for_user_for_display() {
 #[test]
 pub fn find() {
     let project = TestProject::new();
+    let org_admin = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(org_admin.id))
         .finish();
     let event = project
         .create_event()
@@ -191,10 +195,12 @@ pub fn find() {
 #[test]
 pub fn find_for_user() {
     let project = TestProject::new();
+    let admin = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
         .finish();
     let event = project
         .create_event()
@@ -283,11 +289,13 @@ pub fn release_tickets() {
 #[test]
 fn redeem_ticket() {
     let project = TestProject::new();
+    let admin = project.create_user().finish();
+
     let connection = project.get_connection();
 
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
         .finish();
     let event = project
         .create_event()
@@ -317,11 +325,13 @@ fn redeem_ticket() {
 #[test]
 fn show_redeemable_ticket() {
     let project = TestProject::new();
+    let admin = project.create_user().finish();
+
     let connection = project.get_connection();
 
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
         .finish();
     let venue = project.create_venue().finish();
     let event = project
@@ -387,10 +397,12 @@ fn show_redeemable_ticket() {
 #[test]
 pub fn authorize_ticket_transfer() {
     let project = TestProject::new();
+    let admin = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
         .finish();
     let event = project
         .create_event()
@@ -445,10 +457,12 @@ pub fn authorize_ticket_transfer() {
 #[test]
 pub fn receive_ticket_transfer() {
     let project = TestProject::new();
+    let admin = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
         .finish();
     let event = project
         .create_event()

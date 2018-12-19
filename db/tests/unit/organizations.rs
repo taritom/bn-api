@@ -5,6 +5,8 @@ use uuid::Uuid;
 #[test]
 fn create() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let connection = project.get_connection();
     let fee_schedule = FeeSchedule::create(
         format!("Zero fees",).into(),
@@ -14,13 +16,13 @@ fn create() {
             client_fee_in_cents: 0,
         }],
     )
-    .commit(connection)
+    .commit(creator.id, connection)
     .unwrap();
     let mut organization = Organization::create("Organization", fee_schedule.id);
     organization.sendgrid_api_key = Some("A_Test_Key".to_string());
 
     let mut organization = organization
-        .commit(&"encryption_key".to_string(), connection)
+        .commit(&"encryption_key".to_string(), creator.id, connection)
         .unwrap();
     assert_eq!(organization.id.to_string().is_empty(), false);
 
@@ -38,11 +40,13 @@ fn create() {
 #[test]
 fn has_fan() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let event = project
         .create_event()
@@ -508,8 +512,10 @@ fn add_user() {
 #[test]
 fn add_fee_schedule() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let organization = project.create_organization().finish();
-    let fee_structure = project.create_fee_schedule().finish();
+    let fee_structure = project.create_fee_schedule().finish(creator.id);
     organization
         .add_fee_schedule(&fee_structure, project.get_connection())
         .unwrap();

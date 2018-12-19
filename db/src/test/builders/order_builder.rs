@@ -75,9 +75,10 @@ impl<'a> OrderBuilder<'a> {
             self.connection,
         )
         .unwrap();
+        let user = self.user.unwrap();
 
         if let Some(on_behalf_of_user) = self.on_behalf_of_user {
-            cart.set_behalf_of_user(on_behalf_of_user, self.connection)
+            cart.set_behalf_of_user(on_behalf_of_user, user.id, self.connection)
                 .unwrap();
         }
 
@@ -85,13 +86,8 @@ impl<'a> OrderBuilder<'a> {
 
         let mut cart = cart;
         if self.is_paid {
-            cart.add_external_payment(
-                Some("blah".to_string()),
-                self.user.unwrap().id,
-                total,
-                self.connection,
-            )
-            .unwrap();
+            cart.add_external_payment(Some("blah".to_string()), user.id, total, self.connection)
+                .unwrap();
         }
 
         cart

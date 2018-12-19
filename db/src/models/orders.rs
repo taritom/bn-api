@@ -735,7 +735,7 @@ impl Order {
             amount,
             None,
         );
-        self.add_payment(payment, conn)
+        self.add_payment(payment, current_user_id, conn)
     }
 
     pub fn add_credit_card_payment(
@@ -759,12 +759,13 @@ impl Order {
             Some(provider_data),
         );
 
-        self.add_payment(payment, conn)
+        self.add_payment(payment, current_user_id, conn)
     }
 
     fn add_payment(
         &mut self,
         payment: NewPayment,
+        current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
         match self.status {
@@ -782,7 +783,7 @@ impl Order {
             }
         }
 
-        let p = payment.commit(conn)?;
+        let p = payment.commit(current_user_id, conn)?;
         self.complete_if_fully_paid(conn)?;
         Ok(p)
     }
@@ -947,6 +948,7 @@ impl Order {
     pub fn set_behalf_of_user(
         &mut self,
         user: User,
+        current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         if self.status != OrderStatus::Draft {
@@ -976,6 +978,7 @@ impl Order {
             "Behalf of user on order was changed".to_string(),
             Tables::Orders,
             Some(self.id),
+            Some(current_user_id),
             Some(json!({
             "old_user" : old_id, "new_user": user.id
             })),

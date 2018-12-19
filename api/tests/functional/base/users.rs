@@ -14,12 +14,14 @@ use uuid::Uuid;
 
 pub fn profile(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
+    let admin = database.create_user().finish();
+
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let organization = database
         .create_organization()
-        .with_fee_schedule(&database.create_fee_schedule().finish())
+        .with_fee_schedule(&database.create_fee_schedule().finish(admin.id))
         .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
@@ -80,12 +82,14 @@ pub fn profile(role: Roles, should_test_true: bool) {
 
 pub fn history(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
+
+    let admin = database.create_user().finish();
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let organization = database
         .create_organization()
-        .with_fee_schedule(&database.create_fee_schedule().finish())
+        .with_fee_schedule(&database.create_fee_schedule().finish(admin.id))
         .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);

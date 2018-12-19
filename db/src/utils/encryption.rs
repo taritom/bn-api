@@ -3,8 +3,8 @@ use ring::aead::*;
 use ring::rand::{SecureRandom, SystemRandom};
 use utils::errors::*;
 
-pub fn encrypt(plaintext: &String, encryption_key: &String) -> Result<String, DatabaseError> {
-    let mut key = encryption_key.clone().into_bytes();
+pub fn encrypt(plaintext: &str, encryption_key: &str) -> Result<String, DatabaseError> {
+    let mut key = encryption_key.to_string().into_bytes();
     if key.len() > 32 {
         key.truncate(32);
     }
@@ -17,7 +17,7 @@ pub fn encrypt(plaintext: &String, encryption_key: &String) -> Result<String, Da
     let rng = SystemRandom::new();
     rng.fill(&mut nonce)?;
 
-    let mut in_out = plaintext.clone().into_bytes();
+    let mut in_out = plaintext.to_string().into_bytes();
     //Add extra bytes for the tag
     for _ in 0..CHACHA20_POLY1305.tag_len() {
         in_out.push(0);

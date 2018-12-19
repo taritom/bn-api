@@ -28,10 +28,12 @@ fn create() {
 #[test]
 fn add_tickets() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let event = project
         .create_event()
@@ -100,10 +102,12 @@ fn add_tickets() {
 #[test]
 fn add_tickets_with_increment() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let event = project
         .create_event()
@@ -177,10 +181,12 @@ fn add_tickets_with_increment() {
 #[test]
 fn replace_tickets() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let event = project
         .create_event()
@@ -588,9 +594,11 @@ fn destroy() {
 #[test]
 fn calculate_cart_total() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let event = project
         .create_event()
@@ -740,10 +748,12 @@ fn for_display() {
 #[test]
 fn adding_event_fees() {
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .with_event_fee()
         .finish();
     let event1 = project
@@ -766,7 +776,7 @@ fn adding_event_fees() {
         .finish();
     let organization2 = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .with_event_fee()
         .finish();
     let event4 = project

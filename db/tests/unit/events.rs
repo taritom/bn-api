@@ -52,9 +52,10 @@ fn update() {
 fn guest_list() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let venue = project.create_venue().finish();
     let event = project
@@ -170,9 +171,11 @@ fn cancel() {
 fn get_sales_by_date_range() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let creator = project.create_user().finish();
+
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
     let event = project
         .create_event()

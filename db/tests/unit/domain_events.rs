@@ -6,6 +6,7 @@ use uuid::Uuid;
 fn find() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let user = project.create_user().finish();
     let id = Uuid::new_v4();
 
     // Empty, no events
@@ -21,6 +22,7 @@ fn find() {
         "Payment method was created".to_string(),
         Tables::PaymentMethods,
         Some(id),
+        Some(user.id),
         Some("".into()),
     )
     .commit(connection)
@@ -31,6 +33,7 @@ fn find() {
         "Payment method was updated".to_string(),
         Tables::PaymentMethods,
         Some(id),
+        Some(user.id),
         Some("".into()),
     )
     .commit(connection)
@@ -81,6 +84,7 @@ fn find() {
 pub fn find_unpublished() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let user = project.create_user().finish();
     let id = Uuid::new_v4();
 
     let domain_event = DomainEvent::create(
@@ -88,6 +92,7 @@ pub fn find_unpublished() {
         "Payment method was created".to_string(),
         Tables::PaymentMethods,
         Some(id),
+        Some(user.id),
         Some("".into()),
     )
     .commit(connection)

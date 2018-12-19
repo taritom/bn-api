@@ -1,5 +1,6 @@
 use diesel::prelude::*;
 use models::*;
+use uuid::Uuid;
 
 pub struct FeeScheduleBuilder<'a> {
     name: String,
@@ -14,7 +15,7 @@ impl<'a> FeeScheduleBuilder<'a> {
         }
     }
 
-    pub fn finish(self) -> FeeSchedule {
+    pub fn finish(self, current_user_id: Uuid) -> FeeSchedule {
         FeeSchedule::create(
             self.name,
             vec![
@@ -30,7 +31,7 @@ impl<'a> FeeScheduleBuilder<'a> {
                 },
             ],
         )
-        .commit(self.connection)
+        .commit(current_user_id, self.connection)
         .unwrap()
     }
 }

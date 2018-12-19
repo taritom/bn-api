@@ -82,6 +82,7 @@ impl PaymentMethod {
     pub fn update(
         &self,
         attributes: &PaymentMethodEditableAttributes,
+        current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<PaymentMethod, DatabaseError> {
         DomainEvent::create(
@@ -89,6 +90,7 @@ impl PaymentMethod {
             "Payment method was updated".to_string(),
             Tables::PaymentMethods,
             Some(self.id),
+            Some(current_user_id),
             Some(self.provider_data.clone()),
         )
         .commit(conn)?;
@@ -121,7 +123,11 @@ pub struct NewPaymentMethod {
 }
 
 impl NewPaymentMethod {
-    pub fn commit(self, conn: &PgConnection) -> Result<PaymentMethod, DatabaseError> {
+    pub fn commit(
+        self,
+        current_user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<PaymentMethod, DatabaseError> {
         let payment_method = diesel::insert_into(payment_methods::table)
             .values(self)
             .get_result::<PaymentMethod>(conn)
@@ -132,6 +138,7 @@ impl NewPaymentMethod {
             "Payment method was created".to_string(),
             Tables::PaymentMethods,
             Some(payment_method.id),
+            Some(current_user_id),
             Some(payment_method.provider_data.clone()),
         )
         .commit(conn)?;

@@ -406,44 +406,48 @@ fn find() {
 
 #[test]
 fn get_current_ticket_pricing() {
-    let db = TestProject::new();
+    let project = TestProject::new();
+    let admin = project.create_user().finish();
 
-    let organization = db
+    let organization = project
         .create_organization()
-        .with_fee_schedule(&db.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
         .finish();
-    let event = db
+    let event = project
         .create_event()
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
 
-    let ticket_types = TicketType::find_by_event_id(event.id, db.get_connection()).unwrap();
+    let ticket_types = TicketType::find_by_event_id(event.id, project.get_connection()).unwrap();
 
     let ticket_pricing =
-        TicketPricing::get_current_ticket_pricing(ticket_types[0].id, db.get_connection()).unwrap();
+        TicketPricing::get_current_ticket_pricing(ticket_types[0].id, project.get_connection())
+            .unwrap();
 
     assert_eq!(ticket_pricing.name, "Standard".to_string())
 }
 
 #[test]
 fn get_current_ticket_capacity() {
-    let db = TestProject::new();
+    let project = TestProject::new();
 
-    let organization = db
+    let admin = project.create_user().finish();
+
+    let organization = project
         .create_organization()
-        .with_fee_schedule(&db.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
         .finish();
-    let event = db
+    let event = project
         .create_event()
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let ticket_types = TicketType::find_by_event_id(event.id, db.get_connection()).unwrap();
+    let ticket_types = TicketType::find_by_event_id(event.id, project.get_connection()).unwrap();
     assert_eq!(ticket_types.len(), 1);
 
     let ticket_capacity = ticket_types[0]
-        .ticket_capacity(db.get_connection())
+        .ticket_capacity(project.get_connection())
         .unwrap();
     assert_eq!(ticket_capacity, 100);
 }

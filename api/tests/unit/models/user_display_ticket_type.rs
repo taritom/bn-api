@@ -5,7 +5,9 @@ use support::database::TestDatabase;
 #[test]
 fn from_ticket_type() {
     let database = TestDatabase::new();
-    let fee_schedule = database.create_fee_schedule().finish();
+
+    let admin = database.create_user().finish();
+    let fee_schedule = database.create_fee_schedule().finish(admin.id);
     let organization = database
         .create_organization()
         .with_fee_schedule(&fee_schedule)

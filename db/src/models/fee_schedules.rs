@@ -1,14 +1,14 @@
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
-use models::{FeeScheduleRange, NewFeeScheduleRange};
+use models::*;
 use schema::{fee_schedule_ranges, fee_schedules};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(Queryable, Identifiable, Clone, Debug)]
+#[derive(Queryable, Identifiable, Clone, Debug, Serialize)]
 pub struct FeeSchedule {
     pub id: Uuid,
     pub name: String,
@@ -70,7 +70,11 @@ pub struct NewFeeSchedule {
 }
 
 impl NewFeeSchedule {
-    pub fn commit(self, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
+    pub fn commit(
+        self,
+        created_by_user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<FeeSchedule, DatabaseError> {
         let previous_version = fee_schedules::table
             .filter(fee_schedules::name.eq(&self.name))
             .order_by(fee_schedules::version.desc())
@@ -118,6 +122,16 @@ impl NewFeeSchedule {
                 ErrorCode::InsertError,
                 "Could not create fee schedule range",
             )?;
+
+        DomainEvent::create(
+            DomainEventTypes::FeeScheduleCreated,
+            "Fee schedule created".to_string(),
+            Tables::FeeSchedules,
+            Some(result.id),
+            Some(created_by_user_id),
+            None,
+        )
+        .commit(conn)?;
 
         Ok(result)
     }

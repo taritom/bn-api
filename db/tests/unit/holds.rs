@@ -127,9 +127,14 @@ fn update() {
 
 #[test]
 fn update_with_validation_errors() {
-    let db = TestProject::new();
-    let connection = db.get_connection();
-    let hold = db.create_hold().with_hold_type(HoldTypes::Comp).finish();
+    let project = TestProject::new();
+    let creator = project.create_user().finish();
+
+    let connection = project.get_connection();
+    let hold = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Comp)
+        .finish();
     assert!(hold.discount_in_cents.is_none());
 
     let update_patch = UpdateHoldAttributes {
@@ -152,7 +157,7 @@ fn update_with_validation_errors() {
     }
 
     // Dupe redemption code
-    let hold2 = db.create_hold().finish();
+    let hold2 = project.create_hold().finish();
     let update_patch = UpdateHoldAttributes {
         redemption_code: Some(hold2.redemption_code),
         ..Default::default()
@@ -173,7 +178,7 @@ fn update_with_validation_errors() {
     }
 
     // Dupe redemption code used by code
-    let code = db.create_code().finish();
+    let code = project.create_code().finish();
     let update_patch = UpdateHoldAttributes {
         redemption_code: Some(code.redemption_code),
         ..Default::default()
@@ -194,20 +199,24 @@ fn update_with_validation_errors() {
     }
 
     // Create and assign comp to active cart
-    let organization = db
+    let organization = project
         .create_organization()
-        .with_fee_schedule(&db.create_fee_schedule().finish())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
         .finish();
-    let event = db
+    let event = project
         .create_event()
         .with_organization(&organization)
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let hold = db.create_hold().with_event(&event).finish();
-    let comp = db.create_comp().with_quantity(10).with_hold(&hold).finish();
+    let hold = project.create_hold().with_event(&event).finish();
+    let comp = project
+        .create_comp()
+        .with_quantity(10)
+        .with_hold(&hold)
+        .finish();
 
-    let user = db.create_user().finish();
+    let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
     cart.update_quantities(
