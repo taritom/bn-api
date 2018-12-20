@@ -8,6 +8,7 @@ use diesel::sql_types;
 use log::Level;
 use models::*;
 use schema::{artists, event_artists, events, organization_users, organizations, venues};
+use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
