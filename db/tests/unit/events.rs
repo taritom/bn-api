@@ -149,6 +149,92 @@ fn publish() {
 }
 
 #[test]
+fn publish_in_future() {
+    //create event
+    let project = TestProject::new();
+    let venue = project.create_venue().finish();
+
+    let user = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+    let event = project
+        .create_event()
+        .with_status(EventStatus::Draft)
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
+    assert_eq!(event.status, EventStatus::Draft);
+
+    let parameters = EventEditableAttributes {
+        publish_date: Some(Some(NaiveDate::from_ymd(2054, 7, 8).and_hms(4, 10, 11))),
+        ..Default::default()
+    };
+    let event = event.update(parameters, project.get_connection()).unwrap();
+
+    let event = event.publish(project.get_connection()).unwrap();
+
+    assert_eq!(event.status, EventStatus::Published);
+    assert_eq!(
+        event.publish_date,
+        Some(NaiveDate::from_ymd(2054, 7, 8).and_hms(4, 10, 11))
+    );
+}
+
+#[test]
+fn publish_change_publish_date() {
+    //create event
+    let project = TestProject::new();
+    let venue = project.create_venue().finish();
+    let now = Utc::now().naive_utc();
+
+    let user = project.create_user().finish();
+    let organization = project.create_organization().with_owner(&user).finish();
+    let event = project
+        .create_event()
+        .with_status(EventStatus::Draft)
+        .with_name("NewEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+
+    assert_eq!(event.status, EventStatus::Draft);
+
+    let parameters = EventEditableAttributes {
+        publish_date: Some(Some(NaiveDate::from_ymd(2054, 7, 8).and_hms(4, 10, 11))),
+        ..Default::default()
+    };
+    let event = event.update(parameters, project.get_connection()).unwrap();
+
+    let event = event.publish(project.get_connection()).unwrap();
+
+    assert_eq!(event.status, EventStatus::Published);
+
+    let parameters = EventEditableAttributes {
+        publish_date: Some(Some(NaiveDate::from_ymd(2041, 7, 8).and_hms(4, 10, 11))),
+        ..Default::default()
+    };
+
+    let event = event.update(parameters, project.get_connection()).unwrap();
+
+    assert_eq!(
+        event.publish_date,
+        Some(NaiveDate::from_ymd(2041, 7, 8).and_hms(4, 10, 11))
+    );
+
+    let parameters = EventEditableAttributes {
+        publish_date: Some(None),
+        ..Default::default()
+    };
+
+    let event = event.update(parameters, project.get_connection()).unwrap();
+
+    assert!(event.publish_date.unwrap() > now);
+
+    assert!(event.publish_date.unwrap() < Utc::now().naive_utc());
+}
+
+#[test]
 fn cancel() {
     //create event
     let project = TestProject::new();

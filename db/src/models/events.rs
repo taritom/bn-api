@@ -130,7 +130,8 @@ pub struct EventEditableAttributes {
     pub venue_id: Option<Uuid>,
     pub event_start: Option<NaiveDateTime>,
     pub door_time: Option<NaiveDateTime>,
-    pub publish_date: Option<NaiveDateTime>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub publish_date: Option<Option<NaiveDateTime>>,
     pub redeem_date: Option<NaiveDateTime>,
     #[validate(url(message = "Promo image URL is invalid"))]
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
@@ -221,16 +222,28 @@ impl Event {
     }
 
     pub fn update(
-        &self,
+        self,
         attributes: EventEditableAttributes,
         conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
         attributes.validate()?;
+
+        let mut event = attributes;
+
+        if self.status == EventStatus::Published {
+            if let Some(date) = event.publish_date {
+                match date {
+                    Some(_) => {}
+                    None => event.publish_date = Some(Some(Utc::now().naive_utc())),
+                }
+            }
+        }
+
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update event",
-            diesel::update(self)
-                .set((attributes, events::updated_at.eq(dsl::now)))
+            diesel::update(&self)
+                .set((event, events::updated_at.eq(dsl::now)))
                 .get_result(conn),
         )
     }
@@ -252,14 +265,23 @@ impl Event {
             return Err(errors.into());
         }
 
-        diesel::update(&self)
-            .set((
-                events::status.eq(EventStatus::Published),
-                events::publish_date.eq(dsl::now.nullable()),
-                events::updated_at.eq(dsl::now),
-            ))
-            .execute(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not publish record")?;
+        match self.publish_date {
+            Some(_) => diesel::update(&self)
+                .set((
+                    events::status.eq(EventStatus::Published),
+                    events::updated_at.eq(dsl::now),
+                ))
+                .execute(conn)
+                .to_db_error(ErrorCode::UpdateError, "Could not publish record")?,
+            None => diesel::update(&self)
+                .set((
+                    events::status.eq(EventStatus::Published),
+                    events::publish_date.eq(dsl::now.nullable()),
+                    events::updated_at.eq(dsl::now),
+                ))
+                .execute(conn)
+                .to_db_error(ErrorCode::UpdateError, "Could not publish record")?,
+        };
 
         Event::find(self.id, conn)
     }

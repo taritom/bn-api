@@ -360,7 +360,7 @@ fn show_redeemable_ticket() {
         ..Default::default()
     };
 
-    event.update(new_event_redeem_date, connection).unwrap();
+    let event = event.update(new_event_redeem_date, connection).unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_none());
@@ -373,7 +373,7 @@ fn show_redeemable_ticket() {
         ..Default::default()
     };
 
-    event.update(new_event_redeem_date, connection).unwrap();
+    let event = event.update(new_event_redeem_date, connection).unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_some());
