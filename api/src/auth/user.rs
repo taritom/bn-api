@@ -40,11 +40,12 @@ impl User {
         self.user.email.clone()
     }
 
-    fn has_scope(
+    fn check_scope_access(
         &self,
         scope: Scopes,
         organization: Option<&Organization>,
         connection: Option<&PgConnection>,
+        log_on_failure: bool,
     ) -> Result<bool, BigNeonError> {
         if self.global_scopes.contains(&scope.to_string()) {
             return Ok(true);
@@ -62,8 +63,24 @@ impl User {
 
         logging_data.insert("accessed_scope", json!(scope.to_string()));
         logging_data.insert("global_scopes", json!(self.global_scopes));
-        self.log_unauthorized_access_attempt(logging_data);
+
+        if log_on_failure {
+            self.log_unauthorized_access_attempt(logging_data);
+        }
         Ok(false)
+    }
+
+    pub fn has_scope(&self, scope: Scopes) -> Result<bool, BigNeonError> {
+        self.check_scope_access(scope, None, None, false)
+    }
+
+    pub fn has_scope_for_organization(
+        &self,
+        scope: Scopes,
+        organization: &Organization,
+        conn: &PgConnection,
+    ) -> Result<bool, BigNeonError> {
+        self.check_scope_access(scope, Some(organization), Some(conn), false)
     }
 
     pub fn log_unauthorized_access_attempt(&self, mut logging_data: HashMap<&'static str, Value>) {
@@ -76,7 +93,7 @@ impl User {
     }
 
     pub fn requires_scope(&self, scope: Scopes) -> Result<(), BigNeonError> {
-        if self.has_scope(scope, None, None)? {
+        if self.check_scope_access(scope, None, None, true)? {
             return Ok(());
         }
         Err(AuthError::new(
@@ -92,7 +109,7 @@ impl User {
         organization: &Organization,
         conn: &PgConnection,
     ) -> Result<(), BigNeonError> {
-        if self.has_scope(scope, Some(organization), Some(conn))? {
+        if self.check_scope_access(scope, Some(organization), Some(conn), true)? {
             return Ok(());
         }
         Err(AuthError::new(

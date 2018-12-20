@@ -54,7 +54,7 @@ pub struct NewOrganizationRequest {
 pub fn index(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
-    if user.requires_scope(Scopes::OrgAdmin).is_ok() {
+    if user.has_scope(Scopes::OrgAdmin)? {
         return index_for_all_orgs((connection, query_parameters, user));
     }
 
