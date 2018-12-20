@@ -102,8 +102,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/invitations", |r| {
         r.method(Method::POST)
             .with(organization_invites::accept_request);
-        r.method(Method::DELETE)
-            .with(organization_invites::decline_request);
     })
     .resource("/holds/{id}/comps", |r| {
         r.method(Method::GET).with(comps::index);

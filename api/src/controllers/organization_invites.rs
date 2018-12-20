@@ -191,7 +191,7 @@ pub fn destroy(
 }
 
 pub fn view(
-    (connection, path, _user): (Connection, Path<PathParameters>, OptionalUser),
+    (connection, path): (Connection, Path<PathParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
 
@@ -237,17 +237,5 @@ pub fn accept_request(
         }
         None => return application::unauthorized(&request, None),
     }
-    Ok(HttpResponse::Ok().json(json!({})))
-}
-
-pub fn decline_request(
-    (connection, query, _user): (Connection, Query<InviteResponseQuery>, OptionalUser),
-) -> Result<HttpResponse, BigNeonError> {
-    let query_struct = query.into_inner();
-    let connection = connection.get();
-    let mut invite_details =
-        OrganizationInvite::get_invite_details(&query_struct.security_token, connection)?;
-
-    invite_details.change_invite_status(0, connection)?;
     Ok(HttpResponse::Ok().json(json!({})))
 }

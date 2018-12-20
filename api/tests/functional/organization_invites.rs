@@ -112,27 +112,6 @@ mod accept_tests {
     }
 }
 
-#[cfg(test)]
-mod decline_tests {
-    use super::*;
-    #[test]
-    fn decline_org_member() {
-        base::organization_invites::decline_invite_status_of_invite(Roles::OrgMember, true);
-    }
-    #[test]
-    fn decline_admin() {
-        base::organization_invites::decline_invite_status_of_invite(Roles::Admin, true);
-    }
-    #[test]
-    fn decline_user() {
-        base::organization_invites::decline_invite_status_of_invite(Roles::User, true);
-    }
-    #[test]
-    fn decline_org_owner() {
-        base::organization_invites::decline_invite_status_of_invite(Roles::OrgOwner, true);
-    }
-}
-
 #[test]
 fn destroy_owner_role_invite_as_organization_member_fails() {
     let database = TestDatabase::new();
