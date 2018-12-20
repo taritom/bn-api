@@ -3,7 +3,7 @@ use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use bigneon_db::utils::errors::*;
 use diesel::result::Error as DieselError;
 use errors::*;
-use jwt::errors::Error as JwtError;
+use jwt::errors::{Error as JwtError, ErrorKind as JwtErrorKind};
 use lettre::smtp::error::Error as SmtpError;
 use lettre_email::error::Error as EmailBuilderError;
 use payments::PaymentProcessorError;
@@ -67,7 +67,10 @@ impl ConvertToWebError for r2d2::Error {
 
 impl ConvertToWebError for JwtError {
     fn to_response(&self) -> HttpResponse {
-        error!("JWT error: {}", self);
+        match self.kind().clone() {
+            JwtErrorKind::ExpiredSignature => info!("JWT error: {}", self),
+            _ => error!("JWT error: {}", self),
+        }
         unauthorized("Invalid token")
     }
 }
