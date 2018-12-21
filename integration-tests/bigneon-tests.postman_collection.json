@@ -59,799 +59,2298 @@
 			"name": "Setup",
 			"item": [
 				{
-					"name": "Admin - Get Auth Token",
-					"event": [
+					"name": "Invites and User Creation",
+					"item": [
 						{
-							"listen": "test",
-							"script": {
-								"id": "994fad7c-ed5c-4512-9db4-e64e1eb3f879",
-								"type": "text/javascript",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let json = JSON.parse(responseBody);",
-									"",
-									"pm.environment.set(\"token\", json.access_token);",
-									""
-								]
-							}
+							"name": "Admin - Get Auth Token",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "994fad7c-ed5c-4512-9db4-e64e1eb3f879",
+										"type": "text/javascript",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"token\", json.access_token);",
+											""
+										]
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"email\":\"superuser@test.com\", \"password\":\"password\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/auth/token",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"auth",
+										"token"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - Current Me",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "5c75bf77-b444-492f-87e6-0338e97b372b",
+										"type": "text/javascript",
+										"exec": [
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"admin_id\", json.user.id)"
+										]
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Origin",
+										"value": "http://localhost:3000",
+										"disabled": true
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/users/me",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"users",
+										"me"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - Creates Org",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"type": "text/javascript",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"pm.environment.set(\"last_org_id\", JSON.parse(responseBody).id);"
+										]
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"name\": \"Jazzy_{{$timestamp}}\",\n\"owner_user_id\": \"{{admin_id}}\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - Invite Org Owner",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"last_invite_token\", r.security_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9b7abe0a-aec0-4e0c-8625-8add39b08dff",
+										"exec": [
+											"pm.environment.set(\"last_org_owner_email\", \"orgowner\" + Math.floor(Math.random() * 10000) + \"@test.com\");",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"user_email\": \"{{last_org_owner_email}}\",\n \"roles\" : [\"OrgOwner\"]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"invites"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Guest - Accept Invite - Not logged in - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "c5f63f4b-2542-4707-b9c1-4b52598b640a",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/invitations?security_token={{last_invite_token}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"invitations"
+									],
+									"query": [
+										{
+											"key": "security_token",
+											"value": "{{last_invite_token}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner - Register and Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"pm.test(\"should have token response\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\tpm.expect(json).to.have.property(\"access_token\");",
+											"\tpm.expect(json).to.have.property(\"refresh_token\");",
+											"});",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"org_owner_token\", json.access_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+										"exec": [
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"first_name\":\"Org\",\n\t\"last_name\":\"Owner\",\n\t\"email\":\"{{last_org_owner_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/users",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"users"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner - Accept Invite - Logged In - OK",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "c5f63f4b-2542-4707-b9c1-4b52598b640a",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_owner_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/invitations?security_token={{last_invite_token}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"invitations"
+									],
+									"query": [
+										{
+											"key": "security_token",
+											"value": "{{last_invite_token}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner - Invite OrgAdmin",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"last_invite_token\", r.security_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9b7abe0a-aec0-4e0c-8625-8add39b08dff",
+										"exec": [
+											"pm.environment.set(\"last_org_admin_email\", \"orgadmin\" + Math.floor(Math.random() * 10000) + \"@test.com\");",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_owner_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"user_email\": \"{{last_org_admin_email}}\",\n \"roles\" : [\"OrgAdmin\"]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"invites"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Register and Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"pm.test(\"should have token response\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\tpm.expect(json).to.have.property(\"access_token\");",
+											"\tpm.expect(json).to.have.property(\"refresh_token\");",
+											"});",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"org_admin_token\", json.access_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"first_name\":\"Org\",\n\t\"last_name\":\"Admin\",\n\t\"email\":\"{{last_org_admin_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/users",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"users"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Accept Invite - Logged In - OK",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "c5f63f4b-2542-4707-b9c1-4b52598b640a",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/invitations?security_token={{last_invite_token}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"invitations"
+									],
+									"query": [
+										{
+											"key": "security_token",
+											"value": "{{last_invite_token}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Invite OrgOwner - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9b7abe0a-aec0-4e0c-8625-8add39b08dff",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"user_email\": \"email@test.com\",\n \"roles\" : [\"OrgOwner\"]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"invites"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Invite OrgAdmin - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9b7abe0a-aec0-4e0c-8625-8add39b08dff",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"user_email\": \"email@test.com\",\n \"roles\" : [\"OrgAdmin\"]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"invites"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Invite OrgMember",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"last_invite_token\", r.security_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9b7abe0a-aec0-4e0c-8625-8add39b08dff",
+										"exec": [
+											"pm.environment.set(\"last_org_member_email\", \"orgmember\" + Math.floor(Math.random() * 10000) + \"@test.com\");",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"user_email\": \"{{last_org_member_email}}\",\n \"roles\" : [\"OrgMember\"]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"invites"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Register and Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"pm.test(\"should have token response\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\tpm.expect(json).to.have.property(\"access_token\");",
+											"\tpm.expect(json).to.have.property(\"refresh_token\");",
+											"});",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"org_member_token\", json.access_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"first_name\":\"Org\",\n\t\"last_name\":\"Member\",\n\t\"email\":\"{{last_org_member_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/users",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"users"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Accept Invite",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "c5f63f4b-2542-4707-b9c1-4b52598b640a",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/invitations?security_token={{last_invite_token}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"invitations"
+									],
+									"query": [
+										{
+											"key": "security_token",
+											"value": "{{last_invite_token}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Invite OrgMember - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9b7abe0a-aec0-4e0c-8625-8add39b08dff",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"user_email\": \"email@test.com\",\n \"roles\" : [\"OrgMember\"]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"invites"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Invite BoxOffice",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"last_invite_token\", r.security_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9b7abe0a-aec0-4e0c-8625-8add39b08dff",
+										"exec": [
+											"pm.environment.set(\"last_boxoffice_email\", \"boxoffice\" + Math.floor(Math.random() * 10000) + \"@test.com\");",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"user_email\": \"{{last_boxoffice_email}}\",\n \"roles\" : [\"OrgBoxOffice\"]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"invites"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgBoxOffice - Register and Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"pm.test(\"should have token response\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\tpm.expect(json).to.have.property(\"access_token\");",
+											"\tpm.expect(json).to.have.property(\"refresh_token\");",
+											"});",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"org_boxoffice_token\", json.access_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"first_name\":\"Box\",\n\t\"last_name\":\"Office\",\n\t\"email\":\"{{last_boxoffice_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/users",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"users"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgBoxOffice - Accept Invite",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "c5f63f4b-2542-4707-b9c1-4b52598b640a",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_boxoffice_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/invitations?security_token={{last_invite_token}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"invitations"
+									],
+									"query": [
+										{
+											"key": "security_token",
+											"value": "{{last_invite_token}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Invite DoorPerson",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"last_invite_token\", r.security_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9b7abe0a-aec0-4e0c-8625-8add39b08dff",
+										"exec": [
+											"pm.environment.set(\"last_doorperson_email\", \"doorperson\" + Math.floor(Math.random() * 10000) + \"@test.com\");",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"user_email\": \"{{last_doorperson_email}}\",\n \"roles\" : [\"DoorPerson\"]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"invites"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "DoorPerson - Register and Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"pm.test(\"should have token response\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\tpm.expect(json).to.have.property(\"access_token\");",
+											"\tpm.expect(json).to.have.property(\"refresh_token\");",
+											"});",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"doorperson_token\", json.access_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"first_name\":\"Door\",\n\t\"last_name\":\"Person\",\n\t\"email\":\"{{last_doorperson_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/users",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"users"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "DoorPerson - Accept Invite",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "c5f63f4b-2542-4707-b9c1-4b52598b640a",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{doorperson_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/invitations?security_token={{last_invite_token}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"invitations"
+									],
+									"query": [
+										{
+											"key": "security_token",
+											"value": "{{last_invite_token}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "User - Register and Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"});",
+											"",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should have token response\", function() {",
+											"\tpm.expect(json).to.have.property(\"access_token\");",
+											"\tpm.expect(json).to.have.property(\"refresh_token\");",
+											"});",
+											"",
+											"",
+											"pm.environment.set(\"user_token\", json.access_token);",
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+										"exec": [
+											"",
+											"pm.environment.set(\"last_email\", \"user\" + (new Date()).getTime() + \"@tari.com\");"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"first_name\":\"User\",\n\t\"last_name\":\"Surname\",\n\t\"email\":\"{{last_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/users",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"users"
+									]
+								}
+							},
+							"response": []
 						}
 					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"email\":\"superuser@test.com\", \"password\":\"password\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/auth/token",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"auth",
-								"token"
-							]
-						}
-					},
-					"response": []
+					"_postman_isSubFolder": true
 				},
 				{
-					"name": "User - Current Me",
-					"event": [
+					"name": "Organization",
+					"item": [
 						{
-							"listen": "test",
-							"script": {
-								"id": "5c75bf77-b444-492f-87e6-0338e97b372b",
-								"type": "text/javascript",
-								"exec": [
-									"let json = JSON.parse(responseBody);",
-									"",
-									"pm.environment.set(\"admin_id\", json.user.id)"
-								]
-							}
+							"name": "OrgMember -List Orgs",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"org should be present\", function() {",
+											"    let found = false;",
+											"    let org_id = pm.environment.get(\"last_org_id\");",
+											"    for (let i=0;i<r.data.length;i++) {",
+											"        if (r.data[i].id === org_id){",
+											"            found = true;",
+											"            break;",
+											"        }",
+											"    }",
+											"    ",
+											"    pm.expect(found).to.be.true;",
+											"})",
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "User - List Orgs - Empty",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"orgs should be empty\", function() {",
+											"    pm.expect(r.data.length).to.equal(0);",
+											"})",
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{user_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - Creates Fee Schedule",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should be one result\", function(){",
+											"    pm.expect(r.ranges.length).to.equal(1);",
+											"});",
+											"",
+											"pm.test(\"should have correct min_price_in_cents\", function(){",
+											"    pm.expect(r.ranges[0].min_price_in_cents).to.equal(0);",
+											"});",
+											"",
+											"pm.test(\"should have correct fee_in_cents\", function(){",
+											"    pm.expect(r.ranges[0].fee_in_cents).to.equal(10);",
+											"});",
+											"",
+											"pm.environment.set(\"last_fee_schedule_id\", JSON.parse(responseBody).id);",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"name\": \"Fee_schedule_{{$timestamp}}\",\n\"ranges\": [\n\t{\n\t\t\"min_price_in_cents\": 0,\n\t\t\"company_fee_in_cents\": 4,\n\t\t\"client_fee_in_cents\": 6\n\t}\n]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"fee_schedule"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner - Creates Fee Schedule - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})",
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_owner_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\"name\": \"Fee_schedule_{{$timestamp}}\",\n\"ranges\": [\n\t{\n\t\t\"min_price_in_cents\": 0,\n\t\t\"company_fee_in_cents\": 4,\n\t\t\"client_fee_in_cents\": 6\n\t}\n]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"fee_schedule"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Update Org",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"state should be CA\", function() {",
+											"    pm.expect(r.state).to.equal(\"CA\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"state\" : \"CA\"\n\t\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Update Org - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"state\" : \"CA\"\n\t\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Update Org - edit event fee (TODO: Check this permission)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"pm.test(\"event fee should be set\", function() {",
+											"    pm.expect(r.event_fee_in_cents).to.equal(100);",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"company_event_fee_in_cents\": 100\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Update Org - edit event fee - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"company_event_fee_in_cents\": 100\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Get Fee Schedule",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should be one result\", function(){",
+											"    pm.expect(r.ranges.length).to.equal(1);",
+											"});",
+											"",
+											"pm.test(\"should have correct min_price_in_cents\", function(){",
+											"    pm.expect(r.ranges[0].min_price_in_cents).to.equal(0);",
+											"});",
+											"",
+											"pm.test(\"should have correct fee_in_cents\", function(){",
+											"    pm.expect(r.ranges[0].fee_in_cents).to.equal(10);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"fee_schedule"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Get Fee Schedule - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"fee_schedule"
+									]
+								}
+							},
+							"response": []
 						}
 					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [
-							{
-								"key": "Origin",
-								"value": "http://localhost:3000",
-								"disabled": true
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/users/me",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"users",
-								"me"
-							]
-						}
-					},
-					"response": []
+					"_postman_isSubFolder": true
 				},
 				{
-					"name": "Admin - Creates Org",
-					"event": [
+					"name": "Artists",
+					"item": [
 						{
-							"listen": "test",
-							"script": {
-								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
-								"type": "text/javascript",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									"",
-									"pm.environment.set(\"last_org_id\", JSON.parse(responseBody).id);"
-								]
-							}
+							"name": "Admin - Create Artist - Public",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"pm.environment.set(\"last_artist_id\", JSON.parse(responseBody).id);",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should be public\", function() {",
+											"   pm.expect(json.is_private).to.be.false; ",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Artist {{$timestamp}}\",\n\t\"bio\": \"Artist bio\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/artists",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"artists"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner - Create Artist - Public - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_owner_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Artist {{$timestamp}}\",\n\t\"bio\": \"Artist bio\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/artists",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"artists"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Create Artist - Private",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"pm.environment.set(\"last_artist_id\", JSON.parse(responseBody).id);",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should be private\", function() {",
+											"   pm.expect(json.is_private).to.be.true; ",
+											"   pm.expect(json.organization_id).to.equal(pm.environment.get(\"last_org_id\"));",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Artist {{$timestamp}}\",\n\t\"bio\": \"Artist bio\",\n\t\"organization_id\": \"{{last_org_id}}\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/artists",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"artists"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "DoorPerson - Create Artist - Private - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{doorperson_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Artist {{$timestamp}}\",\n\t\"bio\": \"Artist bio\",\n\t\"organization_id\": \"{{last_org_id}}\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/artists",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"artists"
+									]
+								}
+							},
+							"response": []
 						}
 					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\"name\": \"Jazzy_{{$timestamp}}\",\n\"owner_user_id\": \"{{admin_id}}\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - Invite to Org - via email",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.environment.set(\"last_invite_token\", r.security_token);"
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "prerequest",
-							"script": {
-								"id": "9b7abe0a-aec0-4e0c-8625-8add39b08dff",
-								"exec": [
-									"pm.environment.set(\"last_org_member_email\", \"orgmem\" + Math.floor(Math.random() * 10000) + \"@test.com\");",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\"user_email\": \"{{last_org_member_email}}\",\n \"roles\" : [\"OrgMember\"]\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/invites",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}",
-								"invites"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "OrgMember - Accept Invite - Not logged in - 401",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
-								"exec": [
-									"pm.test(\"should be 401\", function() {",
-									"    pm.response.to.have.status(401);",
-									"})",
-									""
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "prerequest",
-							"script": {
-								"id": "c5f63f4b-2542-4707-b9c1-4b52598b640a",
-								"exec": [
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/invitations?security_token={{last_invite_token}}",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"invitations"
-							],
-							"query": [
-								{
-									"key": "security_token",
-									"value": "{{last_invite_token}}"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "OrgMember - register and login",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									"pm.test(\"should have token response\", function() {",
-									"\tlet json = JSON.parse(responseBody);",
-									"\tpm.expect(json).to.have.property(\"access_token\");",
-									"\tpm.expect(json).to.have.property(\"refresh_token\");",
-									"});",
-									"",
-									"let json = JSON.parse(responseBody);",
-									"",
-									"pm.environment.set(\"org_member_token\", json.access_token);"
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "prerequest",
-							"script": {
-								"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
-								"exec": [
-									"",
-									"pm.environment.set(\"last_email\", \"mike\" + (new Date()).getTime() + \"@tari.com\");"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"first_name\":\"Mike\",\n\t\"last_name\":\"Surname\",\n\t\"email\":\"{{last_org_member_email}}\",\n\t\"phone\":\"555\",\n\t\"password\": \"itsasecret\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/users",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"users"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "OrgMember - Accept Invite - Logged In - OK",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									""
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "prerequest",
-							"script": {
-								"id": "c5f63f4b-2542-4707-b9c1-4b52598b640a",
-								"exec": [
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{org_member_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/invitations?security_token={{last_invite_token}}",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"invitations"
-							],
-							"query": [
-								{
-									"key": "security_token",
-									"value": "{{last_invite_token}}"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "OrgMember -List Orgs",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"org should be present\", function() {",
-									"    let found = false;",
-									"    let org_id = pm.environment.get(\"last_org_id\");",
-									"    for (let i=0;i<r.data.length;i++) {",
-									"        if (r.data[i].id === org_id){",
-									"            found = true;",
-									"            break;",
-									"        }",
-									"    }",
-									"    ",
-									"    pm.expect(found).to.be.true;",
-									"})",
-									"",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{org_member_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - Creates Fee Schedule",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"should be one result\", function(){",
-									"    pm.expect(r.ranges.length).to.equal(1);",
-									"});",
-									"",
-									"pm.test(\"should have correct min_price_in_cents\", function(){",
-									"    pm.expect(r.ranges[0].min_price_in_cents).to.equal(0);",
-									"});",
-									"",
-									"pm.test(\"should have correct fee_in_cents\", function(){",
-									"    pm.expect(r.ranges[0].fee_in_cents).to.equal(10);",
-									"});",
-									"",
-									"pm.environment.set(\"last_fee_schedule_id\", JSON.parse(responseBody).id);",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\"name\": \"Fee_schedule_{{$timestamp}}\",\n\"ranges\": [\n\t{\n\t\t\"min_price_in_cents\": 0,\n\t\t\"company_fee_in_cents\": 4,\n\t\t\"client_fee_in_cents\": 6\n\t}\n]\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}",
-								"fee_schedule"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - Update Org",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"state should be CA\", function() {",
-									"    pm.expect(r.state).to.equal(\"CA\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"state\" : \"CA\"\n\t\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - Update Org - edit event fee",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"pm.test(\"event fee should be set\", function() {",
-									"    pm.expect(r.event_fee_in_cents).to.equal(100);",
-									"});",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"company_event_fee_in_cents\": 100\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - Get Fee Schedule",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"should be one result\", function(){",
-									"    pm.expect(r.ranges.length).to.equal(1);",
-									"});",
-									"",
-									"pm.test(\"should have correct min_price_in_cents\", function(){",
-									"    pm.expect(r.ranges[0].min_price_in_cents).to.equal(0);",
-									"});",
-									"",
-									"pm.test(\"should have correct fee_in_cents\", function(){",
-									"    pm.expect(r.ranges[0].fee_in_cents).to.equal(10);",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/fee_schedule",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}",
-								"fee_schedule"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - Create Artist",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									"",
-									"pm.environment.set(\"last_artist_id\", JSON.parse(responseBody).id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Artist {{$timestamp}}\",\n\t\"bio\": \"Artist bio\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/artists",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"artists"
-							]
-						}
-					},
-					"response": []
+					"_postman_isSubFolder": true
 				},
 				{
 					"name": "Admin - Search Artist",
@@ -866,7 +2365,17 @@
 									"})",
 									"",
 									"pm.test(\"Artist result should match\",function() {",
-									"    pm.expect(JSON.parse(responseBody).data[0].id).to.eq(pm.environment.get(\"last_artist_id\"));",
+									"    let last_artist_id= pm.environment.get(\"last_artist_id\");",
+									"    let found = false;",
+									"    let json = JSON.parse(responseBody);",
+									"    ",
+									"    for (let i=0;i<json.data.length; i++) {",
+									"        if (json.data[i].id === last_artist_id) {",
+									"            found = true;",
+									"            break;",
+									"        }",
+									"    }",
+									"    pm.expect(found).to.be.true;",
 									"});"
 								],
 								"type": "text/javascript"

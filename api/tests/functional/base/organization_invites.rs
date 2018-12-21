@@ -235,10 +235,8 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         test_request.request,
     ))
     .into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        println!("{:?}", body);
     } else {
         support::expects_unauthorized(&response);
     }

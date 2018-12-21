@@ -237,5 +237,5 @@ pub fn accept_request(
         }
         None => return application::unauthorized(&request, None),
     }
-    Ok(HttpResponse::Ok().json(json!({})))
+    Ok(HttpResponse::Ok().finish())
 }
