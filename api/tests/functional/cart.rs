@@ -9,9 +9,9 @@ use chrono::Duration;
 use diesel;
 use diesel::prelude::*;
 use serde_json;
-use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+use support::{self, *};
 
 #[test]
 fn show() {
@@ -772,4 +772,92 @@ fn checkout_external() {
     ))
     .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[test]
+fn checkout_free() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let user = database.create_user().finish();
+
+    let order = database
+        .create_cart()
+        .with_free_items()
+        .for_user(&user)
+        .for_event(&event)
+        .finish();
+    let request = TestRequest::create();
+
+    let input = Json(cart::CheckoutCartRequest {
+        amount: 0,
+        method: PaymentRequest::Free,
+    });
+
+    let user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+
+    let response = cart::checkout((
+        database.connection.clone().into(),
+        input,
+        user,
+        request.extract_state(),
+    ))
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Reload order
+    let order = Order::find(order.id, connection).unwrap();
+    assert_eq!(order.status, OrderStatus::Paid);
+}
+
+#[test]
+fn checkout_free_for_paid_items() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let user = database.create_user().finish();
+
+    let order = database
+        .create_cart()
+        .for_user(&user)
+        .for_event(&event)
+        .finish();
+    let request = TestRequest::create();
+
+    let input = Json(cart::CheckoutCartRequest {
+        amount: 0,
+        method: PaymentRequest::Free,
+    });
+
+    let user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+
+    let response: HttpResponse = cart::checkout((
+        database.connection.clone().into(),
+        input,
+        user,
+        request.extract_state(),
+    ))
+    .into();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    let expected_json = HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY).into_builder().json(json!({
+        "error": "Could not use free payment method this cart because it has a total greater than zero"
+    }));
+    let expected_text = unwrap_body_to_string(&expected_json).unwrap();
+    let body = unwrap_body_to_string(&response).unwrap();
+    assert_eq!(body, expected_text);
+
+    // Reload order
+    let order = Order::find(order.id, connection).unwrap();
+    assert_eq!(order.status, OrderStatus::Draft);
 }

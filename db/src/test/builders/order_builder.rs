@@ -1,7 +1,6 @@
 use diesel::prelude::*;
 use models::*;
-use test::builders::event_builder::EventBuilder;
-use test::builders::user_builder::UserBuilder;
+use test::builders::*;
 use uuid::Uuid;
 
 pub struct OrderBuilder<'a> {
@@ -10,6 +9,7 @@ pub struct OrderBuilder<'a> {
     connection: &'a PgConnection,
     quantity: u32,
     is_paid: bool,
+    with_free_items: bool,
     on_behalf_of_user: Option<User>,
 }
 
@@ -21,6 +21,7 @@ impl<'a> OrderBuilder<'a> {
             ticket_type_id: None,
             quantity: 10,
             is_paid: false,
+            with_free_items: false,
             on_behalf_of_user: None,
         }
     }
@@ -50,6 +51,11 @@ impl<'a> OrderBuilder<'a> {
         self
     }
 
+    pub fn with_free_items(mut self) -> OrderBuilder<'a> {
+        self.with_free_items = true;
+        self
+    }
+
     pub fn finish(mut self) -> Order {
         if self.user.is_none() {
             let user = UserBuilder::new(self.connection).finish();
@@ -65,11 +71,21 @@ impl<'a> OrderBuilder<'a> {
         let mut cart =
             Order::find_or_create_cart(self.user.as_ref().unwrap(), self.connection).unwrap();
 
+        let redemption_code = if self.with_free_items {
+            let comp = HoldBuilder::new(self.connection)
+                .with_ticket_type_id(self.ticket_type_id.unwrap())
+                .with_hold_type(HoldTypes::Comp)
+                .finish();
+            Some(comp.redemption_code)
+        } else {
+            None
+        };
+
         cart.update_quantities(
             &[UpdateOrderItem {
                 ticket_type_id: self.ticket_type_id.unwrap(),
                 quantity: self.quantity,
-                redemption_code: None,
+                redemption_code: redemption_code,
             }],
             false,
             self.connection,

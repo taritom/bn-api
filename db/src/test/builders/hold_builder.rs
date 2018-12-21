@@ -8,6 +8,7 @@ pub struct HoldBuilder<'a> {
     name: String,
     redemption_code: String,
     event_id: Option<Uuid>,
+    ticket_type_id: Option<Uuid>,
     hold_type: HoldTypes,
     connection: &'a PgConnection,
 }
@@ -21,6 +22,7 @@ impl<'a> HoldBuilder<'a> {
             connection,
             hold_type: HoldTypes::Discount,
             event_id: None,
+            ticket_type_id: None,
         }
     }
 
@@ -39,19 +41,39 @@ impl<'a> HoldBuilder<'a> {
         self
     }
 
-    pub fn finish(mut self) -> Hold {
-        if self.event_id.is_none() {
-            self.event_id = Some(
-                EventBuilder::new(self.connection)
-                    .with_ticket_pricing()
-                    .with_tickets()
-                    .finish()
-                    .id,
-            );
-        }
+    pub fn with_ticket_type_id(mut self, ticket_type_id: Uuid) -> Self {
+        self.ticket_type_id = Some(ticket_type_id);
+        self
+    }
 
-        let event = Event::find(self.event_id.unwrap(), self.connection).unwrap();
-        let ticket_type_id = event.ticket_types(self.connection).unwrap()[0].id;
+    pub fn finish(mut self) -> Hold {
+        // Use passed in ticket type id and its event if present otherwise fetch from event id
+        let ticket_type_id = match self.ticket_type_id {
+            Some(id) => {
+                let ticket_type = TicketType::find(id, self.connection).unwrap();
+                self.event_id = Some(
+                    Event::find(ticket_type.event_id, self.connection)
+                        .unwrap()
+                        .id,
+                );
+
+                id
+            }
+            None => {
+                if self.event_id.is_none() {
+                    self.event_id = Some(
+                        EventBuilder::new(self.connection)
+                            .with_ticket_pricing()
+                            .with_tickets()
+                            .finish()
+                            .id,
+                    );
+                }
+
+                let event = Event::find(self.event_id.unwrap(), self.connection).unwrap();
+                event.ticket_types(self.connection).unwrap()[0].id
+            }
+        };
 
         let hold = Hold::create_hold(
             self.name,
