@@ -20,6 +20,18 @@ mod index_tests {
     fn index_org_owner() {
         organizations::index(Roles::OrgOwner);
     }
+    #[test]
+    fn index_door_person() {
+        organizations::index(Roles::DoorPerson);
+    }
+    #[test]
+    fn index_org_admin() {
+        organizations::index(Roles::OrgAdmin);
+    }
+    #[test]
+    fn index_box_office() {
+        organizations::index(Roles::OrgBoxOffice);
+    }
 }
 
 #[cfg(test)]
@@ -40,6 +52,18 @@ mod show_tests {
     #[test]
     fn show_org_owner() {
         organizations::show(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn show_door_person() {
+        organizations::show(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn show_org_admin() {
+        organizations::show(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn show_box_office() {
+        organizations::show(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -62,6 +86,18 @@ mod index_for_all_orgs_tests {
     fn index_for_all_orgs_org_owner() {
         organizations::index_for_all_orgs(Roles::OrgOwner, false);
     }
+    #[test]
+    fn index_for_all_orgs_door_person() {
+        organizations::index_for_all_orgs(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn index_for_all_orgs_org_admin() {
+        organizations::index_for_all_orgs(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn index_for_all_orgs_box_office() {
+        organizations::index_for_all_orgs(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -82,6 +118,18 @@ mod create_tests {
     #[test]
     fn create_org_owner() {
         organizations::create(Roles::OrgOwner, false);
+    }
+    #[test]
+    fn create_door_person() {
+        organizations::create(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_org_admin() {
+        organizations::create(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn create_box_office() {
+        organizations::create(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -104,6 +152,18 @@ mod remove_user_tests {
     fn remove_user_org_owner() {
         organizations::remove_user(Roles::OrgOwner, true);
     }
+    #[test]
+    fn remove_user_door_person() {
+        organizations::remove_user(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn remove_user_org_admin() {
+        organizations::remove_user(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn remove_user_box_office() {
+        organizations::remove_user(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -124,6 +184,18 @@ mod add_user_tests {
     #[test]
     fn add_user_org_owner() {
         organizations::add_user(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn add_user_door_person() {
+        organizations::add_user(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn add_user_org_admin() {
+        organizations::add_user(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn add_user_box_office() {
+        organizations::add_user(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -146,6 +218,18 @@ mod add_venue_tests {
     fn add_venue_org_owner() {
         organizations::add_venue(Roles::OrgOwner, true);
     }
+    #[test]
+    fn add_venue_door_person() {
+        organizations::add_venue(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn add_venue_org_admin() {
+        organizations::add_venue(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn add_venue_box_office() {
+        organizations::add_venue(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -166,6 +250,18 @@ mod add_artist_tests {
     #[test]
     fn add_artist_org_owner() {
         organizations::add_artist(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn add_artist_door_person() {
+        organizations::add_artist(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn add_artist_org_admin() {
+        organizations::add_artist(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn add_artist_box_office() {
+        organizations::add_artist(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -188,6 +284,18 @@ mod update_tests {
     fn update_org_owner() {
         organizations::update(Roles::OrgOwner, true);
     }
+    #[test]
+    fn update_door_person() {
+        organizations::update(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        organizations::update(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn update_box_office() {
+        organizations::update(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -208,6 +316,18 @@ mod list_organization_members_tests {
     #[test]
     fn list_organization_members_org_owner() {
         organizations::list_organization_members(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn list_organization_members_door_person() {
+        organizations::list_organization_members(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn list_organization_members_org_admin() {
+        organizations::list_organization_members(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn list_organization_members_box_office() {
+        organizations::list_organization_members(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -230,6 +350,18 @@ mod show_fee_schedule_tests {
     fn show_fee_schedule_org_owner() {
         organizations::show_fee_schedule(Roles::OrgOwner, true);
     }
+    #[test]
+    fn show_fee_schedule_door_person() {
+        organizations::show_fee_schedule(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn show_fee_schedule_org_admin() {
+        organizations::show_fee_schedule(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn show_fee_schedule_box_office() {
+        organizations::show_fee_schedule(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -250,5 +382,17 @@ mod add_fee_schedule_tests {
     #[test]
     fn add_fee_schedule_org_owner() {
         organizations::add_fee_schedule(Roles::OrgOwner, false);
+    }
+    #[test]
+    fn add_fee_schedule_door_person() {
+        organizations::add_fee_schedule(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn add_fee_schedule_org_admin() {
+        organizations::add_fee_schedule(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn add_fee_schedule_box_office() {
+        organizations::add_fee_schedule(Roles::OrgBoxOffice, false);
     }
 }

@@ -197,7 +197,10 @@ pub fn update_with_organization(role: Roles, should_succeed: bool, is_private: b
 pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user, Roles::OrgMember)
+        .finish();
     let venue = database
         .create_venue()
         .with_name("Venue 1".to_string())
@@ -283,33 +286,4 @@ pub fn add_to_organization(role: Roles, should_succeed: bool) {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let new_venue: Venue = serde_json::from_str(&body).unwrap();
     assert_eq!(new_venue.organization_id.unwrap(), organization.id);
-}
-
-pub fn add_to_organization_where_link_already_exists(role: Roles, should_succeed: bool) {
-    let database = TestDatabase::new();
-    let user = database.create_user().finish();
-    let venue = database.create_venue().finish();
-    let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
-    let venue = venue
-        .add_to_organization(&organization.id, database.connection.get())
-        .unwrap();
-
-    let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = venue.id;
-
-    let json = Json(AddVenueToOrganizationRequest {
-        organization_id: organization.id,
-    });
-
-    let response: HttpResponse =
-        venues::add_to_organization((database.connection.into(), path, json, auth_user)).into();
-    if !should_succeed {
-        support::expects_unauthorized(&response);
-        return;
-    }
-
-    assert_eq!(response.status(), StatusCode::CONFLICT);
 }

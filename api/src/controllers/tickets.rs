@@ -88,11 +88,7 @@ pub fn show(
     let organization = db_event.organization(connection)?;
 
     if user.as_ref().map_or(false, |u| u.id != auth_user.id()) {
-        auth_user.requires_scope_for_organization(
-            Scopes::TicketAdmin,
-            &organization,
-            connection,
-        )?;
+        auth_user.requires_scope_for_organization(Scopes::TicketRead, &organization, connection)?;
     }
 
     let ticket_response = ShowTicketResponse {
@@ -113,11 +109,7 @@ pub fn show_redeemable_ticket(
     let organization = db_event.organization(connection)?;
 
     if user.as_ref().map_or(false, |u| u.id != auth_user.id()) {
-        auth_user.requires_scope_for_organization(
-            Scopes::TicketAdmin,
-            &organization,
-            connection,
-        )?;
+        auth_user.requires_scope_for_organization(Scopes::TicketRead, &organization, connection)?;
     }
 
     let redeemable_ticket = TicketInstance::show_redeemable_ticket(parameters.id, connection)?;

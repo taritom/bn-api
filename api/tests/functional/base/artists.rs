@@ -84,53 +84,6 @@ pub fn create_with_organization(role: Roles, should_test_succeed: bool) {
     }
 }
 
-pub fn create_with_validation_errors(role: Roles, should_test_succeed: bool) {
-    let database = TestDatabase::new();
-
-    let name = "Artist Example";
-    let bio = "Bio";
-    let website_url = "invalid-format.com";
-    let json = Json(CreateArtistRequest {
-        name: Some(name.to_string()),
-        bio: Some(bio.to_string()),
-        website_url: Some(website_url.to_string()),
-        youtube_video_urls: Some(vec!["invalid".to_string()]),
-        ..Default::default()
-    });
-    let test_request = TestRequest::create();
-    let user = support::create_auth_user(role, None, &database);
-    let response: HttpResponse = artists::create((
-        test_request.extract_state(),
-        database.connection.into(),
-        json,
-        user,
-    ))
-    .into();
-
-    if should_test_succeed {
-        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-        assert!(response.error().is_some());
-        let validation_response = support::validation_response_from_response(&response).unwrap();
-        let website_url = validation_response.fields.get("website_url").unwrap();
-        assert_eq!(website_url[0].code, "url");
-        assert_eq!(
-            &website_url[0].message.clone().unwrap().into_owned(),
-            "Website URL is invalid"
-        );
-        let youtube_video_urls = validation_response
-            .fields
-            .get("youtube_video_urls")
-            .unwrap();
-        assert_eq!(youtube_video_urls[0].code, "url");
-        assert_eq!(
-            &youtube_video_urls[0].message.clone().unwrap().into_owned(),
-            "URL is invalid"
-        );
-    } else {
-        support::expects_unauthorized(&response);
-    }
-}
-
 pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let artist = database.create_artist().finish();
@@ -224,52 +177,6 @@ pub fn update_with_organization(role: Roles, should_test_succeed: bool, is_priva
         assert_eq!(response.status(), StatusCode::OK);
         let updated_artist: Artist = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_artist.name, name);
-    } else {
-        support::expects_unauthorized(&response);
-    }
-}
-
-pub fn update_with_validation_errors(role: Roles, should_test_succeed: bool) {
-    let database = TestDatabase::new();
-    let artist = database.create_artist().finish();
-    let name = "New Name";
-    let bio = "New Bio";
-    let website_url = "invalid-format.com";
-
-    let user = support::create_auth_user(role, None, &database);
-    let test_request = TestRequest::create();
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = artist.id;
-
-    let mut attributes: ArtistEditableAttributes = Default::default();
-    attributes.name = Some(name.to_string());
-    attributes.bio = Some(bio.to_string());
-    attributes.website_url = Some(Some(website_url.to_string()));
-    attributes.youtube_video_urls = Some(vec!["invalid".to_string()]);
-    let json = Json(attributes);
-
-    let response: HttpResponse =
-        artists::update((database.connection.into(), path, json, user)).into();
-
-    if should_test_succeed {
-        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-        assert!(response.error().is_some());
-        let validation_response = support::validation_response_from_response(&response).unwrap();
-        let website_url = validation_response.fields.get("website_url").unwrap();
-        assert_eq!(website_url[0].code, "url");
-        assert_eq!(
-            &website_url[0].message.clone().unwrap().into_owned(),
-            "Website URL is invalid"
-        );
-        let youtube_video_urls = validation_response
-            .fields
-            .get("youtube_video_urls")
-            .unwrap();
-        assert_eq!(youtube_video_urls[0].code, "url");
-        assert_eq!(
-            &youtube_video_urls[0].message.clone().unwrap().into_owned(),
-            "URL is invalid"
-        );
     } else {
         support::expects_unauthorized(&response);
     }

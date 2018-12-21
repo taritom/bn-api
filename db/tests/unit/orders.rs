@@ -13,7 +13,10 @@ fn create() {
     let project = TestProject::new();
     let venue = project.create_venue().finish();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let _event = project
         .create_event()
         .with_name("NewEvent".into())

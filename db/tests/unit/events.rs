@@ -9,7 +9,10 @@ fn create() {
     let project = TestProject::new();
     let venue = project.create_venue().finish();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let event = project
         .create_event()
         .with_name("NewEvent".into())
@@ -29,7 +32,10 @@ fn update() {
     let venue = project.create_venue().finish();
 
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let event = project
         .create_event()
         .with_name("NewEvent".into())
@@ -131,7 +137,10 @@ fn publish() {
     let venue = project.create_venue().finish();
 
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let event = project
         .create_event()
         .with_status(EventStatus::Draft)
@@ -155,7 +164,10 @@ fn publish_in_future() {
     let venue = project.create_venue().finish();
 
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let event = project
         .create_event()
         .with_status(EventStatus::Draft)
@@ -189,7 +201,10 @@ fn publish_change_publish_date() {
     let now = Utc::now().naive_utc();
 
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let event = project
         .create_event()
         .with_status(EventStatus::Draft)
@@ -241,7 +256,10 @@ fn cancel() {
     let venue = project.create_venue().finish();
 
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let event = project
         .create_event()
         .with_name("NewEvent".into())
@@ -383,7 +401,10 @@ fn find_individuals() {
     let venue = project.create_venue().finish();
 
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let event = project
         .create_event()
         .with_name("NewEvent".into())
@@ -446,8 +467,8 @@ fn search() {
         .unwrap();
     let organization = project
         .create_organization()
-        .with_owner(&organization_owner)
-        .with_user(&organization_user)
+        .with_member(&organization_owner, Roles::OrgOwner)
+        .with_member(&organization_user, Roles::OrgMember)
         .finish();
     let event = project
         .create_event()
@@ -875,7 +896,10 @@ fn find_for_organization() {
     let venue1 = project.create_venue().finish();
     let venue2 = project.create_venue().finish();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
 
     let artist1 = project.create_artist().finish();
     let artist2 = project.create_artist().finish();
@@ -939,7 +963,10 @@ fn find_active_for_venue() {
     let connection = project.get_connection();
     let venue = project.create_venue().finish();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
 
     let artist1 = project.create_artist().finish();
     let artist2 = project.create_artist().finish();
@@ -988,7 +1015,10 @@ fn find_active_for_venue() {
 fn organization() {
     let project = TestProject::new();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let event = project
         .create_event()
         .with_name("NewEvent".into())

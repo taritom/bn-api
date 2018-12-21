@@ -154,8 +154,8 @@ fn all() {
 
     let organization = project
         .create_organization()
-        .with_owner(&owner)
-        .with_user(&user)
+        .with_member(&owner, Roles::OrgOwner)
+        .with_member(&user, Roles::OrgMember)
         .finish();
 
     let artist = project.create_artist().with_name(name.into()).finish();
@@ -253,8 +253,8 @@ fn find_for_organization() {
     let user = project.create_user().finish();
     let organization = project
         .create_organization()
-        .with_owner(&owner)
-        .with_user(&member)
+        .with_member(&owner, Roles::OrgOwner)
+        .with_member(&member, Roles::OrgMember)
         .finish();
     let artist1 = project
         .create_artist()
@@ -276,7 +276,10 @@ fn find_for_organization() {
         .finish();
 
     // Add another artist for another org to make sure it isn't included
-    let organization2 = project.create_organization().with_owner(&user).finish();
+    let organization2 = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let artist4 = project
         .create_artist()
         .with_name("Artist4".to_string())

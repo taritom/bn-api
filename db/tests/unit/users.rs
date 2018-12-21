@@ -633,12 +633,12 @@ pub fn organizations() {
     let organization = project
         .create_organization()
         .with_name("Organization1".into())
-        .with_owner(&user)
+        .with_member(&user, Roles::OrgOwner)
         .finish();
     let organization2 = project
         .create_organization()
         .with_name("Organization2".into())
-        .with_user(&user)
+        .with_member(&user, Roles::OrgMember)
         .finish();
     let _organization3 = project
         .create_organization()
@@ -663,8 +663,8 @@ pub fn get_events_with_access_to_scan() {
     let _normal_user = project.create_user().finish();
     let organization = project
         .create_organization()
-        .with_owner(&owner)
-        .with_user(&scanner)
+        .with_member(&owner, Roles::OrgOwner)
+        .with_member(&scanner, Roles::OrgMember)
         .finish();
     let _draft_event = project
         .create_event()
@@ -704,12 +704,12 @@ pub fn get_roles_by_organization() {
     let organization = project
         .create_organization()
         .with_name("Organization1".into())
-        .with_owner(&user)
+        .with_member(&user, Roles::OrgOwner)
         .finish();
     let organization2 = project
         .create_organization()
         .with_name("Organization2".into())
-        .with_user(&user)
+        .with_member(&user, Roles::OrgMember)
         .finish();
     let _organization3 = project
         .create_organization()
@@ -735,12 +735,12 @@ pub fn get_scopes_by_organization() {
     let organization = project
         .create_organization()
         .with_name("Organization1".into())
-        .with_owner(&user)
+        .with_member(&user, Roles::OrgOwner)
         .finish();
     let organization2 = project
         .create_organization()
         .with_name("Organization2".into())
-        .with_user(&user)
+        .with_member(&user, Roles::OrgMember)
         .finish();
     let _organization3 = project
         .create_organization()
@@ -756,6 +756,7 @@ pub fn get_scopes_by_organization() {
             "code:write",
             "comp:read",
             "comp:write",
+            "dashboard:read",
             "event:interest",
             "event:scan",
             "event:view-guests",
@@ -771,6 +772,7 @@ pub fn get_scopes_by_organization() {
             "org:write",
             "redeem:ticket",
             "ticket:admin",
+            "ticket:read",
             "ticket:transfer",
             "user:read",
             "venue:write",
@@ -787,6 +789,7 @@ pub fn get_scopes_by_organization() {
             "code:write",
             "comp:read",
             "comp:write",
+            "dashboard:read",
             "event:interest",
             "event:scan",
             "event:view-guests",
@@ -798,6 +801,7 @@ pub fn get_scopes_by_organization() {
             "org:read",
             "redeem:ticket",
             "ticket:admin",
+            "ticket:read",
             "ticket:transfer",
             "venue:write",
         ]
@@ -821,8 +825,8 @@ pub fn get_global_scopes() {
     let mut user3 = project.create_user().finish();
     let _organization = project
         .create_organization()
-        .with_owner(&user)
-        .with_user(&user2)
+        .with_member(&user, Roles::OrgOwner)
+        .with_member(&user2, Roles::OrgMember)
         .finish();
     user3 = user3.add_role(Roles::Admin, connection).unwrap();
 
@@ -842,6 +846,7 @@ pub fn get_global_scopes() {
             "code:write",
             "comp:read",
             "comp:write",
+            "dashboard:read",
             "event:interest",
             "event:scan",
             "event:view-guests",
@@ -859,6 +864,7 @@ pub fn get_global_scopes() {
             "redeem:ticket",
             "region:write",
             "ticket:admin",
+            "ticket:read",
             "ticket:transfer",
             "user:read",
             "venue:write"

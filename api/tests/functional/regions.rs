@@ -68,6 +68,18 @@ mod create_tests {
     fn create_org_owner() {
         base::regions::create(Roles::OrgOwner, false);
     }
+    #[test]
+    fn create_door_person() {
+        base::regions::create(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_org_admin() {
+        base::regions::create(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn create_box_office() {
+        base::regions::create(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -88,5 +100,17 @@ mod update_tests {
     #[test]
     fn update_org_owner() {
         base::regions::update(Roles::OrgOwner, false);
+    }
+    #[test]
+    fn update_door_person() {
+        base::regions::update(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        base::regions::update(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn update_box_office() {
+        base::regions::update(Roles::OrgBoxOffice, false);
     }
 }

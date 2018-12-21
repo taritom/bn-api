@@ -1,13 +1,13 @@
 use diesel::prelude::*;
 use models::*;
 use rand::prelude::*;
+use std::collections::HashMap;
 use test::builders::user_builder::UserBuilder;
 use uuid::Uuid;
 
 pub struct OrganizationBuilder<'a> {
     name: String,
-    owner_user_id: Option<Uuid>,
-    members: Vec<Uuid>,
+    members: HashMap<Uuid, Roles>,
     connection: &'a PgConnection,
     fee_schedule: Option<FeeSchedule>,
     event_fee_in_cents: Option<i64>,
@@ -21,8 +21,7 @@ impl<'a> OrganizationBuilder<'a> {
         let x: u16 = random();
         OrganizationBuilder {
             name: format!("test org{}", x).into(),
-            owner_user_id: None,
-            members: Vec::new(),
+            members: HashMap::new(),
             fee_schedule: None,
             connection,
             use_address: false,
@@ -32,13 +31,8 @@ impl<'a> OrganizationBuilder<'a> {
         }
     }
 
-    pub fn with_owner(mut self, user: &User) -> OrganizationBuilder<'a> {
-        self.owner_user_id = Some(user.id.clone());
-        self
-    }
-
-    pub fn with_user(mut self, user: &User) -> OrganizationBuilder<'a> {
-        self.members.push(user.id.clone());
+    pub fn with_member(mut self, user: &User, role: Roles) -> OrganizationBuilder<'a> {
+        self.members.insert(user.id.clone(), role);
         self
     }
 
@@ -65,9 +59,11 @@ impl<'a> OrganizationBuilder<'a> {
     }
 
     pub fn finish(mut self) -> Organization {
-        let current_user_id = self
-            .owner_user_id
-            .unwrap_or_else(|| UserBuilder::new(self.connection).finish().id);
+        let members = self.members.clone();
+        let current_user_id = match members.iter().find(|(_, v)| *v.clone() == Roles::OrgOwner) {
+            Some((owner_id, _)) => owner_id.clone(),
+            None => UserBuilder::new(self.connection).finish().id,
+        };
 
         if self.fee_schedule.is_none() {
             let x: u16 = random();
@@ -101,14 +97,8 @@ impl<'a> OrganizationBuilder<'a> {
             )
             .unwrap();
 
-        if let Some(user_id) = self.owner_user_id {
-            OrganizationUser::create(organization.id, user_id, vec![Roles::OrgOwner])
-                .commit(self.connection)
-                .unwrap();
-        }
-
-        for user_id in self.members.clone() {
-            OrganizationUser::create(organization.id, user_id, vec![Roles::OrgMember])
+        for (user_id, role) in self.members {
+            OrganizationUser::create(organization.id, user_id, vec![role])
                 .commit(self.connection)
                 .unwrap();
         }

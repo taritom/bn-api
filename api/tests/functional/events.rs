@@ -372,6 +372,18 @@ mod dashboard_tests {
     fn dashboard_org_owner() {
         base::events::dashboard(Roles::OrgOwner, true);
     }
+    #[test]
+    fn dashboard_door_person() {
+        base::events::dashboard(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn dashboard_org_admin() {
+        base::events::dashboard(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn dashboard_box_office() {
+        base::events::dashboard(Roles::OrgBoxOffice, true);
+    }
 }
 
 #[cfg(test)]

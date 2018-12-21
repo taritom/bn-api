@@ -36,9 +36,9 @@ impl TestDatabase {
     pub fn create_organization_with_user(&self, user: &User, owner: bool) -> OrganizationBuilder {
         let organization_builder = self.create_organization();
         if owner {
-            organization_builder.with_owner(&user)
+            organization_builder.with_member(&user, Roles::OrgOwner)
         } else {
-            organization_builder.with_user(&user)
+            organization_builder.with_member(&user, Roles::OrgMember)
         }
     }
 

@@ -30,6 +30,18 @@ mod show_tests {
     fn show_org_owner() {
         base::codes::show(Roles::OrgOwner, true);
     }
+    #[test]
+    fn show_door_person() {
+        base::codes::show(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn show_org_admin() {
+        base::codes::show(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn show_box_office() {
+        base::codes::show(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -50,6 +62,18 @@ mod create_tests {
     #[test]
     fn create_org_owner() {
         base::codes::create(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn create_door_person() {
+        base::codes::create(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_org_admin() {
+        base::codes::create(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn create_box_office() {
+        base::codes::create(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -72,6 +96,18 @@ mod update_tests {
     fn update_org_owner() {
         base::codes::update(Roles::OrgOwner, true);
     }
+    #[test]
+    fn update_door_person() {
+        base::codes::update(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        base::codes::update(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn update_box_office() {
+        base::codes::update(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -92,6 +128,18 @@ mod destroy_tests {
     #[test]
     fn destroy_org_owner() {
         base::codes::destroy(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn destroy_door_person() {
+        base::codes::destroy(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn destroy_org_admin() {
+        base::codes::destroy(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn destroy_box_office() {
+        base::codes::destroy(Roles::OrgBoxOffice, false);
     }
 }
 

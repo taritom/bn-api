@@ -26,6 +26,18 @@ mod create_tests {
     fn create_org_owner() {
         base::organization_invites::create(Roles::OrgOwner, true);
     }
+    #[test]
+    fn create_door_person() {
+        base::organization_invites::create(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_org_admin() {
+        base::organization_invites::create(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn create_box_office() {
+        base::organization_invites::create(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -46,6 +58,18 @@ mod index_tests {
     #[test]
     fn index_org_owner() {
         base::organization_invites::index(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn index_door_person() {
+        base::organization_invites::index(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn index_org_admin() {
+        base::organization_invites::index(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn index_box_office() {
+        base::organization_invites::index(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -68,6 +92,18 @@ mod destroy_tests {
     fn destroy_org_owner() {
         base::organization_invites::destroy(Roles::OrgOwner, true);
     }
+    #[test]
+    fn destroy_door_person() {
+        base::organization_invites::destroy(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn destroy_org_admin() {
+        base::organization_invites::destroy(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn destroy_box_office() {
+        base::organization_invites::destroy(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -89,6 +125,18 @@ mod create_for_new_user_tests {
     fn create_for_new_user_org_owner() {
         base::organization_invites::create_for_new_user(Roles::OrgOwner, true);
     }
+    #[test]
+    fn create_for_new_user_door_person() {
+        base::organization_invites::create_for_new_user(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_for_new_user_org_admin() {
+        base::organization_invites::create_for_new_user(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn create_for_new_user_box_office() {
+        base::organization_invites::create_for_new_user(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -109,6 +157,18 @@ mod accept_tests {
     #[test]
     fn accept_org_owner() {
         base::organization_invites::accept_invite_status_of_invite(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn accept_door_person() {
+        base::organization_invites::accept_invite_status_of_invite(Roles::DoorPerson, true);
+    }
+    #[test]
+    fn accept_org_admin() {
+        base::organization_invites::accept_invite_status_of_invite(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn accept_box_office() {
+        base::organization_invites::accept_invite_status_of_invite(Roles::OrgBoxOffice, true);
     }
 }
 

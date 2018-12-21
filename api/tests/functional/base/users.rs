@@ -157,7 +157,10 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user2).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user2, Roles::OrgMember)
+        .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -213,7 +216,10 @@ pub fn show_push_notification_tokens_for_user_id(role: Roles, should_test_true: 
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user2).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user2, Roles::OrgMember)
+        .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     //create push notification token for user2
@@ -255,7 +261,10 @@ pub fn show_push_notification_tokens(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user, Roles::OrgMember)
+        .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     //create push notification token
@@ -291,7 +300,10 @@ pub fn add_push_notification_token(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user, Roles::OrgMember)
+        .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     //create push notification token for user
@@ -327,7 +339,10 @@ pub fn remove_push_notification_token(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user, Roles::OrgMember)
+        .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     //create push notification token
@@ -368,7 +383,10 @@ pub fn show(role: Roles, should_test_true: bool) {
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
 
-    let organization = database.create_organization().with_user(&user2).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user2, Roles::OrgMember)
+        .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 

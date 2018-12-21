@@ -86,7 +86,10 @@ fn update() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     //Edit Organization
-    let mut edited_organization = project.create_organization().with_owner(&user).finish();
+    let mut edited_organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
 
     edited_organization.name = "Test Org".to_string();
     edited_organization.address = Some("Test Address".to_string());
@@ -128,7 +131,7 @@ fn find() {
     //Edit Organization
     let organization = project
         .create_organization()
-        .with_owner(&user)
+        .with_member(&user, Roles::OrgOwner)
         .with_address()
         .finish();
     let found_organization = Organization::find(organization.id, project.get_connection()).unwrap();
@@ -142,7 +145,7 @@ fn find_for_event() {
     //Edit Organization
     let organization = project
         .create_organization()
-        .with_owner(&user)
+        .with_member(&user, Roles::OrgOwner)
         .with_address()
         .finish();
     let event = project
@@ -160,8 +163,14 @@ fn users() {
     let user = project.create_user().with_last_name("User1").finish();
     let user2 = project.create_user().with_last_name("User2").finish();
     let user3 = project.create_user().with_last_name("User3").finish();
-    let organization = project.create_organization().with_owner(&user).finish();
-    let organization2 = project.create_organization().with_owner(&user3).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
+    let organization2 = project
+        .create_organization()
+        .with_member(&user3, Roles::OrgOwner)
+        .finish();
     OrganizationUser::create(organization2.id, user2.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
         .unwrap();
@@ -212,8 +221,8 @@ fn is_member() {
     let user3 = project.create_user().finish();
     let organization = project
         .create_organization()
-        .with_owner(&user)
-        .with_user(&user2)
+        .with_member(&user, Roles::OrgOwner)
+        .with_member(&user2, Roles::OrgMember)
         .finish();
     // Reload for owner role
     let user = User::find(user.id.clone(), connection).unwrap();
@@ -228,13 +237,19 @@ fn all_linked_to_user() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let org1 = project.create_organization().with_owner(&user).finish();
+    let org1 = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let org2 = project
         .create_organization()
-        .with_owner(&user2)
-        .with_user(&user)
+        .with_member(&user2, Roles::OrgOwner)
+        .with_member(&user, Roles::OrgMember)
         .finish();
-    let _org3 = project.create_organization().with_owner(&user2).finish();
+    let _org3 = project
+        .create_organization()
+        .with_member(&user2, Roles::OrgOwner)
+        .finish();
 
     let orgs = Organization::all_linked_to_user(user.id, project.get_connection()).unwrap();
     let mut test_vec = vec![org1, org2];
@@ -252,14 +267,14 @@ fn all_org_names_linked_to_user() {
     let org1 = project
         .create_organization()
         .with_name(String::from("Test Org1"))
-        .with_owner(&user1)
-        .with_user(&user3)
+        .with_member(&user1, Roles::OrgOwner)
+        .with_member(&user3, Roles::OrgMember)
         .finish();
     let org2 = project
         .create_organization()
         .with_name(String::from("Test Org2"))
-        .with_owner(&user2)
-        .with_user(&user1)
+        .with_member(&user2, Roles::OrgOwner)
+        .with_member(&user1, Roles::OrgMember)
         .finish();
     let user1_links =
         Organization::all_org_names_linked_to_user(user1.id, project.get_connection()).unwrap();
@@ -295,13 +310,19 @@ fn all() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let org1 = project.create_organization().with_owner(&user).finish();
+    let org1 = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let org2 = project
         .create_organization()
-        .with_owner(&user2)
-        .with_user(&user)
+        .with_member(&user2, Roles::OrgOwner)
+        .with_member(&user, Roles::OrgMember)
         .finish();
-    let org3 = project.create_organization().with_owner(&user2).finish();
+    let org3 = project
+        .create_organization()
+        .with_member(&user2, Roles::OrgOwner)
+        .finish();
 
     let orgs = Organization::all(project.get_connection()).unwrap();
     let mut test_vec = vec![org1, org2, org3];
@@ -315,7 +336,10 @@ fn remove_users() {
     let user = project.create_user().with_last_name("user1").finish();
     let user2 = project.create_user().with_last_name("user2").finish();
     let user3 = project.create_user().with_last_name("user3").finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
         .unwrap();
@@ -361,8 +385,8 @@ pub fn get_roles_for_user() {
     let user4 = project.create_user().finish();
     let organization = project
         .create_organization()
-        .with_owner(&user)
-        .with_user(&user2)
+        .with_member(&user, Roles::OrgOwner)
+        .with_member(&user2, Roles::OrgMember)
         .finish();
     user3 = user3.add_role(Roles::Admin, connection).unwrap();
 
@@ -388,25 +412,34 @@ pub fn get_roles_for_user() {
 pub fn get_scopes_for_user() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let user = project.create_user().finish();
-    let user2 = project.create_user().finish();
-    let mut user3 = project.create_user().finish();
-    let user4 = project.create_user().finish();
+    let owner = project.create_user().finish();
+    let org_admin = project.create_user().finish();
+    let box_office = project.create_user().finish();
+    let door_person = project.create_user().finish();
+    let member = project.create_user().finish();
+    let no_access_user = project.create_user().finish();
     let organization = project
         .create_organization()
-        .with_owner(&user)
-        .with_user(&user2)
+        .with_member(&owner, Roles::OrgOwner)
+        .with_member(&member, Roles::OrgMember)
+        .with_member(&org_admin, Roles::OrgAdmin)
+        .with_member(&box_office, Roles::OrgBoxOffice)
+        .with_member(&door_person, Roles::DoorPerson)
         .finish();
-    user3 = user3.add_role(Roles::Admin, connection).unwrap();
+    let mut admin = project.create_user().finish();
+    admin = admin.add_role(Roles::Admin, connection).unwrap();
 
     assert_eq!(
-        organization.get_scopes_for_user(&user, connection).unwrap(),
+        organization
+            .get_scopes_for_user(&owner, connection)
+            .unwrap(),
         vec![
             "artist:write",
             "code:read",
             "code:write",
             "comp:read",
             "comp:write",
+            "dashboard:read",
             "event:interest",
             "event:scan",
             "event:view-guests",
@@ -422,14 +455,16 @@ pub fn get_scopes_for_user() {
             "org:write",
             "redeem:ticket",
             "ticket:admin",
+            "ticket:read",
             "ticket:transfer",
             "user:read",
             "venue:write"
         ]
     );
+
     assert_eq!(
         organization
-            .get_scopes_for_user(&user2, connection)
+            .get_scopes_for_user(&org_admin, connection)
             .unwrap(),
         vec![
             "artist:write",
@@ -437,6 +472,61 @@ pub fn get_scopes_for_user() {
             "code:write",
             "comp:read",
             "comp:write",
+            "dashboard:read",
+            "event:interest",
+            "event:scan",
+            "event:view-guests",
+            "event:write",
+            "hold:read",
+            "hold:write",
+            "order::make-external-payment",
+            "order:read",
+            "org:fans",
+            "org:read",
+            "org:users",
+            "org:write",
+            "redeem:ticket",
+            "ticket:admin",
+            "ticket:read",
+            "ticket:transfer",
+            "user:read",
+            "venue:write"
+        ]
+    );
+
+    assert_eq!(
+        organization
+            .get_scopes_for_user(&box_office, connection)
+            .unwrap(),
+        vec![
+            "dashboard:read",
+            "event:scan",
+            "event:view-guests",
+            "hold:read",
+            "order::make-external-payment",
+            "redeem:ticket",
+            "ticket:read",
+        ]
+    );
+
+    assert_eq!(
+        organization
+            .get_scopes_for_user(&door_person, connection)
+            .unwrap(),
+        vec!["event:scan", "hold:read", "redeem:ticket", "ticket:read",]
+    );
+
+    assert_eq!(
+        organization
+            .get_scopes_for_user(&member, connection)
+            .unwrap(),
+        vec![
+            "artist:write",
+            "code:read",
+            "code:write",
+            "comp:read",
+            "comp:write",
+            "dashboard:read",
             "event:interest",
             "event:scan",
             "event:view-guests",
@@ -448,13 +538,15 @@ pub fn get_scopes_for_user() {
             "org:read",
             "redeem:ticket",
             "ticket:admin",
+            "ticket:read",
             "ticket:transfer",
             "venue:write",
         ]
     );
+
     assert_eq!(
         organization
-            .get_scopes_for_user(&user3, connection)
+            .get_scopes_for_user(&admin, connection)
             .unwrap(),
         vec![
             "artist:write",
@@ -462,6 +554,7 @@ pub fn get_scopes_for_user() {
             "code:write",
             "comp:read",
             "comp:write",
+            "dashboard:read",
             "event:interest",
             "event:scan",
             "event:view-guests",
@@ -477,13 +570,15 @@ pub fn get_scopes_for_user() {
             "org:write",
             "redeem:ticket",
             "ticket:admin",
+            "ticket:read",
             "ticket:transfer",
             "user:read",
             "venue:write"
         ]
     );
+
     assert!(organization
-        .get_scopes_for_user(&user4, connection)
+        .get_scopes_for_user(&no_access_user, connection)
         .unwrap()
         .is_empty());
 }
@@ -494,7 +589,10 @@ fn add_user() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let organization_user = organization
         .add_user(user2.id, vec![Roles::OrgMember], connection)
         .unwrap();

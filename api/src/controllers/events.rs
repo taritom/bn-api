@@ -420,7 +420,7 @@ pub fn dashboard(
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
-    user.requires_scope_for_organization(Scopes::EventWrite, &event.organization(conn)?, conn)?;
+    user.requires_scope_for_organization(Scopes::DashboardRead, &event.organization(conn)?, conn)?;
     let summary = event.summary(conn)?;
     let start_utc = query
         .start_utc

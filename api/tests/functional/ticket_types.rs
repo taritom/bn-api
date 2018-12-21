@@ -31,6 +31,18 @@ mod create_tests {
     fn create_org_owner() {
         base::ticket_types::create(Roles::OrgOwner, true);
     }
+    #[test]
+    fn create_door_person() {
+        base::ticket_types::create(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_org_admin() {
+        base::ticket_types::create(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn create_box_office() {
+        base::ticket_types::create(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -52,6 +64,18 @@ mod update_tests {
     fn update_org_owner() {
         base::ticket_types::update(Roles::OrgOwner, true);
     }
+    #[test]
+    fn update_door_person() {
+        base::ticket_types::update(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        base::ticket_types::update(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn update_box_office() {
+        base::ticket_types::update(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -72,6 +96,18 @@ mod index_tests {
     #[test]
     fn index_org_owner() {
         base::ticket_types::index(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn index_door_person() {
+        base::ticket_types::index(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn index_org_admin() {
+        base::ticket_types::index(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn index_box_office() {
+        base::ticket_types::index(Roles::OrgBoxOffice, false);
     }
 }
 

@@ -29,6 +29,18 @@ mod index_tests {
     fn index_org_owner() {
         base::comps::index(Roles::OrgOwner, true);
     }
+    #[test]
+    fn index_door_person() {
+        base::comps::index(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn index_org_admin() {
+        base::comps::index(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn index_box_office() {
+        base::comps::index(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -49,6 +61,18 @@ mod show_tests {
     #[test]
     fn show_org_owner() {
         base::comps::show(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn show_door_person() {
+        base::comps::show(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn show_org_admin() {
+        base::comps::show(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn show_box_office() {
+        base::comps::show(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -71,6 +95,18 @@ mod create_tests {
     fn create_org_owner() {
         base::comps::create(Roles::OrgOwner, true);
     }
+    #[test]
+    fn create_door_person() {
+        base::comps::create(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_org_admin() {
+        base::comps::create(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn create_box_office() {
+        base::comps::create(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -92,6 +128,18 @@ mod update_tests {
     fn update_org_owner() {
         base::comps::update(Roles::OrgOwner, true);
     }
+    #[test]
+    fn update_door_person() {
+        base::comps::update(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        base::comps::update(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn update_box_office() {
+        base::comps::update(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -112,6 +160,18 @@ mod destroy_tests {
     #[test]
     fn destroy_org_owner() {
         base::comps::destroy(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn destroy_door_person() {
+        base::comps::destroy(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn destroy_org_admin() {
+        base::comps::destroy(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn destroy_box_office() {
+        base::comps::destroy(Roles::OrgBoxOffice, false);
     }
 }
 

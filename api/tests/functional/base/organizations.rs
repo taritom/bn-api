@@ -103,12 +103,12 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
     let organization = database
         .create_organization()
         .with_name("Organization 1".to_string())
-        .with_owner(&user)
+        .with_member(&user, Roles::OrgOwner)
         .finish();
     let organization2 = database
         .create_organization()
         .with_name("Organization 2".to_string())
-        .with_owner(&user2)
+        .with_member(&user2, Roles::OrgOwner)
         .finish();
 
     let expected_organizations = vec![organization.clone(), organization2];
@@ -251,8 +251,8 @@ pub fn remove_user(role: Roles, should_test_succeed: bool) {
 
     let organization = database
         .create_organization()
-        .with_user(&user2)
-        .with_user(&user3)
+        .with_member(&user2, Roles::OrgMember)
+        .with_member(&user3, Roles::OrgMember)
         .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
@@ -377,7 +377,10 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
         .create_user()
         .with_last_name("User2".into())
         .finish();
-    let organization = database.create_organization().with_user(&user2).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user2, Roles::OrgMember)
+        .finish();
     let auth_user =
         support::create_auth_user_from_user(&user1, role, Some(&organization), &database);
 

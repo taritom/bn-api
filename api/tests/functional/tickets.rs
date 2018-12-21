@@ -250,6 +250,18 @@ mod show_other_user_ticket_tests {
     fn show_other_user_ticket_org_owner() {
         base::tickets::show_other_user_ticket(Roles::OrgOwner, true);
     }
+    #[test]
+    fn show_other_user_ticket_door_person() {
+        base::tickets::show_other_user_ticket(Roles::DoorPerson, true);
+    }
+    #[test]
+    fn show_other_user_ticket_org_admin() {
+        base::tickets::show_other_user_ticket(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn show_other_user_ticket_box_office() {
+        base::tickets::show_other_user_ticket(Roles::OrgBoxOffice, true);
+    }
 }
 
 #[cfg(test)]
@@ -271,6 +283,18 @@ mod redeem_ticket {
     fn redeem_ticket_org_owner() {
         base::tickets::redeem_ticket(Roles::OrgOwner, true);
     }
+    #[test]
+    fn redeem_ticket_door_person() {
+        base::tickets::redeem_ticket(Roles::DoorPerson, true);
+    }
+    #[test]
+    fn redeem_ticket_org_admin() {
+        base::tickets::redeem_ticket(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn redeem_ticket_box_office() {
+        base::tickets::redeem_ticket(Roles::OrgBoxOffice, true);
+    }
 }
 
 #[cfg(test)]
@@ -291,6 +315,18 @@ mod show_redeem_key {
     #[test]
     fn show_redeemable_ticket_org_owner() {
         base::tickets::show_redeemable_ticket(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn show_redeemable_ticket_door_person() {
+        base::tickets::show_redeemable_ticket(Roles::DoorPerson, true);
+    }
+    #[test]
+    fn show_redeemable_ticket_org_admin() {
+        base::tickets::show_redeemable_ticket(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn show_redeemable_ticket_box_office() {
+        base::tickets::show_redeemable_ticket(Roles::OrgBoxOffice, true);
     }
 }
 

@@ -34,6 +34,21 @@ mod history_tests {
     fn history_org_owner() {
         base::users::history(Roles::OrgOwner, true);
     }
+
+    #[test]
+    fn history_door_person() {
+        base::users::history(Roles::DoorPerson, false);
+    }
+
+    #[test]
+    fn history_org_admin() {
+        base::users::history(Roles::OrgAdmin, true);
+    }
+
+    #[test]
+    fn history_box_office() {
+        base::users::history(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -58,6 +73,21 @@ mod profile_tests {
     #[test]
     fn profile_org_owner() {
         base::users::profile(Roles::OrgOwner, true);
+    }
+
+    #[test]
+    fn profile_door_person() {
+        base::users::profile(Roles::DoorPerson, false);
+    }
+
+    #[test]
+    fn profile_org_admin() {
+        base::users::profile(Roles::OrgAdmin, true);
+    }
+
+    #[test]
+    fn profile_box_office() {
+        base::users::profile(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -84,6 +114,21 @@ mod user_list_organizations_tests {
     fn list_organizations_org_owner() {
         base::users::list_organizations(Roles::OrgOwner, false);
     }
+
+    #[test]
+    fn list_organizations_door_person() {
+        base::users::list_organizations(Roles::DoorPerson, false);
+    }
+
+    #[test]
+    fn list_organizations_org_admin() {
+        base::users::list_organizations(Roles::OrgAdmin, false);
+    }
+
+    #[test]
+    fn list_organizations_box_office() {
+        base::users::list_organizations(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -108,6 +153,21 @@ mod show_push_notification_tokens_for_user_id_tests {
     #[test]
     fn show_push_notification_tokens_for_user_id_org_owner() {
         base::users::show_push_notification_tokens_for_user_id(Roles::OrgOwner, false);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_for_user_id_door_person() {
+        base::users::show_push_notification_tokens_for_user_id(Roles::DoorPerson, false);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_for_user_id_org_admin() {
+        base::users::show_push_notification_tokens_for_user_id(Roles::OrgAdmin, false);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_for_user_id_box_office() {
+        base::users::show_push_notification_tokens_for_user_id(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -134,6 +194,21 @@ mod show_push_notification_tokens_tests {
     fn show_push_notification_tokens_org_owner() {
         base::users::show_push_notification_tokens(Roles::OrgOwner, true);
     }
+
+    #[test]
+    fn show_push_notification_tokens_door_person() {
+        base::users::show_push_notification_tokens(Roles::DoorPerson, true);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_org_admin() {
+        base::users::show_push_notification_tokens(Roles::OrgAdmin, true);
+    }
+
+    #[test]
+    fn show_push_notification_tokens_box_office() {
+        base::users::show_push_notification_tokens(Roles::OrgBoxOffice, true);
+    }
 }
 
 #[cfg(test)]
@@ -158,6 +233,21 @@ mod add_push_notification_token_tests {
     #[test]
     fn add_push_notification_token_org_owner() {
         base::users::add_push_notification_token(Roles::OrgOwner, true);
+    }
+
+    #[test]
+    fn add_push_notification_token_door_person() {
+        base::users::add_push_notification_token(Roles::DoorPerson, true);
+    }
+
+    #[test]
+    fn add_push_notification_token_org_admin() {
+        base::users::add_push_notification_token(Roles::OrgAdmin, true);
+    }
+
+    #[test]
+    fn add_push_notification_token_box_office() {
+        base::users::add_push_notification_token(Roles::OrgBoxOffice, true);
     }
 }
 
@@ -184,6 +274,21 @@ mod remove_push_notification_token_tests {
     fn remove_push_notification_token_owner() {
         base::users::remove_push_notification_token(Roles::OrgOwner, true);
     }
+
+    #[test]
+    fn remove_push_notification_token_door_person() {
+        base::users::remove_push_notification_token(Roles::DoorPerson, true);
+    }
+
+    #[test]
+    fn remove_push_notification_token_org_admin() {
+        base::users::remove_push_notification_token(Roles::OrgAdmin, true);
+    }
+
+    #[test]
+    fn remove_push_notification_token_box_office() {
+        base::users::remove_push_notification_token(Roles::OrgBoxOffice, true);
+    }
 }
 
 #[cfg(test)]
@@ -208,6 +313,21 @@ mod users_show_tests {
     #[test]
     fn show_org_owner() {
         base::users::show(Roles::OrgOwner, false);
+    }
+
+    #[test]
+    fn show_door_person() {
+        base::users::show(Roles::DoorPerson, false);
+    }
+
+    #[test]
+    fn show_org_admin() {
+        base::users::show(Roles::OrgAdmin, false);
+    }
+
+    #[test]
+    fn show_box_office() {
+        base::users::show(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -361,6 +481,7 @@ fn current_user_admin() {
             "code:write",
             "comp:read",
             "comp:write",
+            "dashboard:read",
             "event:interest",
             "event:scan",
             "event:view-guests",
@@ -378,6 +499,7 @@ fn current_user_admin() {
             "redeem:ticket",
             "region:write",
             "ticket:admin",
+            "ticket:read",
             "ticket:transfer",
             "user:read",
             "venue:write"
@@ -415,6 +537,7 @@ fn current_user_organization_owner() {
             "code:write",
             "comp:read",
             "comp:write",
+            "dashboard:read",
             "event:interest",
             "event:scan",
             "event:view-guests",
@@ -430,6 +553,7 @@ fn current_user_organization_owner() {
             "org:write",
             "redeem:ticket",
             "ticket:admin",
+            "ticket:read",
             "ticket:transfer",
             "user:read",
             "venue:write",
@@ -477,6 +601,7 @@ fn current_user_organization_member() {
             "code:write",
             "comp:read",
             "comp:write",
+            "dashboard:read",
             "event:interest",
             "event:scan",
             "event:view-guests",
@@ -488,6 +613,7 @@ fn current_user_organization_member() {
             "org:read",
             "redeem:ticket",
             "ticket:admin",
+            "ticket:read",
             "ticket:transfer",
             "venue:write",
         ]

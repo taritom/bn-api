@@ -122,8 +122,8 @@ fn find_for_organization() {
     let user = project.create_user().finish();
     let organization = project
         .create_organization()
-        .with_owner(&owner)
-        .with_user(&member)
+        .with_member(&owner, Roles::OrgOwner)
+        .with_member(&member, Roles::OrgMember)
         .finish();
     let venue1 = project
         .create_venue()
@@ -145,7 +145,10 @@ fn find_for_organization() {
         .finish();
 
     // Add another venue for another org to make sure it isn't included
-    let organization2 = project.create_organization().with_owner(&user).finish();
+    let organization2 = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let venue4 = project
         .create_venue()
         .with_name("Venue4".to_string())

@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::venues;
 use bigneon_api::extractors::*;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{AddVenueToOrganizationRequest, PathParameters};
 use bigneon_db::models::*;
 use functional::base;
 use serde_json;
@@ -144,6 +144,18 @@ mod index_tests {
     fn index_org_owner() {
         base::venues::index(Roles::OrgOwner, true);
     }
+    #[test]
+    fn index_door_person() {
+        base::venues::index(Roles::DoorPerson, true);
+    }
+    #[test]
+    fn index_org_admin() {
+        base::venues::index(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn index_box_office() {
+        base::venues::index(Roles::OrgBoxOffice, true);
+    }
 }
 
 #[cfg(test)]
@@ -166,6 +178,18 @@ mod create_tests {
         base::venues::create(Roles::OrgOwner, false);
     }
     #[test]
+    fn create_door_person() {
+        base::venues::create(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_org_admin() {
+        base::venues::create(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn create_box_office() {
+        base::venues::create(Roles::OrgBoxOffice, false);
+    }
+    #[test]
     fn create_with_organization_org_member() {
         base::venues::create_with_organization(Roles::OrgMember, true);
     }
@@ -180,6 +204,18 @@ mod create_tests {
     #[test]
     fn create_with_organization_org_owner() {
         base::venues::create_with_organization(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn create_with_organization_door_person() {
+        base::venues::create_with_organization(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_with_organization_org_admin() {
+        base::venues::create_with_organization(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn create_with_organization_box_office() {
+        base::venues::create_with_organization(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -202,6 +238,18 @@ mod toggle_privacy_tests {
     fn toggle_privacy_org_owner() {
         base::venues::toggle_privacy(Roles::OrgOwner, false);
     }
+    #[test]
+    fn toggle_privacy_door_person() {
+        base::venues::toggle_privacy(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn toggle_privacy_org_admin() {
+        base::venues::toggle_privacy(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn toggle_privacy_box_office() {
+        base::venues::toggle_privacy(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -222,6 +270,18 @@ mod update_tests {
     #[test]
     fn update_org_owner() {
         base::venues::update(Roles::OrgOwner, false);
+    }
+    #[test]
+    fn update_door_person() {
+        base::venues::update(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        base::venues::update(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn update_box_office() {
+        base::venues::update(Roles::OrgBoxOffice, false);
     }
     #[test]
     fn update_with_organization_org_member() {
@@ -255,6 +315,18 @@ mod update_tests {
     fn update_public_venue_with_organization_org_owner() {
         base::venues::update_with_organization(Roles::OrgOwner, false, false);
     }
+    #[test]
+    fn update_with_organization_door_person() {
+        base::venues::update_with_organization(Roles::DoorPerson, false, false);
+    }
+    #[test]
+    fn update_with_organization_org_admin() {
+        base::venues::update_with_organization(Roles::OrgAdmin, true, true);
+    }
+    #[test]
+    fn update_with_organization_box_office() {
+        base::venues::update_with_organization(Roles::OrgBoxOffice, false, false);
+    }
 }
 
 #[cfg(test)]
@@ -280,13 +352,28 @@ mod show_from_organizations_tests {
     fn show_from_organizations_no_user() {
         base::venues::show_from_organizations(None, true);
     }
+    #[test]
+    fn show_from_organizations_door_person() {
+        base::venues::show_from_organizations(Some(Roles::DoorPerson), true);
+    }
+    #[test]
+    fn show_from_organizations_org_admin() {
+        base::venues::show_from_organizations(Some(Roles::OrgAdmin), true);
+    }
+    #[test]
+    fn show_from_organizations_box_office() {
+        base::venues::show_from_organizations(Some(Roles::OrgBoxOffice), true);
+    }
 }
 
 #[test]
 pub fn show_from_organizations_private_venue_same_org() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user, Roles::OrgMember)
+        .finish();
     let venue = database
         .create_venue()
         .with_name("Venue 1".to_string())
@@ -364,25 +451,41 @@ mod add_to_organization_tests {
     fn add_to_organization_org_owner() {
         base::venues::add_to_organization(Roles::OrgOwner, false);
     }
+    #[test]
+    fn add_to_organization_door_person() {
+        base::venues::add_to_organization(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn add_to_organization_org_admin() {
+        base::venues::add_to_organization(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn add_to_organization_box_office() {
+        base::venues::add_to_organization(Roles::OrgBoxOffice, false);
+    }
 }
 
-#[cfg(test)]
-mod add_to_organization_where_link_already_exists_tests {
-    use super::*;
-    #[test]
-    fn add_to_organization_where_link_already_exists_org_member() {
-        base::venues::add_to_organization_where_link_already_exists(Roles::OrgMember, false);
-    }
-    #[test]
-    fn add_to_organization_where_link_already_exists_admin() {
-        base::venues::add_to_organization_where_link_already_exists(Roles::Admin, true);
-    }
-    #[test]
-    fn add_to_organization_where_link_already_exists_user() {
-        base::venues::add_to_organization_where_link_already_exists(Roles::User, false);
-    }
-    #[test]
-    fn add_to_organization_where_link_already_exists_org_owner() {
-        base::venues::add_to_organization_where_link_already_exists(Roles::OrgOwner, false);
-    }
+#[test]
+pub fn add_to_organization_where_link_already_exists() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let venue = database.create_venue().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
+    let venue = venue
+        .add_to_organization(&organization.id, database.connection.get())
+        .unwrap();
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = venue.id;
+
+    let json = Json(AddVenueToOrganizationRequest {
+        organization_id: organization.id,
+    });
+
+    let response: HttpResponse =
+        venues::add_to_organization((database.connection.into(), path, json, auth_user)).into();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
 }

@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::artists;
 use bigneon_api::extractors::*;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::{CreateArtistRequest, PathParameters};
 use bigneon_db::prelude::*;
 use functional::base;
 use serde_json;
@@ -259,7 +259,10 @@ pub fn show() {
 pub fn show_from_organizations_private_artist_same_org() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = database.create_organization().with_user(&user).finish();
+    let organization = database
+        .create_organization()
+        .with_member(&user, Roles::OrgMember)
+        .finish();
     let artist = database
         .create_artist()
         .with_name("Artist 1".to_string())
@@ -334,6 +337,18 @@ mod create_tests {
         base::artists::create(Roles::OrgOwner, false);
     }
     #[test]
+    fn create_door_person() {
+        base::artists::create(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_org_admin() {
+        base::artists::create(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn create_box_office() {
+        base::artists::create(Roles::OrgBoxOffice, false);
+    }
+    #[test]
     fn create_with_organization_org_member() {
         base::artists::create_with_organization(Roles::OrgMember, true);
     }
@@ -349,27 +364,62 @@ mod create_tests {
     fn create_with_organization_org_owner() {
         base::artists::create_with_organization(Roles::OrgOwner, true);
     }
+    #[test]
+    fn create_with_organization_door_person() {
+        base::artists::create_with_organization(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_with_organization_org_admin() {
+        base::artists::create_with_organization(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn create_with_organization_box_office() {
+        base::artists::create_with_organization(Roles::OrgBoxOffice, false);
+    }
 }
 
-#[cfg(test)]
-mod create_with_validation_errors_tests {
-    use super::*;
-    #[test]
-    fn create_with_validation_errors_org_member() {
-        base::artists::create_with_validation_errors(Roles::OrgMember, false);
-    }
-    #[test]
-    fn create_with_validation_errors_admin() {
-        base::artists::create_with_validation_errors(Roles::Admin, true);
-    }
-    #[test]
-    fn create_with_validation_errors_user() {
-        base::artists::create_with_validation_errors(Roles::User, false);
-    }
-    #[test]
-    fn create_with_validation_errors_org_owner() {
-        base::artists::create_with_validation_errors(Roles::OrgOwner, false);
-    }
+#[test]
+pub fn create_with_validation_errors() {
+    let database = TestDatabase::new();
+
+    let name = "Artist Example";
+    let bio = "Bio";
+    let website_url = "invalid-format.com";
+    let json = Json(CreateArtistRequest {
+        name: Some(name.to_string()),
+        bio: Some(bio.to_string()),
+        website_url: Some(website_url.to_string()),
+        youtube_video_urls: Some(vec!["invalid".to_string()]),
+        ..Default::default()
+    });
+    let test_request = TestRequest::create();
+    let user = support::create_auth_user(Roles::Admin, None, &database);
+    let response: HttpResponse = artists::create((
+        test_request.extract_state(),
+        database.connection.into(),
+        json,
+        user,
+    ))
+    .into();
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let website_url = validation_response.fields.get("website_url").unwrap();
+    assert_eq!(website_url[0].code, "url");
+    assert_eq!(
+        &website_url[0].message.clone().unwrap().into_owned(),
+        "Website URL is invalid"
+    );
+    let youtube_video_urls = validation_response
+        .fields
+        .get("youtube_video_urls")
+        .unwrap();
+    assert_eq!(youtube_video_urls[0].code, "url");
+    assert_eq!(
+        &youtube_video_urls[0].message.clone().unwrap().into_owned(),
+        "URL is invalid"
+    );
 }
 
 #[cfg(test)]
@@ -390,6 +440,18 @@ mod toggle_privacy_tests {
     #[test]
     fn toggle_privacy_org_owner() {
         base::artists::toggle_privacy(Roles::OrgOwner, false);
+    }
+    #[test]
+    fn toggle_privacy_door_person() {
+        base::artists::toggle_privacy(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn toggle_privacy_org_admin() {
+        base::artists::toggle_privacy(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn toggle_privacy_box_office() {
+        base::artists::toggle_privacy(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -413,6 +475,18 @@ mod update_tests {
         base::artists::update(Roles::OrgOwner, false);
     }
     #[test]
+    fn update_door_person() {
+        base::artists::update(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        base::artists::update(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn update_box_office() {
+        base::artists::update(Roles::OrgBoxOffice, false);
+    }
+    #[test]
     fn update_with_organization_org_member() {
         base::artists::update_with_organization(Roles::OrgMember, true, true);
     }
@@ -427,6 +501,18 @@ mod update_tests {
     #[test]
     fn update_with_organization_org_owner() {
         base::artists::update_with_organization(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn update_with_organization_door_person() {
+        base::artists::update_with_organization(Roles::DoorPerson, false, true);
+    }
+    #[test]
+    fn update_with_organization_org_admin() {
+        base::artists::update_with_organization(Roles::OrgAdmin, true, true);
+    }
+    #[test]
+    fn update_with_organization_box_office() {
+        base::artists::update_with_organization(Roles::OrgBoxOffice, false, true);
     }
     #[test]
     fn update_public_artist_with_organization_org_member() {
@@ -444,25 +530,59 @@ mod update_tests {
     fn update_public_artist_with_organization_org_owner() {
         base::artists::update_with_organization(Roles::OrgOwner, false, false);
     }
+    #[test]
+    fn update_public_artist_with_organization_door_person() {
+        base::artists::update_with_organization(Roles::DoorPerson, false, false);
+    }
+    #[test]
+    fn update_public_artist_with_organization_org_admin() {
+        base::artists::update_with_organization(Roles::OrgAdmin, false, false);
+    }
+    #[test]
+    fn update_public_artist_with_organization_box_office() {
+        base::artists::update_with_organization(Roles::OrgBoxOffice, false, false);
+    }
 }
 
-#[cfg(test)]
-mod update_with_validation_errors_tests {
-    use super::*;
-    #[test]
-    fn update_with_validation_errors_org_member() {
-        base::artists::update_with_validation_errors(Roles::OrgMember, false);
-    }
-    #[test]
-    fn update_with_validation_errors_admin() {
-        base::artists::update_with_validation_errors(Roles::Admin, true);
-    }
-    #[test]
-    fn update_with_validation_errors_user() {
-        base::artists::update_with_validation_errors(Roles::User, false);
-    }
-    #[test]
-    fn update_with_validation_errors_org_owner() {
-        base::artists::update_with_validation_errors(Roles::OrgOwner, false);
-    }
+#[test]
+pub fn update_with_validation_errors() {
+    let database = TestDatabase::new();
+    let artist = database.create_artist().finish();
+    let name = "New Name";
+    let bio = "New Bio";
+    let website_url = "invalid-format.com";
+
+    let user = support::create_auth_user(Roles::Admin, None, &database);
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = artist.id;
+
+    let mut attributes: ArtistEditableAttributes = Default::default();
+    attributes.name = Some(name.to_string());
+    attributes.bio = Some(bio.to_string());
+    attributes.website_url = Some(Some(website_url.to_string()));
+    attributes.youtube_video_urls = Some(vec!["invalid".to_string()]);
+    let json = Json(attributes);
+
+    let response: HttpResponse =
+        artists::update((database.connection.into(), path, json, user)).into();
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let website_url = validation_response.fields.get("website_url").unwrap();
+    assert_eq!(website_url[0].code, "url");
+    assert_eq!(
+        &website_url[0].message.clone().unwrap().into_owned(),
+        "Website URL is invalid"
+    );
+    let youtube_video_urls = validation_response
+        .fields
+        .get("youtube_video_urls")
+        .unwrap();
+    assert_eq!(youtube_video_urls[0].code, "url");
+    assert_eq!(
+        &youtube_video_urls[0].message.clone().unwrap().into_owned(),
+        "URL is invalid"
+    );
 }

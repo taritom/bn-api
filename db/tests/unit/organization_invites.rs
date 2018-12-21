@@ -10,7 +10,10 @@ use diesel::prelude::*;
 fn create() {
     let project = TestProject::new();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let org_invite = project
         .create_organization_invite()
         .with_org(&organization)
@@ -25,7 +28,10 @@ fn create() {
 fn create_with_validation_errors() {
     let project = TestProject::new();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let result = OrganizationInvite::create(
         organization.id,
         user.id,
@@ -63,7 +69,10 @@ fn change_invite_status_of_invite() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let mut org_invite = project
         .create_organization_invite()
         .with_org(&organization)
@@ -97,7 +106,10 @@ fn view_invitation() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let inviter = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let org_invite = project
         .create_organization_invite()
         .with_org(&organization)
@@ -124,7 +136,10 @@ fn view_invitation() {
 fn test_token_validity() {
     let project = TestProject::new();
     let user = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let mut org_invite = project
         .create_organization_invite()
         .with_org(&organization)
@@ -160,7 +175,10 @@ fn find() {
     let connection = project.get_connection();
     let user1 = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user1).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user1, Roles::OrgOwner)
+        .finish();
     let invite = project
         .create_organization_invite()
         .with_org(&organization)
@@ -180,7 +198,10 @@ fn destroy() {
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
     let user4 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user1).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user1, Roles::OrgOwner)
+        .finish();
 
     let mut org_invite1 = project
         .create_organization_invite()
@@ -233,7 +254,10 @@ fn organization() {
     let connection = project.get_connection();
     let user1 = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user1).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user1, Roles::OrgOwner)
+        .finish();
 
     let org_invite = project
         .create_organization_invite()
@@ -253,7 +277,10 @@ fn find_pending_by_organization_paged() {
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
     let user4 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user1).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user1, Roles::OrgOwner)
+        .finish();
 
     let mut org_invite1 = project
         .create_organization_invite()
@@ -303,7 +330,10 @@ fn test_sending_status() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let organization = project.create_organization().with_owner(&user).finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
     let org_invite = project
         .create_organization_invite()
         .with_org(&organization)

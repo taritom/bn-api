@@ -28,6 +28,18 @@ mod create_tests {
     fn create_org_owner() {
         base::holds::create(Roles::OrgOwner, true);
     }
+    #[test]
+    fn create_door_person() {
+        base::holds::create(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_org_admin() {
+        base::holds::create(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn create_box_office() {
+        base::holds::create(Roles::OrgBoxOffice, false);
+    }
 }
 
 #[cfg(test)]
@@ -48,6 +60,18 @@ mod update_tests {
     #[test]
     fn update_org_owner() {
         base::holds::update(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn update_door_person() {
+        base::holds::update(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        base::holds::update(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn update_box_office() {
+        base::holds::update(Roles::OrgBoxOffice, false);
     }
 }
 
