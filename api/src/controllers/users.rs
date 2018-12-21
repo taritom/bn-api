@@ -77,7 +77,7 @@ pub fn history(
 
     // Confirm organization has specified user as a fan
     if !organization.has_fan(&user, connection)? {
-        return application::unauthorized(&request, Some(auth_user));
+        return application::unauthorized(&request, Some(auth_user), None);
     }
 
     let payload = user.get_history_for_organization(
@@ -114,7 +114,7 @@ pub fn show(
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
     if !(auth_user.user == user || auth_user.user.is_admin()) {
-        return application::unauthorized(&request, Some(auth_user));
+        return application::unauthorized(&request, Some(auth_user), None);
     }
 
     Ok(HttpResponse::Ok().json(&user.for_display()?))
@@ -132,7 +132,7 @@ pub fn list_organizations(
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
     if !(auth_user.user == user || auth_user.user.is_admin()) {
-        return application::unauthorized(&request, Some(auth_user));
+        return application::unauthorized(&request, Some(auth_user), None);
     }
     //TODO implement proper paging on db.
     let organization_links = Organization::all_org_names_linked_to_user(parameters.id, connection)?;
@@ -155,7 +155,7 @@ pub fn show_push_notification_tokens_for_user_id(
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
     if !(auth_user.user == user || auth_user.user.is_admin()) {
-        return application::unauthorized(&request, Some(auth_user));
+        return application::unauthorized(&request, Some(auth_user), None);
     }
 
     let push_notification_tokens: Vec<DisplayPushNotificationToken> =

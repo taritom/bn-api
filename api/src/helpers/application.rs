@@ -2,33 +2,43 @@ use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Responder};
 use auth::user::User as AuthUser;
 use errors::*;
 use log::Level::Warn;
-use serde_json;
+use serde_json::{self, Value};
 use server::AppState;
 use std::collections::HashMap;
 
 pub fn unauthorized<T: Responder>(
     request: &HttpRequest<AppState>,
     user: Option<AuthUser>,
+    additional_data: Option<HashMap<&'static str, Value>>,
 ) -> Result<T, BigNeonError> {
-    unauthorized_with_message("User does not have the required permissions", request, user)
+    unauthorized_with_message(
+        "User does not have the required permissions",
+        request,
+        user,
+        additional_data,
+    )
 }
 
 pub fn unauthorized_with_message<T: Responder>(
     message: &str,
     request: &HttpRequest<AppState>,
     auth_user: Option<AuthUser>,
+    additional_data: Option<HashMap<&'static str, Value>>,
 ) -> Result<T, BigNeonError> {
     if let Some(auth_user) = auth_user {
-        auth_user.log_unauthorized_access_attempt(HashMap::new());
+        auth_user.log_unauthorized_access_attempt(additional_data.unwrap_or(HashMap::new()));
     } else {
-        log_unauthorized_access_attempt_from_request(request);
+        log_unauthorized_access_attempt_from_request(request, additional_data);
     }
 
     Err(AuthError::new(AuthErrorType::Unauthorized, message.into()).into())
 }
 
-fn log_unauthorized_access_attempt_from_request(request: &HttpRequest<AppState>) {
-    let mut logging_data = HashMap::new();
+fn log_unauthorized_access_attempt_from_request(
+    request: &HttpRequest<AppState>,
+    additional_data: Option<HashMap<&'static str, Value>>,
+) {
+    let mut logging_data = additional_data.unwrap_or(HashMap::new());
     logging_data.insert(
         "ip_address",
         json!(request.connection_info().remote().map(|i| i.to_string())),

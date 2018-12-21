@@ -6,6 +6,6 @@ use support::test_request::TestRequest;
 #[test]
 fn unauthorized() {
     let test_request = TestRequest::create();
-    let response = application::unauthorized::<HttpResponse>(&test_request.request, None);
+    let response = application::unauthorized::<HttpResponse>(&test_request.request, None, None);
     support::expects_unauthorized(&response.unwrap_err().into_inner().to_response());
 }

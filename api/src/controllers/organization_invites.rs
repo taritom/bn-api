@@ -232,10 +232,10 @@ pub fn accept_request(
                 let org = Organization::find(invite_details.organization_id, connection)?;
                 org.add_user(u.id(), invite_details.roles, connection)?;
             } else {
-                return application::unauthorized(&request, Some(u));
+                return application::unauthorized(&request, Some(u), None);
             }
         }
-        None => return application::unauthorized(&request, None),
+        None => return application::unauthorized(&request, None, None),
     }
     Ok(HttpResponse::Ok().finish())
 }

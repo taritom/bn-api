@@ -63,6 +63,8 @@ pub fn token(
     let state = http_request.state();
     let connection_info = http_request.connection_info();
     let remote_ip = connection_info.remote();
+    let mut login_log_data = HashMap::new();
+    login_log_data.insert("email", login_request.email.clone().into());
 
     if let Some(ref google_recaptcha_secret_key) = state.config.google_recaptcha_secret_key {
         match login_request.captcha_response {
@@ -76,6 +78,7 @@ pub fn token(
                         "Captcha value invalid",
                         &http_request,
                         None,
+                        Some(login_log_data),
                     );
                 }
             }
@@ -84,6 +87,7 @@ pub fn token(
                     "Captcha required",
                     &http_request,
                     None,
+                    Some(login_log_data),
                 );
             }
         }
@@ -99,12 +103,18 @@ pub fn token(
                 login_failure_messaging,
                 &http_request,
                 None,
+                Some(login_log_data),
             )
         }
     };
 
     if !user.check_password(&login_request.password) {
-        return application::unauthorized_with_message(login_failure_messaging, &http_request, None);
+        return application::unauthorized_with_message(
+            login_failure_messaging,
+            &http_request,
+            None,
+            Some(login_log_data),
+        );
     }
 
     jlog!(Info, "User logged in via email and password", {"id": user.id, "email": user.email.clone()});
@@ -136,7 +146,7 @@ pub fn token_refresh(
     // If the user changes their password invalidate all refresh tokens
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
     if password_modified_timestamp > token.claims.issued {
-        return application::unauthorized_with_message("Invalid token", &request, None);
+        return application::unauthorized_with_message("Invalid token", &request, None, None);
     }
 
     let response = TokenResponse::create_from_refresh_token(
