@@ -16,7 +16,7 @@ use dotenv::dotenv;
 use log::Level::*;
 
 fn main() {
-    logging::setup_logger().unwrap();
+    logging::setup_logger();
     info!("Loading environment");
     dotenv().ok();
     jlog!(Info, "Environment loaded");

@@ -1,10 +1,12 @@
-extern crate fern;
+extern crate chrono;
+extern crate env_logger;
 #[macro_use]
 extern crate log;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
 
-extern crate chrono;
+use env_logger::{Builder, Env};
+use std::io::Write;
 
 /// A convenience wrapper around the log! macro for writing log messages that ElasticSearch can
 /// ingest.
@@ -61,28 +63,24 @@ fn is_in_message_format(msg: &str) -> bool {
     msg.starts_with("\"message\":")
 }
 
-pub fn setup_logger() -> Result<(), fern::InitError> {
-    fern::Dispatch::new()
-        .format(|out, message, record| {
-            let mut msg = format!("{}", message);
+pub fn setup_logger() {
+    Builder::from_env(Env::default().default_filter_or("debug"))
+        .format(|buf, record| {
+            let mut msg = format!("{}", record.args());
             if !is_in_message_format(&msg) {
                 msg = format_message(&msg, "");
             }
 
-            use chrono;
-
-            out.finish(format_args!(
+            writeln!(
+                buf,
                 "{{ \"time\": \"{}\", \"level\": \"{}\", \"target\": \"{}\", {} }}",
                 chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
                 record.level(),
                 record.target(),
                 msg,
-            ))
+            )
         })
-        .level(log::LevelFilter::Debug)
-        .chain(std::io::stdout())
-        .apply()?;
-    Ok(())
+        .init();
 }
 
 #[cfg(test)]
