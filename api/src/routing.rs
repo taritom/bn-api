@@ -157,7 +157,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
             .with(organizations::add_or_replace_user);
         r.method(Method::PUT)
             .with(organizations::add_or_replace_user);
-        r.method(Method::DELETE).with(organizations::remove_user);
         r.method(Method::GET)
             .with(organizations::list_organization_members);
     })
