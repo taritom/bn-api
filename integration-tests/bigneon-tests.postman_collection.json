@@ -2250,8 +2250,6 @@
 											"    pm.response.to.have.status(201);",
 											"})",
 											"",
-											"pm.environment.set(\"last_artist_id\", JSON.parse(responseBody).id);",
-											"",
 											"let json = JSON.parse(responseBody);",
 											"",
 											"pm.test(\"should be private\", function() {",
@@ -2348,923 +2346,1336 @@
 								}
 							},
 							"response": []
+						},
+						{
+							"name": "Guest - Search Artist",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"pm.test(\"Artist result should match\",function() {",
+											"    let last_artist_id= pm.environment.get(\"last_artist_id\");",
+											"    let found = false;",
+											"    let json = JSON.parse(responseBody);",
+											"    ",
+											"    for (let i=0;i<json.data.length; i++) {",
+											"        if (json.data[i].id === last_artist_id) {",
+											"            found = true;",
+											"            break;",
+											"        }",
+											"    }",
+											"    pm.expect(found).to.be.true;",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/artists/search?q=Artist&spotify=1",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"artists",
+										"search"
+									],
+									"query": [
+										{
+											"key": "q",
+											"value": "Artist"
+										},
+										{
+											"key": "spotify",
+											"value": "1"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Guest - Search Artist Spotify Result",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"//If data is blank, no spotify key was provided",
+											"",
+											"",
+											"pm.test(\"Spotify result should contain spotify_id or data should be blank\",function() {",
+											"    pm.environment.set(\"last_spotify_artist_id\", \"\");",
+											"    let data = JSON.parse(responseBody).data;",
+											"    if(data.length === 0) {",
+											"        postman.setNextRequest(\"Admin - Create Venue\");",
+											"    } else {",
+											"        data.forEach(item => {",
+											"            pm.expect(item.spotify_id).to.not.be.a(\"null\");",
+											"            pm.environment.set(\"last_spotify_artist_id\", \"5HFkc3t0HYETL4JeEbDB1v\");",
+											"        })    ",
+											"    }",
+											"    ",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/artists/search?q=Powerwolf&spotify=1",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"artists",
+										"search"
+									],
+									"query": [
+										{
+											"key": "q",
+											"value": "Powerwolf"
+										},
+										{
+											"key": "spotify",
+											"value": "1"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - Create From Spotify - Public",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"if (pm.environment.get(\"last_spotify_artist_id\") !== \"\") {",
+											"    pm.test(\"should be 201\", function() {",
+											"        pm.response.to.have.status(201);",
+											"    })    ",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "8007340d-4d23-4637-86eb-dfd560cf5063",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"spotify_id\": \"{{last_spotify_artist_id}}\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/artists",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"artists"
+									]
+								}
+							},
+							"response": []
 						}
 					],
 					"_postman_isSubFolder": true
 				},
 				{
-					"name": "Admin - Search Artist",
-					"event": [
+					"name": "Venues",
+					"item": [
 						{
-							"listen": "test",
-							"script": {
-								"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"pm.test(\"Artist result should match\",function() {",
-									"    let last_artist_id= pm.environment.get(\"last_artist_id\");",
-									"    let found = false;",
-									"    let json = JSON.parse(responseBody);",
-									"    ",
-									"    for (let i=0;i<json.data.length; i++) {",
-									"        if (json.data[i].id === last_artist_id) {",
-									"            found = true;",
-									"            break;",
-									"        }",
-									"    }",
-									"    pm.expect(found).to.be.true;",
-									"});"
+							"name": "Admin - Create Venue - Public",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"pm.environment.set(\"last_venue_id\", JSON.parse(responseBody).id);"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
 								],
-								"type": "text/javascript"
-							}
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"1 street street\",\n\t\"city\": \"City\",\n\t\"country\": \"Country\",\n\t\"phone\": \"5555555555\",\n\t\"google_place_id\": null,\n\t\"state\": \"California\",\n\t\"postal_code\": \"23233\"\n\t\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner - Create Venue - Public - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_owner_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"1 street street\",\n\t\"city\": \"City\",\n\t\"country\": \"Country\",\n\t\"phone\": \"5555555555\",\n\t\"google_place_id\": null,\n\t\"state\": \"California\",\n\t\"postal_code\": \"23233\"\n\t\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Create Venue - Private",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"pm.test(\"should be private\", function() {",
+											"    pm.expect(json.is_private).to.be.true;",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"1 street street\",\n\t\"city\": \"City\",\n\t\"country\": \"Country\",\n\t\"organization_id\": \"{{last_org_id}}\",\n\t\"phone\": \"5555555555\",\n\t\"google_place_id\": null,\n\t\"state\": \"California\",\n\t\"postal_code\": \"23233\"\n\t\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BoxOffice - Create Venue - Private - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_boxoffice_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"1 street street\",\n\t\"city\": \"City\",\n\t\"country\": \"Country\",\n\t\"organization_id\": \"{{last_org_id}}\",\n\t\"phone\": \"5555555555\",\n\t\"google_place_id\": null,\n\t\"state\": \"California\",\n\t\"postal_code\": \"23233\"\n\t\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Guest - List Venues",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"",
+											" let r = JSON.parse(responseBody);",
+											" ",
+											"pm.test(\"created venue should be present\", function() {",
+											"    let found = false;",
+											"    let last_venue_id = pm.environment.get(\"last_venue_id\");",
+											"    for (var i=0;i < r.data.length; i++){",
+											"        if (r.data[i].id === last_venue_id) {",
+											"            found=true;",
+											"            break;",
+											"        }",
+											"",
+											"    }",
+											"    pm.expect(found).to.be.true;",
+											"  ",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/venues",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin  - Update Venue - Public",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c91d2787-44e0-489c-9b8c-69a7f118f457",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"fields should be updated\", function() {",
+											"    pm.expect(r.address).to.equal(\"address\");",
+											"    pm.expect(r.city).to.equal(\"city\");",
+											"",
+											"    pm.expect(r.country).to.equal(\"the best country\");",
+											"",
+											"    pm.expect(r.postal_code).to.equal(\"2222\");",
+											"    ",
+											"    pm.expect(r.state).to.equal(\"CA\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"address\": \"address\",\n    \"city\":\"city\",\n    \"country\" : \"the best country\",\n    \"postal_code\" : \"2222\",\n    \"state\":\"CA\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues/{{last_venue_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues",
+										"{{last_venue_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner  - Update Venue - Public - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c91d2787-44e0-489c-9b8c-69a7f118f457",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_owner_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"address\": \"address\",\n    \"city\":\"city\",\n    \"country\" : \"the best country\",\n    \"postal_code\" : \"2222\",\n    \"state\":\"CA\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues/{{last_venue_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues",
+										"{{last_venue_id}}"
+									]
+								}
+							},
+							"response": []
 						}
 					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/artists/search?q=Artist&spotify=1",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"artists",
-								"search"
-							],
-							"query": [
-								{
-									"key": "q",
-									"value": "Artist"
-								},
-								{
-									"key": "spotify",
-									"value": "1"
-								}
-							]
-						}
-					},
-					"response": []
+					"_postman_isSubFolder": true
 				},
 				{
-					"name": "Admin - Search Artist Spotify Result",
-					"event": [
+					"name": "Events - External",
+					"item": [
 						{
-							"listen": "test",
-							"script": {
-								"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"//If data is blank, no spotify key was provided",
-									"",
-									"",
-									"pm.test(\"Spotify result should contain spotify_id or data should be blank\",function() {",
-									"    pm.environment.set(\"last_spotify_artist_id\", \"\");",
-									"    let data = JSON.parse(responseBody).data;",
-									"    if(data.length === 0) {",
-									"        postman.setNextRequest(\"Admin - Create Venue\");",
-									"    } else {",
-									"        data.forEach(item => {",
-									"            pm.expect(item.spotify_id).to.not.be.a(\"null\");",
-									"            pm.environment.set(\"last_spotify_artist_id\", \"5HFkc3t0HYETL4JeEbDB1v\");",
-									"        })    ",
-									"    }",
-									"    ",
-									"});"
+							"name": "OrgMember  - Create Event That is External",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"pm.environment.set(\"external_event_id\", JSON.parse(responseBody).id);"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
 								],
-								"type": "text/javascript"
-							}
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BoxOffice - Create Event That is External - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_boxoffice_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Update External Event To Be Sold Out",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should have correct fee_in_cents\", function(){",
+											"    pm.expect(r.override_status).to.equal(\"SoldOut\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"override_status\": \"SoldOut\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{external_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{external_event_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BoxOffice - Update External Event - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_boxoffice_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"override_status\": \"SoldOut\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{external_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{external_event_id}}"
+									]
+								}
+							},
+							"response": []
 						}
 					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/artists/search?q=Powerwolf&spotify=1",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"artists",
-								"search"
-							],
-							"query": [
-								{
-									"key": "q",
-									"value": "Powerwolf"
-								},
-								{
-									"key": "spotify",
-									"value": "1"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - Create From Spotify",
 					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
-								"exec": [
-									"if (pm.environment.get(\"last_spotify_artist_id\") !== \"\") {",
-									"    pm.test(\"should be 201\", function() {",
-									"        pm.response.to.have.status(201);",
-									"    })    ",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						},
 						{
 							"listen": "prerequest",
 							"script": {
-								"id": "8007340d-4d23-4637-86eb-dfd560cf5063",
-								"exec": [
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"spotify_id\": \"{{last_spotify_artist_id}}\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/artists",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"artists"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - Create Venue",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									"",
-									"pm.environment.set(\"last_venue_id\", JSON.parse(responseBody).id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"1 street street\",\n\t\"city\": \"City\",\n\t\"country\": \"Country\",\n\t\"organization_id\": \"{{last_org_id}}\",\n\t\"phone\": \"5555555555\",\n\t\"google_place_id\": null,\n\t\"state\": \"California\",\n\t\"postal_code\": \"23233\"\n\t\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/venues",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"venues"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - List Venues",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"",
-									" let r = JSON.parse(responseBody);",
-									" ",
-									"pm.test(\"created venue should be present\", function() {",
-									"    let found = false;",
-									"    let last_venue_id = pm.environment.get(\"last_venue_id\");",
-									"    for (var i=0;i < r.data.length; i++){",
-									"        if (r.data[i].id === last_venue_id) {",
-									"            found=true;",
-									"            break;",
-									"        }",
-									"",
-									"    }",
-									"    pm.expect(found).to.be.true;",
-									"  ",
-									"})"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/venues",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"venues"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin  - Create Event That is External",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									"",
-									"pm.environment.set(\"external_event_id\", JSON.parse(responseBody).id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/events",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin  - Update External Event To Be Sold Out",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"should have correct fee_in_cents\", function(){",
-									"    pm.expect(r.override_status).to.equal(\"SoldOut\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"override_status\": \"SoldOut\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/events/{{external_event_id}}",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events",
-								"{{external_event_id}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin  - Create Event",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									"",
-									"pm.environment.set(\"last_event_id\", JSON.parse(responseBody).id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/events",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin  - Update Event",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "1f54eb13-607a-4651-a581-3ce380c3fcbf",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.environment.set(\"last_event_id\", JSON.parse(responseBody).id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"age_limit\": 18\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events",
-								"{{last_event_id}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin  - Update Venue",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "c91d2787-44e0-489c-9b8c-69a7f118f457",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"fields should be updated\", function() {",
-									"    pm.expect(r.address).to.equal(\"address\");",
-									"    pm.expect(r.city).to.equal(\"city\");",
-									"",
-									"    pm.expect(r.country).to.equal(\"the best country\");",
-									"",
-									"    pm.expect(r.postal_code).to.equal(\"2222\");",
-									"    ",
-									"    pm.expect(r.state).to.equal(\"CA\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"address\": \"address\",\n    \"city\":\"city\",\n    \"country\" : \"the best country\",\n    \"postal_code\" : \"2222\",\n    \"state\":\"CA\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/venues/{{last_venue_id}}",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"venues",
-								"{{last_venue_id}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin  - Publish Event (succeeds)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+								"id": "72017d3e-5e1f-4317-8972-255de4c8f7b0",
 								"type": "text/javascript",
 								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
+									""
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "51cc8fc3-8248-48ee-8297-0a861e2479f2",
+								"type": "text/javascript",
+								"exec": [
 									""
 								]
 							}
 						}
 					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/publish",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events",
-								"{{last_event_id}}",
-								"publish"
-							]
-						}
-					},
-					"response": []
+					"_postman_isSubFolder": true
 				},
 				{
-					"name": "Admin - search for events - Upcoming",
-					"event": [
+					"name": "Events",
+					"item": [
 						{
-							"listen": "test",
-							"script": {
-								"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"should be one result\", function(){",
-									"    pm.expect(r.data.length).to.equal(2);",
-									"})"
+							"name": "OrgMember  - Create Event",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"pm.environment.set(\"last_event_id\", JSON.parse(responseBody).id);"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
 								],
-								"type": "text/javascript"
-							}
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Update Event",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "1f54eb13-607a-4651-a581-3ce380c3fcbf",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"last_event_id\", JSON.parse(responseBody).id);"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"age_limit\": 18\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{last_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{last_event_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Publish Event",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{last_event_id}}/publish",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{last_event_id}}",
+										"publish"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BoxOffice  - Publish Event - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"})",
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_boxoffice_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{last_event_id}}/publish",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{last_event_id}}",
+										"publish"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BoxOffice - search for events - Upcoming",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should be more than 2 results\", function(){",
+											"    pm.expect(r.data.length).to.greaterThan(1);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_boxoffice_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/events?past_or_upcoming=upcoming",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"events"
+									],
+									"query": [
+										{
+											"key": "past_or_upcoming",
+											"value": "upcoming"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BoxOffice - search for events - Past - No results",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should be empty\", function(){",
+											"    pm.expect(r.data.length).to.equal(0);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_boxoffice_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/events?past_or_upcoming=past",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"events"
+									],
+									"query": [
+										{
+											"key": "past_or_upcoming",
+											"value": "past"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Create Event in Past",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2018-11-13T12:00:00\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BoxOffice - search for events - Past",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should be one result\", function(){",
+											"    pm.expect(r.data.length).to.equal(1);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_boxoffice_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/events?past_or_upcoming=Past",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"events"
+									],
+									"query": [
+										{
+											"key": "past_or_upcoming",
+											"value": "Past"
+										}
+									]
+								}
+							},
+							"response": []
 						}
 					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/events?past_or_upcoming=upcoming",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}",
-								"events"
-							],
-							"query": [
-								{
-									"key": "past_or_upcoming",
-									"value": "upcoming"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - search for events - Past - No results",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"should be empty\", function(){",
-									"    pm.expect(r.data.length).to.equal(0);",
-									"})"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/events?past_or_upcoming=past",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}",
-								"events"
-							],
-							"query": [
-								{
-									"key": "past_or_upcoming",
-									"value": "past"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin  - Create Event in Past",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2018-11-13T12:00:00\"\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/events",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Admin - search for events - Past",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "70811e5f-20d4-4a04-9285-d9f4b847f5cf",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"pm.test(\"should be one result\", function(){",
-									"    pm.expect(r.data.length).to.equal(1);",
-									"})"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/organizations/{{last_org_id}}/events?past_or_upcoming=Past",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"organizations",
-								"{{last_org_id}}",
-								"events"
-							],
-							"query": [
-								{
-									"key": "past_or_upcoming",
-									"value": "Past"
-								}
-							]
-						}
-					},
-					"response": []
+					"_postman_isSubFolder": true
 				},
 				{
 					"name": "Admin - create tickets - VIP",
