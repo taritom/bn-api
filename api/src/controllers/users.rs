@@ -14,20 +14,37 @@ use server::AppState;
 use std::collections::HashMap;
 use std::str;
 use uuid::Uuid;
+use actix_web::Responder;
+use actix_web;
 
 #[derive(Deserialize)]
 pub struct SearchUserByEmail {
     pub email: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct CurrentUser {
     pub user: DisplayUser,
     pub roles: Vec<Roles>,
-    pub scopes: Vec<String>,
+    pub scopes: Vec<Scopes>,
     pub organization_roles: HashMap<Uuid, Vec<Roles>>,
-    pub organization_scopes: HashMap<Uuid, Vec<String>>,
+    pub organization_scopes: HashMap<Uuid, Vec<Scopes>>,
 }
+
+impl Responder for CurrentUser
+{
+    type Item = HttpResponse;
+    type Error = actix_web::Error;
+
+    fn respond_to<S>(self, _req: &HttpRequest<S>) -> Result<HttpResponse, actix_web::Error> {
+        let body = serde_json::to_string(&self)?;
+        Ok(HttpResponse::new(StatusCode::OK)
+            .into_builder()
+            .content_type("application/json")
+            .body(body))
+    }
+}
+
 
 #[derive(Deserialize, Clone)]
 pub struct InputPushNotificationTokens {
@@ -37,10 +54,9 @@ pub struct InputPushNotificationTokens {
 
 pub fn current_user(
     (connection, auth_user): (Connection, AuthUser),
-) -> Result<HttpResponse, BigNeonError> {
+) -> Result<CurrentUser, BigNeonError> {
     let connection = connection.get();
-    let current_user = current_user_from_user(&auth_user.user, connection)?;
-    Ok(HttpResponse::Ok().json(&current_user))
+    current_user_from_user(&auth_user.user, connection)
 }
 
 pub fn profile(
@@ -48,7 +64,7 @@ pub fn profile(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
-    auth_user.requires_scope_for_organization(Scopes::OrgReadFans, &organization, &connection)?;
+    auth_user.requires_scope_for_organization(Scopes::OrgFans, &organization, &connection)?;
 
     let user = User::find(path.user_id, connection)?;
 
@@ -71,7 +87,7 @@ pub fn history(
 ) -> Result<WebPayload<HistoryItem>, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
-    auth_user.requires_scope_for_organization(Scopes::OrgReadFans, &organization, &connection)?;
+    auth_user.requires_scope_for_organization(Scopes::OrgFans, &organization, &connection)?;
 
     let user = User::find(path.user_id, connection)?;
 
@@ -251,6 +267,7 @@ fn current_user_from_user(
     for (organization_id, roles) in &roles_by_organization {
         scopes_by_organization.insert(organization_id.clone(), scopes::get_scopes(roles.clone()));
     }
+
 
     Ok(CurrentUser {
         user: user.clone().for_display()?,

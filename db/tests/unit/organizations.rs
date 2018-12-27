@@ -463,7 +463,10 @@ pub fn get_scopes_for_user() {
     assert_eq!(
         organization
             .get_scopes_for_user(&owner, connection)
-            .unwrap(),
+            .unwrap()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>(),
         vec![
             "artist:write",
             "box-office-ticket:read",
@@ -498,7 +501,10 @@ pub fn get_scopes_for_user() {
     assert_eq!(
         organization
             .get_scopes_for_user(&org_admin, connection)
-            .unwrap(),
+            .unwrap()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>(),
         vec![
             "artist:write",
             "box-office-ticket:read",
@@ -532,7 +538,10 @@ pub fn get_scopes_for_user() {
     assert_eq!(
         organization
             .get_scopes_for_user(&box_office, connection)
-            .unwrap(),
+            .unwrap()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>(),
         vec![
             "dashboard:read",
             "event:scan",
@@ -547,14 +556,20 @@ pub fn get_scopes_for_user() {
     assert_eq!(
         organization
             .get_scopes_for_user(&door_person, connection)
-            .unwrap(),
+            .unwrap()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>(),
         vec!["event:scan", "hold:read", "redeem:ticket", "ticket:read",]
     );
 
     assert_eq!(
         organization
             .get_scopes_for_user(&member, connection)
-            .unwrap(),
+            .unwrap()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>(),
         vec![
             "artist:write",
             "box-office-ticket:read",
@@ -584,7 +599,10 @@ pub fn get_scopes_for_user() {
     assert_eq!(
         organization
             .get_scopes_for_user(&admin, connection)
-            .unwrap(),
+            .unwrap()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>(),
         vec![
             "artist:write",
             "box-office-ticket:read",

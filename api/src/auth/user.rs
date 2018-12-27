@@ -22,7 +22,7 @@ pub struct User {
 
 impl User {
     pub fn new(user: DbUser, request: &HttpRequest<AppState>) -> Result<User, EnumParseError> {
-        let global_scopes = user.get_global_scopes();
+        let global_scopes = user.get_global_scopes().into_iter().map(|s| s.to_string()).collect();
         Ok(User {
             user,
             global_scopes,
@@ -56,7 +56,7 @@ impl User {
             let organization_scopes = organization.get_scopes_for_user(&self.user, connection)?;
             logging_data.insert("organization_scopes", json!(organization_scopes));
             logging_data.insert("organization_id", json!(organization.id));
-            if organization_scopes.contains(&scope.to_string()) {
+            if organization_scopes.contains(&scope) {
                 return Ok(true);
             }
         }
