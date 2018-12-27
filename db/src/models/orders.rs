@@ -609,7 +609,10 @@ impl Order {
                 };
                 if event.fee_in_cents > 0 {
                     //we dont want to create 0 fee order item
-                    new_event_fee.unit_price_in_cents = event.fee_in_cents;
+                    new_event_fee.company_fee_in_cents = event.company_fee_in_cents;
+                    new_event_fee.client_fee_in_cents = event.client_fee_in_cents;
+                    new_event_fee.unit_price_in_cents =
+                        event.client_fee_in_cents + event.company_fee_in_cents;
                     new_event_fee.commit(conn)?;
                 }
             }

@@ -107,7 +107,8 @@ impl NewEvent {
         diesel::insert_into(events::table)
             .values((
                 self,
-                events::fee_in_cents.eq(organization.event_fee_in_cents),
+                events::fee_in_cents.eq(organization.client_event_fee_in_cents
+                    + organization.company_event_fee_in_cents),
                 events::client_fee_in_cents.eq(organization.client_event_fee_in_cents),
                 events::company_fee_in_cents.eq(organization.company_event_fee_in_cents),
             ))
