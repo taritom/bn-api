@@ -5935,7 +5935,7 @@
 			"name": "Buy Tickets",
 			"item": [
 				{
-					"name": "User - search for event - Past",
+					"name": "Guest - search for event - Past",
 					"event": [
 						{
 							"listen": "test",
@@ -5978,7 +5978,7 @@
 					"response": []
 				},
 				{
-					"name": "User - search for event - Upcoming",
+					"name": "Guest - search for event - Upcoming",
 					"event": [
 						{
 							"listen": "test",
@@ -6021,7 +6021,7 @@
 					"response": []
 				},
 				{
-					"name": "User - view event tickets",
+					"name": "Guest - view event tickets",
 					"event": [
 						{
 							"listen": "test",
@@ -6072,7 +6072,7 @@
 					"response": []
 				},
 				{
-					"name": "User - register without optional fields",
+					"name": "Guest - register without optional fields",
 					"event": [
 						{
 							"listen": "test",
@@ -6126,30 +6126,30 @@
 					"response": []
 				},
 				{
-					"name": "User - register",
+					"name": "Guest - register",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
-								"type": "text/javascript",
 								"exec": [
 									"pm.test(\"should be 201\", function() {",
 									"    pm.response.to.have.status(201);",
 									"})",
 									""
-								]
+								],
+								"type": "text/javascript"
 							}
 						},
 						{
 							"listen": "prerequest",
 							"script": {
 								"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
-								"type": "text/javascript",
 								"exec": [
 									"",
 									"pm.environment.set(\"last_email\", \"mike\" + (new Date()).getTime() + \"@tari.com\");"
-								]
+								],
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -6180,7 +6180,7 @@
 					"response": []
 				},
 				{
-					"name": "User - register and login",
+					"name": "Guest - register and login",
 					"event": [
 						{
 							"listen": "test",
@@ -6237,7 +6237,7 @@
 					"response": []
 				},
 				{
-					"name": "User - login",
+					"name": "Guest - login",
 					"event": [
 						{
 							"listen": "test",
@@ -8847,13 +8847,12 @@
 					"name": "Via QR",
 					"item": [
 						{
-							"name": "Ticket - Index",
+							"name": "User - Get tickets",
 							"event": [
 								{
 									"listen": "test",
 									"script": {
 										"id": "78dae9d8-c586-4bec-876e-ac1d7a55dbc9",
-										"type": "text/javascript",
 										"exec": [
 											"pm.test(\"should be 200\", function() {",
 											"    pm.response.to.have.status(200);",
@@ -8864,7 +8863,8 @@
 											"pm.environment.set(\"ticket1_id\", json.data[0][1][0].id);",
 											"pm.environment.set(\"ticket2_id\", json.data[0][1][1].id);",
 											""
-										]
+										],
+										"type": "text/javascript"
 									}
 								}
 							],
@@ -8910,13 +8910,12 @@
 							"response": []
 						},
 						{
-							"name": "Tickets - Authorize Transfer",
+							"name": "User - Tickets - Authorize Transfer",
 							"event": [
 								{
 									"listen": "test",
 									"script": {
 										"id": "fa09a71a-5451-49e9-a771-bf1949cc318e",
-										"type": "text/javascript",
 										"exec": [
 											"pm.test(\"should be 200\", function() {",
 											"    pm.response.to.have.status(200);",
@@ -8928,7 +8927,8 @@
 											"pm.environment.set(\"transfer_sender_user_id\", json.sender_user_id);",
 											"pm.environment.set(\"transfer_num_tickets\", json.num_tickets);",
 											"pm.environment.set(\"transfer_signature\", json.signature);"
-										]
+										],
+										"type": "text/javascript"
 									}
 								}
 							],
@@ -8969,30 +8969,30 @@
 							"response": []
 						},
 						{
-							"name": "User2 - register",
+							"name": "Guest - Register",
 							"event": [
 								{
 									"listen": "test",
 									"script": {
 										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
-										"type": "text/javascript",
 										"exec": [
 											"pm.test(\"should be 201\", function() {",
 											"    pm.response.to.have.status(201);",
 											"})",
 											""
-										]
+										],
+										"type": "text/javascript"
 									}
 								},
 								{
 									"listen": "prerequest",
 									"script": {
 										"id": "a7fd9d58-97c7-497f-a26c-6425e4d346b0",
-										"type": "text/javascript",
 										"exec": [
 											"",
 											"pm.environment.set(\"last_email2\", \"john\" + (new Date()).getTime() + \"@tari.com\");"
-										]
+										],
+										"type": "text/javascript"
 									}
 								}
 							],
@@ -9023,13 +9023,12 @@
 							"response": []
 						},
 						{
-							"name": "User2 - login",
+							"name": "Guest (User2) - login",
 							"event": [
 								{
 									"listen": "test",
 									"script": {
 										"id": "c88075b1-daa2-4141-a9fe-44fe68f4e7a8",
-										"type": "text/javascript",
 										"exec": [
 											"pm.test(\"should be 200\", function() {",
 											"    pm.response.to.have.status(200);",
@@ -9039,7 +9038,8 @@
 											"",
 											"pm.environment.set(\"user2_token\", json.access_token);",
 											""
-										]
+										],
+										"type": "text/javascript"
 									}
 								}
 							],
@@ -9073,20 +9073,20 @@
 							"response": []
 						},
 						{
-							"name": "Tickets - Receive Transfer",
+							"name": "User2 - Tickets - Receive Transfer",
 							"event": [
 								{
 									"listen": "test",
 									"script": {
 										"id": "0b8fa947-f6d6-440b-8377-5bd2a5aab067",
-										"type": "text/javascript",
 										"exec": [
 											"pm.test(\"should be 200\", function() {",
 											"    pm.response.to.have.status(200);",
 											"})",
 											"",
 											""
-										]
+										],
+										"type": "text/javascript"
 									}
 								}
 							],
@@ -9127,13 +9127,12 @@
 							"response": []
 						},
 						{
-							"name": "Tickets - Index - Should not include sent tickets",
+							"name": "User - Tickets - Index - Should not include sent tickets",
 							"event": [
 								{
 									"listen": "test",
 									"script": {
 										"id": "7e788041-0bf2-46b8-98b1-79447957b3f3",
-										"type": "text/javascript",
 										"exec": [
 											"pm.test(\"should be 200\", function() {",
 											"    pm.response.to.have.status(200);",
@@ -9151,7 +9150,8 @@
 											"    }",
 											"   ",
 											"})"
-										]
+										],
+										"type": "text/javascript"
 									}
 								}
 							],
@@ -9203,7 +9203,7 @@
 					"name": "Via Email/SMS",
 					"item": [
 						{
-							"name": "Ticket - Index",
+							"name": "User - Ticket - Index",
 							"event": [
 								{
 									"listen": "test",
@@ -9268,7 +9268,7 @@
 							"response": []
 						},
 						{
-							"name": "Tickets - Authorize Transfer - Email",
+							"name": "User - Tickets - Authorize Transfer - Email",
 							"event": [
 								{
 									"listen": "test",
@@ -9321,7 +9321,7 @@
 							"response": []
 						},
 						{
-							"name": "Tickets - Authorize Transfer - SMS",
+							"name": "User - Tickets - Authorize Transfer - SMS",
 							"event": [
 								{
 									"listen": "test",
@@ -9382,7 +9382,7 @@
 			"name": "Redeeming",
 			"item": [
 				{
-					"name": "Admin - Get Guest List",
+					"name": "OrgMember - Get Guest List",
 					"event": [
 						{
 							"listen": "test",
@@ -9411,7 +9411,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_member_token}}",
 									"type": "string"
 								}
 							]
@@ -9444,7 +9444,7 @@
 					"response": []
 				},
 				{
-					"name": "Admin - Checkin Event List",
+					"name": "OrgMember - Checkin Event List",
 					"event": [
 						{
 							"listen": "test",
@@ -9471,7 +9471,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_member_token}}",
 									"type": "string"
 								}
 							]
@@ -9497,7 +9497,7 @@
 					"response": []
 				},
 				{
-					"name": "Admin - Redeem Ticket",
+					"name": "OrgMember - Redeem Ticket",
 					"event": [
 						{
 							"listen": "test",
@@ -9527,7 +9527,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_member_token}}",
 									"type": "string"
 								}
 							]
@@ -9537,8 +9537,8 @@
 							{
 								"key": "Content-Type",
 								"name": "Content-Type",
-								"value": "application/json",
-								"type": "text"
+								"type": "text",
+								"value": "application/json"
 							}
 						],
 						"body": {
@@ -9562,7 +9562,7 @@
 					"response": []
 				},
 				{
-					"name": "Admin - Redeem Duplicate Ticket Should Fail",
+					"name": "OrgMember - Redeem Duplicate Ticket Should Fail",
 					"event": [
 						{
 							"listen": "test",
@@ -9589,7 +9589,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_member_token}}",
 									"type": "string"
 								}
 							]
@@ -9664,7 +9664,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_boxoffice_token}}",
 									"type": "string"
 								}
 							]
@@ -9746,7 +9746,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_boxoffice_token}}",
 									"type": "string"
 								}
 							]
@@ -9805,7 +9805,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_boxoffice_token}}",
 									"type": "string"
 								}
 							]
@@ -9864,7 +9864,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_boxoffice_token}}",
 									"type": "string"
 								}
 							]
@@ -9925,7 +9925,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_boxoffice_token}}",
 									"type": "string"
 								}
 							]
@@ -10007,7 +10007,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_boxoffice_token}}",
 									"type": "string"
 								}
 							]
@@ -10065,7 +10065,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_boxoffice_token}}",
 									"type": "string"
 								}
 							]
@@ -10190,7 +10190,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_boxoffice_token}}",
 									"type": "string"
 								}
 							]
@@ -10242,7 +10242,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_boxoffice_token}}",
 									"type": "string"
 								}
 							]
@@ -10277,7 +10277,7 @@
 			"name": "Dashboards",
 			"item": [
 				{
-					"name": "Admin - View Event Dashboard",
+					"name": "OrgAdmin - View Event Dashboard",
 					"event": [
 						{
 							"listen": "test",
@@ -10302,7 +10302,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_admin_token}}",
 									"type": "string"
 								}
 							]
@@ -10329,7 +10329,7 @@
 					"response": []
 				},
 				{
-					"name": "Admin - View Fans Page",
+					"name": "OrgAdmin - View Fans Page",
 					"event": [
 						{
 							"listen": "test",
@@ -10363,7 +10363,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_admin_token}}",
 									"type": "string"
 								}
 							]
@@ -10408,7 +10408,7 @@
 					"response": []
 				},
 				{
-					"name": "Admin - View Fan Page",
+					"name": "OrgAdmin - View Fan Page",
 					"event": [
 						{
 							"listen": "test",
@@ -10442,7 +10442,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_admin_token}}",
 									"type": "string"
 								}
 							]
@@ -10470,7 +10470,7 @@
 					"response": []
 				},
 				{
-					"name": "Admin - View Fan Page History",
+					"name": "OrgAdmin - View Fan Page History",
 					"event": [
 						{
 							"listen": "test",
@@ -10520,7 +10520,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{org_admin_token}}",
 									"type": "string"
 								}
 							]
@@ -10554,7 +10554,7 @@
 			"name": "User Accounts",
 			"item": [
 				{
-					"name": "User - forgot password",
+					"name": "Guest - forgot password",
 					"event": [
 						{
 							"listen": "test",
@@ -10606,7 +10606,7 @@
 					"response": []
 				},
 				{
-					"name": "User - login",
+					"name": "Guest - login",
 					"event": [
 						{
 							"listen": "test",
@@ -10657,7 +10657,7 @@
 					"response": []
 				},
 				{
-					"name": "User - refresh token",
+					"name": "Guest - refresh token",
 					"event": [
 						{
 							"listen": "test",
@@ -10743,7 +10743,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "{{token}}",
+									"value": "{{user_token}}",
 									"type": "string"
 								}
 							]
