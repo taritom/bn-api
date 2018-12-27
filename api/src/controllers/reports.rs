@@ -1,8 +1,8 @@
-use actix_web::{http::StatusCode, HttpResponse, Json, State, Query};
+use actix_web::{http::StatusCode, HttpResponse, Json, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::concerns::users::password_resetable::PasswordResetable;
 use bigneon_db::models::enums::{OrderTypes, PaymentMethods};
-use bigneon_db::models::{User, Report, TransactionReportRow, Payload};
+use bigneon_db::models::{Payload, Report, TransactionReportRow, User};
 use bigneon_db::utils::errors::Optional;
 use chrono::prelude::*;
 use communications::mailers;
@@ -22,14 +22,13 @@ pub struct ReportQueryParameters {
     pub event_id: Option<Uuid>,
 }
 
-
-
 pub fn transaction_detail_report(
-    (connection, query, user): (Connection, Query<ReportQueryParameters>, AuthUser))
-    -> Result<HttpResponse, BigNeonError> {
+    (connection, query, user): (Connection, Query<ReportQueryParameters>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
     //If the org_id is set, check if they have org report permissions
     //If the org_id and the event_id is set, just get the event_id and ignore the org_id
     //If neither are set, throw a NotFound error
-    let result = Report::transaction_detail_report(query.event_id, query.organization_id, connection.get())?;
+    let result =
+        Report::transaction_detail_report(query.event_id, query.organization_id, connection.get())?;
     Ok(HttpResponse::Ok().json(result))
 }

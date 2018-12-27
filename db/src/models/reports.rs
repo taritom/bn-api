@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
-use diesel::sql_types::{ Nullable, Text, Timestamp, BigInt, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use models::*;
 use utils::errors::*;
 use uuid::Uuid;
@@ -19,7 +19,7 @@ pub struct TransactionReportRow {
     #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
     #[sql_type = "BigInt"]
-    pub gross: i64,//NOT YET
+    pub gross: i64, //NOT YET
     #[sql_type = "BigInt"]
     pub company_fee_in_cents: i64,
     #[sql_type = "BigInt"]
@@ -44,8 +44,8 @@ impl Report {
     pub fn transaction_detail_report(
         event_id: Option<Uuid>,
         organization_id: Option<Uuid>,
-        conn: &PgConnection
-    ) -> Result<Vec<TransactionReportRow>, DatabaseError>{
+        conn: &PgConnection,
+    ) -> Result<Vec<TransactionReportRow>, DatabaseError> {
         let query = include_str!("../queries/reports_transaction_details.sql");
         let q = diesel::sql_query(query)
             .bind::<Nullable<dUuid>, _>(event_id)
