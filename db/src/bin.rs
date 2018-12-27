@@ -12,6 +12,7 @@
 #[macro_use]
 extern crate diesel_migrations;
 extern crate bigneon_db;
+extern crate chrono;
 extern crate clap;
 extern crate diesel;
 
@@ -19,14 +20,16 @@ extern crate diesel;
 embed_migrations!("./migrations");
 
 use bigneon_db::prelude::*;
+use chrono::prelude::Utc;
 use clap::ArgMatches;
 use clap::{App, Arg, SubCommand};
 use diesel::connection::SimpleConnection;
-// use diesel::migration;
 use diesel::pg::PgConnection;
 use diesel::Connection;
 use std::error::Error;
+use std::fs::{create_dir_all, File};
 use std::io::Write;
+use std::path::Path;
 
 pub fn main() {
     let matches = App::new("Big Neon DB CLI")
@@ -78,6 +81,15 @@ pub fn main() {
                         .help("Connection string to the database"),
                 )
         ).subcommand(
+        SubCommand::with_name("new-migration")
+            .about("Create a new migration")
+            .arg(Arg::with_name("name")
+                     .long("name")
+                     .short("n")
+                     .takes_value(true)
+                     .help("Name of the migration")
+            )
+        ).subcommand(
         SubCommand::with_name("rollback")
             .about("Rolls back the last migration")
             .arg(Arg::with_name("connection")
@@ -100,6 +112,7 @@ pub fn main() {
         ("drop", Some(matches)) => drop_db(matches),
         ("migrate", Some(matches)) => migrate_db(matches),
         ("rollback", Some(matches)) => rollback_db(matches),
+        ("new-migration", Some(matches)) => create_new_migration(matches),
         ("seed", Some(matches)) => seed_db(matches),
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
@@ -163,7 +176,7 @@ fn rollback_db(matches: &ArgMatches) {
 
     match diesel_migrations::revert_latest_migration(&connection) {
         Ok(s) => std::io::stdout().write(s.as_bytes()),
-        Err(e) => std::io::stdout().write(e.description().as_bytes()),
+        Err(e) => std::io::stderr().write(e.description().as_bytes()),
     }
     .expect("Rollback failed");
 }
@@ -241,4 +254,28 @@ fn drop_db(matches: &ArgMatches) {
         &format!("DROP DATABASE IF EXISTS \"{}\"", db),
     )
     .expect("Error dropping database");
+}
+
+fn create_new_migration(matches: &ArgMatches) {
+    let name = matches.value_of("name").expect("Expected migration name");
+
+    let name = name.replace(" ", "_").to_ascii_lowercase();
+    let timestamp = Utc::now().format("%Y%m%d%H%M%S");
+
+    let dir_name = format!("{}_{}", timestamp, name);
+
+    println!("Creating migration '{}'", dir_name);
+
+    let migration_dir = Path::new("./migrations").join(dir_name);
+    create_dir_all(&migration_dir).expect("Error creating migration directory");
+
+    let up_path = migration_dir.join("up.sql");
+    let up_path = up_path.to_str().expect("Error converting path to string");
+    println!("Creating {}...", up_path);
+    File::create(up_path).expect("Error creating migration file");
+
+    let down_path = migration_dir.join("down.sql");
+    let down_path = down_path.to_str().expect("Error converting path to string");
+    println!("Creating {}...", down_path);
+    File::create(down_path).expect("Error creating migration file");
 }
