@@ -22,8 +22,11 @@ use bigneon_db::prelude::*;
 use clap::ArgMatches;
 use clap::{App, Arg, SubCommand};
 use diesel::connection::SimpleConnection;
+// use diesel::migration;
 use diesel::pg::PgConnection;
 use diesel::Connection;
+use std::error::Error;
+use std::io::Write;
 
 pub fn main() {
     let matches = App::new("Big Neon DB CLI")
@@ -75,6 +78,14 @@ pub fn main() {
                         .help("Connection string to the database"),
                 )
         ).subcommand(
+        SubCommand::with_name("rollback")
+            .about("Rolls back the last migration")
+            .arg(Arg::with_name("connection")
+                     .short("c")
+                     .takes_value(true)
+                     .help("Connection string to the database")
+            )
+        ).subcommand(
         SubCommand::with_name("seed")
             .about("Populates the database with example data")
             .arg(Arg::with_name("connection")
@@ -88,8 +99,11 @@ pub fn main() {
         ("create", Some(matches)) => create_db_and_user(matches),
         ("drop", Some(matches)) => drop_db(matches),
         ("migrate", Some(matches)) => migrate_db(matches),
+        ("rollback", Some(matches)) => rollback_db(matches),
         ("seed", Some(matches)) => seed_db(matches),
-        _ => unreachable!("The cli parser will prevent reaching here"),
+        _ => {
+            eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
+        }
     }
 }
 
@@ -136,6 +150,22 @@ fn migrate_db(matches: &ArgMatches) {
 
     embedded_migrations::run_with_output(&connection, &mut std::io::stdout())
         .expect("Migration failed");
+}
+
+fn rollback_db(matches: &ArgMatches) {
+    let conn_string = matches
+        .value_of("connection")
+        .expect("Connection string was not provided");
+
+    println!("Rollback database");
+
+    let connection = PgConnection::establish(conn_string).unwrap();
+
+    match diesel_migrations::revert_latest_migration(&connection) {
+        Ok(s) => std::io::stdout().write(s.as_bytes()),
+        Err(e) => std::io::stdout().write(e.description().as_bytes()),
+    }
+    .expect("Rollback failed");
 }
 
 fn create_db_and_user(matches: &ArgMatches) {
