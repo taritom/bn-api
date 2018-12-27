@@ -190,7 +190,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(regions::index);
         r.method(Method::POST).with(regions::create)
     })
-    .resource("/reports/transaction_details", |r| {
+    .resource("/reports/{id}/transaction_details", |r| {
         r.method(Method::GET)
             .with(reports::transaction_detail_report);
     })
