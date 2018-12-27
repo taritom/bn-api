@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "99987a00-086f-4494-bc2e-796d77a0cd6b",
+		"_postman_id": "418a2a4b-c444-4945-9e8f-4653e7239c93",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -3899,7 +3899,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Standard\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[{\n\t\t\"name\": \"Standard\",\n\t\t\"price_in_cents\": 3000,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"2022-02-01T02:22:00\"\n\t},\n\t{\n\t\t\"name\": \"Test_{{$timestamp}}_box_office_only\",\n\t\t\"price_in_cents\": 4000,\n\t\t\"is_box_office_only\": true,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"9999-01-10T02:22:00\"\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -6033,6 +6033,10 @@
 									"});",
 									"",
 									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should have normal pricing\", function(){",
+									"    pm.expect(r.ticket_types[0].ticket_pricing.price_in_cents).to.equal(3000);",
+									"});",
 									"",
 									"pm.test(\"should return event fee_in_cents\", function(){",
 									"    pm.expect(r.fee_in_cents).to.equal(100);",
@@ -9625,6 +9629,73 @@
 			"name": "Box Office",
 			"item": [
 				{
+					"name": "Box Office - View Event Tickets",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "f40a2996-aa1a-4be7-925f-1e55828eb494",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should return event fee_in_cents\", function(){",
+									"    pm.expect(r.fee_in_cents).to.equal(100);",
+									"});",
+									"",
+									"pm.test(\"should have box office pricing\", function(){",
+									"    pm.expect(r.ticket_types[0].ticket_pricing.price_in_cents).to.equal(4000);",
+									"});",
+									"",
+									"pm.test(\"should have correct ticket_types ticket_pricing fee_in_cents\", function(){",
+									"    pm.expect(r.ticket_types[0].ticket_pricing.fee_in_cents).to.equal(10);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}?box_office_pricing=true",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}"
+							],
+							"query": [
+								{
+									"key": "box_office_pricing",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Box Office - Create Order",
 					"event": [
 						{
@@ -9643,7 +9714,7 @@
 									"pm.test(\"tickets should be present\", function(){",
 									"    pm.expect(json.items[0].item_type).to.equal(\"Tickets\");",
 									"    pm.expect(json.items[0].quantity).to.equal(2);",
-									"    pm.expect(json.items[0].unit_price_in_cents).to.equal(3000);",
+									"    pm.expect(json.items[0].unit_price_in_cents).to.equal(4000);",
 									"    ",
 									"    ",
 									"});",
@@ -9661,7 +9732,7 @@
 									"});",
 									"",
 									"pm.test(\"total should be correct\", function() {",
-									"    pm.expect(json.total_in_cents).to.equal(6120);",
+									"    pm.expect(json.total_in_cents).to.equal(8120);",
 									"})",
 									""
 								],
@@ -9689,7 +9760,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}]}"
+							"raw": "{\n\t\"items\": [{\n\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\"quantity\":2\n\t}],\n\t\"box_office_pricing\": true\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -9904,7 +9975,7 @@
 									"pm.test(\"tickets should be present\", function(){",
 									"    pm.expect(json.items[0].item_type).to.equal(\"Tickets\");",
 									"    pm.expect(json.items[0].quantity).to.equal(2);",
-									"    pm.expect(json.items[0].unit_price_in_cents).to.equal(3000);",
+									"    pm.expect(json.items[0].unit_price_in_cents).to.equal(4000);",
 									"    ",
 									"    ",
 									"});",
@@ -9922,7 +9993,7 @@
 									"});",
 									"",
 									"pm.test(\"total should be correct\", function() {",
-									"    pm.expect(json.total_in_cents).to.equal(6120);",
+									"    pm.expect(json.total_in_cents).to.equal(8120);",
 									"})",
 									""
 								],
@@ -9950,7 +10021,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\"quantity\":2\n}]}"
+							"raw": "{\n\t\"items\": [{\n\t\t\"ticket_type_id\": \"{{last_ticket_type_id}}\",\n\t\t\"quantity\":2\n\t}],\n\t\"box_office_pricing\": true\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -10041,7 +10112,7 @@
 									"",
 									"pm.test(\"tickets should be present\", function(){",
 									"    pm.expect(json.data[0].items[0].item_type).to.equal(\"Tickets\");",
-									"    pm.expect(json.data[0].items[0].unit_price_in_cents).to.equal(3000);",
+									"    pm.expect(json.data[0].items[0].unit_price_in_cents).to.equal(4000);",
 									"});",
 									"",
 									"",
@@ -10133,7 +10204,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{ga_ticket_type_id}}\",\n\"quantity\":51\n}]}"
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{ga_ticket_type_id}}\",\n\"quantity\":51\n}],\n\t\"box_office_pricing\": true\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",
@@ -10185,7 +10256,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{ga_ticket_type_id}}\",\n\"quantity\":49\n}]}"
+							"raw": "{\n\"items\": [{\n\"ticket_type_id\": \"{{ga_ticket_type_id}}\",\n\"quantity\":49\n}],\n\t\"box_office_pricing\": true\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart",

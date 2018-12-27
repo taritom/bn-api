@@ -38,6 +38,36 @@ fn create() {
 }
 
 #[test]
+fn find_by_ticket_type_ids() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(2)
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(1)
+        .finish();
+    let ticket_types = event.ticket_types(&connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let ticket_types = event2.ticket_types(&connection).unwrap();
+    let ticket_type3 = &ticket_types[0];
+
+    let organizations = Organization::find_by_ticket_type_ids(
+        vec![ticket_type.id, ticket_type2.id, ticket_type3.id],
+        connection,
+    )
+    .unwrap();
+    assert_eq!(2, organizations.len());
+    assert!(organizations.contains(&event.organization(connection).unwrap()));
+    assert!(organizations.contains(&event2.organization(connection).unwrap()));
+}
+
+#[test]
 fn has_fan() {
     let project = TestProject::new();
     let creator = project.create_user().finish();
@@ -67,6 +97,7 @@ fn has_fan() {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )
@@ -435,6 +466,8 @@ pub fn get_scopes_for_user() {
             .unwrap(),
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -446,7 +479,7 @@ pub fn get_scopes_for_user() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:admin-users",
             "org:fans",
@@ -468,6 +501,8 @@ pub fn get_scopes_for_user() {
             .unwrap(),
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -479,7 +514,7 @@ pub fn get_scopes_for_user() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:fans",
             "org:read",
@@ -503,7 +538,7 @@ pub fn get_scopes_for_user() {
             "event:scan",
             "event:view-guests",
             "hold:read",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "redeem:ticket",
             "ticket:read",
         ]
@@ -522,6 +557,8 @@ pub fn get_scopes_for_user() {
             .unwrap(),
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -550,6 +587,8 @@ pub fn get_scopes_for_user() {
             .unwrap(),
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -561,7 +600,7 @@ pub fn get_scopes_for_user() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:admin-users",
             "org:fans",
@@ -647,6 +686,7 @@ fn search_fans() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )

@@ -228,6 +228,7 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         paid_at -> Nullable<Timestamp>,
+        box_office_pricing -> Bool,
     }
 }
 

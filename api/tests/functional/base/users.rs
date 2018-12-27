@@ -40,6 +40,7 @@ pub fn profile(role: Roles, should_test_true: bool) {
             redemption_code: None,
         }],
         false,
+        false,
         &*connection,
     )
     .unwrap();
@@ -107,6 +108,7 @@ pub fn history(role: Roles, should_test_true: bool) {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         false,
         &*connection,
     )

@@ -226,6 +226,7 @@ fn update_with_validation_errors() {
             redemption_code: Some(comp.redemption_code),
         }],
         false,
+        false,
         connection,
     )
     .unwrap();

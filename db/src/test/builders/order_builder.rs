@@ -88,6 +88,7 @@ impl<'a> OrderBuilder<'a> {
                 redemption_code: redemption_code,
             }],
             false,
+            false,
             self.connection,
         )
         .unwrap();

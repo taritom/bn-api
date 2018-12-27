@@ -151,7 +151,9 @@ pub fn find() {
     //let _d_user: DisplayUser = user.into();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(connection).unwrap()[0];
-    let ticket_pricing = ticket_type.current_ticket_pricing(connection).unwrap();
+    let ticket_pricing = ticket_type
+        .current_ticket_pricing(false, connection)
+        .unwrap();
 
     let display_event = event.for_display(connection).unwrap();
     cart.update_quantities(
@@ -160,6 +162,7 @@ pub fn find() {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )
@@ -219,6 +222,7 @@ pub fn find_for_user() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -248,6 +252,7 @@ pub fn release_tickets() {
                 quantity: 10,
                 redemption_code: None,
             }],
+            false,
             false,
             connection,
         )
@@ -421,6 +426,7 @@ pub fn authorize_ticket_transfer() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -480,6 +486,7 @@ pub fn receive_ticket_transfer() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )

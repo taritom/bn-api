@@ -26,7 +26,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
     let user2 = database.create_user().finish();
     let conn = database.connection.get();
     let ticket_type = event.ticket_types(conn).unwrap().remove(0);
-    let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
+    let ticket_pricing = ticket_type.current_ticket_pricing(false, conn).unwrap();
     let cart = Order::find_or_create_cart(&user2, conn).unwrap();
     let ticket = database
         .create_purchased_tickets(&user2, ticket_type.id, 1)
@@ -152,6 +152,7 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         false,
         conn,
     )

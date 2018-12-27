@@ -228,9 +228,10 @@ impl TicketType {
 
     pub fn current_ticket_pricing(
         &self,
+        box_office_pricing: bool,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
-        TicketPricing::get_current_ticket_pricing(self.id, conn)
+        TicketPricing::get_current_ticket_pricing(self.id, box_office_pricing, conn)
     }
 
     pub fn ticket_pricing(&self, conn: &PgConnection) -> Result<Vec<TicketPricing>, DatabaseError> {

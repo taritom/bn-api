@@ -477,6 +477,8 @@ fn current_user_admin() {
     assert_eq!(
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -488,7 +490,7 @@ fn current_user_admin() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:admin",
             "org:admin-users",
@@ -533,6 +535,8 @@ fn current_user_organization_owner() {
         organization.id,
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -544,7 +548,7 @@ fn current_user_organization_owner() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:admin-users",
             "org:fans",
@@ -597,6 +601,8 @@ fn current_user_organization_member() {
         organization.id,
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",

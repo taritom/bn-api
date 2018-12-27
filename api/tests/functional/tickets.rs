@@ -42,15 +42,16 @@ pub fn index() {
     let conn = database.connection.get();
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket_type = &event.ticket_types(conn).unwrap()[0];
-    let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
+    let ticket_pricing = ticket_type.current_ticket_pricing(false, conn).unwrap();
     let ticket_type2 = &event2.ticket_types(conn).unwrap()[0];
-    let ticket_pricing2 = ticket_type2.current_ticket_pricing(conn).unwrap();
+    let ticket_pricing2 = ticket_type2.current_ticket_pricing(false, conn).unwrap();
     cart.update_quantities(
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         false,
         conn,
     )
@@ -62,6 +63,7 @@ pub fn index() {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         false,
         conn,
     )
@@ -190,13 +192,14 @@ pub fn show() {
     let conn = database.connection.get();
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket_type = &event.ticket_types(conn).unwrap()[0];
-    let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
+    let ticket_pricing = ticket_type.current_ticket_pricing(false, conn).unwrap();
     cart.update_quantities(
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         false,
         conn,
     )
@@ -357,6 +360,7 @@ fn ticket_transfer_authorization() {
             redemption_code: None,
         }],
         false,
+        false,
         conn,
     )
     .unwrap();
@@ -434,6 +438,7 @@ fn receive_ticket_transfer() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         false,
         conn,
     )

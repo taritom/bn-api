@@ -37,6 +37,7 @@ pub struct Order {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub paid_at: Option<NaiveDateTime>,
+    pub box_office_pricing: bool,
 }
 
 #[derive(Insertable)]
@@ -268,13 +269,31 @@ impl Order {
         Order::find(self.id, conn)
     }
 
+    pub fn clear_cart(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        jlog!(Level::Debug, "Clearing cart");
+        for mut current_line in self.items(conn)? {
+            if current_line.item_type != OrderItemTypes::Tickets {
+                continue;
+            }
+            TicketInstance::release_tickets(&current_line, current_line.quantity as u32, conn)?;
+            self.destroy_item(current_line.id, conn)?;
+        }
+        Ok(())
+    }
+
     pub fn update_quantities(
         &mut self,
         items: &[UpdateOrderItem],
+        box_office_pricing: bool,
         remove_others: bool,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         self.lock_version(conn)?;
+
+        if box_office_pricing != self.box_office_pricing {
+            self.clear_cart(conn)?;
+            self.update_box_office_pricing(box_office_pricing, conn)?;
+        }
 
         let current_items = self.items(conn)?;
 
@@ -348,8 +367,11 @@ impl Order {
 
                         // TODO: Fetch the ticket type and pricing in one go.
                         let ticket_type_id = current_line.ticket_type_id.unwrap();
-                        let ticket_pricing =
-                            TicketPricing::get_current_ticket_pricing(ticket_type_id, conn)?;
+                        let ticket_pricing = TicketPricing::get_current_ticket_pricing(
+                            ticket_type_id,
+                            box_office_pricing,
+                            conn,
+                        )?;
                         let ticket_type = TicketType::find(ticket_type_id, conn)?;
 
                         check_ticket_limits.push(LimitCheck {
@@ -432,8 +454,11 @@ impl Order {
             }
 
             jlog!(Level::Debug, "Adding new cart items");
-            let ticket_pricing =
-                TicketPricing::get_current_ticket_pricing(new_line.ticket_type_id, conn)?;
+            let ticket_pricing = TicketPricing::get_current_ticket_pricing(
+                new_line.ticket_type_id,
+                box_office_pricing,
+                conn,
+            )?;
             let ticket_type = TicketType::find(new_line.ticket_type_id, conn)?;
 
             check_ticket_limits.push(LimitCheck {
@@ -889,6 +914,23 @@ impl Order {
             "Could not get total payments for order",
         )?;
         Ok(sum.s.unwrap_or(0))
+    }
+
+    fn update_box_office_pricing(
+        &mut self,
+        box_office_pricing: bool,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        self.box_office_pricing = box_office_pricing;
+        diesel::update(&*self)
+            .set((
+                orders::box_office_pricing.eq(&self.box_office_pricing),
+                orders::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
+
+        Ok(())
     }
 
     fn update_status(

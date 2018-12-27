@@ -302,6 +302,7 @@ fn get_sales_by_date_range() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -319,6 +320,7 @@ fn get_sales_by_date_range() {
                 quantity: 5,
                 redemption_code: None,
             }],
+            false,
             false,
             connection,
         )

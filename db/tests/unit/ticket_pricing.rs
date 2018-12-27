@@ -421,9 +421,12 @@ fn get_current_ticket_pricing() {
 
     let ticket_types = TicketType::find_by_event_id(event.id, project.get_connection()).unwrap();
 
-    let ticket_pricing =
-        TicketPricing::get_current_ticket_pricing(ticket_types[0].id, project.get_connection())
-            .unwrap();
+    let ticket_pricing = TicketPricing::get_current_ticket_pricing(
+        ticket_types[0].id,
+        false,
+        project.get_connection(),
+    )
+    .unwrap();
 
     assert_eq!(ticket_pricing.name, "Standard".to_string())
 }

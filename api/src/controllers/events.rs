@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
+use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -6,6 +6,7 @@ use chrono::Duration;
 use db::Connection;
 use errors::*;
 use extractors::*;
+use helpers::application;
 use models::{PathParameters, RedeemTicketPathParameters, UserDisplayTicketType, WebPayload};
 use serde_json::Value;
 use serde_with::{self, CommaSeparator};
@@ -213,10 +214,22 @@ pub fn index(
     Ok(HttpResponse::Ok().json(&payload))
 }
 
+#[derive(Deserialize)]
+pub struct EventParameters {
+    pub box_office_pricing: Option<bool>,
+}
+
 pub fn show(
-    (connection, parameters, user): (Connection, Path<PathParameters>, OptionalUser),
+    (connection, parameters, query, user, http_request): (
+        Connection,
+        Path<PathParameters>,
+        Query<EventParameters>,
+        OptionalUser,
+        HttpRequest<AppState>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
+    let user = user.into_inner();
     let event = Event::find(parameters.id, connection)?;
     let organization = event.organization(connection)?;
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
@@ -224,16 +237,39 @@ pub fn show(
     let venue = event.venue(connection)?;
     let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
     let total_interest = EventInterest::total_interest(event.id, connection)?;
-    let user_interest = match user.into_inner() {
-        Some(u) => EventInterest::user_interest(event.id, u.id(), connection)?,
+    let user_interest = match user {
+        Some(ref u) => EventInterest::user_interest(event.id, u.id(), connection)?,
         None => false,
     };
+
+    let box_office_pricing = query.box_office_pricing.unwrap_or(false);
+    if box_office_pricing {
+        match user {
+            Some(user) => user.requires_scope_for_organization(
+                Scopes::BoxOfficeTicketRead,
+                &organization,
+                connection,
+            )?,
+            None => {
+                return application::unauthorized_with_message(
+                    "Cannot access box office pricing",
+                    &http_request,
+                    None,
+                    None,
+                )
+            }
+        }
+    }
 
     let ticket_types = TicketType::find_by_event_id(parameters.id, connection)?;
     let mut display_ticket_types = Vec::new();
     for ticket_type in ticket_types {
-        let display_ticket_type =
-            UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, connection)?;
+        let display_ticket_type = UserDisplayTicketType::from_ticket_type(
+            &ticket_type,
+            &fee_schedule,
+            box_office_pricing,
+            connection,
+        )?;
 
         display_ticket_types.push(display_ticket_type);
     }

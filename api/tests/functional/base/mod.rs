@@ -1,4 +1,5 @@
 pub mod artists;
+pub mod cart;
 pub mod codes;
 pub mod comps;
 pub mod events;

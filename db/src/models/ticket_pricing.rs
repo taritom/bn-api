@@ -193,14 +193,25 @@ impl TicketPricing {
 
     pub fn get_current_ticket_pricing(
         ticket_type_id: Uuid,
+        box_office_pricing: bool,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
-        let mut price_points = ticket_pricing::table
-            //Must use the box office endpoints to add is_box_office_only prices
-            .filter(ticket_pricing::is_box_office_only.eq(false))
+        let mut query = ticket_pricing::table
             .filter(ticket_pricing::ticket_type_id.eq(ticket_type_id))
             .filter(ticket_pricing::start_date.le(dsl::now))
             .filter(ticket_pricing::end_date.gt(dsl::now))
+            .into_boxed();
+
+        if box_office_pricing {
+            // Use is_box_office_only pricing, fall back to regular pricing if not set
+            query = query
+                .order(ticket_pricing::is_box_office_only.desc())
+                .limit(1);
+        } else {
+            query = query.filter(ticket_pricing::is_box_office_only.eq(false));
+        }
+
+        let mut price_points = query
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load Ticket Pricing")?;
 
