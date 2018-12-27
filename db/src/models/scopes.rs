@@ -4,6 +4,8 @@ use std::fmt;
 #[derive(PartialEq, Debug, Copy, Clone, Eq, Ord, PartialOrd, Serialize)]
 pub enum Scopes {
     ArtistWrite,
+    BoxOfficeTicketRead,
+    BoxOfficeTicketWrite,
     CodeRead,
     CodeWrite,
     CompRead,
@@ -36,6 +38,8 @@ impl fmt::Display for Scopes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match self {
             Scopes::ArtistWrite => "artist:write",
+            Scopes::BoxOfficeTicketRead => "box-office-ticket:read",
+            Scopes::BoxOfficeTicketWrite => "box-office-ticket:write",
             Scopes::CodeRead => "code:read",
             Scopes::CodeWrite => "code:write",
             Scopes::CompRead => "comp:read",
@@ -48,7 +52,7 @@ impl fmt::Display for Scopes {
             Scopes::HoldRead => "hold:read",
             Scopes::HoldWrite => "hold:write",
             Scopes::OrderRead => "order:read",
-            Scopes::OrderMakeExternalPayment => "order::make-external-payment",
+            Scopes::OrderMakeExternalPayment => "order:make-external-payment",
             Scopes::OrgAdmin => "org:admin",
             Scopes::OrgRead => "org:read",
             Scopes::OrgReadFans => "org:fans",
@@ -110,6 +114,8 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
         OrgMember => {
             let mut roles = vec![
                 Scopes::ArtistWrite,
+                Scopes::BoxOfficeTicketRead,
+                Scopes::BoxOfficeTicketWrite,
                 Scopes::CodeRead,
                 Scopes::CodeWrite,
                 Scopes::CompRead,
@@ -159,6 +165,8 @@ fn get_scopes_for_role_test() {
     assert_eq!(
         vec![
             Scopes::ArtistWrite,
+            Scopes::BoxOfficeTicketRead,
+            Scopes::BoxOfficeTicketWrite,
             Scopes::CodeRead,
             Scopes::CodeWrite,
             Scopes::CompRead,
@@ -200,6 +208,8 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -211,7 +221,7 @@ fn get_scopes_test() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:admin-users",
             "org:fans",
@@ -232,6 +242,8 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -243,7 +255,7 @@ fn get_scopes_test() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:admin",
             "org:admin-users",
@@ -266,6 +278,8 @@ fn get_scopes_test() {
     assert_eq!(
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -277,7 +291,7 @@ fn get_scopes_test() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:admin",
             "org:admin-users",

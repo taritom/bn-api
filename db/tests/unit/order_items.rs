@@ -30,6 +30,7 @@ fn find_fee_item() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -72,6 +73,7 @@ fn update_with_validation_errors() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -98,6 +100,7 @@ fn update_with_validation_errors() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -108,6 +111,7 @@ fn update_with_validation_errors() {
             quantity: 6,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     );
@@ -140,6 +144,7 @@ fn update_with_validation_errors() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -155,6 +160,7 @@ fn update_with_validation_errors() {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )
@@ -186,6 +192,7 @@ fn calculate_quantity() {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )

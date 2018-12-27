@@ -7,7 +7,7 @@ use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Text, Timestamp};
 use models::scopes;
 use models::*;
-use schema::{events, organization_users, organizations, users, venues};
+use schema::{events, organization_users, organizations, ticket_types, users, venues};
 use utils::encryption::*;
 use utils::errors::*;
 use uuid::Uuid;
@@ -187,6 +187,23 @@ impl Organization {
             ))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update organization")
+    }
+
+    pub fn find_by_ticket_type_ids(
+        ticket_type_ids: Vec<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Vec<Organization>, DatabaseError> {
+        organizations::table
+            .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
+            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
+            .filter(ticket_types::id.eq_any(ticket_type_ids))
+            .select(organizations::all_columns)
+            .distinct()
+            .get_results(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve organizations by ticket type ids",
+            )
     }
 
     pub fn users(

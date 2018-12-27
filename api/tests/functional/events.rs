@@ -3,7 +3,7 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::*;
 use bigneon_api::extractors::*;
-use bigneon_api::models::{PathParameters, UserDisplayTicketType};
+use bigneon_api::models::*;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use diesel::PgConnection;
@@ -336,21 +336,45 @@ fn show() {
     event.add_artist(artist2.id, conn).unwrap();
 
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
-    let event_expected_json = expected_show_json(event, organization, venue, conn);
-
-    let test_request = TestRequest::create();
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let event_expected_json =
+        base::events::expected_show_json(event, organization, venue, false, conn);
     path.id = event_id;
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::show((
         database.connection.clone(),
         path,
+        query_parameters,
         OptionalUser(Some(auth_user)),
+        test_request.request,
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);
+}
+
+#[cfg(test)]
+mod show_box_office_pricing_tests {
+    use super::*;
+    #[test]
+    fn show_box_office_pricing_org_member() {
+        base::events::show_box_office_pricing(Roles::OrgMember, true);
+    }
+    #[test]
+    fn show_box_office_pricing_admin() {
+        base::events::show_box_office_pricing(Roles::Admin, true);
+    }
+    #[test]
+    fn show_box_office_pricing_user() {
+        base::events::show_box_office_pricing(Roles::User, false);
+    }
+    #[test]
+    fn show_box_office_pricing_org_owner() {
+        base::events::show_box_office_pricing(Roles::OrgOwner, true);
+    }
 }
 
 #[cfg(test)]
@@ -655,6 +679,7 @@ fn dashboard_with_default_range() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -858,93 +883,6 @@ pub fn show_from_venues() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, expected_json);
-}
-
-fn expected_show_json(
-    event: Event,
-    organization: Organization,
-    venue: Venue,
-    connection: &PgConnection,
-) -> String {
-    #[derive(Serialize)]
-    struct ShortOrganization {
-        id: Uuid,
-        name: String,
-    }
-    #[derive(Serialize)]
-    struct R {
-        id: Uuid,
-        name: String,
-        organization_id: Uuid,
-        venue_id: Option<Uuid>,
-        created_at: NaiveDateTime,
-        event_start: Option<NaiveDateTime>,
-        door_time: Option<NaiveDateTime>,
-        fee_in_cents: i64,
-        status: EventStatus,
-        publish_date: Option<NaiveDateTime>,
-        promo_image_url: Option<String>,
-        additional_info: Option<String>,
-        top_line_info: Option<String>,
-        age_limit: Option<i32>,
-        video_url: Option<String>,
-        organization: ShortOrganization,
-        venue: Venue,
-        artists: Vec<DisplayEventArtist>,
-        ticket_types: Vec<UserDisplayTicketType>,
-        total_interest: u32,
-        user_is_interested: bool,
-        min_ticket_price: Option<i64>,
-        max_ticket_price: Option<i64>,
-        is_external: bool,
-        external_url: Option<String>,
-        override_status: Option<EventOverrideStatus>,
-    }
-
-    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
-    let event_artists = EventArtist::find_all_from_event(event.id, connection).unwrap();
-
-    let display_ticket_types: Vec<UserDisplayTicketType> = event
-        .ticket_types(connection)
-        .unwrap()
-        .iter()
-        .map(|ticket_type| {
-            UserDisplayTicketType::from_ticket_type(ticket_type, &fee_schedule, connection).unwrap()
-        })
-        .collect();
-
-    serde_json::to_string(&R {
-        id: event.id,
-        name: event.name,
-        organization_id: event.organization_id,
-        venue_id: event.venue_id,
-        created_at: event.created_at,
-        event_start: event.event_start,
-        door_time: event.door_time,
-        fee_in_cents: event.fee_in_cents,
-        status: event.status,
-        publish_date: event.publish_date,
-        promo_image_url: event.promo_image_url,
-        additional_info: event.additional_info,
-        top_line_info: event.top_line_info,
-        age_limit: event.age_limit,
-        video_url: event.video_url,
-        organization: ShortOrganization {
-            id: organization.id,
-            name: organization.name,
-        },
-        venue,
-        artists: event_artists,
-        ticket_types: display_ticket_types,
-        total_interest: 1,
-        user_is_interested: true,
-        min_ticket_price: None,
-        max_ticket_price: None,
-        is_external: event.is_external,
-        external_url: event.external_url,
-        override_status: event.override_status,
-    })
-    .unwrap()
 }
 
 #[derive(Serialize)]

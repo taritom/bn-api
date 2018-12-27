@@ -112,6 +112,7 @@ impl TestDatabase {
                 redemption_code: None,
             }],
             false,
+            false,
             self.connection.get(),
         )
         .unwrap();

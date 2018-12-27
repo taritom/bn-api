@@ -54,6 +54,7 @@ fn add_tickets() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -87,6 +88,7 @@ fn add_tickets() {
             quantity: 15,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )
@@ -134,6 +136,7 @@ fn add_tickets_with_increment() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     );
     assert!(add_tickets_result.is_err());
@@ -158,6 +161,7 @@ fn add_tickets_with_increment() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -169,6 +173,7 @@ fn add_tickets_with_increment() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -179,6 +184,141 @@ fn add_tickets_with_increment() {
         .unwrap();
 
     assert_eq!(order_item.quantity, 12);
+}
+
+#[test]
+fn clear_cart() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+
+    cart.update_quantities(
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    assert!(!cart.items(&connection).unwrap().is_empty());
+
+    cart.clear_cart(connection).unwrap();
+    assert!(cart.items(&connection).unwrap().is_empty());
+}
+
+#[test]
+fn replace_tickets_for_box_office() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    assert!(!cart.box_office_pricing);
+
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+
+    let box_office_pricing = ticket_type
+        .add_ticket_pricing(
+            "Box office".into(),
+            NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10),
+            NaiveDate::from_ymd(9999, 7, 8).and_hms(7, 8, 10),
+            5000,
+            true,
+            connection,
+        )
+        .unwrap();
+
+    // Add normal tickets to cart (box_office_pricing = false)
+    cart.update_quantities(
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let ticket_pricing =
+        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
+    assert_eq!(order_item.calculate_quantity(connection), Ok(10));
+    assert_eq!(
+        order_item.unit_price_in_cents(),
+        ticket_pricing.price_in_cents
+    );
+
+    let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let fee_schedule_range =
+        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    assert_eq!(
+        fee_item.unit_price_in_cents(),
+        fee_schedule_range.fee_in_cents
+    );
+    assert_eq!(fee_item.quantity, 10);
+
+    // Add box office priced tickets to cart (box_office_pricing = true)
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        true,
+        true,
+        connection,
+    )
+    .unwrap();
+    assert!(cart.box_office_pricing);
+    let items = cart.items(connection).unwrap();
+    assert_eq!(items.len(), 2);
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    assert_eq!(order_item.calculate_quantity(connection), Ok(10));
+    assert_eq!(
+        order_item.unit_price_in_cents(),
+        box_office_pricing.price_in_cents
+    );
+    let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    assert_eq!(
+        fee_item.unit_price_in_cents(),
+        fee_schedule_range.fee_in_cents
+    );
 }
 
 #[test]
@@ -206,6 +346,7 @@ fn replace_tickets() {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )
@@ -240,6 +381,7 @@ fn replace_tickets() {
             quantity: 15,
             redemption_code: None,
         }],
+        false,
         true,
         connection,
     )
@@ -273,6 +415,7 @@ fn remove_tickets() {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )
@@ -309,6 +452,7 @@ fn remove_tickets() {
                 redemption_code: None,
             }],
             false,
+            false,
             connection
         )
         .is_ok());
@@ -336,6 +480,7 @@ fn remove_tickets() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -362,12 +507,13 @@ fn clear_tickets() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
 
     // Remove tickets
-    assert!(cart.update_quantities(&[], true, connection).is_ok());
+    assert!(cart.update_quantities(&[], false, true, connection).is_ok());
 
     // Item removed from cart completely
     assert!(cart.items(connection).unwrap().is_empty());
@@ -397,6 +543,7 @@ fn remove_tickets_with_increment() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     );
     assert!(add_tickets_result.is_ok());
@@ -413,6 +560,7 @@ fn remove_tickets_with_increment() {
             quantity: 4,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )
@@ -431,6 +579,7 @@ fn remove_tickets_with_increment() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     );
@@ -471,6 +620,7 @@ fn find_item() {
                 redemption_code: None,
             }],
             false,
+            false,
             connection,
         )
         .unwrap();
@@ -482,6 +632,7 @@ fn find_item() {
                 quantity: 10,
                 redemption_code: None,
             }],
+            false,
             false,
             connection,
         )
@@ -574,6 +725,7 @@ fn has_items() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -620,6 +772,7 @@ fn calculate_cart_total() {
             redemption_code: None,
         }],
         false,
+        false,
         conn,
     )
     .unwrap();
@@ -633,6 +786,7 @@ fn calculate_cart_total() {
             quantity: 30,
             redemption_code: None,
         }],
+        false,
         false,
         conn,
     )
@@ -659,6 +813,7 @@ fn add_external_payment() {
             quantity: 10,
             redemption_code: None,
         }],
+        false,
         false,
         conn,
     )
@@ -801,6 +956,7 @@ fn adding_event_fees() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -823,6 +979,7 @@ fn adding_event_fees() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -832,6 +989,7 @@ fn adding_event_fees() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )
@@ -856,6 +1014,7 @@ fn adding_event_fees() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -877,6 +1036,7 @@ fn adding_event_fees() {
             quantity: 5,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )

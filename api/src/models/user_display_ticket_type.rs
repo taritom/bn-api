@@ -22,12 +22,16 @@ impl UserDisplayTicketType {
     pub fn from_ticket_type(
         ticket_type: &TicketType,
         fee_schedule: &FeeSchedule,
+        box_office_pricing: bool,
         conn: &PgConnection,
     ) -> Result<UserDisplayTicketType, DatabaseError> {
         let mut status = ticket_type.status;
         let available = ticket_type.remaining_ticket_count(conn)?;
 
-        let ticket_pricing = match ticket_type.current_ticket_pricing(conn).optional()? {
+        let ticket_pricing = match ticket_type
+            .current_ticket_pricing(box_office_pricing, conn)
+            .optional()?
+        {
             Some(ticket_pricing) => Some(DisplayTicketPricing::from_ticket_pricing(
                 &ticket_pricing,
                 fee_schedule,

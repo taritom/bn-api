@@ -31,12 +31,32 @@ pub struct UpdateCartRequest {
     pub items: Vec<CartItem>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub redemption_code: Option<String>,
+    pub box_office_pricing: Option<bool>,
 }
 
 pub fn update_cart(
     (connection, json, user): (Connection, Json<UpdateCartRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
+
+    let box_office_pricing = json.box_office_pricing.unwrap_or(false);
+    if box_office_pricing {
+        let mut ticket_type_ids = json
+            .items
+            .iter()
+            .map(|i| i.ticket_type_id)
+            .collect::<Vec<Uuid>>();
+        ticket_type_ids.sort();
+        ticket_type_ids.dedup();
+
+        for organization in Organization::find_by_ticket_type_ids(ticket_type_ids, connection)? {
+            user.requires_scope_for_organization(
+                Scopes::BoxOfficeTicketRead,
+                &organization,
+                connection,
+            )?
+        }
+    }
 
     // Find the current cart of the user, if it exists.
     let mut cart = Order::find_or_create_cart(&user.user, connection)?;
@@ -80,7 +100,7 @@ pub fn update_cart(
             );
         }
     }
-    cart.update_quantities(&order_items, false, connection)?;
+    cart.update_quantities(&order_items, box_office_pricing, false, connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
 }
@@ -90,7 +110,7 @@ pub fn destroy((connection, user): (Connection, User)) -> Result<HttpResponse, B
 
     // Find the current cart of the user, if it exists.
     let mut cart = Order::find_or_create_cart(&user.user, connection)?;
-    cart.update_quantities(&[], true, connection)?;
+    cart.update_quantities(&[], false, true, connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
 }
@@ -99,6 +119,25 @@ pub fn replace_cart(
     (connection, json, user): (Connection, Json<UpdateCartRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
+
+    let box_office_pricing = json.box_office_pricing.unwrap_or(false);
+    if box_office_pricing {
+        let mut ticket_type_ids = json
+            .items
+            .iter()
+            .map(|i| i.ticket_type_id)
+            .collect::<Vec<Uuid>>();
+        ticket_type_ids.sort();
+        ticket_type_ids.dedup();
+
+        for organization in Organization::find_by_ticket_type_ids(ticket_type_ids, connection)? {
+            user.requires_scope_for_organization(
+                Scopes::BoxOfficeTicketRead,
+                &organization,
+                connection,
+            )?
+        }
+    }
 
     // Find the current cart of the user, if it exists.
     let mut cart = Order::find_or_create_cart(&user.user, connection)?;
@@ -143,7 +182,7 @@ pub fn replace_cart(
         }
     }
 
-    cart.update_quantities(&order_items, true, connection)?;
+    cart.update_quantities(&order_items, box_office_pricing, true, connection)?;
 
     Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(connection)?))
 }

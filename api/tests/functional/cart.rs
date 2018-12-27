@@ -8,10 +8,53 @@ use chrono::prelude::*;
 use chrono::Duration;
 use diesel;
 use diesel::prelude::*;
+use functional::base;
 use serde_json;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 use support::{self, *};
+
+#[cfg(test)]
+mod update_box_office_pricing_tests {
+    use super::*;
+    #[test]
+    fn update_box_office_pricing_org_member() {
+        base::cart::update_box_office_pricing(Roles::OrgMember, true);
+    }
+    #[test]
+    fn update_box_office_pricing_admin() {
+        base::cart::update_box_office_pricing(Roles::Admin, true);
+    }
+    #[test]
+    fn update_box_office_pricing_user() {
+        base::cart::update_box_office_pricing(Roles::User, false);
+    }
+    #[test]
+    fn update_box_office_pricing_org_owner() {
+        base::cart::update_box_office_pricing(Roles::OrgOwner, true);
+    }
+}
+
+#[cfg(test)]
+mod replace_box_office_pricing_tests {
+    use super::*;
+    #[test]
+    fn replace_box_office_pricing_org_member() {
+        base::cart::replace_box_office_pricing(Roles::OrgMember, true);
+    }
+    #[test]
+    fn replace_box_office_pricing_admin() {
+        base::cart::replace_box_office_pricing(Roles::Admin, true);
+    }
+    #[test]
+    fn replace_box_office_pricing_user() {
+        base::cart::replace_box_office_pricing(Roles::User, false);
+    }
+    #[test]
+    fn replace_box_office_pricing_org_owner() {
+        base::cart::replace_box_office_pricing(Roles::OrgOwner, true);
+    }
+}
 
 #[test]
 fn show() {
@@ -81,6 +124,7 @@ fn destroy() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -130,6 +174,7 @@ fn update() {
     let ticket_type_id = event.ticket_types(connection).unwrap()[0].id;
 
     let input = Json(cart::UpdateCartRequest {
+        box_office_pricing: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 2,
@@ -190,6 +235,7 @@ fn update_with_draft_event() {
             redemption_code: None,
         }],
         redemption_code: None,
+        box_office_pricing: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -214,6 +260,7 @@ fn update_multiple() {
     let ticket_type_id = ticket_types[0].id;
     let ticket_type_id2 = ticket_types[1].id;
     let input = Json(cart::UpdateCartRequest {
+        box_office_pricing: None,
         items: vec![
             cart::CartItem {
                 ticket_type_id,
@@ -298,6 +345,7 @@ fn add_with_increment() {
     let ticket_type_id = ticket_type.id;
 
     let input = Json(cart::UpdateCartRequest {
+        box_office_pricing: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 4,
@@ -353,6 +401,7 @@ fn update_with_increment_failure_invalid_quantity() {
     let ticket_type_id = ticket_type.id;
 
     let input = Json(cart::UpdateCartRequest {
+        box_office_pricing: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 2,
@@ -390,6 +439,7 @@ fn update_with_existing_cart() {
     let cart = Order::find_or_create_cart(&user, connection).unwrap();
 
     let input = Json(cart::UpdateCartRequest {
+        box_office_pricing: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 2,
@@ -444,6 +494,7 @@ fn reduce() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -469,6 +520,7 @@ fn reduce() {
     );
 
     let input = Json(cart::UpdateCartRequest {
+        box_office_pricing: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 6,
@@ -524,6 +576,7 @@ fn remove() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -550,6 +603,7 @@ fn remove() {
     );
 
     let input = Json(cart::UpdateCartRequest {
+        box_office_pricing: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 0,
@@ -598,6 +652,7 @@ fn remove_with_increment() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -624,6 +679,7 @@ fn remove_with_increment() {
     );
 
     let input = Json(cart::UpdateCartRequest {
+        box_office_pricing: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 8,
@@ -684,6 +740,7 @@ fn remove_with_increment_failure_invalid_quantity() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -710,6 +767,7 @@ fn remove_with_increment_failure_invalid_quantity() {
     );
 
     let input = Json(cart::UpdateCartRequest {
+        box_office_pricing: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 5,

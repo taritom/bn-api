@@ -166,6 +166,7 @@ fn get_profile_for_organization() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -219,6 +220,7 @@ fn get_profile_for_organization() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -252,6 +254,7 @@ fn get_profile_for_organization() {
             quantity: 1,
             redemption_code: None,
         }],
+        false,
         false,
         connection,
     )
@@ -313,6 +316,7 @@ fn get_history_for_organization() {
             redemption_code: None,
         }],
         false,
+        false,
         connection,
     )
     .unwrap();
@@ -354,6 +358,7 @@ fn get_history_for_organization() {
                 quantity: 1,
                 redemption_code: None,
             }],
+            false,
             false,
             connection,
         )
@@ -752,6 +757,8 @@ pub fn get_scopes_by_organization() {
         organization.id.clone(),
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -763,7 +770,7 @@ pub fn get_scopes_by_organization() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:admin-users",
             "org:fans",
@@ -785,6 +792,8 @@ pub fn get_scopes_by_organization() {
         organization2.id.clone(),
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -842,6 +851,8 @@ pub fn get_global_scopes() {
         user3.get_global_scopes(),
         vec![
             "artist:write",
+            "box-office-ticket:read",
+            "box-office-ticket:write",
             "code:read",
             "code:write",
             "comp:read",
@@ -853,7 +864,7 @@ pub fn get_global_scopes() {
             "event:write",
             "hold:read",
             "hold:write",
-            "order::make-external-payment",
+            "order:make-external-payment",
             "order:read",
             "org:admin",
             "org:admin-users",

@@ -1,5 +1,6 @@
 use bigneon_api::models::{DisplayTicketPricing, UserDisplayTicketType};
 use bigneon_db::prelude::*;
+use chrono::prelude::*;
 use support::database::TestDatabase;
 
 #[test]
@@ -20,11 +21,33 @@ fn from_ticket_type() {
     let conn = database.connection.get();
 
     let ticket_type = event.ticket_types(conn).unwrap().remove(0);
-    let ticket_pricing = ticket_type.current_ticket_pricing(conn).unwrap();
+    let box_office_pricing = ticket_type
+        .add_ticket_pricing(
+            "Box office".into(),
+            NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10),
+            NaiveDate::from_ymd(9999, 7, 8).and_hms(7, 8, 10),
+            5000,
+            true,
+            conn,
+        )
+        .unwrap();
+    let ticket_pricing = ticket_type.current_ticket_pricing(false, conn).unwrap();
+
+    // Box office pricing
+    let display_ticket_type =
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, true, conn).unwrap();
+    assert_eq!(
+        Some(
+            DisplayTicketPricing::from_ticket_pricing(&box_office_pricing, &fee_schedule, conn)
+                .unwrap()
+        ),
+        display_ticket_type.ticket_pricing,
+    );
+    assert_eq!(20, display_ticket_type.ticket_pricing.unwrap().fee_in_cents,);
 
     // New event nothing sold
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, conn).unwrap();
     assert_eq!(display_ticket_type.available, 100);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
     assert_eq!(
@@ -43,7 +66,7 @@ fn from_ticket_type() {
         .quantity(10)
         .finish();
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, conn).unwrap();
     assert_eq!(display_ticket_type.available, 90);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
 
@@ -56,11 +79,12 @@ fn from_ticket_type() {
                 redemption_code: None,
             }],
             false,
+            false,
             conn,
         )
         .unwrap();
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, conn).unwrap();
     assert_eq!(display_ticket_type.available, 0);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::SoldOut);
 
@@ -73,11 +97,12 @@ fn from_ticket_type() {
                 redemption_code: None,
             }],
             false,
+            false,
             conn,
         )
         .unwrap();
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, conn).unwrap();
     assert_eq!(display_ticket_type.available, 10);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
 
@@ -85,7 +110,7 @@ fn from_ticket_type() {
     let event = database.create_event().with_tickets().finish();
     let ticket_type = event.ticket_types(conn).unwrap().remove(0);
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, conn).unwrap();
     assert_eq!(display_ticket_type.available, 100);
     assert_eq!(
         display_ticket_type.status,

@@ -326,6 +326,7 @@ pub fn remaining_ticket_count() {
                 redemption_code: None,
             }],
             false,
+            false,
             connection,
         )
         .unwrap();
@@ -338,6 +339,7 @@ pub fn remaining_ticket_count() {
                 quantity: 16,
                 redemption_code: None,
             }],
+            false,
             false,
             connection,
         )
