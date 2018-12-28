@@ -202,7 +202,14 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         OrgAdmin => {
-            let mut roles = vec![Scopes::OrgWrite, Scopes::UserRead, Scopes::OrgUsers, Scopes::EventFinancialReports,  Scopes::EventReports, Scopes::OrgReports,];
+            let mut roles = vec![
+                Scopes::OrgWrite,
+                Scopes::UserRead,
+                Scopes::OrgUsers,
+                Scopes::EventFinancialReports,
+                Scopes::EventReports,
+                Scopes::OrgReports,
+            ];
             roles.extend(get_scopes_for_role(OrgMember));
             roles.extend(get_scopes_for_role(Roles::OrgBoxOffice));
             roles
