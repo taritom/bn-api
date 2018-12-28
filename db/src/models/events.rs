@@ -700,10 +700,7 @@ impl Event {
         match user {
             Some(user) => {
                 // Admin results include all drafts across organizations
-                if !user
-                    .get_global_scopes()
-                    .contains(&Scopes::OrgAdmin.to_string())
-                {
+                if !user.get_global_scopes().contains(&Scopes::OrgAdmin) {
                     query = query.filter(
                         events::status
                             .ne(EventStatus::Draft)
