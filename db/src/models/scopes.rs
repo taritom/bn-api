@@ -139,6 +139,55 @@ impl FromStr for Scopes {
     }
 }
 
+impl FromStr for Scopes {
+    type Err = EnumParseError;
+
+    fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
+        let s = match s {
+            "artist:write" => Scopes::ArtistWrite,
+            "box-office-ticket:read" => Scopes::BoxOfficeTicketRead,
+            "box-office-ticket:write" => Scopes::BoxOfficeTicketWrite,
+            "code:read" => Scopes::CodeRead,
+            "code:write" => Scopes::CodeWrite,
+            "comp:read" => Scopes::CompRead,
+            "comp:write" => Scopes::CompWrite,
+            "dashboard:read" => Scopes::DashboardRead,
+            "event:write" => Scopes::EventWrite,
+            "event:financial-reports" => Scopes::EventFinancialReports,
+            "event:interest" => Scopes::EventInterest,
+            "event:reports" => Scopes::EventReports,
+            "event:scan" => Scopes::EventScan,
+            "event:view-guests" => Scopes::EventViewGuests,
+            "hold:read" => Scopes::HoldRead,
+            "hold:write" => Scopes::HoldWrite,
+            "order:read" => Scopes::OrderRead,
+            "order:make-external-payment" => Scopes::OrderMakeExternalPayment,
+            "org:admin" => Scopes::OrgAdmin,
+            "org:read" => Scopes::OrgRead,
+            "org:reports" => Scopes::OrgReports,
+            "org:fans" => Scopes::OrgFans,
+            "org:write" => Scopes::OrgWrite,
+            "org:admin-users" => Scopes::OrgAdminUsers,
+            "org:users" => Scopes::OrgUsers,
+            "redeem:ticket" => Scopes::RedeemTicket,
+            "region:write" => Scopes::RegionWrite,
+            "user:read" => Scopes::UserRead,
+            "venue:write" => Scopes::VenueWrite,
+            "ticket:admin" => Scopes::TicketAdmin,
+            "ticket:read" => Scopes::TicketRead,
+            "ticket:transfer" => Scopes::TicketTransfer,
+            _ => {
+                return Err(EnumParseError {
+                    message: "Could not parse value".to_string(),
+                    enum_type: "Scopes".to_string(),
+                    value: s.to_string(),
+                })
+            }
+        };
+        Ok(s)
+    }
+}
+
 pub fn get_scopes(roles: Vec<Roles>) -> Vec<Scopes> {
     let mut scopes: Vec<Scopes> = roles
         .into_iter()
