@@ -173,6 +173,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
         OrgMember => {
             let mut roles = vec![
                 Scopes::ArtistWrite,
+                Scopes::BoxOfficeTicketRead,
                 Scopes::BoxOfficeTicketWrite,
                 Scopes::CodeRead,
                 Scopes::CodeWrite,

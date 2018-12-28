@@ -543,6 +543,7 @@ pub fn get_scopes_for_user() {
             .map(|i| i.to_string())
             .collect::<Vec<String>>(),
         vec![
+            "box-office-ticket:read",
             "dashboard:read",
             "event:scan",
             "event:view-guests",
