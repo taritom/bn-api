@@ -269,7 +269,7 @@ impl Organization {
         &self,
         user: &User,
         conn: &PgConnection,
-    ) -> Result<Vec<String>, DatabaseError> {
+    ) -> Result<Vec<Scopes>, DatabaseError> {
         Ok(scopes::get_scopes(self.get_roles_for_user(user, conn)?))
     }
 

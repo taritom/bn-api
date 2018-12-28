@@ -223,25 +223,19 @@ pub fn add_or_replace_user(
                 user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?
             }
             Roles::OrgAdmin => user.requires_scope_for_organization(
-                Scopes::OrgManageAdminUsers,
+                Scopes::OrgAdminUsers,
                 &organization,
                 connection,
             )?,
-            Roles::OrgMember => user.requires_scope_for_organization(
-                Scopes::OrgManageUsers,
-                &organization,
-                connection,
-            )?,
-            Roles::DoorPerson => user.requires_scope_for_organization(
-                Scopes::OrgManageUsers,
-                &organization,
-                connection,
-            )?,
-            Roles::OrgBoxOffice => user.requires_scope_for_organization(
-                Scopes::OrgManageUsers,
-                &organization,
-                connection,
-            )?,
+            Roles::OrgMember => {
+                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            Roles::DoorPerson => {
+                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            Roles::OrgBoxOffice => {
+                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
             _ => return application::forbidden("Role is not allowed for this user"),
         };
     }
@@ -255,7 +249,7 @@ pub fn remove_user(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
-    user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?;
+    user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?;
 
     let organization = organization.remove_user(parameters.user_id, connection)?;
     Ok(HttpResponse::Ok().json(&organization))
@@ -370,7 +364,7 @@ pub fn search_fans(
 ) -> Result<WebPayload<DisplayFan>, BigNeonError> {
     let connection = connection.get();
     let org = Organization::find(path.id, connection)?;
-    user.requires_scope_for_organization(Scopes::OrgReadFans, &org, &connection)?;
+    user.requires_scope_for_organization(Scopes::OrgFans, &org, &connection)?;
     let payload = org.search_fans(
         query.get_tag("query"),
         query.page(),

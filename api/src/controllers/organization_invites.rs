@@ -48,22 +48,22 @@ pub fn create(
                 connection,
             )?,
             &Roles::OrgAdmin => auth_user.requires_scope_for_organization(
-                Scopes::OrgManageAdminUsers,
+                Scopes::OrgAdminUsers,
                 &organization,
                 connection,
             )?,
             &Roles::OrgMember => auth_user.requires_scope_for_organization(
-                Scopes::OrgManageUsers,
+                Scopes::OrgUsers,
                 &organization,
                 connection,
             )?,
             &Roles::DoorPerson => auth_user.requires_scope_for_organization(
-                Scopes::OrgManageUsers,
+                Scopes::OrgUsers,
                 &organization,
                 connection,
             )?,
             &Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
-                Scopes::OrgManageUsers,
+                Scopes::OrgUsers,
                 &organization,
                 connection,
             )?,
@@ -130,7 +130,7 @@ pub fn index(
 ) -> Result<WebPayload<DisplayInvite>, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
-    auth_user.requires_scope_for_organization(Scopes::OrgManageUsers, &organization, connection)?;
+    auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?;
 
     let payload = OrganizationInvite::find_pending_by_organization_paged(
         path.id,
@@ -158,22 +158,22 @@ pub fn destroy(
                 connection,
             )?,
             &Roles::OrgAdmin => auth_user.requires_scope_for_organization(
-                Scopes::OrgManageAdminUsers,
+                Scopes::OrgAdminUsers,
                 &organization,
                 connection,
             )?,
             &Roles::OrgMember => auth_user.requires_scope_for_organization(
-                Scopes::OrgManageUsers,
+                Scopes::OrgUsers,
                 &organization,
                 connection,
             )?,
             &Roles::DoorPerson => auth_user.requires_scope_for_organization(
-                Scopes::OrgManageUsers,
+                Scopes::OrgUsers,
                 &organization,
                 connection,
             )?,
             &Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
-                Scopes::OrgManageUsers,
+                Scopes::OrgUsers,
                 &organization,
                 connection,
             )?,

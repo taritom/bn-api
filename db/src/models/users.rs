@@ -4,7 +4,6 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
-use diesel::sql_types;
 use diesel::sql_types::BigInt;
 use models::*;
 use schema::{events, organization_users, organizations, users};
@@ -400,7 +399,7 @@ impl User {
         self.has_role(Roles::Admin)
     }
 
-    pub fn get_global_scopes(&self) -> Vec<String> {
+    pub fn get_global_scopes(&self) -> Vec<Scopes> {
         scopes::get_scopes(self.role.clone())
     }
 
@@ -421,32 +420,39 @@ impl User {
     pub fn get_scopes_by_organization(
         &self,
         conn: &PgConnection,
-    ) -> Result<HashMap<Uuid, Vec<String>>, DatabaseError> {
+    ) -> Result<HashMap<Uuid, Vec<Scopes>>, DatabaseError> {
         let mut scopes_by_organization = HashMap::new();
         for organization in self.organizations(conn)? {
             scopes_by_organization.insert(
-                organization.id.clone(),
+                organization.id,
                 organization.get_scopes_for_user(self, conn)?,
             );
         }
+
         Ok(scopes_by_organization)
     }
 
     pub fn organizations(&self, conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
-        organizations::table
-            .left_join(organization_users::table)
-            .filter(
-                organization_users::user_id
-                    .eq(self.id)
-                    .or(sql("true=").bind::<sql_types::Bool, _>(self.is_admin())),
-            )
-            .select(organizations::all_columns)
-            .order_by(organizations::name.asc())
-            .load::<Organization>(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve organization users",
-            )
+        if self.is_admin() {
+            organizations::table
+                .order_by(organizations::name.asc())
+                .load::<Organization>(conn)
+                .to_db_error(
+                    ErrorCode::QueryError,
+                    "Could not retrieve organizations for user",
+                )
+        } else {
+            organizations::table
+                .left_join(organization_users::table)
+                .filter(organization_users::user_id.eq(self.id))
+                .select(organizations::all_columns)
+                .order_by(organizations::name.asc())
+                .load::<Organization>(conn)
+                .to_db_error(
+                    ErrorCode::QueryError,
+                    "Could not retrieve organizations for user",
+                )
+        }
     }
 
     pub fn payment_methods(
@@ -510,9 +516,12 @@ impl User {
                     .load(conn),
             )
         } else {
-            let user_organizations = self.organizations(conn)?;
-            let user_organization_ids: Vec<Uuid> =
-                user_organizations.iter().map(|org| org.id).collect();
+            let user_organizations = self.get_scopes_by_organization(conn)?;
+            let user_organization_ids: Vec<Uuid> = user_organizations
+                .into_iter()
+                .filter(|org| org.1.contains(&Scopes::EventScan))
+                .map(|i| i.0)
+                .collect();
 
             let result = events::table
                 .filter(events::status.eq(EventStatus::Published))

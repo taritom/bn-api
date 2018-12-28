@@ -754,69 +754,63 @@ pub fn get_scopes_by_organization() {
 
     let mut expected_results = HashMap::new();
     expected_results.insert(
-        organization.id.clone(),
+        organization.id,
         vec![
-            "artist:write",
-            "box-office-ticket:read",
-            "box-office-ticket:write",
-            "code:read",
-            "code:write",
-            "comp:read",
-            "comp:write",
-            "dashboard:read",
-            "event:interest",
-            "event:scan",
-            "event:view-guests",
-            "event:write",
-            "hold:read",
-            "hold:write",
-            "order:make-external-payment",
-            "order:read",
-            "org:admin-users",
-            "org:fans",
-            "org:read",
-            "org:users",
-            "org:write",
-            "redeem:ticket",
-            "ticket:admin",
-            "ticket:read",
-            "ticket:transfer",
-            "user:read",
-            "venue:write",
-        ]
-        .into_iter()
-        .map(|scope| scope.to_string())
-        .collect(),
+            Scopes::ArtistWrite,
+            Scopes::BoxOfficeTicketRead,
+            Scopes::BoxOfficeTicketWrite,
+            Scopes::CodeRead,
+            Scopes::CodeWrite,
+            Scopes::CompRead,
+            Scopes::CompWrite,
+            Scopes::DashboardRead,
+            Scopes::EventInterest,
+            Scopes::EventScan,
+            Scopes::EventViewGuests,
+            Scopes::EventWrite,
+            Scopes::HoldRead,
+            Scopes::HoldWrite,
+            Scopes::OrderMakeExternalPayment,
+            Scopes::OrderRead,
+            Scopes::OrgAdminUsers,
+            Scopes::OrgFans,
+            Scopes::OrgRead,
+            Scopes::OrgUsers,
+            Scopes::OrgWrite,
+            Scopes::RedeemTicket,
+            Scopes::TicketAdmin,
+            Scopes::TicketRead,
+            Scopes::TicketTransfer,
+            Scopes::UserRead,
+            Scopes::VenueWrite,
+        ],
     );
     expected_results.insert(
-        organization2.id.clone(),
+        organization2.id,
         vec![
-            "artist:write",
-            "box-office-ticket:read",
-            "box-office-ticket:write",
-            "code:read",
-            "code:write",
-            "comp:read",
-            "comp:write",
-            "dashboard:read",
-            "event:interest",
-            "event:scan",
-            "event:view-guests",
-            "event:write",
-            "hold:read",
-            "hold:write",
-            "order:read",
-            "org:fans",
-            "org:read",
-            "redeem:ticket",
-            "ticket:admin",
-            "ticket:read",
-            "ticket:transfer",
-            "venue:write",
-        ]
-        .into_iter()
-        .map(|scope| scope.to_string())
-        .collect(),
+            Scopes::ArtistWrite,
+            Scopes::BoxOfficeTicketRead,
+            Scopes::BoxOfficeTicketWrite,
+            Scopes::CodeRead,
+            Scopes::CodeWrite,
+            Scopes::CompRead,
+            Scopes::CompWrite,
+            Scopes::DashboardRead,
+            Scopes::EventInterest,
+            Scopes::EventScan,
+            Scopes::EventViewGuests,
+            Scopes::EventWrite,
+            Scopes::HoldRead,
+            Scopes::HoldWrite,
+            Scopes::OrderRead,
+            Scopes::OrgFans,
+            Scopes::OrgRead,
+            Scopes::RedeemTicket,
+            Scopes::TicketAdmin,
+            Scopes::TicketRead,
+            Scopes::TicketTransfer,
+            Scopes::VenueWrite,
+        ],
     );
 
     assert_eq!(
@@ -840,15 +834,26 @@ pub fn get_global_scopes() {
     user3 = user3.add_role(Roles::Admin, connection).unwrap();
 
     assert_eq!(
-        user.get_global_scopes(),
+        user.get_global_scopes()
+            .into_iter()
+            .map(|scope| scope.to_string())
+            .collect::<Vec<String>>(),
         vec!["event:interest", "order:read", "ticket:transfer"]
     );
     assert_eq!(
-        user2.get_global_scopes(),
+        user2
+            .get_global_scopes()
+            .into_iter()
+            .map(|scope| scope.to_string())
+            .collect::<Vec<String>>(),
         vec!["event:interest", "order:read", "ticket:transfer"]
     );
     assert_eq!(
-        user3.get_global_scopes(),
+        user3
+            .get_global_scopes()
+            .into_iter()
+            .map(|scope| scope.to_string())
+            .collect::<Vec<String>>(),
         vec![
             "artist:write",
             "box-office-ticket:read",

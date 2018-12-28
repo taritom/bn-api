@@ -1,7 +1,11 @@
 use models::Roles;
+use serde::Serialize;
+use serde::Serializer;
 use std::fmt;
+use std::str::FromStr;
+use utils::errors::EnumParseError;
 
-#[derive(PartialEq, Debug, Copy, Clone, Eq, Ord, PartialOrd, Serialize)]
+#[derive(PartialEq, Debug, Copy, Clone, Eq, Ord, PartialOrd)]
 pub enum Scopes {
     ArtistWrite,
     BoxOfficeTicketRead,
@@ -11,23 +15,23 @@ pub enum Scopes {
     CompRead,
     CompWrite,
     DashboardRead,
-    EventWrite,
     EventFinancialReports,
     EventInterest,
     EventReports,
     EventScan,
     EventViewGuests,
+    EventWrite,
     HoldRead,
     HoldWrite,
     OrderMakeExternalPayment,
     OrderRead,
     OrgAdmin,
+    OrgAdminUsers,
+    OrgFans,
     OrgRead,
-    OrgReadFans,
-    OrgWrite,
-    OrgManageAdminUsers,
-    OrgManageUsers,
     OrgReports,
+    OrgUsers,
+    OrgWrite,
     RedeemTicket,
     RegionWrite,
     TicketAdmin,
@@ -35,6 +39,15 @@ pub enum Scopes {
     TicketTransfer,
     UserRead,
     VenueWrite,
+}
+
+impl Serialize for Scopes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
 }
 
 impl fmt::Display for Scopes {
@@ -60,11 +73,11 @@ impl fmt::Display for Scopes {
             Scopes::OrderMakeExternalPayment => "order:make-external-payment",
             Scopes::OrgAdmin => "org:admin",
             Scopes::OrgRead => "org:read",
-            Scopes::OrgReadFans => "org:fans",
             Scopes::OrgReports => "org:reports",
+            Scopes::OrgFans => "org:fans",
             Scopes::OrgWrite => "org:write",
-            Scopes::OrgManageAdminUsers => "org:admin-users",
-            Scopes::OrgManageUsers => "org:users",
+            Scopes::OrgAdminUsers => "org:admin-users",
+            Scopes::OrgUsers => "org:users",
             Scopes::RedeemTicket => "redeem:ticket",
             Scopes::RegionWrite => "region:write",
             Scopes::UserRead => "user:read",
@@ -77,12 +90,57 @@ impl fmt::Display for Scopes {
     }
 }
 
-pub fn get_scopes(roles: Vec<Roles>) -> Vec<String> {
-    let scopes: Vec<Scopes> = roles
+impl FromStr for Scopes {
+    type Err = EnumParseError;
+
+    fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
+        let s = match s {
+            "artist:write" => Scopes::ArtistWrite,
+            "box-office-ticket:read" => Scopes::BoxOfficeTicketRead,
+            "box-office-ticket:write" => Scopes::BoxOfficeTicketWrite,
+            "code:read" => Scopes::CodeRead,
+            "code:write" => Scopes::CodeWrite,
+            "comp:read" => Scopes::CompRead,
+            "comp:write" => Scopes::CompWrite,
+            "dashboard:read" => Scopes::DashboardRead,
+            "event:write" => Scopes::EventWrite,
+            "event:interest" => Scopes::EventInterest,
+            "event:scan" => Scopes::EventScan,
+            "event:view-guests" => Scopes::EventViewGuests,
+            "hold:read" => Scopes::HoldRead,
+            "hold:write" => Scopes::HoldWrite,
+            "order:read" => Scopes::OrderRead,
+            "order:make-external-payment" => Scopes::OrderMakeExternalPayment,
+            "org:admin" => Scopes::OrgAdmin,
+            "org:read" => Scopes::OrgRead,
+            "org:fans" => Scopes::OrgFans,
+            "org:write" => Scopes::OrgWrite,
+            "org:admin-users" => Scopes::OrgAdminUsers,
+            "org:users" => Scopes::OrgUsers,
+            "redeem:ticket" => Scopes::RedeemTicket,
+            "region:write" => Scopes::RegionWrite,
+            "user:read" => Scopes::UserRead,
+            "venue:write" => Scopes::VenueWrite,
+            "ticket:admin" => Scopes::TicketAdmin,
+            "ticket:read" => Scopes::TicketRead,
+            "ticket:transfer" => Scopes::TicketTransfer,
+            _ => {
+                return Err(EnumParseError {
+                    message: "Could not parse value".to_string(),
+                    enum_type: "Scopes".to_string(),
+                    value: s.to_string(),
+                })
+            }
+        };
+        Ok(s)
+    }
+}
+
+pub fn get_scopes(roles: Vec<Roles>) -> Vec<Scopes> {
+    let mut scopes: Vec<Scopes> = roles
         .into_iter()
         .flat_map(|r| get_scopes_for_role(r))
         .collect();
-    let mut scopes: Vec<String> = scopes.iter().map(|s| s.to_string()).collect();
     scopes.sort();
     scopes.dedup();
     scopes
@@ -113,6 +171,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::DashboardRead,
                 Scopes::EventViewGuests,
                 Scopes::OrderMakeExternalPayment,
+                Scopes::BoxOfficeTicketRead,
             ];
             roles.extend(get_scopes_for_role(Roles::DoorPerson));
             roles
@@ -133,7 +192,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::HoldRead,
                 Scopes::HoldWrite,
                 Scopes::OrgRead,
-                Scopes::OrgReadFans,
+                Scopes::OrgFans,
                 Scopes::RedeemTicket,
                 Scopes::TicketAdmin,
                 Scopes::TicketRead,
@@ -143,20 +202,13 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         OrgAdmin => {
-            let mut roles = vec![
-                Scopes::EventFinancialReports,
-                Scopes::EventReports,
-                Scopes::OrgReports,
-                Scopes::OrgWrite,
-                Scopes::UserRead,
-                Scopes::OrgManageUsers,
-            ];
+            let mut roles = vec![Scopes::OrgWrite, Scopes::UserRead, Scopes::OrgUsers, Scopes::EventFinancialReports,  Scopes::EventReports, Scopes::OrgReports,];
             roles.extend(get_scopes_for_role(OrgMember));
             roles.extend(get_scopes_for_role(Roles::OrgBoxOffice));
             roles
         }
         OrgOwner => {
-            let mut roles = vec![Scopes::OrgManageAdminUsers];
+            let mut roles = vec![Scopes::OrgAdminUsers];
             roles.extend(get_scopes_for_role(Roles::OrgAdmin));
             roles
         }
@@ -185,19 +237,19 @@ fn get_scopes_for_role_test() {
             Scopes::CompRead,
             Scopes::CompWrite,
             Scopes::DashboardRead,
-            Scopes::EventWrite,
             Scopes::EventInterest,
             Scopes::EventScan,
             Scopes::EventViewGuests,
+            Scopes::EventWrite,
             Scopes::HoldRead,
             Scopes::HoldWrite,
             Scopes::OrderMakeExternalPayment,
             Scopes::OrderRead,
+            Scopes::OrgAdminUsers,
+            Scopes::OrgFans,
             Scopes::OrgRead,
-            Scopes::OrgReadFans,
+            Scopes::OrgUsers,
             Scopes::OrgWrite,
-            Scopes::OrgManageAdminUsers,
-            Scopes::OrgManageUsers,
             Scopes::RedeemTicket,
             Scopes::TicketAdmin,
             Scopes::TicketRead,
@@ -216,7 +268,10 @@ fn scopes_to_string() {
 
 #[test]
 fn get_scopes_test() {
-    let mut res = get_scopes(vec![Roles::OrgOwner]);
+    let mut res = get_scopes(vec![Roles::OrgOwner])
+        .iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<String>>();
     res.sort();
     assert_eq!(
         vec![
@@ -250,7 +305,10 @@ fn get_scopes_test() {
         ],
         res
     );
-    let mut res = get_scopes(vec![Roles::Admin]);
+    let mut res = get_scopes(vec![Roles::Admin])
+        .iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<String>>();
     res.sort();
     assert_eq!(
         vec![
@@ -287,7 +345,10 @@ fn get_scopes_test() {
         res
     );
 
-    let res = get_scopes(vec![Roles::OrgOwner, Roles::Admin]);
+    let res = get_scopes(vec![Roles::OrgOwner, Roles::Admin])
+        .iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<String>>();
     assert_eq!(
         vec![
             "artist:write",
@@ -322,4 +383,10 @@ fn get_scopes_test() {
         ],
         res
     );
+}
+
+#[test]
+fn from_str() {
+    let s: Scopes = "ticket:read".parse().unwrap();
+    assert_eq!(Scopes::TicketRead, s);
 }
