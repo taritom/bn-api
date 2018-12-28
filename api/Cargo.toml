@@ -9,7 +9,7 @@ documentation = "https://github.com/big-neon/docs"
 
 [dependencies]
 actix = "0.7"
-actix-web = "0.7"
+actix-web = "=0.7.13"
 bigneon_db = { path = "../db" }
 chrono = {version = "0.4", features = ["serde"]}
 clap = "2.32"
