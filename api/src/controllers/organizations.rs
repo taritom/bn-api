@@ -227,21 +227,15 @@ pub fn add_or_replace_user(
                 &organization,
                 connection,
             )?,
-            Roles::OrgMember => user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            Roles::DoorPerson => user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            Roles::OrgBoxOffice => user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
+            Roles::OrgMember => {
+                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            Roles::DoorPerson => {
+                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            Roles::OrgBoxOffice => {
+                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
             _ => return application::forbidden("Role is not allowed for this user"),
         };
     }

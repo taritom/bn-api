@@ -1,3 +1,5 @@
+use actix_web;
+use actix_web::Responder;
 use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
@@ -14,8 +16,6 @@ use server::AppState;
 use std::collections::HashMap;
 use std::str;
 use uuid::Uuid;
-use actix_web::Responder;
-use actix_web;
 
 #[derive(Deserialize)]
 pub struct SearchUserByEmail {
@@ -31,8 +31,7 @@ pub struct CurrentUser {
     pub organization_scopes: HashMap<Uuid, Vec<Scopes>>,
 }
 
-impl Responder for CurrentUser
-{
+impl Responder for CurrentUser {
     type Item = HttpResponse;
     type Error = actix_web::Error;
 
@@ -44,7 +43,6 @@ impl Responder for CurrentUser
             .body(body))
     }
 }
-
 
 #[derive(Deserialize, Clone)]
 pub struct InputPushNotificationTokens {
@@ -267,7 +265,6 @@ fn current_user_from_user(
     for (organization_id, roles) in &roles_by_organization {
         scopes_by_organization.insert(organization_id.clone(), scopes::get_scopes(roles.clone()));
     }
-
 
     Ok(CurrentUser {
         user: user.clone().for_display()?,

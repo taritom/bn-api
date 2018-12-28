@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_api::auth::TokenResponse;
-use bigneon_api::controllers::users::{self};
+use bigneon_api::controllers::users;
 use bigneon_api::extractors::*;
 use bigneon_api::models::{RegisterRequest, UserProfileAttributes};
 use bigneon_db::prelude::*;
@@ -449,17 +449,19 @@ fn current_user() {
     let user = database.create_user().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
-    let response =
-        users::current_user((database.connection.into(), auth_user)).unwrap();
+    let response = users::current_user((database.connection.into(), auth_user)).unwrap();
     let user = response.user;
     assert_eq!(user.id, user.id);
     assert_eq!(
-        vec![Scopes::EventInterest,Scopes::OrderRead, Scopes::TicketTransfer],
+        vec![
+            Scopes::EventInterest,
+            Scopes::OrderRead,
+            Scopes::TicketTransfer
+        ],
         response.scopes
     );
     assert!(response.organization_scopes.is_empty());
 }
-
 
 #[test]
 fn current_user_organization_owner() {
@@ -471,7 +473,7 @@ fn current_user_organization_owner() {
 
     let current_user =
         users::current_user((database.connection.clone().into(), auth_user)).unwrap();
-     let user = current_user.user;
+    let user = current_user.user;
     assert_eq!(user.id, user.id);
     let mut expected_results = HashMap::new();
     expected_results.insert(
@@ -505,9 +507,9 @@ fn current_user_organization_owner() {
             "user:read",
             "venue:write",
         ]
-            .into_iter()
-            .map(|scope| scope.parse::<Scopes>().unwrap())
-            .collect(),
+        .into_iter()
+        .map(|scope| scope.parse::<Scopes>().unwrap())
+        .collect(),
     );
     assert_eq!(expected_results, current_user.organization_scopes);
 
@@ -533,7 +535,11 @@ fn current_user_organization_member() {
     let user = current_user.user;
     assert_eq!(user.id, user.id);
     assert_eq!(
-        vec![Scopes::EventInterest, Scopes::OrderRead, Scopes::TicketTransfer],
+        vec![
+            Scopes::EventInterest,
+            Scopes::OrderRead,
+            Scopes::TicketTransfer
+        ],
         current_user.scopes
     );
     let mut expected_scopes = HashMap::new();
@@ -596,8 +602,12 @@ pub fn update_current_user_with_validation_errors() {
     attributes.email = Some(Some("bad-email".into()));
     let json = Json(attributes);
 
-    let result : Result<HttpResponse, BigNeonError> =
-        Err(users::update_current_user((database.connection.into(), json, user)).err().unwrap());
+    let result: Result<HttpResponse, BigNeonError> =
+        Err(
+            users::update_current_user((database.connection.into(), json, user))
+                .err()
+                .unwrap(),
+        );
 
     let response = result.into();
     let validation_response = support::validation_response_from_response(&response).unwrap();
@@ -619,8 +629,12 @@ fn update_current_user_address_exists() {
     attributes.email = Some(existing_user.email);
     let json = Json(attributes);
 
-    let result : Result<HttpResponse, BigNeonError> =
-        Err(users::update_current_user((database.connection.into(), json, user)).err().unwrap());
-    let response : HttpResponse = result.into();
+    let result: Result<HttpResponse, BigNeonError> =
+        Err(
+            users::update_current_user((database.connection.into(), json, user))
+                .err()
+                .unwrap(),
+        );
+    let response: HttpResponse = result.into();
     assert_eq!(response.status(), StatusCode::CONFLICT);
 }
