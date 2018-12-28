@@ -47,7 +47,6 @@ impl Serialize for Scopes {
     }
 }
 
-
 impl fmt::Display for Scopes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match self {
@@ -166,6 +165,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::DashboardRead,
                 Scopes::EventViewGuests,
                 Scopes::OrderMakeExternalPayment,
+                Scopes::BoxOfficeTicketRead,
             ];
             roles.extend(get_scopes_for_role(Roles::DoorPerson));
             roles
@@ -173,7 +173,6 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
         OrgMember => {
             let mut roles = vec![
                 Scopes::ArtistWrite,
-                Scopes::BoxOfficeTicketRead,
                 Scopes::BoxOfficeTicketWrite,
                 Scopes::CodeRead,
                 Scopes::CodeWrite,
