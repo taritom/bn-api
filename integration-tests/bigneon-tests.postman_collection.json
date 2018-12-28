@@ -608,6 +608,67 @@
 							"response": []
 						},
 						{
+							"name": "OrgAdmin - Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"pm.test(\"should have token response\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\tpm.expect(json).to.have.property(\"access_token\");",
+											"\tpm.expect(json).to.have.property(\"refresh_token\");",
+											"});",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"org_admin_token\", json.access_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"email\":\"{{last_org_admin_email}}\",\n\t\"password\":\"itsasecret\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/auth/token",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"auth",
+										"token"
+									]
+								}
+							},
+							"response": []
+						},
+						{
 							"name": "OrgAdmin - Accept Invite - Logged In - OK",
 							"event": [
 								{
@@ -1047,6 +1108,67 @@
 									],
 									"path": [
 										"users"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"pm.test(\"should have token response\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\tpm.expect(json).to.have.property(\"access_token\");",
+											"\tpm.expect(json).to.have.property(\"refresh_token\");",
+											"});",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"org_member_token\", json.access_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"email\":\"{{last_org_member_email}}\",\n\t\"password\": \"itsasecret\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/auth/token",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"auth",
+										"token"
 									]
 								}
 							},
@@ -3903,7 +4025,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": -3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": -4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}_{{$randomInt}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": -3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": -4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -10534,9 +10656,9 @@
 									"",
 									"pm.test(\"last user fan data should be present\", function(){",
 									"    let user_id = pm.environment.get(\"last_user_id\");",
-									"    pm.expect([json.data[0].user_id, json.data[1].user_id]).to.include(user_id);",
-									"    pm.expect([json.data[0].first_name, json.data[1].first_name]).to.include(\"Mike\");",
-									"    pm.expect([json.data[0].last_name, json.data[1].last_name]).to.include(\"Surname\");",
+									"    pm.expect([json.data[0].user_id, json.data[1].user_id,  json.data[2].user_id]).to.include(user_id);",
+									"    pm.expect([json.data[0].first_name, json.data[1].first_name, json.data[2].first_name]).to.include(\"Mike\");",
+									"    pm.expect([json.data[0].last_name, json.data[1].last_name,  json.data[2].last_name]).to.include(\"Surname\");",
 									"});"
 								],
 								"type": "text/javascript"
@@ -11354,6 +11476,225 @@
 						}
 					},
 					"response": []
+				}
+			]
+		},
+		{
+			"name": "Reports",
+			"item": [
+				{
+					"name": "Transaction Detail Report",
+					"item": [
+						{
+							"name": "OrgMember - Event - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "6ba3137a-44b4-4df4-a044-9435b7a0b652",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/reports/{{last_org_id}}/transaction_details?event_id={{last_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"reports",
+										"{{last_org_id}}",
+										"transaction_details"
+									],
+									"query": [
+										{
+											"key": "event_id",
+											"value": "{{last_event_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Event",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"pm.test(\"should not be empty\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\t",
+											"\tpm.expect(json).to.not.be.empty;",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/reports/{{last_org_id}}/transaction_details?event_id={{last_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"reports",
+										"{{last_org_id}}",
+										"transaction_details"
+									],
+									"query": [
+										{
+											"key": "event_id",
+											"value": "{{last_event_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Organization",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"pm.test(\"should not be empty\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\t",
+											"\tpm.expect(json).to.not.be.empty;",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "6bc986cc-78de-447b-a3cb-86f175a538b7",
+										"exec": [
+											"var moment = require('moment');",
+											"var start_utc = moment().subtract(15, \"minutes\").utc().format(\"YYYY-MM-DDTHH:mm:ss\");",
+											"var end_utc = moment().add(15, \"minutes\").utc().format(\"YYYY-MM-DDTHH:mm:ss\");",
+											"pm.environment.set(\"start_utc\", start_utc);",
+											"pm.environment.set(\"end_utc\", end_utc);"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/reports/{{last_org_id}}/transaction_details?start_utc={{start_utc}}&end_utc={{end_utc}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"reports",
+										"{{last_org_id}}",
+										"transaction_details"
+									],
+									"query": [
+										{
+											"key": "start_utc",
+											"value": "{{start_utc}}"
+										},
+										{
+											"key": "end_utc",
+											"value": "{{end_utc}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"_postman_isSubFolder": true
 				}
 			]
 		}
