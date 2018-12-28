@@ -12,7 +12,9 @@ pub enum Scopes {
     CompWrite,
     DashboardRead,
     EventWrite,
+    EventFinancialReports,
     EventInterest,
+    EventReports,
     EventScan,
     EventViewGuests,
     HoldRead,
@@ -25,6 +27,7 @@ pub enum Scopes {
     OrgWrite,
     OrgManageAdminUsers,
     OrgManageUsers,
+    OrgReports,
     RedeemTicket,
     RegionWrite,
     TicketAdmin,
@@ -46,7 +49,9 @@ impl fmt::Display for Scopes {
             Scopes::CompWrite => "comp:write",
             Scopes::DashboardRead => "dashboard:read",
             Scopes::EventWrite => "event:write",
+            Scopes::EventFinancialReports => "event:financial-reports",
             Scopes::EventInterest => "event:interest",
+            Scopes::EventReports => "event:reports",
             Scopes::EventScan => "event:scan",
             Scopes::EventViewGuests => "event:view-guests",
             Scopes::HoldRead => "hold:read",
@@ -56,6 +61,7 @@ impl fmt::Display for Scopes {
             Scopes::OrgAdmin => "org:admin",
             Scopes::OrgRead => "org:read",
             Scopes::OrgReadFans => "org:fans",
+            Scopes::OrgReports => "org:reports",
             Scopes::OrgWrite => "org:write",
             Scopes::OrgManageAdminUsers => "org:admin-users",
             Scopes::OrgManageUsers => "org:users",
@@ -137,7 +143,14 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         OrgAdmin => {
-            let mut roles = vec![Scopes::OrgWrite, Scopes::UserRead, Scopes::OrgManageUsers];
+            let mut roles = vec![
+                Scopes::EventFinancialReports,
+                Scopes::EventReports,
+                Scopes::OrgReports,
+                Scopes::OrgWrite,
+                Scopes::UserRead,
+                Scopes::OrgManageUsers,
+            ];
             roles.extend(get_scopes_for_role(OrgMember));
             roles.extend(get_scopes_for_role(Roles::OrgBoxOffice));
             roles

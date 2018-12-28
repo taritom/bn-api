@@ -26,7 +26,15 @@ pub fn transaction_detail_report(
     let connection = connection.get();
     //Check if they have org admin permissions
     let organization = Organization::find(path.id, connection)?;
-    user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?;
+    if query.event_id.is_some() {
+        user.requires_scope_for_organization(
+            Scopes::EventFinancialReports,
+            &organization,
+            connection,
+        )?;
+    } else {
+        user.requires_scope_for_organization(Scopes::OrgReports, &organization, connection)?;
+    }
 
     let result = Report::transaction_detail_report(
         query.event_id,

@@ -8,11 +8,11 @@ SELECT e.name                                             AS event_name,
        CAST(oi.unit_price_in_cents AS BIGINT),
        CAST(CASE
               WHEN oi.item_type = 'Tickets' THEN
-                oi_fees.company_fee_in_cents
+                CASE WHEN oi_fees.company_fee_in_cents IS NULL THEN 0 ELSE oi_fees.company_fee_in_cents END
               ELSE oi.company_fee_in_cents END AS BIGINT) AS company_fee_in_cents,
        CAST(CASE
               WHEN oi.item_type = 'Tickets' THEN
-                oi_fees.client_fee_in_cents
+                CASE WHEN oi_fees.client_fee_in_cents IS NULL THEN 0 ELSE oi_fees.client_fee_in_cents END
               ELSE oi.client_fee_in_cents END AS BIGINT)  AS client_fee_in_cents,
        orders.paid_at                                     AS transaction_date,
        orders.order_type,
