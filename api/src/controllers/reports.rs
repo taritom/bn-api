@@ -10,8 +10,8 @@ use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct ReportQueryParameters {
-    pub start: Option<NaiveDateTime>,
-    pub end: Option<NaiveDateTime>,
+    pub start_utc: Option<NaiveDateTime>,
+    pub end_utc: Option<NaiveDateTime>,
     pub event_id: Option<Uuid>,
 }
 
@@ -26,8 +26,14 @@ pub fn transaction_detail_report(
     let connection = connection.get();
     //Check if they have org admin permissions
     let organization = Organization::find(path.id, connection)?;
-    user.requires_scope_for_organization(Scopes::OrgRead, &organization, connection)?;
+    user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?;
 
-    let result = Report::transaction_detail_report(query.event_id, Some(path.id), connection)?;
+    let result = Report::transaction_detail_report(
+        query.event_id,
+        Some(path.id),
+        query.start_utc,
+        query.end_utc,
+        connection,
+    )?;
     Ok(HttpResponse::Ok().json(result))
 }
