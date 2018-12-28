@@ -3,7 +3,10 @@
 # Ensure we are in the root of the git repo
 cd $(git rev-parse --show-toplevel)
 cd db
-cargo run --release create -c $DATABASE_URL -f -e superuser@test.com -p password -m 8883
+cargo run --release create -c $DATABASE_URL -f -e superuser@test.com -p password -m 8883 || {
+    echo "Migrations failed"
+    exit 1
+}
 cd ../api
 cargo build --release
 cargo run --release -- -t false &
@@ -16,7 +19,7 @@ npm config set strict-ssl false
 npm install -g newman
 
 newman run ../integration-tests/bigneon-tests.postman_collection.json -e ../integration-tests/travis.postman_environment.json
-export NEWMAN_EXIT_CODE=$?
+NEWMAN_EXIT_CODE=$?
 kill -s SIGTERM $SERVER_PID
 if [ $NEWMAN_EXIT_CODE -ne 0 ]
 then

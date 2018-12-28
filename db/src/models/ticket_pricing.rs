@@ -253,6 +253,18 @@ impl NewTicketPricing {
             "ticket_pricing.start_date",
             validators::start_date_valid(self.start_date, self.end_date),
         );
+
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
+            "ticket_pricing.price_in_cents",
+            validators::validate_greater_than(
+                self.price_in_cents,
+                0,
+                "number_must_be_positive",
+                "Ticket price must be positive",
+            ),
+        );
+
         Ok(validation_errors?)
     }
 
