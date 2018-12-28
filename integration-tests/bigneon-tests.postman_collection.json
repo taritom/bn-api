@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "418a2a4b-c444-4945-9e8f-4653e7239c93",
+		"_postman_id": "3e058745-23b0-4ef2-a98b-6600d79f8a3f",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -3718,6 +3718,69 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"ticket_types"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - create tickets - fail negative pricing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
+								"exec": [
+									"pm.test(\"should be 422\", function() {",
+									"    pm.response.to.have.status(422); // Unprocessable Entity",
+									"});",
+									"",
+									"let r = JSON.parse(responseBody);",
+									"",
+									"pm.test(\"should have correct fields errors\", function() {",
+									"    pm.expect(r.fields[\"ticket_pricing.price_in_cents\"].length).to.equal(1);",
+									"    pm.expect(r.fields[\"ticket_pricing.price_in_cents\"][0].code).to.equal(\"number_must_be_positive\");",
+									"    pm.expect(r.fields[\"ticket_pricing.price_in_cents\"][0].message.length).to.be.greaterThan(0);",
+									"    ",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": -3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": -4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
