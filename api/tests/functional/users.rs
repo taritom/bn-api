@@ -1,15 +1,17 @@
 use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_api::auth::TokenResponse;
-use bigneon_api::controllers::users::{self, CurrentUser};
+use bigneon_api::controllers::users;
 use bigneon_api::extractors::*;
 use bigneon_api::models::{RegisterRequest, UserProfileAttributes};
-use bigneon_db::models::Roles;
+use bigneon_db::prelude::*;
 use functional::base;
 use serde_json;
 use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
+
+use bigneon_api::errors::BigNeonError;
 
 #[cfg(test)]
 mod history_tests {
@@ -447,68 +449,18 @@ fn current_user() {
     let user = database.create_user().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
-    let response: HttpResponse =
-        users::current_user((database.connection.into(), auth_user)).into();
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    let current_user: CurrentUser = serde_json::from_str(&body).unwrap();
-    let user = current_user.user;
-    assert_eq!(user.id, user.id);
-    assert_eq!(
-        vec!["event:interest", "order:read", "ticket:transfer"],
-        current_user.scopes
-    );
-    assert!(current_user.organization_scopes.is_empty());
-}
-
-#[test]
-fn current_user_admin() {
-    let database = TestDatabase::new();
-    let user = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
-
-    let response: HttpResponse =
-        users::current_user((database.connection.into(), auth_user)).into();
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    let current_user: CurrentUser = serde_json::from_str(&body).unwrap();
-    let user = current_user.user;
+    let response = users::current_user((database.connection.into(), auth_user)).unwrap();
+    let user = response.user;
     assert_eq!(user.id, user.id);
     assert_eq!(
         vec![
-            "artist:write",
-            "box-office-ticket:read",
-            "box-office-ticket:write",
-            "code:read",
-            "code:write",
-            "comp:read",
-            "comp:write",
-            "dashboard:read",
-            "event:interest",
-            "event:scan",
-            "event:view-guests",
-            "event:write",
-            "hold:read",
-            "hold:write",
-            "order:make-external-payment",
-            "order:read",
-            "org:admin",
-            "org:admin-users",
-            "org:fans",
-            "org:read",
-            "org:users",
-            "org:write",
-            "redeem:ticket",
-            "region:write",
-            "ticket:admin",
-            "ticket:read",
-            "ticket:transfer",
-            "user:read",
-            "venue:write"
+            Scopes::EventInterest,
+            Scopes::OrderRead,
+            Scopes::TicketTransfer
         ],
-        current_user.scopes
+        response.scopes
     );
-    assert!(current_user.organization_scopes.is_empty());
+    assert!(response.organization_scopes.is_empty());
 }
 
 #[test]
@@ -519,17 +471,10 @@ fn current_user_organization_owner() {
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
-    let response: HttpResponse =
-        users::current_user((database.connection.clone().into(), auth_user)).into();
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    let current_user: CurrentUser = serde_json::from_str(&body).unwrap();
+    let current_user =
+        users::current_user((database.connection.clone().into(), auth_user)).unwrap();
     let user = current_user.user;
     assert_eq!(user.id, user.id);
-    assert_eq!(
-        vec!["event:interest", "order:read", "ticket:transfer"],
-        current_user.scopes
-    );
     let mut expected_results = HashMap::new();
     expected_results.insert(
         organization.id,
@@ -563,7 +508,7 @@ fn current_user_organization_owner() {
             "venue:write",
         ]
         .into_iter()
-        .map(|scope| scope.to_string())
+        .map(|scope| scope.parse::<Scopes>().unwrap())
         .collect(),
     );
     assert_eq!(expected_results, current_user.organization_scopes);
@@ -585,15 +530,16 @@ fn current_user_organization_member() {
         &database,
     );
 
-    let response: HttpResponse =
-        users::current_user((database.connection.clone().into(), auth_user)).into();
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    let current_user: CurrentUser = serde_json::from_str(&body).unwrap();
+    let current_user =
+        users::current_user((database.connection.clone().into(), auth_user)).unwrap();
     let user = current_user.user;
     assert_eq!(user.id, user.id);
     assert_eq!(
-        vec!["event:interest", "order:read", "ticket:transfer"],
+        vec![
+            Scopes::EventInterest,
+            Scopes::OrderRead,
+            Scopes::TicketTransfer
+        ],
         current_user.scopes
     );
     let mut expected_scopes = HashMap::new();
@@ -624,7 +570,7 @@ fn current_user_organization_member() {
             "venue:write",
         ]
         .into_iter()
-        .map(|scope| scope.to_string())
+        .map(|scope| scope.parse::<Scopes>().unwrap())
         .collect(),
     );
     assert_eq!(expected_scopes, current_user.organization_scopes);
@@ -643,11 +589,8 @@ pub fn update_current_user() {
     attributes.email = Some(Some(email.to_string()));
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        users::update_current_user((database.connection.into(), json, user)).into();
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    let updated_user: CurrentUser = serde_json::from_str(&body).unwrap();
+    let updated_user =
+        users::update_current_user((database.connection.into(), json, user)).unwrap();
     assert_eq!(updated_user.user.email, Some(email.into()));
 }
 
@@ -659,11 +602,14 @@ pub fn update_current_user_with_validation_errors() {
     attributes.email = Some(Some("bad-email".into()));
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        users::update_current_user((database.connection.into(), json, user)).into();
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-    assert!(response.error().is_some());
+    let result: Result<HttpResponse, BigNeonError> =
+        Err(
+            users::update_current_user((database.connection.into(), json, user))
+                .err()
+                .unwrap(),
+        );
 
+    let response = result.into();
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let email = validation_response.fields.get("email").unwrap();
     assert_eq!(email[0].code, "email");
@@ -683,7 +629,12 @@ fn update_current_user_address_exists() {
     attributes.email = Some(existing_user.email);
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        users::update_current_user((database.connection.into(), json, user)).into();
+    let result: Result<HttpResponse, BigNeonError> =
+        Err(
+            users::update_current_user((database.connection.into(), json, user))
+                .err()
+                .unwrap(),
+        );
+    let response: HttpResponse = result.into();
     assert_eq!(response.status(), StatusCode::CONFLICT);
 }
