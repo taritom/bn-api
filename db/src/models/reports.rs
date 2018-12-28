@@ -44,15 +44,16 @@ impl Report {
     pub fn transaction_detail_report(
         event_id: Option<Uuid>,
         organization_id: Option<Uuid>,
-        _start: Option<NaiveDateTime>,
-        _end: Option<NaiveDateTime>,
+        start: Option<NaiveDateTime>,
+        end: Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<Vec<TransactionReportRow>, DatabaseError> {
         let query = include_str!("../queries/reports_transaction_details.sql");
         let q = diesel::sql_query(query)
             .bind::<Nullable<dUuid>, _>(event_id)
-            .bind::<Nullable<dUuid>, _>(organization_id);
-        println!("{}", diesel::debug_query(&q).to_string());
+            .bind::<Nullable<dUuid>, _>(organization_id)
+            .bind::<Nullable<Timestamp>, _>(start)
+            .bind::<Nullable<Timestamp>, _>(end);
         let transaction_rows: Vec<TransactionReportRow> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;

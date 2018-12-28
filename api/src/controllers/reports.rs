@@ -1,6 +1,6 @@
 use actix_web::{HttpResponse, Path, Query};
 use auth::user::User as AuthUser;
-use bigneon_db::models::{Organization, Report, Scopes, User};
+use bigneon_db::models::{Organization, Report, Scopes};
 use chrono::prelude::*;
 use db::Connection;
 use errors::*;
