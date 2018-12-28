@@ -109,14 +109,14 @@ pub fn history(
 
 pub fn update_current_user(
     (connection, user_parameters, auth_user): (Connection, Json<UserProfileAttributes>, AuthUser),
-) -> Result<HttpResponse, BigNeonError> {
+) -> Result<CurrentUser, BigNeonError> {
     let connection = connection.get();
 
     let updated_user = auth_user
         .user
         .update(&user_parameters.into_inner().into(), connection)?;
     let current_user = current_user_from_user(&updated_user, connection)?;
-    Ok(HttpResponse::Ok().json(&current_user))
+    Ok(current_user)
 }
 
 pub fn show(
