@@ -191,11 +191,33 @@ pub fn destroy(
 }
 
 pub fn view(
-    (connection, path): (Connection, Path<PathParameters>),
+    (connection, path, user): (Connection, Path<PathParameters>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
 
+    let invite_details = OrganizationInvite::find(path.id, connection)?;
+    if let Some(u) = user.into_inner() {
+        match invite_details.user_id {
+            // If the user_id was provided confirm that the current user is the accepting user
+            Some(user_id) => {
+                if user_id != u.id() {
+                    return application::forbidden("This invite is for a different user");
+                }
+            }
+            None => {
+                // If not confirm that the current user has an email set and that it matches the invite
+                if let Some(email) = u.email() {
+                    if invite_details.user_email.to_lowercase() != email.to_lowercase() {
+                        return application::forbidden(
+                            "This invite is for a different email address",
+                        );
+                    }
+                }
+            }
+        };
+    }
     let invite_details = OrganizationInvite::get_invite_display(&path.id, connection)?;
+
     Ok(HttpResponse::Ok().json(json!(invite_details)))
 }
 
