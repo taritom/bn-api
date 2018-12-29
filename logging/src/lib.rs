@@ -2,11 +2,36 @@ extern crate chrono;
 extern crate env_logger;
 #[macro_use]
 extern crate log;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
 
 use env_logger::{Builder, Env};
 use std::io::Write;
+
+use chrono::{DateTime, Local};
+
+const DATETIME_FORMAT: &'static str = "[%Y-%m-%d][%H:%M:%S]";
+
+#[derive(Serialize, Debug)]
+struct LogEntry {
+    level: String,
+    #[serde(serialize_with = "custom_datetime_serializer")]
+    time: DateTime<Local>,
+    target: String,
+    message: String,
+    #[serde(flatten)]
+    meta: Option<serde_json::Value>,
+}
+
+fn custom_datetime_serializer<S>(x: &DateTime<Local>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    s.serialize_str(format!("{}", x.format(DATETIME_FORMAT)).as_str())
+}
 
 /// A convenience wrapper around the log! macro for writing log messages that ElasticSearch can
 /// ingest.
@@ -25,60 +50,72 @@ use std::io::Write;
 macro_rules! jlog {
     ($t:path, $msg:expr) => {{
         use $crate::transform_message;
-        transform_message($t, None, $msg, "")
+	transform_message($t, None, $msg, None)
     }};
     ($t:path, $msg:expr, $json:tt) => {{
         use $crate::transform_message;
-        let meta = json!($json).to_string();
-        transform_message($t, None, $msg, &meta)
+	let meta = json!($json);
+	transform_message($t, None, $msg, Some(meta))
     }};
     ($t:path, $target: expr, $msg:expr, $json:tt) => {{
         use $crate::transform_message;
-        let meta = json!($json).to_string();
-        transform_message($t, Some($target), $msg, &meta)
+	let meta = json!($json);
+	transform_message($t, Some($target), $msg, Some(meta))
     }};
 }
 
-pub fn transform_message(level: log::Level, target: Option<&str>, msg: &str, meta: &str) {
-    let inner = format_message(msg, meta);
+pub fn transform_message(
+    level: log::Level,
+    target: Option<&str>,
+    msg: &str,
+    meta: Option<serde_json::Value>,
+) {
+    let inner = LogEntry {
+	level: format!("{}", level),
+	target: target.unwrap_or("none").to_string(),
+	time: chrono::Local::now(),
+	message: msg.trim().to_string(),
+	meta,
+    };
     match target {
-        Some(t) => log!(target: t, level, "{}", inner),
-        None => log!(level, "{}", inner),
-    }
-}
-
-fn format_message(msg: &str, meta: &str) -> String {
-    match meta {
-        "" => format!("\"message\": \"{}\"", msg.trim()),
-        "{}" => format!("\"message\": \"{}\"", msg.trim()),
-        _ => format!(
-            "\"message\": \"{}\", {}",
-            msg.trim(),
-            &meta[1..meta.len() - 1]
+	Some(t) => log!(
+	    target: t,
+	    level,
+	    "{}",
+	    serde_json::to_string(&inner).unwrap()
         ),
+	None => log!(level, "{}", serde_json::to_string(&inner).unwrap()),
     }
 }
 
-fn is_in_message_format(msg: &str) -> bool {
-    msg.starts_with("\"message\":")
+fn is_json(msg: &String) -> bool {
+    msg.starts_with("{") && msg.ends_with("}")
 }
 
 pub fn setup_logger() {
     Builder::from_env(Env::default().default_filter_or("debug"))
         .format(|buf, record| {
-            let mut msg = format!("{}", record.args());
-            if !is_in_message_format(&msg) {
-                msg = format_message(&msg, "");
-            }
+	    let msg = format!("{}", record.args());
+	    if !is_json(&msg) {
+		let entry = LogEntry {
+		    level: record.level().to_string(),
+		    time: chrono::Local::now(),
+		    target: record.target().to_string(),
+		    message: msg,
+		    meta: None,
+		};
 
-            writeln!(
-                buf,
-                "{{ \"time\": \"{}\", \"level\": \"{}\", \"target\": \"{}\", {} }}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
-                record.level(),
-                record.target(),
-                msg,
-            )
+		match serde_json::to_string(&entry) {
+		    Ok(s) => writeln!(buf, "{}", s),
+		    Err(err) => writeln!(
+			buf,
+			"Failed to serialize log entry: Error: {:?}, Entry: {:?}",
+			err, entry
+		    ),
+		}
+	    } else {
+		writeln!(buf, "{}", msg)
+	    }
         })
         .init();
 }
