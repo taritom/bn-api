@@ -38,9 +38,10 @@ impl TokenResponse {
     pub fn create_from_user(
         token_secret: &str,
         token_issuer: &str,
+        expiry: &u64,
         user: &User,
     ) -> Result<Self, BigNeonError> {
-        let access_token_claims = AccessToken::new(&user.id, token_issuer.to_string());
+        let access_token_claims = AccessToken::new(&user.id, token_issuer.to_string(), expiry);
         let access_token = encode(
             &Header::default(),
             &access_token_claims,
@@ -63,10 +64,12 @@ impl TokenResponse {
     pub fn create_from_refresh_token(
         token_secret: &str,
         token_issuer: &str,
+        expiry_time_in_minutes: &u64,
         user_id: &Uuid,
         signed_refresh_token: &str,
     ) -> Result<Self, BigNeonError> {
-        let access_token_claims = AccessToken::new(&user_id, token_issuer.to_string());
+        let access_token_claims =
+            AccessToken::new(&user_id, token_issuer.to_string(), expiry_time_in_minutes);
         let access_token = encode(
             &Header::default(),
             &access_token_claims,
