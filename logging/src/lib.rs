@@ -50,17 +50,17 @@ where
 macro_rules! jlog {
     ($t:path, $msg:expr) => {{
         use $crate::transform_message;
-	transform_message($t, None, $msg, None)
+        transform_message($t, None, $msg, None)
     }};
     ($t:path, $msg:expr, $json:tt) => {{
         use $crate::transform_message;
-	let meta = json!($json);
-	transform_message($t, None, $msg, Some(meta))
+        let meta = json!($json);
+        transform_message($t, None, $msg, Some(meta))
     }};
     ($t:path, $target: expr, $msg:expr, $json:tt) => {{
         use $crate::transform_message;
-	let meta = json!($json);
-	transform_message($t, Some($target), $msg, Some(meta))
+        let meta = json!($json);
+        transform_message($t, Some($target), $msg, Some(meta))
     }};
 }
 
@@ -71,20 +71,20 @@ pub fn transform_message(
     meta: Option<serde_json::Value>,
 ) {
     let inner = LogEntry {
-	level: format!("{}", level),
-	target: target.unwrap_or("none").to_string(),
-	time: chrono::Local::now(),
-	message: msg.trim().to_string(),
-	meta,
+        level: format!("{}", level),
+        target: target.unwrap_or("none").to_string(),
+        time: chrono::Local::now(),
+        message: msg.trim().to_string(),
+        meta,
     };
     match target {
-	Some(t) => log!(
-	    target: t,
-	    level,
-	    "{}",
-	    serde_json::to_string(&inner).unwrap()
+        Some(t) => log!(
+            target: t,
+            level,
+            "{}",
+            serde_json::to_string(&inner).unwrap()
         ),
-	None => log!(level, "{}", serde_json::to_string(&inner).unwrap()),
+        None => log!(level, "{}", serde_json::to_string(&inner).unwrap()),
     }
 }
 
@@ -95,27 +95,27 @@ fn is_json(msg: &String) -> bool {
 pub fn setup_logger() {
     Builder::from_env(Env::default().default_filter_or("debug"))
         .format(|buf, record| {
-	    let msg = format!("{}", record.args());
-	    if !is_json(&msg) {
-		let entry = LogEntry {
-		    level: record.level().to_string(),
-		    time: chrono::Local::now(),
-		    target: record.target().to_string(),
-		    message: msg,
-		    meta: None,
-		};
+            let msg = format!("{}", record.args());
+            if !is_json(&msg) {
+                let entry = LogEntry {
+                    level: record.level().to_string(),
+                    time: chrono::Local::now(),
+                    target: record.target().to_string(),
+                    message: msg,
+                    meta: None,
+                };
 
-		match serde_json::to_string(&entry) {
-		    Ok(s) => writeln!(buf, "{}", s),
-		    Err(err) => writeln!(
-			buf,
-			"Failed to serialize log entry: Error: {:?}, Entry: {:?}",
-			err, entry
-		    ),
-		}
-	    } else {
-		writeln!(buf, "{}", msg)
-	    }
+                match serde_json::to_string(&entry) {
+                    Ok(s) => writeln!(buf, "{}", s),
+                    Err(err) => writeln!(
+                        buf,
+                        "Failed to serialize log entry: Error: {:?}, Entry: {:?}",
+                        err, entry
+                    ),
+                }
+            } else {
+                writeln!(buf, "{}", msg)
+            }
         })
         .init();
 }
