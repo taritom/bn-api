@@ -19,7 +19,7 @@ pub struct TransactionReportRow {
     #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
     #[sql_type = "BigInt"]
-    pub gross: i64, //NOT YET
+    pub gross: i64,
     #[sql_type = "BigInt"]
     pub company_fee_in_cents: i64,
     #[sql_type = "BigInt"]
@@ -40,6 +40,40 @@ pub struct TransactionReportRow {
     pub user_id: Uuid,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct EventSummarySalesResult {
+    pub sales: Vec<EventSummarySalesRow>,
+}
+#[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+pub struct EventSummarySalesRow {
+    #[sql_type = "Text"]
+    pub ticket_name: String,
+    #[sql_type = "Text"]
+    pub pricing_name: String,
+    #[sql_type = "BigInt"]
+    pub client_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub company_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub price: i64,
+    #[sql_type = "BigInt"]
+    pub online_count: i64,
+    #[sql_type = "BigInt"]
+    pub box_office_count: i64,
+    #[sql_type = "BigInt"]
+    pub comp_count: i64,
+    #[sql_type = "BigInt"]
+    pub total_sold: i64,
+    #[sql_type = "BigInt"]
+    pub total_gross_income_in_cents: i64,
+    #[sql_type = "dUuid"]
+    pub ticket_type_id: Uuid,
+    #[sql_type = "dUuid"]
+    pub ticket_pricing_id: Uuid,
+}
+
+
+
 impl Report {
     pub fn transaction_detail_report(
         event_id: Option<Uuid>,
@@ -59,4 +93,33 @@ impl Report {
             .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
         Ok(transaction_rows)
     }
+
+    pub fn summary_event_report(
+        event_id: Uuid,
+        organization_id: Uuid,
+        start: Option<NaiveDateTime>,
+        end: Option<NaiveDateTime>,
+        conn: &PgConnection,
+    ) -> Result<EventSummarySalesResult, DatabaseError> {
+        //First get the sales summary
+
+        let query_sales = include_str!("../queries/reports/reports_event_summary_sales.sql");
+        let q = diesel::sql_query(query_sales)
+            .bind::<dUuid, _>(event_id)
+            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<Timestamp>, _>(start)
+            .bind::<Nullable<Timestamp>, _>(end);
+
+        let sales_rows: Vec<EventSummarySalesRow> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
+
+        let result = EventSummarySalesResult {
+            sales: sales_rows
+        };
+        //Then get the fees summary
+        Ok(result)
+    }
+
+
 }

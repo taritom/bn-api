@@ -27,6 +27,7 @@ pub fn get_report(
 ) -> Result<HttpResponse, BigNeonError> {
     match query.report.trim() {
         "transaction_details" => transaction_detail_report((connection, query, path, user)),
+        "event_summary" => event_summary_report((connection, query, path, user)),
         _ => application::not_found(),
     }
 }
@@ -55,6 +56,38 @@ pub fn transaction_detail_report(
     let result = Report::transaction_detail_report(
         query.event_id,
         Some(path.id),
+        query.start_utc,
+        query.end_utc,
+        connection,
+    )?;
+    Ok(HttpResponse::Ok().json(result))
+}
+
+pub fn event_summary_report(
+    (connection, query, path, user): (
+        Connection,
+        Query<ReportQueryParameters>,
+        Path<PathParameters>,
+        AuthUser,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    //Check if they have org admin permissions
+    let organization = Organization::find(path.id, connection)?;
+    if query.event_id.is_some() {
+        user.requires_scope_for_organization(
+            Scopes::EventFinancialReports,
+            &organization,
+            connection,
+        )?;
+    } else {
+        return application::internal_server_error("event_id parameter is required");
+    }
+
+    let result = Report::summary_event_report(
+        //We catch the is_none() above so I'll use unwrap here
+        query.event_id.unwrap(),
+        path.id,
         query.start_utc,
         query.end_utc,
         connection,
