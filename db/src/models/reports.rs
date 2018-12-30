@@ -48,7 +48,7 @@ impl Report {
         end: Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<Vec<TransactionReportRow>, DatabaseError> {
-        let query = include_str!("../queries/reports_transaction_details.sql");
+        let query = include_str!(../queries/reports/reports_transaction_details.sql);
         let q = diesel::sql_query(query)
             .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Nullable<dUuid>, _>(organization_id)
