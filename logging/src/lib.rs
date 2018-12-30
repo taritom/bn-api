@@ -11,7 +11,7 @@ extern crate serde_json;
 use env_logger::{Builder, Env};
 use std::io::Write;
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Utc};
 
 const DATETIME_FORMAT: &'static str = "[%Y-%m-%d][%H:%M:%S]";
 
@@ -19,14 +19,14 @@ const DATETIME_FORMAT: &'static str = "[%Y-%m-%d][%H:%M:%S]";
 struct LogEntry {
     level: String,
     #[serde(serialize_with = "custom_datetime_serializer")]
-    time: DateTime<Local>,
+    time: DateTime<Utc>,
     target: String,
     message: String,
     #[serde(flatten)]
     meta: Option<serde_json::Value>,
 }
 
-fn custom_datetime_serializer<S>(x: &DateTime<Local>, s: S) -> Result<S::Ok, S::Error>
+fn custom_datetime_serializer<S>(x: &DateTime<Utc>, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
@@ -73,7 +73,7 @@ pub fn transform_message(
     let inner = LogEntry {
         level: format!("{}", level),
         target: target.unwrap_or("none").to_string(),
-        time: chrono::Local::now(),
+        time: chrono::Utc::now(),
         message: msg.trim().to_string(),
         meta,
     };
@@ -99,7 +99,7 @@ pub fn setup_logger() {
             if !is_json(&msg) {
                 let entry = LogEntry {
                     level: record.level().to_string(),
-                    time: chrono::Local::now(),
+                    time: chrono::Utc::now(),
                     target: record.target().to_string(),
                     message: msg,
                     meta: None,
