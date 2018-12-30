@@ -4,8 +4,6 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use uuid::Uuid;
 
-const ACCESS_TOKEN_EXPIRATION_IN_SECONDS: u64 = 15 * 60;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccessToken {
     pub sub: String,
@@ -14,9 +12,9 @@ pub struct AccessToken {
 }
 
 impl AccessToken {
-    pub fn new(user_id: &Uuid, issuer: String) -> Self {
+    pub fn new(user_id: &Uuid, issuer: String, expiry_in_minutes: &u64) -> Self {
         let mut timer = SystemTime::now();
-        timer += Duration::from_secs(ACCESS_TOKEN_EXPIRATION_IN_SECONDS);
+        timer += Duration::from_secs(expiry_in_minutes * 60);
         let exp = timer.duration_since(UNIX_EPOCH).unwrap().as_secs();
 
         AccessToken {

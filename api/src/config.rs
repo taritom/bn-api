@@ -43,6 +43,7 @@ pub struct Config {
     pub twilio_account_id: String,
     pub twilio_api_key: String,
     pub api_keys_encryption_key: String,
+    pub jwt_expiry_time: u64,
 }
 
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
@@ -86,6 +87,8 @@ const TWILIO_API_KEY: &str = "TWILIO_API_KEY";
 const TWILIO_ACCOUNT_ID: &str = "TWILIO_ACCOUNT_ID";
 
 const API_KEYS_ENCRYPTION_KEY: &str = "API_KEYS_ENCRYPTION_KEY";
+
+const JWT_EXPIRY_TIME: &str = "JWT_EXPIRY_TIME";
 
 impl Config {
     pub fn new(environment: Environment) -> Self {
@@ -202,6 +205,11 @@ impl Config {
             .parse()
             .unwrap();
 
+        let jwt_expiry_time = env::var(&JWT_EXPIRY_TIME)
+            .unwrap_or("15".to_string())
+            .parse()
+            .unwrap();
+
         Config {
             allowed_origins,
             app_name,
@@ -235,6 +243,7 @@ impl Config {
             twilio_api_key,
             twilio_account_id,
             api_keys_encryption_key,
+            jwt_expiry_time,
         }
     }
 }
