@@ -7,4 +7,6 @@ authors = ["CjS77 <cayle.sharrock@gmail.com>"]
 chrono = "0.4"
 env_logger = "0.6"
 log = "0.4"
+serde = "1.0"
+serde_derive = "1.0"
 serde_json = "1.0"
