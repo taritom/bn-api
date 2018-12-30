@@ -169,7 +169,8 @@ impl Report {
             .to_db_error(ErrorCode::QueryError, "Could not fetch report fee results")?;
 
         //Now get the other fees results
-        let query_other_fees = include_str!("../queries/reports/reports_event_summary_other_fees.sql");
+        let query_other_fees =
+            include_str!("../queries/reports/reports_event_summary_other_fees.sql");
         let q = diesel::sql_query(query_other_fees)
             .bind::<dUuid, _>(event_id)
             .bind::<dUuid, _>(organization_id)
@@ -179,7 +180,6 @@ impl Report {
         let other_fees_rows: Vec<EventSummaryOtherFees> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report fee results")?;
-
 
         let result = EventSummarySalesResult {
             sales: sales_rows,
