@@ -4,15 +4,31 @@ use bigneon_db::models::{Organization, Report, Scopes};
 use chrono::prelude::*;
 use db::Connection;
 use errors::*;
+use helpers::application;
 use models::PathParameters;
 use std::str;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct ReportQueryParameters {
+    pub report: String,
     pub start_utc: Option<NaiveDateTime>,
     pub end_utc: Option<NaiveDateTime>,
     pub event_id: Option<Uuid>,
+}
+
+pub fn get_report(
+    (connection, query, path, user): (
+        Connection,
+        Query<ReportQueryParameters>,
+        Path<PathParameters>,
+        AuthUser,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    match query.report.trim() {
+        "transaction_details" => transaction_detail_report((connection, query, path, user)),
+        _ => application::not_found(),
+    }
 }
 
 pub fn transaction_detail_report(
