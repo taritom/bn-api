@@ -121,6 +121,7 @@ pub fn token(
     let response = TokenResponse::create_from_user(
         &state.config.token_secret,
         &state.config.token_issuer,
+        &state.config.jwt_expiry_time,
         &user,
     )?;
     Ok(response)
@@ -152,6 +153,7 @@ pub fn token_refresh(
     let response = TokenResponse::create_from_refresh_token(
         &state.config.token_secret,
         &state.config.token_issuer,
+        &state.config.jwt_expiry_time,
         &user.id,
         &refresh_request.refresh_token,
     )?;
