@@ -1,3 +1,6 @@
+SELECT *,
+    CAST ((quantity * unit_price_in_cents) + company_fee_in_cents + client_fee_in_cents AS BIGINT) AS gross
+ FROM (
 SELECT e.name                                             AS event_name,
        CASE
          WHEN oi.ticket_type_id IS NULL THEN
@@ -20,8 +23,7 @@ SELECT e.name                                             AS event_name,
        h.redemption_code,
        orders.id                                          AS order_id,
        oi.event_id,
-       orders.user_id,
-       CAST(0 AS BIGINT)                                  AS gross
+       orders.user_id
 FROM orders
        LEFT JOIN order_items oi on orders.id = oi.order_id
        LEFT JOIN order_items oi_fees on oi.id = oi_fees.parent_id
@@ -34,4 +36,4 @@ WHERE orders.status = 'Paid'
   AND ($2 IS NULL OR e.organization_id = $2)
   AND ($3 IS NULL OR orders.paid_at >= $3)
   AND ($4 IS NULL OR orders.paid_at <= $4)
-  AND (oi.item_type = 'Tickets' OR oi.item_type = 'EventFees');
+  AND (oi.item_type = 'Tickets' OR oi.item_type = 'EventFees') ) AS report_data;
