@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "35b399f5-db53-4bf7-a7ff-86e5e0908425",
+		"_postman_id": "b9cecddd-dac4-4990-bb86-2c7e104c35a2",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -11785,7 +11785,10 @@
 											"pm.test(\"should not be empty\", function() {",
 											"\tlet json = JSON.parse(responseBody);",
 											"\t",
-											"\tpm.expect(json).to.not.be.empty;",
+											"\tpm.expect(json).to.have.all.keys('sales', 'ticket_fees', 'other_fees');",
+											"\tpm.expect(json.sales).to.not.be.empty;",
+											"\tpm.expect(json.ticket_fees).to.not.be.empty;",
+											"\tpm.expect(json.other_fees).to.not.be.empty;",
 											"});"
 										],
 										"type": "text/javascript"
