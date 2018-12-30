@@ -11,6 +11,9 @@ use routing;
 use std::io;
 use utils::ServiceLocator;
 
+// Must be valid JSON
+const LOGGER_FORMAT: &'static str = r#"{"level": "INFO", "target":"bigneon::request", "remote_ip":"%a", "user_agent": "%{User-Agent}i", "request": "%r", "status_code": %s, "response_time": %D}"#;
+
 pub struct AppState {
     pub config: Config,
     pub database: Database,
@@ -60,32 +63,33 @@ impl Server {
                     App::with_state(AppState::new(config.clone(), database.clone()))
                         .middleware(DatabaseTransaction::new())
                         .middleware(AppVersionHeader::new())
-                        .middleware(Logger::new(
-                            r#"{\"remote_ip\":\"%a\", \"user_agent\": \"%{User-Agent}i\", \"request\": \"%r\", \"status_code\": %s, \"response_time\": %D}"#,
-                        ))
+                        .middleware(Logger::new(LOGGER_FORMAT))
                         .configure(|a| {
-                        let mut cors_config = Cors::for_app(a);
-                        match config.allowed_origins.as_ref() {
-                            "*" => cors_config.send_wildcard(),
-                            _ => cors_config.allowed_origin(&config.allowed_origins),
-                        };
-                        cors_config
-                            .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
-                            .allowed_headers(vec![
-                                http::header::AUTHORIZATION,
-                                http::header::ACCEPT,
-                                "X-API-Client-Version".parse::<http::header::HeaderName>().unwrap()
-                            ]).allowed_header(http::header::CONTENT_TYPE)
-                            .max_age(3600);
+                            let mut cors_config = Cors::for_app(a);
+                            match config.allowed_origins.as_ref() {
+                                "*" => cors_config.send_wildcard(),
+                                _ => cors_config.allowed_origin(&config.allowed_origins),
+                            };
+                            cors_config
+                                .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
+                                .allowed_headers(vec![
+                                    http::header::AUTHORIZATION,
+                                    http::header::ACCEPT,
+                                    "X-API-Client-Version"
+                                        .parse::<http::header::HeaderName>()
+                                        .unwrap(),
+                                ])
+                                .allowed_header(http::header::CONTENT_TYPE)
+                                .max_age(3600);
 
-                        routing::routes(&mut cors_config)
-                    })
+                            routing::routes(&mut cors_config)
+                        })
                 }
             })
-                .keep_alive(keep_alive)
-                .bind(&bind_addr)
-                .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
-                .run();
+            .keep_alive(keep_alive)
+            .bind(&bind_addr)
+            .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
+            .run();
         } else {
             info!("Press enter to stop");
             let mut input = String::new();
