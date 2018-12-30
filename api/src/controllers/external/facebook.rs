@@ -88,6 +88,7 @@ pub fn web_login(
     let response = TokenResponse::create_from_user(
         &state.config.token_secret,
         &state.config.token_issuer,
+        &state.config.jwt_expiry_time,
         &user,
     )?;
     Ok(HttpResponse::Ok().json(response))
