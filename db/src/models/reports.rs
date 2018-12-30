@@ -46,6 +46,7 @@ pub struct EventSummarySalesResult {
     pub ticket_fees: Vec<EventSummaryFeesRow>,
     pub other_fees: Vec<EventSummaryOtherFees>,
 }
+
 #[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummarySalesRow {
     #[sql_type = "Text"]

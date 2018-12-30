@@ -81,7 +81,7 @@ pub fn event_summary_report(
             connection,
         )?;
     } else {
-        return application::internal_server_error("event_id parameter is required");
+        return application::unprocessable("event_id parameter is required");
     }
 
     let result = Report::summary_event_report(
