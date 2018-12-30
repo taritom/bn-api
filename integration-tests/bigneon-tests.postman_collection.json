@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "418a2a4b-c444-4945-9e8f-4653e7239c93",
+		"_postman_id": "35b399f5-db53-4bf7-a7ff-86e5e0908425",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -2687,7 +2687,7 @@
 											"    pm.environment.set(\"last_spotify_artist_id\", \"\");",
 											"    let data = JSON.parse(responseBody).data;",
 											"    if(data.length === 0) {",
-											"        postman.setNextRequest(\"Admin - Create Venue\");",
+											"        postman.setNextRequest(\"Admin - Create Venue - Public\");",
 											"    } else {",
 											"        data.forEach(item => {",
 											"            pm.expect(item.spotify_id).to.not.be.a(\"null\");",
@@ -11525,17 +11525,20 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}/transaction_details?event_id={{last_event_id}}",
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=transaction_details&event_id={{last_event_id}}",
 									"protocol": "http",
 									"host": [
 										"{{server}}"
 									],
 									"path": [
 										"reports",
-										"{{last_org_id}}",
-										"transaction_details"
+										"{{last_org_id}}"
 									],
 									"query": [
+										{
+											"key": "report",
+											"value": "transaction_details"
+										},
 										{
 											"key": "event_id",
 											"value": "{{last_event_id}}"
@@ -11590,17 +11593,20 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}/transaction_details?event_id={{last_event_id}}",
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=transaction_details&event_id={{last_event_id}}",
 									"protocol": "http",
 									"host": [
 										"{{server}}"
 									],
 									"path": [
 										"reports",
-										"{{last_org_id}}",
-										"transaction_details"
+										"{{last_org_id}}"
 									],
 									"query": [
+										{
+											"key": "report",
+											"value": "transaction_details"
+										},
 										{
 											"key": "event_id",
 											"value": "{{last_event_id}}"
@@ -11669,17 +11675,20 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}/transaction_details?start_utc={{start_utc}}&end_utc={{end_utc}}",
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=transaction_details&start_utc={{start_utc}}&end_utc={{end_utc}}",
 									"protocol": "http",
 									"host": [
 										"{{server}}"
 									],
 									"path": [
 										"reports",
-										"{{last_org_id}}",
-										"transaction_details"
+										"{{last_org_id}}"
 									],
 									"query": [
+										{
+											"key": "report",
+											"value": "transaction_details"
+										},
 										{
 											"key": "start_utc",
 											"value": "{{start_utc}}"
