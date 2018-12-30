@@ -19,7 +19,7 @@ pub struct TransactionReportRow {
     #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
     #[sql_type = "BigInt"]
-    pub gross: i64, //NOT YET
+    pub gross: i64,
     #[sql_type = "BigInt"]
     pub company_fee_in_cents: i64,
     #[sql_type = "BigInt"]
@@ -40,6 +40,83 @@ pub struct TransactionReportRow {
     pub user_id: Uuid,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct EventSummarySalesResult {
+    pub sales: Vec<EventSummarySalesRow>,
+    pub ticket_fees: Vec<EventSummaryFeesRow>,
+    pub other_fees: Vec<EventSummaryOtherFees>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+pub struct EventSummarySalesRow {
+    #[sql_type = "Text"]
+    pub ticket_name: String,
+    #[sql_type = "Text"]
+    pub pricing_name: String,
+    #[sql_type = "BigInt"]
+    pub total_client_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub total_company_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub price_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub online_count: i64,
+    #[sql_type = "BigInt"]
+    pub box_office_count: i64,
+    #[sql_type = "BigInt"]
+    pub comp_count: i64,
+    #[sql_type = "BigInt"]
+    pub total_sold: i64,
+    #[sql_type = "BigInt"]
+    pub total_gross_income_in_cents: i64,
+    #[sql_type = "dUuid"]
+    pub ticket_type_id: Uuid,
+    #[sql_type = "dUuid"]
+    pub ticket_pricing_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+pub struct EventSummaryFeesRow {
+    #[sql_type = "dUuid"]
+    pub ticket_type_id: Uuid,
+    #[sql_type = "dUuid"]
+    pub ticket_pricing_id: Uuid,
+    #[sql_type = "Text"]
+    pub ticket_name: String,
+    #[sql_type = "Text"]
+    pub pricing_name: String,
+    #[sql_type = "BigInt"]
+    pub total_sold: i64,
+    #[sql_type = "BigInt"]
+    pub comp_count: i64,
+    #[sql_type = "BigInt"]
+    pub online_count: i64,
+    #[sql_type = "BigInt"]
+    pub price_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub total_company_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub company_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub total_client_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub client_fee_in_cents: i64,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+pub struct EventSummaryOtherFees {
+    #[sql_type = "BigInt"]
+    pub unit_price_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub total_company_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub company_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub total_client_fee_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub client_fee_in_cents: i64,
+}
+
 impl Report {
     pub fn transaction_detail_report(
         event_id: Option<Uuid>,
@@ -48,7 +125,7 @@ impl Report {
         end: Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<Vec<TransactionReportRow>, DatabaseError> {
-        let query = include_str!("../queries/reports_transaction_details.sql");
+        let query = include_str!("../queries/reports/reports_transaction_details.sql");
         let q = diesel::sql_query(query)
             .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Nullable<dUuid>, _>(organization_id)
@@ -58,5 +135,59 @@ impl Report {
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
         Ok(transaction_rows)
+    }
+
+    pub fn summary_event_report(
+        event_id: Uuid,
+        organization_id: Uuid,
+        start: Option<NaiveDateTime>,
+        end: Option<NaiveDateTime>,
+        conn: &PgConnection,
+    ) -> Result<EventSummarySalesResult, DatabaseError> {
+        //First get the sales summary
+        let query_sales = include_str!("../queries/reports/reports_event_summary_sales.sql");
+        let q = diesel::sql_query(query_sales)
+            .bind::<dUuid, _>(event_id)
+            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<Timestamp>, _>(start)
+            .bind::<Nullable<Timestamp>, _>(end);
+
+        let sales_rows: Vec<EventSummarySalesRow> = q.get_results(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not fetch report sales results",
+        )?;
+
+        //Now get the transaction fees results
+        let query_fees = include_str!("../queries/reports/reports_event_summary_fees.sql");
+        let q = diesel::sql_query(query_fees)
+            .bind::<dUuid, _>(event_id)
+            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<Timestamp>, _>(start)
+            .bind::<Nullable<Timestamp>, _>(end);
+
+        let fees_rows: Vec<EventSummaryFeesRow> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch report fee results")?;
+
+        //Now get the other fees results
+        let query_other_fees =
+            include_str!("../queries/reports/reports_event_summary_other_fees.sql");
+        let q = diesel::sql_query(query_other_fees)
+            .bind::<dUuid, _>(event_id)
+            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<Timestamp>, _>(start)
+            .bind::<Nullable<Timestamp>, _>(end);
+
+        let other_fees_rows: Vec<EventSummaryOtherFees> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch report fee results")?;
+
+        let result = EventSummarySalesResult {
+            sales: sales_rows,
+            ticket_fees: fees_rows,
+            other_fees: other_fees_rows,
+        };
+        //Then get the fees summary
+        Ok(result)
     }
 }

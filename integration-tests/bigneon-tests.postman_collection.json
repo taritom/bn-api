@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "35b399f5-db53-4bf7-a7ff-86e5e0908425",
+		"_postman_id": "b9cecddd-dac4-4990-bb86-2c7e104c35a2",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -11525,17 +11525,20 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}/transaction_details?event_id={{last_event_id}}",
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=transaction_details&event_id={{last_event_id}}",
 									"protocol": "http",
 									"host": [
 										"{{server}}"
 									],
 									"path": [
 										"reports",
-										"{{last_org_id}}",
-										"transaction_details"
+										"{{last_org_id}}"
 									],
 									"query": [
+										{
+											"key": "report",
+											"value": "transaction_details"
+										},
 										{
 											"key": "event_id",
 											"value": "{{last_event_id}}"
@@ -11590,17 +11593,20 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}/transaction_details?event_id={{last_event_id}}",
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=transaction_details&event_id={{last_event_id}}",
 									"protocol": "http",
 									"host": [
 										"{{server}}"
 									],
 									"path": [
 										"reports",
-										"{{last_org_id}}",
-										"transaction_details"
+										"{{last_org_id}}"
 									],
 									"query": [
+										{
+											"key": "report",
+											"value": "transaction_details"
+										},
 										{
 											"key": "event_id",
 											"value": "{{last_event_id}}"
@@ -11669,17 +11675,20 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}/transaction_details?start_utc={{start_utc}}&end_utc={{end_utc}}",
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=transaction_details&start_utc={{start_utc}}&end_utc={{end_utc}}",
 									"protocol": "http",
 									"host": [
 										"{{server}}"
 									],
 									"path": [
 										"reports",
-										"{{last_org_id}}",
-										"transaction_details"
+										"{{last_org_id}}"
 									],
 									"query": [
+										{
+											"key": "report",
+											"value": "transaction_details"
+										},
 										{
 											"key": "start_utc",
 											"value": "{{start_utc}}"
@@ -11687,6 +11696,146 @@
 										{
 											"key": "end_utc",
 											"value": "{{end_utc}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"_postman_isSubFolder": true
+				},
+				{
+					"name": "Event Sales Summary",
+					"item": [
+						{
+							"name": "OrgMember - Event - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "6ba3137a-44b4-4df4-a044-9435b7a0b652",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=event_summary&event_id={{last_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"reports",
+										"{{last_org_id}}"
+									],
+									"query": [
+										{
+											"key": "report",
+											"value": "event_summary"
+										},
+										{
+											"key": "event_id",
+											"value": "{{last_event_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Event",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"pm.test(\"should not be empty\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\t",
+											"\tpm.expect(json).to.have.all.keys('sales', 'ticket_fees', 'other_fees');",
+											"\tpm.expect(json.sales).to.not.be.empty;",
+											"\tpm.expect(json.ticket_fees).to.not.be.empty;",
+											"\tpm.expect(json.other_fees).to.not.be.empty;",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=event_summary&event_id={{last_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"reports",
+										"{{last_org_id}}"
+									],
+									"query": [
+										{
+											"key": "report",
+											"value": "event_summary"
+										},
+										{
+											"key": "event_id",
+											"value": "{{last_event_id}}"
 										}
 									]
 								}
