@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "418a2a4b-c444-4945-9e8f-4653e7239c93",
+		"_postman_id": "35b399f5-db53-4bf7-a7ff-86e5e0908425",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -2687,7 +2687,7 @@
 											"    pm.environment.set(\"last_spotify_artist_id\", \"\");",
 											"    let data = JSON.parse(responseBody).data;",
 											"    if(data.length === 0) {",
-											"        postman.setNextRequest(\"Admin - Create Venue\");",
+											"        postman.setNextRequest(\"Admin - Create Venue - Public\");",
 											"    } else {",
 											"        data.forEach(item => {",
 											"            pm.expect(item.spotify_id).to.not.be.a(\"null\");",
