@@ -72,8 +72,6 @@ pub struct EventSummarySalesRow {
     pub ticket_pricing_id: Uuid,
 }
 
-
-
 impl Report {
     pub fn transaction_detail_report(
         event_id: Option<Uuid>,
@@ -114,12 +112,8 @@ impl Report {
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
 
-        let result = EventSummarySalesResult {
-            sales: sales_rows
-        };
+        let result = EventSummarySalesResult { sales: sales_rows };
         //Then get the fees summary
         Ok(result)
     }
-
-
 }
