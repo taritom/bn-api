@@ -193,9 +193,12 @@ pub fn destroy(
 pub fn view(
     (connection, path, user): (Connection, Path<PathParameters>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
+    // TODO: Change /{id} to /?token={} in routing and client apps.
+    // Until then, just remember that the id passed in is actually the token
+
     let connection = connection.get();
 
-    let invite_details = OrganizationInvite::find(path.id, connection)?;
+    let invite_details = OrganizationInvite::find_by_token(path.id, connection)?;
     if let Some(u) = user.into_inner() {
         match invite_details.user_id {
             // If the user_id was provided confirm that the current user is the accepting user
@@ -232,7 +235,7 @@ pub fn accept_request(
     let query_struct = query.into_inner();
     let connection = connection.get();
     let mut invite_details =
-        OrganizationInvite::get_invite_details(&query_struct.security_token, connection)?;
+        OrganizationInvite::find_by_token(query_struct.security_token, connection)?;
     //Check that the user is logged in, that if the invite has a user_id associated with it that it is the currently logged in user
     match user.into_inner() {
         Some(u) => {
