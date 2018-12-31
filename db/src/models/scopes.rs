@@ -400,7 +400,6 @@ fn get_scopes_test() {
             "org:admin-users",
             "org:fans",
             "org:financial-reports",
-
             "org:read",
             "org:reports",
             "org:users",
