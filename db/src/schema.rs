@@ -136,6 +136,7 @@ table! {
         override_status -> Nullable<Text>,
         client_fee_in_cents -> Int8,
         company_fee_in_cents -> Int8,
+        settlement_amount_in_cents -> Nullable<Int8>,
     }
 }
 
@@ -433,6 +434,7 @@ table! {
         google_place_id -> Nullable<Text>,
         latitude -> Nullable<Float8>,
         longitude -> Nullable<Float8>,
+        timezone -> Nullable<Text>,
     }
 }
 

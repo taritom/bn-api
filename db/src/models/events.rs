@@ -52,6 +52,7 @@ pub struct Event {
     pub override_status: Option<EventOverrideStatus>, //EventOverrideStatus
     pub client_fee_in_cents: i64,
     pub company_fee_in_cents: i64,
+    pub settlement_amount_in_cents: Option<i64>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
