@@ -283,6 +283,72 @@
 							"response": []
 						},
 						{
+							"name": "Guest - Get Invite",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "17cf3107-ed5d-457d-af42-595d5a3d6a4d",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "c5f63f4b-2542-4707-b9c1-4b52598b640a",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/invitations/{{last_invite_token}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"invitations",
+										"{{last_invite_token}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
 							"name": "Guest - Accept Invite - Not logged in - 401",
 							"event": [
 								{
@@ -1040,14 +1106,14 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "http://{{server}}/invitations/{{last_invite_id}}",
+									"raw": "http://{{server}}/invitations/{{last_invite_token}}",
 									"protocol": "http",
 									"host": [
 										"{{server}}"
 									],
 									"path": [
 										"invitations",
-										"{{last_invite_id}}"
+										"{{last_invite_token}}"
 									]
 								}
 							},

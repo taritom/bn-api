@@ -41,6 +41,7 @@ pub struct Venue {
     pub google_place_id: Option<String>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    pub timezone: Option<String>,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -66,6 +67,8 @@ pub struct VenueEditableAttributes {
     pub google_place_id: Option<Option<String>>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub timezone: Option<String>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -87,6 +90,8 @@ pub struct NewVenue {
     pub google_place_id: Option<String>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub timezone: Option<String>,
 }
 
 impl NewVenue {
