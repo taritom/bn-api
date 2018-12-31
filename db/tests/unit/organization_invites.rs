@@ -145,16 +145,16 @@ fn test_token_validity() {
         .with_org(&organization)
         .with_invitee(&user)
         .finish();
-    let recovered_invite = OrganizationInvite::get_invite_details(
-        &org_invite.security_token.unwrap(),
+    let recovered_invite = OrganizationInvite::find_by_token(
+        org_invite.security_token.unwrap(),
         project.get_connection(),
     )
     .unwrap();
     assert_eq!(org_invite, recovered_invite);
     org_invite.created_at = NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11);
     org_invite = update(&org_invite, &project.get_connection()).unwrap();
-    let recovered_invite2 = OrganizationInvite::get_invite_details(
-        &org_invite.security_token.unwrap(),
+    let recovered_invite2 = OrganizationInvite::find_by_token(
+        org_invite.security_token.unwrap(),
         &project.get_connection(),
     );
     let error_value = DatabaseError {

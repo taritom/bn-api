@@ -156,8 +156,8 @@ impl OrganizationInvite {
             .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
     }
 
-    pub fn get_invite_details(
-        token: &Uuid,
+    pub fn find_by_token(
+        token: Uuid,
         conn: &PgConnection,
     ) -> Result<OrganizationInvite, DatabaseError> {
         let expiry_date = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
