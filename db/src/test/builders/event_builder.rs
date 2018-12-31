@@ -103,6 +103,16 @@ impl<'a> EventBuilder<'a> {
         .commit(self.connection)
         .unwrap();
 
+        let event = event
+            .update(
+                EventEditableAttributes {
+                    promo_image_url: Some(Some("http://localhost".to_string())),
+                    ..Default::default()
+                },
+                self.connection,
+            )
+            .unwrap();
+
         if self.with_tickets {
             let early_bird_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));
             let early_bird_end = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
