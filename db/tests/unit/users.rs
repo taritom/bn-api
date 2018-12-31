@@ -879,6 +879,7 @@ pub fn get_global_scopes() {
             "org:admin",
             "org:admin-users",
             "org:fans",
+            "org:financial-reports",
             "org:read",
             "org:reports",
             "org:users",

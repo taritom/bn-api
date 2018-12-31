@@ -1,4 +1,5 @@
-SELECT oi.ticket_type_id                                                                AS ticket_type_id,
+SELECT oi.event_id,
+       oi.ticket_type_id                                                                AS ticket_type_id,
        oi.ticket_pricing_id                                                             AS ticket_pricing_id,
        tp.name                                                                          AS pricing_name,
        tt.name                                                                          AS ticket_name,
@@ -21,9 +22,9 @@ FROM orders
        LEFT JOIN holds h on oi.hold_id = h.id
        LEFT JOIN events e on oi.event_id = e.id
 WHERE orders.status = 'Paid'
-  AND oi.event_id = $1
-  AND e.organization_id = $2
+  AND ($1 is null or oi.event_id = $1)
+  AND ($2 is null or e.organization_id = $2)
   AND oi.item_type = 'Tickets'
   AND ($3 IS NULL OR orders.paid_at >= $3)
   AND ($4 IS NULL OR orders.paid_at <= $4)
-GROUP BY oi.ticket_type_id, oi.ticket_pricing_id, tt.name, tp.name;
+GROUP BY oi.event_id, oi.ticket_type_id, oi.ticket_pricing_id, tt.name, tp.name;

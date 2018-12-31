@@ -28,6 +28,7 @@ pub enum Scopes {
     OrgAdmin,
     OrgAdminUsers,
     OrgFans,
+    OrgFinancialReports,
     OrgRead,
     OrgReports,
     OrgUsers,
@@ -75,6 +76,7 @@ impl fmt::Display for Scopes {
             Scopes::OrgRead => "org:read",
             Scopes::OrgReports => "org:reports",
             Scopes::OrgFans => "org:fans",
+            Scopes::OrgFinancialReports => "org:financial-reports",
             Scopes::OrgWrite => "org:write",
             Scopes::OrgAdminUsers => "org:admin-users",
             Scopes::OrgUsers => "org:users",
@@ -117,6 +119,7 @@ impl FromStr for Scopes {
             "org:read" => Scopes::OrgRead,
             "org:reports" => Scopes::OrgReports,
             "org:fans" => Scopes::OrgFans,
+            "org:financial-reports" => Scopes::OrgFinancialReports,
             "org:write" => Scopes::OrgWrite,
             "org:admin-users" => Scopes::OrgAdminUsers,
             "org:users" => Scopes::OrgUsers,
@@ -223,7 +226,11 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         Admin => {
-            let mut roles = vec![Scopes::OrgAdmin, Scopes::RegionWrite];
+            let mut roles = vec![
+                Scopes::OrgAdmin,
+                Scopes::RegionWrite,
+                Scopes::OrgFinancialReports,
+            ];
             roles.extend(get_scopes_for_role(OrgOwner));
             roles
         }
@@ -349,6 +356,7 @@ fn get_scopes_test() {
             "org:admin",
             "org:admin-users",
             "org:fans",
+            "org:financial-reports",
             "org:read",
             "org:reports",
             "org:users",
@@ -391,6 +399,8 @@ fn get_scopes_test() {
             "org:admin",
             "org:admin-users",
             "org:fans",
+            "org:financial-reports",
+
             "org:read",
             "org:reports",
             "org:users",
