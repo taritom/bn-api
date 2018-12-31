@@ -705,12 +705,34 @@ impl Order {
             }
         });
 
+        let items = self.items(conn)?; //Would be nice to use the items_for_display call below but it doesnt include the event_id
+        let mut unique_events: Vec<Uuid> = items.iter().filter_map(|i| i.event_id).collect();
+
+        unique_events.sort();
+        unique_events.dedup(); //Compiler doesnt like chaining these...
+
+        let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
+
+        for e in unique_events {
+            let tickets_bought = Order::quantity_for_user_for_event(&self.user_id, &e, conn)?;
+            for (tt_id, num) in tickets_bought {
+                let limit = TicketType::find(tt_id, conn)?.limit_per_person;
+                if limit > 0 {
+                    limited_tickets_remaining.push(TicketsRemaining {
+                        ticket_type_id: tt_id,
+                        tickets_remaining: limit - num,
+                    });
+                }
+            }
+        }
+
         Ok(DisplayOrder {
             id: self.id,
             status: self.status.clone(),
             date: self.order_date,
             expires_at: self.expires_at,
             items: self.items_for_display(conn)?,
+            limited_tickets_remaining,
             total_in_cents: self.calculate_total(conn)?,
             seconds_until_expiry,
             user_id: self.user_id,
@@ -1052,6 +1074,12 @@ pub struct ResultForTicketTypeTotal {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct TicketsRemaining {
+    pub ticket_type_id: Uuid,
+    pub tickets_remaining: i32,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct DisplayOrder {
     pub id: Uuid,
     pub date: NaiveDateTime,
@@ -1059,6 +1087,7 @@ pub struct DisplayOrder {
     pub seconds_until_expiry: Option<u32>,
     pub status: OrderStatus,
     pub items: Vec<DisplayOrderItem>,
+    pub limited_tickets_remaining: Vec<TicketsRemaining>,
     pub total_in_cents: i64,
     pub user_id: Uuid,
     pub note: Option<String>,

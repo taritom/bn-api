@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "b9cecddd-dac4-4990-bb86-2c7e104c35a2",
+		"_postman_id": "8b249643-ca19-4f12-a805-d06875366c88",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -6616,7 +6616,16 @@
 									"",
 									"pm.test(\"total should be correct\", function() {",
 									"    pm.expect(json.total_in_cents).to.equal(27190);",
-									"})",
+									"});",
+									"",
+									"pm.test(\"should be only 1 ticket_type with a limit\", function() {",
+									"   pm.expect(json.limited_tickets_remaining.length).to.equal(1); ",
+									"});",
+									"",
+									"pm.test(\"should report 48 remaining tickets available\", function() {",
+									"    pm.expect(json.limited_tickets_remaining[0].tickets_remaining).to.equal(48);",
+									"});",
+									"",
 									""
 								],
 								"type": "text/javascript"
@@ -6906,6 +6915,10 @@
 									"pm.test(\"total should be correct\", function() {",
 									"    pm.expect(json.total_in_cents).to.equal(60300);",
 									"})",
+									"",
+									"pm.test(\"should report 30 remaining tickets available\", function() {",
+									"    pm.expect(json.limited_tickets_remaining[0].tickets_remaining).to.equal(30);",
+									"});",
 									""
 								],
 								"type": "text/javascript"
@@ -7242,6 +7255,10 @@
 									"pm.test(\"total should be correct\", function() {",
 									"    pm.expect(json.total_in_cents).to.equal(12140);",
 									"})",
+									"",
+									"pm.test(\"should report 46 remaining tickets available\", function() {",
+									"    pm.expect(json.limited_tickets_remaining[0].tickets_remaining).to.equal(46);",
+									"});",
 									""
 								],
 								"type": "text/javascript"
@@ -7952,6 +7969,10 @@
 									"pm.test(\"total should be correct\", function() {",
 									"    pm.expect(json.total_in_cents).to.equal(6120);",
 									"})",
+									"",
+									"pm.test(\"should report 47 remaining tickets available\", function() {",
+									"    pm.expect(json.limited_tickets_remaining[0].tickets_remaining).to.equal(47);",
+									"});",
 									""
 								],
 								"type": "text/javascript"
