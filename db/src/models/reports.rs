@@ -294,12 +294,14 @@ impl Report {
         for row in count_sales_rows {
             let mut org_key = result.entry(row.organization_id).or_insert(HashMap::new());
             let mut event_key = org_key.entry(row.event_id).or_insert(HashMap::new());
-            event_key.insert(row.ticket_type_id, TicketCountResult {
-                sales: Some(row),
-                totals: None
-            });
+            event_key.insert(
+                row.ticket_type_id,
+                TicketCountResult {
+                    sales: Some(row),
+                    totals: None,
+                },
+            );
         }
-
 
         let query_ticket_counts = include_str!("../queries/reports/reports-ticket-count.sql");
         let q = diesel::sql_query(query_ticket_counts)
@@ -311,11 +313,15 @@ impl Report {
             "Could not fetch ticket count results",
         )?;
 
-
         for row in count_rows {
             let mut org_key = result.entry(row.organization_id).or_insert(HashMap::new());
             let mut event_key = org_key.entry(row.event_id).or_insert(HashMap::new());
-            let mut ticket_key = event_key.entry(row.ticket_type_id).or_insert(TicketCountResult { sales: None, totals: None});
+            let mut ticket_key = event_key
+                .entry(row.ticket_type_id)
+                .or_insert(TicketCountResult {
+                    sales: None,
+                    totals: None,
+                });
             ticket_key.totals = Some(row);
         }
 
