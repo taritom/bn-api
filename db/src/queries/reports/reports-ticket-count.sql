@@ -4,12 +4,6 @@ SELECT a.ticket_type_id                                                         
        e.id                                                                                                                                  AS event_id,
        e.name                                                                                                                                AS event_name,
        e.organization_id                                                                                                                     AS organization_id,
-       -- These are place holders for the values we will get when we do the online / box office values
-       -- Box office counts and online counts are in a separate query
-       CAST(0 AS BIGINT)                                                                                                                     AS gross,
-       CAST(0 AS BIGINT)                                                                                                                     AS online_count,
-       CAST(0 AS BIGINT)                                                                                                                     AS box_office_count,
-       -- End of Placeholders --
 
        -- Total Ticket Count
        CAST(COALESCE(COUNT(ti.id), 0) AS BIGINT)                                                                                             AS allocation_count,
