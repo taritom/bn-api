@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "8b249643-ca19-4f12-a805-d06875366c88",
+		"_postman_id": "6faad884-53b6-4674-9dc1-1f59e453aec7",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -3753,6 +3753,222 @@
 										"events",
 										"{{last_event_id}}",
 										"publish"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Create Event To Un-Publish",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"pm.environment.set(\"unpublish_event_id\", JSON.parse(responseBody).id);"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"It's my party - To Un-Publish\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"publish_date\": \"2019-01-01T00:00:00\",\n    \"promo_image_url\": \"http://localhost/noimg.png\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Publish Event To Un-Publish",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{unpublish_event_id}}/publish",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{unpublish_event_id}}",
+										"publish"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Un-Publish Event",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{unpublish_event_id}}/unpublish",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{unpublish_event_id}}",
+										"unpublish"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Un-Publish Un-Published Event - 422",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+										"exec": [
+											"pm.test(\"should be 422\", function() {",
+											"    pm.response.to.have.status(422);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{unpublish_event_id}}/unpublish",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{unpublish_event_id}}",
+										"unpublish"
 									]
 								}
 							},

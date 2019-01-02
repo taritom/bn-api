@@ -251,6 +251,37 @@ impl Event {
         )
     }
 
+    pub fn unpublish(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+        let mut errors = ValidationErrors::new();
+        if self.status != EventStatus::Published {
+            let mut validation_error = create_validation_error(
+                "event_must_be_published",
+                "Event can't be un-published if it is not published",
+            );
+            validation_error.add_param(Cow::from("event_id"), &self.id);
+            errors.add("status", validation_error);
+        }
+
+        if !errors.is_empty() {
+            return Err(errors.into());
+        }
+
+        let update_fields = EventEditableAttributes {
+            publish_date: Some(None),
+            ..Default::default()
+        };
+        diesel::update(&self)
+            .set((
+                update_fields,
+                events::status.eq(EventStatus::Draft),
+                events::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not un-publish record")?;
+
+        Event::find(self.id, conn)
+    }
+
     pub fn publish(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         if self.status == EventStatus::Published {
             return Event::find(self.id, conn);
