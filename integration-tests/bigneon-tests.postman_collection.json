@@ -3585,6 +3585,69 @@
 							"response": []
 						},
 						{
+							"name": "OrgMember  - Publish Event - Validation Fails",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+										"exec": [
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.test(\"should be 422\", function() {",
+											"    pm.response.to.have.status(422);",
+											"     pm.expect(json.error).to.equal(\"Validation error\");",
+											"})",
+											"",
+											"",
+											"pm.test(\"should require promo image url\", function() {",
+											"   ",
+											"    pm.expect(json.fields[\"promo_image_url\"][0].code).to.equal(\"required\");",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{last_event_id}}/publish",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{last_event_id}}",
+										"publish"
+									]
+								}
+							},
+							"response": []
+						},
+						{
 							"name": "OrgMember  - Update Event",
 							"event": [
 								{
@@ -3624,7 +3687,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"age_limit\": 18\n}"
+									"raw": "{\n    \"age_limit\": 18,\n    \"promo_image_url\": \"http://localhost/noimg.png\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events/{{last_event_id}}",
