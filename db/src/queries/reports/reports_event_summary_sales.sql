@@ -2,7 +2,8 @@ SELECT *,
        CAST(((total_sold - comp_count) * price_in_cents) + total_company_fee_in_cents +
             total_client_fee_in_cents AS BIGINT) AS total_gross_income_in_cents
 FROM (
-       SELECT oi.ticket_type_id,
+       SELECT oi.event_id,
+              oi.ticket_type_id,
               oi.ticket_pricing_id,
               CAST(SUM(oi.quantity) AS BIGINT)                                                               AS total_sold,
               CAST(
@@ -17,7 +18,6 @@ FROM (
               CAST(COALESCE(SUM(oi_fees.client_fee_in_cents), 0) AS BIGINT)                                  AS total_client_fee_in_cents,
               tp.name                                                                                        AS pricing_name,
               tt.name                                                                                        AS ticket_name
-
        FROM orders
               LEFT JOIN order_items oi on orders.id = oi.order_id
               LEFT JOIN order_items oi_fees on oi.id = oi_fees.parent_id
@@ -26,10 +26,10 @@ FROM (
               LEFT JOIN holds h on oi.hold_id = h.id
               LEFT JOIN events e on oi.event_id = e.id
        WHERE orders.status = 'Paid'
-         AND oi.event_id = $1
-         AND e.organization_id = $2
+         AND ($1 is null or oi.event_id = $1)
+         AND ($2 is null or e.organization_id = $2)
          AND oi.item_type = 'Tickets'
          AND ($3 IS NULL OR orders.paid_at >= $3)
          AND ($4 IS NULL OR orders.paid_at <= $4)
-       GROUP BY oi.ticket_type_id, oi.ticket_pricing_id, tt.name, tp.name
+       GROUP BY oi.event_id, oi.ticket_type_id, oi.ticket_pricing_id, tt.name, tp.name
     ) AS report_data;
