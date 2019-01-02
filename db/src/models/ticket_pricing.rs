@@ -11,7 +11,7 @@ use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
 
-sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp, is_box_office_only: Bool) -> Bool);
+sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp, is_box_office_only: Bool, is_default_status: Bool) -> Bool);
 
 #[derive(Identifiable, Associations, Queryable, PartialEq, Debug)]
 #[belongs_to(TicketType)]
@@ -47,11 +47,12 @@ impl TicketPricing {
         end_date: NaiveDateTime,
         price_in_cents: i64,
         is_box_office_only: bool,
+        status: Option<TicketPricingStatus>,
     ) -> NewTicketPricing {
         NewTicketPricing {
             ticket_type_id,
             name,
-            status: TicketPricingStatus::Published,
+            status: status.unwrap_or(TicketPricingStatus::Published),
             start_date,
             end_date,
             price_in_cents,
@@ -126,14 +127,17 @@ impl TicketPricing {
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
         is_box_office_only: bool,
+        status: TicketPricingStatus,
         conn: &PgConnection,
     ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        let is_default = status == TicketPricingStatus::Default;
         let result = select(ticket_pricing_no_overlapping_periods(
             id,
             ticket_type_id,
             start_date,
             end_date,
             is_box_office_only,
+            is_default,
         ))
         .get_result::<bool>(conn)
         .to_db_error(
@@ -184,6 +188,17 @@ impl TicketPricing {
         }
     }
 
+    pub fn get_default(
+        ticket_type_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<TicketPricing, DatabaseError> {
+        ticket_pricing::table
+            .filter(ticket_pricing::ticket_type_id.eq(ticket_type_id))
+            .filter(ticket_pricing::status.eq(TicketPricingStatus::Default))
+            .first::<TicketPricing>(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading default pricing")
+    }
+
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<TicketPricing, DatabaseError> {
         ticket_pricing::table
             .find(id)
@@ -194,10 +209,17 @@ impl TicketPricing {
     pub fn get_current_ticket_pricing(
         ticket_type_id: Uuid,
         box_office_pricing: bool,
+        get_default_pricing: bool,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
+        let mut ticket_pricing_status = TicketPricingStatus::Published;
+        if get_default_pricing {
+            ticket_pricing_status = TicketPricingStatus::Default
+        }
+
         let mut query = ticket_pricing::table
             .filter(ticket_pricing::ticket_type_id.eq(ticket_type_id))
+            .filter(ticket_pricing::status.eq(ticket_pricing_status))
             .filter(ticket_pricing::start_date.le(dsl::now))
             .filter(ticket_pricing::end_date.gt(dsl::now))
             .into_boxed();
@@ -221,10 +243,19 @@ impl TicketPricing {
                 Some("Expected a single ticket pricing period but multiple were found".to_string()),
             ));
         } else if price_points.len() == 0 {
-            return Err(DatabaseError::new(
-                ErrorCode::NoResults,
-                Some("No ticket pricing found".to_string()),
-            ));
+            if get_default_pricing == false && box_office_pricing == false {
+                return TicketPricing::get_current_ticket_pricing(
+                    ticket_type_id,
+                    box_office_pricing,
+                    true,
+                    &conn,
+                );
+            } else {
+                return Err(DatabaseError::new(
+                    ErrorCode::NoResults,
+                    Some("No ticket pricing found".to_string()),
+                ));
+            }
         }
 
         price_points.pop().ok_or(DatabaseError::new(

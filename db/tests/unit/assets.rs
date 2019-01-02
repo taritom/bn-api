@@ -21,6 +21,7 @@ fn update_asset_blockchain_id() {
             wallet_id,
             None,
             0,
+            100,
             conn,
         )
         .unwrap();

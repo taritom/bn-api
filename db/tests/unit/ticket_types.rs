@@ -22,6 +22,7 @@ fn create() {
             wallet_id,
             None,
             0,
+            100,
             conn,
         )
         .unwrap();
@@ -47,6 +48,7 @@ pub fn create_with_validation_errors() {
         wallet_id,
         None,
         0,
+        100,
         connection,
     );
     match result {
@@ -125,6 +127,7 @@ fn create_large_amount() {
             wallet_id,
             None,
             0,
+            100,
             conn,
         )
         .unwrap();
@@ -149,6 +152,7 @@ pub fn create_with_same_date_validation_errors() {
         wallet_id,
         None,
         0,
+        100,
         connection,
     );
     match result {
@@ -206,6 +210,7 @@ fn validate_ticket_pricing() {
         end_date1,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -216,6 +221,7 @@ fn validate_ticket_pricing() {
         end_date2,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
