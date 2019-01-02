@@ -792,3 +792,14 @@ pub fn holds(
 
     Ok(HttpResponse::Ok().json(Payload::from_data(list, query.page(), query.limit())))
 }
+
+pub fn fans_index(
+    (connection, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let event = Event::find(path.id, connection)?;
+    let org = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::OrgFans, &org, &connection)?;
+    let results = event.search_fans(None, None, None, None, None, connection)?;
+    Ok(HttpResponse::Ok().json(results))
+}

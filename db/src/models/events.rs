@@ -12,8 +12,6 @@ use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
@@ -837,6 +835,133 @@ impl Event {
 
     pub fn artists(&self, conn: &PgConnection) -> Result<Vec<DisplayEventArtist>, DatabaseError> {
         EventArtist::find_all_from_event(self.id, conn)
+    }
+
+    pub fn search_fans(
+	&self,
+	query: Option<String>,
+	offset: Option<u32>,
+	limit: Option<u32>,
+	sort_field: Option<FanSortField>,
+	sort_direction: Option<SortingDir>,
+	conn: &PgConnection,
+    ) -> Result<Vec<DisplayFan>, DatabaseError> {
+	use schema::*;
+
+	let search_filter = query.map(|q| format!("%{}%", q));
+
+	// TODO: Join with event_interest table
+	let mut query = order_items::table
+	    .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
+	    .inner_join(users::table.on(users::id.eq(orders::user_id)))
+	    .inner_join(events::table.on(order_items::event_id.eq(self.id)))
+	    .filter(orders::status.eq(OrderStatus::Paid))
+	    .group_by((
+		events::id,
+		users::first_name,
+		users::last_name,
+		users::email,
+		users::phone,
+		users::id,
+	    ))
+	    .select((
+		events::organization_id,
+		users::first_name,
+		users::last_name,
+		users::email,
+		users::phone,
+		users::thumb_profile_pic_url,
+		users::id,
+		sql::<sql_types::BigInt>("count(distinct orders.id)"),
+		users::created_at,
+		sql::<sql_types::Timestamp>("min(orders.order_date)"),
+		sql::<sql_types::Timestamp>("max(orders.order_date)"),
+		sql::<sql_types::BigInt>(
+		    "cast(sum(order_items.unit_price_in_cents * order_items.quantity) as bigint)",
+		),
+	    ))
+	    .into_boxed();
+
+	if let Some(ref search_filter) = search_filter {
+	    query = query.filter(
+		sql("(")
+		    .sql("users.first_name ilike ")
+		    .bind::<sql_types::Text, _>(search_filter)
+		    .sql(" OR users.last_name ilike ")
+		    .bind::<sql_types::Text, _>(search_filter)
+		    .sql(" OR users.email ilike ")
+		    .bind::<sql_types::Text, _>(search_filter)
+		    .sql(" OR users.phone ilike ")
+		    .bind::<sql_types::Text, _>(search_filter)
+		    .sql(")"),
+	    );
+	}
+
+	if let Some(sort_field) = sort_field {
+	    let sort_column = match sort_field {
+		FanSortField::FirstName => "2",
+		FanSortField::LastName => "3",
+		FanSortField::Email => "4",
+		FanSortField::Phone => "5",
+		FanSortField::Orders => "7",
+		FanSortField::FirstOrder => "8",
+		FanSortField::LastOrder => "9",
+		FanSortField::Revenue => "10",
+	    };
+
+	    query = query.order_by(sql::<()>(&format!(
+		"{} {}",
+		sort_column,
+		sort_direction.unwrap_or(SortingDir::Desc)
+	    )));
+	}
+
+	if let Some(limit) = limit {
+	    query = query.limit(limit as i64);
+	}
+	if let Some(offset) = offset {
+	    query = query.offset((offset) as i64);
+	}
+
+	#[derive(Queryable)]
+	struct R {
+	    organization_id: Uuid,
+	    first_name: Option<String>,
+	    last_name: Option<String>,
+	    email: Option<String>,
+	    phone: Option<String>,
+	    thumb_profile_pic_url: Option<String>,
+	    user_id: Uuid,
+	    order_count: i64,
+	    created_at: NaiveDateTime,
+	    first_order_time: NaiveDateTime,
+	    last_order_time: NaiveDateTime,
+	    revenue_in_cents: i64,
+	}
+
+	let results: Vec<R> = query
+	    .get_results(conn)
+	    .to_db_error(ErrorCode::QueryError, "Could not load fans for event")?;
+
+	let fans = results
+	    .into_iter()
+	    .map(|r| DisplayFan {
+		user_id: r.user_id,
+		first_name: r.first_name,
+		last_name: r.last_name,
+		email: r.email,
+		phone: r.phone,
+		thumb_profile_pic_url: r.thumb_profile_pic_url,
+		organization_id: r.organization_id,
+		order_count: r.order_count as u32,
+		created_at: r.created_at,
+		first_order_time: r.first_order_time,
+		last_order_time: r.last_order_time,
+		revenue_in_cents: r.revenue_in_cents,
+	    })
+	    .collect();
+
+	Ok(fans)
     }
 
     pub fn for_display(self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {
