@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "b9cecddd-dac4-4990-bb86-2c7e104c35a2",
+		"_postman_id": "9baec127-6f16-45aa-8fad-8e8cdce66ac5",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -4052,6 +4052,118 @@
 					"_postman_isSubFolder": true
 				},
 				{
+					"name": "OrgMember - create tickets - Default pricing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"pm.environment.set(\"last_ticket_type_id\", JSON.parse(responseBody).id);",
+									"",
+									"pm.environment.set(\"default_ticket_type_id\", JSON.parse(responseBody).id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{org_member_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\":\"Default_Pricing_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"price_in_cents\": 2500,\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[]\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"ticket_types"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "OrgMember - update tickets - Default pricing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{org_member_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"start_date\":\"1999-02-01T02:22:00\",\n\t\"end_date\": \"8999-01-10T02:22:00\",\n\t\"price_in_cents\": 3000\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types/{{default_ticket_type_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"ticket_types",
+								"{{default_ticket_type_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "OrgMember - create tickets - VIP",
 					"event": [
 						{
@@ -4091,7 +4203,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"price_in_cents\": 2500,\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -4154,7 +4266,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}_{{$randomInt}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": -3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": -4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}_{{$randomInt}}\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"price_in_cents\": -3000,\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": -3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": -4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -4209,7 +4321,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}_With_Box_Office\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t},\n\t{\n\t\t\t\"name\": \"Test_{{$timestamp}}_box_office_only\",\n\t\"price_in_cents\": 8000,\n\t\"is_box_office_only\": true,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"VIP_{{$timestamp}}_With_Box_Office\",\n\t\"capacity\": 100,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"price_in_cents\": 2500,\n\t\"limit_per_person\": 0,\n\t\"ticket_pricing\":[{\n\t\t\t\"name\": \"Test_{{$timestamp}}\",\n\t\"price_in_cents\": 3000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t}, {\n\t\t\t\"name\": \"Test_{{$timestamp}}_late_bird\",\n\t\"price_in_cents\": 4000,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t},\n\t{\n\t\t\t\"name\": \"Test_{{$timestamp}}_box_office_only\",\n\t\"price_in_cents\": 8000,\n\t\"is_box_office_only\": true,\n\t\"start_date\":\"2022-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\"\n\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -4278,7 +4390,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2021-01-10T02:22:00\",\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[\n\t\t{\n\t\t\t\"name\": \"Standard\",\n\t\t\t\"price_in_cents\": 3000,\n\t\t\t\"start_date\":\"1981-02-01T02:22:00\",\n\t\t\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"2021-01-10T02:22:00\",\n\t\"price_in_cents\": 3000,\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[\n\t\t{\n\t\t\t\"name\": \"Standard\",\n\t\t\t\"price_in_cents\": 3000,\n\t\t\t\"start_date\":\"1981-02-01T02:22:00\",\n\t\t\t\"end_date\": \"2022-02-01T02:22:00\"\n\n\t\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -4336,7 +4448,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[{\n\t\t\"name\": \"Standard\",\n\t\t\"price_in_cents\": 3000,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"2022-02-01T02:22:00\"\n\t},\n\t{\n\t\t\"name\": \"Test_{{$timestamp}}_box_office_only\",\n\t\t\"price_in_cents\": 4000,\n\t\t\"is_box_office_only\": true,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"9999-01-10T02:22:00\"\n\t}\n\t]\n}"
+							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"price_in_cents\": 2500,\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[{\n\t\t\"name\": \"Standard\",\n\t\t\"price_in_cents\": 3000,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"2022-02-01T02:22:00\"\n\t},\n\t{\n\t\t\"name\": \"Test_{{$timestamp}}_box_office_only\",\n\t\t\"price_in_cents\": 4000,\n\t\t\"is_box_office_only\": true,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"9999-01-10T02:22:00\"\n\t}\n\t]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -10084,11 +10196,11 @@
 									"});",
 									"",
 									"pm.test(\"should have box office pricing\", function(){",
-									"    pm.expect(r.ticket_types[0].ticket_pricing.price_in_cents).to.equal(4000);",
+									"    pm.expect(r.ticket_types[1].ticket_pricing.price_in_cents).to.equal(4000);",
 									"});",
 									"",
 									"pm.test(\"should have correct ticket_types ticket_pricing fee_in_cents\", function(){",
-									"    pm.expect(r.ticket_types[0].ticket_pricing.fee_in_cents).to.equal(10);",
+									"    pm.expect(r.ticket_types[1].ticket_pricing.fee_in_cents).to.equal(10);",
 									"});"
 								],
 								"type": "text/javascript"
@@ -11961,6 +12073,153 @@
 										{
 											"key": "report",
 											"value": "event_summary"
+										},
+										{
+											"key": "event_id",
+											"value": "{{last_event_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"_postman_isSubFolder": true
+				},
+				{
+					"name": "Event Ticket Count",
+					"item": [
+						{
+							"name": "OrgMember - Event - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "6ba3137a-44b4-4df4-a044-9435b7a0b652",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=ticket_count&event_id={{last_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"reports",
+										"{{last_org_id}}"
+									],
+									"query": [
+										{
+											"key": "report",
+											"value": "ticket_count"
+										},
+										{
+											"key": "event_id",
+											"value": "{{last_event_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgAdmin - Event",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"let json = JSON.parse(responseBody);",
+											"pm.test(\"should not be empty\", function() {",
+											"\tpm.expect(json).to.be.a('object');",
+											"\t",
+											"\t",
+											"});",
+											"pm.test(\"Nested elements should have sales / totals\", function () {",
+											"    for (let org_id in json) {",
+											"\t    for (let event_id in json[org_id]) {",
+											"\t        for (let ticket_type_id in json[org_id][event_id]) {",
+											"\t            pm.expect(json[org_id][event_id][ticket_type_id]).to.have.keys('sales', 'totals');",
+											"\t        }",
+											"\t    }",
+											"\t}",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_admin_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/reports/{{last_org_id}}?report=ticket_count&event_id={{last_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"reports",
+										"{{last_org_id}}"
+									],
+									"query": [
+										{
+											"key": "report",
+											"value": "ticket_count"
 										},
 										{
 											"key": "event_id",

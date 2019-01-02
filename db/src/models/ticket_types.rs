@@ -27,6 +27,7 @@ pub struct TicketType {
     pub limit_per_person: i32,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
+    pub price_in_cents: i64,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -38,6 +39,7 @@ pub struct TicketTypeEditableAttributes {
     pub end_date: Option<NaiveDateTime>,
     pub increment: Option<i32>,
     pub limit_per_person: Option<i32>,
+    pub price_in_cents: Option<i64>,
 }
 
 impl TicketType {
@@ -65,6 +67,7 @@ impl TicketType {
         end_date: NaiveDateTime,
         increment: Option<i32>,
         limit_per_person: i32,
+        price_in_cents: i64,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -75,6 +78,7 @@ impl TicketType {
             end_date,
             increment,
             limit_per_person,
+            price_in_cents,
         }
     }
 
@@ -84,10 +88,34 @@ impl TicketType {
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         self.validate_record(&attributes)?;
-        diesel::update(self)
-            .set((attributes, ticket_types::updated_at.eq(dsl::now)))
+        let result: TicketType = diesel::update(self)
+            .set((&attributes, ticket_types::updated_at.eq(dsl::now)))
             .get_result(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update ticket_types")
+            .to_db_error(ErrorCode::UpdateError, "Could not update ticket_types")?;
+
+        //Delete the old default ticket pricing and create a new default to preserve the purchase history
+        let ticket_pricing = TicketPricing::get_default(self.id, conn);
+
+        match ticket_pricing {
+            Ok(tp) => {
+                tp.destroy(conn)?;
+            }
+            Err(e) => {
+                println!("{}", e.message);
+            }
+        }
+
+        self.add_ticket_pricing(
+            result.name.clone(),
+            result.start_date,
+            result.end_date,
+            result.price_in_cents,
+            false,
+            Some(TicketPricingStatus::Default),
+            conn,
+        )?;
+
+        Ok(result)
     }
 
     pub fn find_for_code(
@@ -143,6 +171,7 @@ impl TicketType {
                     ticket_pricing.start_date,
                     ticket_pricing.end_date,
                     ticket_pricing.is_box_office_only,
+                    ticket_pricing.status,
                     conn,
                 )?,
             );
@@ -231,12 +260,13 @@ impl TicketType {
         box_office_pricing: bool,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
-        TicketPricing::get_current_ticket_pricing(self.id, box_office_pricing, conn)
+        TicketPricing::get_current_ticket_pricing(self.id, box_office_pricing, false, conn)
     }
 
     pub fn ticket_pricing(&self, conn: &PgConnection) -> Result<Vec<TicketPricing>, DatabaseError> {
         ticket_pricing::table
             .filter(ticket_pricing::ticket_type_id.eq(self.id))
+            .filter(ticket_pricing::status.eq(TicketPricingStatus::Published))
             .order_by(ticket_pricing::name)
             .load(conn)
             .to_db_error(
@@ -267,17 +297,21 @@ impl TicketType {
 
     pub fn valid_ticket_pricing(
         &self,
+        include_default: bool,
         conn: &PgConnection,
     ) -> Result<Vec<TicketPricing>, DatabaseError> {
-        ticket_pricing::table
+        let mut query = ticket_pricing::table
             .filter(ticket_pricing::ticket_type_id.eq(self.id))
             .filter(ticket_pricing::status.ne(TicketPricingStatus::Deleted))
             .order_by(ticket_pricing::name)
-            .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load ticket pricing for ticket type",
-            )
+            .into_boxed();
+        if !include_default {
+            query = query.filter(ticket_pricing::status.ne(TicketPricingStatus::Default));
+        }
+        query.load(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not load ticket pricing for ticket type",
+        )
     }
 
     pub fn ticket_capacity(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
@@ -298,6 +332,7 @@ impl TicketType {
         end_date: NaiveDateTime,
         price_in_cents: i64,
         is_box_office_only: bool,
+        status: Option<TicketPricingStatus>,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
         TicketPricing::create(
@@ -307,6 +342,7 @@ impl TicketType {
             end_date,
             price_in_cents,
             is_box_office_only,
+            status,
         )
         .commit(conn)
     }
@@ -323,15 +359,28 @@ pub struct NewTicketType {
     end_date: NaiveDateTime,
     increment: Option<i32>,
     limit_per_person: i32,
+    price_in_cents: i64,
 }
 
 impl NewTicketType {
     pub fn commit(self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
         self.validate_record()?;
-        diesel::insert_into(ticket_types::table)
+        let result: TicketType = diesel::insert_into(ticket_types::table)
             .values(self)
             .get_result(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not create ticket type")
+            .to_db_error(ErrorCode::InsertError, "Could not create ticket type")?;
+
+        result.add_ticket_pricing(
+            "Default Pricing".to_string(),
+            result.start_date,
+            result.end_date,
+            result.price_in_cents,
+            false,
+            Some(TicketPricingStatus::Default),
+            conn,
+        )?;
+
+        Ok(result)
     }
 
     pub fn validate_record(&self) -> Result<(), DatabaseError> {

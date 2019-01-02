@@ -189,7 +189,7 @@ impl Event {
         let mut min_ticket_price_cache: i64 = std::i64::MAX;
         let mut max_ticket_price_cache: i64 = 0;
         for ticket_type in ticket_types {
-            for ticket_pricing in ticket_type.valid_ticket_pricing(conn)? {
+            for ticket_pricing in ticket_type.valid_ticket_pricing(true, conn)? {
                 has_prices = true;
 
                 if ticket_pricing.price_in_cents < min_ticket_price_cache {
@@ -776,6 +776,7 @@ impl Event {
         wallet_id: Uuid,
         increment: Option<i32>,
         limit_per_person: i32,
+        price_in_cents: i64,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         let asset_name = format!("{}.{}", self.name, &name);
@@ -787,6 +788,7 @@ impl Event {
             end_date,
             increment,
             limit_per_person,
+            price_in_cents,
         )
         .commit(conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;

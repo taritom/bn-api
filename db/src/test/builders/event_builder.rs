@@ -135,6 +135,7 @@ impl<'a> EventBuilder<'a> {
                         wallet_id,
                         None,
                         0,
+                        100,
                         self.connection,
                     )
                     .unwrap();
@@ -147,6 +148,7 @@ impl<'a> EventBuilder<'a> {
                             early_bird_end,
                             100,
                             false,
+                            None,
                             self.connection,
                         )
                         .unwrap();
@@ -158,6 +160,7 @@ impl<'a> EventBuilder<'a> {
                             standard_end,
                             150,
                             false,
+                            None,
                             self.connection,
                         )
                         .unwrap();

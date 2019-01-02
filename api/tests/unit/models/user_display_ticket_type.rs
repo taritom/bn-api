@@ -28,6 +28,7 @@ fn from_ticket_type() {
             NaiveDate::from_ymd(9999, 7, 8).and_hms(7, 8, 10),
             5000,
             true,
+            None,
             conn,
         )
         .unwrap();
