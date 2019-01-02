@@ -31,6 +31,7 @@ pub struct CreateTicketTypeRequest {
     pub ticket_pricing: Vec<CreateTicketPricingRequest>,
     pub increment: Option<i32>,
     pub limit_per_person: i32,
+    pub price_in_cents: i64,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -54,6 +55,7 @@ pub struct UpdateTicketTypeRequest {
     pub ticket_pricing: Option<Vec<UpdateTicketPricingRequest>>,
     pub increment: Option<i32>,
     pub limit_per_person: Option<i32>,
+    pub price_in_cents: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -87,6 +89,7 @@ pub fn create(
         org_wallet.id,
         data.increment,
         data.limit_per_person,
+        data.price_in_cents,
         connection,
     )?;
     //Add each ticket pricing entry for newly created ticket type
@@ -97,6 +100,7 @@ pub fn create(
             current_pricing_entry.end_date,
             current_pricing_entry.price_in_cents,
             current_pricing_entry.is_box_office_only.unwrap_or(false),
+            None,
             connection,
         )?;
     }
@@ -247,6 +251,7 @@ pub fn update(
         end_date: data.end_date,
         increment: data.increment,
         limit_per_person: data.limit_per_person,
+        price_in_cents: data.price_in_cents,
     };
     let updated_ticket_type = ticket_type.update(update_parameters, connection)?;
 
@@ -305,6 +310,7 @@ pub fn update(
                     end_date,
                     price_in_cents,
                     current_ticket_pricing.is_box_office_only.unwrap_or(false),
+                    None,
                     connection,
                 )?;
             } else {
