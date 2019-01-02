@@ -375,6 +375,16 @@ pub fn publish(
     Ok(HttpResponse::Ok().finish())
 }
 
+pub fn unpublish(
+    (connection, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = connection.get();
+    let event = Event::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &event.organization(conn)?, conn)?;
+    event.unpublish(conn)?;
+    Ok(HttpResponse::Ok().finish())
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct TicketRedeemRequest {
     pub redeem_key: String,

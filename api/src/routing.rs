@@ -80,6 +80,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{id}/publish", |r| {
         r.method(Method::POST).with(events::publish);
     })
+    .resource("/events/{id}/unpublish", |r| {
+        r.method(Method::POST).with(events::unpublish);
+    })
     .resource("/events/{id}/redeem/{ticket_instance_id}", |r| {
         r.method(Method::POST).with(events::redeem_ticket);
     })
