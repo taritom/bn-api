@@ -10,6 +10,9 @@ pub struct RegisterRequest {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub phone: Option<String>,
     pub password: String,
+    #[serde(rename = "g-recaptcha-response")]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub captcha_response: Option<String>,
 }
 
 impl From<RegisterRequest> for NewUser {
@@ -31,6 +34,7 @@ impl RegisterRequest {
         email: &str,
         phone: &str,
         password: &str,
+        captcha_response: Option<String>,
     ) -> RegisterRequest {
         RegisterRequest {
             first_name: Some(first_name.to_string()),
@@ -38,6 +42,7 @@ impl RegisterRequest {
             email: email.to_string(),
             phone: Some(phone.to_string()),
             password: password.to_string(),
+            captcha_response,
         }
     }
 }
