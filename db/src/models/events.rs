@@ -264,6 +264,15 @@ impl Event {
             errors.add("venue_id", validation_error);
         }
 
+        if self.promo_image_url.is_none() {
+            let mut validation_error = create_validation_error(
+                "required",
+                "Event can't be published without a promo image",
+            );
+            validation_error.add_param(Cow::from("event_id"), &self.id);
+            errors.add("promo_image_url", validation_error);
+        }
+
         if !errors.is_empty() {
             return Err(errors.into());
         }
