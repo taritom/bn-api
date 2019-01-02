@@ -2,6 +2,7 @@ use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
+use itertools::Itertools;
 use models::*;
 use std::collections::HashMap;
 use utils::errors::*;
@@ -43,13 +44,27 @@ pub struct TransactionReportRow {
 
 #[derive(Serialize, Deserialize)]
 pub struct EventSummarySalesResult {
+    pub event_id: Uuid,
     pub sales: Vec<EventSummarySalesRow>,
     pub ticket_fees: Vec<EventSummaryFeesRow>,
     pub other_fees: Vec<EventSummaryOtherFees>,
 }
 
+impl Default for EventSummarySalesResult {
+    fn default() -> Self {
+        EventSummarySalesResult {
+            event_id: Uuid::nil(),
+            sales: vec![],
+            ticket_fees: vec![],
+            other_fees: vec![],
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummarySalesRow {
+    #[sql_type = "dUuid"]
+    pub event_id: Uuid,
     #[sql_type = "Text"]
     pub ticket_name: String,
     #[sql_type = "Text"]
@@ -79,6 +94,9 @@ pub struct EventSummarySalesRow {
 #[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummaryFeesRow {
     #[sql_type = "dUuid"]
+    pub event_id: Uuid,
+
+    #[sql_type = "dUuid"]
     pub ticket_type_id: Uuid,
     #[sql_type = "dUuid"]
     pub ticket_pricing_id: Uuid,
@@ -106,6 +124,9 @@ pub struct EventSummaryFeesRow {
 
 #[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummaryOtherFees {
+    #[sql_type = "dUuid"]
+    pub event_id: Uuid,
+
     #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
     #[sql_type = "BigInt"]
@@ -222,16 +243,36 @@ impl Report {
 
     pub fn summary_event_report(
         event_id: Uuid,
-        organization_id: Uuid,
         start: Option<NaiveDateTime>,
         end: Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<EventSummarySalesResult, DatabaseError> {
+        let mut results =
+            Report::summary_event_report_core(Some(event_id), None, start, end, conn)?;
+        Ok(results.pop().unwrap_or_default())
+    }
+
+    pub fn organization_summary_report(
+        organization_id: Uuid,
+        start: Option<NaiveDateTime>,
+        end: Option<NaiveDateTime>,
+        conn: &PgConnection,
+    ) -> Result<Vec<EventSummarySalesResult>, DatabaseError> {
+        Report::summary_event_report_core(None, Some(organization_id), start, end, conn)
+    }
+
+    fn summary_event_report_core(
+        event_id: Option<Uuid>,
+        organization_id: Option<Uuid>,
+        start: Option<NaiveDateTime>,
+        end: Option<NaiveDateTime>,
+        conn: &PgConnection,
+    ) -> Result<Vec<EventSummarySalesResult>, DatabaseError> {
         //First get the sales summary
         let query_sales = include_str!("../queries/reports/reports_event_summary_sales.sql");
         let q = diesel::sql_query(query_sales)
-            .bind::<dUuid, _>(event_id)
-            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<dUuid>, _>(event_id)
+            .bind::<Nullable<dUuid>, _>(organization_id)
             .bind::<Nullable<Timestamp>, _>(start)
             .bind::<Nullable<Timestamp>, _>(end);
 
@@ -239,12 +280,13 @@ impl Report {
             ErrorCode::QueryError,
             "Could not fetch report sales results",
         )?;
+        let sales_rows = sales_rows.into_iter().group_by(|row| row.event_id);
 
         //Now get the transaction fees results
         let query_fees = include_str!("../queries/reports/reports_event_summary_fees.sql");
         let q = diesel::sql_query(query_fees)
-            .bind::<dUuid, _>(event_id)
-            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<dUuid>, _>(event_id)
+            .bind::<Nullable<dUuid>, _>(organization_id)
             .bind::<Nullable<Timestamp>, _>(start)
             .bind::<Nullable<Timestamp>, _>(end);
 
@@ -252,24 +294,46 @@ impl Report {
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report fee results")?;
 
+        let fees_rows = fees_rows.into_iter().group_by(|row| row.event_id);
+        let mut fees_rows = fees_rows.into_iter().into_group_map();
+
         //Now get the other fees results
         let query_other_fees =
             include_str!("../queries/reports/reports_event_summary_other_fees.sql");
         let q = diesel::sql_query(query_other_fees)
-            .bind::<dUuid, _>(event_id)
-            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<dUuid>, _>(event_id)
+            .bind::<Nullable<dUuid>, _>(organization_id)
             .bind::<Nullable<Timestamp>, _>(start)
             .bind::<Nullable<Timestamp>, _>(end);
 
         let other_fees_rows: Vec<EventSummaryOtherFees> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report fee results")?;
+        let other_fees_rows = other_fees_rows.into_iter().group_by(|row| row.event_id);
 
-        let result = EventSummarySalesResult {
-            sales: sales_rows,
-            ticket_fees: fees_rows,
-            other_fees: other_fees_rows,
-        };
+        let mut other_fees_rows = other_fees_rows.into_iter().into_group_map();
+
+        let mut result = Vec::<EventSummarySalesResult>::new();
+
+        // assume that an event must have sales in order to have other fees
+        for (event_id, sales) in sales_rows.into_iter() {
+            result.push(EventSummarySalesResult {
+                event_id,
+                sales: sales.into_iter().collect_vec(),
+                ticket_fees: fees_rows
+                    .remove(&event_id)
+                    .unwrap_or_default()
+                    .pop()
+                    .map(|r| r.into_iter().collect_vec())
+                    .unwrap_or_default(),
+                other_fees: other_fees_rows
+                    .remove(&event_id)
+                    .unwrap_or_else(|| vec![])
+                    .remove(0)
+                    .into_iter()
+                    .collect_vec(),
+            })
+        }
         //Then get the fees summary
         Ok(result)
     }
