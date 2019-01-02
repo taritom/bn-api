@@ -28,6 +28,7 @@ pub fn get_report(
     match query.report.trim() {
         "transaction_details" => transaction_detail_report((connection, query, path, user)),
         "event_summary" => event_summary_report((connection, query, path, user)),
+        "ticket_count" => ticket_counts((connection, query, path, user)),
         _ => application::not_found(),
     }
 }
@@ -92,5 +93,30 @@ pub fn event_summary_report(
         query.end_utc,
         connection,
     )?;
+    Ok(HttpResponse::Ok().json(result))
+}
+
+pub fn ticket_counts(
+    (connection, query, path, user): (
+        Connection,
+        Query<ReportQueryParameters>,
+        Path<PathParameters>,
+        AuthUser,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    //Check if they have org admin permissions
+    let organization = Organization::find(path.id, connection)?;
+    if query.event_id.is_some() {
+        user.requires_scope_for_organization(
+            Scopes::EventFinancialReports,
+            &organization,
+            connection,
+        )?;
+    } else {
+        user.requires_scope_for_organization(Scopes::OrgReports, &organization, connection)?;
+    }
+
+    let result = Report::ticket_count_report(query.event_id, Some(path.id), connection)?;
     Ok(HttpResponse::Ok().json(result))
 }
