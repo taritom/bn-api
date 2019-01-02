@@ -299,7 +299,7 @@ pub fn show(
             }
         }
     }
-    
+
     #[derive(Serialize)]
     struct R {
         id: Uuid,
