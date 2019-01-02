@@ -1066,6 +1066,7 @@ fn add_ticket_type() {
             wallet_id,
             None,
             0,
+            100,
             conn,
         )
         .unwrap();
@@ -1092,6 +1093,7 @@ fn ticket_types() {
             wallet_id,
             None,
             0,
+            100,
             conn,
         )
         .unwrap();
@@ -1105,6 +1107,7 @@ fn ticket_types() {
             wallet_id,
             None,
             0,
+            100,
             conn,
         )
         .unwrap();

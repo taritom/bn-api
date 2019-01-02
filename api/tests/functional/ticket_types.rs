@@ -147,6 +147,7 @@ pub fn create_with_validation_errors() {
         ticket_pricing,
         increment: None,
         limit_per_person: 0,
+        price_in_cents: 10000,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -208,6 +209,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         ticket_pricing,
         increment: None,
         limit_per_person: 0,
+        price_in_cents: 10000,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -278,6 +280,7 @@ pub fn create_with_overlapping_periods() {
         ticket_pricing,
         increment: None,
         limit_per_person: 0,
+        price_in_cents: 20000,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -366,6 +369,7 @@ pub fn update_with_invalid_id() {
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
         limit_per_person: Some(0),
+        price_in_cents: Some(20000),
     };
 
     //Send update request
@@ -431,6 +435,7 @@ pub fn update_with_validation_errors() {
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
         limit_per_person: Some(0),
+        price_in_cents: Some(20000),
     };
 
     //Send update request
@@ -507,6 +512,7 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
         limit_per_person: Some(0),
+        price_in_cents: Some(20000),
     };
 
     //Send update request
@@ -595,6 +601,7 @@ pub fn update_with_overlapping_periods() {
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
         limit_per_person: Some(0),
+        price_in_cents: Some(20000),
     };
 
     //Send update request

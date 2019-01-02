@@ -97,7 +97,7 @@ string_enum! { Roles [Admin, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, DoorPe
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { Tables [FeeSchedules, Orders, Organizations, Payments, PaymentMethods] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
-string_enum! { TicketPricingStatus [Published, Deleted] }
+string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut] }
 
 impl Default for EventStatus {

@@ -370,6 +370,7 @@ impl Order {
                         let ticket_pricing = TicketPricing::get_current_ticket_pricing(
                             ticket_type_id,
                             box_office_pricing,
+                            false,
                             conn,
                         )?;
                         let ticket_type = TicketType::find(ticket_type_id, conn)?;
@@ -457,6 +458,7 @@ impl Order {
             let ticket_pricing = TicketPricing::get_current_ticket_pricing(
                 new_line.ticket_type_id,
                 box_office_pricing,
+                false,
                 conn,
             )?;
             let ticket_type = TicketType::find(new_line.ticket_type_id, conn)?;
