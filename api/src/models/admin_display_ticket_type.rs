@@ -17,6 +17,7 @@ pub struct AdminDisplayTicketType {
     pub increment: u32,
     pub limit_per_person: u32,
     pub ticket_pricing: Vec<DisplayTicketPricing>,
+    pub price_in_cents: i64,
 }
 
 impl AdminDisplayTicketType {
@@ -48,6 +49,7 @@ impl AdminDisplayTicketType {
             capacity,
             increment: ticket_type.increment as u32,
             limit_per_person: ticket_type.limit_per_person as u32,
+            price_in_cents: ticket_type.price_in_cents,
         })
     }
 }
