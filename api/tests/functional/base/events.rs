@@ -671,6 +671,15 @@ pub fn expected_show_json(
         id: Uuid,
         name: String,
     }
+
+    #[derive(Serialize)]
+    pub struct TicketsRemaining {
+        pub ticket_type_id: Uuid,
+        pub tickets_remaining: i32,
+    }
+
+    let no_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
+
     #[derive(Serialize)]
     struct R {
         id: Uuid,
@@ -699,6 +708,7 @@ pub fn expected_show_json(
         is_external: bool,
         external_url: Option<String>,
         override_status: Option<EventOverrideStatus>,
+        limited_tickets_remaining: Vec<TicketsRemaining>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -749,6 +759,7 @@ pub fn expected_show_json(
         is_external: event.is_external,
         external_url: event.external_url,
         override_status: event.override_status,
+        limited_tickets_remaining: no_tickets_remaining,
     })
     .unwrap()
 }

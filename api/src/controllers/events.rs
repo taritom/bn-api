@@ -243,7 +243,7 @@ pub fn show(
     let box_office_pricing = query.box_office_pricing.unwrap_or(false);
     if box_office_pricing {
         match user {
-            Some(user) => user.requires_scope_for_organization(
+            Some(ref user) => user.requires_scope_for_organization(
                 Scopes::BoxOfficeTicketRead,
                 &organization,
                 connection,
@@ -280,6 +280,27 @@ pub fn show(
     }
 
     #[derive(Serialize)]
+    pub struct TicketsRemaining {
+        pub ticket_type_id: Uuid,
+        pub tickets_remaining: i32,
+    }
+
+    let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
+
+    if let Some(u) = user {
+        let tickets_bought = Order::quantity_for_user_for_event(&u.id(), &event.id, connection)?;
+        for (tt_id, num) in tickets_bought {
+            let limit = TicketType::find(tt_id, connection)?.limit_per_person;
+            if limit > 0 {
+                limited_tickets_remaining.push(TicketsRemaining {
+                    ticket_type_id: tt_id,
+                    tickets_remaining: limit - num,
+                });
+            }
+        }
+    }
+
+    #[derive(Serialize)]
     struct R {
         id: Uuid,
         name: String,
@@ -307,6 +328,7 @@ pub fn show(
         is_external: bool,
         external_url: Option<String>,
         override_status: Option<EventOverrideStatus>,
+        limited_tickets_remaining: Vec<TicketsRemaining>,
     }
 
     Ok(HttpResponse::Ok().json(&R {
@@ -339,6 +361,7 @@ pub fn show(
         is_external: event.is_external,
         external_url: event.external_url,
         override_status: event.override_status,
+        limited_tickets_remaining,
     }))
 }
 
