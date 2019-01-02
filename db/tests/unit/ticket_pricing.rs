@@ -1,5 +1,7 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{TicketPricing, TicketPricingEditableAttributes, TicketType};
+use bigneon_db::models::{
+    TicketPricing, TicketPricingEditableAttributes, TicketPricingStatus, TicketType,
+};
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::NaiveDate;
 
@@ -20,6 +22,7 @@ fn create() {
         ed1,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -31,6 +34,7 @@ fn create() {
         ed2,
         500,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -59,6 +63,7 @@ fn ticket_pricing_no_overlapping_periods() {
         end_date1,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -70,6 +75,7 @@ fn ticket_pricing_no_overlapping_periods() {
         end_date2,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -81,6 +87,7 @@ fn ticket_pricing_no_overlapping_periods() {
         end_date3,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -92,6 +99,7 @@ fn ticket_pricing_no_overlapping_periods() {
         start_date1,
         end_date1,
         false,
+        TicketPricingStatus::Published,
         project.get_connection()
     )
     .unwrap()
@@ -102,6 +110,7 @@ fn ticket_pricing_no_overlapping_periods() {
         start_date2,
         end_date2,
         false,
+        TicketPricingStatus::Published,
         project.get_connection()
     )
     .unwrap()
@@ -114,6 +123,7 @@ fn ticket_pricing_no_overlapping_periods() {
         start_date3,
         end_date3,
         false,
+        TicketPricingStatus::Published,
         project.get_connection()
     )
     .unwrap()
@@ -134,6 +144,7 @@ fn create_with_same_date_validation_errors() {
         same_date,
         100,
         false,
+        None,
     );
 
     let result = ticket_pricing.clone().commit(project.get_connection());
@@ -185,6 +196,7 @@ fn create_with_validation_errors() {
         end_date1,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -196,6 +208,7 @@ fn create_with_validation_errors() {
         end_date2,
         100,
         false,
+        None,
     );
 
     let result = ticket_pricing.clone().commit(project.get_connection());
@@ -247,6 +260,7 @@ fn update_with_validation_errors() {
         end_date1,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -257,6 +271,7 @@ fn update_with_validation_errors() {
         end_date2,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -312,6 +327,7 @@ fn update() {
         end_date,
         100,
         false,
+        None,
     )
     .commit(connection)
     .unwrap();
@@ -352,6 +368,7 @@ fn remove() {
         end_date,
         100,
         false,
+        None,
     )
     .commit(connection)
     .unwrap();
@@ -365,6 +382,7 @@ fn remove() {
         end_date,
         200,
         false,
+        None,
     )
     .commit(connection)
     .unwrap();
@@ -395,6 +413,7 @@ fn find() {
         ed1,
         100,
         false,
+        None,
     )
     .commit(project.get_connection())
     .unwrap();
@@ -423,6 +442,7 @@ fn get_current_ticket_pricing() {
 
     let ticket_pricing = TicketPricing::get_current_ticket_pricing(
         ticket_types[0].id,
+        false,
         false,
         project.get_connection(),
     )

@@ -252,6 +252,7 @@ fn replace_tickets_for_box_office() {
             NaiveDate::from_ymd(9999, 7, 8).and_hms(7, 8, 10),
             5000,
             true,
+            None,
             connection,
         )
         .unwrap();

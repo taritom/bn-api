@@ -387,6 +387,7 @@ table! {
         limit_per_person -> Int4,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        price_in_cents -> Int8,
     }
 }
 
