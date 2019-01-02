@@ -254,8 +254,10 @@ impl Event {
     pub fn unpublish(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         let mut errors = ValidationErrors::new();
         if self.status != EventStatus::Published {
-            let mut validation_error =
-                create_validation_error("event_must_be_published", "Event can't be un-published if it is not published");
+            let mut validation_error = create_validation_error(
+                "event_must_be_published",
+                "Event can't be un-published if it is not published",
+            );
             validation_error.add_param(Cow::from("event_id"), &self.id);
             errors.add("status", validation_error);
         }
