@@ -1,16 +1,16 @@
-SELECT e.id                                                                                                                                                                                 AS event_id,
-       e.organization_id                                                                                                                                                                    AS organization_id,
-       tt.id                                                                                                                                                                                AS ticket_type_id,
-       CAST(SUM(oi.unit_price_in_cents * oi.quantity) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL) AS BIGINT)                                                                          AS box_office_sales_in_cents,
-       CAST(SUM(oi.unit_price_in_cents * oi.quantity) FILTER (WHERE o.on_behalf_of_user_id IS NULL) AS BIGINT)                                                                              AS online_sales_in_cents,
-       CAST(SUM(oi.quantity) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL) AS BIGINT)                                                                                                   AS box_office_count,
-       CAST(SUM(oi.quantity) FILTER (WHERE o.on_behalf_of_user_id IS NULL) AS BIGINT)                                                                                                       AS online_count,
-       CAST(SUM((oi_t_fees.unit_price_in_cents * oi_t_fees.quantity) + (oi_e_fees.unit_price_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL) AS BIGINT)   AS total_box_office_fees_in_cents,
-       CAST(SUM((oi_t_fees.unit_price_in_cents * oi_t_fees.quantity) + (oi_e_fees.unit_price_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NULL) AS BIGINT)       AS total_online_fees_in_cents,
-       CAST(SUM((oi_t_fees.company_fee_in_cents * oi_t_fees.quantity) + (oi_e_fees.company_fee_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL) AS BIGINT) AS company_box_office_fees_in_cents,
-       CAST(SUM((oi_t_fees.client_fee_in_cents * oi_t_fees.quantity) + (oi_e_fees.client_fee_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL) AS BIGINT)   AS client_box_office_fees_in_cents,
-       CAST(SUM((oi_t_fees.company_fee_in_cents * oi_t_fees.quantity) + (oi_e_fees.company_fee_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NULL) AS BIGINT)     AS company_online_fees_in_cents,
-       CAST(SUM((oi_t_fees.client_fee_in_cents * oi_t_fees.quantity) + (oi_e_fees.client_fee_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NULL) AS BIGINT)       AS client_online_fees_in_cents
+SELECT e.id                                                                                                                                                                                              AS event_id,
+       e.organization_id                                                                                                                                                                                 AS organization_id,
+       tt.id                                                                                                                                                                                             AS ticket_type_id,
+       CAST(COALESCE(SUM(oi.unit_price_in_cents * oi.quantity) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL), 0) AS BIGINT)                                                                          AS box_office_sales_in_cents,
+       CAST(COALESCE(SUM(oi.unit_price_in_cents * oi.quantity) FILTER (WHERE o.on_behalf_of_user_id IS NULL), 0) AS BIGINT)                                                                              AS online_sales_in_cents,
+       CAST(COALESCE(SUM(oi.quantity) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL), 0) AS BIGINT)                                                                                                   AS box_office_count,
+       CAST(COALESCE(SUM(oi.quantity) FILTER (WHERE o.on_behalf_of_user_id IS NULL), 0) AS BIGINT)                                                                                                       AS online_count,
+       CAST(COALESCE(SUM((oi_t_fees.unit_price_in_cents * oi_t_fees.quantity) + (oi_e_fees.unit_price_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL), 0) AS BIGINT)   AS total_box_office_fees_in_cents,
+       CAST(COALESCE(SUM((oi_t_fees.unit_price_in_cents * oi_t_fees.quantity) + (oi_e_fees.unit_price_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NULL), 0) AS BIGINT)       AS total_online_fees_in_cents,
+       CAST(COALESCE(SUM((oi_t_fees.company_fee_in_cents * oi_t_fees.quantity) + (oi_e_fees.company_fee_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL), 0) AS BIGINT) AS company_box_office_fees_in_cents,
+       CAST(COALESCE(SUM((oi_t_fees.client_fee_in_cents * oi_t_fees.quantity) + (oi_e_fees.client_fee_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NOT NULL), 0) AS BIGINT)   AS client_box_office_fees_in_cents,
+       CAST(COALESCE(SUM((oi_t_fees.company_fee_in_cents * oi_t_fees.quantity) + (oi_e_fees.company_fee_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NULL), 0) AS BIGINT)     AS company_online_fees_in_cents,
+       CAST(COALESCE(SUM((oi_t_fees.client_fee_in_cents * oi_t_fees.quantity) + (oi_e_fees.client_fee_in_cents * oi_e_fees.quantity)) FILTER (WHERE o.on_behalf_of_user_id IS NULL), 0) AS BIGINT)       AS client_online_fees_in_cents
 FROM ticket_types tt
        LEFT JOIN events e on tt.event_id = e.id
        LEFT JOIN order_items oi on oi.ticket_type_id = tt.id AND oi.ticket_type_id IS NOT NULL
