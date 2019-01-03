@@ -1,6 +1,7 @@
 use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
+use bigneon_db::utils::errors::{ErrorCode, DatabaseError};
 use chrono::prelude::*;
 use chrono::Duration;
 use db::Connection;
@@ -794,12 +795,59 @@ pub fn holds(
 }
 
 pub fn fans_index(
-    (connection, path, user): (Connection, Path<PathParameters>, User),
+    (connection, query, path, user): (
+	Connection,
+	Query<PagingParameters>,
+	Path<PathParameters>,
+	User,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
     let org = event.organization(connection)?;
     user.requires_scope_for_organization(Scopes::OrgFans, &org, &connection)?;
-    let results = event.search_fans(None, None, None, None, None, connection)?;
-    Ok(HttpResponse::Ok().json(results))
+
+    let no_result_is_ok = |e: DatabaseError| {
+	match e.error_code {
+	    ErrorCode::NoResults => Ok((Vec::<DisplayFan>::new(), 0)),
+	    _ => Err(e),
+	}
+    };
+
+    let (paid_fans, paid_total) = event.search_paid_fans(
+	query.get_tag("query"),
+	Some(query.page()),
+	Some(query.limit()),
+	query
+	    .sort
+	    .as_ref()
+	    .and_then(|s| s.parse().ok()),
+	query.dir,
+	connection,
+    ).or_else(no_result_is_ok)?;
+
+    let (interest_fans, interest_total) =  event.search_interested_fans(
+	query.get_tag("query"),
+	Some(query.page()),
+	Some(query.limit()),
+	query
+	    .sort
+	    .as_ref()
+	    .and_then(|s| s.parse().ok()),
+	query.dir,
+	connection,
+    ).or_else(no_result_is_ok)?;
+
+    let mut fans = paid_fans.iter().cloned().collect::<Vec<DisplayFan>>();
+    let mut fans_iter = paid_fans.iter();
+    for fan in interest_fans.iter() {
+	if fans_iter.find(|&x| x.user_id == fan.user_id).is_none() {
+	    fans.push(fan.clone());
+	}
+    }
+
+    let mut paging = Paging::new(query.page(), query.limit());
+    paging.total = paid_total + interest_total;
+    let p = Payload::new(fans, paging);
+    Ok(HttpResponse::Ok().json(p))
 }
