@@ -174,6 +174,7 @@ impl Event {
         event_start: Option<NaiveDateTime>,
         door_time: Option<NaiveDateTime>,
         publish_date: Option<NaiveDateTime>,
+        event_end: Option<NaiveDateTime>,
     ) -> NewEvent {
         NewEvent {
             name: name.into(),
@@ -183,6 +184,7 @@ impl Event {
             event_start,
             door_time,
             publish_date,
+            event_end,
             ..Default::default()
         }
     }
