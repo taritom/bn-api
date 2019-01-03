@@ -18,7 +18,7 @@ apt-get install npm
 npm config set strict-ssl false
 npm install -g newman
 
-newman run --timeout-request 30000 ../integration-tests/bigneon-tests.postman_collection.json -e ../integration-tests/travis.postman_environment.json
+newman run --timeout-request 60000 ../integration-tests/bigneon-tests.postman_collection.json -e ../integration-tests/travis.postman_environment.json
 NEWMAN_EXIT_CODE=$?
 kill -s SIGTERM $SERVER_PID
 if [ $NEWMAN_EXIT_CODE -ne 0 ]

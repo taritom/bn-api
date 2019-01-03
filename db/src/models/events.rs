@@ -17,6 +17,7 @@ use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
+use validators;
 use validators::*;
 
 #[derive(Associations, Identifiable, Queryable, AsChangeset)]
@@ -49,10 +50,12 @@ pub struct Event {
     pub video_url: Option<String>,
     pub is_external: bool,
     pub external_url: Option<String>,
-    pub override_status: Option<EventOverrideStatus>, //EventOverrideStatus
+    pub override_status: Option<EventOverrideStatus>,
+    //EventOverrideStatus
     pub client_fee_in_cents: i64,
     pub company_fee_in_cents: i64,
     pub settlement_amount_in_cents: Option<i64>,
+    pub event_end: Option<NaiveDateTime>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
@@ -91,6 +94,7 @@ pub struct NewEvent {
     pub external_url: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub override_status: Option<EventOverrideStatus>,
+    pub event_end: Option<NaiveDateTime>,
 }
 
 #[derive(AsChangeset)]
@@ -158,6 +162,7 @@ pub struct EventEditableAttributes {
     pub external_url: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub override_status: Option<Option<EventOverrideStatus>>,
+    pub event_end: Option<NaiveDateTime>,
 }
 
 impl Event {
@@ -169,6 +174,7 @@ impl Event {
         event_start: Option<NaiveDateTime>,
         door_time: Option<NaiveDateTime>,
         publish_date: Option<NaiveDateTime>,
+        event_end: Option<NaiveDateTime>,
     ) -> NewEvent {
         NewEvent {
             name: name.into(),
@@ -178,6 +184,7 @@ impl Event {
             event_start,
             door_time,
             publish_date,
+            event_end,
             ..Default::default()
         }
     }
@@ -241,6 +248,28 @@ impl Event {
                 }
             }
         }
+
+        let event_start = match event.event_start {
+            Some(e) => Some(e.clone()),
+            None => self.event_start,
+        };
+        let event_end = match event.event_end {
+            Some(e) => Some(e),
+            None => self.event_end,
+        };
+
+        validators::append_validation_error(
+            Ok(()),
+            "event.event_end",
+            validators::n_date_valid(
+                event_start,
+                event_end,
+                "event_end_before_event_start",
+                "Event End must be after Event Start",
+                "event_start",
+                "event_end",
+            ),
+        )?;
 
         DatabaseError::wrap(
             ErrorCode::UpdateError,
@@ -381,13 +410,13 @@ impl Event {
             AND CASE WHEN $2 THEN COALESCE(e.event_start, '31 Dec 9999') >= now() ELSE e.event_start < now() END;
         "#,
         )
-        .bind::<sql_types::Uuid, _>(organization_id)
-        .bind::<sql_types::Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
-        .get_results(conn)
-        .to_db_error(
-            ErrorCode::QueryError,
-            "Could not get total events for organization",
-        )?;
+            .bind::<sql_types::Uuid, _>(organization_id)
+            .bind::<sql_types::Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
+            .get_results(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not get total events for organization",
+            )?;
 
         let mut paging = Paging::new(page, limit);
         paging.total = total.remove(0).total as u64;
@@ -491,7 +520,8 @@ impl Event {
             )?;
 
         let query_ticket_types =
-            include_str!("../queries/find_all_events_for_organization_ticket_type.sql");;
+            include_str!("../queries/find_all_events_for_organization_ticket_type.sql");
+        ;
 
 
         jlog!(Level::Debug, "Fetching summary data for ticket types");
