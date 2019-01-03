@@ -22,6 +22,7 @@ impl TestRequest {
         config.token_secret = "test_secret".into();
         config.token_issuer = "bn-api-test".into();
         config.api_keys_encryption_key = "test_encryption_key".to_string();
+        config.google_recaptcha_secret_key = None;
 
         let test_request = test::TestRequest::with_state(AppState::new(
             config.clone(),
