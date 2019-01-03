@@ -61,7 +61,7 @@ impl Default for EventSummarySalesResult {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummarySalesRow {
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
@@ -91,7 +91,7 @@ pub struct EventSummarySalesRow {
     pub ticket_pricing_id: Uuid,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummaryFeesRow {
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
@@ -122,7 +122,7 @@ pub struct EventSummaryFeesRow {
     pub client_fee_in_cents: i64,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummaryOtherFees {
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
@@ -249,7 +249,19 @@ impl Report {
     ) -> Result<EventSummarySalesResult, DatabaseError> {
         let mut results =
             Report::summary_event_report_core(Some(event_id), None, start, end, conn)?;
-        Ok(results.pop().unwrap_or_default())
+
+        let result = match results.is_empty() {
+            true => {
+                let mut event_summary = EventSummarySalesResult {
+                    ..Default::default()
+                };
+                event_summary.event_id = event_id;
+                event_summary
+            }
+            false => results.pop().unwrap(),
+        };
+
+        Ok(result)
     }
 
     pub fn organization_summary_report(
@@ -280,6 +292,13 @@ impl Report {
             ErrorCode::QueryError,
             "Could not fetch report sales results",
         )?;
+
+        //If there were no sales, return immediately
+        if sales_rows.is_empty() {
+            let empty_result: Vec<EventSummarySalesResult> = Vec::new();
+            return Ok(empty_result);
+        }
+
         let sales_rows = sales_rows.into_iter().group_by(|row| row.event_id);
 
         //Now get the transaction fees results
@@ -294,8 +313,13 @@ impl Report {
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report fee results")?;
 
-        let fees_rows = fees_rows.into_iter().group_by(|row| row.event_id);
-        let mut fees_rows = fees_rows.into_iter().into_group_map();
+        let mut fees_hash: HashMap<Uuid, Vec<EventSummaryFeesRow>> = HashMap::new();
+        for row in fees_rows {
+            fees_hash
+                .entry(row.event_id)
+                .or_insert(Vec::<EventSummaryFeesRow>::new())
+                .push(row);
+        }
 
         //Now get the other fees results
         let query_other_fees =
@@ -309,9 +333,14 @@ impl Report {
         let other_fees_rows: Vec<EventSummaryOtherFees> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report fee results")?;
-        let other_fees_rows = other_fees_rows.into_iter().group_by(|row| row.event_id);
 
-        let mut other_fees_rows = other_fees_rows.into_iter().into_group_map();
+        let mut other_fees_hash: HashMap<Uuid, Vec<EventSummaryOtherFees>> = HashMap::new();
+        for row in other_fees_rows {
+            other_fees_hash
+                .entry(row.event_id)
+                .or_insert(Vec::<EventSummaryOtherFees>::new())
+                .push(row);
+        }
 
         let mut result = Vec::<EventSummarySalesResult>::new();
 
@@ -320,18 +349,8 @@ impl Report {
             result.push(EventSummarySalesResult {
                 event_id,
                 sales: sales.into_iter().collect_vec(),
-                ticket_fees: fees_rows
-                    .remove(&event_id)
-                    .unwrap_or_default()
-                    .pop()
-                    .map(|r| r.into_iter().collect_vec())
-                    .unwrap_or_default(),
-                other_fees: other_fees_rows
-                    .remove(&event_id)
-                    .unwrap_or_else(|| vec![])
-                    .remove(0)
-                    .into_iter()
-                    .collect_vec(),
+                ticket_fees: fees_hash.get(&event_id).unwrap_or(&vec![]).to_vec(),
+                other_fees: other_fees_hash.get(&event_id).unwrap_or(&vec![]).to_vec(),
             })
         }
         //Then get the fees summary
