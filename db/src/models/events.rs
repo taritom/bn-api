@@ -846,24 +846,18 @@ impl Event {
 	sort_direction: Option<SortingDir>,
 	conn: &PgConnection,
     ) -> Result<(Vec<DisplayFan>, u64), DatabaseError> {
+	use diesel::sql_types::{BigInt, Text, Timestamp};
 	use schema::*;
-	use diesel::sql_types::{BigInt, Timestamp, Text};
 
 	let search_filter = query.map(|q| format!("%{}%", q));
 
-	let query = order_items::table
-	    .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
-	    .inner_join(users::table.on(users::id.eq(orders::user_id)))
-	    .inner_join(events::table.on(order_items::event_id.eq(self.id)))
+	let query = users::table
+	    .inner_join(orders::table.on(orders::user_id.eq(users::id)))
+	    .inner_join(order_items::table.on(order_items::order_id.eq(orders::id)))
+	    .inner_join(events::table.on(events::id.nullable().eq(order_items::event_id)))
+	    .filter(events::id.eq(self.id))
 	    .filter(orders::status.eq(OrderStatus::Paid))
-	    .group_by((
-		events::id,
-		users::first_name,
-		users::last_name,
-		users::email,
-		users::phone,
-		users::id,
-	    ))
+	    .group_by((events::id, users::id))
 	    .select((
 		events::id,
 		users::first_name,
@@ -946,7 +940,11 @@ impl Event {
 	    .get_results(conn)
 	    .to_db_error(ErrorCode::QueryError, "Could not load fans for event")?;
 
-	let total = if results.is_empty() { 0 } else { results[0].total_rows as u64 };
+	let total = if results.is_empty() {
+	    0
+	} else {
+	    results[0].total_rows as u64
+	};
 
 	let fans = results
 	    .into_iter()
@@ -978,8 +976,8 @@ impl Event {
 	sort_direction: Option<SortingDir>,
 	conn: &PgConnection,
     ) -> Result<(Vec<DisplayFan>, u64), DatabaseError> {
-	use schema::*;
 	use diesel::sql_types::{BigInt, Text};
+	use schema::*;
 
 	let search_filter = query.map(|q| format!("%{}%", q));
 
@@ -987,14 +985,6 @@ impl Event {
 	    .inner_join(event_interest::table.on(event_interest::event_id.eq(events::id)))
 	    .inner_join(users::table.on(users::id.eq(event_interest::user_id)))
 	    .filter(events::id.eq(self.id))
-	    .group_by((
-		events::id,
-		users::first_name,
-		users::last_name,
-		users::email,
-		users::phone,
-		users::id,
-	    ))
 	    .select((
 		events::organization_id,
 		users::first_name,
@@ -1067,7 +1057,11 @@ impl Event {
 	    .get_results(conn)
 	    .to_db_error(ErrorCode::QueryError, "Could not load fans for event")?;
 
-	let total = if results.is_empty() { 0 } else { results[0].total_rows as u64 };
+	let total = if results.is_empty() {
+	    0
+	} else {
+	    results[0].total_rows as u64
+	};
 
 	let fans = results
 	    .into_iter()
