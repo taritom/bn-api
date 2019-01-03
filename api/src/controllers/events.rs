@@ -817,8 +817,7 @@ pub fn fans_index(
 
     let mut fans = paid_fans.iter().cloned().collect::<Vec<DisplayFan>>();
     for fan in interest_fans.iter() {
-        let found_fan = paid_fans.iter().find(|&x| x.user_id == fan.user_id);
-        if found_fan.is_none() {
+        if !paid_fans.iter().any(|ref x| x.user_id == fan.user_id) {
             fans.push(fan.to_owned());
         }
     }
