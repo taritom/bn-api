@@ -3660,8 +3660,8 @@
 											"})",
 											"",
 											"let r = JSON.parse(responseBody);",
-											"pm.test(\"Error field should be event.end_date\", function() {",
-											"    pm.expect(r.fields).to.have.keys([\"event.end_date\"]);",
+											"pm.test(\"Error field should be event.event_end\", function() {",
+											"    pm.expect(r.fields).to.have.keys([\"event.event_end\"]);",
 											"})"
 										],
 										"type": "text/javascript"
