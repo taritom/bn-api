@@ -53,6 +53,7 @@ pub struct Event {
     pub client_fee_in_cents: i64,
     pub company_fee_in_cents: i64,
     pub settlement_amount_in_cents: Option<i64>,
+    pub event_end: Option<NaiveDateTime>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
@@ -91,6 +92,7 @@ pub struct NewEvent {
     pub external_url: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub override_status: Option<EventOverrideStatus>,
+    pub event_end: Option<NaiveDateTime>,
 }
 
 #[derive(AsChangeset)]
@@ -158,6 +160,8 @@ pub struct EventEditableAttributes {
     pub external_url: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub override_status: Option<Option<EventOverrideStatus>>,
+    pub event_end: Option<NaiveDateTime>,
+
 }
 
 impl Event {
