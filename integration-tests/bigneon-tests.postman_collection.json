@@ -11194,7 +11194,7 @@
 					"response": []
 				},
 				{
-					"name": "OrgAdmin - View Event Fans",
+					"name": "OrgAdmin - Event Fans",
 					"event": [
 						{
 							"listen": "test",
@@ -11207,15 +11207,15 @@
 									"",
 									"let json = JSON.parse(responseBody);",
 									"",
-									"pm.test(\"fans should be present\", function(){",
-									"    pm.expect(json.data.length).to.equal(3);",
+									"pm.test(\"fans should be present\", function() {",
+									"    pm.expect(json.length).to.equal(3);",
 									"});",
 									"",
-									"pm.test(\"last user fan data should be present\", function(){",
+									"pm.test(\"last user fan data should be present\", function() {",
 									"    let user_id = pm.environment.get(\"last_user_id\");",
-									"    pm.expect([json.data[0].user_id, json.data[1].user_id,  json.data[2].user_id]).to.include(user_id);",
-									"    pm.expect([json.data[0].first_name, json.data[1].first_name, json.data[2].first_name]).to.include(\"Mike\");",
-									"    pm.expect([json.data[0].last_name, json.data[1].last_name,  json.data[2].last_name]).to.include(\"Surname\");",
+									"    pm.expect(json.map(function(d) { return d.user_id; })).to.include(user_id);",
+									"    pm.expect(json.map(function(d) { return d.first_name; })).to.include(\"Mike\");",
+									"    pm.expect(json.map(function(d) { return d.last_name; })).to.include(\"Surname\");",
 									"});"
 								],
 								"type": "text/javascript"

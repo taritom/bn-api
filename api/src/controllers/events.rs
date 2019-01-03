@@ -803,26 +803,26 @@ pub fn fans_index(
     user.requires_scope_for_organization(Scopes::OrgFans, &org, &connection)?;
 
     let no_result_is_ok = |e: DatabaseError| match e.error_code {
-	ErrorCode::NoResults => Ok((Vec::<DisplayFan>::new(), 0)),
-	_ => Err(e),
+        ErrorCode::NoResults => Ok((Vec::<DisplayFan>::new(), 0)),
+        _ => Err(e),
     };
 
     let (paid_fans, _total) = event
-	.search_paid_fans(None, None, None, None, None, connection)
-	.or_else(no_result_is_ok)?;
+        .search_paid_fans(None, None, None, None, None, connection)
+        .or_else(no_result_is_ok)?;
 
     let (interest_fans, _total) = event
-	.search_interested_fans(None, None, None, None, None, connection)
-	.or_else(no_result_is_ok)?;
+        .search_interested_fans(None, None, None, None, None, connection)
+        .or_else(no_result_is_ok)?;
 
     let mut fans = paid_fans.iter().cloned().collect::<Vec<DisplayFan>>();
     for fan in interest_fans.iter() {
-	let found_fan = paid_fans
-	    .iter()
-	    .find(|&x| x.user_id.to_string() == fan.user_id.to_string());
-	if found_fan.is_none() {
-	    fans.push(fan.to_owned());
-	}
+        let found_fan = paid_fans
+            .iter()
+            .find(|&x| x.user_id == fan.user_id);
+        if found_fan.is_none() {
+            fans.push(fan.to_owned());
+        }
     }
 
     Ok(HttpResponse::Ok().json(fans))

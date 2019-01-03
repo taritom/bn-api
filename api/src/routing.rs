@@ -73,7 +73,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(events::holds);
     })
     .resource("/events/{id}/fans", |r| {
-	r.method(Method::GET).with(events::fans_index);
+        r.method(Method::GET).with(events::fans_index);
     })
     .resource("/events/{id}/interest", |r| {
         r.method(Method::GET).with(events::list_interested_users);

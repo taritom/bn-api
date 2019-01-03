@@ -528,11 +528,11 @@ impl Organization {
                 phone: r.phone,
                 thumb_profile_pic_url: r.thumb_profile_pic_url,
                 organization_id: r.organization_id,
-		order_count: Some(r.order_count as u32),
+                order_count: Some(r.order_count as u32),
                 created_at: r.created_at,
-		first_order_time: Some(r.first_order_time),
-		last_order_time: Some(r.last_order_time),
-		revenue_in_cents: Some(r.revenue_in_cents),
+                first_order_time: Some(r.first_order_time),
+                last_order_time: Some(r.last_order_time),
+                revenue_in_cents: Some(r.revenue_in_cents),
             })
             .collect();
 
