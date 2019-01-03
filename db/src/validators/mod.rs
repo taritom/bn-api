@@ -1,12 +1,15 @@
+mod n_date_before_m_date_validator;
 mod number_validators;
 mod redemption_code_uniqueness_validator;
 mod start_date_before_end_date_validator;
 mod url_array_validator;
 
+pub use self::n_date_before_m_date_validator::n_date_valid;
 pub use self::number_validators::validate_greater_than;
 pub use self::redemption_code_uniqueness_validator::redemption_code_unique_per_event_validation;
 pub use self::start_date_before_end_date_validator::start_date_valid;
 pub use self::url_array_validator::validate_urls;
+
 use std::borrow::Cow;
 use validator::*;
 

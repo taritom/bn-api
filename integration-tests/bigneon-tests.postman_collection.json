@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "3d17311a-4e5c-46ad-9c1f-ee408e25e25a",
+		"_postman_id": "ecdf3b9c-8d7c-4352-92f0-5e30b391607f",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -3569,7 +3569,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"event_end\": \"2020-11-14T12:00:00\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",
@@ -3642,6 +3642,63 @@
 										"events",
 										"{{last_event_id}}",
 										"publish"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Update Event - Validation Fails",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "1f54eb13-607a-4651-a581-3ce380c3fcbf",
+										"exec": [
+											"pm.test(\"should be 422\", function() {",
+											"    pm.response.to.have.status(422);",
+											"})",
+											"",
+											"let r = JSON.parse(responseBody);",
+											"pm.test(\"Error field should be event.event_end\", function() {",
+											"    pm.expect(r.fields).to.have.keys([\"event.event_end\"]);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"age_limit\": 18,\n    \"promo_image_url\": \"http://localhost/noimg.png\",\n    \"event_end\": \"2020-11-12T12:00:00\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{last_event_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{last_event_id}}"
 									]
 								}
 							},
