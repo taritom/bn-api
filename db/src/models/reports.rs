@@ -61,7 +61,7 @@ impl Default for EventSummarySalesResult {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummarySalesRow {
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
@@ -249,7 +249,11 @@ impl Report {
     ) -> Result<EventSummarySalesResult, DatabaseError> {
         let mut results =
             Report::summary_event_report_core(Some(event_id), None, start, end, conn)?;
-        Ok(results.pop().unwrap_or_default())
+        let mut result = results.pop().unwrap_or_default();
+        if results.is_empty() {
+            result.event_id = event_id;
+        }
+        Ok(result)
     }
 
     pub fn organization_summary_report(
@@ -280,6 +284,12 @@ impl Report {
             ErrorCode::QueryError,
             "Could not fetch report sales results",
         )?;
+
+        //If there were no sales, return immediately
+        if sales_rows.is_empty() {
+            return Ok(vec![]);
+        }
+
         let sales_rows = sales_rows.into_iter().group_by(|row| row.event_id);
 
         //Now get the transaction fees results
