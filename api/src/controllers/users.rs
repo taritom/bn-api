@@ -1,6 +1,6 @@
 use actix_web;
 use actix_web::Responder;
-use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
+use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use communications::mailers;
@@ -15,6 +15,7 @@ use models::*;
 use server::AppState;
 use std::collections::HashMap;
 use std::str;
+use utils::google_recaptcha;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -222,8 +223,33 @@ pub fn remove_push_notification_token(
 }
 
 pub fn register(
-    (connection, parameters, state): (Connection, Json<RegisterRequest>, State<AppState>),
+    (http_request, connection, parameters): (
+        HttpRequest<AppState>,
+        Connection,
+        Json<RegisterRequest>,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
+    let state = http_request.state();
+    let connection_info = http_request.connection_info();
+    let remote_ip = connection_info.remote();
+    let mut log_data = HashMap::new();
+    log_data.insert("email", parameters.email.clone().into());
+
+    if let Some(ref google_recaptcha_secret_key) = state.config.google_recaptcha_secret_key {
+        if let Err(err) = verify_recaptcha(
+            google_recaptcha_secret_key,
+            &parameters.captcha_response,
+            remote_ip,
+        ) {
+            return application::unauthorized_with_message(
+                err.reason.as_str(),
+                &http_request,
+                None,
+                Some(log_data),
+            );
+        }
+    }
+
     let new_user: NewUser = parameters.into_inner().into();
     new_user.commit(connection.get())?;
 
@@ -235,19 +261,39 @@ pub fn register(
 }
 
 pub fn register_and_login(
-    (http_request, connection, parameters, state): (
+    (http_request, connection, parameters): (
         HttpRequest<AppState>,
         Connection,
         Json<RegisterRequest>,
-        State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
+    let state = http_request.state();
+    let connection_info = http_request.connection_info();
+    let remote_ip = connection_info.remote();
+    let mut log_data = HashMap::new();
+    log_data.insert("email", parameters.email.clone().into());
+
+    if let Some(ref google_recaptcha_secret_key) = state.config.google_recaptcha_secret_key {
+        if let Err(err) = verify_recaptcha(
+            google_recaptcha_secret_key,
+            &parameters.captcha_response,
+            remote_ip,
+        ) {
+            return application::unauthorized_with_message(
+                err.reason.as_str(),
+                &http_request,
+                None,
+                Some(log_data),
+            );
+        }
+    }
+
     let email = parameters.email.clone();
     let password = parameters.password.clone();
     let new_user: NewUser = parameters.into_inner().into();
     new_user.commit(connection.get())?;
     let json = Json(LoginRequest::new(&email, &password));
-    let token_response = auth::token((http_request, connection.clone(), json))?;
+    let token_response = auth::token((http_request.clone(), connection.clone(), json))?;
 
     if let (Some(first_name), Some(email)) = (new_user.first_name, new_user.email) {
         mailers::user::user_registered(first_name, email, &state.config, connection.get())?;
@@ -273,4 +319,25 @@ fn current_user_from_user(
         organization_roles: roles_by_organization,
         organization_scopes: scopes_by_organization,
     })
+}
+
+fn verify_recaptcha(
+    google_recaptcha_secret_key: &str,
+    captcha_response: &Option<String>,
+    remote_ip: Option<&str>,
+) -> Result<google_recaptcha::Response, ApplicationError> {
+    match captcha_response {
+        Some(ref captcha_response) => {
+            let captcha_response = google_recaptcha::verify_response(
+                google_recaptcha_secret_key,
+                captcha_response.to_owned(),
+                remote_ip,
+            )?;
+            if !captcha_response.success {
+                return Err(ApplicationError::new("Captcha value invalid".to_string()));
+            }
+            Ok(captcha_response)
+        }
+        None => Err(ApplicationError::new("Captcha required".to_string())),
+    }
 }

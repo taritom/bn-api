@@ -345,10 +345,11 @@ fn register_address_exists() {
         &existing_user.email.unwrap(),
         &"555",
         &"not_important",
+        None,
     ));
 
     let response: HttpResponse =
-        users::register((database.connection.into(), json, request.extract_state())).into();
+        users::register((request.request, database.connection.into(), json)).into();
 
     if response.status() == StatusCode::OK {
         panic!("Duplicate email was allowed when it should not be")
@@ -365,10 +366,11 @@ fn register_succeeds_without_name() {
         first_name: None,
         last_name: None,
         phone: None,
+        captcha_response: None,
     });
 
     let response: HttpResponse =
-        users::register((database.connection.into(), json, request.extract_state())).into();
+        users::register((request.request, database.connection.into(), json)).into();
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
@@ -382,10 +384,11 @@ fn register_succeeds() {
         &"fake@localhost",
         &"555",
         &"not_important",
+        None,
     ));
 
     let response: HttpResponse =
-        users::register((database.connection.into(), json, request.extract_state())).into();
+        users::register((request.request, database.connection.into(), json)).into();
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
@@ -399,17 +402,11 @@ fn register_succeeds_with_login() {
         &"fake@localhost",
         &"555",
         &"not_important",
+        None,
     ));
 
-    let test_request = TestRequest::create();
-
-    let response: HttpResponse = users::register_and_login((
-        test_request.request,
-        database.connection.into(),
-        json,
-        request.extract_state(),
-    ))
-    .into();
+    let response: HttpResponse =
+        users::register_and_login((request.request, database.connection.into(), json)).into();
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let token_response: TokenResponse = serde_json::from_str(&body).unwrap();
@@ -427,10 +424,11 @@ fn register_with_validation_errors() {
         &"bad-email",
         &"555",
         &"not_important",
+        None,
     ));
 
     let response: HttpResponse =
-        users::register((database.connection.into(), json, request.extract_state())).into();
+        users::register((request.request, database.connection.into(), json)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 

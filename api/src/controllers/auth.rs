@@ -7,12 +7,9 @@ use extractors::*;
 use helpers::application;
 use jwt::{decode, Validation};
 use log::Level::Info;
-use reqwest;
-use serde_json;
 use server::AppState;
 use std::collections::HashMap;
-
-const GOOGLE_RECAPTCHA_SITE_VERIFY_URL: &str = "https://www.google.com/recaptcha/api/siteverify";
+use utils::google_recaptcha;
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
@@ -21,13 +18,6 @@ pub struct LoginRequest {
     #[serde(rename = "g-recaptcha-response")]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     captcha_response: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GoogleCaptchaResponse {
-    success: bool,
-    #[serde(rename = "error-codes")]
-    error_codes: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -69,11 +59,12 @@ pub fn token(
     if let Some(ref google_recaptcha_secret_key) = state.config.google_recaptcha_secret_key {
         match login_request.captcha_response {
             Some(ref captcha_response) => {
-                if !verify_google_captcha_response(
+                let captcha_response = google_recaptcha::verify_response(
                     google_recaptcha_secret_key,
-                    captcha_response,
+                    captcha_response.to_owned(),
                     remote_ip,
-                )? {
+                )?;
+                if !captcha_response.success {
                     return application::unauthorized_with_message(
                         "Captcha value invalid",
                         &http_request,
@@ -160,30 +151,4 @@ pub fn token_refresh(
     jlog!(Info, "User refreshed token", {"id": user.id, "email": user.email.clone()});
 
     Ok(HttpResponse::Ok().json(response))
-}
-
-fn verify_google_captcha_response(
-    google_recaptcha_secret_key: &str,
-    captcha_response: &str,
-    remote_ip: Option<&str>,
-) -> Result<bool, BigNeonError> {
-    let client = reqwest::Client::new();
-    let mut params = HashMap::new();
-    params.insert("secret", google_recaptcha_secret_key);
-    params.insert("response", captcha_response);
-
-    if let Some(val) = remote_ip {
-        params.insert("remoteip", val);
-    }
-
-    let response = client
-        .post(GOOGLE_RECAPTCHA_SITE_VERIFY_URL)
-        .form(&params)
-        .send()?
-        .text()?;
-    let google_captcha_response: GoogleCaptchaResponse = serde_json::from_str(&response)?;
-    if let Some(error_codes) = google_captcha_response.error_codes {
-        warn!("Google captcha error encountered: {:?}", error_codes);
-    }
-    Ok(google_captcha_response.success)
 }
