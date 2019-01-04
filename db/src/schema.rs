@@ -389,6 +389,7 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         price_in_cents -> Int8,
+        cancelled_at -> Nullable<Timestamp>,
     }
 }
 

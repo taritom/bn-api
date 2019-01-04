@@ -79,6 +79,39 @@ mod update_tests {
 }
 
 #[cfg(test)]
+mod cancel_tests {
+    use super::*;
+    #[test]
+    fn cancel_org_member() {
+        base::ticket_types::cancel(Roles::OrgMember, true);
+    }
+    #[test]
+    fn cancel_admin() {
+        base::ticket_types::cancel(Roles::Admin, true);
+    }
+    #[test]
+    fn cancel_user() {
+        base::ticket_types::cancel(Roles::User, false);
+    }
+    #[test]
+    fn cancel_org_owner() {
+        base::ticket_types::cancel(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn cancel_door_person() {
+        base::ticket_types::cancel(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn cancel_org_admin() {
+        base::ticket_types::cancel(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn cancel_box_office() {
+        base::ticket_types::cancel(Roles::OrgBoxOffice, false);
+    }
+}
+
+#[cfg(test)]
 mod index_tests {
     use super::*;
     #[test]

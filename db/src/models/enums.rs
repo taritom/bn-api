@@ -98,7 +98,7 @@ string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { Tables [FeeSchedules, Orders, Organizations, Payments, PaymentMethods] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
-string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut] }
+string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled] }
 
 impl Default for EventStatus {
     fn default() -> EventStatus {

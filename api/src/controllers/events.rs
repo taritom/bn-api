@@ -263,14 +263,16 @@ pub fn show(
     let ticket_types = TicketType::find_by_event_id(parameters.id, connection)?;
     let mut display_ticket_types = Vec::new();
     for ticket_type in ticket_types {
-        let display_ticket_type = UserDisplayTicketType::from_ticket_type(
-            &ticket_type,
-            &fee_schedule,
-            box_office_pricing,
-            connection,
-        )?;
+        if ticket_type.status != TicketTypeStatus::Cancelled {
+            let display_ticket_type = UserDisplayTicketType::from_ticket_type(
+                &ticket_type,
+                &fee_schedule,
+                box_office_pricing,
+                connection,
+            )?;
 
-        display_ticket_types.push(display_ticket_type);
+            display_ticket_types.push(display_ticket_type);
+        }
     }
 
     //This struct is used to just contain the id and name of the org

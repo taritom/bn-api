@@ -165,6 +165,21 @@ pub fn index(
     Ok(HttpResponse::Ok().json(&payload))
 }
 
+pub fn cancel(
+    (connection, path, user): (Connection, Path<EventTicketPathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let event = Event::find(path.event_id, connection)?;
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
+
+    let ticket_type = TicketType::find(path.ticket_type_id, connection)?;
+
+    ticket_type.cancel(connection)?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
 pub fn update(
     (connection, path, data, user, state): (
         Connection,

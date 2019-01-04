@@ -98,6 +98,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/events/{event_id}/ticket_types/{ticket_type_id}", |r| {
         r.method(Method::PATCH).with(ticket_types::update);
+        r.method(Method::DELETE).with(ticket_types::cancel);
     })
     .resource("/external/facebook/web_login", |r| {
         r.method(Method::POST).with(external::facebook::web_login)
