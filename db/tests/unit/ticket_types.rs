@@ -377,6 +377,18 @@ fn update() {
 }
 
 #[test]
+fn cancel() {
+    let db = TestProject::new();
+    let connection = db.get_connection();
+    let event = db.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+
+    let cancelled_ticket_type = ticket_type.cancel(connection).unwrap();
+
+    assert_eq!(cancelled_ticket_type.status, TicketTypeStatus::Cancelled);
+}
+
+#[test]
 pub fn update_with_validation_errors() {
     let db = TestProject::new();
     let connection = db.get_connection();

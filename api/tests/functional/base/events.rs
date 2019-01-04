@@ -715,20 +715,22 @@ pub fn expected_show_json(
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
     let event_artists = EventArtist::find_all_from_event(event.id, connection).unwrap();
 
-    let display_ticket_types: Vec<UserDisplayTicketType> = event
-        .ticket_types(connection)
-        .unwrap()
-        .iter()
-        .map(|ticket_type| {
-            UserDisplayTicketType::from_ticket_type(
-                ticket_type,
-                &fee_schedule,
-                box_office_pricing,
-                connection,
-            )
-            .unwrap()
-        })
-        .collect();
+    let ticket_types = event.ticket_types(connection).unwrap();
+    let mut display_ticket_types: Vec<UserDisplayTicketType> = Vec::new();
+
+    for tt in ticket_types.iter() {
+        if tt.status != TicketTypeStatus::Cancelled {
+            display_ticket_types.push(
+                UserDisplayTicketType::from_ticket_type(
+                    &tt,
+                    &fee_schedule,
+                    box_office_pricing,
+                    connection,
+                )
+                .unwrap(),
+            );
+        }
+    }
 
     serde_json::to_string(&R {
         id: event.id,

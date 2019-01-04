@@ -28,6 +28,7 @@ pub struct TicketType {
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     pub price_in_cents: i64,
+    pub cancelled_at: Option<NaiveDateTime>,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -114,6 +115,19 @@ impl TicketType {
             Some(TicketPricingStatus::Default),
             conn,
         )?;
+
+        Ok(result)
+    }
+
+    pub fn cancel(&self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
+        let result: TicketType = diesel::update(self)
+            .set((
+                ticket_types::status.eq(TicketTypeStatus::Cancelled),
+                ticket_types::cancelled_at.eq(dsl::now.nullable()),
+                ticket_types::updated_at.eq(dsl::now),
+            ))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update ticket_types")?;
 
         Ok(result)
     }
