@@ -799,7 +799,9 @@ pub fn holds(
 }
 
 pub fn fans_index(
-    (connection, path, user): (Connection, Path<PathParameters>, User),
+    (connection, query, path, user): (Connection,
+        Query<PagingParameters>,
+    Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
@@ -811,20 +813,19 @@ pub fn fans_index(
         _ => Err(e),
     };
 
-    let (paid_fans, _total) = event
-        .search_paid_fans(None, None, None, None, None, connection)
+    let (fans, _total) = event
+        .search_fans(
+            query.get_tag("query"),
+            Some(query.page()),
+            Some(query.limit()),
+            query
+                .sort
+                .as_ref()
+                .map(|s| s.parse().unwrap_or(FanSortField::LastOrder)),
+            query.dir.or(Some(SortingDir::Desc)),
+            connection
+        )
         .or_else(no_result_is_ok)?;
-
-    let (interest_fans, _total) = event
-        .search_interested_fans(None, None, None, None, None, connection)
-        .or_else(no_result_is_ok)?;
-
-    let mut fans = paid_fans.iter().cloned().collect::<Vec<DisplayFan>>();
-    for fan in interest_fans.iter() {
-        if !paid_fans.iter().any(|ref x| x.user_id == fan.user_id) {
-            fans.push(fan.to_owned());
-        }
-    }
 
     Ok(HttpResponse::Ok().json(fans))
 }

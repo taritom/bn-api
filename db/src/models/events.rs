@@ -867,7 +867,7 @@ impl Event {
         EventArtist::find_all_from_event(self.id, conn)
     }
 
-    pub fn search_paid_fans(
+    pub fn search_fans(
         &self,
         query: Option<String>,
         offset: Option<u32>,
@@ -876,55 +876,14 @@ impl Event {
         sort_direction: Option<SortingDir>,
         conn: &PgConnection,
     ) -> Result<(Vec<DisplayFan>, u64), DatabaseError> {
-        use diesel::sql_types::{BigInt, Text, Timestamp};
-        use schema::*;
+        use diesel::sql_types::{Nullable, Text, Timestamp, BigInt, Integer, Uuid as dUuid};
 
-        let search_filter = query.map(|q| format!("%{}%", q));
+        let search_filter = query.map(|q| format!("%{}%", q)).unwrap_or("%".to_string());
+        let query = include_str!("../queries/find_event_fans.sql");
+        let sort_direction = sort_direction.unwrap_or(SortingDir::Desc);
 
-        let query = users::table
-            .inner_join(orders::table.on(orders::user_id.eq(users::id)))
-            .inner_join(order_items::table.on(order_items::order_id.eq(orders::id)))
-            .inner_join(events::table.on(events::id.nullable().eq(order_items::event_id)))
-            .filter(events::id.eq(self.id))
-            .filter(orders::status.eq(OrderStatus::Paid))
-            .group_by((events::id, users::id))
-            .select((
-                events::id,
-                users::first_name,
-                users::last_name,
-                users::email,
-                users::phone,
-                users::thumb_profile_pic_url,
-                users::id,
-                sql::<BigInt>("count(distinct orders.id)"),
-                users::created_at,
-                sql::<Timestamp>("min(orders.order_date)"),
-                sql::<Timestamp>("max(orders.order_date)"),
-                sql::<BigInt>(
-                    "cast(sum(order_items.unit_price_in_cents * order_items.quantity) as bigint)",
-                ),
-                sql::<BigInt>("count(*) over()"),
-            ));
-
-        let mut query = query.into_boxed();
-
-        if let Some(ref search_filter) = search_filter {
-            query = query.filter(
-                sql("(")
-                    .sql("users.first_name ilike ")
-                    .bind::<Text, _>(search_filter)
-                    .sql(" OR users.last_name ilike ")
-                    .bind::<Text, _>(search_filter)
-                    .sql(" OR users.email ilike ")
-                    .bind::<Text, _>(search_filter)
-                    .sql(" OR users.phone ilike ")
-                    .bind::<Text, _>(search_filter)
-                    .sql(")"),
-            );
-        }
-
-        if let Some(sort_field) = sort_field {
-            let sort_column = match sort_field {
+        let sort_column = match sort_field {
+            Some(s) => match s {
                 FanSortField::FirstName => "2",
                 FanSortField::LastName => "3",
                 FanSortField::Email => "4",
@@ -933,42 +892,58 @@ impl Event {
                 FanSortField::FirstOrder => "8",
                 FanSortField::LastOrder => "9",
                 FanSortField::Revenue => "10",
-            };
+            }
+            None => "users.created_at" // created_at
+        };
+        // Add sorting order as raw sql string
+        // SECURITY: ensure that you don't inject unescaped external strings into the SQL query
+        let query = query.to_string()
+            .replace("{sort_direction}", match sort_direction {
+                SortingDir::Asc => "ASC",
+                SortingDir::Desc => "DESC",
+            })
+            .replace("{sort_column}", sort_column);
 
-            query = query.order_by(sql::<()>(&format!(
-                "{} {}",
-                sort_column,
-                sort_direction.unwrap_or(SortingDir::Desc)
-            )));
-        }
+        let query = diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .bind::<Text, _>(search_filter)
+            .bind::<Text, _>(sort_column.to_string())
+            .bind::<Integer, _>(limit.unwrap_or(100) as i32)
+            .bind::<Integer, _>(offset.unwrap_or(0) as i32);
 
-        if let Some(limit) = limit {
-            query = query.limit(limit as i64);
-        }
-        if let Some(offset) = offset {
-            query = query.offset((offset) as i64);
-        }
-
-        #[derive(Queryable)]
+        #[derive(QueryableByName)]
         struct R {
+            #[sql_type = "dUuid"]
             organization_id: Uuid,
+            #[sql_type = "Nullable<Text>"]
             first_name: Option<String>,
+            #[sql_type = "Nullable<Text>"]
             last_name: Option<String>,
+            #[sql_type = "Nullable<Text>"]
             email: Option<String>,
+            #[sql_type = "Nullable<Text>"]
             phone: Option<String>,
+            #[sql_type = "Nullable<Text>"]
             thumb_profile_pic_url: Option<String>,
+            #[sql_type = "dUuid"]
             user_id: Uuid,
+            #[sql_type = "BigInt"]
             order_count: i64,
+            #[sql_type = "Timestamp"]
             created_at: NaiveDateTime,
+            #[sql_type = "Timestamp"]
             first_order_time: NaiveDateTime,
+            #[sql_type = "Timestamp"]
             last_order_time: NaiveDateTime,
+            #[sql_type = "BigInt"]
             revenue_in_cents: i64,
+            #[sql_type = "BigInt"]
             total_rows: i64,
         }
 
         let results: Vec<R> = query
             .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load fans for event")?;
+            .to_db_error(ErrorCode::QueryError, "Could not fetch query results")?;
 
         let total = if results.is_empty() {
             0
@@ -991,123 +966,6 @@ impl Event {
                 first_order_time: Some(r.first_order_time),
                 last_order_time: Some(r.last_order_time),
                 revenue_in_cents: Some(r.revenue_in_cents),
-            })
-            .collect();
-
-        Ok((fans, total))
-    }
-
-    pub fn search_interested_fans(
-        &self,
-        query: Option<String>,
-        offset: Option<u32>,
-        limit: Option<u32>,
-        sort_field: Option<FanSortField>,
-        sort_direction: Option<SortingDir>,
-        conn: &PgConnection,
-    ) -> Result<(Vec<DisplayFan>, u64), DatabaseError> {
-        use diesel::sql_types::{BigInt, Text};
-        use schema::*;
-
-        let search_filter = query.map(|q| format!("%{}%", q));
-
-        let query = events::table
-            .inner_join(event_interest::table.on(event_interest::event_id.eq(events::id)))
-            .inner_join(users::table.on(users::id.eq(event_interest::user_id)))
-            .filter(events::id.eq(self.id))
-            .select((
-                events::organization_id,
-                users::first_name,
-                users::last_name,
-                users::email,
-                users::phone,
-                users::thumb_profile_pic_url,
-                users::id,
-                users::created_at,
-                sql::<BigInt>("count(*) over()"),
-            ));
-
-        let mut query = query.into_boxed();
-
-        if let Some(ref search_filter) = search_filter {
-            query = query.filter(
-                sql("(")
-                    .sql("users.first_name ilike ")
-                    .bind::<Text, _>(search_filter)
-                    .sql(" OR users.last_name ilike ")
-                    .bind::<Text, _>(search_filter)
-                    .sql(" OR users.email ilike ")
-                    .bind::<Text, _>(search_filter)
-                    .sql(" OR users.phone ilike ")
-                    .bind::<Text, _>(search_filter)
-                    .sql(")"),
-            );
-        }
-
-        if let Some(sort_field) = sort_field {
-            let sort_column = match sort_field {
-                FanSortField::FirstName => "2",
-                FanSortField::LastName => "3",
-                FanSortField::Email => "4",
-                FanSortField::Phone => "5",
-                FanSortField::Orders => "7",
-                FanSortField::FirstOrder => "8",
-                FanSortField::LastOrder => "9",
-                FanSortField::Revenue => "10",
-            };
-
-            query = query.order_by(sql::<()>(&format!(
-                "{} {}",
-                sort_column,
-                sort_direction.unwrap_or(SortingDir::Desc)
-            )));
-        }
-
-        if let Some(limit) = limit {
-            query = query.limit(limit as i64);
-        }
-        if let Some(offset) = offset {
-            query = query.offset((offset) as i64);
-        }
-
-        #[derive(Queryable)]
-        struct R {
-            organization_id: Uuid,
-            first_name: Option<String>,
-            last_name: Option<String>,
-            email: Option<String>,
-            phone: Option<String>,
-            thumb_profile_pic_url: Option<String>,
-            user_id: Uuid,
-            created_at: NaiveDateTime,
-            total_rows: i64,
-        }
-
-        let results: Vec<R> = query
-            .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load fans for event")?;
-
-        let total = if results.is_empty() {
-            0
-        } else {
-            results[0].total_rows as u64
-        };
-
-        let fans = results
-            .into_iter()
-            .map(|r| DisplayFan {
-                user_id: r.user_id,
-                first_name: r.first_name,
-                last_name: r.last_name,
-                email: r.email,
-                phone: r.phone,
-                thumb_profile_pic_url: r.thumb_profile_pic_url,
-                organization_id: r.organization_id,
-                order_count: None,
-                created_at: r.created_at,
-                first_order_time: None,
-                last_order_time: None,
-                revenue_in_cents: None,
             })
             .collect();
 
