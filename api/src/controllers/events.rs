@@ -805,7 +805,7 @@ pub fn fans_index(
         Path<PathParameters>,
         User,
     ),
-) -> Result<HttpResponse, BigNeonError> {
+) -> Result<WebPayload<DisplayFan>, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
     let org = event.organization(connection)?;
@@ -816,19 +816,25 @@ pub fn fans_index(
         _ => Err(e),
     };
 
-    let (fans, _total) = event
+    let dir = query.dir.or(Some(SortingDir::Desc));
+    let (fans, total) = event
         .search_fans(
             query.get_tag("query"),
-            Some(query.page()),
             Some(query.limit()),
+            Some(query.page() * query.limit()),
             query
                 .sort
                 .as_ref()
                 .map(|s| s.parse().unwrap_or(FanSortField::LastOrder)),
-            query.dir.or(Some(SortingDir::Desc)),
+            dir,
             connection,
         )
         .or_else(no_result_is_ok)?;
 
-    Ok(HttpResponse::Ok().json(fans))
+    let mut paging = Paging::new(query.page(), query.limit());
+    paging.dir = dir.unwrap();
+    paging.total = total;
+    let payload = Payload::new(fans, paging);
+
+    Ok(WebPayload::new(StatusCode::OK, payload))
 }
