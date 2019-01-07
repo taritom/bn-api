@@ -69,6 +69,7 @@ impl TicketInstance {
                     0) as BigInt)
                     ",
                 ),
+                assets::ticket_type_id,
                 ticket_types::name,
                 wallets::user_id,
                 events::id,
@@ -159,6 +160,7 @@ impl TicketInstance {
                     0) as BigInt)
                     ",
                 ),
+                assets::ticket_type_id,
                 ticket_types::name,
                 wallets::user_id,
                 events::id,
@@ -713,6 +715,7 @@ pub struct DisplayTicket {
     pub id: Uuid,
     pub order_id: Uuid,
     pub price_in_cents: u32,
+    pub ticket_type_id: Uuid,
     pub ticket_type_name: String,
     pub status: TicketInstanceStatus,
     pub redeem_key: Option<String>,
@@ -726,6 +729,8 @@ pub struct DisplayTicketIntermediary {
     pub order_id: Uuid,
     #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
+    #[sql_type = "dUuid"]
+    pub ticket_type_id: Uuid,
     #[sql_type = "Text"]
     pub name: String,
     #[sql_type = "Nullable<dUuid>"]
@@ -756,6 +761,7 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
             id: ticket_intermediary.id,
             order_id: ticket_intermediary.order_id,
             price_in_cents: ticket_intermediary.unit_price_in_cents as u32,
+            ticket_type_id: ticket_intermediary.ticket_type_id,
             ticket_type_name: ticket_intermediary.name.clone(),
             status: ticket_intermediary.status.clone(),
             redeem_key,
