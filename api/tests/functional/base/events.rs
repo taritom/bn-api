@@ -710,6 +710,7 @@ pub fn expected_show_json(
         external_url: Option<String>,
         override_status: Option<EventOverrideStatus>,
         limited_tickets_remaining: Vec<TicketsRemaining>,
+        localized_times: EventLocalizedTimes,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -731,7 +732,7 @@ pub fn expected_show_json(
             );
         }
     }
-
+    let localized_times: EventLocalizedTimes = event.get_all_localized_times(&Some(venue.clone()));
     serde_json::to_string(&R {
         id: event.id,
         name: event.name,
@@ -764,6 +765,7 @@ pub fn expected_show_json(
         external_url: event.external_url,
         override_status: event.override_status,
         limited_tickets_remaining: no_tickets_remaining,
+        localized_times,
     })
     .unwrap()
 }

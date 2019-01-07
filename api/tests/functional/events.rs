@@ -264,6 +264,7 @@ pub fn index_search_with_filter() {
         .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
 
+    let localized_times = event.get_all_localized_times(&None);
     let expected_events = vec![EventVenueEntry {
         id: event.id,
         name: event.name,
@@ -285,6 +286,7 @@ pub fn index_search_with_filter() {
         is_external: false,
         external_url: None,
         user_is_interested: false,
+        localized_times,
     }];
 
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
@@ -956,6 +958,7 @@ struct EventVenueEntry {
     is_external: bool,
     external_url: Option<String>,
     user_is_interested: bool,
+    localized_times: EventLocalizedTimes,
 }
 
 fn event_venue_entry(
@@ -964,6 +967,7 @@ fn event_venue_entry(
     user: Option<User>,
     connection: &PgConnection,
 ) -> EventVenueEntry {
+    let localized_times = event.get_all_localized_times(&Some(venue.clone()));
     EventVenueEntry {
         id: event.id,
         name: event.name.clone(),
@@ -987,5 +991,6 @@ fn event_venue_entry(
         user_is_interested: user
             .map(|u| EventInterest::user_interest(event.id, u.id, connection).unwrap())
             .unwrap_or(false),
+        localized_times,
     }
 }
