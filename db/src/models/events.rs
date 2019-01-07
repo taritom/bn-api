@@ -14,8 +14,6 @@ use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
@@ -676,7 +674,7 @@ impl Event {
         let query = r#"
                 SELECT CAST(o.paid_at as Date) as date,
                 cast(COALESCE(sum(oi.unit_price_in_cents * oi.quantity), 0) AS bigint) as sales,
-                CAST( COALESCE(SUM(CASE WHEN oi.item_type = 'Tickets' THEN oi.quantity ELSE 0 END), 0)  as BigInt) as ticket_count
+                CAST( COALESCE(SUM(CASE WHEN oi.item_type = 'Tickets' THEN oi.quantity ELSE 0 END), 0) as BigInt) as ticket_count
                 FROM order_items oi
                 INNER JOIN orders o ON oi.order_id = o.id
                 WHERE oi.event_id = $1
@@ -922,6 +920,114 @@ impl Event {
 
     pub fn artists(&self, conn: &PgConnection) -> Result<Vec<DisplayEventArtist>, DatabaseError> {
         EventArtist::find_all_from_event(self.id, conn)
+    }
+
+    pub fn search_fans(
+        &self,
+        query: Option<String>,
+        limit: Option<u32>,
+        offset: Option<u32>,
+        sort_field: Option<FanSortField>,
+        sort_direction: Option<SortingDir>,
+        conn: &PgConnection,
+    ) -> Result<(Vec<DisplayFan>, u64), DatabaseError> {
+        use diesel::sql_types::{BigInt, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
+
+        let search_filter = query.map(|q| format!("%{}%", q)).unwrap_or("%".to_string());
+        let query = include_str!("../queries/find_event_fans.sql");
+        let sort_direction = sort_direction.unwrap_or(SortingDir::Desc);
+
+        let sort_column = match sort_field {
+            Some(s) => match s {
+                FanSortField::FirstName => "2",
+                FanSortField::LastName => "3",
+                FanSortField::Email => "4",
+                FanSortField::Phone => "5",
+                FanSortField::Orders => "7",
+                FanSortField::FirstOrder => "8",
+                FanSortField::LastOrder => "9",
+                FanSortField::Revenue => "10",
+            },
+            None => "users.created_at",
+        };
+        // Add sorting order as raw sql string
+        // SECURITY: ensure that you don't inject unescaped external strings into the SQL query
+        let query = query
+            .to_string()
+            .replace(
+                "{sort_direction}",
+                match sort_direction {
+                    SortingDir::Asc => "ASC",
+                    SortingDir::Desc => "DESC",
+                },
+            )
+            .replace("{sort_column}", sort_column);
+
+        let query = diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .bind::<Text, _>(search_filter)
+            .bind::<Integer, _>(limit.unwrap_or(100) as i32)
+            .bind::<Integer, _>(offset.unwrap_or(0) as i32);
+
+        #[derive(QueryableByName)]
+        struct R {
+            #[sql_type = "dUuid"]
+            organization_id: Uuid,
+            #[sql_type = "Nullable<Text>"]
+            first_name: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            last_name: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            email: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            phone: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            thumb_profile_pic_url: Option<String>,
+            #[sql_type = "dUuid"]
+            user_id: Uuid,
+            #[sql_type = "BigInt"]
+            order_count: i64,
+            #[sql_type = "Timestamp"]
+            created_at: NaiveDateTime,
+            #[sql_type = "Nullable<Timestamp>"]
+            first_order_time: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Timestamp>"]
+            last_order_time: Option<NaiveDateTime>,
+            #[sql_type = "BigInt"]
+            revenue_in_cents: i64,
+            #[sql_type = "BigInt"]
+            total_rows: i64,
+        }
+
+        let results: Vec<R> = query
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch query results")?;
+
+        let total = if results.is_empty() {
+            0
+        } else {
+            results[0].total_rows as u64
+        };
+
+        let fans = results
+            .into_iter()
+            .map(|r| DisplayFan {
+                user_id: r.user_id,
+                first_name: r.first_name,
+                last_name: r.last_name,
+                email: r.email,
+                phone: r.phone,
+                thumb_profile_pic_url: r.thumb_profile_pic_url,
+                organization_id: r.organization_id,
+                order_count: Some(r.order_count as u32),
+                created_at: r.created_at,
+                first_order_time: r.first_order_time,
+                last_order_time: r.last_order_time,
+                revenue_in_cents: Some(r.revenue_in_cents),
+            })
+            .collect();
+
+        Ok((fans, total))
     }
 
     pub fn for_display(self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {

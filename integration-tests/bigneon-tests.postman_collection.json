@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "5d7b7351-a6bf-4930-b5d1-4995b9f0cd91",
+		"_postman_id": "5e3f0ebf-e4c2-48c4-9ae1-bfaee65fe9e1",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -11566,6 +11566,73 @@
 								"fans",
 								"{{last_user_id}}",
 								"history"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "OrgAdmin - Event Fans",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "8670e2d0-ee94-47ca-ba7f-4cd0854c4203",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"let json = JSON.parse(responseBody);",
+									"const items = json.data;",
+									"",
+									"pm.test(\"fans should be present\", function() {",
+									"    pm.expect(items.length).to.equal(4);",
+									"});",
+									"",
+									"pm.test(\"last user fan data should be present\", function() {",
+									"    let user_id = pm.environment.get(\"last_user_id\");",
+									"    pm.expect(items.map(function(d) { return d.user_id; })).to.include(user_id);",
+									"    pm.expect(items.map(function(d) { return d.first_name; })).to.include(\"Mike\");",
+									"    pm.expect(items.map(function(d) { return d.last_name; })).to.include(\"Surname\");",
+									"});",
+									"",
+									"pm.test(\"fans should not be duplicated\", function() {",
+									"    const instanceCounts = items.map(function(d) { return items.filter(function(dd) { return dd.user_id == d.user_id; }).length; });",
+									"    pm.expect(instanceCounts.every(function(d) { return d === 1; })).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{org_admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{last_event_id}}/fans",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{last_event_id}}",
+								"fans"
 							]
 						}
 					},
