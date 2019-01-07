@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "5d7b7351-a6bf-4930-b5d1-4995b9f0cd91",
+		"_postman_id": "3d17311a-4e5c-46ad-9c1f-ee408e25e25a",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -3569,7 +3569,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"event_end\": \"2020-11-14T12:00:00\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",
@@ -3642,63 +3642,6 @@
 										"events",
 										"{{last_event_id}}",
 										"publish"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "OrgMember  - Update Event - Validation Fails",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "1f54eb13-607a-4651-a581-3ce380c3fcbf",
-										"exec": [
-											"pm.test(\"should be 422\", function() {",
-											"    pm.response.to.have.status(422);",
-											"})",
-											"",
-											"let r = JSON.parse(responseBody);",
-											"pm.test(\"Error field should be event.event_end\", function() {",
-											"    pm.expect(r.fields).to.have.keys([\"event.event_end\"]);",
-											"})"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "PUT",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"age_limit\": 18,\n    \"promo_image_url\": \"http://localhost/noimg.png\",\n    \"event_end\": \"2020-11-12T12:00:00\"\n}"
-								},
-								"url": {
-									"raw": "http://{{server}}/events/{{last_event_id}}",
-									"protocol": "http",
-									"host": [
-										"{{server}}"
-									],
-									"path": [
-										"events",
-										"{{last_event_id}}"
 									]
 								}
 							},
@@ -4722,186 +4665,6 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n\t\"name\":\"General Admission_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"price_in_cents\": 2500,\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[{\n\t\t\"name\": \"Standard\",\n\t\t\"price_in_cents\": 3000,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"2022-02-01T02:22:00\"\n\t},\n\t{\n\t\t\"name\": \"Test_{{$timestamp}}_box_office_only\",\n\t\t\"price_in_cents\": 4000,\n\t\t\"is_box_office_only\": true,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"9999-01-10T02:22:00\"\n\t}\n\t]\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events",
-								"{{last_event_id}}",
-								"ticket_types"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "OrgMember - create tickets - GA for cancellation",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
-								"exec": [
-									"pm.test(\"should be 201\", function() {",
-									"    pm.response.to.have.status(201);",
-									"})",
-									"",
-									"pm.environment.set(\"tickets_to_cancel\", JSON.parse(responseBody).id);",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{org_member_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n\t\"name\":\"General Admission2_{{$timestamp}}\",\n\t\"capacity\": 1000,\n\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\"end_date\": \"9999-01-10T02:22:00\",\n\t\"price_in_cents\": 2500,\n\t\"limit_per_person\": 50,\n\t\"ticket_pricing\":[{\n\t\t\"name\": \"Standard\",\n\t\t\"price_in_cents\": 3000,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"2022-02-01T02:22:00\"\n\t},\n\t{\n\t\t\"name\": \"Test_{{$timestamp}}_box_office_only\",\n\t\t\"price_in_cents\": 4000,\n\t\t\"is_box_office_only\": true,\n\t\t\"start_date\":\"1982-02-01T02:22:00\",\n\t\t\"end_date\": \"9999-01-10T02:22:00\"\n\t}\n\t]\n}"
-						},
-						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events",
-								"{{last_event_id}}",
-								"ticket_types"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "OrgMember - cancel tickets",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{org_member_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "DELETE",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types/{{tickets_to_cancel}}",
-							"protocol": "http",
-							"host": [
-								"{{server}}"
-							],
-							"path": [
-								"events",
-								"{{last_event_id}}",
-								"ticket_types",
-								"{{tickets_to_cancel}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "OrgMember - check tickets cancelled",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"id": "c7d202bc-9666-4e6c-b8b0-076df724af03",
-								"exec": [
-									"pm.test(\"should be 200\", function() {",
-									"    pm.response.to.have.status(200);",
-									"})",
-									"",
-									"let r = JSON.parse(responseBody);",
-									"",
-									"r.data.forEach(function(val) {",
-									"    if (val.id == pm.variables.get(\"tickets_to_cancel\")) {",
-									"        tests[\"ticket should be cancelled\"] = val.status == \"Cancelled\";",
-									"    }",
-									"});",
-									"",
-									"",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{org_member_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/ticket_types",
@@ -9944,6 +9707,7 @@
 											"    pm.response.to.have.status(200);",
 											"})",
 											"",
+											"",
 											"let json = JSON.parse(responseBody);",
 											"",
 											"pm.environment.set(\"transfer_transfer_key\", json.transfer_key);",
@@ -11445,7 +11209,7 @@
 									"let json = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"fans should be present\", function() {",
-									"    pm.expect(json.length).to.equal(3);",
+									"    pm.expect(json.length).to.equal(4);",
 									"});",
 									"",
 									"pm.test(\"last user fan data should be present\", function() {",
@@ -11453,6 +11217,11 @@
 									"    pm.expect(json.map(function(d) { return d.user_id; })).to.include(user_id);",
 									"    pm.expect(json.map(function(d) { return d.first_name; })).to.include(\"Mike\");",
 									"    pm.expect(json.map(function(d) { return d.last_name; })).to.include(\"Surname\");",
+									"});",
+									"",
+									"pm.test(\"fans should not be duplicated\", function() {",
+									"    const instanceCounts = json.map(function(d) { return json.filter(function(dd) { return dd.user_id == d.user_id; }).length; });",
+									"    pm.expect(instanceCounts.every(function(d) { return d === 1; })).to.be.true;",
 									"});"
 								],
 								"type": "text/javascript"
@@ -12561,7 +12330,7 @@
 											"pm.test(\"should not be empty\", function() {",
 											"\tlet json = JSON.parse(responseBody);",
 											"\t",
-											"\tpm.expect(json).to.have.all.keys('event_id', 'sales', 'ticket_fees', 'other_fees');",
+											"\tpm.expect(json).to.have.all.keys('sales', 'ticket_fees', 'other_fees');",
 											"\tpm.expect(json.sales).to.not.be.empty;",
 											"\tpm.expect(json.ticket_fees).to.not.be.empty;",
 											"\tpm.expect(json.other_fees).to.not.be.empty;",
@@ -12759,141 +12528,6 @@
 										{
 											"key": "event_id",
 											"value": "{{last_event_id}}"
-										}
-									]
-								}
-							},
-							"response": []
-						}
-					],
-					"_postman_isSubFolder": true
-				},
-				{
-					"name": "Weekly Settlement Report",
-					"item": [
-						{
-							"name": "OrgOwner - Weekly Settlement - 401",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "6ba3137a-44b4-4df4-a044-9435b7a0b652",
-										"exec": [
-											"pm.test(\"should be 401\", function() {",
-											"    pm.response.to.have.status(401);",
-											"});"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{org_owner_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [
-									{
-										"key": "Content-Type",
-										"type": "text",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": ""
-								},
-								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}?report=weekly_settlement",
-									"protocol": "http",
-									"host": [
-										"{{server}}"
-									],
-									"path": [
-										"reports",
-										"{{last_org_id}}"
-									],
-									"query": [
-										{
-											"key": "report",
-											"value": "weekly_settlement"
-										}
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Admin - Weekly Settlement",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
-										"exec": [
-											"pm.test(\"should be 200\", function() {",
-											"    pm.response.to.have.status(200);",
-											"})",
-											"pm.test(\"should not be empty\", function() {",
-											"\tlet json = JSON.parse(responseBody);",
-											"\tpm.expect(json.length).to.be.greaterThan(0);",
-											"\tfor(let i=0; i< json.length; i++){",
-											"    \tpm.expect(json[i]).to.have.all.keys('event_id','sales', 'ticket_fees', 'other_fees');",
-											"    \tpm.expect(json[i].sales[i]).to.not.be.empty;",
-											"    \tpm.expect(json[i].ticket_fees).to.not.be.empty;",
-											"    \tpm.expect(json[i].other_fees).to.not.be.empty;",
-											"\t}",
-											"",
-											"});"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [
-									{
-										"key": "Content-Type",
-										"type": "text",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": ""
-								},
-								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}?report=weekly_settlement",
-									"protocol": "http",
-									"host": [
-										"{{server}}"
-									],
-									"path": [
-										"reports",
-										"{{last_org_id}}"
-									],
-									"query": [
-										{
-											"key": "report",
-											"value": "weekly_settlement"
 										}
 									]
 								}

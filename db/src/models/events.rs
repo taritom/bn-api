@@ -907,7 +907,6 @@ impl Event {
         let query = diesel::sql_query(query)
             .bind::<dUuid, _>(self.id)
             .bind::<Text, _>(search_filter)
-            .bind::<Text, _>(sort_column.to_string())
             .bind::<Integer, _>(limit.unwrap_or(100) as i32)
             .bind::<Integer, _>(offset.unwrap_or(0) as i32);
 
@@ -931,10 +930,10 @@ impl Event {
             order_count: i64,
             #[sql_type = "Timestamp"]
             created_at: NaiveDateTime,
-            #[sql_type = "Timestamp"]
-            first_order_time: NaiveDateTime,
-            #[sql_type = "Timestamp"]
-            last_order_time: NaiveDateTime,
+            #[sql_type = "Nullable<Timestamp>"]
+            first_order_time: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Timestamp>"]
+            last_order_time: Option<NaiveDateTime>,
             #[sql_type = "BigInt"]
             revenue_in_cents: i64,
             #[sql_type = "BigInt"]
@@ -963,8 +962,8 @@ impl Event {
                 organization_id: r.organization_id,
                 order_count: Some(r.order_count as u32),
                 created_at: r.created_at,
-                first_order_time: Some(r.first_order_time),
-                last_order_time: Some(r.last_order_time),
+                first_order_time: r.first_order_time,
+                last_order_time: r.last_order_time,
                 revenue_in_cents: Some(r.revenue_in_cents),
             })
             .collect();
