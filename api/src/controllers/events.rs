@@ -1,6 +1,7 @@
 use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
+use bigneon_db::utils::errors::{DatabaseError, ErrorCode};
 use chrono::prelude::*;
 use chrono::Duration;
 use db::Connection;
@@ -795,4 +796,45 @@ pub fn holds(
     }
 
     Ok(HttpResponse::Ok().json(Payload::from_data(list, query.page(), query.limit())))
+}
+
+pub fn fans_index(
+    (connection, query, path, user): (
+        Connection,
+        Query<PagingParameters>,
+        Path<PathParameters>,
+        User,
+    ),
+) -> Result<WebPayload<DisplayFan>, BigNeonError> {
+    let connection = connection.get();
+    let event = Event::find(path.id, connection)?;
+    let org = event.organization(connection)?;
+    user.requires_scope_for_organization(Scopes::OrgFans, &org, &connection)?;
+
+    let no_result_is_ok = |e: DatabaseError| match e.error_code {
+        ErrorCode::NoResults => Ok((Vec::<DisplayFan>::new(), 0)),
+        _ => Err(e),
+    };
+
+    let dir = query.dir.or(Some(SortingDir::Desc));
+    let (fans, total) = event
+        .search_fans(
+            query.get_tag("query"),
+            Some(query.limit()),
+            Some(query.page() * query.limit()),
+            query
+                .sort
+                .as_ref()
+                .map(|s| s.parse().unwrap_or(FanSortField::LastOrder)),
+            dir,
+            connection,
+        )
+        .or_else(no_result_is_ok)?;
+
+    let mut paging = Paging::new(query.page(), query.limit());
+    paging.dir = dir.unwrap();
+    paging.total = total;
+    let payload = Payload::new(fans, paging);
+
+    Ok(WebPayload::new(StatusCode::OK, payload))
 }

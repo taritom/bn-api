@@ -101,7 +101,7 @@ pub fn setup_logger() {
                     level: record.level().to_string(),
                     time: chrono::Utc::now(),
                     target: record.target().to_string(),
-                    message: msg,
+                    message: msg.trim().to_string(),
                     meta: None,
                 };
 
