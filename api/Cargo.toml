@@ -23,6 +23,7 @@ lettre_email = "0.8"
 log = { version = "0.4", features = ["max_level_debug"]}
 logging = {path="../logging"}
 r2d2 = "0.8"
+regex = "1"
 reqwest="0.9"
 serde = "1.0"
 serde_derive = "1.0"

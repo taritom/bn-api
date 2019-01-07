@@ -9,6 +9,7 @@ use errors::*;
 use extractors::*;
 use helpers::application;
 use models::{OptionalPathParameters, PathParameters};
+use regex::Regex;
 use serde_json::Value;
 use server::AppState;
 use std::collections::HashMap;
@@ -136,6 +137,8 @@ pub fn send_via_email_or_phone(
             .unwrap_or(604_800) as u32,
         connection,
     )?;
+    let re = Regex::new(r"[^0-9\+]+").unwrap();
+    let numbers_only = re.replace_all(&send_tickets_request.email_or_phone, "");
 
     if send_tickets_request.email_or_phone.contains("@") {
         mailers::tickets::send_tickets(
@@ -148,7 +151,7 @@ pub fn send_via_email_or_phone(
             &auth_user.user,
             connection,
         )?;
-    } else {
+    } else if numbers_only.len() > 7 {
         smsers::tickets::send_tickets(
             &state.config,
             send_tickets_request.email_or_phone.clone(),
@@ -159,6 +162,10 @@ pub fn send_via_email_or_phone(
             &auth_user.user,
             connection,
         )?;
+    } else {
+        return application::unprocessable(
+            "Invalid destination, please supply valid phone number or email address.",
+        );
     }
 
     Ok(HttpResponse::Ok().finish())
