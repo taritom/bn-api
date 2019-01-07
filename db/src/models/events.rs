@@ -876,7 +876,7 @@ impl Event {
         sort_direction: Option<SortingDir>,
         conn: &PgConnection,
     ) -> Result<(Vec<DisplayFan>, u64), DatabaseError> {
-        use diesel::sql_types::{Nullable, Text, Timestamp, BigInt, Integer, Uuid as dUuid};
+        use diesel::sql_types::{BigInt, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
 
         let search_filter = query.map(|q| format!("%{}%", q)).unwrap_or("%".to_string());
         let query = include_str!("../queries/find_event_fans.sql");
@@ -892,16 +892,20 @@ impl Event {
                 FanSortField::FirstOrder => "8",
                 FanSortField::LastOrder => "9",
                 FanSortField::Revenue => "10",
-            }
-            None => "users.created_at" // created_at
+            },
+            None => "users.created_at", // created_at
         };
         // Add sorting order as raw sql string
         // SECURITY: ensure that you don't inject unescaped external strings into the SQL query
-        let query = query.to_string()
-            .replace("{sort_direction}", match sort_direction {
-                SortingDir::Asc => "ASC",
-                SortingDir::Desc => "DESC",
-            })
+        let query = query
+            .to_string()
+            .replace(
+                "{sort_direction}",
+                match sort_direction {
+                    SortingDir::Asc => "ASC",
+                    SortingDir::Desc => "DESC",
+                },
+            )
             .replace("{sort_column}", sort_column);
 
         let query = diesel::sql_query(query)

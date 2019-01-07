@@ -799,9 +799,12 @@ pub fn holds(
 }
 
 pub fn fans_index(
-    (connection, query, path, user): (Connection,
+    (connection, query, path, user): (
+        Connection,
         Query<PagingParameters>,
-    Path<PathParameters>, User),
+        Path<PathParameters>,
+        User,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
@@ -823,7 +826,7 @@ pub fn fans_index(
                 .as_ref()
                 .map(|s| s.parse().unwrap_or(FanSortField::LastOrder)),
             query.dir.or(Some(SortingDir::Desc)),
-            connection
+            connection,
         )
         .or_else(no_result_is_ok)?;
 
