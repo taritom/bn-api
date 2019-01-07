@@ -1,5 +1,7 @@
 use chrono::prelude::*;
 use chrono::Utc;
+use chrono_tz::Tz;
+//use chrono_tz::{Tz, UTC as UtcTz};
 use diesel;
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
@@ -163,6 +165,13 @@ pub struct EventEditableAttributes {
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub override_status: Option<Option<EventOverrideStatus>>,
     pub event_end: Option<NaiveDateTime>,
+}
+
+#[derive(Default, Serialize)]
+pub struct EventLocalizedTimes {
+    pub event_start: Option<DateTime<Tz>>,
+    pub event_end: Option<DateTime<Tz>>,
+    pub door_time: Option<DateTime<Tz>>,
 }
 
 impl Event {
@@ -371,6 +380,52 @@ impl Event {
             .set(events::cancelled_at.eq(dsl::now.nullable()))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update event")
+    }
+
+    pub fn get_all_localized_times(&self, venue: &Option<Venue>) -> EventLocalizedTimes {
+        let mut event_localized_times: EventLocalizedTimes = EventLocalizedTimes {
+            ..Default::default()
+        };
+        event_localized_times.event_start = Event::localized_time(&self.event_start, &venue);
+        event_localized_times.event_end = Event::localized_time(&self.event_end, &venue);
+        event_localized_times.door_time = Event::localized_time(&self.door_time, &venue);
+
+        event_localized_times
+    }
+
+    pub fn localized_time(
+        utc_datetime: &Option<NaiveDateTime>,
+        venue: &Option<Venue>,
+    ) -> Option<chrono::DateTime<Tz>> {
+        if utc_datetime.is_none() || venue.is_none() {
+            return None;
+        }
+        let utc_datetime = utc_datetime.unwrap();
+        if let Some(v) = &venue {
+            if let Some(timezone_string) = &v.timezone {
+                let tz: Tz = match timezone_string.parse() {
+                    Ok(t) => t,
+                    Err(e) => {
+                        jlog!(Level::Error, &e);
+                        return None;
+                    }
+                };
+                let utc = chrono_tz::UTC
+                    .ymd(
+                        utc_datetime.year(),
+                        utc_datetime.month(),
+                        utc_datetime.day(),
+                    )
+                    .and_hms(
+                        utc_datetime.hour(),
+                        utc_datetime.minute(),
+                        utc_datetime.second(),
+                    );
+                let dt: chrono::DateTime<Tz> = utc.with_timezone(&tz);
+                return Some(dt);
+            }
+        }
+        None
     }
 
     pub fn find_all_active_events_for_venue(
