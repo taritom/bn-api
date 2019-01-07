@@ -893,7 +893,7 @@ impl Event {
                 FanSortField::LastOrder => "9",
                 FanSortField::Revenue => "10",
             },
-            None => "users.created_at", // created_at
+            None => "users.created_at",
         };
         // Add sorting order as raw sql string
         // SECURITY: ensure that you don't inject unescaped external strings into the SQL query
