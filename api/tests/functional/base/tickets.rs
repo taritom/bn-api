@@ -48,6 +48,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
             order_id: cart.id,
             price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents)
                 as u32,
+            ticket_type_id: ticket_type.id,
             ticket_type_name: ticket_type.name.clone(),
             status: TicketInstanceStatus::Purchased,
             redeem_key: ticket_response.ticket.redeem_key.clone(),
