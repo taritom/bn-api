@@ -381,11 +381,10 @@ impl Event {
 
     pub fn get_all_localized_times(&self, venue: &Option<Venue>) -> EventLocalizedTimes {
         let mut event_localized_times: EventLocalizedTimes = EventLocalizedTimes {
-            ..Default::default()
+            event_start: Event::localized_time(&self.event_start, &venue),
+            event_end: Event::localized_time(&self.event_end, &venue),
+            door_time: Event::localized_time(&self.door_time, &venue),
         };
-        event_localized_times.event_start = Event::localized_time(&self.event_start, &venue);
-        event_localized_times.event_end = Event::localized_time(&self.event_end, &venue);
-        event_localized_times.door_time = Event::localized_time(&self.door_time, &venue);
 
         event_localized_times
     }
