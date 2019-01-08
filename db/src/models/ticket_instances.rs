@@ -457,10 +457,8 @@ impl TicketInstance {
             .find(ticket_id)
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
-        let event = ticket.event(conn)?;
 
-        if !event.is_external
-            && ticket.status == TicketInstanceStatus::Purchased
+        if ticket.status == TicketInstanceStatus::Purchased
             && ticket.redeem_key.is_some()
             && ticket.redeem_key.unwrap() == redeem_key
         {
@@ -474,17 +472,6 @@ impl TicketInstance {
             return Ok(RedeemResults::TicketInvalid);
         }
         Ok(RedeemResults::TicketRedeemSuccess)
-    }
-
-    pub fn event(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
-        ticket_instances::table
-            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
-            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-            .filter(ticket_instances::id.eq(self.id))
-            .select(events::all_columns)
-            .first(conn)
-            .to_db_error(ErrorCode::QueryError, "Unable to load ticket's event")
     }
 
     pub fn show_redeemable_ticket(
