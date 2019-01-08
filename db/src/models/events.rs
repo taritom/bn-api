@@ -1,7 +1,6 @@
 use chrono::prelude::*;
 use chrono::Utc;
 use chrono_tz::Tz;
-//use chrono_tz::{Tz, UTC as UtcTz};
 use diesel;
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
