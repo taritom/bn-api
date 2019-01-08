@@ -630,7 +630,7 @@ fn for_display() {
 }
 
 #[test]
-pub fn organizations() {
+fn organizations() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
@@ -657,7 +657,7 @@ pub fn organizations() {
 }
 
 #[test]
-pub fn get_events_with_access_to_scan() {
+fn find_events_with_access_to_scan() {
     //create event
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -679,12 +679,20 @@ pub fn get_events_with_access_to_scan() {
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
-
-    let _published_event = project
+    let published_event = project
         .create_event()
         .with_status(EventStatus::Published)
         .with_event_start(Utc::now().naive_utc())
         .with_name("PublishedEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    let _published_external_event = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .external()
+        .with_event_start(Utc::now().naive_utc())
+        .with_name("PublishedExternalEvent".into())
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
@@ -695,13 +703,13 @@ pub fn get_events_with_access_to_scan() {
         .find_events_with_access_to_scan(connection)
         .unwrap();
 
-    assert_eq!(owner_events.len(), 1);
-    assert_eq!(scanner_events.len(), 1);
-    assert_eq!(normal_user_events.len(), 0);
+    assert_eq!(owner_events, vec![published_event.clone()]);
+    assert_eq!(scanner_events, vec![published_event]);
+    assert!(normal_user_events.is_empty());
 }
 
 #[test]
-pub fn get_roles_by_organization() {
+fn get_roles_by_organization() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
@@ -732,7 +740,7 @@ pub fn get_roles_by_organization() {
 }
 
 #[test]
-pub fn get_scopes_by_organization() {
+fn get_scopes_by_organization() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
@@ -823,7 +831,7 @@ pub fn get_scopes_by_organization() {
 }
 
 #[test]
-pub fn get_global_scopes() {
+fn get_global_scopes() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
