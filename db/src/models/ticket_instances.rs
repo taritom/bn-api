@@ -656,7 +656,7 @@ impl TicketInstance {
         if !own_all || tickets.len() != transfer_authorization.num_tickets as usize {
             return Err(DatabaseError::new(
                 ErrorCode::BusinessProcessError,
-                Some("Cannot transfer tickets.".to_string()),
+                Some("These tickets have already been transferred.".to_string()),
             ));
         }
         //Perform transfer

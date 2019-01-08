@@ -10225,6 +10225,59 @@
 							"response": []
 						},
 						{
+							"name": "User - Tickets - Authorize Transfer - Invalid",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "7a2ed9bb-ca51-4f0f-bfc5-ba78924b1833",
+										"exec": [
+											"pm.test(\"should be 422\", function() {",
+											"    pm.response.to.have.status(422);",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{user_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"ticket_ids\":[\n\t\t\"{{ticket3_id}}\",\n\t\t\"{{ticket4_id}}\"],\n\t\"email_or_phone\": \"1234567\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/tickets/send",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"tickets",
+										"send"
+									]
+								}
+							},
+							"response": []
+						},
+						{
 							"name": "User - Tickets - Authorize Transfer - Email",
 							"event": [
 								{
