@@ -292,6 +292,35 @@ pub fn release_tickets() {
 }
 
 #[test]
+fn event() {
+    let project = TestProject::new();
+    let admin = project.create_user().finish();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .remove(0);
+
+    assert_eq!(ticket.event(connection).unwrap(), event);
+}
+
+#[test]
 fn redeem_ticket() {
     let project = TestProject::new();
     let admin = project.create_user().finish();
@@ -325,6 +354,28 @@ fn redeem_ticket() {
     let result2 =
         TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), connection).unwrap();
     assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
+
+    // External event fails redeem flow as those cannot be scanned
+    let external_event = project
+        .create_event()
+        .external()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&external_event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .remove(0);
+    let result =
+        TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), connection).unwrap();
+    assert_eq!(result, RedeemResults::TicketInvalid);
 }
 
 #[test]

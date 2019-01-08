@@ -19,6 +19,7 @@ pub struct EventBuilder<'a> {
     with_ticket_pricing: bool,
     ticket_quantity: u32,
     ticket_type_count: i64,
+    is_external: bool,
 }
 
 impl<'a> EventBuilder<'a> {
@@ -35,11 +36,17 @@ impl<'a> EventBuilder<'a> {
             with_ticket_pricing: false,
             ticket_quantity: 100,
             ticket_type_count: 1,
+            is_external: false,
         }
     }
 
     pub fn with_ticket_type_count(mut self, ticket_type_count: i64) -> Self {
         self.ticket_type_count = ticket_type_count;
+        self
+    }
+
+    pub fn external(mut self) -> Self {
+        self.is_external = true;
         self
     }
 
@@ -104,15 +111,16 @@ impl<'a> EventBuilder<'a> {
         .commit(self.connection)
         .unwrap();
 
-        let event = event
-            .update(
-                EventEditableAttributes {
-                    promo_image_url: Some(Some("http://localhost".to_string())),
-                    ..Default::default()
-                },
-                self.connection,
-            )
-            .unwrap();
+        let mut attributes = EventEditableAttributes {
+            promo_image_url: Some(Some("http://localhost".to_string())),
+            ..Default::default()
+        };
+
+        if self.is_external {
+            attributes.is_external = Some(true);
+        }
+
+        let event = event.update(attributes, self.connection).unwrap();
 
         if self.with_tickets {
             let early_bird_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));
