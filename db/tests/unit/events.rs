@@ -1170,3 +1170,47 @@ fn ticket_types() {
 
     assert_eq!(ticket_types, vec![ticket_type_ga, ticket_type_vip]);
 }
+
+#[test]
+fn localized_time() {
+    let utc_time =
+        NaiveDateTime::parse_from_str("2019-01-01 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
+    let localized_time =
+        Event::localized_time(&Some(utc_time), &Some("Africa/Johannesburg".to_string())).unwrap();
+    assert_eq!(localized_time.to_string(), "2019-01-01 14:00:00 SAST");
+
+    let invalid_localized_time =
+        Event::localized_time(&None, &Some("Africa/Johannesburg".to_string()));
+    assert_eq!(invalid_localized_time, None);
+
+    let invalid_localized_time = Event::localized_time(&Some(utc_time), &None);
+    assert_eq!(invalid_localized_time, None);
+
+    let invalid_localized_time = Event::localized_time(&None, &None);
+    assert_eq!(invalid_localized_time, None);
+}
+
+#[test]
+fn get_all_localized_times() {
+    let project = TestProject::new();
+    //    let conn = project.get_connection();
+    let venue = project
+        .create_venue()
+        .with_timezone("Africa/Johannesburg".to_string())
+        .finish();
+    let utc_time =
+        NaiveDateTime::parse_from_str("2019-01-01 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
+    let event = project
+        .create_event()
+        .with_event_start(utc_time.clone())
+        .with_venue(&venue)
+        .finish();
+
+    let localized_times: EventLocalizedTimes = event.get_all_localized_times(&Some(venue));
+    assert_eq!(
+        localized_times.event_start.unwrap().to_string(),
+        "2019-01-01 14:00:00 SAST"
+    );
+    assert_eq!(localized_times.event_end, None);
+    assert_ne!(localized_times.door_time, None);
+}
