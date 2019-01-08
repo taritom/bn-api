@@ -504,17 +504,15 @@ impl User {
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
         let event_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
+        let events_query = events::table
+            .filter(events::status.eq(EventStatus::Published))
+            .filter(events::event_start.ge(event_start))
+            .filter(events::is_external.eq(false))
+            .order_by(events::event_start.asc())
+            .into_boxed();
 
-        if self.is_admin() {
-            DatabaseError::wrap(
-                ErrorCode::QueryError,
-                "Error loading scannable events",
-                events::table
-                    .filter(events::status.eq(EventStatus::Published))
-                    .filter(events::event_start.ge(event_start))
-                    .order_by(events::event_start.asc())
-                    .load(conn),
-            )
+        let result = if self.is_admin() {
+            events_query.load(conn)
         } else {
             let user_organizations = self.get_scopes_by_organization(conn)?;
             let user_organization_ids: Vec<Uuid> = user_organizations
@@ -523,19 +521,12 @@ impl User {
                 .map(|i| i.0)
                 .collect();
 
-            let result = events::table
-                .filter(events::status.eq(EventStatus::Published))
-                .filter(events::event_start.ge(event_start))
+            events_query
                 .filter(events::organization_id.eq_any(user_organization_ids))
-                .order_by(events::event_start.asc());
-            //            println!("SQL {}", diesel::query_builder::debug_query(&result).to_string());
-            let result = result.select(events::all_columns).load(conn);
-            DatabaseError::wrap(
-                ErrorCode::QueryError,
-                "Error loading scannable events",
-                result,
-            )
-        }
+                .select(events::all_columns)
+                .load(conn)
+        };
+        result.to_db_error(ErrorCode::QueryError, "Error loading scannable events")
     }
 
     pub fn full_name(&self) -> String {
