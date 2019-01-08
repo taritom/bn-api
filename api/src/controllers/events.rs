@@ -154,6 +154,7 @@ pub fn index(
         is_external: bool,
         external_url: Option<String>,
         user_is_interested: bool,
+        localized_times: EventLocalizedTimes,
     }
 
     let mut venue_ids: Vec<Uuid> = events
@@ -180,8 +181,10 @@ pub fn index(
     };
 
     let results = events.into_iter().fold(Vec::new(), |mut results, event| {
+        let venue = event.venue_id.and_then(|v| Some(venue_map[&v].clone()));
+        let localized_times = event.get_all_localized_times(&venue);
         results.push(EventVenueEntry {
-            venue: event.venue_id.and_then(|v| Some(venue_map[&v].clone())),
+            venue,
             id: event.id,
             name: event.name,
             organization_id: event.organization_id,
@@ -204,6 +207,7 @@ pub fn index(
                 .get(&event.id)
                 .map(|i| i.to_owned())
                 .unwrap_or(false),
+            localized_times,
         });
         results
     });
@@ -234,6 +238,7 @@ pub fn show(
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
 
     let venue = event.venue(connection)?;
+    let localized_times = event.get_all_localized_times(&venue);
     let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
     let total_interest = EventInterest::total_interest(event.id, connection)?;
     let user_interest = match user {
@@ -255,7 +260,7 @@ pub fn show(
                     &http_request,
                     None,
                     None,
-                )
+                );
             }
         }
     }
@@ -333,6 +338,7 @@ pub fn show(
         external_url: Option<String>,
         override_status: Option<EventOverrideStatus>,
         limited_tickets_remaining: Vec<TicketsRemaining>,
+        localized_times: EventLocalizedTimes,
     }
 
     Ok(HttpResponse::Ok().json(&R {
@@ -367,6 +373,7 @@ pub fn show(
         external_url: event.external_url,
         override_status: event.override_status,
         limited_tickets_remaining,
+        localized_times,
     }))
 }
 
@@ -425,17 +432,17 @@ pub fn redeem_ticket(
             //Redeem ticket on chain
             let asset = Asset::find(ticket.asset_id, connection)?;
             match asset.blockchain_asset_id {
-                    Some(a) => {
-                        let wallet = Wallet::find(ticket.wallet_id, connection)?;
-                        state.config.tari_client.modify_asset_redeem_token(&wallet.secret_key, &wallet.public_key,
-                                                                           &a,
-                                                                           vec![ticket.token_id as u64],
-                        )?;
+                Some(a) => {
+                    let wallet = Wallet::find(ticket.wallet_id, connection)?;
+                    state.config.tari_client.modify_asset_redeem_token(&wallet.secret_key, &wallet.public_key,
+                                                                       &a,
+                                                                       vec![ticket.token_id as u64],
+                    )?;
 
-                        Ok(HttpResponse::Ok().json(redeemable))
-                    },
-                    None => Ok(HttpResponse::BadRequest().json(json!({ "error": "Could not complete this checkout because the asset has not been assigned on the blockchain.".to_string()}))),
+                    Ok(HttpResponse::Ok().json(redeemable))
                 }
+                None => Ok(HttpResponse::BadRequest().json(json!({ "error": "Could not complete this checkout because the asset has not been assigned on the blockchain.".to_string()}))),
+            }
         }
         RedeemResults::TicketAlreadyRedeemed => Ok(HttpResponse::Conflict()
             .json(json!({"error": "Ticket has already been redeemed.".to_string()}))),
@@ -472,8 +479,9 @@ pub fn show_from_organizations(
 
 #[derive(Deserialize)]
 pub struct DashboardParameters {
-    start_utc: Option<NaiveDate>, // Defaults to 29 days ago if not provided
-    end_utc: Option<NaiveDate>,   // Defaults to today if not provided
+    start_utc: Option<NaiveDate>,
+    // Defaults to 29 days ago if not provided
+    end_utc: Option<NaiveDate>, // Defaults to today if not provided
 }
 
 #[derive(Deserialize, Serialize)]
