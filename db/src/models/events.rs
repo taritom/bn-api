@@ -164,11 +164,18 @@ pub struct EventEditableAttributes {
     pub event_end: Option<NaiveDateTime>,
 }
 
-#[derive(Default, Serialize)]
+#[derive(Debug, Default, PartialEq, Serialize)]
 pub struct EventLocalizedTimes {
     pub event_start: Option<DateTime<Tz>>,
     pub event_end: Option<DateTime<Tz>>,
     pub door_time: Option<DateTime<Tz>>,
+}
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct EventLocalizedTimeStrings {
+    pub event_start: Option<String>,
+    pub event_end: Option<String>,
+    pub door_time: Option<String>,
 }
 
 impl Event {
@@ -380,46 +387,59 @@ impl Event {
     }
 
     pub fn get_all_localized_times(&self, venue: &Option<Venue>) -> EventLocalizedTimes {
-        let mut event_localized_times: EventLocalizedTimes = EventLocalizedTimes {
-            event_start: Event::localized_time(&self.event_start, &venue),
-            event_end: Event::localized_time(&self.event_end, &venue),
-            door_time: Event::localized_time(&self.door_time, &venue),
+        let event_localized_times: EventLocalizedTimes = EventLocalizedTimes {
+            event_start: Event::localized_time_from_venue(&self.event_start, &venue),
+            event_end: Event::localized_time_from_venue(&self.event_end, &venue),
+            door_time: Event::localized_time_from_venue(&self.door_time, &venue),
         };
 
         event_localized_times
     }
 
-    pub fn localized_time(
+    pub fn localized_time_from_venue(
         utc_datetime: &Option<NaiveDateTime>,
         venue: &Option<Venue>,
     ) -> Option<chrono::DateTime<Tz>> {
         if utc_datetime.is_none() || venue.is_none() {
             return None;
         }
-        let utc_datetime = utc_datetime.unwrap();
+
         if let Some(v) = &venue {
-            if let Some(timezone_string) = &v.timezone {
-                let tz: Tz = match timezone_string.parse() {
-                    Ok(t) => t,
-                    Err(e) => {
-                        jlog!(Level::Error, &e);
-                        return None;
-                    }
-                };
-                let utc = chrono_tz::UTC
-                    .ymd(
-                        utc_datetime.year(),
-                        utc_datetime.month(),
-                        utc_datetime.day(),
-                    )
-                    .and_hms(
-                        utc_datetime.hour(),
-                        utc_datetime.minute(),
-                        utc_datetime.second(),
-                    );
-                let dt: chrono::DateTime<Tz> = utc.with_timezone(&tz);
-                return Some(dt);
-            }
+            return Event::localized_time(utc_datetime, &v.timezone);
+        }
+        None
+    }
+
+    pub fn localized_time(
+        utc_datetime: &Option<NaiveDateTime>,
+        timezone_string: &Option<String>,
+    ) -> Option<chrono::DateTime<Tz>> {
+        if utc_datetime.is_none() || timezone_string.is_none() {
+            return None;
+        }
+
+        let utc_datetime = utc_datetime.unwrap();
+        if let Some(tz_string) = &timezone_string {
+            let tz: Tz = match tz_string.parse() {
+                Ok(t) => t,
+                Err(e) => {
+                    jlog!(Level::Error, &e);
+                    return None;
+                }
+            };
+            let utc = chrono_tz::UTC
+                .ymd(
+                    utc_datetime.year(),
+                    utc_datetime.month(),
+                    utc_datetime.day(),
+                )
+                .and_hms(
+                    utc_datetime.hour(),
+                    utc_datetime.minute(),
+                    utc_datetime.second(),
+                );
+            let dt: chrono::DateTime<Tz> = utc.with_timezone(&tz);
+            return Some(dt);
         }
         None
     }
@@ -519,12 +539,16 @@ impl Event {
             venue_id: Option<Uuid>,
             #[sql_type = "N<sql_types::Text>"]
             venue_name: Option<String>,
+            #[sql_type = "N<sql_types::Text>"]
+            venue_timezone: Option<String>,
             #[sql_type = "sql_types::Timestamp"]
             created_at: NaiveDateTime,
             #[sql_type = "N<sql_types::Timestamp>"]
             event_start: Option<NaiveDateTime>,
             #[sql_type = "N<sql_types::Timestamp>"]
             door_time: Option<NaiveDateTime>,
+            #[sql_type = "N<sql_types::Timestamp>"]
+            event_end: Option<NaiveDateTime>,
             #[sql_type = "sql_types::Text"]
             status: EventStatus,
             #[sql_type = "N<sql_types::Text>"]
@@ -596,12 +620,24 @@ impl Event {
                     Some(VenueInfo {
                         id: *venue_id,
                         name: venue_name.to_string(),
+                        timezone: r.venue_timezone,
                     })
                 } else {
                     None
                 };
 
                 let event_id = r.id;
+
+                let timezone = &venue.clone().map(|v| v.timezone.map(|s| s)).unwrap_or(None);
+                let localized_times: EventLocalizedTimeStrings = EventLocalizedTimeStrings {
+                    event_start: Event::localized_time(&r.event_start, timezone)
+                        .map(|s| s.to_rfc2822()),
+                    event_end: Event::localized_time(&r.event_end, timezone)
+                        .map(|s| s.to_rfc2822()),
+                    door_time: Event::localized_time(&r.door_time, timezone)
+                        .map(|s| s.to_rfc2822()),
+                };
+
                 let mut result = EventSummaryResult {
                     id: r.id,
                     name: r.name,
@@ -630,6 +666,7 @@ impl Event {
                     is_external: r.is_external,
                     external_url: r.external_url,
                     override_status: r.override_status,
+                    localized_times,
                 };
 
                 for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
@@ -1071,7 +1108,7 @@ pub struct DisplayEvent {
     pub override_status: Option<EventOverrideStatus>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct EventSummaryResult {
     pub id: Uuid,
     pub name: String,
@@ -1100,6 +1137,7 @@ pub struct EventSummaryResult {
     pub is_external: bool,
     pub external_url: Option<String>,
     pub override_status: Option<EventOverrideStatus>,
+    pub localized_times: EventLocalizedTimeStrings,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]

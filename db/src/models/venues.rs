@@ -117,11 +117,17 @@ impl NewVenue {
 }
 
 impl Venue {
-    pub fn create(name: &str, region_id: Option<Uuid>, organization_id: Option<Uuid>) -> NewVenue {
+    pub fn create(
+        name: &str,
+        region_id: Option<Uuid>,
+        organization_id: Option<Uuid>,
+        timezone: Option<String>,
+    ) -> NewVenue {
         NewVenue {
             name: String::from(name),
             region_id,
             organization_id,
+            timezone,
             ..Default::default()
         }
     }
@@ -299,4 +305,5 @@ impl From<Venue> for DisplayVenue {
 pub struct VenueInfo {
     pub id: Uuid,
     pub name: String,
+    pub timezone: Option<String>,
 }

@@ -5,7 +5,7 @@ use bigneon_db::prelude::*;
 fn commit() {
     let project = TestProject::new();
     let name = "Name";
-    let venue = Venue::create(name.clone(), None, None)
+    let venue = Venue::create(name.clone(), None, None, None)
         .commit(project.get_connection())
         .unwrap();
 

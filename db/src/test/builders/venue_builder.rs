@@ -7,6 +7,7 @@ pub struct VenueBuilder<'a> {
     region_id: Option<Uuid>,
     organization_id: Option<Uuid>,
     is_private: bool,
+    timezone: Option<String>,
     connection: &'a PgConnection,
 }
 
@@ -18,6 +19,7 @@ impl<'a> VenueBuilder<'a> {
             region_id: None,
             is_private: false,
             organization_id: None,
+            timezone: None,
         }
     }
 
@@ -41,10 +43,20 @@ impl<'a> VenueBuilder<'a> {
         self
     }
 
+    pub fn with_timezone(mut self, timezone: String) -> Self {
+        self.timezone = Some(timezone);
+        self
+    }
+
     pub fn finish(self) -> Venue {
-        let venue = Venue::create(&self.name, self.region_id, self.organization_id)
-            .commit(self.connection)
-            .unwrap();
+        let venue = Venue::create(
+            &self.name,
+            self.region_id,
+            self.organization_id,
+            self.timezone,
+        )
+        .commit(self.connection)
+        .unwrap();
         venue.set_privacy(self.is_private, self.connection).unwrap()
     }
 }
