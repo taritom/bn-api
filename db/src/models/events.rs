@@ -893,7 +893,7 @@ impl Event {
     }
 
     pub fn add_artist(&self, artist_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
-        EventArtist::create(self.id, artist_id, 0, None)
+        EventArtist::create(self.id, artist_id, 0, None, 0, None)
             .commit(conn)
             .map(|_| ())
     }

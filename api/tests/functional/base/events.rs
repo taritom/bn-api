@@ -181,6 +181,8 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
         artist_id: artist.id,
         rank: 5,
         set_time: Some(NaiveDate::from_ymd(2016, 7, 1).and_hms(9, 10, 11)),
+        importance: 0,
+        stage_id: None,
     };
 
     let json = Json(new_event_artist);
@@ -338,10 +340,14 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
     payload.artists.push(UpdateArtistsRequest {
         artist_id: artist1.id,
         set_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
+        importance: 0,
+        stage_id: None,
     });
     payload.artists.push(UpdateArtistsRequest {
         artist_id: artist2.id,
         set_time: None,
+        importance: 1,
+        stage_id: None,
     });
     let response: HttpResponse = events::update_artists((
         database.connection.into(),
@@ -357,6 +363,8 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
         let returned_event_artists: Vec<EventArtist> = serde_json::from_str(&body).unwrap();
         assert_eq!(returned_event_artists[0].artist_id, artist1.id);
         assert_eq!(returned_event_artists[1].set_time, None);
+        assert_eq!(returned_event_artists[1].importance, 1);
+
     } else {
         support::expects_unauthorized(&response);
     }
