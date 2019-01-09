@@ -1,5 +1,6 @@
 use chrono::NaiveDateTime;
 use diesel;
+use diesel::expression::dsl;
 use diesel::prelude::*;
 use models::*;
 use schema::stages;
@@ -65,5 +66,47 @@ impl Stage {
             description,
             capacity,
         }
+    }
+
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<Stage, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::QueryError,
+            "Error loading stage",
+            stages::table.find(id).first::<Stage>(conn),
+        )
+    }
+
+    pub fn find_by_venue_id(
+        venue_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<Stage>, DatabaseError> {
+        stages::table
+            .filter(stages::venue_id.eq(venue_id))
+            .order_by(stages::name)
+            .select(stages::all_columns)
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load all stages")
+    }
+
+    pub fn update(
+        &self,
+        attributes: StageEditableAttributes,
+        conn: &PgConnection,
+    ) -> Result<Stage, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::UpdateError,
+            "Could not update stage",
+            diesel::update(self)
+                .set((attributes, stages::updated_at.eq(dsl::now)))
+                .get_result(conn),
+        )
+    }
+
+    pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::DeleteError,
+            "Failed to delete stage",
+            diesel::delete(self).execute(conn),
+        )
     }
 }
