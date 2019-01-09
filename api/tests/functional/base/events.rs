@@ -364,7 +364,6 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
         assert_eq!(returned_event_artists[0].artist_id, artist1.id);
         assert_eq!(returned_event_artists[1].set_time, None);
         assert_eq!(returned_event_artists[1].importance, 1);
-
     } else {
         support::expects_unauthorized(&response);
     }
