@@ -261,6 +261,14 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/venues/{id}/organizations", |r| {
         r.method(Method::POST).with(venues::add_to_organization);
     })
+    .resource("/venues/{id}/stages", |r| {
+        r.method(Method::POST).with(stages::create);
+        //            r.method(Method::GET).with(venues::add_to_organization);
+    })
+    //        .resource("/venues/{id}/stages/{secondary_id}", |r| {
+    //            r.method(Method::PUT).with(venues::add_to_organization);
+    //            r.method(Method::DELETE).with(venues::add_to_organization);
+    //        })
     .resource("/venues/{id}/toggle_privacy", |r| {
         r.method(Method::PUT).with(venues::toggle_privacy);
     })

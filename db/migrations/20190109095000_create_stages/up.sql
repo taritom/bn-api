@@ -9,5 +9,10 @@ CREATE TABLE stages
     updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
+CREATE UNIQUE INDEX index_stages_venue_id_name ON stages (
+    venue_id,
+    name
+);
+
 -- Indices
 CREATE INDEX index_stages_venue_id ON events (venue_id);

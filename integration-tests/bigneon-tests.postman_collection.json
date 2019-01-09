@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "5e3f0ebf-e4c2-48c4-9ae1-bfaee65fe9e1",
+		"_postman_id": "a18d2e8f-0b11-4dbf-9103-288c477a57db",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -472,6 +472,68 @@
 									],
 									"path": [
 										"users"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner - Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "3e16f515-b7c5-4312-b241-2d72c62323f0",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"pm.test(\"should have token response\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\tpm.expect(json).to.have.property(\"access_token\");",
+											"\tpm.expect(json).to.have.property(\"refresh_token\");",
+											"});",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"org_owner_token\", json.access_token);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "9c70409f-473d-4a08-94e7-b32f606b85a7",
+										"exec": [
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"email\":\"{{last_org_owner_email}}\",\n\t\"password\": \"itsasecret\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/auth/token",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"auth",
+										"token"
 									]
 								}
 							},
@@ -2934,6 +2996,7 @@
 											"})",
 											"",
 											"let json = JSON.parse(responseBody);",
+											"pm.environment.set(\"private_venue_id\", JSON.parse(responseBody).id);",
 											"pm.test(\"should be private\", function() {",
 											"    pm.expect(json.is_private).to.be.true;",
 											"});",
@@ -3211,6 +3274,234 @@
 									"path": [
 										"venues",
 										"{{last_venue_id}}"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"_postman_isSubFolder": true
+				},
+				{
+					"name": "Stages",
+					"item": [
+						{
+							"name": "OrgMember - Create Stage",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"pm.test(\"should be object\", function() {",
+											"    pm.expect(json).to.be.an(\"object\");",
+											"    pm.environment.set(\"last_stage_id\",json.id);",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Stage 1\",\n\t\"description\": \"Main Stage for Private Venue\",\n\t\"capacity\": null\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues/{{private_venue_id}}/stages",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues",
+										"{{private_venue_id}}",
+										"stages"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Create Duplicate Stage - 409",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 409\", function() {",
+											"    pm.response.to.have.status(409);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Stage 1\",\n\t\"description\": \"Main Stage for Private Venue\",\n\t\"capacity\": null\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues/{{private_venue_id}}/stages",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues",
+										"{{private_venue_id}}",
+										"stages"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner - Create Public Stage - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_owner_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Stage 1\",\n\t\"description\": \"Main Stage for Private Venue\",\n\t\"capacity\": null\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues/{{last_venue_id}}/stages",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues",
+										"{{last_venue_id}}",
+										"stages"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - Create Public Stage",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"});",
+											"let r = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"public_stage_id\", r.id);"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Stage 1\",\n\t\"description\": \"Main Stage for Public Venue\",\n\t\"capacity\": 1000\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues/{{last_venue_id}}/stages",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues",
+										"{{last_venue_id}}",
+										"stages"
 									]
 								}
 							},
@@ -3744,6 +4035,61 @@
 										"events",
 										"{{last_event_id}}",
 										"publish"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember  - Add Artist To Event - With Stage",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"artist_id\": \"{{last_artist_id}}\",\n\t\"rank\": 0,\n\t\"importance\": 0,\n\t\"set_time\": null,\n\t\"stage_id\": \"{{public_stage_id}}\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events/{{last_event_id}}/artists",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events",
+										"{{last_event_id}}",
+										"artists"
 									]
 								}
 							},

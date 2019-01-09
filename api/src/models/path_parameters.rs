@@ -6,6 +6,12 @@ pub struct PathParameters {
 }
 
 #[derive(Deserialize)]
+pub struct GenericPathParameters {
+    pub id: Uuid,
+    pub secondary_id: Uuid,
+}
+
+#[derive(Deserialize)]
 pub struct OptionalPathParameters {
     pub id: Option<Uuid>,
 }

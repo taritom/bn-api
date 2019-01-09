@@ -13,6 +13,7 @@ pub mod password_resets;
 pub mod payment_methods;
 pub mod regions;
 pub mod reports;
+pub mod stages;
 pub mod ticket_types;
 pub mod tickets;
 pub mod user_invites;
