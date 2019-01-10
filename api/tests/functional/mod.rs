@@ -12,6 +12,7 @@ mod organizations;
 mod password_resets;
 mod payment_methods;
 mod regions;
+mod stages;
 mod ticket_types;
 mod tickets;
 mod user_invites;

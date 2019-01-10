@@ -17,7 +17,7 @@ impl<'a> StageBuilder<'a> {
         StageBuilder {
             connection,
             name: format!("Stage {}", x).into(),
-            venue_id: Uuid::default(),
+            venue_id: Uuid::nil(),
             description: None,
             capacity: None,
         }
