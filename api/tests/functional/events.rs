@@ -350,7 +350,6 @@ fn show() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
-        test_request.request,
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -399,7 +398,6 @@ fn show_with_cancelled_ticket_type() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
-        test_request.request,
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
