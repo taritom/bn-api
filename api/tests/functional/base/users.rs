@@ -128,7 +128,6 @@ pub fn history(role: Roles, should_test_true: bool) {
         path,
         query_parameters,
         auth_user.clone(),
-        test_request.request,
     ));
 
     if should_test_true {
@@ -175,7 +174,6 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
         path,
         query_parameters,
         auth_user.clone(),
-        test_request.request,
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -240,7 +238,6 @@ pub fn show_push_notification_tokens_for_user_id(role: Roles, should_test_true: 
         database.connection.clone().into(),
         path,
         auth_user.clone(),
-        test_request.request,
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -397,13 +394,8 @@ pub fn show(role: Roles, should_test_true: bool) {
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = display_user.id;
-    let response: HttpResponse = users::show((
-        database.connection.into(),
-        path,
-        auth_user.clone(),
-        test_request.request,
-    ))
-    .into();
+    let response: HttpResponse =
+        users::show((database.connection.into(), path, auth_user.clone())).into();
     if should_test_true {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);

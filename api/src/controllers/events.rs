@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
+use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::{DatabaseError, ErrorCode};
@@ -253,7 +253,6 @@ pub fn show(
         Path<PathParameters>,
         Query<EventParameters>,
         OptionalUser,
-        HttpRequest<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -282,7 +281,6 @@ pub fn show(
             None => {
                 return application::unauthorized_with_message(
                     "Cannot access box office pricing",
-                    &http_request,
                     None,
                     None,
                 );
