@@ -90,12 +90,7 @@ pub fn update(
 }
 
 pub fn delete(
-    (connection, parameters, stage_parameters, user): (
-        Connection,
-        Path<PathParameters>,
-        Json<StageEditableAttributes>,
-        AuthUser,
-    ),
+    (connection, parameters, user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let stage = Stage::find(parameters.id, connection)?;
@@ -110,4 +105,3 @@ pub fn delete(
     stage.destroy(connection)?;
     Ok(HttpResponse::Ok().json(json!({})))
 }
-//
