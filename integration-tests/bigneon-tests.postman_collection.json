@@ -3300,7 +3300,7 @@
 											"let json = JSON.parse(responseBody);",
 											"pm.test(\"should be object\", function() {",
 											"    pm.expect(json).to.be.an(\"object\");",
-											"    pm.environment.set(\"last_stage_id\",json.id);",
+											"    pm.environment.set(\"private_stage_id\",json.id);",
 											"});",
 											""
 										],
@@ -3340,6 +3340,64 @@
 										"venues",
 										"{{private_venue_id}}",
 										"stages"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Update Stage",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"pm.test(\"should be object\", function() {",
+											"    pm.expect(json).to.be.an(\"object\");",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"capacity\": 5000\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/stages/{{private_stage_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"stages",
+										"{{private_stage_id}}"
 									]
 								}
 							},
@@ -3502,6 +3560,176 @@
 										"venues",
 										"{{last_venue_id}}",
 										"stages"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "User - List Stages",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"let r = JSON.parse(responseBody);",
+											"pm.test(\"should have 1 stage\", function() {",
+											"    pm.expect(r.data.length).to.be.greaterThan(0);",
+											"});",
+											"",
+											"pm.test(\"description should be for public venue\", function() {",
+											"    pm.expect(r.data[0].description).to.equal(\"Main Stage for Public Venue\");",
+											"})",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Stage 1\",\n\t\"description\": \"Main Stage for Public Venue\",\n\t\"capacity\": 1000\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues/{{last_venue_id}}/stages",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues",
+										"{{last_venue_id}}",
+										"stages"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Create Second Stage",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"",
+											"let json = JSON.parse(responseBody);",
+											"pm.test(\"should be object\", function() {",
+											"    pm.expect(json).to.be.an(\"object\");",
+											"    pm.environment.set(\"second_private_stage_id\",json.id);",
+											"});",
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Stage 2\",\n\t\"description\": \"Second Stage for Private Venue\",\n\t\"capacity\": 500\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/venues/{{private_venue_id}}/stages",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"venues",
+										"{{private_venue_id}}",
+										"stages"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgMember - Delete Second Stage",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"name\":\"Stage 2\",\n\t\"description\": \"Second Stage for Private Venue\",\n\t\"capacity\": 500\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/stages/{{second_private_stage_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"stages",
+										"{{second_private_stage_id}}"
 									]
 								}
 							},
