@@ -45,6 +45,7 @@ pub fn index() {
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = events::index((
+        test_request.extract_state(),
         database.connection.clone().into(),
         parameters,
         OptionalUser(None),
@@ -103,6 +104,7 @@ pub fn index_for_user() {
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = events::index((
+        test_request.extract_state(),
         database.connection.clone().into(),
         parameters,
         OptionalUser(Some(auth_user)),
@@ -166,6 +168,7 @@ pub fn index_with_draft_for_organization_user() {
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = events::index((
+        test_request.extract_state(),
         database.connection.clone().into(),
         parameters,
         OptionalUser(Some(auth_user)),
@@ -222,6 +225,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
     let test_request = TestRequest::create_with_uri("/events?query=New");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = events::index((
+        test_request.extract_state(),
         database.connection.clone().into(),
         parameters,
         OptionalUser(Some(auth_user)),
@@ -287,12 +291,20 @@ pub fn index_search_with_filter() {
         external_url: None,
         user_is_interested: false,
         localized_times,
+        tracking_keys: TrackingKeys {
+            ..Default::default()
+        },
     }];
 
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        events::index((database.connection.into(), parameters, OptionalUser(None))).into();
+    let response: HttpResponse = events::index((
+        test_request.extract_state(),
+        database.connection.into(),
+        parameters,
+        OptionalUser(None),
+    ))
+    .into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     let mut expected_tags: HashMap<String, Value> = HashMap::new();
@@ -346,6 +358,7 @@ fn show() {
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::show((
+        test_request.extract_state(),
         database.connection.clone(),
         path,
         query_parameters,
@@ -395,6 +408,7 @@ fn show_with_cancelled_ticket_type() {
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::show((
+        test_request.extract_state(),
         database.connection.clone(),
         path,
         query_parameters,
@@ -410,18 +424,22 @@ fn show_with_cancelled_ticket_type() {
 #[cfg(test)]
 mod show_box_office_pricing_tests {
     use super::*;
+
     #[test]
     fn show_box_office_pricing_org_member() {
         base::events::show_box_office_pricing(Roles::OrgMember, true);
     }
+
     #[test]
     fn show_box_office_pricing_admin() {
         base::events::show_box_office_pricing(Roles::Admin, true);
     }
+
     #[test]
     fn show_box_office_pricing_user() {
         base::events::show_box_office_pricing(Roles::User, false);
     }
+
     #[test]
     fn show_box_office_pricing_org_owner() {
         base::events::show_box_office_pricing(Roles::OrgOwner, true);
@@ -431,30 +449,37 @@ mod show_box_office_pricing_tests {
 #[cfg(test)]
 mod dashboard_tests {
     use super::*;
+
     #[test]
     fn dashboard_org_member() {
         base::events::dashboard(Roles::OrgMember, true);
     }
+
     #[test]
     fn dashboard_admin() {
         base::events::dashboard(Roles::Admin, true);
     }
+
     #[test]
     fn dashboard_user() {
         base::events::dashboard(Roles::User, false);
     }
+
     #[test]
     fn dashboard_org_owner() {
         base::events::dashboard(Roles::OrgOwner, true);
     }
+
     #[test]
     fn dashboard_door_person() {
         base::events::dashboard(Roles::DoorPerson, false);
     }
+
     #[test]
     fn dashboard_org_admin() {
         base::events::dashboard(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn dashboard_box_office() {
         base::events::dashboard(Roles::OrgBoxOffice, true);
@@ -464,18 +489,22 @@ mod dashboard_tests {
 #[cfg(test)]
 mod create_tests {
     use super::*;
+
     #[test]
     fn create_org_member() {
         base::events::create(Roles::OrgMember, true);
     }
+
     #[test]
     fn create_admin() {
         base::events::create(Roles::Admin, true);
     }
+
     #[test]
     fn create_user() {
         base::events::create(Roles::User, false);
     }
+
     #[test]
     fn create_org_owner() {
         base::events::create(Roles::OrgOwner, true);
@@ -485,18 +514,22 @@ mod create_tests {
 #[cfg(test)]
 mod update_tests {
     use super::*;
+
     #[test]
     fn update_org_member() {
         base::events::update(Roles::OrgMember, true);
     }
+
     #[test]
     fn update_admin() {
         base::events::update(Roles::Admin, true);
     }
+
     #[test]
     fn update_user() {
         base::events::update(Roles::User, false);
     }
+
     #[test]
     fn update_org_owner() {
         base::events::update(Roles::OrgOwner, true);
@@ -506,18 +539,22 @@ mod update_tests {
 #[cfg(test)]
 mod cancel_tests {
     use super::*;
+
     #[test]
     fn cancel_org_member() {
         base::events::cancel(Roles::OrgMember, true);
     }
+
     #[test]
     fn cancel_admin() {
         base::events::cancel(Roles::Admin, true);
     }
+
     #[test]
     fn cancel_user() {
         base::events::cancel(Roles::User, false);
     }
+
     #[test]
     fn cancel_org_owner() {
         base::events::cancel(Roles::OrgOwner, true);
@@ -527,18 +564,22 @@ mod cancel_tests {
 #[cfg(test)]
 mod add_artist_tests {
     use super::*;
+
     #[test]
     fn add_artist_org_member() {
         base::events::add_artist(Roles::OrgMember, true);
     }
+
     #[test]
     fn add_artist_admin() {
         base::events::add_artist(Roles::Admin, true);
     }
+
     #[test]
     fn add_artist_user() {
         base::events::add_artist(Roles::User, false);
     }
+
     #[test]
     fn add_artist_org_owner() {
         base::events::add_artist(Roles::OrgOwner, true);
@@ -553,14 +594,17 @@ mod list_interested_users_tests {
     fn list_interested_users_org_member() {
         base::events::list_interested_users(Roles::OrgMember, true);
     }
+
     #[test]
     fn list_interested_users_admin() {
         base::events::list_interested_users(Roles::Admin, true);
     }
+
     #[test]
     fn list_interested_users_user() {
         base::events::list_interested_users(Roles::User, true);
     }
+
     #[test]
     fn list_interested_users_org_owner() {
         base::events::list_interested_users(Roles::OrgOwner, true);
@@ -575,14 +619,17 @@ mod add_interest_tests {
     fn add_interest_org_member() {
         base::events::add_interest(Roles::OrgMember, true);
     }
+
     #[test]
     fn add_interest_admin() {
         base::events::add_interest(Roles::Admin, true);
     }
+
     #[test]
     fn add_interest_user() {
         base::events::add_interest(Roles::User, true);
     }
+
     #[test]
     fn add_interest_org_owner() {
         base::events::add_interest(Roles::OrgOwner, true);
@@ -597,14 +644,17 @@ mod remove_interest_tests {
     fn remove_interest_org_member() {
         base::events::remove_interest(Roles::OrgMember, true);
     }
+
     #[test]
     fn remove_interest_admin() {
         base::events::remove_interest(Roles::Admin, true);
     }
+
     #[test]
     fn remove_interest_user() {
         base::events::remove_interest(Roles::User, true);
     }
+
     #[test]
     fn remove_interest_org_owner() {
         base::events::remove_interest(Roles::OrgOwner, true);
@@ -614,18 +664,22 @@ mod remove_interest_tests {
 #[cfg(test)]
 mod update_artists_tests {
     use super::*;
+
     #[test]
     fn update_artists_org_member() {
         base::events::update_artists(Roles::OrgMember, true);
     }
+
     #[test]
     fn update_artists_admin() {
         base::events::update_artists(Roles::Admin, true);
     }
+
     #[test]
     fn update_artists_user() {
         base::events::update_artists(Roles::User, false);
     }
+
     #[test]
     fn update_artists_org_owner() {
         base::events::update_artists(Roles::OrgOwner, true);
@@ -635,18 +689,22 @@ mod update_artists_tests {
 #[cfg(test)]
 mod guest_list_tests {
     use super::*;
+
     #[test]
     fn guest_list_org_member() {
         base::events::guest_list(Roles::OrgMember, true);
     }
+
     #[test]
     fn guest_list_admin() {
         base::events::guest_list(Roles::Admin, true);
     }
+
     #[test]
     fn guest_list_user() {
         base::events::guest_list(Roles::User, false);
     }
+
     #[test]
     fn guest_list_org_owner() {
         base::events::guest_list(Roles::OrgOwner, true);
@@ -656,18 +714,22 @@ mod guest_list_tests {
 #[cfg(test)]
 mod codes_tests {
     use super::*;
+
     #[test]
     fn codes_org_member() {
         base::events::codes(Roles::OrgMember, true);
     }
+
     #[test]
     fn codes_admin() {
         base::events::codes(Roles::Admin, true);
     }
+
     #[test]
     fn codes_user() {
         base::events::codes(Roles::User, false);
     }
+
     #[test]
     fn codes_org_owner() {
         base::events::codes(Roles::OrgOwner, true);
@@ -677,18 +739,22 @@ mod codes_tests {
 #[cfg(test)]
 mod holds_tests {
     use super::*;
+
     #[test]
     fn holds_org_member() {
         base::events::holds(Roles::OrgMember, true);
     }
+
     #[test]
     fn holds_admin() {
         base::events::holds(Roles::Admin, true);
     }
+
     #[test]
     fn holds_user() {
         base::events::holds(Roles::User, false);
     }
+
     #[test]
     fn holds_org_owner() {
         base::events::holds(Roles::OrgOwner, true);
@@ -959,6 +1025,7 @@ struct EventVenueEntry {
     external_url: Option<String>,
     user_is_interested: bool,
     localized_times: EventLocalizedTimes,
+    tracking_keys: TrackingKeys,
 }
 
 fn event_venue_entry(
@@ -992,5 +1059,8 @@ fn event_venue_entry(
             .map(|u| EventInterest::user_interest(event.id, u.id, connection).unwrap())
             .unwrap_or(false),
         localized_times,
+        tracking_keys: TrackingKeys {
+            ..Default::default()
+        },
     }
 }

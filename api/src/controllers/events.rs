@@ -84,7 +84,12 @@ pub fn checkins(
 }
 
 pub fn index(
-    (connection, query, auth_user): (Connection, Query<SearchParameters>, OptionalUser),
+    (state, connection, query, auth_user): (
+        State<AppState>,
+        Connection,
+        Query<SearchParameters>,
+        OptionalUser,
+    ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let query = query.into_inner();
@@ -155,6 +160,7 @@ pub fn index(
         external_url: Option<String>,
         user_is_interested: bool,
         localized_times: EventLocalizedTimes,
+        tracking_keys: TrackingKeys,
     }
 
     let mut venue_ids: Vec<Uuid> = events
@@ -171,6 +177,16 @@ pub fn index(
         map
     });
 
+    let mut organization_ids: Vec<Uuid> = events.iter().map(|e| e.organization_id).collect();
+    organization_ids.sort();
+    organization_ids.dedup();
+
+    let tracking_keys_for_orgs = Organization::tracking_keys_for_ids(
+        organization_ids,
+        &state.config.api_keys_encryption_key,
+        connection,
+    )?;
+
     let event_interest = match user {
         Some(u) => EventInterest::find_interest_by_event_ids_for_user(
             events.iter().map(|e| e.id).collect::<Vec<Uuid>>(),
@@ -183,11 +199,19 @@ pub fn index(
     let results = events.into_iter().fold(Vec::new(), |mut results, event| {
         let venue = event.venue_id.and_then(|v| Some(venue_map[&v].clone()));
         let localized_times = event.get_all_localized_times(&venue);
+        let organization_id = event.organization_id;
+        let tracking_keys = tracking_keys_for_orgs
+            .get(&organization_id)
+            .map(|v| v)
+            .unwrap_or(&TrackingKeys {
+                ..Default::default()
+            })
+            .clone();
         results.push(EventVenueEntry {
             venue,
             id: event.id,
             name: event.name,
-            organization_id: event.organization_id,
+            organization_id: organization_id.clone(),
             venue_id: event.venue_id,
             created_at: event.created_at,
             event_start: event.event_start,
@@ -208,6 +232,7 @@ pub fn index(
                 .map(|i| i.to_owned())
                 .unwrap_or(false),
             localized_times,
+            tracking_keys,
         });
         results
     });
@@ -223,7 +248,8 @@ pub struct EventParameters {
 }
 
 pub fn show(
-    (connection, parameters, query, user, http_request): (
+    (state, connection, parameters, query, user, http_request): (
+        State<AppState>,
         Connection,
         Path<PathParameters>,
         Query<EventParameters>,
@@ -308,6 +334,18 @@ pub fn show(
         }
     }
 
+    let tracking_keys = Organization::tracking_keys_for_ids(
+        vec![organization.id],
+        &state.config.api_keys_encryption_key,
+        connection,
+    )?
+    .get(&organization.id)
+    .map(|v| v)
+    .unwrap_or(&TrackingKeys {
+        ..Default::default()
+    })
+    .clone();
+
     #[derive(Serialize)]
     struct R {
         id: Uuid,
@@ -339,6 +377,7 @@ pub fn show(
         override_status: Option<EventOverrideStatus>,
         limited_tickets_remaining: Vec<TicketsRemaining>,
         localized_times: EventLocalizedTimes,
+        tracking_keys: TrackingKeys,
     }
 
     Ok(HttpResponse::Ok().json(&R {
@@ -374,6 +413,7 @@ pub fn show(
         override_status: event.override_status,
         limited_tickets_remaining,
         localized_times,
+        tracking_keys,
     }))
 }
 
