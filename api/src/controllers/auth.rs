@@ -67,7 +67,6 @@ pub fn token(
                 if !captcha_response.success {
                     return application::unauthorized_with_message(
                         "Captcha value invalid",
-                        &http_request,
                         None,
                         Some(login_log_data),
                     );
@@ -76,7 +75,6 @@ pub fn token(
             None => {
                 return application::unauthorized_with_message(
                     "Captcha required",
-                    &http_request,
                     None,
                     Some(login_log_data),
                 );
@@ -92,7 +90,6 @@ pub fn token(
         Err(_e) => {
             return application::unauthorized_with_message(
                 login_failure_messaging,
-                &http_request,
                 None,
                 Some(login_log_data),
             )
@@ -102,7 +99,6 @@ pub fn token(
     if !user.check_password(&login_request.password) {
         return application::unauthorized_with_message(
             login_failure_messaging,
-            &http_request,
             None,
             Some(login_log_data),
         );
@@ -119,12 +115,7 @@ pub fn token(
 }
 
 pub fn token_refresh(
-    (state, connection, refresh_request, request): (
-        State<AppState>,
-        Connection,
-        Json<RefreshRequest>,
-        HttpRequest<AppState>,
-    ),
+    (state, connection, refresh_request): (State<AppState>, Connection, Json<RefreshRequest>),
 ) -> Result<HttpResponse, BigNeonError> {
     let mut validation = Validation::default();
     validation.validate_exp = false;
@@ -138,7 +129,7 @@ pub fn token_refresh(
     // If the user changes their password invalidate all refresh tokens
     let password_modified_timestamp = user.password_modified_at.timestamp() as u64;
     if password_modified_timestamp > token.claims.issued {
-        return application::unauthorized_with_message("Invalid token", &request, None, None);
+        return application::unauthorized_with_message("Invalid token", None, None);
     }
 
     let response = TokenResponse::create_from_refresh_token(
