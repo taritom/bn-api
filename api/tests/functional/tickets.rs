@@ -110,6 +110,7 @@ pub fn index() {
         ticket_type_name: ticket_type.name.clone(),
         status: TicketInstanceStatus::Purchased,
         redeem_key: ticket.redeem_key,
+        pending_transfer: false,
     };
     assert_eq!(vec![expected_ticket.clone()], found_data.data);
     // Test without specified event
@@ -136,6 +137,7 @@ pub fn index() {
         ticket_type_name: ticket_type2.name.clone(),
         status: TicketInstanceStatus::Purchased,
         redeem_key: ticket2.redeem_key,
+        pending_transfer: false,
     };
     assert_eq!(
         vec![
@@ -227,6 +229,7 @@ pub fn show() {
         ticket_type_name: ticket_type.name.clone(),
         status: TicketInstanceStatus::Purchased,
         redeem_key: ticket.redeem_key,
+        pending_transfer: false,
     };
 
     let expected_result = ShowTicketResponse {
