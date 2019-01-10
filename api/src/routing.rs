@@ -203,6 +203,11 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/status", |r| {
         r.method(Method::GET).f(|_| HttpResponse::Ok())
     })
+    .resource("/stages/{id}", |r| {
+        r.method(Method::GET).with(stages::show);
+        r.method(Method::PUT).with(stages::update);
+        r.method(Method::DELETE).with(stages::delete);
+    })
     .resource("/tickets/transfer", |r| {
         r.method(Method::POST).with(tickets::transfer_authorization);
     })
@@ -263,12 +268,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/venues/{id}/stages", |r| {
         r.method(Method::POST).with(stages::create);
-        //            r.method(Method::GET).with(venues::add_to_organization);
+        r.method(Method::GET).with(stages::index);
     })
-    //        .resource("/venues/{id}/stages/{secondary_id}", |r| {
-    //            r.method(Method::PUT).with(venues::add_to_organization);
-    //            r.method(Method::DELETE).with(venues::add_to_organization);
-    //        })
     .resource("/venues/{id}/toggle_privacy", |r| {
         r.method(Method::PUT).with(venues::toggle_privacy);
     })
