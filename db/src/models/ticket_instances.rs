@@ -80,8 +80,8 @@ impl TicketInstance {
                 sql::<Bool>(
                     "CAST(CASE WHEN
                             ticket_instances.transfer_key IS NULL
-                            AND (ticket_instances.transfer_expiry_date IS NULL
-                                OR ticket_instances.transfer_expiry_date < NOW())
+                            OR ticket_instances.transfer_expiry_date IS NULL
+                            OR ticket_instances.transfer_expiry_date < NOW()
                             THEN false
                         ELSE
                            true
@@ -183,8 +183,8 @@ impl TicketInstance {
                 sql::<Bool>(
                     "CAST(CASE WHEN
                             ticket_instances.transfer_key IS NULL
-                            AND (ticket_instances.transfer_expiry_date IS NULL
-                                OR ticket_instances.transfer_expiry_date < NOW())
+                            OR ticket_instances.transfer_expiry_date IS NULL
+                            OR ticket_instances.transfer_expiry_date < NOW()
                             THEN false
                         ELSE
                            true
