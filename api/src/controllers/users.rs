@@ -76,12 +76,11 @@ pub fn profile(
 }
 
 pub fn history(
-    (connection, path, query, auth_user, request): (
+    (connection, path, query, auth_user): (
         Connection,
         Path<OrganizationFanPathParameters>,
         Query<PagingParameters>,
         AuthUser,
-        HttpRequest<AppState>,
     ),
 ) -> Result<WebPayload<HistoryItem>, BigNeonError> {
     let connection = connection.get();
@@ -92,7 +91,7 @@ pub fn history(
 
     // Confirm organization has specified user as a fan
     if !organization.has_fan(&user, connection)? {
-        return application::unauthorized(&request, Some(auth_user), None);
+        return application::unauthorized(Some(auth_user), None);
     }
 
     let payload = user.get_history_for_organization(
@@ -119,35 +118,29 @@ pub fn update_current_user(
 }
 
 pub fn show(
-    (connection, parameters, auth_user, request): (
-        Connection,
-        Path<PathParameters>,
-        AuthUser,
-        HttpRequest<AppState>,
-    ),
+    (connection, parameters, auth_user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
     if !(auth_user.user == user || auth_user.user.is_admin()) {
-        return application::unauthorized(&request, Some(auth_user), None);
+        return application::unauthorized(Some(auth_user), None);
     }
 
     Ok(HttpResponse::Ok().json(&user.for_display()?))
 }
 
 pub fn list_organizations(
-    (connection, parameters, query_parameters, auth_user, request): (
+    (connection, parameters, query_parameters, auth_user): (
         Connection,
         Path<PathParameters>,
         Query<PagingParameters>,
         AuthUser,
-        HttpRequest<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
     if !(auth_user.user == user || auth_user.user.is_admin()) {
-        return application::unauthorized(&request, Some(auth_user), None);
+        return application::unauthorized(Some(auth_user), None);
     }
     //TODO implement proper paging on db.
     let organization_links = Organization::all_org_names_linked_to_user(parameters.id, connection)?;
@@ -160,17 +153,12 @@ pub fn list_organizations(
 }
 
 pub fn show_push_notification_tokens_for_user_id(
-    (connection, parameters, auth_user, request): (
-        Connection,
-        Path<PathParameters>,
-        AuthUser,
-        HttpRequest<AppState>,
-    ),
+    (connection, parameters, auth_user): (Connection, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = User::find(parameters.id, connection)?;
     if !(auth_user.user == user || auth_user.user.is_admin()) {
-        return application::unauthorized(&request, Some(auth_user), None);
+        return application::unauthorized(Some(auth_user), None);
     }
 
     let push_notification_tokens: Vec<DisplayPushNotificationToken> =
@@ -243,7 +231,6 @@ pub fn register(
         ) {
             return application::unauthorized_with_message(
                 err.reason.as_str(),
-                &http_request,
                 None,
                 Some(log_data),
             );
@@ -281,7 +268,6 @@ pub fn register_and_login(
         ) {
             return application::unauthorized_with_message(
                 err.reason.as_str(),
-                &http_request,
                 None,
                 Some(log_data),
             );
