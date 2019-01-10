@@ -247,7 +247,7 @@ pub struct EventParameters {
 }
 
 pub fn show(
-    (state, connection, parameters, query, user, http_request): (
+    (state, connection, parameters, query, user): (
         State<AppState>,
         Connection,
         Path<PathParameters>,
