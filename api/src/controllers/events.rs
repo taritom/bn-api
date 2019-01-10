@@ -202,7 +202,6 @@ pub fn index(
         let organization_id = event.organization_id;
         let tracking_keys = tracking_keys_for_orgs
             .get(&organization_id)
-            .map(|v| v)
             .unwrap_or(&TrackingKeys {
                 ..Default::default()
             })
@@ -211,7 +210,7 @@ pub fn index(
             venue,
             id: event.id,
             name: event.name,
-            organization_id: organization_id.clone(),
+            organization_id,
             venue_id: event.venue_id,
             created_at: event.created_at,
             event_start: event.event_start,
@@ -340,7 +339,6 @@ pub fn show(
         connection,
     )?
     .get(&organization.id)
-    .map(|v| v)
     .unwrap_or(&TrackingKeys {
         ..Default::default()
     })
