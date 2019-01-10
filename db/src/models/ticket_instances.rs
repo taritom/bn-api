@@ -820,7 +820,7 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
             ticket_type_id: ticket_intermediary.ticket_type_id,
             ticket_type_name: ticket_intermediary.name.clone(),
             status: ticket_intermediary.status.clone(),
-            pending_transfer: ticket_intermediary.pending_transfer.clone(),
+            pending_transfer: ticket_intermediary.pending_transfer,
             redeem_key,
         }
     }
