@@ -3,6 +3,7 @@ use diesel::result::ConnectionError;
 use diesel::result::DatabaseErrorKind;
 use diesel::result::Error as DieselError;
 use diesel::result::QueryResult;
+use log::Level;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::collections::HashMap;
 use std::error::Error;
@@ -163,12 +164,14 @@ impl DatabaseError {
                 )),
                 DieselError::DatabaseError(kind, _) => {
                     let current_backtrace = Backtrace::new();
-                    println!(
-                        "PG error {} {} {:?}",
-                        message,
-                        e.to_string(),
-                        current_backtrace
-                    );
+
+                    jlog!(
+                        Level::Debug,
+                        &format!("PG error {}", message),
+                        {
+                            "error": e.to_string(),
+                            "backtrace": format!("{:?}",current_backtrace)
+                    });
 
                     match kind {
                         DatabaseErrorKind::UniqueViolation => Err(DatabaseError::new(
@@ -187,12 +190,13 @@ impl DatabaseError {
                 }
                 _ => {
                     let current_backtrace = Backtrace::new();
-                    println!(
-                        "PG error {} {} {:?}",
-                        message,
-                        e.to_string(),
-                        current_backtrace
-                    );
+                    jlog!(
+                        Level::Debug,
+                        &format!("PG error {}", message),
+                        {
+                            "error": e.to_string(),
+                            "backtrace": format!("{:?}",current_backtrace)
+                    });
 
                     Err(DatabaseError::new(
                         error_code,

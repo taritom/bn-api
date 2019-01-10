@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query, State};
+use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
 use auth::user::User as AuthUser;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::DatabaseError;
@@ -201,12 +201,7 @@ pub fn view(
 }
 
 pub fn accept_request(
-    (connection, query, user, request): (
-        Connection,
-        Query<InviteResponseQuery>,
-        OptionalUser,
-        HttpRequest<AppState>,
-    ),
+    (connection, query, user): (Connection, Query<InviteResponseQuery>, OptionalUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let query_struct = query.into_inner();
     let connection = connection.get();
@@ -233,10 +228,10 @@ pub fn accept_request(
                 let org = Organization::find(invite_details.organization_id, connection)?;
                 org.add_user(u.id(), invite_details.roles, connection)?;
             } else {
-                return application::unauthorized(&request, Some(u), None);
+                return application::unauthorized(Some(u), None);
             }
         }
-        None => return application::unauthorized(&request, None, None),
+        None => return application::unauthorized(None, None),
     }
     Ok(HttpResponse::Ok().finish())
 }

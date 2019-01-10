@@ -1,18 +1,17 @@
 use actix_web::http;
 use actix_web::middleware::cors::Cors;
-use actix_web::middleware::Logger;
 use actix_web::{server, App};
 
 use config::Config;
 use db::*;
 use domain_events::DomainActionMonitor;
-use middleware::{AppVersionHeader, DatabaseTransaction};
+use middleware::{AppVersionHeader, BigNeonLogger, DatabaseTransaction};
 use routing;
 use std::io;
 use utils::ServiceLocator;
 
 // Must be valid JSON
-const LOGGER_FORMAT: &'static str = r#"{"level": "INFO", "target":"bigneon::request", "remote_ip":"%a", "user_agent": "%{User-Agent}i", "request": "%r", "status_code": %s, "response_time": %D}"#;
+const LOGGER_FORMAT: &'static str = r#"{"level": "INFO", "target":"bigneon::request", "remote_ip":"%a", "user_agent": "%{User-Agent}i", "request": "%r", "status_code": %s, "response_time": %D, "api_version":"%{x-app-version}o", "client_version": "{X-API-Client-Version}i" }"#;
 
 pub struct AppState {
     pub config: Config,
@@ -61,9 +60,9 @@ impl Server {
             server::new({
                 move || {
                     App::with_state(AppState::new(config.clone(), database.clone()))
+                        .middleware(BigNeonLogger::new(LOGGER_FORMAT))
                         .middleware(DatabaseTransaction::new())
                         .middleware(AppVersionHeader::new())
-                        .middleware(Logger::new(LOGGER_FORMAT))
                         .configure(|a| {
                             let mut cors_config = Cors::for_app(a);
                             match config.allowed_origins.as_ref() {

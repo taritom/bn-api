@@ -229,7 +229,6 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         database.connection.into(),
         parameters,
         OptionalUser(Some(auth_user)),
-        test_request.request,
     ))
     .into();
     if should_test_succeed {
