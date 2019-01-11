@@ -262,7 +262,7 @@ pub fn show(
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
 
     let venue = event.venue(connection)?;
-    let localized_times = event.get_all_localized_times(&venue);
+    let localized_times = event.get_all_localized_time_strings(&venue);
     let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
     let total_interest = EventInterest::total_interest(event.id, connection)?;
     let user_interest = match user {
@@ -372,7 +372,7 @@ pub fn show(
         external_url: Option<String>,
         override_status: Option<EventOverrideStatus>,
         limited_tickets_remaining: Vec<TicketsRemaining>,
-        localized_times: EventLocalizedTimes,
+        localized_times: EventLocalizedTimeStrings,
         tracking_keys: TrackingKeys,
     }
 

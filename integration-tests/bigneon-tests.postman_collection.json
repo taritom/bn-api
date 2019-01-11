@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "5e3f0ebf-e4c2-48c4-9ae1-bfaee65fe9e1",
+		"_postman_id": "99bbc941-7508-47e6-869d-5bd21774da03",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -2854,7 +2854,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"1 street street\",\n\t\"city\": \"City\",\n\t\"country\": \"Country\",\n\t\"phone\": \"5555555555\",\n\t\"google_place_id\": null,\n\t\"state\": \"California\",\n\t\"postal_code\": \"23233\"\n\t\n}"
+									"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"1 street street\",\n\t\"city\": \"City\",\n\t\"country\": \"Country\",\n\t\"phone\": \"5555555555\",\n\t\"google_place_id\": null,\n\t\"state\": \"California\",\n\t\"postal_code\": \"23233\",\n\t\"timezone\": \"America/Los_Angeles\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/venues",
