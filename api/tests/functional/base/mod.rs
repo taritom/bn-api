@@ -7,6 +7,7 @@ pub mod holds;
 pub mod organization_invites;
 pub mod organizations;
 pub mod regions;
+pub mod stages;
 pub mod ticket_types;
 pub mod tickets;
 pub mod users;

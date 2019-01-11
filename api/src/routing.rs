@@ -189,6 +189,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/payment_methods", |r| {
         r.method(Method::GET).with(payment_methods::index);
     })
+    .resource("/redemption_codes/{code}", |r| {
+        r.method(Method::GET).with(redemption_codes::show)
+    })
     .resource("/regions/{id}", |r| {
         r.method(Method::GET).with(regions::show);
         r.method(Method::PUT).with(regions::update);
@@ -202,6 +205,11 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/status", |r| {
         r.method(Method::GET).f(|_| HttpResponse::Ok())
+    })
+    .resource("/stages/{id}", |r| {
+        r.method(Method::GET).with(stages::show);
+        r.method(Method::PUT).with(stages::update);
+        r.method(Method::DELETE).with(stages::delete);
     })
     .resource("/tickets/transfer", |r| {
         r.method(Method::POST).with(tickets::transfer_authorization);
@@ -260,6 +268,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/venues/{id}/organizations", |r| {
         r.method(Method::POST).with(venues::add_to_organization);
+    })
+    .resource("/venues/{id}/stages", |r| {
+        r.method(Method::POST).with(stages::create);
+        r.method(Method::GET).with(stages::index);
     })
     .resource("/venues/{id}/toggle_privacy", |r| {
         r.method(Method::PUT).with(venues::toggle_privacy);

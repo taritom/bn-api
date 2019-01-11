@@ -96,6 +96,8 @@ table! {
         set_time -> Nullable<Timestamp>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        importance -> Int4,
+        stage_id -> Nullable<Uuid>,
     }
 }
 
@@ -333,6 +335,18 @@ table! {
 }
 
 table! {
+    stages (id) {
+        id -> Uuid,
+        venue_id -> Uuid,
+        name -> Text,
+        description -> Nullable<Text>,
+        capacity -> Nullable<Int8>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     ticket_instances (id) {
         id -> Uuid,
         asset_id -> Uuid,
@@ -462,6 +476,7 @@ joinable!(domain_actions -> domain_events (domain_event_id));
 joinable!(domain_events -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
+joinable!(event_artists -> stages (stage_id));
 joinable!(event_interest -> events (event_id));
 joinable!(event_interest -> users (user_id));
 joinable!(events -> organizations (organization_id));
@@ -520,6 +535,7 @@ allow_tables_to_appear_in_same_query!(
     payments,
     push_notification_tokens,
     regions,
+    stages,
     ticket_instances,
     ticket_pricing,
     ticket_type_codes,
