@@ -20,6 +20,8 @@ pub struct EventArtist {
     pub set_time: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub importance: i32,
+    pub stage_id: Option<Uuid>,
 }
 
 #[derive(Insertable)]
@@ -29,6 +31,8 @@ pub struct NewEventArtist {
     pub artist_id: Uuid,
     pub rank: i32,
     pub set_time: Option<NaiveDateTime>,
+    pub importance: i32,
+    pub stage_id: Option<Uuid>,
 }
 
 impl NewEventArtist {
@@ -49,12 +53,16 @@ impl EventArtist {
         artist_id: Uuid,
         rank: i32,
         set_time: Option<NaiveDateTime>,
+        importance: i32,
+        stage_id: Option<Uuid>,
     ) -> NewEventArtist {
         NewEventArtist {
             event_id,
             artist_id,
             rank,
             set_time,
+            importance,
+            stage_id,
         }
     }
 
@@ -76,6 +84,8 @@ impl EventArtist {
                 artist: x.1,
                 rank: x.0.rank,
                 set_time: x.0.set_time,
+                importance: x.0.importance,
+                stage_id: x.0.stage_id,
             })
         }
         Ok(display_results)
@@ -96,4 +106,6 @@ pub struct DisplayEventArtist {
     pub artist: Artist,
     pub rank: i32,
     pub set_time: Option<NaiveDateTime>,
+    pub importance: i32,
+    pub stage_id: Option<Uuid>,
 }

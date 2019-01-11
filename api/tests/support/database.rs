@@ -94,6 +94,10 @@ impl TestDatabase {
         VenueBuilder::new(self.connection.get())
     }
 
+    pub fn create_stage(&self) -> StageBuilder {
+        StageBuilder::new(self.connection.get())
+    }
+
     pub fn create_fee_schedule(&self) -> FeeScheduleBuilder {
         FeeScheduleBuilder::new(self.connection.get())
     }

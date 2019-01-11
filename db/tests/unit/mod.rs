@@ -18,6 +18,7 @@ pub mod organizations;
 pub mod payment_methods;
 pub mod push_notification_tokens;
 pub mod regions;
+pub mod stages;
 pub mod ticket_instances;
 pub mod ticket_pricing;
 pub mod ticket_type_codes;

@@ -568,6 +568,8 @@ pub struct AddArtistRequest {
     pub artist_id: Uuid,
     pub rank: i32,
     pub set_time: Option<NaiveDateTime>,
+    pub importance: i32,
+    pub stage_id: Option<Uuid>,
 }
 
 pub fn create(
@@ -585,6 +587,8 @@ pub fn create(
 pub struct UpdateArtistsRequest {
     pub artist_id: Uuid,
     pub set_time: Option<NaiveDateTime>,
+    pub importance: i32,
+    pub stage_id: Option<Uuid>,
 }
 
 #[derive(Deserialize, Debug, Default)]
@@ -684,6 +688,8 @@ pub fn add_artist(
         event_artist.artist_id,
         event_artist.rank,
         event_artist.set_time,
+        event_artist.importance,
+        event_artist.stage_id,
     )
     .commit(connection)?;
     Ok(HttpResponse::Created().json(&event_artist))
@@ -709,7 +715,15 @@ pub fn update_artists(
 
     for a in &artists.into_inner().artists {
         added_artists.push(
-            EventArtist::create(parameters.id, a.artist_id, rank, a.set_time).commit(connection)?,
+            EventArtist::create(
+                parameters.id,
+                a.artist_id,
+                rank,
+                a.set_time,
+                a.importance,
+                a.stage_id,
+            )
+            .commit(connection)?,
         );
         rank += 1;
     }
