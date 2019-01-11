@@ -8,6 +8,7 @@ use diesel::sql_types::{BigInt, Text, Timestamp};
 use models::scopes;
 use models::*;
 use schema::{events, organization_users, organizations, ticket_types, users, venues};
+use std::collections::HashMap;
 use utils::encryption::*;
 use utils::errors::*;
 use uuid::Uuid;
@@ -71,6 +72,12 @@ pub struct NewOrganization {
     pub facebook_pixel_key: Option<String>,
     pub client_event_fee_in_cents: Option<i64>,
     pub company_event_fee_in_cents: Option<i64>,
+}
+
+#[derive(Default, Serialize, Clone)]
+pub struct TrackingKeys {
+    pub google_ga_key: Option<String>,
+    pub facebook_pixel_key: Option<String>,
 }
 
 impl NewOrganization {
@@ -314,6 +321,54 @@ impl Organization {
                 ErrorCode::QueryError,
                 "Could not find organization for this event",
             )
+    }
+
+    pub fn tracking_keys_for_ids(
+        org_ids: Vec<Uuid>,
+        encryption_key: &String,
+        conn: &PgConnection,
+    ) -> Result<HashMap<Uuid, TrackingKeys>, DatabaseError> {
+        #[derive(Queryable)]
+        struct TrackingKeyFields {
+            pub id: Uuid,
+            pub google_ga_key: Option<String>,
+            pub facebook_pixel_key: Option<String>,
+        };
+
+        let orgs: Vec<TrackingKeyFields> = organizations::table
+            .filter(organizations::id.eq_any(org_ids))
+            .select((
+                organizations::id,
+                organizations::google_ga_key,
+                organizations::facebook_pixel_key,
+            ))
+            .get_results(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Unable to load all organization tracking keys",
+            )?;
+
+        let mut result: HashMap<Uuid, TrackingKeys> = HashMap::new();
+
+        for org in orgs {
+            let mut google_ga_key = org.google_ga_key;
+            if let Some(key) = google_ga_key.clone() {
+                google_ga_key = Some(decrypt(&key, &encryption_key)?);
+            }
+            let mut facebook_pixel_key = org.facebook_pixel_key;
+            if let Some(key) = facebook_pixel_key.clone() {
+                facebook_pixel_key = Some(decrypt(&key, &encryption_key)?);
+            }
+            result.insert(
+                org.id,
+                TrackingKeys {
+                    google_ga_key,
+                    facebook_pixel_key,
+                },
+            );
+        }
+
+        Ok(result)
     }
 
     pub fn all(conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
