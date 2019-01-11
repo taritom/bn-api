@@ -80,7 +80,9 @@ pub fn show_box_office_pricing(role: Roles, should_test_succeed: bool) {
     path.id = event_id;
 
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+
     let response: HttpResponse = events::show((
+        test_request.extract_state(),
         database.connection.clone(),
         path,
         query_parameters,
@@ -717,6 +719,7 @@ pub fn expected_show_json(
         override_status: Option<EventOverrideStatus>,
         limited_tickets_remaining: Vec<TicketsRemaining>,
         localized_times: EventLocalizedTimes,
+        tracking_keys: TrackingKeys,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -772,6 +775,9 @@ pub fn expected_show_json(
         override_status: event.override_status,
         limited_tickets_remaining: no_tickets_remaining,
         localized_times,
+        tracking_keys: TrackingKeys {
+            ..Default::default()
+        },
     })
     .unwrap()
 }

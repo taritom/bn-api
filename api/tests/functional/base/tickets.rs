@@ -52,6 +52,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
             ticket_type_name: ticket_type.name.clone(),
             status: TicketInstanceStatus::Purchased,
             redeem_key: ticket_response.ticket.redeem_key.clone(),
+            pending_transfer: false,
         };
 
         let expected_result = ShowTicketResponse {

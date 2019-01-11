@@ -188,6 +188,7 @@ pub fn find() {
         ticket_type_name: ticket_type.name.clone(),
         status: TicketInstanceStatus::Reserved,
         redeem_key: ticket.redeem_key,
+        pending_transfer: false,
     };
     assert_eq!(
         (display_event, None, expected_ticket),
