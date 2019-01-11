@@ -4,7 +4,7 @@ use diesel::dsl::*;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types;
-use diesel::sql_types::{BigInt, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Bool, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use rand;
@@ -77,6 +77,18 @@ impl TicketInstance {
                 ticket_instances::status,
                 ticket_instances::redeem_key,
                 events::redeem_date,
+                sql::<Bool>(
+                    "CAST(CASE WHEN
+                            ticket_instances.transfer_key IS NULL
+                            OR ticket_instances.transfer_expiry_date IS NULL
+                            OR ticket_instances.transfer_expiry_date < NOW()
+                            THEN false
+                        ELSE
+                           true
+                        END
+                        AS BOOLEAN)
+                             AS pending_transfer",
+                ),
             ))
             .first::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
@@ -168,6 +180,17 @@ impl TicketInstance {
                 ticket_instances::status,
                 ticket_instances::redeem_key,
                 events::redeem_date,
+                sql::<Bool>(
+                    "CAST(CASE WHEN
+                            ticket_instances.transfer_key IS NULL
+                            OR ticket_instances.transfer_expiry_date IS NULL
+                            OR ticket_instances.transfer_expiry_date < NOW()
+                            THEN false
+                        ELSE
+                           true
+                        END AS BOOLEAN)
+                             AS pending_transfer",
+                ),
             ))
             .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
@@ -371,13 +394,13 @@ impl TicketInstance {
                 "Could not retrieve the number of tickets in this hold",
             )
             .optional()?
-        {
-            Some(r) => Ok((
-                r.ticket_count.unwrap_or(0) as u32,
-                r.available_count.unwrap_or(0) as u32,
-            )),
-            None => Ok((0, 0)),
-        }
+            {
+                Some(r) => Ok((
+                    r.ticket_count.unwrap_or(0) as u32,
+                    r.available_count.unwrap_or(0) as u32,
+                )),
+                None => Ok((0, 0)),
+            }
     }
 
     pub fn find_for_order_item(
@@ -591,6 +614,15 @@ impl TicketInstance {
             ))
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
+            DomainEvent::create(
+                DomainEventTypes::TransferTicketStarted,
+                "Transfer ticket started".to_string(),
+                Tables::TicketInstances,
+                Some(t_id.clone()),
+                Some(user_id.clone()),
+                None,
+            )
+            .commit(conn)?;
         }
 
         if update_count != ticket_ids.len() {
@@ -659,6 +691,14 @@ impl TicketInstance {
                 Some("These tickets have already been transferred.".to_string()),
             ));
         }
+        #[derive(AsChangeset)]
+        #[changeset_options(treat_none_as_null = "true")]
+        #[table_name = "ticket_instances"]
+        struct Update {
+            transfer_key: Option<Uuid>,
+            transfer_expiry_date: Option<NaiveDateTime>,
+        };
+
         //Perform transfer
         let mut update_count = 0;
         for (t_id, updated_at) in &ticket_ids_to_transfer {
@@ -668,11 +708,24 @@ impl TicketInstance {
                     .filter(ticket_instances::updated_at.eq(updated_at)),
             )
             .set((
+                Update {
+                    transfer_key: None,
+                    transfer_expiry_date: None,
+                },
                 ticket_instances::wallet_id.eq(receiver_wallet_id),
                 ticket_instances::updated_at.eq(dsl::now),
             ))
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
+            DomainEvent::create(
+                DomainEventTypes::TransferTicketStarted,
+                "Transfer ticket completed".to_string(),
+                Tables::TicketInstances,
+                Some(t_id.clone()),
+                None,
+                Some(json!({"receiver_wallet_id": receiver_wallet_id.clone()})),
+            )
+            .commit(conn)?;
         }
 
         if update_count != transfer_authorization.num_tickets as usize {
@@ -719,6 +772,7 @@ pub struct DisplayTicket {
     pub ticket_type_name: String,
     pub status: TicketInstanceStatus,
     pub redeem_key: Option<String>,
+    pub pending_transfer: bool,
 }
 
 #[derive(Queryable, QueryableByName)]
@@ -745,6 +799,8 @@ pub struct DisplayTicketIntermediary {
     pub redeem_key: Option<String>,
     #[sql_type = "Nullable<Timestamp>"]
     pub redeem_date: Option<NaiveDateTime>,
+    #[sql_type = "Bool"]
+    pub pending_transfer: bool,
 }
 
 impl From<DisplayTicketIntermediary> for DisplayTicket {
@@ -764,6 +820,7 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
             ticket_type_id: ticket_intermediary.ticket_type_id,
             ticket_type_name: ticket_intermediary.name.clone(),
             status: ticket_intermediary.status.clone(),
+            pending_transfer: ticket_intermediary.pending_transfer,
             redeem_key,
         }
     }
