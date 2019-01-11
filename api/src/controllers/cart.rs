@@ -13,7 +13,6 @@ use helpers::application;
 use itertools::Itertools;
 use payments::PaymentProcessor;
 use server::AppState;
-use std::cmp;
 use std::collections::HashMap;
 use utils::ServiceLocator;
 use uuid::Uuid;
@@ -29,8 +28,6 @@ pub struct CartItem {
 #[derive(Deserialize)]
 pub struct UpdateCartRequest {
     pub items: Vec<CartItem>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub redemption_code: Option<String>,
     pub box_office_pricing: Option<bool>,
 }
 
@@ -61,9 +58,7 @@ pub fn update_cart(
     // Find the current cart of the user, if it exists.
     let mut cart = Order::find_or_create_cart(&user.user, connection)?;
 
-    let redemption_code = json.redemption_code.clone();
-
-    let mut order_items: Vec<UpdateOrderItem> = json
+    let order_items: Vec<UpdateOrderItem> = json
         .into_inner()
         .items
         .iter()
@@ -73,25 +68,6 @@ pub fn update_cart(
             redemption_code: i.redemption_code.clone(),
         })
         .collect();
-
-    if redemption_code.is_some() {
-        let hold = Hold::find_by_redemption_code(redemption_code.as_ref().unwrap(), connection)?;
-        if !order_items.iter().any(|oi| {
-            oi.ticket_type_id == hold.ticket_type_id && oi.redemption_code == redemption_code
-        }) {
-            let quantity = cmp::max(
-                hold.max_per_order
-                    .unwrap_or(hold.quantity(connection)?.1 as i64) as u32,
-                1,
-            );
-
-            order_items.push(UpdateOrderItem {
-                quantity,
-                ticket_type_id: hold.ticket_type_id,
-                redemption_code: Some(hold.redemption_code.clone()),
-            })
-        }
-    }
 
     for order_item in &order_items {
         if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
@@ -142,9 +118,7 @@ pub fn replace_cart(
     // Find the current cart of the user, if it exists.
     let mut cart = Order::find_or_create_cart(&user.user, connection)?;
 
-    let redemption_code = json.redemption_code.clone();
-
-    let mut order_items: Vec<UpdateOrderItem> = json
+    let order_items: Vec<UpdateOrderItem> = json
         .into_inner()
         .items
         .iter()
@@ -154,25 +128,6 @@ pub fn replace_cart(
             redemption_code: i.redemption_code.clone(),
         })
         .collect();
-
-    if redemption_code.is_some() {
-        let hold = Hold::find_by_redemption_code(redemption_code.as_ref().unwrap(), connection)?;
-        if !order_items.iter().any(|oi| {
-            oi.ticket_type_id == hold.ticket_type_id && oi.redemption_code == redemption_code
-        }) {
-            let quantity = cmp::max(
-                hold.max_per_order
-                    .unwrap_or(hold.quantity(connection)?.1 as i64) as u32,
-                1,
-            );
-
-            order_items.push(UpdateOrderItem {
-                quantity,
-                ticket_type_id: hold.ticket_type_id,
-                redemption_code: Some(hold.redemption_code.clone()),
-            })
-        }
-    }
 
     for order_item in &order_items {
         if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
