@@ -386,6 +386,21 @@ impl Event {
             .to_db_error(ErrorCode::UpdateError, "Could not update event")
     }
 
+    /**
+     * Returns the localized_times formatted to rfc2822
+     */
+    pub fn get_all_localized_time_strings(
+        &self,
+        venue: &Option<Venue>,
+    ) -> EventLocalizedTimeStrings {
+        let event_localized_times: EventLocalizedTimes = self.get_all_localized_times(venue);
+        EventLocalizedTimeStrings {
+            event_start: event_localized_times.event_start.map(|s| s.to_rfc2822()),
+            event_end: event_localized_times.event_end.map(|s| s.to_rfc2822()),
+            door_time: event_localized_times.door_time.map(|s| s.to_rfc2822()),
+        }
+    }
+
     pub fn get_all_localized_times(&self, venue: &Option<Venue>) -> EventLocalizedTimes {
         let event_localized_times: EventLocalizedTimes = EventLocalizedTimes {
             event_start: Event::localized_time_from_venue(&self.event_start, &venue),
