@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use models::AssetStatus;
+use models::*;
 use schema::assets;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -37,7 +37,7 @@ impl Asset {
     ) -> Result<Asset, DatabaseError> {
         assets::table
             .filter(assets::ticket_type_id.eq(ticket_type_id))
-            .first::<Asset>(conn)
+            .first(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading asset")
     }
 

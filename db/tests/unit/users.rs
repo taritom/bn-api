@@ -331,7 +331,8 @@ fn get_history_for_organization() {
         .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
 
-    let paging = Paging::new(0, 100);
+    let mut paging = Paging::new(0, 100);
+    paging.dir = SortingDir::Desc;
     let mut payload = Payload::new(
         vec![HistoryItem::Purchase {
             order_id: cart.id,
@@ -376,7 +377,8 @@ fn get_history_for_organization() {
         .unwrap();
     assert_eq!(cart2.status, OrderStatus::Paid);
 
-    let paging = Paging::new(0, 100);
+    let mut paging = Paging::new(0, 100);
+    paging.dir = SortingDir::Desc;
     let mut payload = Payload::new(
         vec![
             HistoryItem::Purchase {
@@ -782,6 +784,8 @@ fn get_scopes_by_organization() {
             Scopes::HoldWrite,
             Scopes::OrderMakeExternalPayment,
             Scopes::OrderRead,
+            Scopes::OrderReadOwn,
+            Scopes::OrderRefund,
             Scopes::OrgAdminUsers,
             Scopes::OrgFans,
             Scopes::OrgRead,
@@ -814,6 +818,8 @@ fn get_scopes_by_organization() {
             Scopes::HoldRead,
             Scopes::HoldWrite,
             Scopes::OrderRead,
+            Scopes::OrderReadOwn,
+            Scopes::OrderRefund,
             Scopes::OrgFans,
             Scopes::OrgRead,
             Scopes::RedeemTicket,
@@ -849,7 +855,7 @@ fn get_global_scopes() {
             .into_iter()
             .map(|scope| scope.to_string())
             .collect::<Vec<String>>(),
-        vec!["event:interest", "order:read", "ticket:transfer"]
+        vec!["event:interest", "order:read-own", "ticket:transfer"]
     );
     assert_eq!(
         user2
@@ -857,7 +863,7 @@ fn get_global_scopes() {
             .into_iter()
             .map(|scope| scope.to_string())
             .collect::<Vec<String>>(),
-        vec!["event:interest", "order:read", "ticket:transfer"]
+        vec!["event:interest", "order:read-own", "ticket:transfer"]
     );
     assert_eq!(
         user3
@@ -884,6 +890,8 @@ fn get_global_scopes() {
             "hold:write",
             "order:make-external-payment",
             "order:read",
+            "order:read-own",
+            "order:refund",
             "org:admin",
             "org:admin-users",
             "org:fans",

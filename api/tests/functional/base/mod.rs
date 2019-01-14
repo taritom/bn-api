@@ -4,6 +4,7 @@ pub mod codes;
 pub mod comps;
 pub mod events;
 pub mod holds;
+pub mod orders;
 pub mod organization_invites;
 pub mod organizations;
 pub mod regions;

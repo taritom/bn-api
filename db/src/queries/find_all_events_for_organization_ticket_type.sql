@@ -12,7 +12,7 @@ SELECT t2.event_id,
              ELSE 0 END)   as BigInt)                                                                    AS sold_held,
        CAST(sum(CASE WHEN ti.status in ('Available', 'Reserved') AND ti.hold_id IS NULL THEN 1 ELSE 0 END)   as BigInt)                             AS open,
        CAST(sum(CASE WHEN ti.hold_id IS NOT NULL THEN 1 ELSE 0 END)   as BigInt)                             AS held,
-       (SELECT cast(sum(oi.unit_price_in_cents * oi.quantity) as BIGINT)
+       (SELECT cast(sum(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)) as BIGINT)
         FROM order_items oi
                INNER JOIN orders o ON oi.order_id = o.id
         WHERE oi.ticket_type_id = t2.id
@@ -29,4 +29,3 @@ WHERE e.organization_id = $1
         ELSE e.event_start < now() END -- past
   AND ($3 IS NULL or e.id = $3)
 GROUP BY t2.name, t2.id, t2.event_id;
-

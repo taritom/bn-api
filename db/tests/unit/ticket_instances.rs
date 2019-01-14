@@ -11,7 +11,7 @@ use time::Duration;
 use uuid::Uuid;
 
 #[test]
-pub fn find_for_user_for_display() {
+fn find_for_user_for_display() {
     let project = TestProject::new();
     let admin = project.create_user().finish();
 
@@ -132,7 +132,126 @@ pub fn find_for_user_for_display() {
 }
 
 #[test]
-pub fn find() {
+fn release() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .remove(0);
+    assert_eq!(ticket.status, TicketInstanceStatus::Purchased);
+    TicketInstance::authorize_ticket_transfer(user.id, vec![ticket.id], 3600, connection).unwrap();
+    assert!(ticket.release(connection).is_ok());
+
+    // Reload ticket
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    assert!(ticket.order_item_id.is_none());
+    assert!(ticket.transfer_key.is_none());
+    assert!(ticket.transfer_expiry_date.is_none());
+    assert_eq!(ticket.status, TicketInstanceStatus::Available);
+}
+
+#[test]
+fn set_wallet() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+
+    let user_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
+    let user2_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .remove(0);
+    assert_eq!(ticket.wallet_id, user_wallet.id);
+    ticket.set_wallet(&user2_wallet, connection).unwrap();
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    assert_eq!(ticket.wallet_id, user2_wallet.id);
+}
+
+#[test]
+fn was_transferred() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .remove(0);
+
+    // Not transferred
+    assert!(!ticket.was_transferred(connection).unwrap());
+
+    let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
+    let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
+    let transfer_auth =
+        TicketInstance::authorize_ticket_transfer(user.id, vec![ticket.id], 3600, connection)
+            .unwrap();
+    TicketInstance::receive_ticket_transfer(
+        transfer_auth,
+        &sender_wallet,
+        &receiver_wallet.id,
+        connection,
+    )
+    .unwrap();
+
+    // Transferred
+    assert!(ticket.was_transferred(connection).unwrap());
+}
+
+#[test]
+fn find() {
     let project = TestProject::new();
     let org_admin = project.create_user().finish();
 
@@ -198,7 +317,7 @@ pub fn find() {
 }
 
 #[test]
-pub fn find_for_user() {
+fn find_for_user() {
     let project = TestProject::new();
     let admin = project.create_user().finish();
 
@@ -240,7 +359,7 @@ pub fn find_for_user() {
 }
 
 #[test]
-pub fn release_tickets() {
+fn release_tickets() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let event = project.create_event().with_ticket_pricing().finish();
@@ -402,7 +521,7 @@ fn show_redeemable_ticket() {
 }
 
 #[test]
-pub fn authorize_ticket_transfer() {
+fn authorize_ticket_transfer() {
     let project = TestProject::new();
     let admin = project.create_user().finish();
 
@@ -463,7 +582,7 @@ pub fn authorize_ticket_transfer() {
 }
 
 #[test]
-pub fn receive_ticket_transfer() {
+fn receive_ticket_transfer() {
     let project = TestProject::new();
     let admin = project.create_user().finish();
 

@@ -723,8 +723,8 @@ impl Event {
 
         let query = r#"
                 SELECT CAST(o.paid_at as Date) as date,
-                cast(COALESCE(sum(oi.unit_price_in_cents * oi.quantity), 0) AS bigint) as sales,
-                CAST( COALESCE(SUM(CASE WHEN oi.item_type = 'Tickets' THEN oi.quantity ELSE 0 END), 0) as BigInt) as ticket_count
+                cast(COALESCE(sum(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)), 0) AS bigint) as sales,
+                CAST( COALESCE(SUM(CASE WHEN oi.item_type = 'Tickets' THEN (oi.quantity - oi.refunded_quantity) ELSE 0 END), 0) as BigInt) as ticket_count
                 FROM order_items oi
                 INNER JOIN orders o ON oi.order_id = o.id
                 WHERE oi.event_id = $1

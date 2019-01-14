@@ -17,6 +17,7 @@ pub mod organization_users;
 pub mod organizations;
 pub mod payment_methods;
 pub mod push_notification_tokens;
+pub mod refunded_tickets;
 pub mod regions;
 pub mod stages;
 pub mod ticket_instances;

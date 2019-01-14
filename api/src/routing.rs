@@ -125,6 +125,12 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/orders", |r| {
         r.method(Method::GET).with(orders::index);
     })
+    .resource("/orders/{id}/details", |r| {
+        r.method(Method::GET).with(orders::details);
+    })
+    .resource("/orders/{id}/refund", |r| {
+        r.method(Method::PATCH).with(orders::refund);
+    })
     .resource("/orders/{id}/tickets", |r| {
         r.method(Method::GET).with(orders::tickets);
     })

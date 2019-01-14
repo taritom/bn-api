@@ -77,8 +77,8 @@ string_enum! { AssetStatus [Unsynced] }
 string_enum! { CodeTypes [Access, Discount] }
 string_enum! { CommunicationChannelType [Email, Sms, Push]}
 string_enum! { DomainEventTypes [FeeScheduleCreated, OrderBehalfOfUserChanged, OrganizationCreated,
-PaymentCreated, PaymentCompleted, PaymentMethodCreated, PaymentMethodUpdated, UserRegistration,
-LostPassword, PurchaseCompleted, TransferTicketStarted, TransferTicketCompleted]}
+PaymentCreated, PaymentCompleted, PaymentRefund, PaymentMethodCreated, PaymentMethodUpdated,
+UserRegistration, LostPassword, PurchaseCompleted, TransferTicketStarted, TransferTicketCompleted]}
 string_enum! { DomainActionTypes [Communication]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
@@ -87,11 +87,11 @@ string_enum! { EventOverrideStatus [PurchaseTickets,SoldOut,OnSaleSoon,TicketsAt
 string_enum! { FanSortField [FirstName, LastName, Email, Phone, Orders, FirstOrder, LastOrder, Revenue] }
 string_enum! { HistoryType [Purchase]}
 string_enum! { HoldTypes [Discount, Comp] }
-string_enum! { OrderStatus [Draft, PartiallyPaid, Paid, Cancelled] }
+string_enum! { OrderStatus [Cancelled, Draft, Paid, PartiallyPaid] }
 string_enum! { OrderItemTypes [Tickets, PerUnitFees, EventFees]}
 string_enum! { OrderTypes [Cart, BackOffice] }
 string_enum! { PaymentMethods [External, CreditCard] }
-string_enum! { PaymentStatus [Authorized, Completed] }
+string_enum! { PaymentStatus [Authorized, Completed, Refunded] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Roles [Admin, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, DoorPerson, User] }
 string_enum! { SortingDir[ Asc, Desc ] }

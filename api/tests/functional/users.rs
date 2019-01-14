@@ -453,7 +453,7 @@ fn current_user() {
     assert_eq!(
         vec![
             Scopes::EventInterest,
-            Scopes::OrderRead,
+            Scopes::OrderReadOwn,
             Scopes::TicketTransfer
         ],
         response.scopes
@@ -495,6 +495,8 @@ fn current_user_organization_owner() {
             "hold:write",
             "order:make-external-payment",
             "order:read",
+            "order:read-own",
+            "order:refund",
             "org:admin-users",
             "org:fans",
             "org:read",
@@ -538,7 +540,7 @@ fn current_user_organization_member() {
     assert_eq!(
         vec![
             Scopes::EventInterest,
-            Scopes::OrderRead,
+            Scopes::OrderReadOwn,
             Scopes::TicketTransfer
         ],
         current_user.scopes
@@ -562,6 +564,8 @@ fn current_user_organization_member() {
             "hold:read",
             "hold:write",
             "order:read",
+            "order:read-own",
+            "order:refund",
             "org:fans",
             "org:read",
             "redeem:ticket",

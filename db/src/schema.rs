@@ -215,6 +215,7 @@ table! {
         code_id -> Nullable<Uuid>,
         company_fee_in_cents -> Int8,
         client_fee_in_cents -> Int8,
+        refunded_quantity -> Int8,
     }
 }
 
@@ -253,6 +254,17 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        role -> Array<Text>,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         name -> Text,
@@ -271,17 +283,6 @@ table! {
         fee_schedule_id -> Uuid,
         client_event_fee_in_cents -> Int8,
         company_event_fee_in_cents -> Int8,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-        role -> Array<Text>,
     }
 }
 
@@ -322,6 +323,18 @@ table! {
         token -> Text,
         last_notification_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
+    }
+}
+
+table! {
+    refunded_tickets (id) {
+        id -> Uuid,
+        order_item_id -> Uuid,
+        ticket_instance_id -> Uuid,
+        fee_refunded_at -> Nullable<Timestamp>,
+        ticket_refunded_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -500,6 +513,8 @@ joinable!(payment_methods -> users (user_id));
 joinable!(payments -> orders (order_id));
 joinable!(payments -> users (created_by));
 joinable!(push_notification_tokens -> users (user_id));
+joinable!(refunded_tickets -> order_items (order_item_id));
+joinable!(refunded_tickets -> ticket_instances (ticket_instance_id));
 joinable!(ticket_instances -> assets (asset_id));
 joinable!(ticket_instances -> holds (hold_id));
 joinable!(ticket_instances -> order_items (order_item_id));
@@ -529,11 +544,12 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     payment_methods,
     payments,
     push_notification_tokens,
+    refunded_tickets,
     regions,
     stages,
     ticket_instances,

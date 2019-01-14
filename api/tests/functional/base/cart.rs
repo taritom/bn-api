@@ -64,12 +64,12 @@ pub fn update_box_office_pricing(role: Roles, should_test_succeed: bool) {
         let fee_schedule_range =
             FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
         assert_eq!(
-            fee_item.unit_price_in_cents(),
+            fee_item.unit_price_in_cents,
             fee_schedule_range.fee_in_cents
         );
         assert_eq!(fee_item.quantity, 2);
         assert_eq!(
-            order_item.unit_price_in_cents(),
+            order_item.unit_price_in_cents,
             box_office_pricing.price_in_cents
         );
     } else {
@@ -170,12 +170,12 @@ pub fn replace_box_office_pricing(role: Roles, should_test_succeed: bool) {
         let fee_schedule_range =
             FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
         assert_eq!(
-            fee_item.unit_price_in_cents(),
+            fee_item.unit_price_in_cents,
             fee_schedule_range.fee_in_cents
         );
         assert_eq!(fee_item.quantity, 2);
         assert_eq!(
-            order_item.unit_price_in_cents(),
+            order_item.unit_price_in_cents,
             box_office_pricing.price_in_cents
         );
     } else {

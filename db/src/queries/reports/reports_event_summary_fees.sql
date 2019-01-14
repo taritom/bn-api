@@ -3,16 +3,16 @@ SELECT oi.event_id,
        oi.ticket_pricing_id                                                             AS ticket_pricing_id,
        tp.name                                                                          AS pricing_name,
        tt.name                                                                          AS ticket_name,
-       CAST(SUM(oi.quantity) AS BIGINT)                                                 AS total_sold,
+       CAST(SUM(oi.quantity - oi.refunded_quantity) AS BIGINT)                                                 AS total_sold,
        CAST(
-           COALESCE(SUM(oi.quantity) FILTER (WHERE h.hold_type = 'Comp'), 0) AS BIGINT) AS comp_count,
-       CAST(COALESCE(SUM(oi.quantity) FILTER (WHERE orders.box_office_pricing = false),
+           COALESCE(SUM(oi.quantity - oi.refunded_quantity) FILTER (WHERE h.hold_type = 'Comp'), 0) AS BIGINT) AS comp_count,
+       CAST(COALESCE(SUM(oi.quantity - oi.refunded_quantity) FILTER (WHERE orders.box_office_pricing = false),
                      0) AS BIGINT)                                                      AS online_count,
        CAST(AVG(tp.price_in_cents) AS BIGINT)                                           AS price_in_cents,
-       CAST(COALESCE(SUM(oi_fees.company_fee_in_cents), 0) AS BIGINT)                   AS total_company_fee_in_cents,
-       CAST(COALESCE(AVG(oi_fees.company_fee_in_cents), 0) AS BIGINT)                   AS company_fee_in_cents,
-       CAST(COALESCE(SUM(oi_fees.client_fee_in_cents), 0) AS BIGINT)                    AS total_client_fee_in_cents,
-       CAST(COALESCE(AVG(oi_fees.client_fee_in_cents), 0) AS BIGINT)                    AS client_fee_in_cents
+       CAST(COALESCE(SUM(oi_fees.company_fee_in_cents * (oi_fees.quantity - oi.refunded_quantity)), 0) AS BIGINT) AS total_company_fee_in_cents,
+       CAST(COALESCE(AVG(oi_fees.company_fee_in_cents * (oi_fees.quantity - oi.refunded_quantity)), 0) AS BIGINT) AS company_fee_in_cents,
+       CAST(COALESCE(SUM(oi_fees.client_fee_in_cents * (oi_fees.quantity - oi.refunded_quantity)), 0) AS BIGINT)  AS total_client_fee_in_cents,
+       CAST(COALESCE(AVG(oi_fees.client_fee_in_cents * (oi_fees.quantity - oi.refunded_quantity)), 0) AS BIGINT)  AS client_fee_in_cents
 FROM orders
        LEFT JOIN order_items oi on orders.id = oi.order_id
        LEFT JOIN order_items oi_fees on oi.id = oi_fees.parent_id

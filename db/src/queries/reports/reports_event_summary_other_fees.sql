@@ -11,6 +11,7 @@ WHERE orders.status = 'Paid'
   AND ($1 is null or oi.event_id = $1)
   AND ($2 is null or e.organization_id = $2)
   AND oi.item_type = 'EventFees'
+  AND oi.refunded_quantity = 0
   AND ($3 IS NULL OR orders.paid_at >= $3)
   AND ($4 IS NULL OR orders.paid_at <= $4)
 GROUP BY oi.event_id;

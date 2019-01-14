@@ -42,7 +42,7 @@ SELECT e.id,
         WHERE t2.event_id
                 = e.id)
                                  AS max_price,
-       (SELECT cast(sum(oi.unit_price_in_cents * oi.quantity) AS BIGINT)
+       (SELECT cast(sum(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)) AS BIGINT)
         FROM order_items oi
                INNER JOIN orders o ON oi.order_id = o.id
         WHERE oi.event_id = e.id

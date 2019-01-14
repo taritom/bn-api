@@ -33,6 +33,7 @@ pub struct Config {
     pub communication_default_source_email: String,
     pub communication_default_source_phone: String,
     pub sendgrid_api_key: String,
+    pub sendgrid_template_bn_refund: String,
     pub sendgrid_template_bn_user_registered: String,
     pub sendgrid_template_bn_purchase_completed: String,
     pub sendgrid_template_bn_org_invite: String,
@@ -73,6 +74,7 @@ const COMMUNICATION_DEFAULT_SOURCE_PHONE: &str = "COMMUNICATION_DEFAULT_SOURCE_P
 
 //SendGrid settings
 const SENDGRID_API_KEY: &str = "SENDGRID_API_KEY";
+const SENDGRID_TEMPLATE_BN_REFUND: &str = "SENDGRID_TEMPLATE_BN_REFUND";
 const SENDGRID_TEMPLATE_BN_USER_REGISTERED: &str = "SENDGRID_TEMPLATE_BN_USER_REGISTERED";
 const SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED: &str = "SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED";
 const SENDGRID_TEMPLATE_BN_ORG_INVITE: &str = "SENDGRID_TEMPLATE_BN_ORG_INVITE";
@@ -156,7 +158,8 @@ impl Config {
 
         let sendgrid_api_key = env::var(&SENDGRID_API_KEY)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_API_KEY));
-
+        let sendgrid_template_bn_refund = env::var(&SENDGRID_TEMPLATE_BN_REFUND)
+            .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_REFUND));
         let sendgrid_template_bn_user_registered = env::var(&SENDGRID_TEMPLATE_BN_USER_REGISTERED)
             .unwrap_or_else(|_| {
                 panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_REGISTERED)
@@ -233,6 +236,7 @@ impl Config {
             communication_default_source_email,
             communication_default_source_phone,
             sendgrid_api_key,
+            sendgrid_template_bn_refund,
             sendgrid_template_bn_user_registered,
             sendgrid_template_bn_purchase_completed,
             sendgrid_template_bn_org_invite,

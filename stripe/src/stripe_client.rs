@@ -93,6 +93,30 @@ impl StripeClient {
         }
     }
 
+    pub fn partial_refund(
+        &self,
+        charge_id: &str,
+        amount: u32,
+    ) -> Result<RefundResult, StripeError> {
+        let params = vec![
+            ("charge".to_string(), charge_id.to_string()),
+            ("amount".to_string(), amount.to_string()),
+        ];
+
+        let client = reqwest::Client::new();
+        let mut resp = client
+            .post("https://api.stripe.com/v1/refunds")
+            .basic_auth(&self.api_key, Some(""))
+            .form(&params)
+            .send()?;
+        match resp.status() {
+            reqwest::StatusCode::OK => {
+                return RefundResult::from_response(resp);
+            }
+            _ => return Err(StripeError::from_response(&mut resp)),
+        }
+    }
+
     pub fn complete(&self, charge_id: &str) -> Result<ChargeResult, StripeError> {
         let client = reqwest::Client::new();
 

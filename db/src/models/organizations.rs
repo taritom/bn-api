@@ -7,7 +7,9 @@ use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Text, Timestamp};
 use models::scopes;
 use models::*;
-use schema::{events, organization_users, organizations, ticket_types, users, venues};
+use schema::{
+    assets, events, order_items, organization_users, organizations, ticket_types, users, venues,
+};
 use std::collections::HashMap;
 use utils::encryption::*;
 use utils::errors::*;
@@ -196,6 +198,23 @@ impl Organization {
             .to_db_error(ErrorCode::UpdateError, "Could not update organization")
     }
 
+    pub fn find_by_asset_id(
+        asset_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Organization, DatabaseError> {
+        organizations::table
+            .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
+            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
+            .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .filter(assets::id.eq(asset_id))
+            .select(organizations::all_columns)
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve organization by asset id",
+            )
+    }
+
     pub fn find_by_ticket_type_ids(
         ticket_type_ids: Vec<Uuid>,
         conn: &PgConnection,
@@ -211,6 +230,24 @@ impl Organization {
                 ErrorCode::QueryError,
                 "Could not retrieve organizations by ticket type ids",
             )
+    }
+
+    pub fn find_by_order_item_ids(
+        order_item_ids: Vec<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Vec<Organization>, DatabaseError> {
+        organizations::table
+            .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
+            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
+            .inner_join(
+                order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())),
+            )
+            .filter(order_items::id.eq_any(order_item_ids))
+            .select(organizations::all_columns)
+            .order_by(organizations::name.asc())
+            .distinct()
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading organizations")
     }
 
     pub fn users(
@@ -537,7 +574,7 @@ impl Organization {
                 sql::<Timestamp>("min(orders.order_date)"),
                 sql::<Timestamp>("max(orders.order_date)"),
                 sql::<BigInt>(
-                    "cast(sum(order_items.unit_price_in_cents * order_items.quantity) as bigint)",
+                    "cast(sum(order_items.unit_price_in_cents * (order_items.quantity - order_items.refunded_quantity)) as bigint)",
                 ),
                 sql::<BigInt>("count(*) over()"),
             ))

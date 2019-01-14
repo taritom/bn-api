@@ -19,6 +19,8 @@ pub struct TransactionReportRow {
     #[sql_type = "BigInt"]
     pub quantity: i64,
     #[sql_type = "BigInt"]
+    pub refunded_quantity: i64,
+    #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
     #[sql_type = "BigInt"]
     pub gross: i64,

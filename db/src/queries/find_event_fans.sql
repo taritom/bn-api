@@ -10,7 +10,7 @@ SELECT DISTINCT
     users.created_at                                      AS created_at,
     min(orders.order_date)                                AS first_order_time,
     max(orders.order_date)                                AS last_order_time,
-    CAST(COALESCE(SUM(order_items.unit_price_in_cents * order_items.quantity), 0) AS BIGINT) AS revenue_in_cents,
+    CAST(COALESCE(SUM(order_items.unit_price_in_cents * (order_items.quantity - order_items.refunded_quantity)), 0) AS BIGINT) AS revenue_in_cents,
     count(*) over()                                       AS total_rows
 FROM event_interest
        FULL OUTER JOIN orders ON COALESCE(orders.on_behalf_of_user_id, orders.user_id) = event_interest.user_id

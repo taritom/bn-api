@@ -48,6 +48,40 @@ fn find_fee_item() {
 }
 
 #[test]
+fn order() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket = &event.ticket_types(connection).unwrap()[0];
+    cart.update_quantities(
+        &[UpdateOrderItem {
+            ticket_type_id: ticket.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket.id))
+        .unwrap();
+    assert_eq!(order_item.order(connection).unwrap().id, cart.id);
+}
+
+#[test]
 fn update_with_validation_errors() {
     let project = TestProject::new();
     let creator = project.create_user().finish();

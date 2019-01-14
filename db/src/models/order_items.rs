@@ -26,7 +26,7 @@ pub struct OrderItem {
     pub ticket_type_id: Option<Uuid>,
     pub event_id: Option<Uuid>,
     pub quantity: i64,
-    unit_price_in_cents: i64,
+    pub unit_price_in_cents: i64,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub ticket_pricing_id: Option<Uuid>,
@@ -34,15 +34,12 @@ pub struct OrderItem {
     pub parent_id: Option<Uuid>,
     pub hold_id: Option<Uuid>,
     pub code_id: Option<Uuid>,
-    company_fee_in_cents: i64,
-    client_fee_in_cents: i64,
+    pub(crate) company_fee_in_cents: i64,
+    pub(crate) client_fee_in_cents: i64,
+    pub refunded_quantity: i64,
 }
 
 impl OrderItem {
-    pub fn unit_price_in_cents(&self) -> i64 {
-        self.unit_price_in_cents
-    }
-
     pub fn find_fee_item(&self, conn: &PgConnection) -> Result<Option<OrderItem>, DatabaseError> {
         order_items::table
             .filter(order_items::parent_id.eq(self.id))
@@ -50,6 +47,43 @@ impl OrderItem {
             .first(conn)
             .optional()
             .to_db_error(ErrorCode::QueryError, "Could not retrieve order item fees")
+    }
+
+    pub(crate) fn refund_one_unit(
+        &mut self,
+        refund_fees: bool,
+        conn: &PgConnection,
+    ) -> Result<u32, DatabaseError> {
+        if !vec![OrderStatus::Paid, OrderStatus::PartiallyPaid].contains(&self.order(conn)?.status)
+        {
+            return DatabaseError::business_process_error(
+                "Order item must have associated paid order to refund unit",
+            );
+        } else if self.refunded_quantity == self.quantity {
+            return DatabaseError::business_process_error(
+                "Order item refund failed as requested refund quantity exceeds remaining quantity",
+            );
+        }
+
+        self.refunded_quantity += 1;
+
+        let mut refund_amount_in_cents = self.unit_price_in_cents;
+        // Refund fees if ticket is being refunded
+        if refund_fees && self.item_type == OrderItemTypes::Tickets {
+            let fee_item = self.find_fee_item(conn)?;
+            if let Some(mut fee_item) = fee_item {
+                refund_amount_in_cents += fee_item.refund_one_unit(true, conn)? as i64;
+            }
+        }
+
+        diesel::update(order_items::table.filter(order_items::id.eq(self.id)))
+            .set((
+                order_items::updated_at.eq(dsl::now),
+                order_items::refunded_quantity.eq(self.refunded_quantity),
+            ))
+            .execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not refund ticket instance")?;
+        Ok(refund_amount_in_cents as u32)
     }
 
     pub(crate) fn update_fees(
@@ -136,6 +170,10 @@ impl OrderItem {
             .execute(conn)
             .map(|_| ())
             .to_db_error(ErrorCode::UpdateError, "Could not update order item")
+    }
+
+    pub fn order(&self, conn: &PgConnection) -> Result<Order, DatabaseError> {
+        Order::find(self.order_id, conn)
     }
 
     pub fn calculate_quantity(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
@@ -287,6 +325,7 @@ impl OrderItem {
            tt.id                      AS ticket_type_id,
            tp.id                      AS ticket_pricing_id,
            oi.quantity,
+           oi.refunded_quantity,
            oi.unit_price_in_cents,
            oi.item_type,
            CASE
@@ -322,7 +361,14 @@ impl OrderItem {
             .to_db_error(ErrorCode::QueryError, "Could not load order items")
     }
 
-    pub(crate) fn find_in_order(
+    pub fn find(order_item_id: Uuid, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
+        order_items::table
+            .filter(order_items::id.eq(order_item_id))
+            .first(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve order item")
+    }
+
+    pub fn find_in_order(
         order_id: Uuid,
         order_item_id: Uuid,
         conn: &PgConnection,
@@ -426,6 +472,8 @@ pub struct DisplayOrderItem {
     pub ticket_pricing_id: Option<Uuid>,
     #[sql_type = "BigInt"]
     pub quantity: i64,
+    #[sql_type = "BigInt"]
+    pub refunded_quantity: i64,
     #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
     #[sql_type = "Text"]

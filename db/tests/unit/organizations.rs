@@ -38,6 +38,34 @@ fn create() {
 }
 
 #[test]
+fn find_by_asset_id() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(2)
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(1)
+        .finish();
+    let ticket_type = &event.ticket_types(&connection).unwrap()[0];
+    let ticket_type2 = &event2.ticket_types(&connection).unwrap()[0];
+    let asset = Asset::find_by_ticket_type(&ticket_type.id, connection).unwrap();
+    let asset2 = Asset::find_by_ticket_type(&ticket_type2.id, connection).unwrap();
+    assert_eq!(
+        Organization::find_by_asset_id(asset.id, connection).unwrap(),
+        event.organization(connection).unwrap()
+    );
+    assert_eq!(
+        Organization::find_by_asset_id(asset2.id, connection).unwrap(),
+        event2.organization(connection).unwrap()
+    );
+}
+
+#[test]
 fn find_by_ticket_type_ids() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -65,6 +93,83 @@ fn find_by_ticket_type_ids() {
     assert_eq!(2, organizations.len());
     assert!(organizations.contains(&event.organization(connection).unwrap()));
     assert!(organizations.contains(&event2.organization(connection).unwrap()));
+}
+
+#[test]
+fn find_by_order_item_ids() {
+    let project = TestProject::new();
+    let creator = project.create_user().finish();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_name("Organization1".into())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let organization2 = project
+        .create_organization()
+        .with_name("Organization2".into())
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&organization2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(connection).unwrap()[0];
+    let ticket_type2 = &event2.ticket_types(connection).unwrap()[0];
+    cart.update_quantities(
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 10,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 10,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let order_item2 = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type2.id))
+        .unwrap();
+
+    // Ticket belonging to only first event / organization
+    let organizations =
+        Organization::find_by_order_item_ids(vec![order_item.id], connection).unwrap();
+    assert_eq!(organizations, vec![organization.clone()]);
+
+    // Ticket belonging to only second event / organization
+    let organizations =
+        Organization::find_by_order_item_ids(vec![order_item2.id], connection).unwrap();
+    assert_eq!(organizations, vec![organization2.clone()]);
+
+    // Ticket belonging to both events / organizations
+    let organizations =
+        Organization::find_by_order_item_ids(vec![order_item.id, order_item2.id], connection)
+            .unwrap();
+    assert_eq!(organizations, vec![organization, organization2]);
 }
 
 #[test]
@@ -486,6 +591,8 @@ pub fn get_scopes_for_user() {
             "hold:write",
             "order:make-external-payment",
             "order:read",
+            "order:read-own",
+            "order:refund",
             "org:admin-users",
             "org:fans",
             "org:read",
@@ -527,6 +634,8 @@ pub fn get_scopes_for_user() {
             "hold:write",
             "order:make-external-payment",
             "order:read",
+            "order:read-own",
+            "order:refund",
             "org:fans",
             "org:read",
             "org:reports",
@@ -593,6 +702,8 @@ pub fn get_scopes_for_user() {
             "hold:read",
             "hold:write",
             "order:read",
+            "order:read-own",
+            "order:refund",
             "org:fans",
             "org:read",
             "redeem:ticket",
@@ -629,6 +740,8 @@ pub fn get_scopes_for_user() {
             "hold:write",
             "order:make-external-payment",
             "order:read",
+            "order:read-own",
+            "order:refund",
             "org:admin-users",
             "org:fans",
             "org:read",

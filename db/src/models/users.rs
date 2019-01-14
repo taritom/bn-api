@@ -215,12 +215,12 @@ impl User {
                 sql::<BigInt>(
                     "cast(COALESCE(sum(
                     CASE WHEN order_items.item_type = 'Tickets'
-                    THEN order_items.quantity
+                    THEN (order_items.quantity - order_items.refunded_quantity)
                     ELSE 0 END
                     ), 0) as BigInt)",
                 ),
                 sql::<BigInt>(
-                    "cast(sum(order_items.unit_price_in_cents * order_items.quantity) as bigint)",
+                    "cast(sum(order_items.unit_price_in_cents * (order_items.quantity - order_items.refunded_quantity)) as bigint)",
                 ),
                 sql::<BigInt>("count(*) over()"),
             ))
@@ -261,6 +261,7 @@ impl User {
 
         let mut payload = Payload::new(history, paging);
         payload.paging.total = total;
+        payload.paging.dir = sort_direction;
         Ok(payload)
     }
 
@@ -280,12 +281,12 @@ impl User {
                 sql::<BigInt>(
                     "cast(COALESCE(sum(
                     CASE WHEN order_items.item_type = 'Tickets'
-                    THEN order_items.quantity
+                    THEN (order_items.quantity-order_items.refunded_quantity)
                     ELSE 0 END
                     ), 0) as BigInt)",
                 ),
                 sql::<BigInt>(
-                    "cast(COALESCE(sum(order_items.unit_price_in_cents * order_items.quantity), 0) as bigint)",
+                    "cast(COALESCE(sum(order_items.unit_price_in_cents * (order_items.quantity - order_items.refunded_quantity)), 0) as bigint)",
                 ),
                 sql::<BigInt>("cast(COALESCE(count(distinct events.id), 0) as BigInt)"),
             ));

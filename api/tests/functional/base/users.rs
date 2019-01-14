@@ -147,6 +147,7 @@ pub fn history(role: Roles, should_test_true: bool) {
             paging,
         );
         payload.paging.total = 1;
+        payload.paging.dir = SortingDir::Desc;
 
         assert_eq!(history_payload, &payload);
     } else {

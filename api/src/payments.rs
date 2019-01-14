@@ -28,6 +28,12 @@ pub trait PaymentProcessor: Sized {
 
     fn refund(&self, auth_token: &str) -> Result<ChargeAuthResult, PaymentProcessorError>;
 
+    fn partial_refund(
+        &self,
+        auth_token: &str,
+        amount: u32,
+    ) -> Result<ChargeAuthResult, PaymentProcessorError>;
+
     fn complete_authed_charge(
         &self,
         auth_token: &str,
@@ -172,6 +178,20 @@ impl PaymentProcessor for StripePaymentProcessor {
             id: r.id,
             raw: r.raw_data,
         })?)
+    }
+
+    fn partial_refund(
+        &self,
+        auth_token: &str,
+        amount: u32,
+    ) -> Result<ChargeAuthResult, PaymentProcessorError> {
+        Ok(self
+            .client
+            .partial_refund(auth_token, amount)
+            .map(|r| ChargeAuthResult {
+                id: r.id,
+                raw: r.raw_data,
+            })?)
     }
 
     fn complete_authed_charge(

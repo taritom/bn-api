@@ -43,6 +43,42 @@ impl TicketInstance {
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")
     }
 
+    pub fn release(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let query = include_str!("../queries/release_tickets.sql");
+        let q = diesel::sql_query(query)
+            .bind::<Nullable<dUuid>, _>(self.order_item_id)
+            .bind::<BigInt, _>(1)
+            .bind::<Text, _>(TicketInstanceStatus::Purchased)
+            .bind::<dUuid, _>(self.id);
+        let tickets: Vec<TicketInstance> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not release ticket")?;
+
+        if tickets.len() != 1 {
+            return DatabaseError::validation_error("quantity", "Could not release the ticket");
+        }
+
+        Ok(())
+    }
+
+    pub fn was_transferred(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        ticket_instances::table
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .left_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            )
+            .left_join(
+                orders::table.on(order_items::order_id.eq(orders::id)),
+            )
+            .filter(ticket_instances::id.eq(self.id))
+            .select(
+                sql::<Bool>("case when order_items.id is null then true else orders.user_id <> wallets.user_id end")
+            )
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to check if ticket instance was transferred")
+    }
+
     pub fn find_for_display(
         id: Uuid,
         conn: &PgConnection,
@@ -294,9 +330,12 @@ impl TicketInstance {
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let query = include_str!("../queries/release_tickets.sql");
+        let ticket_instance_id: Option<Uuid> = None;
         let q = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(order_item.id)
-            .bind::<BigInt, _>(quantity as i64);
+            .bind::<BigInt, _>(quantity as i64)
+            .bind::<Text, _>(TicketInstanceStatus::Reserved)
+            .bind::<Nullable<dUuid>, _>(ticket_instance_id);
         let tickets: Vec<TicketInstance> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not release tickets")?;
@@ -430,6 +469,21 @@ impl TicketInstance {
             ErrorCode::UpdateError,
             "Could not update ticket_instance reserved time.",
         )?;
+        Ok(())
+    }
+
+    // Note: Transfer mechanism should be used in most cases over this method
+    pub fn set_wallet(&self, wallet: &Wallet, conn: &PgConnection) -> Result<(), DatabaseError> {
+        diesel::update(ticket_instances::table.filter(ticket_instances::id.eq(self.id)))
+            .set((
+                ticket_instances::wallet_id.eq(wallet.id()),
+                ticket_instances::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not update ticket_instance wallet.",
+            )?;
         Ok(())
     }
 

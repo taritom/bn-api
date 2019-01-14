@@ -2,13 +2,15 @@ use chrono::prelude::*;
 use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
+use diesel::expression::sql_literal::sql;
+use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
 use diesel::sql_types;
-use diesel::sql_types::{BigInt, Integer, Nullable, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Bool, Integer, Nullable, Text, Uuid as dUuid};
 use itertools::Itertools;
 use log::Level;
 use models::*;
-use schema::{order_items, orders, users};
+use schema::{events, order_items, orders, organizations, payments, users};
 use serde_json;
 use std::borrow::Cow;
 use std::cmp;
@@ -69,6 +71,32 @@ pub struct UpdateOrderAttributes {
     pub note: Option<Option<String>>,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct RefundItem {
+    pub order_item_id: Uuid,
+    pub ticket_instance_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Queryable, QueryableByName, Serialize)]
+pub struct OrderDetailsLineItem {
+    #[sql_type = "Nullable<dUuid>"]
+    pub ticket_instance_id: Option<Uuid>,
+    #[sql_type = "dUuid"]
+    pub order_item_id: Uuid,
+    #[sql_type = "Text"]
+    pub description: String,
+    #[sql_type = "BigInt"]
+    pub ticket_price_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub fees_price_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub total_price_in_cents: i64,
+    #[sql_type = "Text"]
+    pub status: String,
+    #[sql_type = "Bool"]
+    pub refundable: bool,
+}
+
 impl Order {
     pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
         let cart_user: Option<User> = users::table
@@ -112,6 +140,131 @@ impl Order {
             .execute(conn)
             .map(|_| ())
             .to_db_error(ErrorCode::DeleteError, "Could not delete order item")
+    }
+
+    pub fn refund(
+        &self,
+        refund_items: Vec<RefundItem>,
+        conn: &PgConnection,
+    ) -> Result<u32, DatabaseError> {
+        let mut total_to_be_refunded: u32 = 0;
+        for refund_item in refund_items {
+            let mut order_item = OrderItem::find(refund_item.order_item_id, conn)?;
+
+            if order_item.order_id != self.id {
+                return DatabaseError::business_process_error(
+                    "Order item id does not belong to this order",
+                );
+            }
+
+            let ticket_instance = match refund_item.ticket_instance_id {
+                Some(id) => Some(TicketInstance::find(id, conn)?),
+                None => None,
+            };
+
+            if order_item.item_type == OrderItemTypes::Tickets
+                || order_item.item_type == OrderItemTypes::PerUnitFees
+            {
+                match ticket_instance {
+                    None => {
+                        return DatabaseError::business_process_error(
+                            "Ticket id required when refunding ticket related order item",
+                        )
+                    }
+                    Some(ref ticket_instance) => {
+                        let mut refunded_ticket =
+                            RefundedTicket::find_or_create_by_ticket_instance(
+                                ticket_instance,
+                                conn,
+                            )?;
+
+                        if refunded_ticket.ticket_refunded_at.is_some()
+                            || (refunded_ticket.fee_refunded_at.is_some()
+                                && order_item.item_type == OrderItemTypes::PerUnitFees)
+                        {
+                            return DatabaseError::business_process_error("Already refunded");
+                        } else if ticket_instance.was_transferred(conn)? {
+                            return DatabaseError::business_process_error(
+                                "Ticket was transferred so ineligible for refund",
+                            );
+                        }
+
+                        let only_refund_fees = order_item.item_type == OrderItemTypes::PerUnitFees;
+                        let refund_fees = refunded_ticket.fee_refunded_at.is_none();
+                        refunded_ticket.mark_refunded(only_refund_fees, conn)?;
+
+                        if ticket_instance.status != TicketInstanceStatus::Redeemed {
+                            ticket_instance.release(conn)?;
+                        }
+
+                        total_to_be_refunded += order_item.refund_one_unit(refund_fees, conn)?;
+                    }
+                }
+            } else {
+                total_to_be_refunded += order_item.refund_one_unit(true, conn)?;
+            }
+        }
+
+        for mut event_fee_item in self.event_fee_items_with_no_associated_items(conn)? {
+            total_to_be_refunded += event_fee_item.refund_one_unit(true, conn)?;
+        }
+
+        Ok(total_to_be_refunded)
+    }
+
+    fn event_fee_items_with_no_associated_items(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Vec<OrderItem>, DatabaseError> {
+        order_items::table
+            .filter(order_items::refunded_quantity.ne(order_items::quantity))
+            .filter(order_items::order_id.eq(self.id))
+            .filter(order_items::item_type.eq(OrderItemTypes::EventFees))
+            .filter(sql("not exists(
+                select id from order_items oi2
+                where oi2.order_id = order_items.order_id
+                and oi2.event_id = order_items.event_id
+                and item_type <> 'EventFees'
+                and oi2.refunded_quantity <> oi2.quantity
+            )"))
+            .select(order_items::all_columns)
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not check if order only contains event fees",
+            )
+    }
+
+    pub fn details(
+        &self,
+        organization_ids: Vec<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Vec<OrderDetailsLineItem>, DatabaseError> {
+        let query = include_str!("../queries/order_details.sql");
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .bind::<Array<dUuid>, _>(organization_ids)
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load order items")
+    }
+
+    pub fn organizations(&self, conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
+        organizations::table
+            .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
+            .inner_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
+            .filter(order_items::order_id.eq(self.id))
+            .select(organizations::all_columns)
+            .order_by(organizations::name.asc())
+            .distinct()
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading organizations")
+    }
+
+    pub fn payments(&self, conn: &PgConnection) -> Result<Vec<Payment>, DatabaseError> {
+        payments::table
+            .filter(payments::order_id.eq(self.id))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading payments")
     }
 
     pub fn find_or_create_cart(user: &User, conn: &PgConnection) -> Result<Order, DatabaseError> {
@@ -589,7 +742,7 @@ impl Order {
                 match o.item_type {
                     OrderItemTypes::Tickets => {
                         o.update_fees(&self, conn)?;
-                        if o.unit_price_in_cents() > 0 {
+                        if o.unit_price_in_cents > 0 {
                             all_zero_price = false;
                         }
                     }
@@ -995,7 +1148,7 @@ impl Order {
         let mut total = 0;
 
         for item in &order_items {
-            total += item.unit_price_in_cents() * item.quantity;
+            total += item.unit_price_in_cents * (item.quantity - item.refunded_quantity);
         }
 
         Ok(total)
