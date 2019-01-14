@@ -268,7 +268,7 @@ pub fn index_search_with_filter() {
         .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .finish();
 
-    let localized_times = event.get_all_localized_times(&None);
+    let localized_times = event.get_all_localized_time_strings(&None);
     let expected_events = vec![EventVenueEntry {
         id: event.id,
         name: event.name,
@@ -1022,7 +1022,7 @@ struct EventVenueEntry {
     is_external: bool,
     external_url: Option<String>,
     user_is_interested: bool,
-    localized_times: EventLocalizedTimes,
+    localized_times: EventLocalizedTimeStrings,
     tracking_keys: TrackingKeys,
 }
 
@@ -1032,7 +1032,7 @@ fn event_venue_entry(
     user: Option<User>,
     connection: &PgConnection,
 ) -> EventVenueEntry {
-    let localized_times = event.get_all_localized_times(&Some(venue.clone()));
+    let localized_times = event.get_all_localized_time_strings(&Some(venue.clone()));
     EventVenueEntry {
         id: event.id,
         name: event.name.clone(),

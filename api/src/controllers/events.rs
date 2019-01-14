@@ -159,7 +159,7 @@ pub fn index(
         is_external: bool,
         external_url: Option<String>,
         user_is_interested: bool,
-        localized_times: EventLocalizedTimes,
+        localized_times: EventLocalizedTimeStrings,
         tracking_keys: TrackingKeys,
     }
 
@@ -198,7 +198,7 @@ pub fn index(
 
     let results = events.into_iter().fold(Vec::new(), |mut results, event| {
         let venue = event.venue_id.and_then(|v| Some(venue_map[&v].clone()));
-        let localized_times = event.get_all_localized_times(&venue);
+        let localized_times = event.get_all_localized_time_strings(&venue);
         let organization_id = event.organization_id;
         let tracking_keys = tracking_keys_for_orgs
             .get(&organization_id)
