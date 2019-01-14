@@ -13,7 +13,10 @@ use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
 use std::collections::HashMap;
+use utils::marketing_contacts;
 use uuid::Uuid;
+
+const LOG_TARGET: &'static str = "bigneon::controllers::events";
 
 #[derive(Deserialize)]
 pub struct SearchParameters {
@@ -420,6 +423,21 @@ pub fn publish(
     let event = Event::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::EventWrite, &event.organization(conn)?, conn)?;
     event.publish(conn)?;
+
+    // TODO: Remove domain action and replace with domain event EventPublished
+    //       once domain events are ready #DomainEvents
+    let _ = marketing_contacts::BulkEventFanListImportAction::new(event.id)
+        .enqueue(conn)
+        .or_else(|err| {
+            jlog!(
+                log::Level::Error,
+                LOG_TARGET,
+                "Failure when enqueing domain action MarketContactsCreateEventList",
+                { "innerError": format!("{}", err) }
+            );
+            Err(err)
+        });
+
     Ok(HttpResponse::Ok().finish())
 }
 

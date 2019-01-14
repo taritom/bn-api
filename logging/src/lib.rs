@@ -57,6 +57,10 @@ macro_rules! jlog {
         let meta = json!($json);
         transform_message($t, None, $msg, Some(meta))
     }};
+    ($t:path, $target: expr, $msg:expr) => {{
+        use $crate::transform_message;
+        transform_message($t, Some($target), $msg, None)
+    }};
     ($t:path, $target: expr, $msg:expr, $json:tt) => {{
         use $crate::transform_message;
         let meta = json!($json);
@@ -95,13 +99,13 @@ fn is_json(msg: &String) -> bool {
 pub fn setup_logger() {
     Builder::from_env(Env::default().default_filter_or("debug"))
         .format(|buf, record| {
-            let msg = format!("{}", record.args());
+            let msg = format!("{}", record.args()).trim().to_string();
             if !is_json(&msg) {
                 let entry = LogEntry {
                     level: record.level().to_string(),
                     time: chrono::Utc::now(),
                     target: record.target().to_string(),
-                    message: msg.trim().to_string(),
+                    message: msg,
                     meta: None,
                 };
 

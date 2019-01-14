@@ -140,6 +140,7 @@ table! {
         company_fee_in_cents -> Int8,
         settlement_amount_in_cents -> Nullable<Int8>,
         event_end -> Nullable<Timestamp>,
+        sendgrid_list_id -> Nullable<Int8>,
     }
 }
 

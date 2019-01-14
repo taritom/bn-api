@@ -9,7 +9,10 @@ use helpers::application;
 use models::WebPayload;
 use models::{OrganizationUserPathParameters, PathParameters};
 use server::AppState;
+use utils::marketing_contacts;
 use uuid::Uuid;
+
+const LOG_TARGET: &'static str = "bigneon::controllers::organizations";
 
 #[derive(Deserialize)]
 pub struct AddUserRequest {
@@ -158,18 +161,57 @@ pub fn update(
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = connection.get();
-    let organization = Organization::find(parameters.id, connection)?;
-    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, connection)?;
+    let conn = connection.get();
+    let mut organization = Organization::find(parameters.id, conn)?;
+    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, conn)?;
     let organization_update = organization_parameters.into_inner();
     let mut updated_organization = organization.update(
         organization_update,
         &state.config.api_keys_encryption_key,
-        connection,
+        conn,
     )?;
 
+    organization.decrypt(&state.config.api_keys_encryption_key)?;
     updated_organization.decrypt(&state.config.api_keys_encryption_key)?;
+
+    // If we have a new/changed sendgrid api key,
+    // we create a domain action for each event
+    // TODO: OrganizationUpdated domain event should be triggered in the model #DomainEvents
+    match organization.sendgrid_api_key {
+        Some(ref old_key) => {
+            if let Some(ref new_key) = updated_organization.sendgrid_api_key {
+                if new_key != old_key {
+                    enqueue_create_marketing_list(&connection, &updated_organization)?;
+                }
+            }
+        }
+        None => {
+            if updated_organization.sendgrid_api_key.is_some() {
+                enqueue_create_marketing_list(&connection, &updated_organization)?;
+            }
+        }
+    }
+
     Ok(HttpResponse::Ok().json(&updated_organization))
+}
+
+fn enqueue_create_marketing_list(
+    connection: &Connection,
+    organization: &Organization,
+) -> Result<(), BigNeonError> {
+    use log::Level::*;
+    let conn = connection.get();
+    let events = organization.upcoming_events(conn)?;
+    jlog!(Info, LOG_TARGET, &format!("Enqueuing {} bulk import domain actions", events.len()), {
+        "organization_id": organization.id,
+    });
+    // TODO: Remove domain action and replace with domain events
+    //       once domain events are ready #DomainEvents
+    for event in events {
+        let _ = marketing_contacts::CreateEventMarketingListAction::new(event.id).enqueue(conn)?;
+    }
+
+    Ok(())
 }
 
 pub fn add_venue(

@@ -76,10 +76,28 @@ macro_rules! string_enum {
 string_enum! { AssetStatus [Unsynced] }
 string_enum! { CodeTypes [Access, Discount] }
 string_enum! { CommunicationChannelType [Email, Sms, Push]}
-string_enum! { DomainEventTypes [FeeScheduleCreated, OrderBehalfOfUserChanged, OrganizationCreated,
-PaymentCreated, PaymentCompleted, PaymentRefund, PaymentMethodCreated, PaymentMethodUpdated,
-UserRegistration, LostPassword, PurchaseCompleted, TransferTicketStarted, TransferTicketCompleted]}
-string_enum! { DomainActionTypes [Communication]}
+string_enum! { DomainEventTypes [
+    FeeScheduleCreated,
+    OrderBehalfOfUserChanged,
+    OrganizationCreated,
+    PaymentCreated,
+    PaymentCompleted,
+    PaymentRefund,
+    PaymentMethodCreated,
+    PaymentMethodUpdated,
+    UserRegistration,
+    LostPassword,
+    PurchaseCompleted,
+    TransferTicketStarted,
+    TransferTicketCompleted
+]}
+string_enum! { DomainActionTypes [
+    // Email/SMS/Push Communication
+    Communication,
+    // Marketing Contacts
+    MarketingContactsCreateEventList,
+    MarketingContactsBulkEventFanListImport
+]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { EventSearchSortField [ Name, EventStart]}
@@ -95,7 +113,7 @@ string_enum! { PaymentStatus [Authorized, Completed, Refunded] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Roles [Admin, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, DoorPerson, User] }
 string_enum! { SortingDir[ Asc, Desc ] }
-string_enum! { Tables [FeeSchedules, Orders, Organizations, Payments, PaymentMethods, TicketInstances] }
+string_enum! { Tables [Events, FeeSchedules, Orders, Organizations, Payments, PaymentMethods, TicketInstances] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled] }
@@ -103,6 +121,12 @@ string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled]
 impl Default for EventStatus {
     fn default() -> EventStatus {
         EventStatus::Draft
+    }
+}
+
+impl Tables {
+    pub fn table_name(&self) -> String {
+        self.to_string().to_ascii_lowercase()
     }
 }
 
@@ -124,4 +148,9 @@ fn parse() {
     assert_eq!(Roles::OrgOwner, "OrgOwner".parse().unwrap());
     assert_eq!(Roles::OrgBoxOffice, "OrgBoxOffice".parse().unwrap());
     assert!("Invalid Role".parse::<Roles>().is_err());
+}
+
+#[test]
+fn to_table_name() {
+    assert_eq!(Tables::Events.table_name(), "events");
 }

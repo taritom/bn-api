@@ -11,7 +11,7 @@ use bigneon_db::models::*;
 use config::{Config, Environment};
 use errors::*;
 use futures::future::Either;
-use utils::sendgrid;
+use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 
 pub type TemplateData = HashMap<String, String>;

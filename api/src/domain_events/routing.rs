@@ -1,8 +1,12 @@
+use bigneon_db::models::enums::DomainActionTypes;
 use bigneon_db::prelude::*;
 use config::Config;
 use db::Connection;
 use domain_events::errors::DomainActionError;
 use domain_events::executor_future::ExecutorFuture;
+use domain_events::executors::marketing_contacts::{
+    BulkEventFanListImportExecutor, CreateEventListExecutor,
+};
 use domain_events::send_communication::SendCommunicationExecutor;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -42,19 +46,37 @@ impl DomainActionRouter {
     }
 
     pub fn set_up_executors(&mut self, conf: &Config) {
+        use self::DomainActionTypes::*;
+
         // This method is not necessary, but creates a compile time error
         // by using the `match` to identify DomainActionTypes that have not been catered for.
         // If you disagree with this approach or find a better way, feel free to unroll it.
-        let find_executor = |action_type| match action_type {
-            DomainActionTypes::Communication => {
-                Box::new(SendCommunicationExecutor::new(conf.clone()))
-            } // DO NOT add
-              // _ => ()
+        let find_executor = |action_type| -> Box<DomainActionExecutor> {
+            let conf = conf.clone();
+            match action_type {
+                Communication => Box::new(SendCommunicationExecutor::new(conf)),
+                MarketingContactsBulkEventFanListImport => {
+                    Box::new(BulkEventFanListImportExecutor::new(conf))
+                }
+                MarketingContactsCreateEventList => Box::new(CreateEventListExecutor::new(conf)),
+                //
+                // DO NOT add
+                // _ =>
+            }
         };
 
+        self.add_executor(Communication, find_executor(Communication))
+            .expect("Configuration error");
+
         self.add_executor(
-            DomainActionTypes::Communication,
-            find_executor(DomainActionTypes::Communication),
+            MarketingContactsCreateEventList,
+            find_executor(MarketingContactsCreateEventList),
+        )
+        .expect("Configuration error");
+
+        self.add_executor(
+            MarketingContactsBulkEventFanListImport,
+            find_executor(MarketingContactsBulkEventFanListImport),
         )
         .expect("Configuration error");
     }

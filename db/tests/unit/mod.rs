@@ -3,6 +3,7 @@ pub mod assets;
 pub mod codes;
 pub mod comps;
 pub mod concerns;
+pub mod domain_actions;
 pub mod domain_events;
 pub mod event_artists;
 pub mod event_interest;

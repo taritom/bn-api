@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
@@ -281,6 +281,24 @@ impl Organization {
         conn: &PgConnection,
     ) -> Result<Vec<OrganizationInvite>, DatabaseError> {
         OrganizationInvite::find_pending_by_organization(self.id, conn)
+    }
+
+    pub fn events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
+        events::table
+            .filter(events::organization_id.eq(self.id))
+            .order_by(events::created_at)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve events")
+    }
+
+    pub fn upcoming_events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
+        events::table
+            .filter(events::organization_id.eq(self.id))
+            .filter(events::status.eq(EventStatus::Published))
+            .filter(events::event_start.ge(Utc::now().naive_utc()))
+            .order_by(events::created_at)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve upcoming events")
     }
 
     pub fn venues(&self, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {

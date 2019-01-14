@@ -86,6 +86,29 @@ impl DomainAction {
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading domain actions")
     }
+
+    /// This method returns true if a pending/busy domain action
+    /// exists for the given `domain_action_type`, `main_table` and `main_table_id`
+    /// otherwise false.
+    pub fn has_pending_action(
+        action_type: DomainActionTypes,
+        main_table: String,
+        main_table_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<bool, DatabaseError> {
+        domain_actions::table
+            .select(dsl::count(domain_actions::id))
+            .filter(domain_actions::domain_action_type.eq(action_type))
+            .filter(domain_actions::status.eq(DomainActionStatus::Pending))
+            .filter(domain_actions::expires_at.gt(dsl::now))
+            .filter(domain_actions::main_table.eq(main_table))
+            .filter(domain_actions::main_table_id.eq(main_table_id))
+            .limit(1)
+            .get_result(conn)
+            .map(|count: i64| count > 0)
+            .to_db_error(ErrorCode::QueryError, "Error loading domain actions")
+    }
+
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<DomainAction, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,

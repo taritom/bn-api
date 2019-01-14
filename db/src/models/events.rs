@@ -50,11 +50,11 @@ pub struct Event {
     pub is_external: bool,
     pub external_url: Option<String>,
     pub override_status: Option<EventOverrideStatus>,
-    //EventOverrideStatus
     pub client_fee_in_cents: i64,
     pub company_fee_in_cents: i64,
     pub settlement_amount_in_cents: Option<i64>,
     pub event_end: Option<NaiveDateTime>,
+    pub sendgrid_list_id: Option<i64>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
@@ -162,6 +162,7 @@ pub struct EventEditableAttributes {
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub override_status: Option<Option<EventOverrideStatus>>,
     pub event_end: Option<NaiveDateTime>,
+    pub sendgrid_list_id: Option<i64>,
 }
 
 #[derive(Debug, Default, PartialEq, Serialize)]
@@ -245,7 +246,7 @@ impl Event {
     }
 
     pub fn update(
-        self,
+        &self,
         attributes: EventEditableAttributes,
         conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
@@ -287,13 +288,13 @@ impl Event {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update event",
-            diesel::update(&self)
+            diesel::update(self)
                 .set((event, events::updated_at.eq(dsl::now)))
                 .get_result(conn),
         )
     }
 
-    pub fn unpublish(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+    pub fn unpublish(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         let mut errors = ValidationErrors::new();
         if self.status != EventStatus::Published {
             let mut validation_error = create_validation_error(
@@ -312,7 +313,7 @@ impl Event {
             publish_date: Some(None),
             ..Default::default()
         };
-        diesel::update(&self)
+        diesel::update(self)
             .set((
                 update_fields,
                 events::status.eq(EventStatus::Draft),
@@ -324,7 +325,7 @@ impl Event {
         Event::find(self.id, conn)
     }
 
-    pub fn publish(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+    pub fn publish(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         if self.status == EventStatus::Published {
             return Event::find(self.id, conn);
         }
@@ -351,14 +352,14 @@ impl Event {
         }
 
         match self.publish_date {
-            Some(_) => diesel::update(&self)
+            Some(_) => diesel::update(self)
                 .set((
                     events::status.eq(EventStatus::Published),
                     events::updated_at.eq(dsl::now),
                 ))
                 .execute(conn)
                 .to_db_error(ErrorCode::UpdateError, "Could not publish record")?,
-            None => diesel::update(&self)
+            None => diesel::update(self)
                 .set((
                     events::status.eq(EventStatus::Published),
                     events::publish_date.eq(dsl::now.nullable()),
