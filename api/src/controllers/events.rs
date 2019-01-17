@@ -426,8 +426,7 @@ pub fn publish(
 
     // TODO: Remove domain action and replace with domain event EventPublished
     //       once domain events are ready #DomainEvents
-    let _ = marketing_contacts::CreateEventMarketingListAction::new(event.id)
-        .enqueue(conn)?;
+    let _ = marketing_contacts::CreateEventMarketingListAction::new(event.id).enqueue(conn)?;
 
     Ok(HttpResponse::Ok().finish())
 }
