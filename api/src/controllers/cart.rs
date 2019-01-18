@@ -472,7 +472,7 @@ fn checkout_payment_processor(
             None => {
                 return application::unprocessable(
                     "Could not complete this cart because stored provider does not exist",
-                )
+                );
             }
         }
     } else {
@@ -482,7 +482,7 @@ fn checkout_payment_processor(
             None => {
                 return application::unprocessable(
                     "Could not complete this cart because no token provided",
-                )
+                );
             }
         };
 

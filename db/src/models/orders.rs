@@ -169,7 +169,7 @@ impl Order {
                     None => {
                         return DatabaseError::business_process_error(
                             "Ticket id required when refunding ticket related order item",
-                        )
+                        );
                     }
                     Some(ref ticket_instance) => {
                         let mut refunded_ticket =
@@ -467,7 +467,7 @@ impl Order {
                         return DatabaseError::validation_error(
                             "redemption_code",
                             "Redemption code is not valid",
-                        )
+                        );
                     }
                 },
                 None => (Some(index), None, None, item),
@@ -985,7 +985,7 @@ impl Order {
     ) -> Result<Payment, DatabaseError> {
         match self.status {
             OrderStatus::Paid => {
-                return DatabaseError::business_process_error("This order has already been paid")
+                return DatabaseError::business_process_error("This order has already been paid");
             }
             // orders can only expire if the order is in draft
             OrderStatus::Draft => self.mark_partially_paid(conn)?,
@@ -994,7 +994,7 @@ impl Order {
                 return DatabaseError::business_process_error(&format!(
                     "Order was in unexpected state when trying to make a payment: {}",
                     self.status
-                ))
+                ));
             }
         }
 

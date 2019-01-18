@@ -102,7 +102,7 @@ impl OrderItem {
         let ticket_type = match self.ticket_type_id {
             Some(ticket_type_id) => TicketType::find(ticket_type_id, conn)?,
             None => {
-                return DatabaseError::no_results("Order item does not have a valid ticket type")
+                return DatabaseError::no_results("Order item does not have a valid ticket type");
             }
         };
 
