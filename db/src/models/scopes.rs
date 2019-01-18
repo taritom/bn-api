@@ -141,7 +141,7 @@ impl FromStr for Scopes {
                     message: "Could not parse value".to_string(),
                     enum_type: "Scopes".to_string(),
                     value: s.to_string(),
-                })
+                });
             }
         };
         Ok(s)
