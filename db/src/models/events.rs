@@ -1084,7 +1084,7 @@ impl Event {
     pub fn for_display(self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {
         let venue = self.venue(conn)?;
         let display_venue: Option<DisplayVenue> =
-            self.venue(conn)?.and_then(|venue| Some(venue.into()));
+            venue.clone().and_then(|venue| Some(venue.into()));
         let artists = self.artists(conn)?;
 
         let localized_times = self.get_all_localized_time_strings(&venue);
