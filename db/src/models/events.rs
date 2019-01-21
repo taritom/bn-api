@@ -494,16 +494,19 @@ impl Event {
             SELECT CAST(count(*) as bigint) as total
             FROM events e
             WHERE e.organization_id = $1
-            AND CASE WHEN $2 THEN COALESCE(e.event_start, '31 Dec 9999') >= now() ELSE e.event_start < now() END;
+            AND CASE WHEN $2
+                THEN COALESCE(e.event_start, '31 Dec 9999') >= now()
+                ELSE COALESCE(e.event_end, '31 Dec 1999') <= now()
+            END;
         "#,
         )
-            .bind::<sql_types::Uuid, _>(organization_id)
-            .bind::<sql_types::Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
-            .get_results(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not get total events for organization",
-            )?;
+        .bind::<sql_types::Uuid, _>(organization_id)
+        .bind::<sql_types::Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
+        .get_results(conn)
+        .to_db_error(
+            ErrorCode::QueryError,
+            "Could not get total events for organization",
+        )?;
 
         let mut paging = Paging::new(page, limit);
         paging.total = total.remove(0).total as u64;
@@ -864,8 +867,8 @@ impl Event {
                         .and(venues::name.ilike(query_like.clone())))
                     .or(artists::id.is_not_null()),
             )
-            .filter(events::event_start.gt(start_time.unwrap()))
-            .filter(events::event_start.lt(end_time.unwrap()))
+            .filter(events::event_start.ge(start_time.unwrap()))
+            .filter(events::event_end.le(end_time.unwrap()))
             .select(events::all_columns)
             .distinct()
             .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))

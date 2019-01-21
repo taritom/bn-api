@@ -464,6 +464,14 @@ fn find_individuals() {
     let event = project
         .create_event()
         .with_name("NewEvent".into())
+        .with_event_start(
+            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_event_end(
+            NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
@@ -533,6 +541,7 @@ fn search() {
         .with_organization(&organization)
         .with_venue(&venue1)
         .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
         .finish();
 
     event
@@ -550,6 +559,7 @@ fn search() {
         .with_organization(&organization)
         .with_venue(&venue2)
         .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
         .finish();
 
     event2
@@ -563,6 +573,7 @@ fn search() {
         .with_organization(&organization)
         .with_venue(&venue2)
         .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
         .finish();
 
     // Event draft, not returned except for organization user or owner
@@ -573,6 +584,7 @@ fn search() {
         .with_organization(&organization)
         .with_venue(&venue2)
         .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
         .finish();
 
     // Event draft belonging to other organization
@@ -581,6 +593,7 @@ fn search() {
         .with_name("NewEventDraft2".into())
         .with_status(EventStatus::Draft)
         .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
         .finish();
 
     let all_events = vec![event, event2, event3];
@@ -967,6 +980,10 @@ fn find_for_organization() {
             NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
+        .with_event_end(
+            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
         .with_organization(&organization)
         .with_venue(&venue1)
         .finish();
@@ -983,6 +1000,10 @@ fn find_for_organization() {
         .with_name("Event2".into())
         .with_event_start(
             NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_event_end(
+            NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
         .with_organization(&organization)

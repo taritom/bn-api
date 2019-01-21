@@ -182,10 +182,10 @@ impl TicketInstance {
                 .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
                 .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
                 .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-                .filter(events::event_start.gt(
+                .filter(events::event_start.ge(
                     start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
                 ))
-                .filter(events::event_start.lt(
+                .filter(events::event_end.le(
                     end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
                 ))
                 .filter(wallets::user_id.eq(user_id))

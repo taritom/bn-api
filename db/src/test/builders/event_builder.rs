@@ -14,6 +14,7 @@ pub struct EventBuilder<'a> {
     organization_id: Option<Uuid>,
     venue_id: Option<Uuid>,
     event_start: Option<NaiveDateTime>,
+    event_end: Option<NaiveDateTime>,
     connection: &'a PgConnection,
     with_tickets: bool,
     with_ticket_pricing: bool,
@@ -31,6 +32,7 @@ impl<'a> EventBuilder<'a> {
             organization_id: None,
             venue_id: None,
             event_start: None,
+            event_end: None,
             connection,
             with_tickets: false,
             with_ticket_pricing: false,
@@ -75,6 +77,11 @@ impl<'a> EventBuilder<'a> {
         self
     }
 
+    pub fn with_event_end(mut self, date: NaiveDateTime) -> Self {
+        self.event_end = Some(date);
+        self
+    }
+
     pub fn with_tickets(mut self) -> Self {
         self.with_tickets = true;
         self
@@ -97,16 +104,19 @@ impl<'a> EventBuilder<'a> {
             .organization_id
             .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
             .unwrap();
+
         let event = Event::create(
             &self.name,
             self.status,
             organization_id,
             self.venue_id,
-            self.event_start
-                .or_else(|| Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))),
+            Some(
+                self.event_start
+                    .unwrap_or(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
+            ),
             Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10)),
             None,
-            None,
+            self.event_end,
         )
         .commit(self.connection)
         .unwrap();

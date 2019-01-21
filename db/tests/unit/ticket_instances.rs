@@ -24,6 +24,7 @@ fn find_for_user_for_display() {
         .create_event()
         .with_organization(&organization)
         .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
         .with_tickets()
         .with_ticket_pricing()
         .finish();
@@ -31,6 +32,7 @@ fn find_for_user_for_display() {
         .create_event()
         .with_organization(&organization)
         .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
         .with_tickets()
         .with_ticket_pricing()
         .finish();
