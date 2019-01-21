@@ -7,6 +7,7 @@ use schema::{artists, organization_users, organizations};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
+use utils::text;
 use uuid::Uuid;
 use validator::Validate;
 use validators;
@@ -136,7 +137,7 @@ impl Artist {
         conn: &PgConnection,
     ) -> Result<Vec<Artist>, DatabaseError> {
         let query_like = match query_filter {
-            Some(n) => format!("%{}%", n),
+            Some(n) => format!("%{}%", text::escape_control_chars(&n)),
             None => "%".to_string(),
         };
         //TODO Add pagination to the query

@@ -44,6 +44,7 @@ validator = "0.8"
 validator_derive = "0.8"
 time="0.1"
 tari-client= {path="../tari-client"}
+url="1.7.2"
 
 
 [dev-dependencies]

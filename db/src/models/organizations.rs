@@ -13,6 +13,7 @@ use schema::{
 use std::collections::HashMap;
 use utils::encryption::*;
 use utils::errors::*;
+use utils::text;
 use uuid::Uuid;
 
 #[derive(
@@ -540,7 +541,10 @@ impl Organization {
     ) -> Result<Payload<DisplayFan>, DatabaseError> {
         use schema::*;
 
-        let search_filter = format!("%{}%", query.unwrap_or("".to_string()));
+        let search_filter = query
+            .map(|s| text::escape_control_chars(&s))
+            .map(|s| format!("%{}%", s))
+            .unwrap_or("%".to_string());
 
         let sort_column = match sort_field {
             FanSortField::FirstName => "2",
