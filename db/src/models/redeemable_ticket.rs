@@ -13,6 +13,8 @@ pub struct RedeemableTicket {
     pub user_id: Option<Uuid>,
     #[sql_type = "dUuid"]
     pub order_id: Uuid,
+    #[sql_type = "dUuid"]
+    pub order_item_id: Uuid,
     #[sql_type = "BigInt"]
     pub price_in_cents: i64,
     #[sql_type = "Nullable<Text>"]
