@@ -4,6 +4,7 @@ SELECT ti.id,
        u.last_name   AS last_name,
        u.id          AS user_id,
        oi.order_id   AS order_id,
+       oi.id         AS order_item_id,
        cast(oi.unit_price_in_cents + coalesce((
           select sum(unit_price_in_cents)
           from order_items
