@@ -14,6 +14,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use time::Duration;
 use utils::errors::*;
+use utils::text;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 use validators;
@@ -840,7 +841,7 @@ impl Event {
         }
 
         let query_like = match query_filter {
-            Some(n) => format!("%{}%", n),
+            Some(n) => format!("%{}%", text::escape_control_chars(&n)),
             None => "%".to_string(),
         };
         let mut query = events::table
@@ -987,7 +988,10 @@ impl Event {
     ) -> Result<(Vec<DisplayFan>, u64), DatabaseError> {
         use diesel::sql_types::{BigInt, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
 
-        let search_filter = query.map(|q| format!("%{}%", q)).unwrap_or("%".to_string());
+        let search_filter = query
+            .map(|s| text::escape_control_chars(&s))
+            .map(|q| format!("%{}%", q))
+            .unwrap_or("%".to_string());
         let query = include_str!("../queries/find_event_fans.sql");
         let sort_direction = sort_direction.unwrap_or(SortingDir::Desc);
 
