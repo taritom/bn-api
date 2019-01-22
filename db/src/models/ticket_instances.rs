@@ -577,6 +577,7 @@ impl TicketInstance {
                 ticket_types::name,
                 sql::<Nullable<dUuid>>("users.id as user_id"),
                 order_items::order_id,
+                sql::<dUuid>("order_items.id as order_item_id"),
                 sql::<BigInt>(
                     "cast(unit_price_in_cents +
                     coalesce((
