@@ -4,6 +4,7 @@ use reqwest::Client;
 use serde_json;
 use serde_json::Value;
 use std::time::{SystemTime, UNIX_EPOCH};
+use url::percent_encoding::{utf8_percent_encode, PATH_SEGMENT_ENCODE_SET};
 
 const SPOTIFY_URL_AUTH: &'static str = "https://accounts.spotify.com/api/token";
 
@@ -68,9 +69,10 @@ impl Spotify {
             Some(_auth_token) => {
                 let reqwest_client = Client::new();
                 let access_token = self.access_token.clone();
+                let encoded_q = utf8_percent_encode(&q, PATH_SEGMENT_ENCODE_SET);
                 let url = format!(
                     "https://api.spotify.com/v1/search?q={}&type=artist&access_token={}",
-                    q, access_token
+                    encoded_q, access_token
                 );
                 let res = reqwest_client.get(&url).send()?.text()?;
                 let result: Value = serde_json::from_str(&res)?;

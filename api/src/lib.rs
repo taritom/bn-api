@@ -34,6 +34,7 @@ extern crate stripe;
 extern crate tari_client;
 extern crate tokio;
 extern crate twilio;
+extern crate url;
 extern crate uuid;
 extern crate validator;
 #[macro_use]
