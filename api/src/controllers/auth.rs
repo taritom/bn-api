@@ -92,7 +92,7 @@ pub fn token(
                 login_failure_messaging,
                 None,
                 Some(login_log_data),
-            )
+            );
         }
     };
 
