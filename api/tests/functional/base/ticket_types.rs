@@ -202,22 +202,30 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
     let conn = database.connection.get();
     let created_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
 
+    let valid_unsold_ticket_count = created_ticket_type.valid_unsold_ticket_count(conn).unwrap();
+    assert_eq!(100, valid_unsold_ticket_count);
+
     //Construct update request
     let test_request =
         TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let state = test_request.extract_state();
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
 
     //Send update request
     let response: HttpResponse =
-        ticket_types::cancel((database.connection.clone().into(), path, auth_user)).into();
+        ticket_types::cancel((database.connection.clone().into(), path, auth_user, state)).into();
 
     let updated_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
 
     if should_test_succeed {
         assert_eq!(updated_ticket_type.status, TicketTypeStatus::Cancelled);
         assert_eq!(response.status(), StatusCode::OK);
+
+        let valid_unsold_ticket_count =
+            created_ticket_type.valid_unsold_ticket_count(conn).unwrap();
+        assert_eq!(0, valid_unsold_ticket_count);
     } else {
         support::expects_unauthorized(&response);
     }

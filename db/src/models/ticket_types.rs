@@ -302,6 +302,23 @@ impl TicketType {
         Ok(valid_ticket_count as u32)
     }
 
+    pub fn valid_unsold_ticket_count(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
+        let valid_unsold_ticket_count: i64 = ticket_instances::table
+            .inner_join(assets::table)
+            .filter(assets::ticket_type_id.eq(self.id))
+            .filter(ticket_instances::status.eq_any(vec![
+                TicketInstanceStatus::Available,
+                TicketInstanceStatus::Reserved,
+            ]))
+            .select(dsl::count(ticket_instances::id))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load ticket pricing for ticket type",
+            )?;
+        Ok(valid_unsold_ticket_count as u32)
+    }
+
     pub fn current_ticket_pricing(
         &self,
         box_office_pricing: bool,

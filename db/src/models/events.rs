@@ -618,7 +618,6 @@ impl Event {
             include_str!("../queries/find_all_events_for_organization_ticket_type.sql");
         ;
 
-
         jlog!(Level::Debug, "Fetching summary data for ticket types");
 
         let ticket_types: Vec<EventSummaryResultTicketType> = diesel::sql_query(query_ticket_types)

@@ -1,7 +1,9 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
+use bigneon_db::schema::ticket_instances;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::NaiveDate;
+use diesel::prelude::*;
 use uuid::Uuid;
 
 #[test]
@@ -75,6 +77,99 @@ pub fn create_with_validation_errors() {
             _ => panic!("Expected validation error"),
         },
     }
+}
+
+#[test]
+fn valid_unsold_ticket_count() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().with_ticket_pricing().finish();
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
+    assert_eq!(
+        100,
+        ticket_type.valid_unsold_ticket_count(connection).unwrap()
+    );
+
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 50,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    // 50 in cart
+    assert_eq!(
+        100,
+        ticket_type.valid_unsold_ticket_count(connection).unwrap()
+    );
+
+    let total = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
+        .unwrap();
+
+    // 50 paid
+    assert_eq!(
+        50,
+        ticket_type.valid_unsold_ticket_count(connection).unwrap()
+    );
+
+    // Add 1 to cart marking it as reserved
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let ticket_instance = ticket_instances::table
+        .filter(ticket_instances::order_item_id.eq(order_item.id))
+        .first::<TicketInstance>(connection)
+        .unwrap();
+    assert_eq!(TicketInstanceStatus::Reserved, ticket_instance.status);
+
+    // Nullify 49
+    let asset = Asset::find_by_ticket_type(&ticket_type.id, connection).unwrap();
+    TicketInstance::nullify_tickets(asset.id, 49, connection).unwrap();
+    assert_eq!(
+        1,
+        ticket_type.valid_unsold_ticket_count(connection).unwrap()
+    );
+
+    // Reload ticket instance, should not nullify
+    let ticket_instance = TicketInstance::find(ticket_instance.id, connection).unwrap();
+    assert_eq!(TicketInstanceStatus::Reserved, ticket_instance.status);
+
+    // Nullify remaining 1
+    TicketInstance::nullify_tickets(asset.id, 1, connection).unwrap();
+    assert_eq!(
+        0,
+        ticket_type.valid_unsold_ticket_count(connection).unwrap()
+    );
+
+    // Reload ticket instance, should nullify
+    let ticket_instance = TicketInstance::find(ticket_instance.id, connection).unwrap();
+    assert_eq!(TicketInstanceStatus::Nullified, ticket_instance.status);
 }
 
 #[test]
