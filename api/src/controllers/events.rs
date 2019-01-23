@@ -300,7 +300,10 @@ pub fn show(
                 connection,
             )?;
 
-            display_ticket_types.push(display_ticket_type);
+            //@TODO Remove this hack when the frontend is fixed to correctly display sold out tickets!
+            if display_ticket_type.available > 0 {
+                display_ticket_types.push(display_ticket_type);
+            }
         }
     }
 
