@@ -224,6 +224,14 @@ pub struct TicketCountSalesRow {
     #[sql_type = "BigInt"]
     pub online_count: i64,
     #[sql_type = "BigInt"]
+    pub box_office_refunded_count: i64,
+    #[sql_type = "BigInt"]
+    pub online_refunded_count: i64,
+    #[sql_type = "BigInt"]
+    pub box_office_actual_count: i64,
+    #[sql_type = "BigInt"]
+    pub online_actual_count: i64,
+    #[sql_type = "BigInt"]
     pub box_office_sales_in_cents: i64,
     #[sql_type = "BigInt"]
     pub online_sales_in_cents: i64,
