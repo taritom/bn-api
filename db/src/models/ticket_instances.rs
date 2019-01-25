@@ -36,6 +36,19 @@ pub struct TicketInstance {
 }
 
 impl TicketInstance {
+    pub fn ticket_type(&self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
+        ticket_instances::table
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .filter(ticket_instances::id.eq(self.id))
+            .select(ticket_types::all_columns)
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Unable to load ticket type for ticket instance",
+            )
+    }
+
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<TicketInstance, DatabaseError> {
         ticket_instances::table
             .find(id)
@@ -45,12 +58,18 @@ impl TicketInstance {
 
     pub fn release(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let query = include_str!("../queries/release_tickets.sql");
-        let q = diesel::sql_query(query)
+        let new_status = if self.ticket_type(conn)?.status == TicketTypeStatus::Cancelled {
+            TicketInstanceStatus::Nullified
+        } else {
+            TicketInstanceStatus::Available
+        };
+
+        let tickets: Vec<TicketInstance> = diesel::sql_query(query)
             .bind::<Nullable<dUuid>, _>(self.order_item_id)
             .bind::<BigInt, _>(1)
             .bind::<Text, _>(TicketInstanceStatus::Purchased)
-            .bind::<dUuid, _>(self.id);
-        let tickets: Vec<TicketInstance> = q
+            .bind::<dUuid, _>(self.id)
+            .bind::<Text, _>(new_status)
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not release ticket")?;
 
@@ -335,7 +354,8 @@ impl TicketInstance {
             .bind::<sql_types::Uuid, _>(order_item.id)
             .bind::<BigInt, _>(quantity as i64)
             .bind::<Text, _>(TicketInstanceStatus::Reserved)
-            .bind::<Nullable<dUuid>, _>(ticket_instance_id);
+            .bind::<Nullable<dUuid>, _>(ticket_instance_id)
+            .bind::<Text, _>(TicketInstanceStatus::Available);
         let tickets: Vec<TicketInstance> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not release tickets")?;
