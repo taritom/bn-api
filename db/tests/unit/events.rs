@@ -542,6 +542,7 @@ fn search() {
         .with_venue(&venue1)
         .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .finish();
 
     event
@@ -596,11 +597,22 @@ fn search() {
         .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
         .finish();
 
+    // Event with publish date in the future, not returned except for organization user or owner
+    let event6 = project
+        .create_event()
+        .with_name("NewEventFuturePublish".into())
+        .with_status(EventStatus::Published)
+        .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2999, 7, 8).and_hms(9, 10, 11))
+        .finish();
+
     let all_events = vec![event, event2, event3];
     let mut all_events_for_organization = all_events.clone();
     all_events_for_organization.push(event4);
     let mut all_events_for_admin = all_events_for_organization.clone();
     all_events_for_admin.push(event5);
+    all_events_for_admin.push(event6);
 
     // All events unauthorized user
     let all_found_events = Event::search(

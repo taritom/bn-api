@@ -869,9 +869,13 @@ impl Event {
             .filter(
                 events::name
                     .ilike(query_like.clone())
-                    .or(venues::id
-                        .is_not_null()
-                        .and(venues::name.ilike(query_like.clone())))
+                    .or(sql("(")
+                        .bind(
+                            venues::id
+                                .is_not_null()
+                                .and(venues::name.ilike(query_like.clone())),
+                        )
+                        .sql(")"))
                     .or(artists::id.is_not_null()),
             )
             .filter(events::event_start.ge(start_time.unwrap()))
@@ -886,15 +890,26 @@ impl Event {
             Some(user) => {
                 // Admin results include all drafts across organizations
                 if !user.get_global_scopes().contains(&Scopes::OrgAdmin) {
-                    query = query.filter(
-                        events::status
-                            .ne(EventStatus::Draft)
-                            .or(organization_users::user_id.eq(user.id)),
-                    );
+                    query = query
+                        .filter(
+                            events::status
+                                .ne(EventStatus::Draft)
+                                .or(organization_users::user_id.eq(user.id)),
+                        )
+                        .filter(
+                            events::publish_date
+                                .le(dsl::now.nullable())
+                                .or(events::status.ne(EventStatus::Published))
+                                .or(organization_users::user_id.eq(user.id)),
+                        );
                 }
             }
             None => {
-                query = query.filter(events::status.ne(EventStatus::Draft));
+                query = query.filter(events::status.ne(EventStatus::Draft)).filter(
+                    events::publish_date
+                        .le(dsl::now.nullable())
+                        .or(events::status.ne(EventStatus::Published)),
+                );
             }
         }
 
