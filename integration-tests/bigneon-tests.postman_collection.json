@@ -3779,7 +3779,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\",\n    \"event_type\": \"Music\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",
@@ -3830,7 +3830,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\",\n    \"event_type\": \"Music\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",
@@ -4022,7 +4022,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"event_end\": \"2020-11-14T12:00:00\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"event_end\": \"2020-11-14T12:00:00\",\n    \"event_type\": \"Music\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",
@@ -4324,6 +4324,57 @@
 							"response": []
 						},
 						{
+							"name": "OrgMember  - Create Event Invalid Event Type - 5XX",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+										"exec": [
+											"pm.test(\"should be 400\", function() {",
+											"    pm.response.to.have.status(400);",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_member_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"It's my party - To Un-Publish\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"publish_date\": \"2019-01-01T00:00:00\",\n    \"promo_image_url\": \"http://localhost/noimg.png\",\n    \"event_type\": \"InvalidEventType\"\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/events",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"events"
+									]
+								}
+							},
+							"response": []
+						},
+						{
 							"name": "OrgMember  - Create Event To Un-Publish",
 							"event": [
 								{
@@ -4361,7 +4412,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party - To Un-Publish\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"publish_date\": \"2019-01-01T00:00:00\",\n    \"promo_image_url\": \"http://localhost/noimg.png\"\n}"
+									"raw": "{\n    \"name\": \"It's my party - To Un-Publish\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"publish_date\": \"2019-01-01T00:00:00\",\n    \"promo_image_url\": \"http://localhost/noimg.png\",\n    \"event_type\": \"Conference\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",
@@ -4753,7 +4804,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2018-11-13T12:00:00\"\n,\n    \"event_end\": \"2018-11-14T12:00:00\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2018-11-13T12:00:00\",\n    \"event_end\": \"2018-11-14T12:00:00\",\n    \"event_type\": \"Music\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",

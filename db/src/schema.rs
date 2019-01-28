@@ -139,6 +139,7 @@ table! {
         settlement_amount_in_cents -> Nullable<Int8>,
         event_end -> Nullable<Timestamp>,
         sendgrid_list_id -> Nullable<Int8>,
+        event_type -> Text,
     }
 }
 

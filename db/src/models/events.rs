@@ -52,6 +52,7 @@ pub struct Event {
     pub settlement_amount_in_cents: Option<i64>,
     pub event_end: Option<NaiveDateTime>,
     pub sendgrid_list_id: Option<i64>,
+    pub event_type: EventTypes,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
@@ -89,6 +90,7 @@ pub struct NewEvent {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub override_status: Option<EventOverrideStatus>,
     pub event_end: Option<NaiveDateTime>,
+    pub event_type: EventTypes,
 }
 
 impl NewEvent {
@@ -151,6 +153,7 @@ pub struct EventEditableAttributes {
     pub override_status: Option<Option<EventOverrideStatus>>,
     pub event_end: Option<NaiveDateTime>,
     pub sendgrid_list_id: Option<i64>,
+    pub event_type: Option<EventTypes>,
 }
 
 #[derive(Debug, Default, PartialEq, Serialize)]
@@ -609,6 +612,8 @@ impl Event {
             external_url: Option<String>,
             #[sql_type = "N<sql_types::Text>"]
             override_status: Option<EventOverrideStatus>,
+            #[sql_type = "sql_types::Text"]
+            event_type: EventTypes,
         }
 
         let query_events = include_str!("../queries/find_all_events_for_organization.sql");
@@ -694,6 +699,7 @@ impl Event {
                 external_url: r.external_url,
                 override_status: r.override_status,
                 localized_times,
+                event_type: r.event_type,
             };
 
             for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
@@ -1140,6 +1146,7 @@ impl Event {
             external_url: self.external_url,
             override_status: self.override_status,
             localized_times,
+            event_type: self.event_type,
         })
     }
 }
@@ -1162,6 +1169,7 @@ pub struct DisplayEvent {
     pub external_url: Option<String>,
     pub override_status: Option<EventOverrideStatus>,
     pub localized_times: EventLocalizedTimeStrings,
+    pub event_type: EventTypes,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -1194,6 +1202,7 @@ pub struct EventSummaryResult {
     pub external_url: Option<String>,
     pub override_status: Option<EventOverrideStatus>,
     pub localized_times: EventLocalizedTimeStrings,
+    pub event_type: EventTypes,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]

@@ -737,6 +737,7 @@ pub fn expected_show_json(
         limited_tickets_remaining: Vec<TicketsRemaining>,
         localized_times: EventLocalizedTimes,
         tracking_keys: TrackingKeys,
+        event_type: EventTypes,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -808,6 +809,7 @@ pub fn expected_show_json(
         tracking_keys: TrackingKeys {
             ..Default::default()
         },
+        event_type: event.event_type,
     })
     .unwrap()
 }

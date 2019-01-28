@@ -162,6 +162,7 @@ pub fn index(
         user_is_interested: bool,
         localized_times: EventLocalizedTimeStrings,
         tracking_keys: TrackingKeys,
+        event_type: EventTypes,
     }
 
     let mut venue_ids: Vec<Uuid> = events
@@ -248,6 +249,7 @@ pub fn index(
                 .unwrap_or(false),
             localized_times,
             tracking_keys,
+            event_type: event.event_type,
         });
     }
 
@@ -401,6 +403,7 @@ pub fn show(
         limited_tickets_remaining: Vec<TicketsRemaining>,
         localized_times: EventLocalizedTimeStrings,
         tracking_keys: TrackingKeys,
+        event_type: EventTypes,
     }
 
     Ok(HttpResponse::Ok().json(&R {
@@ -438,6 +441,7 @@ pub fn show(
         limited_tickets_remaining,
         localized_times,
         tracking_keys,
+        event_type: event.event_type,
     }))
 }
 
