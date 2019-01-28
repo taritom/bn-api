@@ -432,14 +432,7 @@ impl Event {
         utc_datetime: &Option<NaiveDateTime>,
         venue: &Option<Venue>,
     ) -> Option<chrono::DateTime<Tz>> {
-        if utc_datetime.is_none() || venue.is_none() {
-            return None;
-        }
-
-        if let Some(v) = &venue {
-            return Event::localized_time(utc_datetime, &v.timezone);
-        }
-        None
+        Event::localized_time(utc_datetime, &venue.clone().map(|v| v.timezone))
     }
 
     pub fn localized_time(
@@ -649,20 +642,22 @@ impl Event {
 
         let mut results: Vec<EventSummaryResult> = Vec::new();
         for r in events.into_iter() {
-            let venue = if let (Some(venue_id), Some(venue_name)) =
-                (r.venue_id.as_ref(), r.venue_name.as_ref())
-            {
+            let venue = if let (Some(venue_id), Some(venue_name), Some(venue_timezone)) = (
+                r.venue_id.as_ref(),
+                r.venue_name.as_ref(),
+                r.venue_timezone.as_ref(),
+            ) {
                 Some(VenueInfo {
                     id: *venue_id,
                     name: venue_name.to_string(),
-                    timezone: r.venue_timezone,
+                    timezone: venue_timezone.to_string(),
                 })
             } else {
                 None
             };
 
             let event_id = r.id;
-            let timezone = &venue.clone().map(|v| v.timezone.map(|s| s)).unwrap_or(None);
+            let timezone = &venue.clone().map(|v| v.timezone);
             let localized_times: EventLocalizedTimeStrings = EventLocalizedTimeStrings {
                 event_start: Event::localized_time(&r.event_start, timezone)
                     .map(|s| s.to_rfc2822()),

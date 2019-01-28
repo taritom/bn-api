@@ -735,7 +735,7 @@ pub fn expected_show_json(
         external_url: Option<String>,
         override_status: Option<EventOverrideStatus>,
         limited_tickets_remaining: Vec<TicketsRemaining>,
-        localized_times: EventLocalizedTimes,
+        localized_times: EventLocalizedTimeStrings,
         tracking_keys: TrackingKeys,
         event_type: EventTypes,
     }
@@ -767,7 +767,8 @@ pub fn expected_show_json(
             );
         }
     }
-    let localized_times: EventLocalizedTimes = event.get_all_localized_times(&Some(venue.clone()));
+    let localized_times: EventLocalizedTimeStrings =
+        event.get_all_localized_time_strings(&Some(venue.clone()));
     let (min_ticket_price, max_ticket_price) = event
         .current_ticket_pricing_range(box_office_pricing, connection)
         .unwrap();
