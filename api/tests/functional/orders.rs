@@ -159,7 +159,7 @@ pub fn index() {
         .unwrap();
 
     assert_eq!(order1.status, OrderStatus::Paid);
-    assert_eq!(order2.status, OrderStatus::PartiallyPaid);
+    assert_eq!(order2.status, OrderStatus::Draft);
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let test_request = TestRequest::create_with_uri(&format!("/?"));
@@ -171,9 +171,9 @@ pub fn index() {
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     let orders: Payload<DisplayOrder> = serde_json::from_str(body).unwrap();
-    assert_eq!(orders.data.len(), 2);
+    assert_eq!(orders.data.len(), 1);
     let order_ids: Vec<Uuid> = orders.data.iter().map(|o| o.id).collect();
-    assert_eq!(order_ids, vec![order2.id, order1.id]);
+    assert_eq!(order_ids, vec![order1.id]);
 }
 
 #[cfg(test)]

@@ -55,8 +55,7 @@ impl OrderItem {
         refund_fees: bool,
         conn: &PgConnection,
     ) -> Result<u32, DatabaseError> {
-        if !vec![OrderStatus::Paid, OrderStatus::PartiallyPaid].contains(&self.order(conn)?.status)
-        {
+        if self.order(conn)?.status != OrderStatus::Paid {
             return DatabaseError::business_process_error(
                 "Order item must have associated paid order to refund unit",
             );

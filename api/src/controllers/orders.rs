@@ -9,8 +9,8 @@ use diesel::Connection as DieselConnection;
 use errors::BigNeonError;
 use extractors::*;
 use helpers::application;
+use log::Level::Debug;
 use models::PathParameters;
-use payments::PaymentProcessor;
 use server::AppState;
 use std::cmp;
 use std::collections::HashMap;
@@ -89,7 +89,7 @@ pub fn details(
     })))
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct RefundAttributes {
     pub items: Vec<RefundItem>,
 }
@@ -109,12 +109,13 @@ pub fn refund(
         State<AppState>,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    let connection = conn.get();
     let refund_attributes = json.into_inner();
+    jlog!(Debug, "Request to refund received", {"order_id": path.id, "request": refund_attributes.clone()});
+    let connection = conn.get();
     let items = refund_attributes.items;
     let order = Order::find(path.id, connection)?;
 
-    if !vec![OrderStatus::Paid, OrderStatus::PartiallyPaid].contains(&order.status) {
+    if order.status != OrderStatus::Paid {
         return application::internal_server_error(
             "Order must have associated payments to refund order items",
         );

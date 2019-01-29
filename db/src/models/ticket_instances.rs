@@ -6,6 +6,7 @@ use diesel::prelude::*;
 use diesel::sql_types;
 use diesel::sql_types::{BigInt, Bool, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
+use log::Level::Debug;
 use models::*;
 use rand;
 use rand::Rng;
@@ -477,8 +478,15 @@ impl TicketInstance {
         reserved_time: NaiveDateTime,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        diesel::update(
-            ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
+        if order_item.item_type != OrderItemTypes::Tickets {
+            return Ok(());
+        }
+        let rows_affected = diesel::update(
+            ticket_instances::table.filter(
+                ticket_instances::order_item_id
+                    .eq(order_item.id)
+                    .and(ticket_instances::reserved_until.gt(dsl::now.nullable())),
+            ),
         )
         .set((
             ticket_instances::reserved_until.eq(reserved_time),
@@ -489,6 +497,10 @@ impl TicketInstance {
             ErrorCode::UpdateError,
             "Could not update ticket_instance reserved time.",
         )?;
+        if rows_affected == 0 {
+            jlog!(Debug, "Could not update reserved ticket time", { "order_item_id": order_item.id, "reserved_time": reserved_time});
+            return DatabaseError::concurrency_error("Could not update reserved ticket time");
+        };
         Ok(())
     }
 

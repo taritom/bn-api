@@ -57,8 +57,8 @@ table! {
         domain_action_type -> Text,
         communication_channel_type -> Nullable<Text>,
         payload -> Json,
-        main_table -> Text,
-        main_table_id -> Uuid,
+        main_table -> Nullable<Text>,
+        main_table_id -> Nullable<Uuid>,
         scheduled_at -> Timestamp,
         expires_at -> Timestamp,
         last_attempted_at -> Nullable<Timestamp>,
@@ -234,6 +234,8 @@ table! {
         updated_at -> Timestamp,
         paid_at -> Nullable<Timestamp>,
         box_office_pricing -> Bool,
+        checkout_url -> Nullable<Text>,
+        checkout_url_expires -> Nullable<Timestamp>,
     }
 }
 
@@ -303,7 +305,7 @@ table! {
     payments (id) {
         id -> Uuid,
         order_id -> Uuid,
-        created_by -> Uuid,
+        created_by -> Nullable<Uuid>,
         status -> Text,
         payment_method -> Text,
         amount -> Int8,
