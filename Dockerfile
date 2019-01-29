@@ -17,6 +17,7 @@ ADD db ./db/
 ADD tari-client ./tari-client/
 ADD stripe ./stripe/
 ADD logging ./logging/
+ADD globee ./globee/
 ADD Cargo.lock Cargo.toml ./
 
 RUN cargo build --release
