@@ -350,6 +350,7 @@ fn get_sales_by_date_range() {
     // user purchases 10 tickets
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     cart.update_quantities(
+        user.id,
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 10,
@@ -369,6 +370,7 @@ fn get_sales_by_date_range() {
     let mut cart2 = Order::find_or_create_cart(&user2, connection).unwrap();
     cart2
         .update_quantities(
+            user2.id,
             &[UpdateOrderItem {
                 ticket_type_id: ticket_type.id,
                 quantity: 5,
