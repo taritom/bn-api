@@ -452,15 +452,8 @@ fn get_sales_by_date_range() {
 
 #[test]
 fn find_individuals() {
-    //create event
     let project = TestProject::new();
     let venue = project.create_venue().finish();
-
-    let user = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_member(&user, Roles::OrgOwner)
-        .finish();
     let event = project
         .create_event()
         .with_name("NewEvent".into())
@@ -472,35 +465,99 @@ fn find_individuals() {
             NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
                 .unwrap(),
         )
-        .with_organization(&organization)
         .with_venue(&venue)
         .finish();
-    //Edit event
+
     let parameters = EventEditableAttributes {
         door_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
         ..Default::default()
     };
     let event = event.update(parameters, project.get_connection()).unwrap();
 
-    //find event
     let found_event = Event::find(event.id, project.get_connection()).unwrap();
     assert_eq!(found_event, event);
-    //find event via organisation
-    let found_event_via_organization = Event::find_all_events_for_organization(
-        found_event.organization_id,
-        PastOrUpcoming::Past,
-        0,
-        100,
-        project.get_connection(),
-    )
-    .unwrap();
-    assert_eq!(found_event_via_organization.data[0].id, found_event.id);
 
     //find event via venue
     let found_event_via_venue =
         Event::find_all_active_events_for_venue(&event.venue_id.unwrap(), project.get_connection())
             .unwrap();
     assert_eq!(found_event_via_venue[0], event);
+}
+
+#[test]
+fn find_all_events_for_organization() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let past_event = project
+        .create_event()
+        .with_name("Event1".into())
+        .with_event_start(
+            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_event_end(
+            NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_organization(&organization)
+        .finish();
+    let current_event = project
+        .create_event()
+        .with_name("Event2".into())
+        .with_event_start(
+            NaiveDateTime::parse_from_str("2018-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_event_end(
+            NaiveDateTime::parse_from_str("2814-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_organization(&organization)
+        .finish();
+    let future_event = project
+        .create_event()
+        .with_name("Event3".into())
+        .with_event_start(
+            NaiveDateTime::parse_from_str("2918-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_event_end(
+            NaiveDateTime::parse_from_str("2919-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_organization(&organization)
+        .finish();
+
+    // Past events
+    let events = Event::find_all_events_for_organization(
+        organization.id,
+        PastOrUpcoming::Past,
+        0,
+        100,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(events.data, vec![past_event.summary(connection).unwrap()]);
+    assert_eq!(events.paging.total, 1);
+
+    // Upcoming (current, future) events
+    let events = Event::find_all_events_for_organization(
+        organization.id,
+        PastOrUpcoming::Upcoming,
+        0,
+        100,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        events.data,
+        vec![
+            current_event.summary(connection).unwrap(),
+            future_event.summary(connection).unwrap()
+        ]
+    );
+    assert_eq!(events.paging.total, 2);
 }
 
 #[test]
