@@ -813,6 +813,12 @@ impl Order {
                 _ => {}
             }
         }
+
+        // Box office purchased tickets do not have fees at this time
+        if self.box_office_pricing {
+            return Ok(());
+        }
+
         for ((event_id, hold_id), items) in self
             .items(conn)?
             .iter()
