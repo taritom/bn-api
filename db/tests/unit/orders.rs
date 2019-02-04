@@ -1,3 +1,4 @@
+use bigneon_db::dev::times;
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::schema::orders;
@@ -104,6 +105,65 @@ fn add_tickets() {
         .unwrap();
 
     assert_eq!(order_item.calculate_quantity(connection), Ok(15));
+}
+
+#[test]
+fn add_tickets_below_min_fee() {
+    let project = TestProject::new();
+    let creator = project.create_user().finish();
+
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+
+    let ticket_type = event
+        .add_ticket_type(
+            "Free Tix".to_string(),
+            None,
+            10,
+            times::zero(),
+            times::infinity(),
+            event.issuer_wallet(connection).unwrap().id,
+            Some(1),
+            10,
+            0,
+            connection,
+        )
+        .unwrap();
+
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+
+    cart.update_quantities(
+        user.id,
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+
+    assert_eq!(order_item.unit_price_in_cents, 0);
+    assert_eq!(items.len(), 1);
+
+    let fee_item = order_item.find_fee_item(connection).unwrap();
+
+    assert_eq!(fee_item, None);
 }
 
 #[test]
