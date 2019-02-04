@@ -229,7 +229,7 @@ fn details() {
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
     assert_eq!(
-        cart.refund(refund_items, connection).unwrap(),
+        cart.refund(refund_items, user.id, connection).unwrap(),
         refund_amount as u32
     );
 
@@ -283,7 +283,7 @@ fn details() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    assert!(cart.refund(refund_items, connection).is_err());
+    assert!(cart.refund(refund_items, user.id, connection).is_err());
     let order_details = cart.details(vec![organization.id], connection).unwrap();
     assert_eq!(expected_order_details, order_details);
 
@@ -296,7 +296,7 @@ fn details() {
         + fee_item.unit_price_in_cents
         + event_fee_item.unit_price_in_cents;
     assert_eq!(
-        cart.refund(refund_items, connection).unwrap(),
+        cart.refund(refund_items, user.id, connection).unwrap(),
         refund_amount as u32
     );
 
@@ -409,7 +409,7 @@ fn refund() {
         + order_item.unit_price_in_cents
         + fee_item.unit_price_in_cents;
     assert_eq!(
-        cart.refund(refund_items, connection).unwrap(),
+        cart.refund(refund_items, user.id, connection).unwrap(),
         refund_amount as u32
     );
 
