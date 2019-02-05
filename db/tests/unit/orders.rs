@@ -12,6 +12,7 @@ use uuid::Uuid;
 #[test]
 fn create() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let venue = project.create_venue().finish();
     let user = project.create_user().finish();
     let organization = project
@@ -27,6 +28,14 @@ fn create() {
     let order = Order::find_or_create_cart(&user, project.get_connection()).unwrap();
     assert_eq!(order.user_id, user.id);
     assert_eq!(order.id.to_string().is_empty(), false);
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(order.id),
+        Some(DomainEventTypes::OrderCreated),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
 }
 
 #[test]
@@ -1367,6 +1376,15 @@ fn add_external_payment() {
         .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
     assert!(cart.paid_at.is_some());
+
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderCompleted),
+        conn,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
 }
 
 #[test]
@@ -1731,14 +1749,37 @@ fn adding_event_fees() {
 #[test]
 pub fn update() {
     let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
     let order = project.create_order().finish();
 
     let attrs = UpdateOrderAttributes {
         note: Some(Some("Client will pick up at 18h00".to_string())),
     };
-    let updated = order.update(attrs, &project.connection).unwrap();
+
+    let domain_event_count = DomainEvent::find(
+        Tables::Orders,
+        Some(order.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap()
+    .len();
+
+    let updated = order.update(attrs, user.id, &project.connection).unwrap();
     assert_eq!(
         updated.note,
         Some("Client will pick up at 18h00".to_string())
     );
+    let new_domain_event_count = DomainEvent::find(
+        Tables::Orders,
+        Some(updated.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap()
+    .len();
+
+    // 1 order update event should be recorded from the update call
+    assert_eq!(domain_event_count + 1, new_domain_event_count);
 }

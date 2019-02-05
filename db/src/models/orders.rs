@@ -26,7 +26,7 @@ use validators::*;
 const CART_EXPIRY_TIME_MINUTES: i64 = 15;
 const ORDER_NUMBER_LENGTH: usize = 8;
 
-#[derive(Associations, Debug, Identifiable, PartialEq, Queryable)]
+#[derive(Associations, Debug, Identifiable, PartialEq, Queryable, Serialize)]
 #[belongs_to(User)]
 pub struct Order {
     pub id: Uuid,
@@ -68,7 +68,7 @@ impl NewOrder {
     }
 }
 
-#[derive(AsChangeset, Deserialize)]
+#[derive(AsChangeset, Deserialize, Serialize)]
 #[table_name = "orders"]
 pub struct UpdateOrderAttributes {
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
@@ -331,8 +331,19 @@ impl Order {
         // created another cart in the mean time
         user.update_last_cart(cart_id, conn)?;
 
-        // Finally return the actual order
-        Order::find(cart_id.unwrap(), conn)
+        let order = Order::find(cart_id.unwrap(), conn)?;
+
+        DomainEvent::create(
+            DomainEventTypes::OrderCreated,
+            "Order created".into(),
+            Tables::Orders,
+            Some(order.id),
+            Some(user.id),
+            Some(json!(order)),
+        )
+        .commit(conn)?;
+
+        Ok(order)
     }
 
     pub fn find_cart_for_user(
@@ -402,7 +413,8 @@ impl Order {
             DomainEventTypes::OrderUpdated,
             format!(
                 "Order expiry time updated from {:?} to {:?}",
-                &old_expiry, &expires_at
+                &old_expiry.map(|e| e.to_string()).unwrap_or("null".into()),
+                &expires_at.to_string()
             ),
             Tables::Orders,
             Some(self.id),
@@ -426,12 +438,17 @@ impl Order {
 
     /// Removes the expiry time for an order. This can only be done when there are no
     /// tickets in the order, otherwise the tickets will remain reserved until the expiry
-    pub fn remove_expiry(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn remove_expiry(
+        &mut self,
+        current_user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         if self.items(conn)?.len() > 0 {
             return DatabaseError::business_process_error(
                 "Cannot clear the expiry of an order when there are items in it",
             );
         }
+        let old_expiry = self.expires_at;
         self.updated_at = Utc::now().naive_utc();
         self.expires_at = None;
         let affected_rows = diesel::update(
@@ -447,7 +464,7 @@ impl Order {
             ),
         )
         .set((
-            orders::expires_at.eq::<Option<NaiveDateTime>>(None),
+            orders::expires_at.eq(self.expires_at),
             orders::updated_at.eq(self.updated_at),
         ))
         .execute(conn)
@@ -455,6 +472,21 @@ impl Order {
         if affected_rows != 1 {
             return DatabaseError::concurrency_error("Could not update expiry time.");
         }
+        DomainEvent::create(
+            DomainEventTypes::OrderUpdated,
+            format!(
+                "Order expiry time removed was {:?}",
+                &old_expiry.map(|e| e.to_string()).unwrap_or("null".into())
+            ),
+            Tables::Orders,
+            Some(self.id),
+            Some(current_user_id),
+            Some(json!({
+                "old_expires_at": &old_expiry,
+                "new_expires_at": self.expires_at
+            })),
+        )
+        .commit(conn)?;
 
         Ok(())
     }
@@ -471,8 +503,19 @@ impl Order {
     pub fn update(
         self,
         attrs: UpdateOrderAttributes,
+        current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Order, DatabaseError> {
+        DomainEvent::create(
+            DomainEventTypes::OrderUpdated,
+            "Order updated".into(),
+            Tables::Orders,
+            Some(self.id),
+            Some(current_user_id),
+            Some(json!(attrs)),
+        )
+        .commit(conn)?;
+
         diesel::update(&self)
             .set((attrs, orders::updated_at.eq(dsl::now)))
             .execute(conn)
@@ -506,7 +549,7 @@ impl Order {
 
         if box_office_pricing != self.box_office_pricing {
             self.clear_cart(conn)?;
-            self.update_box_office_pricing(box_office_pricing, conn)?;
+            self.update_box_office_pricing(box_office_pricing, current_user_id, conn)?;
         }
 
         let current_items = self.items(conn)?;
@@ -756,7 +799,7 @@ impl Order {
 
         // if the cart is empty at this point, it is effectively a new cart, remove expiration
         if self.items(conn)?.len() == 0 {
-            self.remove_expiry(conn)?;
+            self.remove_expiry(current_user_id, conn)?;
         }
 
         for limit_check in check_ticket_limits {
@@ -1173,7 +1216,7 @@ impl Order {
         expires: NaiveDateTime,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        self.checkout_url = Some(checkout_url);
+        self.checkout_url = Some(checkout_url.clone());
         self.set_expiry(Some(current_user_id), Some(expires), conn)?;
         diesel::update(&*self)
             .set((
@@ -1183,6 +1226,16 @@ impl Order {
             ))
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not add checkout URL")?;
+
+        DomainEvent::create(
+            DomainEventTypes::OrderUpdated,
+            format!("Order checkout URL added {:?}", &checkout_url),
+            Tables::Orders,
+            Some(self.id),
+            Some(current_user_id),
+            Some(json!({ "checkout_url": &checkout_url })),
+        )
+        .commit(conn)?;
 
         Ok(())
     }
@@ -1243,6 +1296,17 @@ impl Order {
             for item in &order_items {
                 TicketInstance::mark_as_purchased(item, self.user_id, conn)?;
             }
+
+            let ticket_ids = TicketInstance::find_ids_for_order(self.id, conn)?;
+            DomainEvent::create(
+                DomainEventTypes::OrderCompleted,
+                "Order completed".into(),
+                Tables::Orders,
+                Some(self.id),
+                current_user_id,
+                Some(json!({ "ticket_ids": ticket_ids })),
+            )
+            .commit(conn)?;
         }
         Ok(())
     }
@@ -1283,8 +1347,10 @@ impl Order {
     fn update_box_office_pricing(
         &mut self,
         box_office_pricing: bool,
+        current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
+        let old_box_office_pricing = self.box_office_pricing;
         self.box_office_pricing = box_office_pricing;
         jlog!(Debug, "Changing order to use box office pricing", { "order_id": self.id});
         diesel::update(&*self)
@@ -1295,6 +1361,21 @@ impl Order {
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
 
+        DomainEvent::create(
+            DomainEventTypes::OrderUpdated,
+            format!(
+                "Order box office pricing updated from {:?} to {:?}",
+                old_box_office_pricing, box_office_pricing
+            ),
+            Tables::Orders,
+            Some(self.id),
+            Some(current_user_id),
+            Some(json!({
+                "old_box_office_pricing": old_box_office_pricing,
+                "new_box_office_pricing": box_office_pricing
+            })),
+        )
+        .commit(conn)?;
         Ok(())
     }
 

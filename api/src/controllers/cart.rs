@@ -461,7 +461,7 @@ fn checkout_external(
         )?);
     }
 
-    let mut order = order.update(UpdateOrderAttributes { note: Some(note) }, conn)?;
+    let mut order = order.update(UpdateOrderAttributes { note: Some(note) }, user.id(), conn)?;
     order.set_behalf_of_user(guest.unwrap(), user.id(), conn)?;
     let total = order.calculate_total(conn)?;
 

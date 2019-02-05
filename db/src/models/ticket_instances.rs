@@ -478,6 +478,21 @@ impl TicketInstance {
             .to_db_error(ErrorCode::QueryError, "Could not load Ticket Instances")
     }
 
+    pub fn find_ids_for_order(
+        order_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<Uuid>, DatabaseError> {
+        ticket_instances::table
+            .inner_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            )
+            .filter(order_items::order_id.eq(order_id))
+            .select(ticket_instances::id)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load Ticket Instances")
+    }
+
     pub fn update_reserved_time(
         order_item: &OrderItem,
         reserved_time: NaiveDateTime,

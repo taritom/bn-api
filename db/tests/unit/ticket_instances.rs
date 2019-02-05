@@ -135,6 +135,38 @@ fn find_for_user_for_display() {
 }
 
 #[test]
+fn find_ids_for_order() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(1)
+        .finish();
+    let user = project.create_user().finish();
+    let order = project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
+    // Add additional tickets to user account
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    assert_eq!(
+        TicketInstance::find_ids_for_order(order.id, connection).unwrap(),
+        vec![ticket.id]
+    );
+}
+
+#[test]
 fn ticket_type() {
     let project = TestProject::new();
     let connection = project.get_connection();

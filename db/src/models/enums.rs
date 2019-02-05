@@ -79,6 +79,8 @@ string_enum! { CommunicationChannelType [Email, Sms, Push]}
 string_enum! { DomainEventTypes [
     FeeScheduleCreated,
     OrderBehalfOfUserChanged,
+    OrderCompleted,
+    OrderCreated,
     OrderStatusUpdated,
     OrderUpdated,
     OrganizationCreated,
