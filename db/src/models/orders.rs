@@ -208,8 +208,13 @@ impl Order {
                         let refund_fees = refunded_ticket.fee_refunded_at.is_none();
                         refunded_ticket.mark_refunded(only_refund_fees, conn)?;
 
-                        if ticket_instance.status != TicketInstanceStatus::Redeemed {
-                            ticket_instance.release(user_id, conn)?;
+                        // Do not release redeemed tickets back into inventory
+                        if ticket_instance.status == TicketInstanceStatus::Purchased {
+                            ticket_instance.release(
+                                TicketInstanceStatus::Purchased,
+                                user_id,
+                                conn,
+                            )?;
                         }
 
                         total_to_be_refunded += order_item.refund_one_unit(refund_fees, conn)?;
@@ -523,13 +528,17 @@ impl Order {
         Order::find(self.id, conn)
     }
 
-    pub fn clear_cart(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn clear_cart(&mut self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
         jlog!(Level::Debug, "Clearing cart");
+        self.lock_version(conn)?;
+
         for mut current_line in self.items(conn)? {
             if current_line.item_type != OrderItemTypes::Tickets {
                 continue;
             }
-            TicketInstance::release_tickets(&current_line, current_line.quantity as u32, conn)?;
+            // Use calculated quantity as reserved may have been taken in the meantime no longer pointing to this order item
+            let quantity = current_line.calculate_quantity(conn)?;
+            TicketInstance::release_tickets(&current_line, quantity as u32, user_id, conn)?;
             self.destroy_item(current_line.id, conn)?;
         }
         Ok(())
@@ -548,7 +557,7 @@ impl Order {
         jlog!(Debug, "Update order quantities", {"items": items,"remove_others":remove_others, "user_id": current_user_id, "box_office_pricing":box_office_pricing });
 
         if box_office_pricing != self.box_office_pricing {
-            self.clear_cart(conn)?;
+            self.clear_cart(current_user_id, conn)?;
             self.update_box_office_pricing(box_office_pricing, current_user_id, conn)?;
         }
 
@@ -638,6 +647,7 @@ impl Order {
                         TicketInstance::release_tickets(
                             &current_line,
                             current_line.quantity as u32 - match_data.update_order_item.quantity,
+                            current_user_id,
                             conn,
                         )?;
                         current_line.quantity = match_data.update_order_item.quantity as i64;
@@ -726,6 +736,7 @@ impl Order {
                     TicketInstance::release_tickets(
                         &current_line,
                         current_line.quantity as u32,
+                        current_user_id,
                         conn,
                     )?;
                     self.destroy_item(current_line.id, conn)?;
@@ -1078,12 +1089,14 @@ impl Order {
                 })
                 .collect();
 
+        let items = self.items_for_display(organization_ids, conn)?;
         Ok(DisplayOrder {
             id: self.id,
             status: self.status.clone(),
             date: self.order_date,
             expires_at: self.expires_at,
-            items: self.items_for_display(organization_ids, conn)?,
+            valid_for_purchase: DisplayOrder::valid_for_purchase(self.status, &items),
+            items,
             limited_tickets_remaining,
             total_in_cents: self.calculate_total(conn)?,
             seconds_until_expiry,
@@ -1240,6 +1253,22 @@ impl Order {
         Ok(())
     }
 
+    fn order_items_in_invalid_state(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Vec<OrderItem>, DatabaseError> {
+        let query = include_str!("../queries/order_items_in_invalid_state.sql");
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load invalid order items")
+    }
+
+    pub fn items_valid_for_purchase(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        let invalid_items = self.order_items_in_invalid_state(conn)?;
+        Ok(invalid_items.is_empty())
+    }
+
     fn add_payment(
         &mut self,
         payment: NewPayment,
@@ -1342,6 +1371,31 @@ impl Order {
             "Could not get total payments for order",
         )?;
         Ok(sum.s.unwrap_or(0))
+    }
+
+    pub fn clear_invalid_items(
+        &mut self,
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if self.status != OrderStatus::Draft {
+            return DatabaseError::validation_error(
+                "status",
+                "Cannot change the order user unless the order is in draft status",
+            );
+        }
+
+        self.lock_version(conn)?;
+
+        let order_items = self.order_items_in_invalid_state(conn)?;
+        for item in order_items {
+            // Use calculated quantity as reserved may have been taken in the meantime
+            let quantity = item.calculate_quantity(conn)?;
+            TicketInstance::release_tickets(&item, quantity as u32, user_id, conn)?;
+            self.destroy_item(item.id, conn)?;
+        }
+
+        Ok(())
     }
 
     fn update_box_office_pricing(
@@ -1532,6 +1586,26 @@ pub struct DisplayOrder {
     pub checkout_url: Option<String>,
     pub allowed_payment_methods: Vec<AllowedPaymentMethod>,
     pub order_contains_tickets_for_other_organizations: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valid_for_purchase: Option<bool>,
+}
+
+impl DisplayOrder {
+    pub fn valid_for_purchase(status: OrderStatus, items: &Vec<DisplayOrderItem>) -> Option<bool> {
+        if status != OrderStatus::Draft {
+            return None;
+        }
+
+        Some(
+            !items
+                .iter()
+                .find(|i| {
+                    i.cart_item_status.is_some()
+                        && i.cart_item_status != Some(CartItemStatus::Valid)
+                })
+                .is_some(),
+        )
+    }
 }
 
 #[derive(Serialize, Deserialize)]

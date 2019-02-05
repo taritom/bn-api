@@ -74,6 +74,7 @@ macro_rules! string_enum {
 }
 
 string_enum! { AssetStatus [Unsynced] }
+string_enum! { CartItemStatus [CodeExpired, HoldExpired, TicketNullified, TicketNotReserved, Valid] }
 string_enum! { CodeTypes [Access, Discount] }
 string_enum! { CommunicationChannelType [Email, Sms, Push]}
 string_enum! { DomainEventTypes [
