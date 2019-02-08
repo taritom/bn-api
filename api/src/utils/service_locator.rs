@@ -38,4 +38,13 @@ impl ServiceLocator {
             }
         }
     }
+
+    pub fn is_refund_supported(provider: String) -> bool {
+        match provider.to_lowercase().as_str() {
+            "stripe" => true,
+            "globee" => false,
+            "external" => false,
+            _ => false,
+        }
+    }
 }

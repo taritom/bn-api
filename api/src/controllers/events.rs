@@ -13,7 +13,7 @@ use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
 use std::collections::HashMap;
-use utils::marketing_contacts;
+use utils::{marketing_contacts, ServiceLocator};
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -803,7 +803,31 @@ pub fn guest_list(
         conn,
     )?;
     let tickets = event.guest_list(&query.query, conn)?;
-    let payload = Payload::new(tickets, query.into_inner().into());
+
+    #[derive(Serialize)]
+    struct R {
+        #[serde(flatten)]
+        ticket: RedeemableTicket,
+        refund_supported: bool,
+    }
+
+    let mut tickets_refund: Vec<R> = Vec::new();
+
+    for t in tickets {
+        let mut refundable = t.providers.len() != 0;
+        for p in t.providers {
+            if !ServiceLocator::is_refund_supported(p) {
+                refundable = false;
+            }
+        }
+
+        tickets_refund.push(R {
+            ticket: t.ticket.clone(),
+            refund_supported: refundable,
+        });
+    }
+
+    let payload = Payload::new(tickets_refund, query.into_inner().into());
     Ok(HttpResponse::Ok().json(payload))
 }
 

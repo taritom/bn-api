@@ -103,7 +103,7 @@ fn guest_list() {
     assert_eq!(3, guest_list.len());
     let guest_ids = guest_list
         .iter()
-        .map(|r| r.user_id)
+        .map(|r| r.ticket.user_id)
         .collect::<Vec<Option<Uuid>>>();
     assert!(guest_ids.contains(&Some(user.id)));
     assert!(!guest_ids.contains(&Some(user2.id)));
@@ -122,7 +122,7 @@ fn guest_list() {
     assert_eq!(4, guest_list.len());
     let guest_ids = guest_list
         .iter()
-        .map(|r| r.user_id)
+        .map(|r| r.ticket.user_id)
         .collect::<Vec<Option<Uuid>>>();
     assert!(guest_ids.contains(&Some(user.id)));
     assert!(guest_ids.contains(&Some(user2.id)));

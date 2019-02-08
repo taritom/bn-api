@@ -6,7 +6,7 @@ pub use self::payment_processor_error::*;
 mod charge_auth_result;
 mod charge_result;
 pub mod globee;
-mod payment_processor;
+pub mod payment_processor;
 mod payment_processor_error;
 mod repeat_charge_token;
 pub mod stripe;

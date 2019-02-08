@@ -8,7 +8,9 @@ use diesel::prelude::*;
 use diesel::sql_types;
 use log::Level;
 use models::*;
-use schema::{artists, event_artists, events, organization_users, organizations, venues};
+use schema::{
+    artists, event_artists, events, orders, organization_users, organizations, payments, venues,
+};
 use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -807,14 +809,48 @@ impl Event {
         &self,
         query: &str,
         conn: &PgConnection,
-    ) -> Result<Vec<RedeemableTicket>, DatabaseError> {
+    ) -> Result<Vec<GuestListItem>, DatabaseError> {
         let q = include_str!("../queries/retrieve_guest_list.sql");
 
-        diesel::sql_query(q)
+        let tickets = diesel::sql_query(q)
             .bind::<sql_types::Uuid, _>(self.id)
             .bind::<sql_types::Text, _>(query)
             .load::<RedeemableTicket>(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load guest list")
+            .to_db_error(ErrorCode::QueryError, "Could not load guest list")?;
+
+        let mut guests: Vec<GuestListItem> = Vec::new();
+
+        #[derive(Debug, QueryableByName, Queryable)]
+        struct R {
+            #[sql_type = "sql_types::Uuid"]
+            id: Uuid,
+            #[sql_type = "sql_types::Nullable<sql_types::Text>"]
+            provider: Option<String>,
+        }
+
+        let results: Vec<R> = orders::table
+            .left_join(payments::table.on(orders::id.eq(payments::order_id)))
+            .filter(orders::id.eq_any(tickets.iter().map(|t| t.order_id).collect::<Vec<Uuid>>()))
+            .select((orders::id, payments::provider.nullable()))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load payment providers")?;
+
+        for t in &tickets {
+            let mut providers: Vec<String> = Vec::new();
+            for r in &results {
+                if r.id == t.order_id {
+                    if let Some(ref p) = r.provider {
+                        providers.push(p.clone());
+                    }
+                }
+            }
+            guests.push(GuestListItem {
+                ticket: t.clone(),
+                providers,
+            })
+        }
+
+        Ok(guests)
     }
 
     pub fn search(
@@ -1244,4 +1280,10 @@ pub struct DayStats {
     pub date: NaiveDate,
     pub revenue_in_cents: i64,
     pub ticket_sales: i64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct GuestListItem {
+    pub ticket: RedeemableTicket,
+    pub providers: Vec<String>,
 }

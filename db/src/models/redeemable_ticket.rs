@@ -3,7 +3,7 @@ use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use models::*;
 use uuid::Uuid;
 
-#[derive(Queryable, QueryableByName, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Clone, Queryable, QueryableByName, PartialEq, Serialize, Deserialize, Debug)]
 pub struct RedeemableTicket {
     #[sql_type = "dUuid"]
     pub id: Uuid,
