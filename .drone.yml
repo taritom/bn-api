@@ -71,7 +71,7 @@ steps:
     - name: set-version
       depends_on:
         - clone
-      image: rust:1.31.1
+      image: sdbondi/bn-api-builder:latest
       environment:
           APP_VERSION: *version
       commands:
@@ -83,7 +83,7 @@ steps:
     - name: compile
       depends_on:
         - restore-cache
-      image: rust:1.31.1
+      image: sdbondi/bn-api-builder:latest
       environment: *env
       commands:
       - cargo build --release
@@ -114,7 +114,7 @@ steps:
     - name: cargo-audit
       depends_on:
         - compile
-      image: rust:1.31.1
+      image: sdbondi/bn-api-builder:latest
       commands:
         - ./scripts/run-cargo-audit.sh
       when:
@@ -124,7 +124,7 @@ steps:
     - name: other-tests
       depends_on:
         - compile
-      image: rust:1.31.1
+      image: sdbondi/bn-api-builder:latest
       environment:
         <<: *env
         DATABASE_URL: postgres://app:password@database/other_tests
@@ -139,7 +139,7 @@ steps:
     - name: api-tests
       depends_on:
         - compile
-      image: rust:1.31.1
+      image: sdbondi/bn-api-builder:latest
       environment:
           <<: *env
           DATABASE_URL: postgres://app:password@database/api_tests
@@ -154,7 +154,8 @@ steps:
     - name: integration-tests
       depends_on:
         - compile
-      image: sdbondi/rust-node:0.1
+#      image: sdbondi/rust-node:0.1
+      image: sdbondi/bn-api-builder:latest
       environment:
           <<: *env
           DATABASE_URL: postgres://app:password@database/integration_tests
@@ -272,6 +273,6 @@ services:
           branch: master
 ---
 kind: signature
-hmac: 9849cae54062f2c3d2e80f35fcb01e7857586b1a120c6a8dd1695defc32dd100
+hmac: 1fae3e6cf606207a528d2484e905b8dbbc2b1bbc98a90ab61c01b47d66a8cc8b
 
 ...
