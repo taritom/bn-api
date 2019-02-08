@@ -42,7 +42,7 @@ impl<'a> CodeBuilder<'a> {
             discount_in_cents: Some(100),
             max_tickets_per_user: None,
             max_uses: 10,
-            start_date: NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1)),
+            start_date: NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2)),
             end_date: NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2)),
         }
     }
