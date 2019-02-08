@@ -180,6 +180,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         client_event_fee_in_cents: None,
         company_event_fee_in_cents: None,
         allowed_payment_providers: None,
+        timezone: None,
     });
 
     let test_request = TestRequest::create_with_uri("/organizations");
@@ -224,7 +225,8 @@ pub fn update(role: Roles, should_succeed: bool) {
         sendgrid_api_key: Some(Some("sendgrid_api_key".to_string())),
         google_ga_key: Some(Some("google_ga_key".to_string())),
         facebook_pixel_key: Some(Some("facebook_pixel_key".to_string())),
-        allowed_payment_providers: Some(vec![PaymentProviders::Stripe]),
+        allowed_payment_providers: Some(vec![PaymentProviders::Globee]),
+        timezone: Some("Los Angeles".to_string()),
     });
 
     let response: HttpResponse = organizations::update((
@@ -245,7 +247,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     assert_eq!(updated_organization.name, new_name);
     assert_eq!(
         updated_organization.allowed_payment_providers,
-        vec![PaymentProviders::Stripe]
+        vec![PaymentProviders::Globee]
     );
 }
 

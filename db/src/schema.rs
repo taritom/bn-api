@@ -276,6 +276,7 @@ table! {
         client_event_fee_in_cents -> Int8,
         company_event_fee_in_cents -> Int8,
         allowed_payment_providers -> Array<Text>,
+        timezone -> Nullable<Text>,
     }
 }
 

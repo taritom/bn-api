@@ -48,6 +48,7 @@ pub struct Organization {
     pub client_event_fee_in_cents: i64,
     pub company_event_fee_in_cents: i64,
     pub allowed_payment_providers: Vec<PaymentProviders>,
+    pub timezone: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -77,6 +78,8 @@ pub struct NewOrganization {
     pub client_event_fee_in_cents: Option<i64>,
     pub company_event_fee_in_cents: Option<i64>,
     pub allowed_payment_providers: Option<Vec<PaymentProviders>>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub timezone: Option<String>,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -154,6 +157,8 @@ pub struct OrganizationEditableAttributes {
     pub client_event_fee_in_cents: Option<i64>,
     pub company_event_fee_in_cents: Option<i64>,
     pub allowed_payment_providers: Option<Vec<PaymentProviders>>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub timezone: Option<String>,
 }
 
 impl Organization {

@@ -53,6 +53,8 @@ pub struct NewOrganizationRequest {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_pixel_key: Option<String>,
     pub allowed_payment_providers: Option<Vec<PaymentProviders>>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub timezone: Option<String>,
 }
 
 pub fn index(
@@ -139,6 +141,7 @@ pub fn create(
         google_ga_key: new_organization.google_ga_key.clone(),
         facebook_pixel_key: new_organization.facebook_pixel_key.clone(),
         allowed_payment_providers: new_organization.allowed_payment_providers.clone(),
+        timezone: new_organization.timezone.clone(),
     };
 
     let mut organization = new_organization_with_fee_schedule.commit(
