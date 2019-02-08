@@ -47,7 +47,7 @@ pub struct Organization {
     pub fee_schedule_id: Uuid,
     pub client_event_fee_in_cents: i64,
     pub company_event_fee_in_cents: i64,
-    pub allowed_payment_providers: Vec<String>,
+    pub allowed_payment_providers: Vec<PaymentProviders>,
 }
 
 #[derive(Serialize)]
@@ -76,6 +76,7 @@ pub struct NewOrganization {
     pub facebook_pixel_key: Option<String>,
     pub client_event_fee_in_cents: Option<i64>,
     pub company_event_fee_in_cents: Option<i64>,
+    pub allowed_payment_providers: Option<Vec<PaymentProviders>>,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -152,6 +153,7 @@ pub struct OrganizationEditableAttributes {
     pub facebook_pixel_key: Option<Option<String>>,
     pub client_event_fee_in_cents: Option<i64>,
     pub company_event_fee_in_cents: Option<i64>,
+    pub allowed_payment_providers: Option<Vec<PaymentProviders>>,
 }
 
 impl Organization {

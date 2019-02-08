@@ -1,3 +1,4 @@
+use bigneon_db::models::PaymentProviders;
 use chrono::NaiveDateTime;
 use payments::charge_auth_result::ChargeAuthResult;
 use payments::charge_result::ChargeResult;
@@ -11,7 +12,7 @@ pub enum PaymentProcessorBehavior {
 }
 
 pub trait AuthThenCompletePaymentBehavior {
-    fn name(&self) -> String;
+    fn payment_provider(&self) -> PaymentProviders;
 
     fn create_token_for_repeat_charges(
         &self,
@@ -42,7 +43,7 @@ pub trait AuthThenCompletePaymentBehavior {
 }
 
 pub trait RedirectToPaymentPageBehavior {
-    fn name(&self) -> String;
+    fn payment_provider(&self) -> PaymentProviders;
     fn create_payment_request(
         &self,
         total: f64,

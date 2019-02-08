@@ -1060,7 +1060,7 @@ impl Order {
             )?;
         };
 
-        let available_payment_methods: Vec<Vec<String>> = order_items::table
+        let available_payment_methods: Vec<Vec<PaymentProviders>> = order_items::table
             .inner_join(events::table.inner_join(organizations::table))
             .filter(order_items::order_id.eq(self.id))
             .select(organizations::allowed_payment_providers)
@@ -1074,15 +1074,15 @@ impl Order {
         let allowed_payment_methods: Vec<AllowedPaymentMethod> =
             intersect_set(&available_payment_methods)
                 .into_iter()
-                .filter_map(|s| match s.to_lowercase().as_str() {
-                    "stripe" => Some(AllowedPaymentMethod {
+                .filter_map(|p| match p {
+                    PaymentProviders::Stripe => Some(AllowedPaymentMethod {
                         method: "Card".to_string(),
-                        provider: "stripe".to_string(),
+                        provider: PaymentProviders::Stripe,
                         display_name: "Card".to_string(),
                     }),
-                    "globee" => Some(AllowedPaymentMethod {
+                    PaymentProviders::Globee => Some(AllowedPaymentMethod {
                         method: "Provider".to_string(),
-                        provider: "globee".to_string(),
+                        provider: PaymentProviders::Globee,
                         display_name: "Pay with crypto".to_string(),
                     }),
                     _ => None,
@@ -1167,7 +1167,7 @@ impl Order {
             Some(current_user_id),
             PaymentStatus::Completed,
             PaymentMethods::External,
-            "External".to_string(),
+            PaymentProviders::External,
             external_reference,
             amount,
             None,
@@ -1178,7 +1178,7 @@ impl Order {
     pub fn add_provider_payment(
         &mut self,
         external_reference: Option<String>,
-        provider: String,
+        provider: PaymentProviders,
         current_user_id: Option<Uuid>,
         amount: i64,
         status: PaymentStatus,
@@ -1202,7 +1202,7 @@ impl Order {
         &mut self,
         current_user_id: Uuid,
         amount: i64,
-        provider: String,
+        provider: PaymentProviders,
         external_reference: String,
         status: PaymentStatus,
         provider_data: serde_json::Value,
@@ -1611,7 +1611,7 @@ impl DisplayOrder {
 #[derive(Serialize, Deserialize)]
 pub struct AllowedPaymentMethod {
     method: String,
-    provider: String,
+    provider: PaymentProviders,
     display_name: String,
 }
 

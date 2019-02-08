@@ -1,3 +1,4 @@
+use bigneon_db::models::PaymentProviders;
 use globee::*;
 use payments::charge_auth_result::ChargeAuthResult;
 use payments::payment_processor::PaymentProcessor;
@@ -49,8 +50,8 @@ pub struct GlobeePaymentProcessorBehavior {
 }
 
 impl RedirectToPaymentPageBehavior for GlobeePaymentProcessorBehavior {
-    fn name(&self) -> String {
-        "Globee".to_string()
+    fn payment_provider(&self) -> PaymentProviders {
+        PaymentProviders::Globee
     }
 
     fn create_payment_request(

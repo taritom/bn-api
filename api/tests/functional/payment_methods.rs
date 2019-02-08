@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_api::controllers::payment_methods;
-use bigneon_db::models::{DisplayPaymentMethod, Roles};
+use bigneon_db::models::{DisplayPaymentMethod, PaymentProviders, Roles};
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -11,12 +11,12 @@ fn index() {
     let user = database.create_user().finish();
     let payment_method = database
         .create_payment_method()
-        .with_name("Method1".into())
+        .with_name(PaymentProviders::External)
         .with_user(&user)
         .finish();
     let payment_method2 = database
         .create_payment_method()
-        .with_name("Method2".into())
+        .with_name(PaymentProviders::Stripe)
         .with_user(&user)
         .finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);

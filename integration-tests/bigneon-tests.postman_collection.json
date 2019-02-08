@@ -9684,7 +9684,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 60300,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": true\n\t}\n}"
+							"raw": "{\n\t\"amount\": 60300,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"Stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": true\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",
@@ -10126,7 +10126,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 60300,\n\t\"method\": {\n\t\t\"type\" : \"Provider\",\n\t\t\"provider\": \"globee\"\n\t}\n}"
+							"raw": "{\n\t\"amount\": 60300,\n\t\"method\": {\n\t\t\"type\" : \"Provider\",\n\t\t\"provider\": \"Globee\"\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",
@@ -10626,7 +10626,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": true,\n\t\t\"set_default\": true\n\t}\n}"
+							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"Stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": true,\n\t\t\"set_default\": true\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",
@@ -10657,7 +10657,7 @@
 									"let json = JSON.parse(responseBody);",
 									"",
 									"pm.test(\"should have stripe saved\", function(){",
-									"    pm.expect(json[0].name).to.be.equal(\"stripe\");",
+									"    pm.expect(json[0].name).to.be.equal(\"Stripe\");",
 									"   ",
 									"});"
 								],
@@ -10980,7 +10980,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"PaymentMethod\",\n\t\t\"provider\": \"stripe\"\n\t}\n}"
+							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"PaymentMethod\",\n\t\t\"provider\": \"Stripe\"\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",
@@ -11720,7 +11720,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"amount\": 18160,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": false\n\t}\n}"
+									"raw": "{\n\t\"amount\": 18160,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"Stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": false\n\t}\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/cart/checkout",
@@ -12728,7 +12728,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": false\n\t}\n}"
+							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"Stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": false\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",
@@ -14517,7 +14517,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": false\n\t}\n}"
+							"raw": "{\n\t\"amount\": 6120,\n\t\"method\": {\n\t\t\"type\" : \"Card\",\n\t\t\"provider\": \"Stripe\",\n\t\t\"token\" : \"{{last_credit_card_token}}\",\n\t\t\"save_payment_method\": false,\n\t\t\"set_default\": false\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/cart/checkout",

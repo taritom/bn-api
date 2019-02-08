@@ -434,12 +434,12 @@ fn payment_method() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     assert!(user
-        .payment_method("Nothing".into(), project.get_connection())
+        .payment_method(PaymentProviders::External, project.get_connection())
         .is_err());
 
     let payment_method = project
         .create_payment_method()
-        .with_name("Method1".into())
+        .with_name(PaymentProviders::External)
         .with_user(&user)
         .finish();
     assert_eq!(
@@ -461,7 +461,7 @@ fn default_payment_method() {
     // Payment method exists but not default
     project
         .create_payment_method()
-        .with_name("Method1".into())
+        .with_name(PaymentProviders::External)
         .with_user(&user)
         .finish();
     assert!(user.default_payment_method(connection).is_err());
@@ -469,7 +469,7 @@ fn default_payment_method() {
     // Default set
     let payment_method2 = project
         .create_payment_method()
-        .with_name("Method2".into())
+        .with_name(PaymentProviders::Stripe)
         .with_user(&user)
         .make_default()
         .finish();
@@ -486,7 +486,7 @@ fn payment_methods() {
 
     let payment_method = project
         .create_payment_method()
-        .with_name("Method1".into())
+        .with_name(PaymentProviders::External)
         .with_user(&user)
         .finish();
     assert_eq!(
@@ -496,7 +496,7 @@ fn payment_methods() {
 
     let payment_method2 = project
         .create_payment_method()
-        .with_name("Method2".into())
+        .with_name(PaymentProviders::Stripe)
         .with_user(&user)
         .finish();
     assert_eq!(

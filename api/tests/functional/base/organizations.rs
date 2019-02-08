@@ -179,6 +179,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         facebook_pixel_key: None,
         client_event_fee_in_cents: None,
         company_event_fee_in_cents: None,
+        allowed_payment_providers: None,
     });
 
     let test_request = TestRequest::create_with_uri("/organizations");
@@ -223,6 +224,7 @@ pub fn update(role: Roles, should_succeed: bool) {
         sendgrid_api_key: Some(Some("sendgrid_api_key".to_string())),
         google_ga_key: Some(Some("google_ga_key".to_string())),
         facebook_pixel_key: Some(Some("facebook_pixel_key".to_string())),
+        allowed_payment_providers: Some(vec![PaymentProviders::Stripe]),
     });
 
     let response: HttpResponse = organizations::update((
@@ -241,6 +243,10 @@ pub fn update(role: Roles, should_succeed: bool) {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let updated_organization: Organization = serde_json::from_str(&body).unwrap();
     assert_eq!(updated_organization.name, new_name);
+    assert_eq!(
+        updated_organization.allowed_payment_providers,
+        vec![PaymentProviders::Stripe]
+    );
 }
 
 pub fn remove_user(role: Roles, should_test_succeed: bool) {

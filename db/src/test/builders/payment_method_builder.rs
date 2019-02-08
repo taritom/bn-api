@@ -1,11 +1,10 @@
 use diesel::prelude::*;
 use models::*;
-use rand::prelude::*;
 use test::builders::UserBuilder;
 use uuid::Uuid;
 
 pub struct PaymentMethodBuilder<'a> {
-    name: String,
+    name: PaymentProviders,
     user_id: Option<Uuid>,
     is_default: bool,
     connection: &'a PgConnection,
@@ -13,9 +12,8 @@ pub struct PaymentMethodBuilder<'a> {
 
 impl<'a> PaymentMethodBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> Self {
-        let x: u16 = random();
         PaymentMethodBuilder {
-            name: format!("PaymentMethod {}", x).into(),
+            name: PaymentProviders::Stripe,
             user_id: None,
             is_default: false,
             connection,
@@ -32,7 +30,7 @@ impl<'a> PaymentMethodBuilder<'a> {
         self
     }
 
-    pub fn with_name(mut self, name: String) -> Self {
+    pub fn with_name(mut self, name: PaymentProviders) -> Self {
         self.name = name;
         self
     }

@@ -1,7 +1,5 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{
-    DomainEvent, DomainEventTypes, PaymentMethod, PaymentMethodEditableAttributes, Tables,
-};
+use bigneon_db::models::*;
 
 #[test]
 fn create() {
@@ -11,7 +9,7 @@ fn create() {
 
     let payment_method = PaymentMethod::create(
         user.id,
-        "stripe".into(),
+        PaymentProviders::Stripe,
         true,
         "cus_example".into(),
         "abc".into(),
@@ -96,24 +94,24 @@ fn find_default_for_user() {
     let user4 = project.create_user().finish();
     let _payment_method = project
         .create_payment_method()
-        .with_name("Method1".into())
+        .with_name(PaymentProviders::External)
         .with_user(&user)
         .finish();
     let payment_method2 = project
         .create_payment_method()
-        .with_name("Method2".into())
+        .with_name(PaymentProviders::Stripe)
         .with_user(&user)
         .make_default()
         .finish();
     let payment_method3 = project
         .create_payment_method()
-        .with_name("Method1".into())
+        .with_name(PaymentProviders::External)
         .with_user(&user2)
         .make_default()
         .finish();
     let _payment_method4 = project
         .create_payment_method()
-        .with_name("Method1".into())
+        .with_name(PaymentProviders::External)
         .with_user(&user3)
         .finish();
 
@@ -143,17 +141,17 @@ fn find_for_user() {
     let user3 = project.create_user().finish();
     let payment_method = project
         .create_payment_method()
-        .with_name("Method1".into())
+        .with_name(PaymentProviders::External)
         .with_user(&user)
         .finish();
     let payment_method2 = project
         .create_payment_method()
-        .with_name("Method2".into())
+        .with_name(PaymentProviders::Stripe)
         .with_user(&user)
         .finish();
     let payment_method3 = project
         .create_payment_method()
-        .with_name("Method1".into())
+        .with_name(PaymentProviders::External)
         .with_user(&user2)
         .finish();
 
@@ -170,22 +168,27 @@ fn find_for_user() {
 
     // Using specific names
     let found_payment_methods =
-        PaymentMethod::find_for_user(user.id, Some("Method1".into()), &connection).unwrap();
+        PaymentMethod::find_for_user(user.id, Some(PaymentProviders::External), &connection)
+            .unwrap();
     assert_eq!(vec![payment_method.clone()], found_payment_methods);
     let found_payment_methods =
-        PaymentMethod::find_for_user(user2.id, Some("Method1".into()), &connection).unwrap();
+        PaymentMethod::find_for_user(user2.id, Some(PaymentProviders::External), &connection)
+            .unwrap();
     assert_eq!(vec![payment_method3.clone()], found_payment_methods);
     let found_payment_methods =
-        PaymentMethod::find_for_user(user3.id, Some("Method1".into()), &connection).unwrap();
+        PaymentMethod::find_for_user(user3.id, Some(PaymentProviders::External), &connection)
+            .unwrap();
     assert!(found_payment_methods.is_empty());
 
     let found_payment_methods =
-        PaymentMethod::find_for_user(user.id, Some("Method2".into()), &connection).unwrap();
+        PaymentMethod::find_for_user(user.id, Some(PaymentProviders::Stripe), &connection).unwrap();
     assert_eq!(vec![payment_method2.clone()], found_payment_methods);
     let found_payment_methods =
-        PaymentMethod::find_for_user(user2.id, Some("Method2".into()), &connection).unwrap();
+        PaymentMethod::find_for_user(user2.id, Some(PaymentProviders::Stripe), &connection)
+            .unwrap();
     assert!(found_payment_methods.is_empty());
     let found_payment_methods =
-        PaymentMethod::find_for_user(user3.id, Some("Method2".into()), &connection).unwrap();
+        PaymentMethod::find_for_user(user3.id, Some(PaymentProviders::Stripe), &connection)
+            .unwrap();
     assert!(found_payment_methods.is_empty());
 }

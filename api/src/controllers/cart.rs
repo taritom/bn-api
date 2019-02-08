@@ -9,7 +9,7 @@ use communications::mailers;
 use config::Config;
 use db::Connection;
 use diesel::pg::PgConnection;
-use errors::BigNeonError;
+use errors::*;
 use extractors::*;
 use helpers::application;
 use itertools::Itertools;
@@ -193,16 +193,16 @@ pub enum PaymentRequest {
     },
     Card {
         token: String,
-        provider: String,
+        provider: PaymentProviders,
         save_payment_method: bool,
         set_default: bool,
     },
     Provider {
-        provider: String,
+        provider: PaymentProviders,
     },
     PaymentMethod {
         #[serde(default, deserialize_with = "deserialize_unless_blank")]
-        provider: Option<String>,
+        provider: Option<PaymentProviders>,
     },
     // Only for 0 amount carts
     Free,
@@ -310,7 +310,7 @@ pub fn checkout(
         }
         PaymentRequest::PaymentMethod { provider } => {
             info!("CART: Received provider payment");
-            let provider = match provider {
+            let provider: PaymentProviders = match provider {
                 Some(provider) => provider.clone(),
                 None => match user
                     .user
@@ -332,7 +332,7 @@ pub fn checkout(
                 None,
                 &user,
                 &state.config.primary_currency,
-                &provider,
+                provider.clone(),
                 true,
                 false,
                 false,
@@ -346,7 +346,7 @@ pub fn checkout(
             None,
             &user,
             &state.config.primary_currency,
-            provider,
+            *provider,
             false,
             false,
             false,
@@ -364,7 +364,7 @@ pub fn checkout(
             Some(&token),
             &user,
             &state.config.primary_currency,
-            provider,
+            *provider,
             false,
             *save_payment_method,
             *set_default,
@@ -503,7 +503,7 @@ fn checkout_payment_processor(
     token: Option<&str>,
     auth_user: &User,
     currency: &str,
-    provider_name: &str,
+    provider: PaymentProviders,
     use_stored_payment: bool,
     save_payment_method: bool,
     set_default: bool,
@@ -521,7 +521,7 @@ fn checkout_payment_processor(
         );
     }
 
-    let client = service_locator.create_payment_processor(provider_name)?;
+    let client = service_locator.create_payment_processor(provider)?;
     match client.behavior() {
         PaymentProcessorBehavior::RedirectToPaymentPage(behavior) => {
             return redirect_to_payment_page(&*behavior, &auth_user.user, order, conn.get(), config);
@@ -531,7 +531,7 @@ fn checkout_payment_processor(
                 info!("CART: Using stored payment");
                 match auth_user
                     .user
-                    .payment_method(provider_name.to_string(), connection)
+                    .payment_method(provider, connection)
                     .optional()?
                 {
                     Some(payment_method) => payment_method.provider,
@@ -556,7 +556,7 @@ fn checkout_payment_processor(
                     info!("CART: User has requested to save the payment method");
                     match auth_user
                         .user
-                        .payment_method(provider_name.to_string(), connection)
+                        .payment_method(provider, connection)
                         .optional()?
                     {
                         Some(payment_method) => {
@@ -593,7 +593,7 @@ fn checkout_payment_processor(
                                 behavior.create_token_for_repeat_charges(token, "Big Neon")?;
                             let _payment_method = PaymentMethod::create(
                                 auth_user.id(),
-                                provider_name.to_string(),
+                                provider,
                                 set_default,
                                 repeat_token.token.clone(),
                                 repeat_token.to_json()?,
@@ -639,7 +639,7 @@ fn auth_then_complete(
     let payment = match order.add_credit_card_payment(
         auth_user.id(),
         amount,
-        client.name(),
+        client.payment_provider(),
         auth_result.id.clone(),
         PaymentStatus::Authorized,
         auth_result.to_json()?,
@@ -707,7 +707,7 @@ fn redirect_to_payment_page(
         )),
     )?;
 
-    jlog!(Info, &format!("{} payment created", client.name()), {"order_id": order.id, "payment_provider_id": response.id});
+    jlog!(Info, &format!("{} payment created", client.payment_provider()), {"order_id": order.id, "payment_provider_id": response.id});
 
     order.add_checkout_url(
         user.id,
@@ -720,7 +720,7 @@ fn redirect_to_payment_page(
 
     order.add_provider_payment(
         Some(external_reference),
-        client.name(),
+        client.payment_provider(),
         Some(user.id),
         amount,
         PaymentStatus::Requested,

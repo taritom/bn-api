@@ -1,3 +1,4 @@
+use bigneon_db::models::PaymentProviders;
 use config::Config;
 use errors::*;
 use payments::globee::GlobeePaymentProcessor;
@@ -21,17 +22,20 @@ impl ServiceLocator {
 
     pub fn create_payment_processor(
         &self,
-        provider_name: &str,
+        provider: PaymentProviders,
     ) -> Result<Box<PaymentProcessor>, BigNeonError> {
-        match provider_name.to_lowercase().as_str() {
-            "stripe" => Ok(Box::new(StripePaymentProcessor::new(
+        match provider {
+            PaymentProviders::Stripe => Ok(Box::new(StripePaymentProcessor::new(
                 self.stripe_secret_key.clone(),
             ))),
-            "globee" => Ok(Box::new(GlobeePaymentProcessor::new(
+            PaymentProviders::Globee => Ok(Box::new(GlobeePaymentProcessor::new(
                 self.globee_api_key.clone(),
                 self.globee_base_url.clone(),
             ))),
-            _ => return Err(ApplicationError::new("Unknown payment provider".into()).into()),
+            // External is not valid for service locator
+            PaymentProviders::External => {
+                return Err(ApplicationError::new("Unknown payment provider".into()).into());
+            }
         }
     }
 }

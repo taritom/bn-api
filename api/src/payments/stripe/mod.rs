@@ -1,3 +1,4 @@
+use bigneon_db::models::PaymentProviders;
 use payments::charge_auth_result::ChargeAuthResult;
 use payments::charge_result::ChargeResult;
 use payments::payment_processor::AuthThenCompletePaymentBehavior;
@@ -63,8 +64,8 @@ impl PaymentProcessor for StripePaymentProcessor {
 }
 
 impl<'a> AuthThenCompletePaymentBehavior for StripePaymentBehavior {
-    fn name(&self) -> String {
-        "Stripe".to_string()
+    fn payment_provider(&self) -> PaymentProviders {
+        PaymentProviders::Stripe
     }
     fn create_token_for_repeat_charges(
         &self,

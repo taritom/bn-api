@@ -95,7 +95,7 @@ impl ProcessPaymentIPNExecutor {
 
                 order.add_provider_payment(
                     Some(external_reference.to_string()),
-                    "globee".to_string(),
+                    PaymentProviders::Globee,
                     None,
                     (ipn.payment_details.received_amount.unwrap_or(0f64) * 100f64) as i64,
                     status,

@@ -2,7 +2,8 @@ use chrono::prelude::*;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use models::{DomainEvent, DomainEventTypes, ForDisplay, Tables};
+use diesel::sql_types::Text;
+use models::{DomainEvent, DomainEventTypes, ForDisplay, PaymentProviders, Tables};
 use schema::*;
 use serde_json;
 use utils::errors::*;
@@ -12,7 +13,7 @@ use uuid::Uuid;
 pub struct PaymentMethod {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub name: String,
+    pub name: PaymentProviders,
     pub is_default: bool,
     pub provider: String,
     pub provider_data: serde_json::Value,
@@ -26,10 +27,12 @@ pub struct PaymentMethodEditableAttributes {
     pub provider_data: Option<serde_json::Value>,
 }
 
+sql_function!(fn lower(x: Text) -> Text);
+
 impl PaymentMethod {
     pub fn create(
         user_id: Uuid,
-        name: String,
+        name: PaymentProviders,
         is_default: bool,
         provider: String,
         data: serde_json::Value,
@@ -59,7 +62,7 @@ impl PaymentMethod {
 
     pub fn find_for_user(
         user_id: Uuid,
-        name: Option<String>,
+        name: Option<PaymentProviders>,
         conn: &PgConnection,
     ) -> Result<Vec<PaymentMethod>, DatabaseError> {
         let mut query = payment_methods::table
@@ -67,7 +70,7 @@ impl PaymentMethod {
             .into_boxed();
 
         if let Some(name) = name {
-            query = query.filter(payment_methods::name.eq(name));
+            query = query.filter(lower(payment_methods::name).eq(lower(name)));
         }
 
         query
@@ -116,7 +119,7 @@ impl ForDisplay<DisplayPaymentMethod> for PaymentMethod {
 #[table_name = "payment_methods"]
 pub struct NewPaymentMethod {
     user_id: Uuid,
-    name: String,
+    name: PaymentProviders,
     is_default: bool,
     provider: String,
     provider_data: serde_json::Value,
@@ -149,7 +152,7 @@ impl NewPaymentMethod {
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct DisplayPaymentMethod {
-    pub name: String,
+    pub name: PaymentProviders,
     pub is_default: bool,
 }
 

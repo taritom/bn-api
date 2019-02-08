@@ -33,12 +33,7 @@ macro_rules! string_enum {
         impl FromSql<Text, Pg> for $name {
             fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
                 let s = str::from_utf8(not_none!(bytes))?;
-                match s {
-                    $(
-                        stringify!($value) => Ok($name::$value),
-                    )*
-                    _ => Err(format!("Unrecognized enum variant:{}", s).into()),
-                }
+                s.parse().map_err(|_| format!("Unrecognized enum variant:{}", s).into())
             }
         }
 
@@ -122,6 +117,7 @@ string_enum! { OrderStatus [Cancelled, Draft, Paid, PendingPayment] }
 string_enum! { OrderItemTypes [Tickets, PerUnitFees, EventFees]}
 string_enum! { OrderTypes [Cart, BackOffice] }
 string_enum! { PaymentMethods [External, CreditCard, Provider] }
+string_enum! { PaymentProviders [External, Globee, Stripe] }
 string_enum! { PaymentStatus [Authorized, Completed, Requested, Refunded, Unpaid, PendingConfirmation, Cancelled, Draft, Unknown] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Roles [Admin, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, DoorPerson, User] }

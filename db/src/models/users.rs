@@ -472,7 +472,7 @@ impl User {
 
     pub fn payment_method(
         &self,
-        name: String,
+        name: PaymentProviders,
         conn: &PgConnection,
     ) -> Result<PaymentMethod, DatabaseError> {
         let mut payment_methods = PaymentMethod::find_for_user(self.id, Some(name), conn)?;

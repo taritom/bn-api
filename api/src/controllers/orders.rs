@@ -252,7 +252,7 @@ pub fn refund(
             if payment.payment_method == PaymentMethods::CreditCard {
                 let client = &state
                     .service_locator
-                    .create_payment_processor(&payment.provider)?;
+                    .create_payment_processor(payment.provider)?;
 
                 refund_data = match payment.external_reference {
                     Some(ref external_reference) => Some(

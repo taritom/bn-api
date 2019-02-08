@@ -3,7 +3,6 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use models::orders::Order;
 use models::*;
 use schema::payments;
 use serde_json;
@@ -19,7 +18,7 @@ pub struct Payment {
     pub status: PaymentStatus,
     pub payment_method: PaymentMethods,
     pub amount: i64,
-    pub provider: String,
+    pub provider: PaymentProviders,
     pub external_reference: Option<String>,
     raw_data: Option<serde_json::Value>,
     created_at: NaiveDateTime,
@@ -32,7 +31,7 @@ impl Payment {
         created_by: Option<Uuid>,
         status: PaymentStatus,
         payment_method: PaymentMethods,
-        provider: String,
+        provider: PaymentProviders,
         external_reference: Option<String>,
         amount: i64,
         raw_data: Option<serde_json::Value>,
@@ -238,7 +237,7 @@ pub struct NewPayment {
     payment_method: PaymentMethods,
     external_reference: Option<String>,
     amount: i64,
-    provider: String,
+    provider: PaymentProviders,
     raw_data: Option<serde_json::Value>,
 }
 
