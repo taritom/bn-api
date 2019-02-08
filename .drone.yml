@@ -168,33 +168,37 @@ steps:
           event: [pull_request, push]
           branch: master
 
-    - name: publish
-      image: plugins/ecr
+#    - name: publish
+#      image: plugins/ecr
+#      depends_on:
+##        - cargo-audit
+#        - api-tests
+#        - integration-tests
+#        - other-tests
+#      settings:
+#        dockerfile: Dockerfile.drone
+#        tags:
+#          - latest
+#          - 0.2.${DRONE_BUILD_NUMBER}
+#        region:
+#            from_secret: aws_region
+#        repo:
+#            from_secret: docker_repo
+#        access_key:
+#            from_secret: aws_access_key_id
+#        secret_key:
+#            from_secret: aws_secret_access_key
+#      when:
+#        branch: master
+#        event: push
+
+    - name: tag-commit
       depends_on:
+#        - publish
 #        - cargo-audit
         - api-tests
         - integration-tests
         - other-tests
-      settings:
-        dockerfile: Dockerfile.drone
-        tags:
-          - latest
-          - 0.2.${DRONE_BUILD_NUMBER}
-        region:
-            from_secret: aws_region
-        repo:
-            from_secret: docker_repo
-        access_key:
-            from_secret: aws_access_key_id
-        secret_key:
-            from_secret: aws_secret_access_key
-      when:
-        branch: master
-        event: push
-
-    - name: tag-commit
-      depends_on:
-        - publish
       image: sdbondi/git-ssh-client:0.1-alpine
       environment:
           <<: *env
@@ -206,29 +210,30 @@ steps:
           event: push
           branch: master
 
-    - name: deploy-dev
-      image: sdbondi/drone-lambda-trigger
-      depends_on:
-          - publish
-      environment: *env
-      settings:
-        access_key_id:
-            from_secret: aws_access_key_id
-        aws_region:
-            from_secret: aws_region
-        secret_access_key:
-            from_secret: aws_secret_access_key
-        function_name:
-            from_secret: deploy_lambda_function_name
-        payload: |-
-          {\\"targetName\\": \\"bn-api-staging\\", \\"tag\\": \\"$APP_VERSION\\"}
-      when:
-          branch: master
-          event: push
+#    - name: deploy-dev
+#      image: sdbondi/drone-lambda-trigger
+#      depends_on:
+#          - publish
+#      environment: *env
+#      settings:
+#        access_key_id:
+#            from_secret: aws_access_key_id
+#        aws_region:
+#            from_secret: aws_region
+#        secret_access_key:
+#            from_secret: aws_secret_access_key
+#        function_name:
+#            from_secret: deploy_lambda_function_name
+#        payload: |-
+#          {\\"targetName\\": \\"bn-api-staging\\", \\"tag\\": \\"$APP_VERSION\\"}
+#      when:
+#          branch: master
+#          event: push
 
     - name: flush-cache
       depends_on:
-        - deploy-dev
+#        - deploy-dev
+	- tag-commit
       image: plugins/s3-cache
       settings:
         flush: true
@@ -274,6 +279,6 @@ services:
           branch: master
 ---
 kind: signature
-hmac: ac9f2eeb923366847fddc2b4bd77431768ef76fa28eb343a29c2752bfdab4445
+hmac: 6ac5e57353cf21ffd59ad12dd32cb8a19959a1b677283ef45a8be0a19c25bc76
 
 ...
