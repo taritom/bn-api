@@ -233,7 +233,7 @@ steps:
     - name: flush-cache
       depends_on:
 #        - deploy-dev
-	- tag-commit
+        - tag-commit
       image: plugins/s3-cache
       settings:
         flush: true
@@ -279,6 +279,6 @@ services:
           branch: master
 ---
 kind: signature
-hmac: 6ac5e57353cf21ffd59ad12dd32cb8a19959a1b677283ef45a8be0a19c25bc76
+hmac: 00edb69377609b8284138467bb41ad9190b2d08a23b20f7877f1ced6bea30b48
 
 ...
