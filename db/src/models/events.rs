@@ -699,6 +699,7 @@ impl Event {
                 sold_held: 0,
                 tickets_open: 0,
                 tickets_held: 0,
+                tickets_redeemed: 0,
                 sales_total_in_cents: r.sales_total_in_cents.unwrap_or(0) as u32,
                 ticket_types: vec![],
                 is_external: r.is_external,
@@ -717,6 +718,7 @@ impl Event {
                 result.sold_held += ticket_type.sold_held as u32;
                 result.tickets_open += ticket_type.open as u32;
                 result.tickets_held += ticket_type.held as u32;
+                result.tickets_redeemed += ticket_type.redeemed as u32;
                 result.ticket_types.push(ticket_type);
             }
 
@@ -1242,6 +1244,7 @@ pub struct EventSummaryResult {
     pub sold_held: u32,
     pub tickets_open: u32,
     pub tickets_held: u32,
+    pub tickets_redeemed: u32,
     pub sales_total_in_cents: u32,
     pub ticket_types: Vec<EventSummaryResultTicketType>,
     pub is_external: bool,
@@ -1271,6 +1274,8 @@ pub struct EventSummaryResultTicketType {
     pub open: i64,
     #[sql_type = "sql_types::BigInt"]
     pub held: i64,
+    #[sql_type = "sql_types::BigInt"]
+    pub redeemed: i64,
     #[sql_type = "sql_types::Nullable<sql_types::BigInt>"]
     pub sales_total_in_cents: Option<i64>,
 }

@@ -1,22 +1,22 @@
-
 SELECT t2.event_id,
-       t2.Name,
-       (SELECT min(tp.price_in_cents) FROM ticket_pricing tp WHERE tp.ticket_type_id = t2.id) AS min_price,
-       (SELECT max(tp.price_in_cents) FROM ticket_pricing tp WHERE tp.ticket_type_id = t2.id) AS max_price,
-       count(*)                                                                               AS total,
+       t2.name,
+       (SELECT min(tp.price_in_cents) FROM ticket_pricing tp WHERE tp.ticket_type_id = t2.id)                         AS min_price,
+       (SELECT max(tp.price_in_cents) FROM ticket_pricing tp WHERE tp.ticket_type_id = t2.id)                         AS max_price,
+       count(*)                                                                                                       AS total,
        CAST(sum(CASE
-             WHEN ti.status in ( 'Purchased', 'Redeemed') AND ti.hold_id IS NULL THEN 1
-             ELSE 0 END)     as BigInt)                                                                  AS sold_unreserved,
+                  WHEN ti.status in ('Purchased', 'Redeemed') AND ti.hold_id IS NULL THEN 1
+                  ELSE 0 END) as BigInt)                                                                              AS sold_unreserved,
        CAST(sum(CASE
-             WHEN ti.status IN ('Purchased', 'Redeemed') AND ti.hold_id IS NOT NULL THEN 1
-             ELSE 0 END)   as BigInt)                                                                    AS sold_held,
-       CAST(sum(CASE WHEN ti.status in ('Available', 'Reserved') AND ti.hold_id IS NULL THEN 1 ELSE 0 END)   as BigInt)                             AS open,
-       CAST(sum(CASE WHEN ti.hold_id IS NOT NULL THEN 1 ELSE 0 END)   as BigInt)                             AS held,
+                  WHEN ti.status IN ('Purchased', 'Redeemed') AND ti.hold_id IS NOT NULL THEN 1
+                  ELSE 0 END) as BigInt)                                                                              AS sold_held,
+       CAST(sum(CASE WHEN ti.status in ('Available', 'Reserved') AND ti.hold_id IS NULL THEN 1 ELSE 0 END) as BigInt) AS open,
+       CAST(sum(CASE WHEN ti.hold_id IS NOT NULL THEN 1 ELSE 0 END) as BigInt)                                        AS held,
+       CAST(sum(CASE WHEN ti.status = 'Redeemed' THEN 1 ELSE 0 END) as BigInt)                                        AS redeemed,
        (SELECT cast(sum(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)) as BIGINT)
         FROM order_items oi
                INNER JOIN orders o ON oi.order_id = o.id
         WHERE oi.ticket_type_id = t2.id
-          AND o.status = 'Paid') as sales_total_in_cents
+          AND o.status = 'Paid')                                                                                      as sales_total_in_cents
 FROM ticket_instances ti
        INNER JOIN assets a
        INNER JOIN ticket_types t2
