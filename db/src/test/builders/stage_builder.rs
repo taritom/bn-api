@@ -12,7 +12,7 @@ pub struct StageBuilder<'a> {
 
 impl<'a> StageBuilder<'a> {
     pub fn new(connection: &PgConnection) -> StageBuilder {
-        let x: i32 = rand::random::<i32>();
+        let x: u32 = rand::random();
 
         StageBuilder {
             connection,

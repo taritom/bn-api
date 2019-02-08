@@ -18,7 +18,7 @@ pub struct OrganizationBuilder<'a> {
 
 impl<'a> OrganizationBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> OrganizationBuilder {
-        let x: u16 = random();
+        let x: u32 = random();
         OrganizationBuilder {
             name: format!("test org{}", x).into(),
             members: HashMap::new(),
@@ -66,7 +66,7 @@ impl<'a> OrganizationBuilder<'a> {
         };
 
         if self.fee_schedule.is_none() {
-            let x: u16 = random();
+            let x: u32 = random();
             let fee_schedule = FeeSchedule::create(
                 format!("{} fees.{}", self.name, x).into(),
                 vec![NewFeeScheduleRange {

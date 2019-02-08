@@ -438,7 +438,7 @@ fn send_to_existing_user() {
     let expected_tickets = tickets.clone();
 
     let receiver = database.create_user().finish();
-    let mut ticket_transfer_request = SendTicketsRequest {
+    let ticket_transfer_request = SendTicketsRequest {
         ticket_ids: tickets,
         validity_period_in_seconds: Some(600),
         email_or_phone: receiver.email.unwrap(),

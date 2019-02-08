@@ -9,7 +9,7 @@ pub struct RegionBuilder<'a> {
 
 impl<'a> RegionBuilder<'a> {
     pub fn new(connection: &PgConnection) -> RegionBuilder {
-        let x: u16 = random();
+        let x: u32 = random();
         RegionBuilder {
             connection,
             name: format!("Region {}", x).into(),

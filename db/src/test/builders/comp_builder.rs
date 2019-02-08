@@ -13,7 +13,7 @@ pub struct CompBuilder<'a> {
 
 impl<'a> CompBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> Self {
-        let x: u16 = random();
+        let x: u32 = random();
         CompBuilder {
             name: format!("Comp {}", x).into(),
             connection,

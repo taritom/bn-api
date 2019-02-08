@@ -16,7 +16,7 @@ pub struct HoldBuilder<'a> {
 
 impl<'a> HoldBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> Self {
-        let x: u16 = random();
+        let x: u32 = random();
         HoldBuilder {
             name: format!("Hold {}", x).into(),
             redemption_code: format!("REDEEM{}", x).into(),

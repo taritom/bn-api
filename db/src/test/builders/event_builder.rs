@@ -26,7 +26,7 @@ pub struct EventBuilder<'a> {
 
 impl<'a> EventBuilder<'a> {
     pub fn new(connection: &PgConnection) -> EventBuilder {
-        let x: u16 = random();
+        let x: u32 = random();
         EventBuilder {
             name: format!("Event {}", x).into(),
             status: EventStatus::Published,

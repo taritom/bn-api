@@ -14,7 +14,7 @@ pub struct ArtistBuilder<'a> {
 
 impl<'a> ArtistBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> Self {
-        let x: u16 = random();
+        let x: u32 = random();
         ArtistBuilder {
             name: format!("Artist {}", x).into(),
             bio: "Bigraphy".into(),

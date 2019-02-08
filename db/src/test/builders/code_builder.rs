@@ -25,7 +25,7 @@ pub struct CodeBuilder<'a> {
 
 impl<'a> CodeBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> Self {
-        let x: u16 = random();
+        let x: u32 = random();
         let redemption_code = thread_rng()
             .sample_iter(&Alphanumeric)
             .take(10)
