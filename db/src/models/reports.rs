@@ -31,6 +31,12 @@ pub struct TicketSalesRow {
     #[sql_type = "Nullable<Text>"]
     pub ticket_pricing_name: Option<String>,
     #[sql_type = "BigInt"]
+    pub ticket_pricing_price_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub box_office_refunded_count: i64,
+    #[sql_type = "BigInt"]
+    pub online_refunded_count: i64,
+    #[sql_type = "BigInt"]
     pub box_office_sales_in_cents: i64,
     #[sql_type = "BigInt"]
     pub online_sales_in_cents: i64,
