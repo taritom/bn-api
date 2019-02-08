@@ -597,18 +597,6 @@ pub fn dashboard(
     }))
 }
 
-pub fn show_from_venues(
-    (connection, venue_id, query_parameters): (
-        Connection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-    ),
-) -> Result<HttpResponse, BigNeonError> {
-    let events = Event::find_all_active_events_for_venue(&venue_id.id, connection.get())?;
-    let payload = Payload::from_data(events, query_parameters.page(), query_parameters.limit());
-    Ok(HttpResponse::Ok().json(&payload))
-}
-
 #[derive(Deserialize, Debug)]
 pub struct AddArtistRequest {
     pub artist_id: Uuid,

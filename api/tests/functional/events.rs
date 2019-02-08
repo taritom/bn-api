@@ -1105,60 +1105,6 @@ pub fn show_from_organizations_upcoming() {
     );
 }
 
-#[test]
-pub fn show_from_venues() {
-    let database = TestDatabase::new();
-
-    let organization = database.create_organization().finish();
-    let venue = database.create_venue().finish();
-    let event = database
-        .create_event()
-        .with_venue(&venue)
-        .with_name("NewEvent".to_string())
-        .with_organization(&organization)
-        .finish();
-    let event2 = database
-        .create_event()
-        .with_venue(&venue)
-        .with_name("NewEvent2".to_string())
-        .with_organization(&organization)
-        .finish();
-    // Private event is not returned
-    let private_venue = database.create_venue().make_private().finish();
-    let _event3 = database
-        .create_event()
-        .with_name("NewEvent3".to_string())
-        .with_organization(&organization)
-        .with_venue(&private_venue)
-        .finish();
-
-    let all_events = vec![event, event2];
-    //find venue from organization
-    let test_request = TestRequest::create();
-
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = venue.id;
-    let test_request = TestRequest::create_with_uri(&format!("/limits?"));
-    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        events::show_from_venues((database.connection.into(), path, query_parameters)).into();
-    let wrapped_expected_events = Payload {
-        data: all_events,
-        paging: Paging {
-            page: 0,
-            limit: 100,
-            sort: "".to_string(),
-            dir: SortingDir::Asc,
-            total: 2,
-            tags: HashMap::new(),
-        },
-    };
-    let expected_json = serde_json::to_string(&wrapped_expected_events).unwrap();
-    let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(body, expected_json);
-}
-
 #[derive(Serialize)]
 struct EventVenueEntry {
     id: Uuid,
