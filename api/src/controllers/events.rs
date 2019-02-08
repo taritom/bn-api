@@ -22,6 +22,7 @@ pub struct SearchParameters {
     query: Option<String>,
     region_id: Option<Uuid>,
     organization_id: Option<Uuid>,
+    venue_id: Option<Uuid>,
     #[serde(
         default,
         with = "serde_with::rust::StringWithSeparator::<CommaSeparator>"
@@ -124,6 +125,7 @@ pub fn index(
         query.query.clone(),
         query.region_id,
         query.organization_id,
+        query.venue_id,
         query.start_utc,
         query.end_utc,
         if query.status.is_empty() {

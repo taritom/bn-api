@@ -681,6 +681,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
@@ -692,6 +693,7 @@ fn search() {
 
     // All events organization owner
     let all_found_events = Event::search(
+        None,
         None,
         None,
         None,
@@ -715,6 +717,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         Some(organization_user),
@@ -726,6 +729,7 @@ fn search() {
 
     // All events normal user not part of event organization
     let all_found_events = Event::search(
+        None,
         None,
         None,
         None,
@@ -749,6 +753,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         Some(admin),
@@ -761,6 +766,7 @@ fn search() {
     // No name specified
     let all_found_events = Event::search(
         Some("".to_string()),
+        None,
         None,
         None,
         None,
@@ -782,6 +788,7 @@ fn search() {
         Some(organization.id),
         None,
         None,
+        None,
         Some(vec![EventStatus::Published]),
         EventSearchSortField::EventStart,
         SortingDir::Asc,
@@ -796,6 +803,7 @@ fn search() {
     // Limited by just Published and Offline events
     let all_found_events = Event::search(
         Some("".to_string()),
+        None,
         None,
         None,
         None,
@@ -819,6 +827,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         Some(vec![EventStatus::Closed]),
         EventSearchSortField::EventStart,
         SortingDir::Asc,
@@ -833,6 +842,7 @@ fn search() {
     // Event name search
     let all_found_events = Event::search(
         Some("New".to_string()),
+        None,
         None,
         None,
         None,
@@ -857,6 +867,26 @@ fn search() {
         None,
         None,
         None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        project.get_connection(),
+    )
+    .unwrap();
+    assert_eq!(all_found_events.len(), 1);
+    assert_eq!(all_events[0], all_found_events[0]);
+
+    // Venue id  search
+    let all_found_events = Event::search(
+        None,
+        None,
+        None,
+        Some(venue1.id),
+        None,
+        None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
@@ -870,6 +900,7 @@ fn search() {
     // Artist name search for artist in both events
     let all_found_events = Event::search(
         Some("Artist1".to_string()),
+        None,
         None,
         None,
         None,
@@ -894,6 +925,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
@@ -907,6 +939,7 @@ fn search() {
     // Match names Venue2 and Artist2 returning all events
     let all_found_events = Event::search(
         Some("2".to_string()),
+        None,
         None,
         None,
         None,
@@ -929,6 +962,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
@@ -943,6 +977,7 @@ fn search() {
     let all_found_events = Event::search(
         None,
         Some(region2.id.into()),
+        None,
         None,
         None,
         None,
@@ -966,6 +1001,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
@@ -979,6 +1015,7 @@ fn search() {
     let all_found_events = Event::search(
         Some("Artist2".to_string()),
         Some(region1.id.into()),
+        None,
         None,
         None,
         None,
@@ -997,6 +1034,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
         None,
@@ -1012,6 +1050,7 @@ fn search() {
     assert_eq!(all_events[2], all_found_events[1]);
 
     let all_found_events = Event::search(
+        None,
         None,
         None,
         None,

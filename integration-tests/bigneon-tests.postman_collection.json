@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "2733728d-636c-44ca-9a0b-9e65386d8a9f",
+		"_postman_id": "5f37e8ca-1fa4-43f0-8aec-ca3f98d26d2b",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -7745,7 +7745,7 @@
 			]
 		},
 		{
-			"name": "Buy Tickets - Setup",
+			"name": "Search",
 			"item": [
 				{
 					"name": "Guest - search for event - Past",
@@ -7833,6 +7833,230 @@
 					},
 					"response": []
 				},
+				{
+					"name": "Admin - Create Venue 2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "df0ee4f1-a80b-4f9d-8404-ed8558bbb456",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"pm.environment.set(\"venue2_id\", JSON.parse(responseBody).id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\":\"Test venue_{{$timestamp}}\",\n\t\"address\": \"1 street street\",\n\t\"city\": \"City\",\n\t\"country\": \"Country\",\n\t\"phone\": \"5555555555\",\n\t\"google_place_id\": null,\n\t\"state\": \"California\",\n\t\"postal_code\": \"23233\",\n\t\"timezone\": \"America/Los_Angeles\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/venues",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"venues"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "OrgMember  - Create Event - Venue 2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "91fe0a26-e6a0-437a-a7e7-834185ecf193",
+								"exec": [
+									"pm.test(\"should be 201\", function() {",
+									"    pm.response.to.have.status(201);",
+									"})",
+									"",
+									"pm.environment.set(\"event2_id\", JSON.parse(responseBody).id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{org_member_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{venue2_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"event_end\": \"2020-11-14T12:00:00\",\n    \"event_type\": \"Music\",\n    \"promo_image_url\": \"http://nope.nope\"\n}"
+						},
+						"url": {
+							"raw": "http://{{server}}/events",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "OrgMember  - Publish Event 2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "c5e62cfa-62d4-44b3-94cb-e6946bb423c2",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{org_member_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events/{{event2_id}}/publish",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events",
+								"{{event2_id}}",
+								"publish"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Guest - search for event - By Venue - Upcoming",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "f40a2996-aa1a-4be7-925f-1e55828eb494",
+								"exec": [
+									"pm.test(\"should be 200\", function() {",
+									"    pm.response.to.have.status(200);",
+									"})",
+									"",
+									"pm.test(\"should only be for venue 2\", function() {",
+									"    let json = JSON.parse(responseBody);",
+									"    let venue2_id = pm.environment.get(\"venue2_id\");",
+									"    let all_venue2 = true;",
+									"    for (let i =0; i< json.data.length;i++) {",
+									"        if (json.data[i].venue_id !== venue2_id) {",
+									"            all_venue2 = false;",
+									"        }",
+									"    }",
+									"    pm.expect(all_venue2).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://{{server}}/events?past_or_upcoming=upcoming&venue_id={{venue2_id}}",
+							"protocol": "http",
+							"host": [
+								"{{server}}"
+							],
+							"path": [
+								"events"
+							],
+							"query": [
+								{
+									"key": "past_or_upcoming",
+									"value": "upcoming"
+								},
+								{
+									"key": "venue_id",
+									"value": "{{venue2_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Buy Tickets - Setup",
+			"item": [
 				{
 					"name": "Guest - view event tickets",
 					"event": [
@@ -13168,8 +13392,8 @@
 									"",
 									"let json = JSON.parse(responseBody);",
 									"",
-									"pm.test(\"There should be 1 event that Admin can checkin\", function() {",
-									"    pm.expect(json.data.length).to.equal(1);",
+									"pm.test(\"There should be 2 event that Admin can checkin\", function() {",
+									"    pm.expect(json.data.length).to.equal(2);",
 									"});"
 								],
 								"type": "text/javascript"

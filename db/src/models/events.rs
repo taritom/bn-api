@@ -814,6 +814,7 @@ impl Event {
         query_filter: Option<String>,
         region_id: Option<Uuid>,
         organization_id: Option<Uuid>,
+        venue_id: Option<Uuid>,
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
         status_filter: Option<Vec<EventStatus>>,
@@ -918,6 +919,9 @@ impl Event {
 
         if let Some(organization_id) = organization_id {
             query = query.filter(events::organization_id.eq(organization_id));
+        }
+        if let Some(venue_id) = venue_id {
+            query = query.filter(events::venue_id.eq(venue_id));
         }
 
         if let Some(statuses) = status_filter {
