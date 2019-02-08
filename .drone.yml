@@ -83,7 +83,7 @@ steps:
     - name: compile
       depends_on:
         - restore-cache
-      image: quay.io/tarilabs/rust:1.30-alpine
+      image: rust:1.31.1
       environment: *env
       commands:
       - cargo build --release
@@ -272,6 +272,6 @@ services:
           branch: master
 ---
 kind: signature
-hmac: b9264a0b0c9408e826228df746a420d0798f31cd2960b632d2df1480c22e5848
+hmac: 9849cae54062f2c3d2e80f35fcb01e7857586b1a120c6a8dd1695defc32dd100
 
 ...

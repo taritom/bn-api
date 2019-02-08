@@ -18,3 +18,5 @@ then
     cat /tmp/api.log
     exit $NEWMAN_EXIT_CODE
 fi
+cd api
+cargo run --release -- -b true
