@@ -387,6 +387,7 @@ pub fn show(
         status: EventStatus,
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
+        cover_image_url: Option<String>,
         additional_info: Option<String>,
         top_line_info: Option<String>,
         age_limit: Option<i32>,
@@ -422,6 +423,8 @@ pub fn show(
         status: event.status,
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url,
+        cover_image_url: event.cover_image_url,
+
         additional_info: event.additional_info,
         top_line_info: event.top_line_info,
         age_limit: event.age_limit,

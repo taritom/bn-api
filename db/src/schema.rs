@@ -140,6 +140,7 @@ table! {
         event_end -> Nullable<Timestamp>,
         sendgrid_list_id -> Nullable<Int8>,
         event_type -> Text,
+        cover_image_url -> Nullable<Text>,
     }
 }
 

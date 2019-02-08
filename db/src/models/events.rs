@@ -53,6 +53,7 @@ pub struct Event {
     pub event_end: Option<NaiveDateTime>,
     pub sendgrid_list_id: Option<i64>,
     pub event_type: EventTypes,
+    pub cover_image_url: Option<String>,
 }
 
 #[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
@@ -70,6 +71,9 @@ pub struct NewEvent {
     #[validate(url(message = "Promo image URL is invalid"))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub promo_image_url: Option<String>,
+    #[validate(url(message = "Cover image URL is invalid"))]
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub cover_image_url: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub additional_info: Option<String>,
     pub age_limit: Option<i32>,
@@ -132,6 +136,9 @@ pub struct EventEditableAttributes {
     #[validate(url(message = "Promo image URL is invalid"))]
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub promo_image_url: Option<Option<String>>,
+    #[validate(url(message = "Cover image URL is invalid"))]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub cover_image_url: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub additional_info: Option<Option<String>>,
     pub age_limit: Option<i32>,
@@ -1136,12 +1143,13 @@ impl Event {
             event_start: self.event_start,
             door_time: self.door_time,
             promo_image_url: self.promo_image_url,
+            cover_image_url: self.cover_image_url,
             additional_info: self.additional_info,
             top_line_info: self.top_line_info,
             artists,
             venue: display_venue,
-            max_ticket_price: max_ticket_price,
-            min_ticket_price: min_ticket_price,
+            max_ticket_price,
+            min_ticket_price,
             video_url: self.video_url,
             is_external: self.is_external,
             external_url: self.external_url,
@@ -1159,6 +1167,7 @@ pub struct DisplayEvent {
     pub event_start: Option<NaiveDateTime>,
     pub door_time: Option<NaiveDateTime>,
     pub promo_image_url: Option<String>,
+    pub cover_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub top_line_info: Option<String>,
     pub artists: Vec<DisplayEventArtist>,

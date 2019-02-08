@@ -31,7 +31,22 @@ export IPN_BASE_URL="TEST"
 export DATABASE_URL=postgres://postgres:password123@localhost/bigneon_ci
 printenv
 ./scripts/run-api-tests.sh
+export EXITCODE=$?
+if [ $EXITCODE -ne 0 ]
+then
+    exit $EXITCODE
+fi
 ./scripts/run-other-tests.sh
+export EXITCODE=$?
+if [ $EXITCODE -ne 0 ]
+then
+    exit $EXITCODE
+fi
 export RUST_BACKTRACE=1
 export RUST_LOG=error # Postman output is very verbose
 ./scripts/run-integration-tests-local.sh
+export EXITCODE=$?
+if [ $EXITCODE -ne 0 ]
+then
+    exit $EXITCODE
+fi
