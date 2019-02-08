@@ -170,7 +170,7 @@ steps:
     - name: publish
       image: plugins/ecr
       depends_on:
-        - cargo-audit
+#        - cargo-audit
         - api-tests
         - integration-tests
         - other-tests
@@ -273,6 +273,6 @@ services:
           branch: master
 ---
 kind: signature
-hmac: 3060ab8ba446770bcdc7a76cb0a8507b98cce91bb7bae360bb59011bc1e3aaec
+hmac: ac9f2eeb923366847fddc2b4bd77431768ef76fa28eb343a29c2752bfdab4445
 
 ...
