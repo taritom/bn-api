@@ -111,15 +111,15 @@ steps:
         event: [pull_request, push]
         branch: master
 
-    - name: cargo-audit
-      depends_on:
-        - compile
-      image: sdbondi/bn-api-builder:latest
-      commands:
-        - ./scripts/run-cargo-audit.sh
-      when:
-        event: [pull_request, push]
-        branch: master
+#    - name: cargo-audit
+#      depends_on:
+#        - compile
+#      image: rust:1.31.1
+#      commands:
+#        - ./scripts/run-cargo-audit.sh
+#      when:
+#        event: [pull_request, push]
+#        branch: master
 
     - name: other-tests
       depends_on:
@@ -273,6 +273,6 @@ services:
           branch: master
 ---
 kind: signature
-hmac: 1fae3e6cf606207a528d2484e905b8dbbc2b1bbc98a90ab61c01b47d66a8cc8b
+hmac: 3060ab8ba446770bcdc7a76cb0a8507b98cce91bb7bae360bb59011bc1e3aaec
 
 ...
