@@ -751,6 +751,7 @@ pub fn expected_show_json(
             .into_iter()
             .filter(|tt| ticket_type_ids.contains(&tt.id))
             .collect::<Vec<TicketType>>();
+        ticket_types.sort_by_key(|tt| tt.name.to_owned());
     }
 
     let mut display_ticket_types: Vec<UserDisplayTicketType> = Vec::new();
