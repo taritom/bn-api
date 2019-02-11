@@ -2,7 +2,7 @@ use actix_web;
 use actix_web::Responder;
 use actix_web::{http::StatusCode, HttpRequest, HttpResponse, Path, Query};
 use auth::user::User as AuthUser;
-use bigneon_db::models::*;
+use bigneon_db::prelude::*;
 use communications::mailers;
 use controllers::auth;
 use controllers::auth::LoginRequest;
@@ -238,7 +238,15 @@ pub fn register(
     }
 
     let new_user: NewUser = parameters.into_inner().into();
-    new_user.commit(connection.get())?;
+    match new_user.commit(connection.get()) {
+        Ok(_) => (),
+        Err(e) => match e.error_code {
+            ErrorCode::DuplicateKeyError => {
+                return application::unprocessable("A user with this email already exists");
+            }
+            _ => return Err(e.into()),
+        },
+    };
 
     if let (Some(first_name), Some(email)) = (new_user.first_name, new_user.email) {
         mailers::user::user_registered(first_name, email, &state.config, connection.get())?;
@@ -277,7 +285,15 @@ pub fn register_and_login(
     let email = parameters.email.clone();
     let password = parameters.password.clone();
     let new_user: NewUser = parameters.into_inner().into();
-    new_user.commit(connection.get())?;
+    match new_user.commit(connection.get()) {
+        Ok(_) => (),
+        Err(e) => match e.error_code {
+            ErrorCode::DuplicateKeyError => {
+                return application::unprocessable("A user with this email already exists");
+            }
+            _ => return Err(e.into()),
+        },
+    };
     let json = Json(LoginRequest::new(&email, &password));
     let token_response = auth::token((http_request.clone(), connection.clone(), json))?;
 
