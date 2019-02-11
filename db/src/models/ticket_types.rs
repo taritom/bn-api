@@ -305,8 +305,15 @@ impl TicketType {
     pub fn valid_available_ticket_count(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
         let valid_available_ticket_count: i64 = ticket_instances::table
             .inner_join(assets::table)
-            .filter(assets::ticket_type_id.eq(self.id))
-            .filter(ticket_instances::status.eq(TicketInstanceStatus::Available))
+            .filter(
+                assets::ticket_type_id.eq(self.id).and(
+                    ticket_instances::status
+                        .eq(TicketInstanceStatus::Available)
+                        .or(ticket_instances::status
+                            .eq(TicketInstanceStatus::Reserved)
+                            .and(ticket_instances::reserved_until.lt(dsl::now.nullable()))),
+                ),
+            )
             .select(dsl::count(ticket_instances::id))
             .first(conn)
             .to_db_error(
