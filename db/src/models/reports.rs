@@ -33,6 +33,10 @@ pub struct TicketSalesRow {
     #[sql_type = "BigInt"]
     pub ticket_pricing_price_in_cents: i64,
     #[sql_type = "BigInt"]
+    pub box_office_order_count: i64,
+    #[sql_type = "BigInt"]
+    pub online_order_count: i64,
+    #[sql_type = "BigInt"]
     pub box_office_refunded_count: i64,
     #[sql_type = "BigInt"]
     pub online_refunded_count: i64,
