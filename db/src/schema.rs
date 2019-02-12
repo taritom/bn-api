@@ -176,6 +176,7 @@ table! {
         version -> Int2,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        organization_id -> Uuid,
     }
 }
 
