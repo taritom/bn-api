@@ -13,6 +13,7 @@ use r2d2;
 use reqwest::header::ToStrError as ReqwestToStrError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeError;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Debug;
 use std::string::ToString;
@@ -120,8 +121,29 @@ impl ConvertToWebError for ReqwestToStrError {
 
 impl ConvertToWebError for PaymentProcessorError {
     fn to_response(&self) -> HttpResponse {
-        error!("Payment Processor error: {}", self);
-        internal_error("Internal error")
+        if let Some(ref validation_response) = self.validation_response {
+            let mut fields = HashMap::new();
+            #[derive(Serialize)]
+            struct R {
+                code: String,
+                message: String,
+            }
+
+            fields.insert(
+                "token",
+                vec![R {
+                    code: "processing-error".into(),
+                    message: format!("Unable to process payment, {}", validation_response),
+                }],
+            );
+
+            HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY)
+                .into_builder()
+                .json(json!({"error": "Validation error", "fields": fields}))
+        } else {
+            error!("Payment Processor error: {}", self);
+            internal_error("Internal error")
+        }
     }
 }
 
