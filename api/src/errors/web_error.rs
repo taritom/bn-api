@@ -1,6 +1,7 @@
 use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use bigneon_db::utils::errors::*;
+use branch_rs::BranchError;
 use diesel::result::Error as DieselError;
 use errors::*;
 use globee::GlobeeError;
@@ -68,6 +69,13 @@ impl ConvertToWebError for r2d2::Error {
 impl ConvertToWebError for GlobeeError {
     fn to_response(&self) -> HttpResponse {
         error!("Globee error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for BranchError {
+    fn to_response(&self) -> HttpResponse {
+        error!("Branch error: {}", self);
         internal_error("Internal error")
     }
 }

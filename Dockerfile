@@ -13,6 +13,7 @@ RUN rm src/*.rs
 
 # Add the actual source code
 ADD api ./api/
+ADD branch_rs ./branch_rs/
 ADD db ./db/
 ADD tari-client ./tari-client/
 ADD stripe ./stripe/
