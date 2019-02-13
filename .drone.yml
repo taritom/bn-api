@@ -88,7 +88,7 @@ steps:
       image: rust:1.31.1
       environment: *env
       commands:
-      - cargo build --release
+      - cargo build --release --all-targets
       - test -x target/release/server
       - test -x target/release/bndb_cli
       when:
@@ -280,6 +280,5 @@ services:
           branch: master
 ---
 kind: signature
-hmac: 94d9fe6347bd759c40fbcb97b0d980a14a029f2f2eff1b45439b70df55eb749c
-
+hmac: d0732805d654025709cd88d938bce443f5123763794ae6192774a39d23dc4068
 ...
