@@ -399,7 +399,7 @@ fn get_sales_by_date_range() {
             },
             DayStats {
                 date: end_utc,
-                revenue_in_cents: 1700,
+                revenue_in_cents: 1500,
                 ticket_sales: 10,
             }
         ]
@@ -416,7 +416,7 @@ fn get_sales_by_date_range() {
         results,
         vec![DayStats {
             date: start_utc,
-            revenue_in_cents: 1700,
+            revenue_in_cents: 1500,
             ticket_sales: 10,
         }]
     );

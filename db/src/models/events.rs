@@ -783,6 +783,7 @@ impl Event {
             ));
         }
 
+        //Gets the face value
         let query = r#"
                 SELECT CAST(o.paid_at as Date) as date,
                 cast(COALESCE(sum(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)), 0) AS bigint) as sales,
@@ -790,6 +791,7 @@ impl Event {
                 FROM order_items oi
                 INNER JOIN orders o ON oi.order_id = o.id
                 WHERE oi.event_id = $1
+                AND oi.item_type = 'Tickets'
                 AND o.status = 'Paid'
                 AND o.paid_at >= $2
                 AND o.paid_at <= $3

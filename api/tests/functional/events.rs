@@ -1198,7 +1198,7 @@ fn dashboard_with_default_range() {
         dashboard_result.day_stats[29],
         DayStats {
             date: Utc::now().naive_utc().date(),
-            revenue_in_cents: 1700,
+            revenue_in_cents: 1500,
             ticket_sales: 10,
         }
     );
