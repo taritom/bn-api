@@ -668,7 +668,7 @@ mod create_tests {
     }
     #[test]
     fn create_promoter() {
-        base::events::create(Roles::Promoter, true);
+        base::events::create(Roles::Promoter, false);
     }
     #[test]
     fn create_promoter_read_only() {
@@ -709,7 +709,7 @@ mod update_tests {
     }
     #[test]
     fn update_promoter() {
-        base::events::update(Roles::Promoter, true);
+        base::events::update(Roles::Promoter, false);
     }
     #[test]
     fn update_promoter_read_only() {
@@ -791,7 +791,7 @@ mod add_artist_tests {
     }
     #[test]
     fn add_artist_promoter() {
-        base::events::add_artist(Roles::Promoter, true);
+        base::events::add_artist(Roles::Promoter, false)
     }
     #[test]
     fn add_artist_promoter_read_only() {
@@ -955,7 +955,7 @@ mod update_artists_tests {
     }
     #[test]
     fn update_artists_promoter() {
-        base::events::update_artists(Roles::Promoter, true);
+        base::events::update_artists(Roles::Promoter, false);
     }
     #[test]
     fn update_artists_promoter_read_only() {
