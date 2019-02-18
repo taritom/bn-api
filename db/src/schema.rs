@@ -141,6 +141,7 @@ table! {
         sendgrid_list_id -> Nullable<Int8>,
         event_type -> Text,
         cover_image_url -> Nullable<Text>,
+        private_access_code -> Nullable<Text>,
     }
 }
 

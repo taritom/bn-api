@@ -22,6 +22,7 @@ pub struct EventBuilder<'a> {
     ticket_type_count: i64,
     is_external: bool,
     publish_date: Option<NaiveDateTime>,
+    private_access_code: Option<String>,
 }
 
 impl<'a> EventBuilder<'a> {
@@ -41,6 +42,7 @@ impl<'a> EventBuilder<'a> {
             ticket_type_count: 1,
             is_external: false,
             publish_date: Some(NaiveDate::from_ymd(2018, 7, 8).and_hms(9, 10, 11)),
+            private_access_code: None,
         }
     }
 
@@ -51,6 +53,11 @@ impl<'a> EventBuilder<'a> {
 
     pub fn external(mut self) -> Self {
         self.is_external = true;
+        self
+    }
+
+    pub fn as_private(mut self, private_access_code: String) -> Self {
+        self.private_access_code = Some(private_access_code);
         self
     }
 
@@ -135,6 +142,9 @@ impl<'a> EventBuilder<'a> {
             promo_image_url: Some(Some("http://localhost".to_string())),
             ..Default::default()
         };
+        if self.private_access_code.is_some() {
+            attributes.private_access_code = Some(self.private_access_code.clone());
+        }
 
         if self.is_external {
             attributes.is_external = Some(true);

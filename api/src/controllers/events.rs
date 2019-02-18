@@ -266,6 +266,7 @@ pub fn index(
 pub struct EventParameters {
     pub box_office_pricing: Option<bool>,
     pub redemption_code: Option<String>,
+    pub private_access_code: Option<String>,
 }
 
 pub fn show(
@@ -281,8 +282,27 @@ pub fn show(
     let user = user.into_inner();
     let event = Event::find(parameters.id, connection)?;
     let organization = event.organization(connection)?;
+    if event.private_access_code.is_some()
+        && !(query.private_access_code.is_some()
+            && event.private_access_code.clone().unwrap()
+                == query.private_access_code.clone().unwrap().to_lowercase())
+    {
+        match user {
+            Some(ref user) => user.requires_scope_for_organization(
+                Scopes::OrgReadEvents,
+                &organization,
+                connection,
+            )?,
+            None => {
+                return application::unauthorized_with_message(
+                    "Unauthorized access of private event",
+                    None,
+                    None,
+                );
+            }
+        }
+    };
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
-
     let venue = event.venue(connection)?;
     let localized_times = event.get_all_localized_time_strings(&venue);
     let event_artists = EventArtist::find_all_from_event(event.id, connection)?;

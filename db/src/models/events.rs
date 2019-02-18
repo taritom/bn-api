@@ -59,6 +59,7 @@ pub struct Event {
     pub sendgrid_list_id: Option<i64>,
     pub event_type: EventTypes,
     pub cover_image_url: Option<String>,
+    pub private_access_code: Option<String>,
 }
 
 impl PartialOrd for Event {
@@ -170,6 +171,9 @@ pub struct EventEditableAttributes {
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub override_status: Option<Option<EventOverrideStatus>>,
     pub event_end: Option<NaiveDateTime>,
+    #[validate(length(max = "6", message = "Access code must be at most 6 characters long"))]
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub private_access_code: Option<Option<String>>,
     pub sendgrid_list_id: Option<i64>,
     pub event_type: Option<EventTypes>,
 }
@@ -220,6 +224,13 @@ impl Event {
         attributes.validate()?;
 
         let mut event = attributes;
+
+        if event.private_access_code.is_some() {
+            let inner_value = event.private_access_code.clone().unwrap();
+            if inner_value.is_some() {
+                event.private_access_code = Some(Some(inner_value.unwrap().to_lowercase()));
+            }
+        };
 
         if self.status == EventStatus::Published {
             if let Some(date) = event.publish_date {
@@ -524,6 +535,7 @@ impl Event {
                 .filter(events::venue_id.eq(venue_id))
                 .filter(events::status.eq(EventStatus::Published))
                 .filter(events::cancelled_at.is_null())
+                .filter(events::private_access_code.is_null())
                 .order_by(events::name)
                 .load(conn),
         )
@@ -989,7 +1001,7 @@ impl Event {
                                 .le(dsl::now.nullable())
                                 .or(events::status.ne(EventStatus::Published))
                                 .or(organization_users::user_id.eq(user.id)),
-                        );
+                        )
                 }
             }
             None => {
@@ -1000,6 +1012,8 @@ impl Event {
                 );
             }
         }
+
+        query = query.filter(events::private_access_code.is_null()); //we dont ever want to show private events when searching
 
         if let Some(organization_id) = organization_id {
             query = query.filter(events::organization_id.eq(organization_id));
@@ -1015,9 +1029,6 @@ impl Event {
         if let Some(region_id) = region_id {
             query = query.filter(venues::region_id.eq(region_id));
         }
-
-        //let _debug = debug_query::<_, _>(&query);
-        //println!("{}", debug);
 
         let result = query.load(conn);
 

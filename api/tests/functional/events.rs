@@ -38,6 +38,15 @@ pub fn index() {
         .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .with_event_end(NaiveDate::from_ymd(2022, 7, 9).and_hms(9, 10, 11))
         .finish();
+    let _event3 = database
+        .create_event()
+        .with_name("NewEvent3".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2022, 7, 9).and_hms(9, 10, 11))
+        .as_private("access".to_string())
+        .finish();
 
     let expected_results = vec![
         event_venue_entry(&event, &venue, None, &*connection),
@@ -364,7 +373,7 @@ fn show() {
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json =
-        base::events::expected_show_json(event, organization, venue, false, None, None, conn);
+        base::events::expected_show_json(event, organization, venue, false, None, None, conn, 1);
     path.id = event_id;
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
@@ -376,6 +385,141 @@ fn show() {
         OptionalUser(Some(auth_user)),
     ))
     .into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, event_expected_json);
+}
+
+#[test]
+fn show_private() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+
+    let organization = database.create_organization().finish();
+
+    let org_user = database.create_user().finish();
+    let auth_org_user = support::create_auth_user_from_user(
+        &org_user,
+        Roles::OrgMember,
+        Some(&organization),
+        &database,
+    );
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("PublicEvent".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_ticket_pricing()
+        .finish();
+    let event_id = event.id;
+
+    let private_event = database
+        .create_event()
+        .with_name("PrivateEvent".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_ticket_pricing()
+        .as_private("access".to_string())
+        .finish();
+    let private_event_id = private_event.id;
+
+    let artist1 = database.create_artist().finish();
+    let artist2 = database.create_artist().finish();
+    let conn = database.connection.get();
+
+    event.add_artist(artist1.id, conn).unwrap();
+    event.add_artist(artist2.id, conn).unwrap();
+
+    let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let event_expected_json = base::events::expected_show_json(
+        event,
+        organization.clone(),
+        venue.clone(),
+        false,
+        None,
+        None,
+        conn,
+        1,
+    );
+    path.id = event_id;
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user.clone())),
+    ))
+    .into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, event_expected_json);
+
+    let _event_interest = EventInterest::create(private_event_id, org_user.id).commit(conn);
+    let _event_interest = EventInterest::create(private_event_id, user.id).commit(conn);
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", private_event_id));
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let event_expected_json = base::events::expected_show_json(
+        private_event,
+        organization,
+        venue,
+        false,
+        None,
+        None,
+        conn,
+        2,
+    );
+    path.id = private_event_id;
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_org_user)),
+    ))
+    .into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, event_expected_json);
+
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", private_event_id));
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = private_event_id;
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user.clone())),
+    ))
+    .into();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let test_request = TestRequest::create_with_uri(&format!(
+        "/events/{}?private_access_code={}",
+        private_event_id,
+        "access".to_string()
+    ));
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = private_event_id;
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user)),
+    ))
+    .into();
+
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);
@@ -413,7 +557,7 @@ fn show_with_cancelled_ticket_type() {
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json =
-        base::events::expected_show_json(event, organization, venue, false, None, None, conn);
+        base::events::expected_show_json(event, organization, venue, false, None, None, conn, 1);
     path.id = event_id;
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
@@ -476,6 +620,7 @@ fn show_with_access_restricted_ticket_type_and_no_code() {
         None,
         Some(vec![ticket_type.id]),
         conn,
+        1,
     );
     path.id = event_id;
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
@@ -543,6 +688,7 @@ fn show_with_access_restricted_ticket_type_and_access_code() {
         Some(code.redemption_code.clone()),
         Some(vec![ticket_type.id, ticket_type2.id]),
         conn,
+        1,
     );
     path.id = event_id;
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();

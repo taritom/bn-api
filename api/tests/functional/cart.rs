@@ -1070,7 +1070,6 @@ fn checkout_fails_for_invalid_items() {
     let cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(cart.status, OrderStatus::Draft);
 }
-
 #[test]
 fn checkout_provider_globee() {
     let database = TestDatabase::new();
