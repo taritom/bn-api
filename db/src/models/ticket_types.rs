@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::dsl;
+use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
 use diesel::sql_types::{Nullable, Text, Uuid as dUuid};
 use models::*;
@@ -309,23 +310,24 @@ impl TicketType {
     }
 
     pub fn valid_available_ticket_count(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
-        let valid_available_ticket_count: i64 = ticket_instances::table
+        let query = ticket_instances::table
             .inner_join(assets::table)
             .filter(
                 assets::ticket_type_id.eq(self.id).and(
                     ticket_instances::status
                         .eq(TicketInstanceStatus::Available)
-                        .or(ticket_instances::status
-                            .eq(TicketInstanceStatus::Reserved)
-                            .and(ticket_instances::reserved_until.lt(dsl::now.nullable()))),
+                        .or(sql("(ticket_instances.status=")
+                            .bind::<Text, _>(TicketInstanceStatus::Reserved)
+                            .sql(" AND ticket_instances.reserved_until < CURRENT_TIMESTAMP)")),
                 ),
             )
-            .select(dsl::count(ticket_instances::id))
-            .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load ticket pricing for ticket type",
-            )?;
+            .filter(ticket_instances::hold_id.is_null())
+            .select(dsl::count(ticket_instances::id));
+
+        let valid_available_ticket_count: i64 = query.first(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not load ticket pricing for ticket type",
+        )?;
         Ok(valid_available_ticket_count as u32)
     }
 
