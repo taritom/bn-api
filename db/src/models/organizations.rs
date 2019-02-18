@@ -50,6 +50,7 @@ pub struct Organization {
     pub company_event_fee_in_cents: i64,
     pub allowed_payment_providers: Vec<PaymentProviders>,
     pub timezone: Option<String>,
+    pub cc_fee_percent: f32,
 }
 
 #[derive(Serialize)]
@@ -171,6 +172,7 @@ pub struct OrganizationEditableAttributes {
     pub allowed_payment_providers: Option<Vec<PaymentProviders>>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub timezone: Option<String>,
+    pub cc_fee_percent: Option<f32>,
 }
 
 impl Organization {

@@ -39,7 +39,7 @@ fn find() {
     .commit(connection)
     .unwrap();
 
-    assert_eq!(
+    assert_equiv!(
         DomainEvent::find(Tables::PaymentMethods, Some(id), None, connection).unwrap(),
         [domain_event.clone(), domain_event2.clone()]
     );

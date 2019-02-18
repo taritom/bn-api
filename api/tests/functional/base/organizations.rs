@@ -228,6 +228,7 @@ pub fn update(role: Roles, should_succeed: bool) {
         facebook_pixel_key: Some(Some("facebook_pixel_key".to_string())),
         allowed_payment_providers: Some(vec![PaymentProviders::Globee]),
         timezone: Some("Los Angeles".to_string()),
+        cc_fee_percent: Some(5.5),
     });
 
     let response: HttpResponse = organizations::update((
@@ -250,6 +251,7 @@ pub fn update(role: Roles, should_succeed: bool) {
         updated_organization.allowed_payment_providers,
         vec![PaymentProviders::Globee]
     );
+    assert_eq!(updated_organization.cc_fee_percent, 5.5);
 }
 
 pub fn remove_user(role: Roles, should_test_succeed: bool) {

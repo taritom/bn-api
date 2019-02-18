@@ -280,6 +280,7 @@ table! {
         company_event_fee_in_cents -> Int8,
         allowed_payment_providers -> Array<Text>,
         timezone -> Nullable<Text>,
+        cc_fee_percent -> Float4,
     }
 }
 
