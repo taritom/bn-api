@@ -143,6 +143,7 @@ impl TicketInstance {
                 ticket_instances::status,
                 ticket_instances::redeem_key,
                 events::redeem_date,
+                events::event_start,
                 sql::<Bool>(
                     "CAST(CASE WHEN
                             ticket_instances.transfer_key IS NULL
@@ -246,6 +247,7 @@ impl TicketInstance {
                 ticket_instances::status,
                 ticket_instances::redeem_key,
                 events::redeem_date,
+                events::event_start,
                 sql::<Bool>(
                     "CAST(CASE WHEN
                             ticket_instances.transfer_key IS NULL
@@ -1012,20 +1014,34 @@ pub struct DisplayTicketIntermediary {
     pub redeem_key: Option<String>,
     #[sql_type = "Nullable<Timestamp>"]
     pub redeem_date: Option<NaiveDateTime>,
+    #[sql_type = "Nullable<Timestamp>"]
+    pub event_start: Option<NaiveDateTime>,
     #[sql_type = "Bool"]
     pub pending_transfer: bool,
 }
 
 impl From<DisplayTicketIntermediary> for DisplayTicket {
     fn from(ticket_intermediary: DisplayTicketIntermediary) -> Self {
-        let redeem_key = if ticket_intermediary.redeem_date.is_some()
-            && ticket_intermediary.redeem_date.unwrap() > Utc::now().naive_utc()
-        {
-            None //Redeem key not available yet. Should this be an error?
+        let day_before_event_start = ticket_intermediary
+            .event_start
+            .map(|event_start| event_start - Duration::hours(24));
+        let bounded_redeem_date = ticket_intermediary
+            .redeem_date
+            .map(|redeem_date| {
+                if day_before_event_start.is_none() {
+                    redeem_date
+                } else {
+                    // Whichever one is earlier
+                    cmp::min(day_before_event_start.unwrap(), redeem_date)
+                }
+            })
+            .or(day_before_event_start)
+            .unwrap();
+        let redeem_key = if bounded_redeem_date > Utc::now().naive_utc() {
+            None
         } else {
             ticket_intermediary.redeem_key.clone()
         };
-
         DisplayTicket {
             id: ticket_intermediary.id,
             order_id: ticket_intermediary.order_id,

@@ -543,6 +543,100 @@ fn find() {
 }
 
 #[test]
+fn find_show_no_token() {
+    let project = TestProject::new();
+    let org_admin = project.create_user().finish();
+
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(org_admin.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .with_event_start(NaiveDate::from_ymd(3000, 7, 8).and_hms(9, 10, 11)) //we dont care about the date, it should only be longer than 24 hours from now
+        .finish();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket_pricing = ticket_type
+        .current_ticket_pricing(false, connection)
+        .unwrap();
+
+    let display_event = event.clone().for_display(connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let fee_schedule_range = ticket_type
+        .fee_schedule(connection)
+        .unwrap()
+        .get_range(ticket_pricing.price_in_cents, connection)
+        .unwrap();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_order_item(order_item.id, connection)
+        .unwrap()
+        .remove(0);
+    let expected_ticket = DisplayTicket {
+        id: ticket.id,
+        order_id: cart.id,
+        price_in_cents: (ticket_pricing.price_in_cents + fee_schedule_range.fee_in_cents) as u32,
+        ticket_type_id: ticket_type.id,
+        ticket_type_name: ticket_type.name.clone(),
+        status: TicketInstanceStatus::Purchased,
+        redeem_key: None,
+        pending_transfer: false,
+    };
+    let (found_event, found_user, found_ticket) =
+        TicketInstance::find_for_display(ticket.id, connection).unwrap();
+    assert_eq!(
+        (
+            display_event.clone(),
+            Some(user.into()),
+            expected_ticket.clone()
+        ),
+        (found_event, found_user, found_ticket.clone())
+    );
+    assert!(found_ticket.redeem_key.is_none(), true);
+
+    //make redeem date in the past for the event
+    let new_event_redeem_date = EventEditableAttributes {
+        redeem_date: Some(NaiveDateTime::from(
+            Utc::now().naive_utc() - Duration::days(2),
+        )),
+        ..Default::default()
+    };
+
+    let _event = event.update(new_event_redeem_date, connection).unwrap();
+
+    let (_found_event, _found_user, found_ticket) =
+        TicketInstance::find_for_display(ticket.id, connection).unwrap();
+    assert!(found_ticket.redeem_key.is_some(), true);
+}
+
+#[test]
 fn find_for_user() {
     let project = TestProject::new();
     let admin = project.create_user().finish();
