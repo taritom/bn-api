@@ -129,6 +129,7 @@ string_enum! { Tables [Events, FeeSchedules, Orders, Organizations, Payments, Pa
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled] }
+string_enum! { SoldOutBehavior[ ShowSoldOut, Hide ]}
 
 impl Roles {
     pub fn get_event_limited_roles() -> Vec<Roles> {

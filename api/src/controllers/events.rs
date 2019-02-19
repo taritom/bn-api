@@ -347,6 +347,12 @@ pub fn show(
                 connection,
             )?;
 
+            if display_ticket_type.status == TicketTypeStatus::SoldOut
+                && ticket_type.sold_out_behavior == SoldOutBehavior::Hide
+            {
+                continue;
+            };
+
             display_ticket_types.push(display_ticket_type);
         }
     }

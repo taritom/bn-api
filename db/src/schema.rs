@@ -430,6 +430,7 @@ table! {
         updated_at -> Timestamp,
         price_in_cents -> Int8,
         cancelled_at -> Nullable<Timestamp>,
+        sold_out_behavior -> Text,
     }
 }
 
