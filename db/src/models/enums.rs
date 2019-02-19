@@ -88,6 +88,7 @@ string_enum! { DomainEventTypes [
     PaymentMethodCreated,
     PaymentMethodUpdated,
     PaymentUpdated,
+    UserLogin,
     UserRegistration,
     LostPassword,
     PurchaseCompleted,
@@ -124,7 +125,7 @@ string_enum! { PaymentStatus [Authorized, Completed, Requested, Refunded, Unpaid
 string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Roles [Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, Promoter, PromoterReadOnly, User] }
 string_enum! { SortingDir[ Asc, Desc ] }
-string_enum! { Tables [Events, FeeSchedules, Orders, Organizations, Payments, PaymentMethods, TicketInstances] }
+string_enum! { Tables [Events, FeeSchedules, Orders, Organizations, Payments, PaymentMethods, TicketInstances, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled] }

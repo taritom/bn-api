@@ -239,6 +239,8 @@ table! {
         box_office_pricing -> Bool,
         checkout_url -> Nullable<Text>,
         checkout_url_expires -> Nullable<Timestamp>,
+        create_user_agent -> Nullable<Text>,
+        purchase_user_agent -> Nullable<Text>,
     }
 }
 
