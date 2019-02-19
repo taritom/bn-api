@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use chrono::NaiveDate;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
-use models::*;
+use prelude::*;
 use rand::prelude::*;
 use test::builders::*;
 use time::Duration;
@@ -175,6 +175,7 @@ impl<'a> EventBuilder<'a> {
                         None,
                         0,
                         100,
+                        SoldOutBehavior::ShowSoldOut,
                         self.connection,
                     )
                     .unwrap();
