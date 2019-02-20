@@ -601,11 +601,17 @@ impl User {
         &self,
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
-        let event_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
+        let one_day_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
+        //Find all events that have their end_date that is >= 24 hours ago.
+        let one_day_forward = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(1));
+        //And we are at least one day away from the door_time
         let events_query = events::table
             .filter(events::status.eq(EventStatus::Published))
-            .filter(events::event_start.ge(event_start))
             .filter(events::is_external.eq(false))
+            //Check that the event hasn't ended already (with some buffer)
+            .filter(events::event_end.ge(one_day_ago))
+            //Check that we are not before the start of the event (with some buffer)
+            .filter(events::door_time.le(one_day_forward))
             .order_by(events::event_start.asc())
             .into_boxed();
 

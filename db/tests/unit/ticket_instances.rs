@@ -959,6 +959,9 @@ fn show_redeemable_ticket() {
         event_start: Some(NaiveDateTime::from(
             Utc::now().naive_utc() + Duration::days(4),
         )),
+        event_end: Some(NaiveDateTime::from(
+            Utc::now().naive_utc() + Duration::days(5),
+        )),
         ..Default::default()
     };
 
@@ -975,6 +978,9 @@ fn show_redeemable_ticket() {
         event_start: Some(NaiveDateTime::from(
             Utc::now().naive_utc() + Duration::days(4),
         )),
+        event_end: Some(NaiveDateTime::from(
+            Utc::now().naive_utc() + Duration::days(5),
+        )),
         ..Default::default()
     };
 
@@ -990,6 +996,7 @@ fn show_redeemable_ticket() {
             Utc::now().naive_utc() + Duration::hours(12),
         )),
         event_start: Some(event_start),
+        event_end: Some(NaiveDateTime::from(event_start + Duration::hours(24))),
         ..Default::default()
     };
 
@@ -1003,6 +1010,7 @@ fn show_redeemable_ticket() {
     let new_event_redeem_date = EventEditableAttributes {
         redeem_date: None,
         event_start: Some(event_start),
+        event_end: Some(NaiveDateTime::from(event_start + Duration::hours(24))),
         ..Default::default()
     };
 

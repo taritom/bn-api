@@ -113,10 +113,24 @@ impl NewEvent {
     pub fn commit(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
         self.validate()?;
         let organization = Organization::find(self.organization_id, conn)?;
+        let mut new_event = self.clone();
 
+        match new_event.event_start {
+            Some(event_start) => {
+                if new_event.event_end.is_none() {
+                    new_event.event_end =
+                        Some(NaiveDateTime::from(event_start + Duration::days(1)));
+                }
+                if new_event.door_time.is_none() {
+                    new_event.door_time =
+                        Some(NaiveDateTime::from(event_start - Duration::hours(1)));
+                }
+            }
+            None => (),
+        }
         diesel::insert_into(events::table)
             .values((
-                self,
+                new_event,
                 events::fee_in_cents.eq(organization.client_event_fee_in_cents
                     + organization.company_event_fee_in_cents),
                 events::client_fee_in_cents.eq(organization.client_event_fee_in_cents),

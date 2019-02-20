@@ -1595,6 +1595,12 @@ fn get_all_localized_times() {
         localized_times.event_start.unwrap().to_rfc2822(),
         "Tue,  1 Jan 2019 14:00:00 +0200"
     );
-    assert_eq!(localized_times.event_end, None);
-    assert_ne!(localized_times.door_time, None);
+    assert_eq!(
+        localized_times.event_end.unwrap().to_rfc2822(),
+        "Wed,  2 Jan 2019 14:00:00 +0200"
+    );
+    assert_ne!(
+        localized_times.door_time.unwrap().to_rfc2822(),
+        "Tue,  1 Jan 2019 13:00:00 +0200"
+    );
 }
