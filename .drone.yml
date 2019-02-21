@@ -186,7 +186,7 @@ steps:
         - api-tests
         - integration-tests
         - other-tests
-      image: sdbondi/git-ssh-client:0.1-alpine
+      image: sdbondi/git-ssh-client:0.2-alpine
       environment:
           <<: *env
           GH_USER_EMAIL: 'sdbondi@users.noreply.github.com'
@@ -269,6 +269,6 @@ services:
           branch: master
 ---
 kind: signature
-hmac: ac4b3d8656e8305dd6ae2193838bf68fa361f0c2174d11f8ffb19195de83c037
+hmac: 718d595f4aa6d4570f007fb9dafa87f39b8d48596ec87a3cb9d704e861bf6a30
 
 ...

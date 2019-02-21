@@ -7,7 +7,7 @@ new_version=""
 function bump_patch {
     local file="$1"
     local version=`sed -En 's/version[[:space:]]*=[[:space:]]*"([[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+)"/\1/p' < $file`
-    new_version=`echo $version | awk -F. -v OFS=. 'NF==1{print ++$NF}; NF>1{$NF=sprintf("%0*d", length($NF), ($NF+1)); print}'`
+    new_version=`echo $version | gawk -F. -v OFS=. 'NF==1{print ++$NF}; NF>1{$NF=sprintf("%0*d", length($NF), ($NF+1)); print}'`
     local search='^(version[[:space:]]*=[[:space:]]*).+'
     local replace="\1\"${new_version}\""
 
