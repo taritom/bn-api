@@ -1,8 +1,14 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- TICKET SALES PER TICKET PRICING
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Legacy function call
 DROP FUNCTION IF EXISTS ticket_sales_per_ticket_pricing(start TIMESTAMP, "end" TIMESTAMP, group_by_ticket_type BOOLEAN, group_by_event_id BOOLEAN);
-CREATE OR REPLACE FUNCTION ticket_sales_per_ticket_pricing(start TIMESTAMP, "end" TIMESTAMP, group_by_ticket_type BOOLEAN, group_by_event_id BOOLEAN, group_by_hold_id BOOLEAN)
+DROP FUNCTION IF EXISTS ticket_sales_per_ticket_pricing(start TIMESTAMP, "end" TIMESTAMP, group_by_ticket_type BOOLEAN, group_by_event_id BOOLEAN, group_by_hold_id BOOLEAN);
+-- New function call
+DROP FUNCTION IF EXISTS ticket_sales_per_ticket_pricing(start TIMESTAMP, "end" TIMESTAMP, group_by TEXT);
+-- The group_by can be a combination of 'hold', 'ticket_type', 'ticket_pricing' or a combination: 'ticket_type|ticket_pricing|hold'
+-- Default grouping is by event if no sub-group is defined
+CREATE OR REPLACE FUNCTION ticket_sales_per_ticket_pricing(start TIMESTAMP, "end" TIMESTAMP, group_by TEXT)
     RETURNS TABLE
             (
                 organization_id                  UUID,
@@ -90,9 +96,9 @@ FROM order_items oi
          LEFT JOIN order_items oi_t_fees ON oi_t_fees.parent_id = oi.id AND oi_t_fees.item_type = 'PerUnitFees'
          LEFT JOIN order_items oi_e_fees ON oi_e_fees.order_id = oi.order_id AND oi_e_fees.item_type = 'EventFees'
          LEFT JOIN (SELECT order_id, CAST(ARRAY_TO_STRING(ARRAY_AGG(DISTINCT p.payment_method), ', ') LIKE '%External' AS BOOLEAN) AS is_box_office FROM payments p GROUP BY p.payment_method, p.order_id) AS p on o.id = p.order_id
-         LEFT JOIN (SELECT gh.id, gh.name FROM holds gh WHERE $5 IS TRUE) as gh ON gh.id = oi.hold_id
-         LEFT JOIN (SELECT tt.id, tt.name, tt.status FROM ticket_types tt WHERE $4 IS NOT TRUE) AS tt ON tt.id = oi.ticket_type_id
-         LEFT JOIN (SELECT tp.id, tp.name, tp.price_in_cents FROM ticket_pricing tp WHERE $3 IS NOT TRUE) AS tp ON oi.ticket_pricing_id = tp.id
+         LEFT JOIN (SELECT gh.id, gh.name FROM holds gh WHERE $3 LIKE '%hold%') as gh ON gh.id = oi.hold_id
+         LEFT JOIN (SELECT tt.id, tt.name, tt.status FROM ticket_types tt WHERE $3 LIKE '%ticket_type%') AS tt ON tt.id = oi.ticket_type_id
+         LEFT JOIN (SELECT tp.id, tp.name, tp.price_in_cents FROM ticket_pricing tp WHERE $3 LIKE '%ticket_pricing%') AS tp ON oi.ticket_pricing_id = tp.id
 WHERE oi.ticket_type_id IS NOT NULL
   AND ($1 IS NULL OR o.paid_at >= $1)
   AND ($2 IS NULL OR o.paid_at <= $2)
@@ -104,7 +110,13 @@ $body$
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- TICKET COUNT PER TICKET TYPE
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION ticket_count_per_ticket_type(event_id UUID, organization_id UUID, group_by_event_id BOOLEAN, group_by_organization_id BOOLEAN)
+-- Legacy function
+DROP FUNCTION IF EXISTS ticket_count_per_ticket_type(event_id UUID, organization_id UUID, group_by_event_id BOOLEAN, group_by_organization_id BOOLEAN);
+-- New function
+DROP FUNCTION IF EXISTS ticket_count_per_ticket_type(event_id UUID, organization_id UUID, group_by TEXT);
+-- group_by can be 'event', 'ticket_type', 'event|ticket_type'
+-- Default grouping is by organization
+CREATE OR REPLACE FUNCTION ticket_count_per_ticket_type(event_id UUID, organization_id UUID,  group_by TEXT)
     RETURNS TABLE
             (
                 organization_id                      UUID,
@@ -185,13 +197,13 @@ FROM ticket_instances ti
          LEFT JOIN holds h ON (h.id = ti.hold_id)
          LEFT JOIN refunded_tickets rt ON (rt.ticket_instance_id = ti.id)
          LEFT JOIN assets a ON (a.id = ti.asset_id)
-         LEFT JOIN (SELECT tt.id, tt.name, tt.status FROM ticket_types tt WHERE $3 IS NOT TRUE AND $4 IS NOT TRUE) AS tt ON tt.id = a.ticket_type_id
+         LEFT JOIN (SELECT tt.id, tt.name, tt.status FROM ticket_types tt WHERE $3 LIKE '%ticket_type%') AS tt ON tt.id = a.ticket_type_id
          LEFT JOIN ticket_types tt2 ON a.ticket_type_id = tt2.id
-         LEFT JOIN (SELECT e.id, e.organization_id, e.name FROM events e WHERE $4 IS NOT TRUE) AS e ON (e.id = tt2.event_id)
+         LEFT JOIN (SELECT e.id, e.organization_id, e.name FROM events e WHERE $3 SIMILAR TO '%event%|%ticket_type%') AS e ON (e.id = tt2.event_id)
          LEFT JOIN events e2 ON (e2.id = tt2.event_id)
          LEFT JOIN organizations o ON o.id = e2.organization_id
-WHERE ($1 IS NULL OR e.id = $1)
-  AND ($2 IS NULL OR e.organization_id = $2)
+WHERE ($1 IS NULL OR e2.id = $1)
+  AND ($2 IS NULL OR e2.organization_id = $2)
 GROUP BY e.id, e.name,o.id, o.name,tt.id, tt.name, tt.status;
 $body$
     LANGUAGE SQL;

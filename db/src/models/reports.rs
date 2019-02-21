@@ -1,15 +1,15 @@
 use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Bool, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use std::collections::HashMap;
 use utils::errors::*;
 use uuid::Uuid;
 
-sql_function!(fn ticket_sales_per_ticket_pricing(start: Nullable<Timestamp>, end: Nullable<Timestamp>, group_by_ticket_type: Nullable<Bool>, group_by_event_id: Nullable<Bool>) -> Vec<TicketSalesRow>);
-sql_function!(fn ticket_count_per_ticket_type(event_id: Nullable<dUuid>, organization_id: Nullable<dUuid>, group_by_event_id: Nullable<Bool>, group_by_organization_id: Nullable<Bool>) -> Vec<TicketCountRow>);
+sql_function!(fn ticket_sales_per_ticket_pricing(start: Nullable<Timestamp>, end: Nullable<Timestamp>, group_by: Option<Text>) -> Vec<TicketSalesRow>);
+sql_function!(fn ticket_count_per_ticket_type(event_id: Nullable<dUuid>, organization_id: Nullable<dUuid>, group_by: Option<Text>) -> Vec<TicketCountRow>);
 pub struct Report {}
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
@@ -34,8 +34,8 @@ pub struct TicketSalesRow {
     pub hold_name: Option<String>,
     #[sql_type = "Nullable<Text>"]
     pub ticket_pricing_name: Option<String>,
-    #[sql_type = "BigInt"]
-    pub ticket_pricing_price_in_cents: i64,
+    #[sql_type = "Nullable<BigInt>"]
+    pub ticket_pricing_price_in_cents: Option<i64>,
     #[sql_type = "BigInt"]
     pub box_office_order_count: i64,
     #[sql_type = "BigInt"]
@@ -130,8 +130,8 @@ pub struct TicketCountRow {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct TicketSalesAndCounts {
-    counts: Vec<TicketCountRow>,
-    sales: Vec<TicketSalesRow>,
+    pub counts: Vec<TicketCountRow>,
+    pub sales: Vec<TicketSalesRow>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
@@ -343,24 +343,53 @@ pub struct ReconciliationDetailEventResult {
     pub entries: Vec<ReconciliationDetailResult>,
 }
 
+pub fn group_by_string(
+    group_by_ticket_type: bool,
+    group_by_ticket_pricing: bool,
+    group_by_hold: bool,
+    group_by_event: bool,
+) -> Option<String> {
+    let mut group_by = vec![];
+    if group_by_ticket_type {
+        group_by.push("ticket_type".to_string());
+    }
+    if group_by_ticket_pricing {
+        group_by.push("ticket_pricing".to_string());
+    }
+    if group_by_hold {
+        group_by.push("hold".to_string());
+    }
+    if group_by_event {
+        group_by.push("event".to_string());
+    }
+    match group_by.len() {
+        0 => None,
+        _ => Some(group_by.join("|")),
+    }
+}
+
 impl TicketSalesRow {
     pub fn fetch(
         start: Option<NaiveDateTime>,
         end: Option<NaiveDateTime>,
-        group_by_ticket_type: Option<bool>,
-        group_by_event_id: Option<bool>,
-        group_by_hold_id: Option<bool>,
+        group_by_ticket_type: bool,
+        group_by_ticket_pricing: bool,
+        group_by_hold: bool,
         event_id: Option<Uuid>,
         organization_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Vec<TicketSalesRow>, DatabaseError> {
+        let group_by = group_by_string(
+            group_by_ticket_type,
+            group_by_ticket_pricing,
+            group_by_hold,
+            false,
+        );
         let query_ticket_sales = include_str!("../queries/reports/reports_tickets_sales.sql");
         let q = diesel::sql_query(query_ticket_sales)
             .bind::<Nullable<Timestamp>, _>(start)
             .bind::<Nullable<Timestamp>, _>(end)
-            .bind::<Nullable<Bool>, _>(group_by_ticket_type)
-            .bind::<Nullable<Bool>, _>(group_by_event_id)
-            .bind::<Nullable<Bool>, _>(group_by_hold_id)
+            .bind::<Nullable<Text>, _>(group_by)
             .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Nullable<dUuid>, _>(organization_id);
 
@@ -375,16 +404,16 @@ impl TicketCountRow {
     pub fn fetch(
         event_id: Option<Uuid>,
         organization_id: Option<Uuid>,
-        group_by_event_id: Option<bool>,
-        group_by_organization_id: Option<bool>,
+        group_by_event: bool,
+        group_by_ticket_type: bool,
         conn: &PgConnection,
     ) -> Result<Vec<TicketCountRow>, DatabaseError> {
+        let group_by = group_by_string(group_by_ticket_type, false, false, group_by_event);
         let query_ticket_counts = include_str!("../queries/reports/reports_tickets_counts.sql");
         let q = diesel::sql_query(query_ticket_counts)
             .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Nullable<dUuid>, _>(organization_id)
-            .bind::<Nullable<Bool>, _>(group_by_event_id)
-            .bind::<Nullable<Bool>, _>(group_by_organization_id);
+            .bind::<Nullable<Text>, _>(group_by);
 
         let rows: Vec<TicketCountRow> = q
             .get_results(conn)
@@ -540,48 +569,44 @@ impl Report {
             organization_id,
             None,
             None,
-            false,
-            false,
+            true,
+            true,
+            true,
             false,
             conn,
         )
     }
 
     /// Fetches the generic ticket sales and counts data
-    ///
-    /// # Examples
-    /// To retrieve all data for the entire system
-    /// `Report::ticket_sales_and_counts(None, None, None, None, false, false, conn);`
-    /// To retrieve all data for the entire organization
-    /// `Report::ticket_sales_and_counts(None, Some(Uuid::new_v4()), None, None, false, false, conn);`
-    /// To retrieve all data for the event
-    /// `Report::ticket_sales_and_counts(Some(Uuid::new_v4()), Some(Uuid::new_v4()), None, None, false, false, conn);`
-    /// To retrieve all data for the event grouped by ticket_type
-    /// `Report::ticket_sales_and_counts(Some(Uuid::new_v4()), Some(Uuid::new_v4()), None, None, true, false, conn);`
-    /// To retrieve all data for the event grouped by ticket_pricing
-    /// `Report::ticket_sales_and_counts(Some(Uuid::new_v4()), Some(Uuid::new_v4()), None, None, false, true, conn);`
     pub fn ticket_sales_and_counts(
         event_id: Option<Uuid>,
         organization_id: Option<Uuid>,
         start: Option<NaiveDateTime>,
         end: Option<NaiveDateTime>,
-        per_ticket_type: bool,
-        _per_ticket_pricing: bool,
-        per_hold: bool,
+        group_by_ticket_type: bool,
+        group_by_ticket_pricing: bool,
+        group_by_hold: bool,
+        group_by_event: bool,
         conn: &PgConnection,
     ) -> Result<TicketSalesAndCounts, DatabaseError> {
         let sales = TicketSalesRow::fetch(
             start,
             end,
-            Some(per_ticket_type),
-            Some(false),
-            Some(per_hold),
+            group_by_ticket_type,
+            group_by_ticket_pricing,
+            group_by_hold,
             event_id,
             organization_id,
             conn,
         )?;
-        let counts =
-            TicketCountRow::fetch(event_id, organization_id, Some(false), Some(false), conn)?;
+
+        let counts = TicketCountRow::fetch(
+            event_id,
+            organization_id,
+            group_by_event,
+            group_by_ticket_type,
+            conn,
+        )?;
 
         Ok(TicketSalesAndCounts { counts, sales })
     }

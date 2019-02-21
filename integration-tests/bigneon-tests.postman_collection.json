@@ -16559,7 +16559,7 @@
 					"name": "Weekly Settlement Report",
 					"item": [
 						{
-							"name": "OrgOwner - Weekly Settlement - 401",
+							"name": "OrgOwner - Pending Weekly Settlement - 401",
 							"event": [
 								{
 									"listen": "test",
@@ -16574,6 +16574,9 @@
 									}
 								}
 							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
 							"request": {
 								"auth": {
 									"type": "bearer",
@@ -16595,30 +16598,217 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": ""
+									"raw": "{\n\t\"start_utc\": \"2018-01-01T00:00:00\",\n\t\"end_utc\": \"2030-01-01T00:00:00\",\n\t\"comment\": \"My Comment\",\n\t\"only_finished_events\": true\n}"
 								},
 								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}?report=weekly_settlement",
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/settlements/prepare",
 									"protocol": "http",
 									"host": [
 										"{{server}}"
 									],
 									"path": [
-										"reports",
-										"{{last_org_id}}"
-									],
-									"query": [
-										{
-											"key": "report",
-											"value": "weekly_settlement"
-										}
+										"organizations",
+										"{{last_org_id}}",
+										"settlements",
+										"prepare"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "Admin - Weekly Settlement",
+							"name": "Admin - Pending Weekly Settlement",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"})",
+											"// pm.test(\"should not be empty\", function() {",
+											"// \tlet json = JSON.parse(responseBody);",
+											"// \tpm.expect(json.length).to.be.greaterThan(0);",
+											"// \tfor(let i=0; i< json.length; i++){",
+											"//     \tpm.expect(json[i]).to.have.all.keys('event_id','sales', 'ticket_fees', 'other_fees');",
+											"//     \tpm.expect(json[i].sales[i]).to.not.be.empty;",
+											"//     \tpm.expect(json[i].ticket_fees).to.not.be.empty;",
+											"//     \tpm.expect(json[i].other_fees).to.not.be.empty;",
+											"// \t}",
+											"",
+											"// });"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"start_utc\": \"2018-01-01T00:00:00\",\n\t\"end_utc\": \"2030-01-01T00:00:00\",\n\t\"comment\": \"My Comment\",\n\t\"only_finished_events\": true\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/settlements/prepare",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"settlements",
+										"prepare"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OrgOwner - Create Weekly Settlement - 401",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
+										"exec": [
+											"pm.test(\"should be 401\", function() {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{org_owner_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"start_utc\": \"2018-01-01T00:00:00\",\n\t\"end_utc\": \"2030-01-01T00:00:00\",\n\t\"comment\": \"My Comment\",\n\t\"only_finished_events\": true\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/settlements",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"settlements"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - Create Weekly Settlement",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
+										"exec": [
+											"pm.test(\"should be 201\", function() {",
+											"    pm.response.to.have.status(201);",
+											"});",
+											"let json = JSON.parse(responseBody);",
+											"",
+											"pm.environment.set(\"last_settlement_report_id\", json.id);",
+											"// pm.test(\"should not be empty\", function() {",
+											"// \tlet json = JSON.parse(responseBody);",
+											"// \tpm.expect(json.length).to.be.greaterThan(0);",
+											"// \tfor(let i=0; i< json.length; i++){",
+											"//     \tpm.expect(json[i]).to.have.all.keys('event_id','sales', 'ticket_fees', 'other_fees');",
+											"//     \tpm.expect(json[i].sales[i]).to.not.be.empty;",
+											"//     \tpm.expect(json[i].ticket_fees).to.not.be.empty;",
+											"//     \tpm.expect(json[i].other_fees).to.not.be.empty;",
+											"// \t}",
+											"",
+											"// });"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"start_utc\": \"2018-01-01T00:00:00\",\n\t\"end_utc\": \"2030-01-01T00:00:00\",\n\t\"comment\": \"Settlement Report Comment\",\n\t\"only_finished_events\": true,\n\t\"adjustments\": [\n\t\t{\n\t\t\t\"event_id\": \"{{last_event_id}}\",\n\t\t\t\"value_in_cents\": -500,\n\t\t\t\"comment\": \"Manual Deduction of $5\"\n\t\t}\n\t]\n}"
+								},
+								"url": {
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/settlements",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"organizations",
+										"{{last_org_id}}",
+										"settlements"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - List Weekly Settlements",
 							"event": [
 								{
 									"listen": "test",
@@ -16630,13 +16820,13 @@
 											"})",
 											"pm.test(\"should not be empty\", function() {",
 											"\tlet json = JSON.parse(responseBody);",
-											"\tpm.expect(json.length).to.be.greaterThan(0);",
-											"\tfor(let i=0; i< json.length; i++){",
-											"    \tpm.expect(json[i]).to.have.all.keys('event_id','sales', 'ticket_fees', 'other_fees');",
-											"    \tpm.expect(json[i].sales[i]).to.not.be.empty;",
-											"    \tpm.expect(json[i].ticket_fees).to.not.be.empty;",
-											"    \tpm.expect(json[i].other_fees).to.not.be.empty;",
-											"\t}",
+											"\tpm.expect(json.data.length).to.be.greaterThan(0);",
+											"// \tfor(let i=0; i< json.length; i++){",
+											"//     \tpm.expect(json[i]).to.have.all.keys('event_id','sales', 'ticket_fees', 'other_fees');",
+											"//     \tpm.expect(json[i].sales[i]).to.not.be.empty;",
+											"//     \tpm.expect(json[i].ticket_fees).to.not.be.empty;",
+											"//     \tpm.expect(json[i].other_fees).to.not.be.empty;",
+											"// \t}",
 											"",
 											"});"
 										],
@@ -16668,20 +16858,126 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "http://{{server}}/reports/{{last_org_id}}?report=weekly_settlement",
+									"raw": "http://{{server}}/organizations/{{last_org_id}}/settlements",
 									"protocol": "http",
 									"host": [
 										"{{server}}"
 									],
 									"path": [
-										"reports",
-										"{{last_org_id}}"
-									],
-									"query": [
+										"organizations",
+										"{{last_org_id}}",
+										"settlements"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - Read Weekly Settlements",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"})",
+											"pm.test(\"should not be empty\", function() {",
+											"\tlet json = JSON.parse(responseBody);",
+											"\tpm.expect(json).to.be.a('object');",
+											"\tpm.expect(json.transactions).to.not.be.empty;",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
 										{
-											"key": "report",
-											"value": "weekly_settlement"
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
 										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/settlements/{{last_settlement_report_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"settlements",
+										"{{last_settlement_report_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Admin - Delete Weekly",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "8d593ad4-0921-4427-9a81-4a4b3b46a72e",
+										"exec": [
+											"pm.test(\"should be 200\", function() {",
+											"    pm.response.to.have.status(200);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Content-Type",
+										"type": "text",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://{{server}}/settlements/{{last_settlement_report_id}}",
+									"protocol": "http",
+									"host": [
+										"{{server}}"
+									],
+									"path": [
+										"settlements",
+										"{{last_settlement_report_id}}"
 									]
 								}
 							},

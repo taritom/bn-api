@@ -180,6 +180,13 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/organizations/{id}/invites/{invite_id}", |r| {
         r.method(Method::DELETE).with(organization_invites::destroy);
     })
+    .resource("/organizations/{id}/settlements", |r| {
+        r.method(Method::GET).with(settlements::index);
+        r.method(Method::POST).with(settlements::create);
+    })
+    .resource("/organizations/{id}/settlements/prepare", |r| {
+        r.method(Method::GET).with(settlements::prepare);
+    })
     .resource("/organizations/{id}/invites", |r| {
         r.method(Method::GET).with(organization_invites::index);
         r.method(Method::POST).with(organization_invites::create);
@@ -236,6 +243,11 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(stages::show);
         r.method(Method::PUT).with(stages::update);
         r.method(Method::DELETE).with(stages::delete);
+    })
+    .resource("/settlements/{id}", |r| {
+        r.method(Method::GET).with(settlements::show);
+        //            r.method(Method::PUT).with(stages::update);
+        r.method(Method::DELETE).with(settlements::destroy);
     })
     .resource("/tickets/transfer", |r| {
         r.method(Method::POST).with(tickets::transfer_authorization);

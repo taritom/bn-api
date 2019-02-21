@@ -124,6 +124,8 @@ string_enum! { PaymentProviders [External, Globee, Stripe] }
 string_enum! { PaymentStatus [Authorized, Completed, Requested, Refunded, Unpaid, PendingConfirmation, Cancelled, Draft, Unknown, PendingIpn] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Roles [Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, Promoter, PromoterReadOnly, User] }
+string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
+string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { Tables [Events, FeeSchedules, Orders, Organizations, Payments, PaymentMethods, TicketInstances, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}

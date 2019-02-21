@@ -473,6 +473,46 @@ impl Event {
             .to_db_error(ErrorCode::UpdateError, "Could not update event")
     }
 
+    pub fn get_all_events_ending_between(
+        organization_id: Uuid,
+        start: NaiveDateTime,
+        end: NaiveDateTime,
+        status: EventStatus,
+        conn: &PgConnection,
+    ) -> Result<Vec<Event>, DatabaseError> {
+        events::table
+            .filter(events::organization_id.eq(organization_id))
+            .filter(events::event_end.ge(start))
+            .filter(events::event_end.le(end))
+            .filter(events::status.eq(status))
+            .filter(events::is_external.eq(false))
+            .order_by(events::event_end.asc())
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve events")
+    }
+
+    pub fn count_report(
+        self,
+        start: Option<NaiveDateTime>,
+        end: Option<NaiveDateTime>,
+        group_by_ticket_type: bool,
+        group_by_ticket_pricing: bool,
+        group_by_hold: bool,
+        group_by_event: bool,
+        conn: &PgConnection,
+    ) -> Result<TicketSalesAndCounts, DatabaseError> {
+        Report::ticket_sales_and_counts(
+            Some(self.id),
+            Some(self.organization_id),
+            start,
+            end,
+            group_by_ticket_type,
+            group_by_ticket_pricing,
+            group_by_hold,
+            group_by_event,
+            conn,
+        )
+    }
     /**
      * Returns the localized_times formatted to rfc2822
      */

@@ -361,6 +361,36 @@ table! {
 }
 
 table! {
+    settlements (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        start_time -> Timestamp,
+        end_time -> Timestamp,
+        status -> Text,
+        comment -> Nullable<Text>,
+        only_finished_events -> Bool,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    settlement_transactions (id) {
+        id -> Uuid,
+        settlement_id -> Uuid,
+        event_id -> Uuid,
+        order_item_id -> Nullable<Uuid>,
+        settlement_status -> Text,
+        transaction_type -> Text,
+        value_in_cents -> Int8,
+        comment -> Nullable<Text>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     stages (id) {
         id -> Uuid,
         venue_id -> Uuid,
@@ -530,6 +560,10 @@ joinable!(payments -> users (created_by));
 joinable!(push_notification_tokens -> users (user_id));
 joinable!(refunded_tickets -> order_items (order_item_id));
 joinable!(refunded_tickets -> ticket_instances (ticket_instance_id));
+joinable!(settlement_transactions -> events (event_id));
+joinable!(settlement_transactions -> settlements (settlement_id));
+joinable!(settlements -> organizations (organization_id));
+joinable!(settlements -> users (user_id));
 joinable!(ticket_instances -> assets (asset_id));
 joinable!(ticket_instances -> holds (hold_id));
 joinable!(ticket_instances -> order_items (order_item_id));
@@ -566,6 +600,8 @@ allow_tables_to_appear_in_same_query!(
     push_notification_tokens,
     refunded_tickets,
     regions,
+    settlements,
+    settlement_transactions,
     stages,
     ticket_instances,
     ticket_pricing,
