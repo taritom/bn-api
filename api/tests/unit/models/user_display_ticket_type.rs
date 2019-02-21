@@ -257,6 +257,7 @@ fn from_ticket_type() {
             10,
             0,
             SoldOutBehavior::ShowSoldOut,
+            false,
             conn,
         )
         .unwrap();

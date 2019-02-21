@@ -176,6 +176,7 @@ impl<'a> EventBuilder<'a> {
                         0,
                         100,
                         SoldOutBehavior::ShowSoldOut,
+                        false,
                         self.connection,
                     )
                     .unwrap();

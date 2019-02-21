@@ -35,6 +35,7 @@ pub struct CreateTicketTypeRequest {
     pub limit_per_person: i32,
     pub price_in_cents: i64,
     pub sold_out_behavior: SoldOutBehavior,
+    pub is_private: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -60,6 +61,7 @@ pub struct UpdateTicketTypeRequest {
     pub limit_per_person: Option<i32>,
     pub price_in_cents: Option<i64>,
     pub sold_out_behavior: Option<SoldOutBehavior>,
+    pub is_private: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -100,6 +102,7 @@ pub fn create(
         data.limit_per_person,
         data.price_in_cents,
         data.sold_out_behavior,
+        data.is_private,
         connection,
     )?;
     //Add each ticket pricing entry for newly created ticket type
@@ -298,6 +301,7 @@ pub fn update(
         limit_per_person: data.limit_per_person,
         price_in_cents: data.price_in_cents,
         sold_out_behavior: data.sold_out_behavior,
+        is_private: data.is_private,
     };
     let updated_ticket_type = ticket_type.update(update_parameters, connection)?;
 

@@ -23,6 +23,7 @@ fn update_asset_blockchain_id() {
             0,
             100,
             SoldOutBehavior::ShowSoldOut,
+            false,
             conn,
         )
         .unwrap();

@@ -143,6 +143,7 @@ fn add_tickets_below_min_fee() {
             10,
             0,
             SoldOutBehavior::ShowSoldOut,
+            false,
             connection,
         )
         .unwrap();

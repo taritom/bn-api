@@ -318,6 +318,7 @@ impl Event {
                 limit 1
             )
             where tt.event_id = ANY($1)
+            and tt.is_private = false
             GROUP BY tt.event_id;
         "#;
 
@@ -1084,6 +1085,7 @@ impl Event {
         limit_per_person: i32,
         price_in_cents: i64,
         sold_out_behavior: SoldOutBehavior,
+        is_private: bool,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         let asset_name = format!("{}.{}", self.name, &name);
@@ -1097,6 +1099,7 @@ impl Event {
             limit_per_person,
             price_in_cents,
             sold_out_behavior,
+            is_private,
         )
         .commit(conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;

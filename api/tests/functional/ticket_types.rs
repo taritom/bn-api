@@ -214,6 +214,7 @@ pub fn create_with_validation_errors() {
         limit_per_person: 0,
         price_in_cents: 10000,
         sold_out_behavior: SoldOutBehavior::ShowSoldOut,
+        is_private: false,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -277,6 +278,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         limit_per_person: 0,
         price_in_cents: 10000,
         sold_out_behavior: SoldOutBehavior::ShowSoldOut,
+        is_private: false,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -349,6 +351,7 @@ pub fn create_with_overlapping_periods() {
         limit_per_person: 0,
         price_in_cents: 20000,
         sold_out_behavior: SoldOutBehavior::ShowSoldOut,
+        is_private: false,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -439,6 +442,7 @@ pub fn update_with_invalid_id() {
         limit_per_person: Some(0),
         price_in_cents: Some(20000),
         sold_out_behavior: None,
+        is_private: Some(false),
     };
 
     //Send update request
@@ -506,6 +510,7 @@ pub fn update_with_validation_errors() {
         limit_per_person: Some(0),
         price_in_cents: Some(20000),
         sold_out_behavior: None,
+        is_private: None,
     };
 
     //Send update request
@@ -584,6 +589,7 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
         limit_per_person: Some(0),
         price_in_cents: Some(20000),
         sold_out_behavior: None,
+        is_private: None,
     };
 
     //Send update request
@@ -674,6 +680,7 @@ pub fn update_with_overlapping_periods() {
         limit_per_person: Some(0),
         price_in_cents: Some(20000),
         sold_out_behavior: None,
+        is_private: None,
     };
 
     //Send update request

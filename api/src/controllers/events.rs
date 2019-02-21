@@ -347,6 +347,12 @@ pub fn show(
                 connection,
             )?;
 
+            // Only show private ticket types via holds
+            if ticket_type.is_private && display_ticket_type.redemption_code.is_none() {
+                continue;
+            }
+
+            // If the ticket type is sold out, hide it if necessary
             if display_ticket_type.status == TicketTypeStatus::SoldOut
                 && ticket_type.sold_out_behavior == SoldOutBehavior::Hide
             {

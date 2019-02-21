@@ -33,6 +33,7 @@ pub struct TicketType {
     pub price_in_cents: i64,
     pub cancelled_at: Option<NaiveDateTime>,
     pub sold_out_behavior: SoldOutBehavior,
+    pub is_private: bool,
 }
 
 impl PartialOrd for TicketType {
@@ -52,6 +53,7 @@ pub struct TicketTypeEditableAttributes {
     pub limit_per_person: Option<i32>,
     pub price_in_cents: Option<i64>,
     pub sold_out_behavior: Option<SoldOutBehavior>,
+    pub is_private: Option<bool>,
 }
 
 impl TicketType {
@@ -82,6 +84,7 @@ impl TicketType {
         limit_per_person: i32,
         price_in_cents: i64,
         sold_out_behavior: SoldOutBehavior,
+        is_private: bool,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -94,6 +97,7 @@ impl TicketType {
             limit_per_person,
             price_in_cents,
             sold_out_behavior,
+            is_private,
         }
     }
 
@@ -431,6 +435,7 @@ pub struct NewTicketType {
     limit_per_person: i32,
     price_in_cents: i64,
     sold_out_behavior: SoldOutBehavior,
+    is_private: bool,
 }
 
 impl NewTicketType {
