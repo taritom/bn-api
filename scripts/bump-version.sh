@@ -2,8 +2,6 @@
 
 set -e
 
-# Ensure we are in the root of the git repo
-cd $(git rev-parse --show-toplevel)
 new_version=""
 
 function bump_patch {
@@ -22,12 +20,12 @@ FILES=( "db/Cargo.toml" "api/Cargo.toml" )
 
 for target in "${FILES[@]}"; do
     bump_patch "$target"
-    if [[ $1 == "--with-git" ]]; then
+    if [[ $1 == "--tag-commit" ]]; then
         git add "$target"
     fi
 done
 
-if [[ $1 == "--with-git" ]]; then
+if [[ $1 == "--tag-commit" ]]; then
     git commit -m  "Version bump to ${new_version} [skip ci]"
     git tag ${new_version}
     git push sshremote master
