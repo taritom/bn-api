@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate bigneon_caching_derive;
+extern crate bigneon_http;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]

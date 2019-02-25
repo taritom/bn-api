@@ -7,6 +7,8 @@
 #![deny(unused_must_use)]
 #![cfg_attr(not(debug_assertions), deny(unused_extern_crates))]
 extern crate proc_macro;
+extern crate quote;
+extern crate syn;
 
 use crate::proc_macro::TokenStream;
 use quote::quote;
