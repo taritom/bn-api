@@ -1560,8 +1560,16 @@ impl Order {
             self.update_status(current_user_id, OrderStatus::Paid, conn)?;
             //Mark tickets as Purchased
             let order_items = OrderItem::find_for_order(self.id, conn)?;
-            for item in &order_items {
-                TicketInstance::mark_as_purchased(item, self.user_id, conn)?;
+            for item in order_items
+                .iter()
+                .filter(|oi| oi.item_type == OrderItemTypes::Tickets)
+                .collect_vec()
+            {
+                TicketInstance::mark_as_purchased(
+                    item,
+                    self.on_behalf_of_user_id.unwrap_or(self.user_id),
+                    conn,
+                )?;
             }
 
             let ticket_ids = TicketInstance::find_ids_for_order(self.id, conn)?;
