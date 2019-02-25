@@ -5,6 +5,7 @@ members = [
     "branch_rs",
     "db",
     "globee",
+    "http",
     "tari-client",
     "stripe",
     "logging",

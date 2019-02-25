@@ -199,7 +199,7 @@ pub fn index(
     )?;
 
     let event_interest = match user {
-        Some(u) => EventInterest::find_interest_by_event_ids_for_user(
+        Some(ref u) => EventInterest::find_interest_by_event_ids_for_user(
             events.iter().map(|e| e.id).collect::<Vec<Uuid>>(),
             u.id,
             connection,
@@ -226,6 +226,7 @@ pub fn index(
                 ..Default::default()
             })
             .clone();
+
         results.push(EventVenueEntry {
             venue,
             id: event.id,
@@ -259,6 +260,7 @@ pub fn index(
     let mut payload = Payload::new(results, query.into());
     payload.paging.total = payload.data.len() as u64;
     payload.paging.limit = 100;
+
     Ok(HttpResponse::Ok().json(&payload))
 }
 
@@ -378,7 +380,7 @@ pub fn show(
 
     let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
 
-    if let Some(u) = user {
+    if let Some(ref u) = user {
         let tickets_bought = Order::quantity_for_user_for_event(&u.id(), &event.id, connection)?;
         for (tt_id, num) in tickets_bought {
             let limit = TicketType::find(tt_id, connection)?.limit_per_person;
@@ -442,7 +444,7 @@ pub fn show(
         event_type: EventTypes,
     }
 
-    Ok(HttpResponse::Ok().json(&R {
+    let payload = &R {
         id: event.id,
         name: event.name,
         organization_id: event.organization_id,
@@ -480,7 +482,9 @@ pub fn show(
         localized_times,
         tracking_keys,
         event_type: event.event_type,
-    }))
+    };
+
+    Ok(HttpResponse::Ok().json(&payload))
 }
 
 pub fn publish(

@@ -1,5 +1,6 @@
 pub mod encryption;
 pub mod errors;
+pub mod hash;
 pub mod iterators;
 mod math;
 pub mod migration;

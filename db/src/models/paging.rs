@@ -1,6 +1,8 @@
+use bigneon_http::caching::{ETag, EntityTag, ToETag};
 use models::SortingDir;
 use serde_json::Value;
 use std::collections::HashMap;
+use utils::hash::sha1;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 ///struct used to indicate paging information and search query information
@@ -93,6 +95,34 @@ impl<T> Payload<T> {
 
     pub fn is_empty(&self) -> bool {
         self.data.len() == 0
+    }
+}
+
+impl<T> ToETag for Payload<T>
+where
+    T: ToETag,
+{
+    fn to_etag(&self) -> ETag {
+        // Get each payload etag
+        let etag_strs = self
+            .data
+            .iter()
+            .map(|d| format!("{}", d.to_etag()))
+            .collect::<Vec<String>>()
+            .join("");
+
+        let tag_str = self
+            .paging
+            .tags
+            .iter()
+            .fold("".to_string(), |mut acc, (k, v)| {
+                acc.push_str(&format!("{}{}", k, v));
+                acc
+            });
+
+        // Hash the resultant string
+        let sha = sha1::digest(&format!("{}{}", etag_strs, tag_str));
+        ETag(EntityTag::weak(sha.to_string()))
     }
 }
 
