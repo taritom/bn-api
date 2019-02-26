@@ -85,7 +85,7 @@ impl ConvertToWebError for JwtError {
     fn to_response(&self) -> HttpResponse {
         match self.kind().clone() {
             JwtErrorKind::ExpiredSignature => info!("JWT error: {}", self),
-            _ => error!("JWT error: {}", self),
+            _ => warn!("JWT error: {}", self),
         }
         unauthorized("Invalid token")
     }
@@ -163,7 +163,7 @@ impl ConvertToWebError for StripeError {
 
 impl ConvertToWebError for ApplicationError {
     fn to_response(&self) -> HttpResponse {
-        error!("Application error: {}", self);
+        warn!("Application error: {}", self);
 
         match self.error_type {
             ApplicationErrorType::Internal => internal_error("Internal error"),
@@ -196,7 +196,7 @@ impl ConvertToWebError for TariError {
 
 impl ConvertToWebError for AuthError {
     fn to_response(&self) -> HttpResponse {
-        error!("AuthError error: {}", self.reason);
+        warn!("AuthError error: {}", self.reason);
 
         match self.error_type {
             AuthErrorType::Forbidden => forbidden(&self.reason),

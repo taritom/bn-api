@@ -50,8 +50,14 @@ impl Middleware<AppState> for BigNeonLogger {
                 let ip_address = req.connection_info().remote().map(|i| i.to_string());
                 let uri = req.uri().to_string();
                 let method = req.method().to_string();
+                let level = if resp.status().is_client_error() {
+                    Level::Warn
+                } else {
+                    Level::Error
+                };
+
                 jlog!(
-                    Level::Error,
+                    level,
                     "bigneon_api::big_neon_logger",
                     &error.to_string(),
                     {
