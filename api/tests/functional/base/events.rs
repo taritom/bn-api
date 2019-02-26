@@ -574,8 +574,10 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
 
 pub fn holds(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -605,10 +607,29 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         pub max_per_order: Option<i64>,
         pub hold_type: HoldTypes,
         pub ticket_type_id: Uuid,
+        pub ticket_type_name: String,
+        pub price_in_cents: Option<u32>,
         pub available: u32,
         pub quantity: u32,
         pub parent_hold_id: Option<Uuid>,
     }
+
+    let ticket_type = UserDisplayTicketType::from_ticket_type(
+        &TicketType::find(hold.ticket_type_id, connection).unwrap(),
+        &fee_schedule,
+        false,
+        Some(hold.redemption_code.clone()),
+        connection,
+    )
+    .unwrap();
+    let ticket_type2 = UserDisplayTicketType::from_ticket_type(
+        &TicketType::find(hold2.ticket_type_id, connection).unwrap(),
+        &fee_schedule,
+        false,
+        Some(hold2.redemption_code.clone()),
+        connection,
+    )
+    .unwrap();
 
     let all_holds = vec![
         R {
@@ -621,6 +642,10 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
             max_per_order: hold.max_per_order,
             hold_type: hold.hold_type,
             ticket_type_id: hold.ticket_type_id,
+            ticket_type_name: ticket_type.name,
+            price_in_cents: ticket_type
+                .ticket_pricing
+                .map(|tp| tp.price_in_cents as u32),
             available: 10,
             quantity: 10,
             parent_hold_id: None,
@@ -635,6 +660,10 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
             max_per_order: hold2.max_per_order,
             hold_type: hold2.hold_type,
             ticket_type_id: hold2.ticket_type_id,
+            ticket_type_name: ticket_type2.name,
+            price_in_cents: ticket_type2
+                .ticket_pricing
+                .map(|tp| tp.price_in_cents as u32),
             available: 10,
             quantity: 10,
             parent_hold_id: None,
@@ -649,7 +678,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::holds((
-        database.connection.into(),
+        database.connection.clone().into(),
         query_parameters,
         path,
         auth_user,

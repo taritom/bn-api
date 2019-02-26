@@ -1,7 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
 use auth::user::User;
-use bigneon_db::models::*;
-use bigneon_db::utils::errors::{DatabaseError, ErrorCode};
+use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
@@ -959,13 +958,23 @@ pub fn holds(
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let event = Event::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::HoldRead,
-        &event.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    let organization = &event.organization(conn)?;
+    user.requires_scope_for_organization_event(Scopes::HoldRead, &organization, &event, conn)?;
     let holds = Hold::find_for_event(path.id, conn)?;
+    let mut ticket_type_ids: Vec<Uuid> = holds.iter().map(|h| h.ticket_type_id).collect();
+    ticket_type_ids.sort();
+    ticket_type_ids.dedup();
+    let ticket_types = TicketType::find_by_ids(&ticket_type_ids, conn)?;
+    let mut ticket_types_map = HashMap::new();
+    for ticket_type in ticket_types {
+        ticket_types_map.insert(
+            ticket_type.id,
+            (
+                ticket_type.clone(),
+                ticket_type.current_ticket_pricing(false, conn).optional()?,
+            ),
+        );
+    }
 
     #[derive(Serialize)]
     struct R {
@@ -978,6 +987,8 @@ pub fn holds(
         pub max_per_order: Option<i64>,
         pub hold_type: HoldTypes,
         pub ticket_type_id: Uuid,
+        pub ticket_type_name: String,
+        pub price_in_cents: Option<u32>,
         pub available: u32,
         pub quantity: u32,
         pub parent_hold_id: Option<Uuid>,
@@ -986,7 +997,13 @@ pub fn holds(
     let mut list = Vec::<R>::new();
     for hold in holds {
         let (quantity, available) = hold.quantity(conn)?;
-
+        let (ticket_type, current_ticket_pricing) =
+            ticket_types_map.get(&hold.ticket_type_id).ok_or(
+                application::internal_server_error::<HttpResponse>(
+                    "Failed to load hold ticket type",
+                )
+                .unwrap_err(),
+            )?;
         let r = R {
             id: hold.id,
             name: hold.name,
@@ -997,6 +1014,10 @@ pub fn holds(
             max_per_order: hold.max_per_order,
             hold_type: hold.hold_type,
             ticket_type_id: hold.ticket_type_id,
+            ticket_type_name: ticket_type.name.clone(),
+            price_in_cents: current_ticket_pricing
+                .clone()
+                .map(|tp| tp.price_in_cents as u32),
             available,
             quantity,
             parent_hold_id: hold.parent_hold_id,

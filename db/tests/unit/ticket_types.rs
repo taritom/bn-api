@@ -84,6 +84,24 @@ pub fn create_with_validation_errors() {
 }
 
 #[test]
+fn find_by_ids() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(2)
+        .finish();
+    let mut ticket_types = event.ticket_types(true, None, connection).unwrap();
+    let mut found_ticket_types =
+        TicketType::find_by_ids(&ticket_types.iter().map(|tt| tt.id).collect(), connection)
+            .unwrap();
+    ticket_types.sort_by_key(|tt| tt.id);
+    found_ticket_types.sort_by_key(|tt| tt.id);
+    assert_eq!(ticket_types, found_ticket_types);
+}
+
+#[test]
 fn valid_unsold_ticket_count() {
     let project = TestProject::new();
     let connection = project.get_connection();

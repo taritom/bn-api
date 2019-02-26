@@ -73,6 +73,17 @@ impl TicketType {
             )
     }
 
+    pub fn find_by_ids(
+        ids: &Vec<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketType>, DatabaseError> {
+        ticket_types::table
+            .filter(ticket_types::id.eq_any(ids))
+            .order_by(ticket_types::name)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading ticket types")
+    }
+
     /// Creates a ticket type. `Event::add_ticket_type` should be used in most scenarios
     pub(crate) fn create(
         event_id: Uuid,
