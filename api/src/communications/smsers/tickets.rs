@@ -32,7 +32,7 @@ pub fn send_tickets(
     let source = CommAddress::from(config.communication_default_source_phone.clone());
     let destinations = CommAddress::from(phone);
     let body = format!(
-        "{} has sent you some tickets: {}",
+        "{} has sent you some tickets. Follow this link to receive them: {}",
         from_user.full_name(),
         shortened_link
     );

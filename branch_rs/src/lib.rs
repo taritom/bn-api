@@ -100,6 +100,14 @@ pub struct DeepLinkData {
     pub image_url: Option<String>,
     #[serde(rename = "$desktop_url")]
     pub desktop_url: Option<String>,
+    #[serde(rename = "$ios_url")]
+    pub ios_url: Option<String>,
+    #[serde(rename = "$android_url")]
+    pub android_url: Option<String>,
+    #[serde(rename = "$fallback_url")]
+    pub fallback_url: Option<String>,
+    #[serde(rename = "$android_deeplink_path")]
+    pub android_deeplink_path: Option<String>,
     #[serde(rename = "$web_only")]
     pub web_only: bool,
 }

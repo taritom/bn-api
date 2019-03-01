@@ -22,6 +22,11 @@ impl DeepLinker for BranchDeepLinker {
             data: DeepLinkData {
                 desktop_url: Some(raw_link.to_string()),
                 web_only: true,
+                ios_url: Some(raw_link.to_string()),
+                fallback_url: Some(raw_link.to_string()),
+                android_url: Some(raw_link.to_string()),
+                android_deeplink_path: Some("random".to_string()),
+
                 ..Default::default()
             },
             ..Default::default()
