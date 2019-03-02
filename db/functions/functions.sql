@@ -95,7 +95,7 @@ FROM order_items oi
          LEFT JOIN holds h ON oi.hold_id = h.id
          LEFT JOIN order_items oi_t_fees ON oi_t_fees.parent_id = oi.id AND oi_t_fees.item_type = 'PerUnitFees'
          LEFT JOIN order_items oi_e_fees ON oi_e_fees.order_id = oi.order_id AND oi_e_fees.item_type = 'EventFees'
-         LEFT JOIN (SELECT order_id, CAST(ARRAY_TO_STRING(ARRAY_AGG(DISTINCT p.payment_method), ', ') LIKE '%External' AS BOOLEAN) AS is_box_office FROM payments p GROUP BY p.payment_method, p.order_id) AS p on o.id = p.order_id
+         LEFT JOIN (SELECT order_id, CAST(ARRAY_TO_STRING(ARRAY_AGG(DISTINCT p.payment_method), ', ') LIKE '%External' AS BOOLEAN) AS is_box_office FROM payments p WHERE p.status='Completed' GROUP BY p.payment_method, p.order_id) AS p on o.id = p.order_id
          LEFT JOIN (SELECT gh.id, gh.name FROM holds gh WHERE $3 LIKE '%hold%') as gh ON gh.id = oi.hold_id
          LEFT JOIN (SELECT tt.id, tt.name, tt.status FROM ticket_types tt WHERE $3 LIKE '%ticket_type%') AS tt ON tt.id = oi.ticket_type_id
          LEFT JOIN (SELECT tp.id, tp.name, tp.price_in_cents FROM ticket_pricing tp WHERE $3 LIKE '%ticket_pricing%') AS tp ON oi.ticket_pricing_id = tp.id
