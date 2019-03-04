@@ -1015,12 +1015,12 @@ pub fn holds(
     for hold in holds {
         let (quantity, available) = hold.quantity(conn)?;
         let (ticket_type, current_ticket_pricing) =
-            ticket_types_map.get(&hold.ticket_type_id).ok_or(
+            ticket_types_map.get(&hold.ticket_type_id).ok_or_else(|| {
                 application::internal_server_error::<HttpResponse>(
                     "Failed to load hold ticket type",
                 )
-                .unwrap_err(),
-            )?;
+                .unwrap_err()
+            })?;
         let r = R {
             id: hold.id,
             name: hold.name,
