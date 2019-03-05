@@ -34,6 +34,22 @@ table! {
 }
 
 table! {
+    broadcasts (id) {
+        id -> Uuid,
+        event_id -> Uuid,
+        notification_type -> Varchar,
+        channel -> Varchar,
+        name -> Text,
+        message -> Nullable<Text>,
+        send_at -> Nullable<Timestamp>,
+        status -> Varchar,
+        progress -> Int4,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     codes (id) {
         id -> Uuid,
         name -> Text,
@@ -530,6 +546,7 @@ table! {
 
 joinable!(artists -> organizations (organization_id));
 joinable!(assets -> ticket_types (ticket_type_id));
+joinable!(broadcasts -> events (event_id));
 joinable!(codes -> events (event_id));
 joinable!(domain_actions -> domain_events (domain_event_id));
 joinable!(domain_events -> users (user_id));
@@ -581,6 +598,7 @@ joinable!(wallets -> users (user_id));
 allow_tables_to_appear_in_same_query!(
     artists,
     assets,
+    broadcasts,
     codes,
     domain_actions,
     domain_events,

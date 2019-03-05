@@ -23,6 +23,11 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/auth/token/refresh", |r| {
         r.method(Method::POST).with(auth::token_refresh)
     })
+    .resource("/broadcasts/{id}", |r| {
+        r.method(Method::GET).with(broadcasts::show);
+        r.method(Method::PUT).with(broadcasts::update);
+        r.method(Method::DELETE).with(broadcasts::delete);
+    })
     .resource("/cart", |r| {
         r.method(Method::DELETE).with(cart::destroy);
         r.method(Method::POST).with(cart::update_cart);
@@ -86,8 +91,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{id}/publish", |r| {
         r.method(Method::POST).with(events::publish);
     })
-    .resource("/events/{id}/unpublish", |r| {
-        r.method(Method::POST).with(events::unpublish);
+    .resource("/events/{id}/broadcasts", |r| {
+        r.method(Method::POST).with(broadcasts::create);
+        r.method(Method::GET).with(broadcasts::index);
     })
     .resource("/events/{id}/redeem/{ticket_instance_id}", |r| {
         r.method(Method::POST).with(events::redeem_ticket);
@@ -102,6 +108,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{event_id}/ticket_types/{ticket_type_id}", |r| {
         r.method(Method::PATCH).with(ticket_types::update);
         r.method(Method::DELETE).with(ticket_types::cancel);
+    })
+    .resource("/events/{id}/unpublish", |r| {
+        r.method(Method::POST).with(events::unpublish);
     })
     .resource("/events/{id}/users", |r| {
         r.method(Method::GET).with(events::users);

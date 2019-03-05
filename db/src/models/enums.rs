@@ -115,6 +115,9 @@ string_enum! { DomainActionTypes [
     SendPurchaseCompletedCommunication
 
 ]}
+string_enum! { BroadcastStatus [Pending, InProgess, Completed, Cancelled]}
+string_enum! { BroadcastChannel [PushNotification]}
+string_enum! { BroadcastType [LastCall]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { EventSearchSortField [ Name, EventStart]}
@@ -155,6 +158,24 @@ impl Default for EventStatus {
 impl Default for EventTypes {
     fn default() -> EventTypes {
         EventTypes::Music
+    }
+}
+
+impl Default for BroadcastType {
+    fn default() -> BroadcastType {
+        BroadcastType::LastCall
+    }
+}
+
+impl Default for BroadcastStatus {
+    fn default() -> BroadcastStatus {
+        BroadcastStatus::Pending
+    }
+}
+
+impl Default for BroadcastChannel {
+    fn default() -> BroadcastChannel {
+        BroadcastChannel::PushNotification
     }
 }
 

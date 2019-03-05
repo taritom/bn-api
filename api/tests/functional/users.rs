@@ -498,6 +498,7 @@ fn current_user_organization_owner() {
             "comp:read",
             "comp:write",
             "dashboard:read",
+            "event:broadcast",
             "event:cancel",
             "event:financial-reports",
             "event:interest",

@@ -1,5 +1,6 @@
 pub mod artists;
 pub mod auth;
+pub mod broadcasts;
 pub mod cart;
 pub mod codes;
 pub mod comps;

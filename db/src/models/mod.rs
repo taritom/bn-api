@@ -1,5 +1,6 @@
 pub use self::artists::*;
 pub use self::assets::*;
+pub use self::broadcasts::*;
 pub use self::codes::*;
 pub use self::domain_actions::*;
 pub use self::domain_events::*;
@@ -48,6 +49,7 @@ pub mod concerns;
 
 mod artists;
 mod assets;
+mod broadcasts;
 mod codes;
 mod domain_actions;
 mod domain_events;
