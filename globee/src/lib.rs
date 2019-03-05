@@ -264,6 +264,28 @@ use serde::Serializer;
 use serde_json::Value;
 use std::str::FromStr;
 
+fn from_str_or_num_to_num<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: Value = Deserialize::deserialize(deserializer)?;
+
+    if value.is_string() {
+        let value = value.as_str();
+        if let Some(s) = value {
+            f64::from_str(s)
+                .map_err(serde::de::Error::custom)
+                .map(|f| Some(f))
+        } else {
+            Ok(None)
+        }
+    } else if value.is_number() {
+        Ok(value.as_f64())
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn string_to_num<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
 where
     D: Deserializer<'de>,
@@ -279,6 +301,7 @@ where
         Ok(None)
     }
 }
+
 pub fn num_to_string<S>(value: &Option<f64>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -317,10 +340,16 @@ pub struct Customer {
 pub struct PaymentDetails {
     pub currency: Option<String>,
 
-    #[serde(deserialize_with = "string_to_num", serialize_with = "num_to_string")]
+    #[serde(
+        deserialize_with = "from_str_or_num_to_num",
+        serialize_with = "num_to_string"
+    )]
     pub received_amount: Option<f64>,
 
-    #[serde(deserialize_with = "string_to_num", serialize_with = "num_to_string")]
+    #[serde(
+        deserialize_with = "from_str_or_num_to_num",
+        serialize_with = "num_to_string"
+    )]
     pub received_difference: Option<f64>,
 }
 
@@ -347,20 +376,63 @@ pub struct ValidationError {
     pub field: String,
     pub message: String,
 }
-//
-//impl StdError for ValidationError {
-//    fn description(&self) -> String {
-//        "One or more errors occurred"
-//    }
-//}
-//
-//use std::fmt;
-//
-//impl fmt::Display for ValidationError {}
 
 #[cfg(test)]
 pub mod test {
     use super::*;
+
+    #[derive(Deserialize, Debug, Serialize, Clone)]
+    pub struct TestDeserialize {
+        #[serde(deserialize_with = "from_str_or_num_to_num")]
+        pub total: Option<f64>,
+    }
+
+    #[test]
+    pub fn test_string_number_conversions() {
+        let og = r#"
+            {"total": "0.1"}
+        "#;
+        let response: TestDeserialize = serde_json::from_str(og).unwrap();
+        assert_eq!(response.total, Some(0.1f64));
+        let og = r#"
+            {"total": 0.1}
+        "#;
+        let response: TestDeserialize = serde_json::from_str(og).unwrap();
+        assert_eq!(response.total, Some(0.1f64));
+
+        let og = r#"
+            {"total": 0}
+        "#;
+        let response: TestDeserialize = serde_json::from_str(og).unwrap();
+        assert_eq!(response.total, Some(0f64));
+
+        let og = r#"
+            {"total": "0"}
+        "#;
+        let response: TestDeserialize = serde_json::from_str(og).unwrap();
+        assert_eq!(response.total, Some(0f64));
+
+        let og = r#"
+            {"total": 10900}
+        "#;
+        let response: TestDeserialize = serde_json::from_str(og).unwrap();
+        assert_eq!(response.total, Some(10900f64));
+
+        let og = r#"
+            {"total": 1}
+        "#;
+        let response: TestDeserialize = serde_json::from_str(og).unwrap();
+        assert_eq!(response.total, Some(1f64));
+    }
+
+    #[test]
+    #[should_panic]
+    pub fn test_converting_invalid_data() {
+        let og = r#"
+            {"total": "not_a_number"}
+        "#;
+        let _response: TestDeserialize = serde_json::from_str(og).unwrap();
+    }
 
     #[test]
     pub fn deserialize_data() {
