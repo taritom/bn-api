@@ -372,8 +372,8 @@ fn show() {
     let artist2 = database.create_artist().finish();
     let conn = database.connection.get();
 
-    event.add_artist(artist1.id, conn).unwrap();
-    event.add_artist(artist2.id, conn).unwrap();
+    event.add_artist(None, artist1.id, conn).unwrap();
+    event.add_artist(None, artist2.id, conn).unwrap();
 
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
@@ -444,8 +444,8 @@ fn show_private() {
     let artist2 = database.create_artist().finish();
     let conn = database.connection.get();
 
-    event.add_artist(artist1.id, conn).unwrap();
-    event.add_artist(artist2.id, conn).unwrap();
+    event.add_artist(None, artist1.id, conn).unwrap();
+    event.add_artist(None, artist2.id, conn).unwrap();
 
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
@@ -575,8 +575,8 @@ fn show_with_cancelled_ticket_type() {
     let artist2 = database.create_artist().finish();
     let conn = database.connection.get();
 
-    event.add_artist(artist1.id, conn).unwrap();
-    event.add_artist(artist2.id, conn).unwrap();
+    event.add_artist(None, artist1.id, conn).unwrap();
+    event.add_artist(None, artist2.id, conn).unwrap();
 
     let ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
     let _cancelled_ticket_type = ticket_type.cancel(conn).unwrap();
@@ -633,8 +633,8 @@ fn show_with_access_restricted_ticket_type_and_no_code() {
     let artist2 = database.create_artist().finish();
     let conn = database.connection.get();
 
-    event.add_artist(artist1.id, conn).unwrap();
-    event.add_artist(artist2.id, conn).unwrap();
+    event.add_artist(None, artist1.id, conn).unwrap();
+    event.add_artist(None, artist2.id, conn).unwrap();
 
     let ticket_types = &event.ticket_types(true, None, conn).unwrap();
     let ticket_type = &ticket_types[0];
@@ -699,8 +699,8 @@ fn show_with_access_restricted_ticket_type_and_access_code() {
     let artist2 = database.create_artist().finish();
     let conn = database.connection.get();
 
-    event.add_artist(artist1.id, conn).unwrap();
-    event.add_artist(artist2.id, conn).unwrap();
+    event.add_artist(None, artist1.id, conn).unwrap();
+    event.add_artist(None, artist2.id, conn).unwrap();
 
     let ticket_types = &event.ticket_types(true, None, conn).unwrap();
     let ticket_type = &ticket_types[0];

@@ -112,7 +112,11 @@ pub struct NewEvent {
 }
 
 impl NewEvent {
-    pub fn commit(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+    pub fn commit(
+        &self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Event, DatabaseError> {
         self.validate()?;
         let organization = Organization::find(self.organization_id, conn)?;
         let mut new_event = self.clone();
@@ -130,16 +134,28 @@ impl NewEvent {
             }
             None => (),
         }
-        diesel::insert_into(events::table)
+        let result: Event = diesel::insert_into(events::table)
             .values((
-                new_event,
+                &new_event,
                 events::fee_in_cents.eq(organization.client_event_fee_in_cents
                     + organization.company_event_fee_in_cents),
                 events::client_fee_in_cents.eq(organization.client_event_fee_in_cents),
                 events::company_fee_in_cents.eq(organization.company_event_fee_in_cents),
             ))
             .get_result(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not create new event")
+            .to_db_error(ErrorCode::InsertError, "Could not create new event")?;
+
+        DomainEvent::create(
+            DomainEventTypes::EventCreated,
+            format!("Event '{}' created", &self.name),
+            Tables::Events,
+            Some(result.id),
+            current_user_id,
+            Some(json!(&new_event)),
+        )
+        .commit(conn)?;
+
+        Ok(result)
     }
 
     pub fn default_status() -> EventStatus {
@@ -151,7 +167,7 @@ impl NewEvent {
     }
 }
 
-#[derive(AsChangeset, Default, Deserialize, Validate)]
+#[derive(AsChangeset, Default, Deserialize, Validate, Serialize)]
 #[table_name = "events"]
 pub struct EventEditableAttributes {
     pub name: Option<String>,
@@ -234,6 +250,7 @@ impl Event {
 
     pub fn update(
         &self,
+        current_user_id: Option<Uuid>,
         attributes: EventEditableAttributes,
         conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
@@ -279,13 +296,24 @@ impl Event {
             ),
         )?;
 
-        DatabaseError::wrap(
+        let result: Event = DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update event",
             diesel::update(self)
-                .set((event, events::updated_at.eq(dsl::now)))
+                .set((&event, events::updated_at.eq(dsl::now)))
                 .get_result(conn),
-        )
+        )?;
+
+        DomainEvent::create(
+            DomainEventTypes::EventUpdated,
+            format!("Event '{}' was updated", &self.name),
+            Tables::Events,
+            Some(self.id),
+            current_user_id,
+            Some(json!(&event)),
+        );
+
+        Ok(result)
     }
 
     pub fn ticket_pricing_range_by_events(
@@ -367,7 +395,11 @@ impl Event {
         }
     }
 
-    pub fn unpublish(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+    pub fn unpublish(
+        &self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Event, DatabaseError> {
         let mut errors = ValidationErrors::new();
         if self.status != EventStatus::Published {
             let mut validation_error = create_validation_error(
@@ -395,10 +427,24 @@ impl Event {
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not un-publish record")?;
 
+        DomainEvent::create(
+            DomainEventTypes::EventUnpublished,
+            "Event was unpublished".to_string(),
+            Tables::Events,
+            Some(self.id),
+            current_user_id,
+            None,
+        )
+        .commit(conn)?;
+
         Event::find(self.id, conn)
     }
 
-    pub fn publish(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+    pub fn publish(
+        &self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Event, DatabaseError> {
         if self.status == EventStatus::Published {
             return Event::find(self.id, conn);
         }
@@ -442,6 +488,15 @@ impl Event {
                 .to_db_error(ErrorCode::UpdateError, "Could not publish record")?,
         };
 
+        DomainEvent::create(
+            DomainEventTypes::EventPublished,
+            format!("Event {} published", self.name),
+            Tables::Events,
+            Some(self.id),
+            current_user_id,
+            Some(json!({"publish_date": self.publish_date})),
+        )
+        .commit(conn)?;
         Event::find(self.id, conn)
     }
 
@@ -479,11 +534,27 @@ impl Event {
             .to_db_error(ErrorCode::QueryError, "Error loading events")
     }
 
-    pub fn cancel(self, conn: &PgConnection) -> Result<Event, DatabaseError> {
-        diesel::update(&self)
+    pub fn cancel(
+        self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Event, DatabaseError> {
+        let event: Event = diesel::update(&self)
             .set(events::cancelled_at.eq(dsl::now.nullable()))
             .get_result(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update event")
+            .to_db_error(ErrorCode::UpdateError, "Could not update event")?;
+
+        DomainEvent::create(
+            DomainEventTypes::EventCancelled,
+            format!("Event '{}' cancelled", &self.name),
+            Tables::Events,
+            Some(self.id),
+            current_user_id,
+            None,
+        )
+        .commit(conn)?;
+
+        Ok(event)
     }
 
     pub fn get_all_events_ending_between(
@@ -1103,9 +1174,14 @@ impl Event {
         DatabaseError::wrap(ErrorCode::QueryError, "Unable to load all events", result)
     }
 
-    pub fn add_artist(&self, artist_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn add_artist(
+        &self,
+        current_user_id: Option<Uuid>,
+        artist_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         EventArtist::create(self.id, artist_id, 0, None, 0, None)
-            .commit(conn)
+            .commit(current_user_id, conn)
             .map(|_| ())
     }
 

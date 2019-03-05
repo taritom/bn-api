@@ -94,6 +94,7 @@ impl CreateEventListExecutor {
         if event.sendgrid_list_id.is_none() || event.sendgrid_list_id.unwrap() != sg_list.id as i64
         {
             event.update(
+                None,
                 EventEditableAttributes {
                     sendgrid_list_id: Some(sg_list.id as i64),
                     ..Default::default()

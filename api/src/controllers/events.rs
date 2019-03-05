@@ -514,7 +514,7 @@ pub fn publish(
         &event,
         conn,
     )?;
-    event.publish(conn)?;
+    event.publish(Some(user.id()), conn)?;
 
     // TODO: Remove domain action and replace with domain event EventPublished
     //       once domain events are ready #DomainEvents
@@ -534,7 +534,7 @@ pub fn unpublish(
         &event,
         conn,
     )?;
-    event.unpublish(conn)?;
+    event.unpublish(Some(user.id()), conn)?;
     Ok(HttpResponse::Ok().finish())
 }
 
@@ -696,7 +696,7 @@ pub fn create(
     let organization = Organization::find(new_event.organization_id, connection)?;
     user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
 
-    let event = new_event.commit(connection)?;
+    let event = new_event.commit(Some(user.id()), connection)?;
     Ok(HttpResponse::Created().json(&event))
 }
 
@@ -731,7 +731,7 @@ pub fn update(
         connection,
     )?;
 
-    let updated_event = event.update(event_parameters.into_inner(), connection)?;
+    let updated_event = event.update(Some(user.id()), event_parameters.into_inner(), connection)?;
     Ok(HttpResponse::Ok().json(&updated_event))
 }
 
@@ -749,7 +749,7 @@ pub fn cancel(
     )?;
 
     //Doing this in the DB layer so it can use the DB time as now.
-    let updated_event = event.cancel(connection)?;
+    let updated_event = event.cancel(Some(user.id()), connection)?;
 
     Ok(HttpResponse::Ok().json(&updated_event))
 }
@@ -823,7 +823,7 @@ pub fn add_artist(
         event_artist.importance,
         event_artist.stage_id,
     )
-    .commit(connection)?;
+    .commit(Some(user.id()), connection)?;
     Ok(HttpResponse::Created().json(&event_artist))
 }
 
@@ -860,7 +860,7 @@ pub fn update_artists(
                 a.importance,
                 a.stage_id,
             )
-            .commit(connection)?,
+            .commit(Some(user.id()), connection)?,
         );
         rank += 1;
     }

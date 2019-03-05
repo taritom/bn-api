@@ -73,6 +73,13 @@ string_enum! { CartItemStatus [CodeExpired, HoldExpired, TicketNullified, Ticket
 string_enum! { CodeTypes [Access, Discount] }
 string_enum! { CommunicationChannelType [Email, Sms, Push]}
 string_enum! { DomainEventTypes [
+    EventArtistCreated,
+    EventArtistAdded,
+    EventCancelled,
+    EventCreated,
+    EventPublished,
+    EventUpdated,
+    EventUnpublished,
     FeeScheduleCreated,
     OrderBehalfOfUserChanged,
     OrderCompleted,
@@ -127,7 +134,7 @@ string_enum! { Roles [Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOf
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
-string_enum! { Tables [Events, FeeSchedules, Orders, Organizations, Payments, PaymentMethods, TicketInstances, Users] }
+string_enum! { Tables [Events, EventArtists, FeeSchedules, Orders, Organizations, Payments, PaymentMethods, TicketInstances, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled] }

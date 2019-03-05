@@ -79,8 +79,8 @@ pub fn show_box_office_pricing(role: Roles, should_test_succeed: bool) {
 
     let artist1 = database.create_artist().finish();
     let artist2 = database.create_artist().finish();
-    event.add_artist(artist1.id, conn).unwrap();
-    event.add_artist(artist2.id, conn).unwrap();
+    event.add_artist(None, artist1.id, conn).unwrap();
+    event.add_artist(None, artist2.id, conn).unwrap();
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);

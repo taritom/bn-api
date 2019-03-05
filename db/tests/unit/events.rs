@@ -47,7 +47,9 @@ fn update() {
         door_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
         ..Default::default()
     };
-    let event = event.update(parameters, project.get_connection()).unwrap();
+    let event = event
+        .update(None, parameters, project.get_connection())
+        .unwrap();
     assert_eq!(
         event.door_time,
         Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11))
@@ -151,7 +153,7 @@ fn publish() {
 
     assert_eq!(event.status, EventStatus::Draft);
 
-    let event = event.publish(project.get_connection()).unwrap();
+    let event = event.publish(None, project.get_connection()).unwrap();
 
     assert_eq!(event.status, EventStatus::Published);
     assert!(event.publish_date.is_some());
@@ -182,9 +184,11 @@ fn publish_in_future() {
         publish_date: Some(Some(NaiveDate::from_ymd(2054, 7, 8).and_hms(4, 10, 11))),
         ..Default::default()
     };
-    let event = event.update(parameters, project.get_connection()).unwrap();
+    let event = event
+        .update(None, parameters, project.get_connection())
+        .unwrap();
 
-    let event = event.publish(project.get_connection()).unwrap();
+    let event = event.publish(None, project.get_connection()).unwrap();
 
     assert_eq!(event.status, EventStatus::Published);
     assert_eq!(
@@ -219,9 +223,11 @@ fn publish_change_publish_date() {
         publish_date: Some(Some(NaiveDate::from_ymd(2054, 7, 8).and_hms(4, 10, 11))),
         ..Default::default()
     };
-    let event = event.update(parameters, project.get_connection()).unwrap();
+    let event = event
+        .update(None, parameters, project.get_connection())
+        .unwrap();
 
-    let event = event.publish(project.get_connection()).unwrap();
+    let event = event.publish(None, project.get_connection()).unwrap();
 
     assert_eq!(event.status, EventStatus::Published);
 
@@ -230,7 +236,9 @@ fn publish_change_publish_date() {
         ..Default::default()
     };
 
-    let event = event.update(parameters, project.get_connection()).unwrap();
+    let event = event
+        .update(None, parameters, project.get_connection())
+        .unwrap();
 
     assert_eq!(
         event.publish_date,
@@ -242,7 +250,9 @@ fn publish_change_publish_date() {
         ..Default::default()
     };
 
-    let event = event.update(parameters, project.get_connection()).unwrap();
+    let event = event
+        .update(None, parameters, project.get_connection())
+        .unwrap();
 
     assert!(event.publish_date.unwrap() > now);
 
@@ -270,12 +280,12 @@ fn unpublish() {
 
     assert_eq!(event.status, EventStatus::Draft);
 
-    let event = event.publish(project.get_connection()).unwrap();
+    let event = event.publish(None, project.get_connection()).unwrap();
 
     assert_eq!(event.status, EventStatus::Published);
     assert!(event.publish_date.is_some());
 
-    let event = event.unpublish(project.get_connection()).unwrap();
+    let event = event.unpublish(None, project.get_connection()).unwrap();
     assert_eq!(event.status, EventStatus::Draft);
     assert!(event.publish_date.is_none());
 }
@@ -300,7 +310,7 @@ fn cannot_unpublish_unpublished_event() {
         .finish();
 
     assert_eq!(event.status, EventStatus::Draft);
-    assert!(event.unpublish(project.get_connection()).is_err());
+    assert!(event.unpublish(None, project.get_connection()).is_err());
 }
 
 #[test]
@@ -321,7 +331,7 @@ fn cancel() {
         .with_venue(&venue)
         .finish();
 
-    let event = event.cancel(&project.get_connection()).unwrap();
+    let event = event.cancel(None, &project.get_connection()).unwrap();
     assert!(!event.cancelled_at.is_none());
 }
 
@@ -570,7 +580,9 @@ fn find_individuals() {
         door_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
         ..Default::default()
     };
-    let event = event.update(parameters, project.get_connection()).unwrap();
+    let event = event
+        .update(None, parameters, project.get_connection())
+        .unwrap();
 
     let found_event = Event::find(event.id, project.get_connection()).unwrap();
     assert_eq!(found_event, event);
@@ -703,10 +715,10 @@ fn search() {
         .finish();
 
     event
-        .add_artist(artist1.id, project.get_connection())
+        .add_artist(None, artist1.id, project.get_connection())
         .unwrap();
     event
-        .add_artist(artist2.id, project.get_connection())
+        .add_artist(None, artist2.id, project.get_connection())
         .unwrap();
 
     //find more than one event
@@ -721,7 +733,7 @@ fn search() {
         .finish();
 
     event2
-        .add_artist(artist1.id, project.get_connection())
+        .add_artist(None, artist1.id, project.get_connection())
         .unwrap();
 
     let event3 = project
@@ -1305,10 +1317,10 @@ fn find_for_organization() {
         .with_venue(&venue1)
         .finish();
     event
-        .add_artist(artist1.id, project.get_connection())
+        .add_artist(None, artist1.id, project.get_connection())
         .unwrap();
     event
-        .add_artist(artist2.id, project.get_connection())
+        .add_artist(None, artist2.id, project.get_connection())
         .unwrap();
 
     //find more than one event
@@ -1327,7 +1339,7 @@ fn find_for_organization() {
         .with_venue(&venue2)
         .finish();
     event2
-        .add_artist(artist1.id, project.get_connection())
+        .add_artist(None, artist1.id, project.get_connection())
         .unwrap();
 
     let all_events = vec![event2.id, event.id];
@@ -1415,10 +1427,10 @@ fn find_active_for_venue() {
         .with_venue(&venue)
         .finish();
     event
-        .add_artist(artist1.id, project.get_connection())
+        .add_artist(None, artist1.id, project.get_connection())
         .unwrap();
     event
-        .add_artist(artist2.id, project.get_connection())
+        .add_artist(None, artist2.id, project.get_connection())
         .unwrap();
     let event2 = project
         .create_event()
@@ -1431,10 +1443,10 @@ fn find_active_for_venue() {
         .with_venue(&venue)
         .finish();
     event2
-        .add_artist(artist1.id, project.get_connection())
+        .add_artist(None, artist1.id, project.get_connection())
         .unwrap();
     //Cancel first event
-    event.cancel(connection).unwrap();
+    event.cancel(None, connection).unwrap();
 
     //find all active events via venue
     let found_events =

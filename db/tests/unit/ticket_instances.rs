@@ -629,7 +629,9 @@ fn find_show_no_token() {
         ..Default::default()
     };
 
-    let _event = event.update(new_event_redeem_date, connection).unwrap();
+    let _event = event
+        .update(None, new_event_redeem_date, connection)
+        .unwrap();
 
     let (_found_event, _found_user, found_ticket) =
         TicketInstance::find_for_display(ticket.id, connection).unwrap();
@@ -965,7 +967,9 @@ fn show_redeemable_ticket() {
         ..Default::default()
     };
 
-    let event = event.update(new_event_redeem_date, connection).unwrap();
+    let event = event
+        .update(None, new_event_redeem_date, connection)
+        .unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_none());
@@ -984,7 +988,9 @@ fn show_redeemable_ticket() {
         ..Default::default()
     };
 
-    let event = event.update(new_event_redeem_date, connection).unwrap();
+    let event = event
+        .update(None, new_event_redeem_date, connection)
+        .unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_some());
@@ -1000,7 +1006,9 @@ fn show_redeemable_ticket() {
         ..Default::default()
     };
 
-    let event = event.update(new_event_redeem_date, connection).unwrap();
+    let event = event
+        .update(None, new_event_redeem_date, connection)
+        .unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_some());
@@ -1014,7 +1022,9 @@ fn show_redeemable_ticket() {
         ..Default::default()
     };
 
-    let event = event.update(new_event_redeem_date, connection).unwrap();
+    let event = event
+        .update(None, new_event_redeem_date, connection)
+        .unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_some());

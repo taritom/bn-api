@@ -135,7 +135,7 @@ impl<'a> EventBuilder<'a> {
             self.publish_date,
             self.event_end,
         )
-        .commit(self.connection)
+        .commit(None, self.connection)
         .unwrap();
 
         let mut attributes = EventEditableAttributes {
@@ -150,7 +150,7 @@ impl<'a> EventBuilder<'a> {
             attributes.is_external = Some(true);
         }
 
-        let event = event.update(attributes, self.connection).unwrap();
+        let event = event.update(None, attributes, self.connection).unwrap();
 
         if self.with_tickets {
             let early_bird_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));

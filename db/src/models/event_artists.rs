@@ -1,7 +1,8 @@
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
-use models::{Artist, Event};
+use models::domain_events::DomainEvent;
+use models::*;
 use schema::{artists, event_artists};
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -24,7 +25,7 @@ pub struct EventArtist {
     pub stage_id: Option<Uuid>,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Serialize)]
 #[table_name = "event_artists"]
 pub struct NewEventArtist {
     pub event_id: Uuid,
@@ -36,14 +37,40 @@ pub struct NewEventArtist {
 }
 
 impl NewEventArtist {
-    pub fn commit(&self, conn: &PgConnection) -> Result<EventArtist, DatabaseError> {
-        DatabaseError::wrap(
+    pub fn commit(
+        &self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<EventArtist, DatabaseError> {
+        let result: EventArtist = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not add artist to event",
             diesel::insert_into(event_artists::table)
                 .values(self)
                 .get_result(conn),
+        )?;
+
+        DomainEvent::create(
+            DomainEventTypes::EventArtistCreated,
+            "Event artist created".to_string(),
+            Tables::EventArtists,
+            Some(result.id),
+            current_user_id,
+            Some(json!(&self)),
         )
+        .commit(conn)?;
+
+        DomainEvent::create(
+            DomainEventTypes::EventArtistAdded,
+            "Artist added to event".to_string(),
+            Tables::Events,
+            Some(self.event_id),
+            current_user_id,
+            Some(json!({"event_artist_id": result.id, "artist_id": self.artist_id})),
+        )
+        .commit(conn)?;
+
+        Ok(result)
     }
 }
 
