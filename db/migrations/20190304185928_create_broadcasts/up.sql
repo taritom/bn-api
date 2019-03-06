@@ -13,3 +13,4 @@ CREATE TABLE broadcasts
     updated_at        TIMESTAMP   NOT NULL DEFAULT now()
 );
 CREATE INDEX index_broadcasts_event_id ON broadcasts (event_id);
+CREATE UNIQUE INDEX index_last_call_unique_per_event ON broadcasts (event_id) WHERE notification_type = 'LastCall' AND status != 'Cancelled';
