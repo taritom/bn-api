@@ -458,7 +458,7 @@ impl NewTicketType {
             .to_db_error(ErrorCode::InsertError, "Could not create ticket type")?;
 
         result.add_ticket_pricing(
-            "Default Pricing".to_string(),
+            result.name.clone(),
             result.start_date,
             result.end_date,
             result.price_in_cents,
