@@ -85,7 +85,7 @@ impl<'a> HoldBuilder<'a> {
         let hold = Hold::create_hold(
             self.name,
             self.event_id.unwrap(),
-            self.redemption_code,
+            Some(self.redemption_code),
             if self.hold_type == HoldTypes::Discount {
                 Some(10)
             } else {

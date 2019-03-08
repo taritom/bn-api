@@ -128,7 +128,8 @@ fn find_by_redemption_code() {
     let db = TestProject::new();
     let connection = db.get_connection();
     let comp = db.create_comp().finish();
-    let found_comp = Hold::find_by_redemption_code(&comp.redemption_code, connection).unwrap();
+    let found_comp =
+        Hold::find_by_redemption_code(&comp.redemption_code.clone().unwrap(), connection).unwrap();
     assert_eq!(comp, found_comp);
 }
 

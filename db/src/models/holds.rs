@@ -16,7 +16,7 @@ pub struct Hold {
     pub name: String,
     pub parent_hold_id: Option<Uuid>,
     pub event_id: Uuid,
-    pub redemption_code: String,
+    pub redemption_code: Option<String>,
     pub discount_in_cents: Option<i64>,
     pub end_at: Option<NaiveDateTime>,
     pub max_per_order: Option<i64>,
@@ -32,7 +32,7 @@ pub struct Hold {
 #[table_name = "holds"]
 pub struct UpdateHoldAttributes {
     pub name: Option<String>,
-    pub redemption_code: Option<String>,
+    pub redemption_code: Option<Option<String>>,
     pub hold_type: Option<HoldTypes>,
     pub discount_in_cents: Option<Option<i64>>,
     #[validate(email(message = "Email is invalid"))]
@@ -48,7 +48,7 @@ impl Hold {
     pub fn create_hold(
         name: String,
         event_id: Uuid,
-        redemption_code: String,
+        redemption_code: Option<String>,
         discount_in_cents: Option<u32>,
         end_at: Option<NaiveDateTime>,
         max_per_order: Option<u32>,
@@ -61,7 +61,7 @@ impl Hold {
             event_id,
             email: None,
             phone: None,
-            redemption_code: redemption_code.to_uppercase(),
+            redemption_code: redemption_code.map(|r| r.to_uppercase()),
             discount_in_cents: discount_in_cents.and_then(|discount| Some(discount as i64)),
             end_at,
             max_per_order: max_per_order.map(|m| m as i64),
@@ -92,7 +92,7 @@ impl Hold {
             event_id: hold.event_id,
             email,
             phone,
-            redemption_code: redemption_code.to_uppercase(),
+            redemption_code: Some(redemption_code.to_uppercase()),
             discount_in_cents: None,
             end_at,
             max_per_order: max_per_order.map(|m| m as i64),
@@ -195,7 +195,7 @@ impl Hold {
         update_attrs: &UpdateHoldAttributes,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        let validation_errors = validators::append_validation_error(
+        let mut validation_errors = validators::append_validation_error(
             update_attrs.validate(),
             "discount_in_cents",
             Hold::discount_in_cents_valid(
@@ -208,19 +208,20 @@ impl Hold {
                     .unwrap_or(self.discount_in_cents),
             ),
         );
-        let validation_errors = validators::append_validation_error(
-            validation_errors,
-            "redemption_code",
-            redemption_code_unique_per_event_validation(
-                Some(self.id),
-                "holds".into(),
-                update_attrs
-                    .redemption_code
-                    .clone()
-                    .unwrap_or(self.redemption_code.clone()),
-                conn,
-            )?,
-        );
+        if let Some(ref redemption_code_field) = update_attrs.redemption_code {
+            if let Some(ref redemption_code) = redemption_code_field {
+                validation_errors = validators::append_validation_error(
+                    validation_errors,
+                    "redemption_code",
+                    redemption_code_unique_per_event_validation(
+                        Some(self.id),
+                        "holds".into(),
+                        redemption_code.clone(),
+                        conn,
+                    )?,
+                );
+            }
+        }
 
         Ok(validation_errors?)
     }
@@ -248,7 +249,7 @@ impl Hold {
             event_id: self.event_id,
             email: None,
             phone: None,
-            redemption_code: redemption_code.to_uppercase(),
+            redemption_code: Some(redemption_code.to_uppercase()),
             discount_in_cents: discount_in_cents.map(|m| m as i64),
             end_at,
             max_per_order: max_per_order.map(|m| m as i64),
@@ -429,7 +430,7 @@ pub struct NewHold {
     #[validate(email(message = "Email is invalid"))]
     pub email: Option<String>,
     pub phone: Option<String>,
-    pub redemption_code: String,
+    pub redemption_code: Option<String>,
     pub discount_in_cents: Option<i64>,
     pub end_at: Option<NaiveDateTime>,
     pub max_per_order: Option<i64>,
@@ -450,21 +451,23 @@ impl NewHold {
     }
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        let validation_errors = validators::append_validation_error(
+        let mut validation_errors = validators::append_validation_error(
             self.validate(),
             "discount_in_cents",
             Hold::discount_in_cents_valid(self.hold_type.clone(), self.discount_in_cents),
         );
-        let validation_errors = validators::append_validation_error(
-            validation_errors,
-            "redemption_code",
-            redemption_code_unique_per_event_validation(
-                None,
-                "holds".into(),
-                self.redemption_code.clone(),
-                conn,
-            )?,
-        );
+        if let Some(ref redemption_code) = self.redemption_code {
+            validation_errors = validators::append_validation_error(
+                validation_errors,
+                "redemption_code",
+                redemption_code_unique_per_event_validation(
+                    None,
+                    "holds".into(),
+                    redemption_code.clone(),
+                    conn,
+                )?,
+            );
+        }
 
         Ok(validation_errors?)
     }
@@ -476,7 +479,7 @@ pub struct DisplayHold {
     pub parent_hold_id: Option<Uuid>,
     pub name: String,
     pub event_id: Uuid,
-    pub redemption_code: String,
+    pub redemption_code: Option<String>,
     pub discount_in_cents: Option<i64>,
     pub max_per_order: Option<i64>,
     pub email: Option<String>,

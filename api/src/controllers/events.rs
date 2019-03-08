@@ -998,7 +998,7 @@ pub fn holds(
         pub id: Uuid,
         pub name: String,
         pub event_id: Uuid,
-        pub redemption_code: String,
+        pub redemption_code: Option<String>,
         pub discount_in_cents: Option<i64>,
         pub end_at: Option<NaiveDateTime>,
         pub max_per_order: Option<i64>,

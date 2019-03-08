@@ -601,7 +601,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         pub id: Uuid,
         pub name: String,
         pub event_id: Uuid,
-        pub redemption_code: String,
+        pub redemption_code: Option<String>,
         pub discount_in_cents: Option<i64>,
         pub end_at: Option<NaiveDateTime>,
         pub max_per_order: Option<i64>,
@@ -618,7 +618,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         &TicketType::find(hold.ticket_type_id, connection).unwrap(),
         &fee_schedule,
         false,
-        Some(hold.redemption_code.clone()),
+        hold.redemption_code.clone(),
         connection,
     )
     .unwrap();
@@ -626,7 +626,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         &TicketType::find(hold2.ticket_type_id, connection).unwrap(),
         &fee_schedule,
         false,
-        Some(hold2.redemption_code.clone()),
+        hold2.redemption_code.clone(),
         connection,
     )
     .unwrap();

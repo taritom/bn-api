@@ -746,7 +746,7 @@ pub fn cancel_with_sold_tickets_and_hold() {
             UpdateOrderItem {
                 ticket_type_id: created_ticket_type.id,
                 quantity: 5,
-                redemption_code: Some(hold.redemption_code),
+                redemption_code: hold.redemption_code,
             },
         ],
         false,

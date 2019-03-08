@@ -156,7 +156,7 @@ pub fn create_with_validation_errors() {
         "test".into(),
         event.id,
         CodeTypes::Discount,
-        hold.redemption_code,
+        hold.redemption_code.unwrap(),
         10,
         Some(100),
         start_date,
@@ -313,7 +313,7 @@ pub fn update_with_validation_errors() {
     // Dupe redemption code used by hold
     let hold = db.create_hold().finish();
     let update_patch = UpdateCodeAttributes {
-        redemption_code: Some(hold.redemption_code),
+        redemption_code: hold.redemption_code,
         ..Default::default()
     };
     let result = code.update(update_patch, db.get_connection());

@@ -17,7 +17,7 @@ pub struct PathParameters {
 pub enum RedemptionCodeResponse {
     Hold {
         ticket_type: UserDisplayTicketType,
-        redemption_code: String,
+        redemption_code: Option<String>,
         max_per_order: Option<i64>,
         discount_in_cents: Option<i64>,
         hold_type: HoldTypes,
@@ -48,7 +48,7 @@ pub fn show(
                     conn,
                 )?,
                 false,
-                Some(hold.redemption_code.clone()),
+                hold.redemption_code.clone(),
                 conn,
             )?;
 

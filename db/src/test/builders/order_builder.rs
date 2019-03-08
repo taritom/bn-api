@@ -77,7 +77,7 @@ impl<'a> OrderBuilder<'a> {
                 .with_ticket_type_id(self.ticket_type_id.unwrap())
                 .with_hold_type(HoldTypes::Comp)
                 .finish();
-            Some(comp.redemption_code)
+            Some(comp.redemption_code.unwrap())
         } else {
             None
         };

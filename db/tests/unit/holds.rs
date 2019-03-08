@@ -10,7 +10,7 @@ fn create() {
     Hold::create_hold(
         "test".to_string(),
         event.id,
-        "IHAVEACODE".to_string(),
+        Some("IHAVEACODE".to_string()),
         Some(0),
         None,
         Some(4),
@@ -28,7 +28,7 @@ fn create_with_validation_errors() {
     let result = Hold::create_hold(
         "test".to_string(),
         event.id,
-        "IHAVEACODE".to_string(),
+        Some("IHAVEACODE".to_string()),
         None,
         None,
         Some(4),
@@ -83,7 +83,7 @@ fn create_with_validation_errors() {
     let result = Hold::create_hold(
         "test".to_string(),
         event.id,
-        code.redemption_code,
+        Some(code.redemption_code),
         Some(0),
         None,
         Some(4),
@@ -180,7 +180,7 @@ fn update_with_validation_errors() {
     // Dupe redemption code used by code
     let code = project.create_code().finish();
     let update_patch = UpdateHoldAttributes {
-        redemption_code: Some(code.redemption_code),
+        redemption_code: Some(Some(code.redemption_code)),
         ..Default::default()
     };
     let result = hold.update(update_patch, connection);
@@ -224,7 +224,7 @@ fn update_with_validation_errors() {
         &vec![UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 10,
-            redemption_code: Some(comp.redemption_code),
+            redemption_code: comp.redemption_code,
         }],
         false,
         false,
@@ -274,12 +274,12 @@ fn remove_available_quantity() {
             UpdateOrderItem {
                 ticket_type_id: ticket_type.id,
                 quantity: 4,
-                redemption_code: Some(hold.redemption_code.clone()),
+                redemption_code: hold.redemption_code.clone(),
             },
             UpdateOrderItem {
                 ticket_type_id: ticket_type.id,
                 quantity: 1,
-                redemption_code: Some(child_hold.redemption_code.clone()),
+                redemption_code: child_hold.redemption_code.clone(),
             },
         ],
         false,
@@ -298,7 +298,7 @@ fn remove_available_quantity() {
         &vec![UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 1,
-            redemption_code: Some(hold.redemption_code.clone()),
+            redemption_code: hold.redemption_code.clone(),
         }],
         false,
         false,

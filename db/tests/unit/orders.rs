@@ -446,7 +446,7 @@ fn items_valid_for_purchase() {
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 1,
-            redemption_code: Some(hold.redemption_code.clone()),
+            redemption_code: hold.redemption_code.clone(),
         }],
         false,
         false,
@@ -2107,7 +2107,7 @@ fn for_display_with_invalid_items() {
         &[UpdateOrderItem {
             ticket_type_id: ticket_type5.id,
             quantity: 1,
-            redemption_code: Some(hold.redemption_code.clone()),
+            redemption_code: hold.redemption_code.clone(),
         }],
         false,
         false,

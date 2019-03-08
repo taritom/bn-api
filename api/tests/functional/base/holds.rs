@@ -28,7 +28,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
 
     let json = Json(CreateHoldRequest {
         name: name.clone(),
-        redemption_code: redemption_code.clone(),
+        redemption_code: Some(redemption_code.clone()),
         discount_in_cents,
         hold_type,
         end_at: None,
@@ -52,7 +52,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         assert_eq!(response.status(), StatusCode::CREATED);
         let hold: DisplayHold = serde_json::from_str(&body).unwrap();
         assert_eq!(hold.name, name);
-        assert_eq!(hold.redemption_code, redemption_code);
+        assert_eq!(hold.redemption_code, Some(redemption_code));
         assert_eq!(hold.discount_in_cents, Some(10));
     } else {
         support::expects_unauthorized(&response);

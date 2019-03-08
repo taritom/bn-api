@@ -151,7 +151,7 @@ fn from_ticket_type() {
         &ticket_type,
         &fee_schedule,
         false,
-        Some(hold.redemption_code),
+        hold.redemption_code,
         conn,
     )
     .unwrap();
@@ -170,7 +170,7 @@ fn from_ticket_type() {
         &ticket_type,
         &fee_schedule,
         false,
-        Some(hold.redemption_code),
+        hold.redemption_code,
         conn,
     )
     .unwrap();

@@ -554,7 +554,7 @@ pub fn refund_hold_ticket() {
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 1,
-            redemption_code: Some(hold.redemption_code.clone()),
+            redemption_code: hold.redemption_code.clone(),
         }],
         false,
         false,
@@ -621,7 +621,7 @@ pub fn refund_hold_ticket() {
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 1,
-            redemption_code: Some(hold.redemption_code.clone()),
+            redemption_code: hold.redemption_code.clone(),
         }],
         false,
         false,

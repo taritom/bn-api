@@ -71,7 +71,7 @@ fn from_ticket_pricing() {
     let display_ticket_pricing = DisplayTicketPricing::from_ticket_pricing(
         &ticket_pricing,
         &fee_schedule,
-        Some(hold.redemption_code),
+        hold.redemption_code,
         false,
         conn,
     )
@@ -93,7 +93,7 @@ fn from_ticket_pricing() {
     let display_ticket_pricing = DisplayTicketPricing::from_ticket_pricing(
         &ticket_pricing,
         &fee_schedule,
-        Some(hold.redemption_code),
+        hold.redemption_code,
         false,
         conn,
     )

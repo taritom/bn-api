@@ -18,7 +18,7 @@ fn show_hold() {
         .finish();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["code"]);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.code = hold.redemption_code.clone();
+    path.code = hold.redemption_code.clone().unwrap();
     let response: HttpResponse =
         redemption_codes::show((database.connection.clone().into(), path)).into();
     assert_eq!(response.status(), StatusCode::OK);
@@ -43,7 +43,7 @@ fn show_hold() {
                 )
                 .unwrap(),
                 false,
-                Some(hold.redemption_code.clone()),
+                hold.redemption_code.clone(),
                 connection,
             )
             .unwrap();
@@ -68,7 +68,7 @@ fn show_comp() {
         .finish();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["code"]);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.code = hold.redemption_code.clone();
+    path.code = hold.redemption_code.clone().unwrap();
     let response: HttpResponse =
         redemption_codes::show((database.connection.clone().into(), path)).into();
     assert_eq!(response.status(), StatusCode::OK);
@@ -93,7 +93,7 @@ fn show_comp() {
                 )
                 .unwrap(),
                 false,
-                Some(hold.redemption_code.clone()),
+                hold.redemption_code.clone(),
                 connection,
             )
             .unwrap();

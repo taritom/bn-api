@@ -170,7 +170,7 @@ pub fn ticket_counts_report() {
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 5,
-            redemption_code: Some(redemption_code),
+            redemption_code: redemption_code,
         }],
         false,
         false,
@@ -251,7 +251,7 @@ pub fn ticket_counts_report() {
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 5,
-            redemption_code: Some(redemption_code),
+            redemption_code: redemption_code,
         }],
         false,
         false,

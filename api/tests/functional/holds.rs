@@ -110,7 +110,7 @@ fn create_with_validation_errors() {
 
     let json = Json(CreateHoldRequest {
         name: name.clone(),
-        redemption_code,
+        redemption_code: Some(redemption_code),
         discount_in_cents: None,
         hold_type,
         end_at: None,
@@ -198,7 +198,7 @@ pub fn read_hold() {
 
     let json = Json(CreateHoldRequest {
         name: name.clone(),
-        redemption_code,
+        redemption_code: Some(redemption_code),
         discount_in_cents: Some(100),
         hold_type,
         end_at: None,

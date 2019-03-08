@@ -13,7 +13,8 @@ use uuid::Uuid;
 #[derive(Deserialize, Serialize)]
 pub struct CreateHoldRequest {
     pub name: String,
-    pub redemption_code: String,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub redemption_code: Option<String>,
     pub discount_in_cents: Option<u32>,
     pub hold_type: HoldTypes,
     pub quantity: u32,
@@ -25,7 +26,8 @@ pub struct CreateHoldRequest {
 #[derive(Default, Deserialize, Serialize)]
 pub struct UpdateHoldRequest {
     pub name: Option<String>,
-    pub redemption_code: Option<String>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub redemption_code: Option<Option<String>>,
     pub hold_type: Option<HoldTypes>,
     pub quantity: Option<u32>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
@@ -93,7 +95,7 @@ pub fn create(
         pub id: Uuid,
         pub name: String,
         pub event_id: Uuid,
-        pub redemption_code: String,
+        pub redemption_code: Option<String>,
         pub discount_in_cents: Option<i64>,
         pub end_at: Option<NaiveDateTime>,
         pub max_per_order: Option<i64>,
@@ -165,7 +167,7 @@ pub fn show(
         pub id: Uuid,
         pub name: String,
         pub event_id: Uuid,
-        pub redemption_code: String,
+        pub redemption_code: Option<String>,
         pub discount_in_cents: Option<i64>,
         pub end_at: Option<NaiveDateTime>,
         pub max_per_order: Option<i64>,
