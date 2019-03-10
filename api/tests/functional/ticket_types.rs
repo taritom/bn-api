@@ -755,8 +755,14 @@ pub fn cancel_with_sold_tickets_and_hold() {
     )
     .unwrap();
     let total = cart.calculate_total(conn).unwrap();
-    cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        conn,
+    )
+    .unwrap();
 
     let valid_unsold_ticket_count = created_ticket_type.valid_unsold_ticket_count(conn).unwrap();
     // 85 left from 100 - 5 (hold) - 10 (regular)

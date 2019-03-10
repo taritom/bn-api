@@ -257,6 +257,7 @@ table! {
         checkout_url_expires -> Nullable<Timestamp>,
         create_user_agent -> Nullable<Text>,
         purchase_user_agent -> Nullable<Text>,
+        external_payment_type -> Nullable<Text>,
     }
 }
 

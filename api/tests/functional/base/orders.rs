@@ -33,7 +33,13 @@ pub fn show_other_user_order(role: Roles, should_succeed: bool) {
     let conn = database.connection.get();
     let total = order.calculate_total(conn).unwrap();
     order
-        .add_external_payment(Some("test".to_string()), user.id, total, conn)
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            total,
+            conn,
+        )
         .unwrap();
     assert_eq!(order.status, OrderStatus::Paid);
 
@@ -64,7 +70,13 @@ pub fn show_other_user_order_not_matching_users_organization(role: Roles, should
     let conn = database.connection.get();
     let total = order.calculate_total(conn).unwrap();
     order
-        .add_external_payment(Some("test".to_string()), user.id, total, conn)
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            total,
+            conn,
+        )
         .unwrap();
     assert_eq!(order.status, OrderStatus::Paid);
     let auth_user =
@@ -122,8 +134,14 @@ pub fn details(role: Roles, should_succeed: bool) {
     .unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     let items = cart.items(connection).unwrap();
     let order_item = OrderItem::find(
@@ -248,8 +266,14 @@ pub fn refund(role: Roles, should_succeed: bool) {
     .unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     let items = cart.items(&connection).unwrap();
     let order_item = items

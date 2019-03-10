@@ -46,6 +46,7 @@ pub struct Order {
     pub checkout_url_expires: Option<NaiveDateTime>,
     pub create_user_agent: Option<String>,
     pub purchase_user_agent: Option<String>,
+    pub external_payment_type: Option<ExternalPaymentType>,
 }
 
 #[derive(Insertable)]
@@ -1365,13 +1366,54 @@ impl Order {
         }
     }
 
+    pub fn set_external_payment_type(
+        &mut self,
+        external_payment_type: ExternalPaymentType,
+        current_user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if self.status != OrderStatus::Draft {
+            return DatabaseError::validation_error(
+                "status",
+                "Cannot change the order user unless the order is in draft status",
+            );
+        }
+
+        self.lock_version(conn)?;
+        self.external_payment_type = Some(external_payment_type);
+        diesel::update(&*self)
+            .set((
+                orders::external_payment_type.eq(self.external_payment_type),
+                orders::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not change the external payment type for this order",
+            )?;
+
+        DomainEvent::create(
+            DomainEventTypes::OrderUpdated,
+            "External payment type information recorded on order".to_string(),
+            Tables::Orders,
+            Some(self.id),
+            Some(current_user_id),
+            Some(json!({ "external_payment_type": external_payment_type })),
+        )
+        .commit(conn)?;
+        Ok(())
+    }
+
     pub fn add_external_payment(
         &mut self,
         external_reference: Option<String>,
+        external_payment_type: ExternalPaymentType,
         current_user_id: Uuid,
         amount: i64,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
+        self.set_external_payment_type(external_payment_type, current_user_id, conn)?;
+
         let payment = Payment::create(
             self.id,
             Some(current_user_id),
@@ -1800,7 +1842,7 @@ impl Order {
             .execute(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
-                "Could not change the behalf of  user for this order",
+                "Could not change the behalf of user for this order",
             )?;
 
         DomainEvent::create(

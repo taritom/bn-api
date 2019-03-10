@@ -214,6 +214,59 @@ impl Default for EventSummarySalesResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+pub struct BoxOfficeSalesSummaryReportRow {
+    #[sql_type = "dUuid"]
+    pub operator_id: Uuid,
+    #[sql_type = "Text"]
+    pub operator_name: String,
+    #[sql_type = "Nullable<Text>"]
+    pub event_name: Option<String>,
+    #[sql_type = "Nullable<Timestamp>"]
+    pub event_date: Option<NaiveDateTime>,
+    #[sql_type = "Text"]
+    pub external_payment_type: ExternalPaymentType,
+    #[sql_type = "BigInt"]
+    pub number_of_tickets: i64,
+    #[sql_type = "BigInt"]
+    pub face_value_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub total_fees_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub total_sales_in_cents: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct BoxOfficeSalesSummaryReport {
+    pub operators: Vec<BoxOfficeSalesSummaryOperatorRow>,
+    pub payments: Vec<BoxOfficeSalesSummaryPaymentRow>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct BoxOfficeSalesSummaryPaymentRow {
+    pub payment_type: String,
+    pub quantity: u32,
+    pub total_sales_in_cents: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct BoxOfficeSalesSummaryOperatorRow {
+    pub operator_id: Uuid,
+    pub operator_name: String,
+    pub events: Vec<BoxOfficeSalesSummaryOperatorEventRow>,
+    pub payments: Vec<BoxOfficeSalesSummaryPaymentRow>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct BoxOfficeSalesSummaryOperatorEventRow {
+    pub event_name: Option<String>,
+    pub event_date: Option<NaiveDateTime>,
+    pub number_of_tickets: u32,
+    pub face_value_in_cents: u32,
+    pub total_fees_in_cents: u32,
+    pub total_sales_in_cents: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummarySalesRow {
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
@@ -424,6 +477,150 @@ impl TicketCountRow {
 }
 
 impl Report {
+    fn external_payment_type_row_title(external_payment_type: ExternalPaymentType) -> String {
+        match external_payment_type {
+            ExternalPaymentType::Cash => "Cash".to_string(),
+            ExternalPaymentType::CreditCard => "Credit Card".to_string(),
+            ExternalPaymentType::Voucher => "Voucher".to_string(),
+        }
+    }
+
+    pub fn box_office_sales_summary_report(
+        organization_id: Uuid,
+        start: Option<NaiveDateTime>,
+        end: Option<NaiveDateTime>,
+        conn: &PgConnection,
+    ) -> Result<BoxOfficeSalesSummaryReport, DatabaseError> {
+        let query = include_str!("../queries/reports/reports_box_office_sales_summary_report.sql");
+        let q = diesel::sql_query(query)
+            .bind::<dUuid, _>(organization_id)
+            .bind::<Nullable<Timestamp>, _>(start)
+            .bind::<Nullable<Timestamp>, _>(end);
+        let box_office_summary_rows: Vec<BoxOfficeSalesSummaryReportRow> = q
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
+
+        let mut payment_totals: HashMap<ExternalPaymentType, BoxOfficeSalesSummaryPaymentRow> =
+            HashMap::new();
+        for external_payment_type in vec![
+            ExternalPaymentType::Cash,
+            ExternalPaymentType::CreditCard,
+            ExternalPaymentType::Voucher,
+        ] {
+            payment_totals.insert(
+                external_payment_type,
+                BoxOfficeSalesSummaryPaymentRow {
+                    payment_type: Report::external_payment_type_row_title(external_payment_type),
+                    quantity: 0,
+                    total_sales_in_cents: 0,
+                },
+            );
+        }
+
+        let mut operator_data: Vec<BoxOfficeSalesSummaryOperatorRow> = Vec::new();
+        for (operator_id, group) in &box_office_summary_rows
+            .into_iter()
+            .group_by(|row| row.operator_id)
+        {
+            let mut operator_name = None;
+            let mut event_date = None;
+            let mut payments: HashMap<ExternalPaymentType, BoxOfficeSalesSummaryPaymentRow> =
+                HashMap::new();
+            for external_payment_type in vec![
+                ExternalPaymentType::Cash,
+                ExternalPaymentType::CreditCard,
+                ExternalPaymentType::Voucher,
+            ] {
+                payments.insert(
+                    external_payment_type,
+                    BoxOfficeSalesSummaryPaymentRow {
+                        payment_type: Report::external_payment_type_row_title(
+                            external_payment_type,
+                        ),
+                        quantity: 0,
+                        total_sales_in_cents: 0,
+                    },
+                );
+            }
+
+            let mut events: Vec<BoxOfficeSalesSummaryOperatorEventRow> = Vec::new();
+            for (event_name, event_group) in
+                &group.into_iter().group_by(|row| row.event_name.clone())
+            {
+                let mut number_of_tickets = 0;
+                let mut face_value_in_cents = 0;
+                let mut total_fees_in_cents = 0;
+                let mut total_sales_in_cents = 0;
+                for event_group_item in event_group {
+                    operator_name = Some(event_group_item.operator_name.clone());
+                    event_date = event_group_item.event_date.clone();
+                    number_of_tickets += event_group_item.number_of_tickets as u32;
+                    face_value_in_cents = event_group_item.face_value_in_cents as u32;
+                    total_fees_in_cents += event_group_item.total_fees_in_cents as u32;
+                    total_sales_in_cents += event_group_item.total_sales_in_cents as u32;
+                    match payment_totals.get_mut(&event_group_item.external_payment_type) {
+                        Some(totals) => {
+                            totals.quantity += event_group_item.number_of_tickets as u32;
+                            totals.total_sales_in_cents +=
+                                event_group_item.total_sales_in_cents as u32;
+                        }
+                        None => {
+                            return DatabaseError::business_process_error(
+                                "Cannot delete an order item for an order that is not in draft",
+                            );
+                        }
+                    }
+
+                    match payments.get_mut(&event_group_item.external_payment_type) {
+                        Some(totals) => {
+                            totals.quantity += event_group_item.number_of_tickets as u32;
+                            totals.total_sales_in_cents +=
+                                event_group_item.total_sales_in_cents as u32;
+                        }
+                        None => {
+                            return DatabaseError::business_process_error(
+                                "Cannot delete an order item for an order that is not in draft",
+                            );
+                        }
+                    }
+                }
+
+                events.push(BoxOfficeSalesSummaryOperatorEventRow {
+                    event_name,
+                    event_date,
+                    number_of_tickets,
+                    face_value_in_cents,
+                    total_fees_in_cents,
+                    total_sales_in_cents,
+                });
+            }
+
+            let mut payments = payments
+                .values()
+                .map(|v| (*v).clone())
+                .collect::<Vec<BoxOfficeSalesSummaryPaymentRow>>();
+            payments.sort_by_key(|p| p.payment_type.to_string());
+
+            operator_data.push(BoxOfficeSalesSummaryOperatorRow {
+                operator_id,
+                operator_name: operator_name.unwrap_or("".to_string()),
+                events,
+                payments,
+            })
+        }
+
+        let mut payment_totals = payment_totals
+            .values()
+            .map(|v| (*v).clone())
+            .collect::<Vec<BoxOfficeSalesSummaryPaymentRow>>();
+        payment_totals.sort_by_key(|p| p.payment_type.to_string());
+
+        Ok(BoxOfficeSalesSummaryReport {
+            operators: operator_data,
+            payments: payment_totals,
+        })
+    }
+
     pub fn transaction_detail_report(
         event_id: Option<Uuid>,
         organization_id: Option<Uuid>,

@@ -1,6 +1,7 @@
 use bigneon_db::dev::HoldBuilder;
 use bigneon_db::prelude::*;
 use chrono::prelude::*;
+use functional::base;
 use support::database::TestDatabase;
 
 #[test]
@@ -37,8 +38,14 @@ pub fn ticket_counts_report() {
     .unwrap();
 
     let total = cart.calculate_total(conn).unwrap();
-    cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::Voucher,
+        user.id,
+        total,
+        conn,
+    )
+    .unwrap();
 
     //----------Box Office
     let report =
@@ -340,4 +347,45 @@ pub fn ticket_counts_report() {
     //        test_request.extract_state(),
     //    ))
     //        .into();
+}
+
+#[cfg(test)]
+mod box_office_sales_summary_tests {
+    use super::*;
+    #[test]
+    fn box_office_sales_summary_org_member() {
+        base::reports::box_office_sales_summary(Roles::OrgMember, false);
+    }
+    #[test]
+    fn box_office_sales_summary_admin() {
+        base::reports::box_office_sales_summary(Roles::Admin, true);
+    }
+    #[test]
+    fn box_office_sales_summary_user() {
+        base::reports::box_office_sales_summary(Roles::User, false);
+    }
+    #[test]
+    fn box_office_sales_summary_org_owner() {
+        base::reports::box_office_sales_summary(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn box_office_sales_summary_door_person() {
+        base::reports::box_office_sales_summary(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn box_office_sales_summary_promoter() {
+        base::reports::box_office_sales_summary(Roles::Promoter, false);
+    }
+    #[test]
+    fn box_office_sales_summary_promoter_read_only() {
+        base::reports::box_office_sales_summary(Roles::PromoterReadOnly, false);
+    }
+    #[test]
+    fn box_office_sales_summary_org_admin() {
+        base::reports::box_office_sales_summary(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn box_office_sales_summary_box_office() {
+        base::reports::box_office_sales_summary(Roles::OrgBoxOffice, false);
+    }
 }

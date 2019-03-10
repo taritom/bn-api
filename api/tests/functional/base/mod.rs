@@ -8,6 +8,7 @@ pub mod orders;
 pub mod organization_invites;
 pub mod organizations;
 pub mod regions;
+pub mod reports;
 pub mod stages;
 pub mod ticket_types;
 pub mod tickets;

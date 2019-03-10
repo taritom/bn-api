@@ -125,6 +125,7 @@ impl TestDatabase {
         let total = cart.calculate_total(self.connection.get()).unwrap();
         cart.add_external_payment(
             Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
             user.id,
             total,
             self.connection.get(),

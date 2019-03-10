@@ -26,6 +26,7 @@ pub fn get_report(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     match query.report.trim() {
+        "box_office_sales_summary" => box_office_sales_summary((connection, query, path, user)),
         "transaction_details" => transaction_detail_report((connection, query, path, user)),
         "event_summary" => event_summary_report((connection, query, path, user)),
         "weekly_settlement" => weekly_settlement_report((connection, query, path, user)),
@@ -35,6 +36,28 @@ pub fn get_report(
         "reconciliation_details" => reconciliation_detail_report((connection, query, path, user)),
         _ => application::not_found(),
     }
+}
+
+pub fn box_office_sales_summary(
+    (connection, query, path, user): (
+        Connection,
+        Query<ReportQueryParameters>,
+        Path<PathParameters>,
+        AuthUser,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+
+    let organization = Organization::find(path.id, connection)?;
+    user.requires_scope_for_organization(Scopes::OrgReports, &organization, connection)?;
+
+    let result = Report::box_office_sales_summary_report(
+        path.id,
+        query.start_utc,
+        query.end_utc,
+        connection,
+    )?;
+    Ok(HttpResponse::Ok().json(result))
 }
 
 pub fn transaction_detail_report(

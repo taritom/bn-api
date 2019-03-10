@@ -123,6 +123,7 @@ string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { EventSearchSortField [ Name, EventStart]}
 string_enum! { EventOverrideStatus [PurchaseTickets,SoldOut,OnSaleSoon,TicketsAtTheDoor,Free,Rescheduled,Cancelled,OffSale,Ended]}
 string_enum! { EventTypes [ Music, Conference]}
+string_enum! { ExternalPaymentType [Cash, CreditCard, Voucher]}
 string_enum! { FanSortField [FirstName, LastName, Email, Phone, Orders, FirstOrder, LastOrder, Revenue] }
 string_enum! { HistoryType [Purchase]}
 string_enum! { HoldTypes [Discount, Comp] }

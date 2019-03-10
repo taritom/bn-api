@@ -282,8 +282,14 @@ fn update_with_validation_errors() {
     )
     .unwrap();
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     // Max uses is 1 so second order for user should trigger validation error
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();

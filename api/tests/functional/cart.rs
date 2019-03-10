@@ -859,6 +859,7 @@ fn remove_with_increment_failure_invalid_quantity() {
 #[test]
 fn checkout_external() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let event = database
         .create_event()
         .with_tickets()
@@ -867,7 +868,7 @@ fn checkout_external() {
 
     let user = database.create_user().finish();
 
-    let _order = database
+    let order = database
         .create_cart()
         .for_user(&user)
         .for_event(&event)
@@ -877,6 +878,7 @@ fn checkout_external() {
     let input = Json(cart::CheckoutCartRequest {
         method: PaymentRequest::External {
             reference: Some("TestRef".to_string()),
+            external_payment_type: ExternalPaymentType::Voucher,
             first_name: "First".to_string(),
             last_name: "Last".to_string(),
             email: Some("easdf@test.com".to_string()),
@@ -889,7 +891,7 @@ fn checkout_external() {
     let user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
 
     let response = cart::checkout((
-        database.connection.into(),
+        database.connection.clone().into(),
         input,
         user,
         request.extract_state(),
@@ -897,6 +899,14 @@ fn checkout_external() {
     ))
     .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
+
+    // Reload order
+    let order = Order::find(order.id, connection).unwrap();
+    assert_eq!(order.status, OrderStatus::Paid);
+    assert_eq!(
+        order.external_payment_type,
+        Some(ExternalPaymentType::Voucher)
+    );
 }
 
 #[test]
@@ -1092,6 +1102,7 @@ fn checkout_fails_for_invalid_items() {
     let input = Json(cart::CheckoutCartRequest {
         method: PaymentRequest::External {
             reference: Some("TestRef".to_string()),
+            external_payment_type: ExternalPaymentType::Cash,
             first_name: "First".to_string(),
             last_name: "Last".to_string(),
             email: Some("easdf@test.com".to_string()),

@@ -161,8 +161,14 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
     )
     .unwrap();
     let total = cart.calculate_total(conn).unwrap();
-    cart.add_external_payment(Some("test".to_string()), user2.id, total, conn)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user2.id,
+        total,
+        conn,
+    )
+    .unwrap();
     let ticket = TicketInstance::find_for_user(user2.id, conn)
         .unwrap()
         .remove(0);

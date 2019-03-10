@@ -39,6 +39,42 @@ fn create() {
 }
 
 #[test]
+fn set_external_payment_type() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut order = project.create_order().finish();
+    let user = project.create_user().finish();
+    assert_eq!(None, order.external_payment_type);
+
+    let domain_event_count = DomainEvent::find(
+        Tables::Orders,
+        Some(order.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap()
+    .len();
+
+    assert!(order
+        .set_external_payment_type(ExternalPaymentType::CreditCard, user.id, connection)
+        .is_ok());
+    assert_eq!(
+        Some(ExternalPaymentType::CreditCard),
+        order.external_payment_type
+    );
+
+    let new_domain_event_count = DomainEvent::find(
+        Tables::Orders,
+        Some(order.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap()
+    .len();
+    assert_eq!(domain_event_count + 1, new_domain_event_count);
+}
+
+#[test]
 fn add_tickets() {
     let project = TestProject::new();
     let creator = project.create_user().finish();
@@ -579,8 +615,14 @@ fn details() {
     .unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     let items = cart.items(connection).unwrap();
     let order_item = OrderItem::find(
@@ -788,8 +830,14 @@ fn refund() {
     .unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     let items = cart.items(&connection).unwrap();
     let order_item = items
@@ -921,10 +969,22 @@ fn payments() {
     .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 2000);
 
-    cart.add_external_payment(Some("Test".to_string()), user.id, 500, connection)
-        .unwrap();
-    cart.add_external_payment(Some("Test2".to_string()), user.id, 1500, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        500,
+        connection,
+    )
+    .unwrap();
+    cart.add_external_payment(
+        Some("Test2".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        1500,
+        connection,
+    )
+    .unwrap();
 
     let payments = cart.payments(connection).unwrap();
     assert_eq!(payments.len(), 2);
@@ -1769,15 +1829,31 @@ fn add_external_payment() {
     assert!(cart.paid_at.is_none());
 
     // Partially paid
-    cart.add_external_payment(Some("test".to_string()), user.id, 1500, conn)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        1500,
+        conn,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Draft);
     assert!(cart.paid_at.is_none());
 
     // Fully paid
-    cart.add_external_payment(Some("test2".to_string()), user.id, 500, conn)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test2".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        500,
+        conn,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
+    assert_eq!(
+        Some(ExternalPaymentType::CreditCard),
+        cart.external_payment_type
+    );
     assert!(cart.paid_at.is_some());
 
     let domain_events = DomainEvent::find(
@@ -1838,7 +1914,13 @@ fn add_external_payment_for_expired_code() {
     .unwrap();
 
     // Attempting to pay triggers error
-    let result = cart.add_external_payment(Some("test".to_string()), user.id, 1000, conn);
+    let result = cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        1000,
+        conn,
+    );
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -1865,6 +1947,7 @@ fn find_for_user_for_display() {
     order1
         .add_external_payment(
             Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
             user.id,
             2000,
             project.get_connection(),
@@ -1874,6 +1957,7 @@ fn find_for_user_for_display() {
     order2
         .add_external_payment(
             Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
             user.id,
             500,
             project.get_connection(),
@@ -2235,8 +2319,14 @@ fn for_display_with_invalid_items() {
 
     // Pay off cart
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     // Paid order does not include valid_for_purchase
     let display_order = cart.for_display(None, user.id, connection).unwrap();

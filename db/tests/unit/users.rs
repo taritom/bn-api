@@ -212,8 +212,14 @@ fn get_profile_for_organization() {
 
     // Checkout which changes sales data
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        1700,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
     assert_eq!(
         user.get_profile_for_organization(&organization, connection)
@@ -295,8 +301,14 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
-    cart.add_external_payment(Some("test".to_string()), user.id, 170, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        170,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
 
     // Redeem a ticket from new cart
@@ -353,8 +365,14 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
-    cart.add_external_payment(Some("test".to_string()), user.id, 170, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        170,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
     assert_eq!(
         user.get_profile_for_organization(&organization, connection)
@@ -447,8 +465,14 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
-    cart.add_external_payment(Some("test".to_string()), user.id, 170, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        170,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
 
     let items = cart.items(&connection).unwrap();
@@ -511,8 +535,14 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 170);
-    cart.add_external_payment(Some("test".to_string()), user2.id, 170, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user2.id,
+        170,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
 
     // Redeem ticket from new event
@@ -626,8 +656,14 @@ fn get_history_for_organization() {
 
     // User checks out so has a paid order so history exists
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        1700,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
 
     let mut paging = Paging::new(0, 100);
@@ -673,7 +709,13 @@ fn get_history_for_organization() {
 
     assert_eq!(cart2.calculate_total(connection).unwrap(), 170);
     cart2
-        .add_external_payment(Some("test".to_string()), user.id, 170, connection)
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            170,
+            connection,
+        )
         .unwrap();
     assert_eq!(cart2.status, OrderStatus::Paid);
 

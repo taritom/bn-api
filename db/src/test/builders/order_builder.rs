@@ -11,6 +11,7 @@ pub struct OrderBuilder<'a> {
     is_paid: bool,
     with_free_items: bool,
     on_behalf_of_user: Option<User>,
+    external_payment_type: Option<ExternalPaymentType>,
 }
 
 impl<'a> OrderBuilder<'a> {
@@ -23,6 +24,7 @@ impl<'a> OrderBuilder<'a> {
             is_paid: false,
             with_free_items: false,
             on_behalf_of_user: None,
+            external_payment_type: None,
         }
     }
 
@@ -53,6 +55,14 @@ impl<'a> OrderBuilder<'a> {
 
     pub fn with_free_items(mut self) -> OrderBuilder<'a> {
         self.with_free_items = true;
+        self
+    }
+
+    pub fn with_external_payment_type(
+        mut self,
+        external_payment_type: ExternalPaymentType,
+    ) -> OrderBuilder<'a> {
+        self.external_payment_type = Some(external_payment_type);
         self
     }
 
@@ -91,7 +101,7 @@ impl<'a> OrderBuilder<'a> {
                 quantity: self.quantity,
                 redemption_code,
             }],
-            false,
+            self.on_behalf_of_user.is_some(),
             false,
             self.connection,
         )
@@ -106,8 +116,15 @@ impl<'a> OrderBuilder<'a> {
 
         let mut cart = cart;
         if self.is_paid {
-            cart.add_external_payment(Some("blah".to_string()), user.id, total, self.connection)
-                .unwrap();
+            cart.add_external_payment(
+                Some("blah".to_string()),
+                self.external_payment_type
+                    .unwrap_or(ExternalPaymentType::CreditCard),
+                user.id,
+                total,
+                self.connection,
+            )
+            .unwrap();
         }
 
         cart

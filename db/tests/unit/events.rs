@@ -372,8 +372,14 @@ fn get_sales_by_date_range() {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        1700,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
 
     // Other user does not checkout

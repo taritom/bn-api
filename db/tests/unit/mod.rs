@@ -20,6 +20,7 @@ pub mod payment_methods;
 pub mod push_notification_tokens;
 pub mod refunded_tickets;
 pub mod regions;
+pub mod reports;
 pub mod stages;
 pub mod ticket_instances;
 pub mod ticket_pricing;

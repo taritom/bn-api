@@ -137,8 +137,14 @@ fn valid_unsold_ticket_count() {
     );
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     // 50 paid
     assert_eq!(

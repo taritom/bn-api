@@ -288,8 +288,14 @@ fn remove_available_quantity() {
     )
     .unwrap();
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     // Add additional cart item from existing unsold quantity (is removed from hold)
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();

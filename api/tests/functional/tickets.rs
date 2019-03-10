@@ -75,8 +75,14 @@ pub fn index() {
     .unwrap();
 
     let total = cart.calculate_total(conn).unwrap();
-    cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        conn,
+    )
+    .unwrap();
     let ticket =
         TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, conn)
             .unwrap()
@@ -215,8 +221,14 @@ pub fn show() {
     )
     .unwrap();
     let total = cart.calculate_total(conn).unwrap();
-    cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        conn,
+    )
+    .unwrap();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     let ticket = TicketInstance::find_for_user(user.id, conn)
@@ -420,8 +432,14 @@ fn ticket_transfer_authorization() {
 
     //Try after paying for the tickets
     let total = cart.calculate_total(conn).unwrap();
-    cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        conn,
+    )
+    .unwrap();
 
     let response = tickets::transfer_authorization((
         database.connection.clone().into(),
@@ -528,8 +546,14 @@ fn receive_ticket_transfer() {
     .unwrap();
 
     let total = cart.calculate_total(conn).unwrap();
-    cart.add_external_payment(Some("test".to_string()), user.id, total, conn)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        conn,
+    )
+    .unwrap();
     let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
 
     let transfer_auth = TicketInstance::authorize_ticket_transfer(

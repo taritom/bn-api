@@ -44,8 +44,14 @@ pub fn profile(role: Roles, should_test_true: bool) {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(&*connection).unwrap(), 1700);
-    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        1700,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
@@ -134,8 +140,14 @@ pub fn history(role: Roles, should_test_true: bool) {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        1700,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);

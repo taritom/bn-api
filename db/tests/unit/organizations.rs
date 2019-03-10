@@ -222,8 +222,14 @@ fn has_fan() {
 
     // User checks out so has a paid order so relationship exists
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment(Some("test".to_string()), user.id, 1700, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        1700,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
     assert!(organization.has_fan(&user, connection).unwrap());
 }
@@ -952,8 +958,14 @@ fn search_fans() {
     .unwrap();
     let total = cart.calculate_total(connection).unwrap();
 
-    cart.add_external_payment(Some("test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     let search_results = organization
         .search_fans(

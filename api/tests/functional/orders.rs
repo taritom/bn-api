@@ -23,7 +23,13 @@ pub fn show() {
     let conn = database.connection.get();
     let total = order.calculate_total(conn).unwrap();
     order
-        .add_external_payment(Some("test".to_string()), user.id, total, conn)
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            total,
+            conn,
+        )
         .unwrap();
     assert_eq!(order.status, OrderStatus::Paid);
 
@@ -161,7 +167,13 @@ pub fn index() {
     let conn = database.connection.get();
     let total = order1.calculate_total(conn).unwrap();
     order1
-        .add_external_payment(Some("test".to_string()), user.id, total, conn)
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            total,
+            conn,
+        )
         .unwrap();
     order1 = diesel::update(&order1)
         .set(schema::orders::order_date.eq(date1))
@@ -170,7 +182,13 @@ pub fn index() {
     let mut order2 = database.create_order().for_user(&user).finish();
     let total = order2.calculate_total(conn).unwrap();
     order2
-        .add_external_payment(Some("test".to_string()), user.id, total - 100, conn)
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            total - 100,
+            conn,
+        )
         .unwrap();
     order2 = diesel::update(&order2)
         .set(schema::orders::order_date.eq(date2))
@@ -326,8 +344,14 @@ pub fn details_with_tickets_user_has_no_access_to() {
     .unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     let items = cart.items(connection).unwrap();
     let order_item = OrderItem::find(
@@ -450,8 +474,14 @@ pub fn refund_for_non_refundable_tickets() {
     .unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     let items = cart.items(&connection).unwrap();
 
@@ -563,8 +593,14 @@ pub fn refund_hold_ticket() {
     .unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     let items = cart.items(&connection).unwrap();
     let order_item = items
@@ -671,8 +707,14 @@ pub fn refund_removes_event_fee_if_all_event_tickets_refunded() {
     .unwrap();
 
     let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(Some("Test".to_string()), user.id, total, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
 
     let items = cart.items(&connection).unwrap();
     let order_item = items

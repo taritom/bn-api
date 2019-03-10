@@ -214,6 +214,7 @@ pub enum PaymentRequest {
     External {
         #[serde(default, deserialize_with = "deserialize_unless_blank")]
         reference: Option<String>,
+        external_payment_type: ExternalPaymentType,
         first_name: String,
         last_name: String,
         #[serde(default, deserialize_with = "deserialize_unless_blank")]
@@ -326,6 +327,7 @@ pub fn checkout(
         }
         PaymentRequest::External {
             reference,
+            external_payment_type,
             first_name,
             last_name,
             email,
@@ -336,6 +338,7 @@ pub fn checkout(
             checkout_external(
                 &connection,
                 order,
+                *external_payment_type,
                 reference.clone(),
                 first_name.to_string(),
                 last_name.to_string(),
@@ -429,7 +432,13 @@ fn checkout_free(
         );
     }
     let mut order = order;
-    order.add_external_payment(Some("Free Checkout".to_string()), user.id(), 0, conn)?;
+    order.add_external_payment(
+        Some("Free Checkout".to_string()),
+        ExternalPaymentType::Voucher,
+        user.id(),
+        0,
+        conn,
+    )?;
 
     let mut order = Order::find(order.id, conn)?;
     order.set_user_agent(request_info.user_agent.clone(), true, conn)?;
@@ -441,6 +450,7 @@ fn checkout_free(
 fn checkout_external(
     conn: &Connection,
     order: Order,
+    external_payment_type: ExternalPaymentType,
     reference: Option<String>,
     first_name: String,
     last_name: String,
@@ -490,7 +500,7 @@ fn checkout_external(
     order.set_behalf_of_user(guest.unwrap(), user.id(), conn)?;
     let total = order.calculate_total(conn)?;
 
-    order.add_external_payment(reference, user.id(), total, conn)?;
+    order.add_external_payment(reference, external_payment_type, user.id(), total, conn)?;
     order.set_user_agent(request_info.user_agent.clone(), true, conn)?;
 
     let order = Order::find(order.id, conn)?;

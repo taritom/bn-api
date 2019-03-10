@@ -1358,8 +1358,14 @@ fn dashboard_with_default_range() {
     )
     .unwrap();
     assert_eq!(cart.calculate_total(connection).unwrap(), 1700);
-    cart.add_external_payment(Some("test".to_string()), org_admin.id, 1700, connection)
-        .unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        org_admin.id,
+        1700,
+        connection,
+    )
+    .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
 
     let test_request = TestRequest::create_with_uri(&format!("/events/{}/dashboard?", event.id));
