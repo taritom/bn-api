@@ -30,6 +30,9 @@ pub fn index(
 
     let mut list = Vec::<DisplayHold>::new();
     for hold in comps.data {
+        if hold.status == HoldStatus::Deleted {
+            continue;
+        }
         let r = hold.into_display(conn)?;
 
         list.push(r);
@@ -72,6 +75,7 @@ pub fn create(
     let new_comp = new_comp.into_inner();
     let comp = Hold::create_comp_for_person(
         new_comp.name,
+        Some(user.id()),
         hold.id,
         new_comp.email,
         new_comp.phone,
@@ -104,7 +108,7 @@ pub fn update(
     let quantity = req.quantity;
     let hold = comp.update(req.into(), conn)?;
     if quantity.is_some() {
-        hold.set_quantity(quantity.unwrap(), conn)?;
+        hold.set_quantity(Some(user.id()), quantity.unwrap(), conn)?;
     }
 
     let comp = hold.into_display(conn)?;
@@ -119,6 +123,6 @@ pub fn destroy(
     user.requires_scope_for_organization(Scopes::CompWrite, &hold.organization(conn)?, conn)?;
 
     let comp = Hold::find(path.id, conn)?;
-    comp.destroy(&*conn)?;
+    comp.destroy(Some(user.id()), &*conn)?;
     Ok(HttpResponse::Ok().json(json!({})))
 }

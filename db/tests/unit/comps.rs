@@ -8,6 +8,7 @@ fn create() {
     let hold = db.create_hold().with_hold_type(HoldTypes::Comp).finish();
     Hold::create_comp_for_person(
         "test".into(),
+        None,
         hold.id,
         Some("email@address.com".into()),
         None,
@@ -29,6 +30,7 @@ pub fn create_with_validation_errors() {
         .finish();
     let result = Hold::create_comp_for_person(
         "test".into(),
+        None,
         hold.id,
         Some("invalid".into()),
         None,
@@ -103,7 +105,7 @@ pub fn update_with_validation_errors() {
         },
     }
 
-    let result = comp.set_quantity(11, db.get_connection());
+    let result = comp.set_quantity(None, 11, db.get_connection());
 
     match result {
         Ok(_) => {
@@ -115,7 +117,7 @@ pub fn update_with_validation_errors() {
                 assert_eq!(errors["quantity"].len(), 1);
                 assert_eq!(
                     errors["quantity"][0].code,
-                    "Could not reserve the correct amount of tickets"
+                    "Could not reserve tickets, not enough tickets are available"
                 );
             }
             _ => panic!("Expected validation error"),

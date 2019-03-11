@@ -170,8 +170,8 @@ pub fn destroy(role: Roles, should_succeed: bool) {
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        let comp = Hold::find(comp.id, connection);
-        assert!(comp.is_err());
+        let comp = Hold::find(comp.id, connection).unwrap();
+        assert!(comp.status == HoldStatus::Deleted);
     } else {
         support::expects_unauthorized(&response);
     }

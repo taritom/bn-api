@@ -403,6 +403,7 @@ impl TicketInstance {
     }
 
     pub(crate) fn add_to_hold(
+        current_user_id: Option<Uuid>,
         hold_id: Uuid,
         ticket_type_id: Uuid,
         quantity: u32,
@@ -421,16 +422,47 @@ impl TicketInstance {
             .to_db_error(ErrorCode::QueryError, "Could not add tickets to the hold")?;
 
         if tickets.len() as u32 != quantity {
-            return DatabaseError::validation_error(
-                "quantity",
-                "Could not reserve the correct amount of tickets",
-            );
+            if (tickets.len() as u32) < quantity {
+                jlog!(
+                    Debug,
+                    &format!(
+                        "Could not reserve {} tickets, only {} tickets were available",
+                        quantity,
+                        tickets.len()
+                    )
+                );
+
+                return DatabaseError::validation_error(
+                    "quantity",
+                    "Could not reserve tickets, not enough tickets are available",
+                );
+            } else {
+                // This is an unlikely scenario
+                return DatabaseError::business_process_error(&format!(
+                    "Reserved too many tickets, expected {} tickets, reserved {}",
+                    quantity,
+                    tickets.len()
+                ));
+            }
+        }
+
+        for ticket in tickets.iter() {
+            DomainEvent::create(
+                DomainEventTypes::TicketInstanceAddedToHold,
+                "Ticket added to hold".to_string(),
+                Tables::TicketInstances,
+                Some(ticket.id),
+                current_user_id,
+                Some(json!({"hold_id": hold_id, "from_hold_id": from_hold_id})),
+            )
+            .commit(conn)?;
         }
 
         Ok(tickets)
     }
 
     pub fn release_from_hold(
+        current_user_id: Option<Uuid>,
         hold_id: Uuid,
         ticket_type_id: Uuid,
         quantity: u32,
@@ -452,6 +484,18 @@ impl TicketInstance {
                 "quantity",
                 "Could not release the correct amount of tickets",
             );
+        }
+
+        for ticket in tickets.iter() {
+            DomainEvent::create(
+                DomainEventTypes::TicketInstanceReleasedFromHold,
+                "Ticket released from hold".to_string(),
+                Tables::TicketInstances,
+                Some(ticket.id),
+                current_user_id,
+                Some(json!({"from_hold_id": hold_id, "to_hold_id": ticket.hold_id})),
+            )
+            .commit(conn)?;
         }
 
         Ok(tickets)

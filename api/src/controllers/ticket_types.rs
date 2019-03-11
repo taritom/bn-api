@@ -206,9 +206,9 @@ pub fn cancel(
         .into_iter()
         .filter(|h| h.parent_hold_id.is_none())
     {
-        hold.remove_available_quantity(connection)?;
+        hold.remove_available_quantity(Some(user.id()), connection)?;
         if hold.quantity(connection)?.0 == 0 {
-            hold.destroy(connection)?;
+            hold.destroy(Some(user.id()), connection)?;
         }
     }
 

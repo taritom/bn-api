@@ -96,10 +96,11 @@ impl<'a> HoldBuilder<'a> {
             self.hold_type,
             ticket_type_id,
         )
-        .commit(self.connection)
+        .commit(None, self.connection)
         .unwrap();
 
-        hold.set_quantity(self.quantity, self.connection).unwrap();
+        hold.set_quantity(None, self.quantity, self.connection)
+            .unwrap();
         hold
     }
 }

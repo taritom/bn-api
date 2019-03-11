@@ -86,9 +86,9 @@ pub fn create(
         req.hold_type,
         req.ticket_type_id,
     )
-    .commit(conn)?;
+    .commit(Some(user.id()), conn)?;
 
-    hold.set_quantity(req.quantity, conn)?;
+    hold.set_quantity(Some(user.id()), req.quantity, conn)?;
 
     #[derive(Serialize)]
     struct R {
@@ -144,7 +144,7 @@ pub fn update(
     let quantity = req.quantity;
     let hold = hold.update(req.into_inner().into(), conn)?;
     if let Some(quantity) = quantity {
-        hold.set_quantity(quantity, conn)?;
+        hold.set_quantity(Some(user.id()), quantity, conn)?;
     }
 
     Ok(HttpResponse::Ok().json(hold))
@@ -229,7 +229,9 @@ pub fn split(
         &hold.event(conn)?,
         conn,
     )?;
+
     let new_hold = hold.split(
+        Some(user.id()),
         req.name.clone(),
         req.redemption_code.clone(),
         req.quantity,
@@ -253,6 +255,6 @@ pub fn destroy(
         &hold.event(conn)?,
         conn,
     )?;
-    hold.destroy(conn)?;
+    hold.destroy(Some(user.id()), conn)?;
     Ok(HttpResponse::Ok().finish())
 }

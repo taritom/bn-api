@@ -81,6 +81,9 @@ string_enum! { DomainEventTypes [
     EventUpdated,
     EventUnpublished,
     FeeScheduleCreated,
+    HoldCreated,
+    HoldDeleted,
+    HoldQuantityChanged,
     OrderBehalfOfUserChanged,
     OrderCompleted,
     OrderCreated,
@@ -101,9 +104,11 @@ string_enum! { DomainEventTypes [
     PurchaseCompleted,
     TransferTicketStarted,
     TransferTicketCompleted,
+    TicketInstanceAddedToHold,
     TicketInstanceNullified,
     TicketInstancePurchased,
-    TicketInstanceRedeemed
+    TicketInstanceRedeemed,
+    TicketInstanceReleasedFromHold
 ]}
 string_enum! { DomainActionTypes [
     // Email/SMS/Push Communication
@@ -127,6 +132,7 @@ string_enum! { ExternalPaymentType [Cash, CreditCard, Voucher]}
 string_enum! { FanSortField [FirstName, LastName, Email, Phone, Orders, FirstOrder, LastOrder, Revenue] }
 string_enum! { HistoryType [Purchase]}
 string_enum! { HoldTypes [Discount, Comp] }
+string_enum! { HoldStatus [Published, Deleted] }
 string_enum! { OrderStatus [Cancelled, Draft, Paid, PendingPayment] }
 string_enum! { OrderItemTypes [Tickets, PerUnitFees, EventFees]}
 string_enum! { OrderTypes [Cart, BackOffice] }
@@ -138,7 +144,7 @@ string_enum! { Roles [Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOf
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
-string_enum! { Tables [Events, EventArtists, FeeSchedules, Orders, Organizations, Payments, PaymentMethods, TicketInstances, Users] }
+string_enum! { Tables [Events, EventArtists, FeeSchedules, Holds, Orders, Organizations, Payments, PaymentMethods, TicketInstances, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled] }

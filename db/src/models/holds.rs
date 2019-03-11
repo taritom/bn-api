@@ -26,6 +26,7 @@ pub struct Hold {
     pub phone: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub status: HoldStatus,
 }
 
 #[derive(AsChangeset, Default, Validate)]
@@ -75,6 +76,7 @@ impl Hold {
     /// use `create_hold`.
     pub fn create_comp_for_person(
         name: String,
+        current_user_id: Option<Uuid>,
         hold_id: Uuid,
         email: Option<String>,
         phone: Option<String>,
@@ -100,9 +102,9 @@ impl Hold {
             ticket_type_id: hold.ticket_type_id,
         };
 
-        let new_hold = new_hold.commit(conn)?;
+        let new_hold = new_hold.commit(current_user_id, conn)?;
 
-        new_hold.set_quantity(quantity, conn)?;
+        new_hold.set_quantity(current_user_id, quantity, conn)?;
 
         Ok(new_hold)
     }
@@ -185,6 +187,7 @@ impl Hold {
     pub fn find_for_event(event_id: Uuid, conn: &PgConnection) -> Result<Vec<Hold>, DatabaseError> {
         holds::table
             .filter(holds::event_id.eq(event_id))
+            .filter(holds::status.ne(HoldStatus::Deleted))
             .order_by(holds::name.asc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve holds for event")
@@ -234,6 +237,7 @@ impl Hold {
     /// to the parent hold, being either the main pool or the parent hold in `parent_hold_id`.
     pub fn split(
         &self,
+        current_user_id: Option<Uuid>,
         name: String,
         redemption_code: String,
         quantity: u32,
@@ -253,13 +257,14 @@ impl Hold {
             discount_in_cents: discount_in_cents.map(|m| m as i64),
             end_at,
             max_per_order: max_per_order.map(|m| m as i64),
-            hold_type: hold_type,
+            hold_type,
             ticket_type_id: self.ticket_type_id,
         };
 
-        let new_hold = new_hold.commit(conn)?;
+        let new_hold = new_hold.commit(current_user_id, conn)?;
 
         TicketInstance::add_to_hold(
+            current_user_id,
             new_hold.id,
             self.ticket_type_id,
             quantity,
@@ -269,15 +274,31 @@ impl Hold {
         Ok(new_hold)
     }
 
-    /// Deletes a hold by first setting the quantity to 0 and then deleting the record. If there
-    /// are other holds that reference this hold via `parent_hold_id`, a `DatabaseError` with
-    /// `ErrorCode::ForeignKeyError` will be returned.
-    pub fn destroy(self, conn: &PgConnection) -> Result<(), DatabaseError> {
-        self.set_quantity(0, conn)?;
+    /// Deletes a hold by first setting the quantity to 0 and then deleting the record.
+    pub fn destroy(
+        self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        self.set_quantity(current_user_id, 0, conn)?;
 
-        diesel::delete(holds::table.filter(holds::id.eq(self.id)))
+        diesel::update(holds::table.filter(holds::id.eq(self.id)))
+            .set((
+                holds::status.eq(HoldStatus::Deleted),
+                holds::updated_at.eq(dsl::now),
+            ))
             .execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Could not delete hold")?;
+
+        DomainEvent::create(
+            DomainEventTypes::HoldDeleted,
+            format!("Hold  {} deleted", self.name),
+            Tables::Holds,
+            Some(self.id),
+            current_user_id,
+            None,
+        )
+        .commit(conn)?;
 
         Ok(())
     }
@@ -300,52 +321,92 @@ impl Hold {
     /// or from the parent hold if `parent_hold_id` is not `None`. Likewise, if the
     /// quantity is lower, it will release the reserved tickets back to either the
     /// main pool or the parent hold.
-    pub fn set_quantity(&self, quantity: u32, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn set_quantity(
+        &self,
+        user_id: Option<Uuid>,
+        quantity: u32,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         let (count, _available) = self.quantity(conn)?;
         if count < quantity {
             TicketInstance::add_to_hold(
+                user_id,
                 self.id,
                 self.ticket_type_id,
                 quantity - count,
                 self.parent_hold_id,
                 conn,
             )?;
+            DomainEvent::create(
+                DomainEventTypes::HoldQuantityChanged,
+                format!("Hold quantity increased from {} to {}", count, quantity),
+                Tables::Holds,
+                Some(self.id),
+                user_id,
+                Some(json!({"old_quantity": count, "new_quantity": quantity})),
+            )
+            .commit(conn)?;
         }
         if count > quantity {
             if self.parent_hold_id.is_some() {
                 TicketInstance::add_to_hold(
+                    user_id,
                     self.parent_hold_id.unwrap(),
                     self.ticket_type_id,
                     count - quantity,
                     Some(self.id),
                     conn,
                 )?;
+                DomainEvent::create(
+                    DomainEventTypes::HoldQuantityChanged,
+                    format!("Hold quantity decreased from {} to {}, returned to parent hold", count, quantity),
+                    Tables::Holds,
+                    Some(self.id),
+                    user_id,
+                    Some(json!({"old_quantity": count, "new_quantity": quantity, "parent_hold_id": &self.parent_hold_id})),
+                )
+                    .commit(conn)?;
             } else {
                 TicketInstance::release_from_hold(
+                    user_id,
                     self.id,
                     self.ticket_type_id,
                     count - quantity,
                     conn,
                 )?;
+                DomainEvent::create(
+                    DomainEventTypes::HoldQuantityChanged,
+                    format!("Hold quantity decreased from {} to {}", count, quantity),
+                    Tables::Holds,
+                    Some(self.id),
+                    user_id,
+                    Some(json!({"old_quantity": count, "new_quantity": quantity})),
+                )
+                .commit(conn)?;
             }
         }
+
         Ok(())
     }
 
-    pub fn remove_available_quantity(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn remove_available_quantity(
+        &self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         // Recursively remove from children
         let children: Vec<Hold> = holds::table
             .filter(holds::parent_hold_id.eq(self.id))
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find children for hold")?;
         for child in children {
-            child.remove_available_quantity(conn)?;
+            child.remove_available_quantity(current_user_id, conn)?;
         }
 
         // Children have returned their quantity to the parent so returning remaining available ticket inventory
         let (total, remaining) = self.quantity(conn)?;
         let sold_quantity = total - remaining;
-        self.set_quantity(sold_quantity, conn)?;
+        self.set_quantity(current_user_id, sold_quantity, conn)?;
 
         Ok(())
     }
@@ -381,6 +442,7 @@ impl Hold {
     ) -> Result<Hold, DatabaseError> {
         holds::table
             .filter(holds::redemption_code.eq(redemption_code.to_uppercase()))
+            .filter(holds::status.ne(HoldStatus::Deleted))
             .first(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -421,7 +483,7 @@ impl Hold {
     }
 }
 
-#[derive(Insertable, Validate)]
+#[derive(Insertable, Validate, Serialize)]
 #[table_name = "holds"]
 pub struct NewHold {
     pub name: String,
@@ -439,15 +501,29 @@ pub struct NewHold {
 }
 
 impl NewHold {
-    pub fn commit(mut self, conn: &PgConnection) -> Result<Hold, DatabaseError> {
+    pub fn commit(
+        mut self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Hold, DatabaseError> {
         if self.hold_type == HoldTypes::Comp {
             self.discount_in_cents = None
         }
         self.validate_record(conn)?;
-        diesel::insert_into(holds::table)
-            .values(self)
+        let result: Hold = diesel::insert_into(holds::table)
+            .values(&self)
             .get_result(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not create hold")
+            .to_db_error(ErrorCode::InsertError, "Could not create hold")?;
+        DomainEvent::create(
+            DomainEventTypes::HoldCreated,
+            format!("Hold {} created", self.name),
+            Tables::Holds,
+            Some(result.id),
+            current_user_id,
+            Some(json!(&self)),
+        )
+        .commit(conn)?;
+        Ok(result)
     }
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {

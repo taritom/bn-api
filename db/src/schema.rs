@@ -213,6 +213,7 @@ table! {
         phone -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        status -> Text,
     }
 }
 

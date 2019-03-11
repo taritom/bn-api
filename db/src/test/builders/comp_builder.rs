@@ -50,6 +50,7 @@ impl<'a> CompBuilder<'a> {
 
         Hold::create_comp_for_person(
             self.name,
+            None,
             self.hold_id.unwrap(),
             Some("email@test.com".to_string()),
             None,

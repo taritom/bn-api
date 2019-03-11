@@ -17,7 +17,7 @@ fn create() {
         HoldTypes::Discount,
         event.ticket_types(true, None, db.get_connection()).unwrap()[0].id,
     )
-    .commit(db.get_connection())
+    .commit(None, db.get_connection())
     .unwrap();
 }
 
@@ -35,7 +35,7 @@ fn create_with_validation_errors() {
         HoldTypes::Discount,
         event.ticket_types(true, None, db.get_connection()).unwrap()[0].id,
     )
-    .commit(db.get_connection());
+    .commit(None, db.get_connection());
 
     match result {
         Ok(_) => {
@@ -63,7 +63,7 @@ fn create_with_validation_errors() {
         HoldTypes::Discount,
         event.ticket_types(true, None, db.get_connection()).unwrap()[0].id,
     )
-    .commit(db.get_connection());
+    .commit(None, db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -90,7 +90,7 @@ fn create_with_validation_errors() {
         HoldTypes::Discount,
         event.ticket_types(true, None, db.get_connection()).unwrap()[0].id,
     )
-    .commit(db.get_connection());
+    .commit(None, db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -254,6 +254,7 @@ fn remove_available_quantity() {
 
     let child_hold = Hold::create_comp_for_person(
         "Child".into(),
+        None,
         hold.id,
         None,
         None,
@@ -315,7 +316,7 @@ fn remove_available_quantity() {
     assert_eq!(8, hold.quantity(connection).unwrap().0);
     assert_eq!(2, child_hold.quantity(connection).unwrap().0);
 
-    hold.remove_available_quantity(connection).unwrap();
+    hold.remove_available_quantity(None, connection).unwrap();
     assert_eq!(4, hold.quantity(connection).unwrap().0);
     assert_eq!(1, child_hold.quantity(connection).unwrap().0);
 }
@@ -325,14 +326,20 @@ fn destroy() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let hold = project.create_hold().finish();
-    assert!(hold.clone().destroy(connection).is_ok());
-    assert!(Hold::find(hold.id, connection).is_err());
+    assert!(hold.clone().destroy(None, connection).is_ok());
+    assert_eq!(
+        Hold::find(hold.id, connection).unwrap().status,
+        HoldStatus::Deleted
+    );
 
     // Destroy hold with comps
     let comp = project.create_comp().finish();
     let hold = Hold::find(comp.id, connection).unwrap();
-    hold.clone().destroy(connection).unwrap();
-    assert!(Hold::find(hold.id, connection).is_err());
+    hold.clone().destroy(None, connection).unwrap();
+    assert_eq!(
+        Hold::find(hold.id, connection).unwrap().status,
+        HoldStatus::Deleted
+    );
 }
 
 #[test]
@@ -340,7 +347,7 @@ fn set_quantity() {
     let db = TestProject::new();
     let event = db.create_event().with_tickets().finish();
     let hold = db.create_hold().with_event(&event).finish();
-    hold.set_quantity(30, db.get_connection()).unwrap();
+    hold.set_quantity(None, 30, db.get_connection()).unwrap();
 
     assert_eq!(hold.quantity(db.get_connection()).unwrap(), (30, 30));
 }
