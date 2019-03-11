@@ -371,6 +371,47 @@ mod update_tests {
 }
 
 #[cfg(test)]
+mod update_tests_with_max_tickets_per_ticket_type {
+    use super::*;
+    #[test]
+    fn update_org_member() {
+        organizations::update_with_max_tickets_per_ticket_type(Roles::OrgMember, false);
+    }
+    #[test]
+    fn update_admin() {
+        organizations::update_with_max_tickets_per_ticket_type(Roles::Admin, true);
+    }
+    #[test]
+    fn update_user() {
+        organizations::update_with_max_tickets_per_ticket_type(Roles::User, false);
+    }
+    #[test]
+    fn update_org_owner() {
+        organizations::update_with_max_tickets_per_ticket_type(Roles::OrgOwner, false);
+    }
+    #[test]
+    fn update_door_person() {
+        organizations::update_with_max_tickets_per_ticket_type(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn update_promoter() {
+        organizations::update_with_max_tickets_per_ticket_type(Roles::Promoter, false);
+    }
+    #[test]
+    fn update_promoter_read_only() {
+        organizations::update_with_max_tickets_per_ticket_type(Roles::PromoterReadOnly, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        organizations::update_with_max_tickets_per_ticket_type(Roles::OrgAdmin, false);
+    }
+    #[test]
+    fn update_box_office() {
+        organizations::update_with_max_tickets_per_ticket_type(Roles::OrgBoxOffice, false);
+    }
+}
+
+#[cfg(test)]
 mod list_organization_members_tests {
     use super::*;
     #[test]

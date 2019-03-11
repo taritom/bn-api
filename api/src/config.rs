@@ -51,6 +51,7 @@ pub struct Config {
     pub jwt_expiry_time: u64,
     pub branch_io_base_url: String,
     pub branch_io_branch_key: String,
+    pub max_instances_per_ticket_type: i64,
 }
 
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
@@ -103,6 +104,8 @@ const API_KEYS_ENCRYPTION_KEY: &str = "API_KEYS_ENCRYPTION_KEY";
 const JWT_EXPIRY_TIME: &str = "JWT_EXPIRY_TIME";
 const BRANCH_IO_BASE_URL: &str = "BRANCH_IO_BASE_URL";
 const BRANCH_IO_BRANCH_KEY: &str = "BRANCH_IO_BRANCH_KEY";
+
+const MAX_INSTANCES_PER_TICKET_TYPE: &str = "MAX_INSTANCES_PER_TICKET_TYPE";
 
 impl Config {
     pub fn new(environment: Environment) -> Self {
@@ -244,6 +247,13 @@ impl Config {
             .parse()
             .unwrap();
 
+        let max_instances_per_ticket_type = env::var(&MAX_INSTANCES_PER_TICKET_TYPE)
+            .map(|s| {
+                s.parse()
+                    .expect("Not a valid integer for max instances per ticket type")
+            })
+            .unwrap_or(10000);
+
         Config {
             allowed_origins,
             app_name,
@@ -285,6 +295,7 @@ impl Config {
             api_keys_encryption_key,
             jwt_expiry_time,
             branch_io_branch_key,
+            max_instances_per_ticket_type,
         }
     }
 }

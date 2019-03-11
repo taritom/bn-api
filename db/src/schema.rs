@@ -314,6 +314,7 @@ table! {
         timezone -> Nullable<Text>,
         cc_fee_percent -> Float4,
         globee_api_key -> Nullable<Text>,
+        max_instances_per_ticket_type -> Int8,
     }
 }
 

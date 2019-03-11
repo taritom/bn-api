@@ -58,6 +58,7 @@ pub struct NewOrganizationRequest {
     pub timezone: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub globee_api_key: Option<String>,
+    pub max_instances_per_ticket_type: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -153,6 +154,10 @@ pub fn create(
         allowed_payment_providers: new_organization.allowed_payment_providers.clone(),
         timezone: new_organization.timezone.clone(),
         globee_api_key: new_organization.globee_api_key.clone(),
+        max_instances_per_ticket_type: Some(match new_organization.max_instances_per_ticket_type {
+            Some(x) => x,
+            None => state.config.max_instances_per_ticket_type,
+        }),
     };
 
     let mut organization = new_organization_with_fee_schedule.commit(
@@ -179,8 +184,14 @@ pub fn update(
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let mut organization = Organization::find(parameters.id, conn)?;
-    user.requires_scope_for_organization(Scopes::OrgWrite, &organization, conn)?;
     let organization_update = organization_parameters.into_inner();
+
+    if organization_update.max_instances_per_ticket_type.is_some() {
+        user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, conn)?;
+    } else {
+        user.requires_scope_for_organization(Scopes::OrgWrite, &organization, conn)?;
+    }
+
     let mut updated_organization = organization.update(
         organization_update,
         &state.config.api_keys_encryption_key,

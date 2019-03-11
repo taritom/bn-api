@@ -183,6 +183,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         allowed_payment_providers: None,
         timezone: None,
         globee_api_key: None,
+        max_instances_per_ticket_type: Some(11000),
     });
 
     let test_request = TestRequest::create_with_uri("/organizations");
@@ -231,6 +232,7 @@ pub fn update(role: Roles, should_succeed: bool) {
         timezone: Some("Los Angeles".to_string()),
         cc_fee_percent: Some(5.5),
         globee_api_key: Some(Some("Itsasecret".to_string())),
+        max_instances_per_ticket_type: None,
     });
 
     let response: HttpResponse = organizations::update((
@@ -254,6 +256,56 @@ pub fn update(role: Roles, should_succeed: bool) {
         vec![PaymentProviders::Globee]
     );
     assert_eq!(updated_organization.cc_fee_percent, 5.5);
+}
+
+pub fn update_with_max_tickets_per_ticket_type(role: Roles, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    let new_name = "New Name";
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    let json = Json(OrganizationEditableAttributes {
+        name: Some(new_name.to_string()),
+        address: Some("address".to_string()),
+        city: Some("city".to_string()),
+        state: Some("state".to_string()),
+        country: Some("country".to_string()),
+        postal_code: Some("postal_code".to_string()),
+        phone: Some("phone".to_string()),
+        company_event_fee_in_cents: (Some(100)),
+        client_event_fee_in_cents: None,
+        sendgrid_api_key: Some(Some("sendgrid_api_key".to_string())),
+        google_ga_key: Some(Some("google_ga_key".to_string())),
+        facebook_pixel_key: Some(Some("facebook_pixel_key".to_string())),
+        allowed_payment_providers: Some(vec![PaymentProviders::Globee]),
+        timezone: Some("Los Angeles".to_string()),
+        cc_fee_percent: Some(5.5),
+        globee_api_key: Some(Some("Itsasecret".to_string())),
+        max_instances_per_ticket_type: Some(11000),
+    });
+
+    let response: HttpResponse = organizations::update((
+        test_request.extract_state(),
+        database.connection.into(),
+        path,
+        json,
+        auth_user.clone(),
+    ))
+    .into();
+    if !should_succeed {
+        support::expects_unauthorized(&response);
+        return;
+    }
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let updated_organization: Organization = serde_json::from_str(&body).unwrap();
+    assert_eq!(updated_organization.name, new_name);
+    assert_eq!(updated_organization.max_instances_per_ticket_type, 11000);
 }
 
 pub fn remove_user(role: Roles, should_test_succeed: bool) {

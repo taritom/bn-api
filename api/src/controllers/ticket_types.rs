@@ -87,6 +87,14 @@ pub fn create(
         &event,
         connection,
     )?;
+
+    //Check that requested ticket capacity is less than max_instances_per_ticket_type
+    if data.capacity as i64 > organization.max_instances_per_ticket_type {
+        return application::internal_server_error(
+            "Requested capacity larger than organization maximum tickets per ticket type",
+        );
+    }
+
     //Retrieve default wallet
     let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
 
@@ -249,6 +257,13 @@ pub fn update(
     jlog!(Debug, "Updating ticket type", {"ticket_type_id": path.ticket_type_id, "event_id":event.id, "request": &data});
     let ticket_type = TicketType::find(path.ticket_type_id, connection)?;
     if let Some(requested_capacity) = data.capacity {
+        //Check that requested ticket capacity is less than max_tickets_per_ticket_type
+        if requested_capacity as i64 > organization.max_instances_per_ticket_type {
+            return application::unprocessable(
+                "Requested capacity larger than organization maximum tickets per ticket type",
+            );
+        }
+
         let valid_ticket_count = ticket_type.valid_ticket_count(connection)?;
         jlog!(Debug, "Update ticket type: Capacity changed", {"ticket_type_id": path.ticket_type_id, "new_capacity": requested_capacity, "old_capacity": valid_ticket_count});
         if valid_ticket_count < requested_capacity {

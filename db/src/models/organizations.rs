@@ -52,6 +52,7 @@ pub struct Organization {
     pub timezone: Option<String>,
     pub cc_fee_percent: f32,
     pub globee_api_key: Option<String>,
+    pub max_instances_per_ticket_type: i64,
 }
 
 #[derive(Serialize)]
@@ -85,6 +86,7 @@ pub struct NewOrganization {
     pub timezone: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub globee_api_key: Option<String>,
+    pub max_instances_per_ticket_type: Option<i64>,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -181,6 +183,7 @@ pub struct OrganizationEditableAttributes {
     pub cc_fee_percent: Option<f32>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub globee_api_key: Option<Option<String>>,
+    pub max_instances_per_ticket_type: Option<i64>,
 }
 
 impl Organization {

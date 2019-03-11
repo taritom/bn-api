@@ -394,6 +394,66 @@ pub fn create_with_overlapping_periods() {
 }
 
 #[test]
+pub fn create_with_out_of_bounds_ticket_capacity() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
+
+    //Construct Ticket creation and pricing request
+    let test_request = TestRequest::create();
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+    let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
+    let start_date = NaiveDate::from_ymd(2018, 5, 1).and_hms(6, 20, 21);
+    let middle_date = NaiveDate::from_ymd(2018, 6, 2).and_hms(7, 45, 31);
+    let end_date = NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23);
+    ticket_pricing.push(CreateTicketPricingRequest {
+        name: String::from("Early bird"),
+        price_in_cents: 10000,
+        start_date,
+        end_date: middle_date,
+        is_box_office_only: Some(false),
+    });
+    ticket_pricing.push(CreateTicketPricingRequest {
+        name: String::from("Base"),
+        price_in_cents: 20000,
+        start_date: middle_date,
+        end_date,
+        is_box_office_only: Some(false),
+    });
+    let request_data = CreateTicketTypeRequest {
+        name: "VIP".into(),
+        description: None,
+        capacity: 11000,
+        start_date,
+        end_date,
+        ticket_pricing,
+        increment: None,
+        limit_per_person: 0,
+        price_in_cents: 20000,
+        sold_out_behavior: SoldOutBehavior::ShowSoldOut,
+        is_private: false,
+    };
+    let response: HttpResponse = ticket_types::create((
+        database.connection.into(),
+        path,
+        Json(request_data),
+        auth_user,
+        state,
+    ))
+    .into();
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(response.error().is_some());
+}
+
+#[test]
 pub fn update_with_invalid_id() {
     let database = TestDatabase::new();
     let request = TestRequest::create();
