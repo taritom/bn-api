@@ -702,6 +702,13 @@ impl User {
         _ => DatabaseError::concurrency_error("Could not update last cart on user because the row has been changed by another source")
     }
     }
+
+    pub fn push_notification_tokens(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Vec<PushNotificationToken>, DatabaseError> {
+        PushNotificationToken::find_by_user_id(self.id, conn)
+    }
 }
 
 impl From<User> for DisplayUser {

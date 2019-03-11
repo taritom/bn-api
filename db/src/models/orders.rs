@@ -17,6 +17,7 @@ use std::borrow::Cow;
 use std::cmp;
 use std::collections::HashMap;
 use time::Duration;
+use utils::dates::*;
 use utils::errors::*;
 use utils::iterators::intersect_set;
 use uuid::Uuid;
@@ -1625,21 +1626,16 @@ impl Order {
             )
             .commit(conn)?;
 
-            DomainAction::create(
+            let mut action = DomainAction::create(
                 Some(domain_event.id),
                 DomainActionTypes::SendPurchaseCompletedCommunication,
                 None,
                 json!({"order_id": self.id, "user_id": current_user_id}),
                 Some(Tables::Orders.to_string()),
                 Some(self.id),
-                Utc::now().naive_utc(),
-                // Technically this IPN must be processed and should never expire
-                (Utc::now().naive_utc())
-                    .checked_add_signed(Duration::days(3))
-                    .unwrap(),
-                3,
-            )
-            .commit(conn)?;
+            );
+            action.expires_at = action.scheduled_at.into_builder().add_days(3).finish();
+            action.commit(conn)?;
         };
         jlog!(Debug, "Order was checked for completion but was short", {"required_amount": total_required, "total_paid": total_paid, "order_id": self.id});
         Ok(())

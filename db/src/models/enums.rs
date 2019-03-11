@@ -69,6 +69,7 @@ macro_rules! string_enum {
 }
 
 string_enum! { AssetStatus [Unsynced] }
+string_enum! { BroadcastAudience [ PeopleAtTheEvent ]}
 string_enum! { CartItemStatus [CodeExpired, HoldExpired, TicketNullified, TicketNotReserved, Valid] }
 string_enum! { CodeTypes [Access, Discount] }
 string_enum! { CommunicationChannelType [Email, Sms, Push]}
@@ -111,6 +112,7 @@ string_enum! { DomainEventTypes [
     TicketInstanceReleasedFromHold
 ]}
 string_enum! { DomainActionTypes [
+    BroadcastPushNotification,
     // Email/SMS/Push Communication
     Communication,
     // Marketing Contacts
@@ -120,7 +122,7 @@ string_enum! { DomainActionTypes [
     SendPurchaseCompletedCommunication
 
 ]}
-string_enum! { BroadcastStatus [Pending, InProgess, Completed, Cancelled]}
+string_enum! { BroadcastStatus [Pending, InProgress, Completed, Cancelled]}
 string_enum! { BroadcastChannel [PushNotification]}
 string_enum! { BroadcastType [LastCall]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
@@ -144,7 +146,7 @@ string_enum! { Roles [Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOf
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
-string_enum! { Tables [Events, EventArtists, FeeSchedules, Holds, Orders, Organizations, Payments, PaymentMethods, TicketInstances, Users] }
+string_enum! { Tables [Broadcasts, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations, Payments, PaymentMethods, TicketInstances, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled] }

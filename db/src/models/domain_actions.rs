@@ -5,6 +5,7 @@ use diesel::prelude::*;
 use models::enums::*;
 use schema::*;
 use serde_json;
+use utils::dates;
 use utils::errors::*;
 use uuid::Uuid;
 
@@ -46,9 +47,6 @@ impl DomainAction {
         payload: serde_json::Value,
         main_table: Option<String>,
         main_table_id: Option<Uuid>,
-        scheduled_at: NaiveDateTime,
-        expires_at: NaiveDateTime,
-        max_attempt_count: i64,
     ) -> NewDomainAction {
         NewDomainAction {
             domain_event_id,
@@ -57,13 +55,13 @@ impl DomainAction {
             payload,
             main_table,
             main_table_id,
-            scheduled_at,
-            expires_at,
+            scheduled_at: Utc::now().naive_utc(),
+            expires_at: dates::now().add_seconds(900).finish(),
             last_attempted_at: None,
             attempt_count: 0,
-            max_attempt_count,
+            max_attempt_count: 3,
             status: DomainActionStatus::Pending,
-            blocked_until: scheduled_at - Duration::minutes(1),
+            blocked_until: dates::now().add_seconds(-30).finish(),
         }
     }
 
@@ -241,5 +239,12 @@ impl NewDomainAction {
             .values(self)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not insert domain message")
+    }
+
+    pub fn schedule_at(&mut self, schedule_at: NaiveDateTime) {
+        let diff = self.scheduled_at - schedule_at;
+        self.scheduled_at = schedule_at;
+        self.expires_at = self.expires_at + diff;
+        self.blocked_until = self.blocked_until + diff;
     }
 }

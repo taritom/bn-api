@@ -20,25 +20,24 @@ fn has_pending_action() {
     assert!(!result);
 
     // New action
-    let _domain_action = DomainAction::create(
+    let mut domain_action = DomainAction::create(
         None,
         DomainActionTypes::MarketingContactsBulkEventFanListImport,
         None,
         json!(Vec::<u8>::new()),
         Some(Tables::Events.table_name()),
         Some(id),
-        Utc::now()
-            .naive_utc()
-            .checked_add_signed(Duration::hours(1))
-            .unwrap(),
-        Utc::now()
-            .naive_utc()
-            .checked_add_signed(Duration::days(1))
-            .unwrap(),
-        3,
-    )
-    .commit(connection)
-    .unwrap();
+    );
+    domain_action.scheduled_at = Utc::now()
+        .naive_utc()
+        .checked_add_signed(Duration::hours(1))
+        .unwrap();
+    domain_action.expires_at = Utc::now()
+        .naive_utc()
+        .checked_add_signed(Duration::days(1))
+        .unwrap();
+
+    domain_action.commit(connection).unwrap();
 
     let result = DomainAction::has_pending_action(
         DomainActionTypes::MarketingContactsBulkEventFanListImport,

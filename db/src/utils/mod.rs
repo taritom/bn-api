@@ -1,3 +1,4 @@
+pub mod dates;
 pub mod encryption;
 pub mod errors;
 pub mod hash;

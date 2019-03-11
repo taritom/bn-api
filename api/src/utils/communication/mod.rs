@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use chrono::{Duration, Utc};
 use diesel::PgConnection;
 use futures::Future;
 use tokio::prelude::*;
@@ -13,14 +12,11 @@ use futures::future::Either;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 
-pub type TemplateData = HashMap<String, String>;
+mod communication_type;
+pub use self::communication_type::*;
+use utils::expo;
 
-#[derive(Serialize, Deserialize)]
-pub enum CommunicationType {
-    Email,
-    EmailTemplate,
-    Sms,
-}
+pub type TemplateData = HashMap<String, String>;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct CommAddress {
@@ -103,15 +99,11 @@ impl Communication {
                 CommunicationType::Email => Some(CommunicationChannelType::Email),
                 CommunicationType::EmailTemplate => Some(CommunicationChannelType::Email),
                 CommunicationType::Sms => Some(CommunicationChannelType::Sms),
+                CommunicationType::Push => Some(CommunicationChannelType::Push),
             },
             json!(self),
             None,
             None,
-            Utc::now().naive_utc(),
-            (Utc::now().naive_utc())
-                .checked_add_signed(Duration::days(1))
-                .unwrap(),
-            3,
         )
         .commit(connection)?;
         Ok(())
@@ -134,13 +126,11 @@ impl Communication {
                     true => Either::A(future::ok(())), //Disable communication system when block_external_comms is true,
                     _ => {
                         let destination_addresses = communication.destinations.get();
-                        let source_address =
-                            communication.source.as_ref().unwrap().get_first().unwrap();
 
                         let future = match communication.comm_type {
                             CommunicationType::Email => sendgrid::send_email_async(
                                 &config.sendgrid_api_key,
-                                source_address,
+                                communication.source.as_ref().unwrap().get_first().unwrap(),
                                 destination_addresses,
                                 communication.title.clone(),
                                 communication.body.clone(),
@@ -148,7 +138,7 @@ impl Communication {
                             CommunicationType::EmailTemplate => {
                                 sendgrid::send_email_template_async(
                                     &config.sendgrid_api_key,
-                                    source_address,
+                                    communication.source.as_ref().unwrap().get_first().unwrap(),
                                     &destination_addresses,
                                     communication.template_id.clone().unwrap(),
                                     communication.template_data.as_ref().unwrap(),
@@ -157,8 +147,12 @@ impl Communication {
                             CommunicationType::Sms => twilio::send_sms_async(
                                 &config.twilio_account_id,
                                 &config.twilio_api_key,
-                                source_address,
+                                communication.source.as_ref().unwrap().get_first().unwrap(),
                                 destination_addresses,
+                                &communication.body.unwrap_or(communication.title),
+                            ),
+                            CommunicationType::Push => expo::send_push_notification_async(
+                                &destination_addresses,
                                 &communication.body.unwrap_or(communication.title),
                             ),
                         };

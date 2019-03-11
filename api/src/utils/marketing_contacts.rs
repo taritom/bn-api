@@ -1,5 +1,5 @@
 use bigneon_db::models::enums::Tables;
-use chrono::{Duration, NaiveDateTime, Utc};
+use chrono::prelude::*;
 use diesel::PgConnection;
 use errors::BigNeonError;
 use std::default::Default;
@@ -30,19 +30,19 @@ impl CreateEventMarketingListAction {
         connection: &PgConnection,
         scheduled_at: NaiveDateTime,
     ) -> Result<DomainAction, BigNeonError> {
-        DomainAction::create(
+        let mut action = DomainAction::create(
             None,
             DomainActionTypes::MarketingContactsCreateEventList,
             None,
             json!(self.payload),
             Some(Tables::Events.table_name()),
             Some(self.payload.event_id),
-            scheduled_at,
-            scheduled_at.checked_add_signed(Duration::days(1)).unwrap(),
-            3,
-        )
-        .commit(connection)
-        .map_err(|err| BigNeonError::new(Box::new(err)))
+        );
+        action.schedule_at(scheduled_at);
+
+        action
+            .commit(connection)
+            .map_err(|err| BigNeonError::new(Box::new(err)))
     }
 
     pub fn enqueue(&self, connection: &PgConnection) -> Result<DomainAction, BigNeonError> {
@@ -71,19 +71,20 @@ impl BulkEventFanListImportAction {
         connection: &PgConnection,
         scheduled_at: NaiveDateTime,
     ) -> Result<DomainAction, BigNeonError> {
-        DomainAction::create(
+        let mut action = DomainAction::create(
             None,
             DomainActionTypes::MarketingContactsBulkEventFanListImport,
             None,
             json!(self.payload),
             Some(Tables::Events.table_name()),
             Some(self.payload.event_id),
-            scheduled_at,
-            scheduled_at.checked_add_signed(Duration::days(1)).unwrap(),
-            3,
-        )
-        .commit(connection)
-        .map_err(|err| BigNeonError::new(Box::new(err)))
+        );
+
+        action.schedule_at(scheduled_at);
+
+        action
+            .commit(connection)
+            .map_err(|err| BigNeonError::new(Box::new(err)))
     }
 
     pub fn enqueue(&self, connection: &PgConnection) -> Result<DomainAction, BigNeonError> {

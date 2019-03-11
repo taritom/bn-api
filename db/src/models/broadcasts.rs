@@ -148,16 +148,48 @@ impl Broadcast {
             ),
         }
     }
+
+    pub fn set_in_progress(self, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {
+        let attributes = BroadcastEditableAttributes {
+            status: Some(BroadcastStatus::InProgress),
+            ..Default::default()
+        };
+
+        self.update(attributes, connection)
+    }
 }
 
 impl NewBroadcast {
     pub fn commit(&self, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {
-        DatabaseError::wrap(
+        let result: Broadcast = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new push notification",
             diesel::insert_into(broadcasts::table)
                 .values(self)
                 .get_result(connection),
-        )
+        )?;
+
+        let mut action = DomainAction::create(
+            None,
+            DomainActionTypes::BroadcastPushNotification,
+            None,
+            json!(BroadcastPushNotificationAction {
+                event_id: self.event_id,
+            }),
+            Some(Tables::Broadcasts.to_string()),
+            Some(result.id),
+        );
+        if let Some(send_at) = self.send_at {
+            action.schedule_at(send_at);
+        }
+
+        action.commit(connection)?;
+
+        Ok(result)
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BroadcastPushNotificationAction {
+    pub event_id: Uuid,
 }

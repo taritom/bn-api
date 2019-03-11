@@ -1201,6 +1201,24 @@ impl Event {
             None => Ok(None),
         }
     }
+    pub fn checked_in_users(
+        event_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<User>, DatabaseError> {
+        use schema::*;
+        ticket_instances::table
+            .inner_join(assets::table.inner_join(ticket_types::table))
+            .inner_join(
+                wallets::table
+                    .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
+                    .on(wallets::id.eq(ticket_instances::wallet_id)),
+            )
+            .filter(ticket_instances::status.eq(TicketInstanceStatus::Redeemed))
+            .filter(ticket_types::event_id.eq(event_id))
+            .select(users::all_columns)
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load checked in users")
+    }
 
     pub fn add_ticket_type(
         &self,

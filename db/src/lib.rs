@@ -47,6 +47,7 @@ extern crate serde_json;
 extern crate validator_derive;
 extern crate tari_client;
 extern crate validator;
+
 pub mod models;
 pub mod schema;
 pub mod services;

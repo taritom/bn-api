@@ -4,6 +4,7 @@ use config::Config;
 use db::Connection;
 use domain_events::errors::DomainActionError;
 use domain_events::executor_future::ExecutorFuture;
+use domain_events::executors::broadcast_push_notification_executor::BroadcastPushNotificationExecutor;
 use domain_events::executors::marketing_contacts::{
     BulkEventFanListImportExecutor, CreateEventListExecutor,
 };
@@ -57,6 +58,8 @@ impl DomainActionRouter {
             let conf = conf.clone();
             match action_type {
                 Communication => Box::new(SendCommunicationExecutor::new(conf)),
+                BroadcastPushNotification => Box::new(BroadcastPushNotificationExecutor::new()),
+
                 MarketingContactsBulkEventFanListImport => {
                     Box::new(BulkEventFanListImportExecutor::new(conf))
                 }
@@ -72,6 +75,12 @@ impl DomainActionRouter {
 
         self.add_executor(Communication, find_executor(Communication))
             .expect("Configuration error");
+
+        self.add_executor(
+            BroadcastPushNotification,
+            find_executor(BroadcastPushNotification),
+        )
+        .expect("Configuration error");
 
         self.add_executor(
             MarketingContactsCreateEventList,
