@@ -513,7 +513,7 @@ table! {
 table! {
     venues (id) {
         id -> Uuid,
-        region_id -> Uuid,
+        region_id -> Nullable<Uuid>,
         organization_id -> Nullable<Uuid>,
         is_private -> Bool,
         name -> Text,

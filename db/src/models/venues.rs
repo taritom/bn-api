@@ -26,7 +26,7 @@ use validator::Validate;
 #[table_name = "venues"]
 pub struct Venue {
     pub id: Uuid,
-    pub region_id: Uuid,
+    pub region_id: Option<Uuid>,
     pub organization_id: Option<Uuid>,
     pub is_private: bool,
     pub name: String,
@@ -48,7 +48,8 @@ pub struct Venue {
 #[derive(AsChangeset, Default, Deserialize, Validate)]
 #[table_name = "venues"]
 pub struct VenueEditableAttributes {
-    pub region_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub region_id: Option<Option<Uuid>>,
     pub name: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub address: Option<String>,
@@ -98,15 +99,15 @@ pub struct NewVenue {
 
 impl NewVenue {
     pub fn commit(&self, connection: &PgConnection) -> Result<Venue, DatabaseError> {
-        let mut record = self.clone();
+        let record = self.clone();
 
-        if self.region_id.is_none() {
-            let region = match Region::find_by_name(&self.state, connection)? {
-                Some(r) => r,
-                None => Region::create(self.state.clone()).commit(connection)?,
-            };
-            record.region_id = Some(region.id);
-        }
+        //        if self.region_id.is_none() {
+        //            let region = match Region::find_by_name(&self.state, connection)? {
+        //                Some(r) => r,
+        //                None => Region::create(self.state.clone()).commit(connection)?,
+        //            };
+        //            record.region_id = Some(region.id);
+        //        }
         record.validate()?;
 
         DatabaseError::wrap(

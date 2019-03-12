@@ -1,0 +1,2 @@
+ALTER TABLE venues
+    ALTER COLUMN region_id DROP NOT NULL;

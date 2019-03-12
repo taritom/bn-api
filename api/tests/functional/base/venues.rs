@@ -78,7 +78,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let venue: Venue = serde_json::from_str(&body).unwrap();
     assert_eq!(venue.name, name);
-    assert_eq!(venue.region_id, region.id);
+    assert_eq!(venue.region_id, Some(region.id));
 }
 
 pub fn create_with_organization(role: Roles, should_succeed: bool) {
