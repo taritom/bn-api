@@ -663,6 +663,10 @@ impl User {
         Wallet::find_for_user(self.id, conn)
     }
 
+    pub fn default_wallet(&self, conn: &PgConnection) -> Result<Wallet, DatabaseError> {
+        Wallet::find_default_for_user(self.id, conn)
+    }
+
     pub fn update_last_cart(
         &self,
         new_cart_id: Option<Uuid>,

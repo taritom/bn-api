@@ -4,16 +4,19 @@ use auth::user::User;
 use bigneon_db::models::User as DbUser;
 use bigneon_db::prelude::*;
 use chrono::prelude::*;
-use communications::{mailers, smsers};
+use communications::{mailers, pushers, smsers};
 use db::Connection;
+use diesel::pg::PgConnection;
 use errors::*;
 use extractors::*;
 use helpers::application;
+use itertools::Itertools;
 use models::{OptionalPathParameters, PathParameters};
 use regex::Regex;
 use serde_json::Value;
 use server::AppState;
 use std::collections::HashMap;
+use tari_client::TariClient;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -137,12 +140,33 @@ pub fn send_via_email_or_phone(
         let existing_user =
             DbUser::find_by_email(&send_tickets_request.email_or_phone, connection).optional()?;
         if let Some(user) = existing_user {
+            let ticket_instances =
+                TicketInstance::find_by_ids(&send_tickets_request.ticket_ids, connection)?;
+
             TicketInstance::direct_transfer(
                 auth_user.id(),
                 &send_tickets_request.ticket_ids,
                 user.id,
                 connection,
             )?;
+
+            let receiver_wallet = user.default_wallet(connection)?;
+
+            // TODO change blockchain client to do transfers from multiple wallets at once
+            for (sender_wallet_id, tickets) in
+                &ticket_instances.into_iter().group_by(|ti| ti.wallet_id)
+            {
+                let sender_wallet = Wallet::find(sender_wallet_id, connection)?;
+                transfer_tickets_on_blockchain(
+                    &tickets.collect_vec(),
+                    connection,
+                    &*state.config.tari_client,
+                    &sender_wallet,
+                    &receiver_wallet,
+                )?;
+            }
+
+            pushers::tickets_received(&user, &auth_user.user, connection)?;
         } else {
             let authorization = TicketInstance::authorize_ticket_transfer(
                 auth_user.id(),
@@ -241,9 +265,27 @@ pub fn receive_transfer(
         connection,
     )?;
 
+    transfer_tickets_on_blockchain(
+        &tickets,
+        connection,
+        &*state.config.tari_client,
+        &sender_wallet,
+        &receiver_wallet,
+    )?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+fn transfer_tickets_on_blockchain(
+    tickets: &[TicketInstance],
+    connection: &PgConnection,
+    tari_client: &TariClient,
+    sender_wallet: &Wallet,
+    receiver_wallet: &Wallet,
+) -> Result<(), BigNeonError> {
     //Assemble token ids and ticket instance ids for each asset in the order
     let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
-    for ticket in &tickets {
+    for ticket in tickets {
         tokens_per_asset
             .entry(ticket.asset_id)
             .or_insert_with(|| Vec::new())
@@ -255,19 +297,18 @@ pub fn receive_transfer(
         let asset = Asset::find(*asset_id, connection)?;
         match asset.blockchain_asset_id {
             Some(a) => {
-                state.config.tari_client.transfer_tokens(&sender_wallet.secret_key, &sender_wallet.public_key,
+                tari_client.transfer_tokens(&sender_wallet.secret_key, &sender_wallet.public_key,
                                                          &a,
                                                          token_ids.clone(),
                                                          receiver_wallet.public_key.clone(),
                 )?
             },
-            None => return application::internal_server_error(
-                "Could not complete ticket transfer because the asset has not been assigned on the blockchain",
-            ),
+            None => return Err(ApplicationError::new(
+                "Could not complete ticket transfer because the asset has not been assigned on the blockchain".to_string()
+            ).into()),
         }
     }
-
-    Ok(HttpResponse::Ok().finish())
+    Ok(())
 }
 
 #[derive(Clone, Deserialize, Serialize)]

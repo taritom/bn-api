@@ -288,6 +288,16 @@ impl TicketInstance {
             .to_db_error(ErrorCode::QueryError, "Could not load ticket instances")
     }
 
+    pub fn find_by_ids(
+        ticket_instance_ids: &[Uuid],
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketInstance>, DatabaseError> {
+        ticket_instances::table
+            .filter(ticket_instances::id.eq_any(ticket_instance_ids))
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load Ticket Instances")
+    }
+
     pub fn create_multiple(
         asset_id: Uuid,
         starting_tari_id: u32,
