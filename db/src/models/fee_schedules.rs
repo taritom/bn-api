@@ -1,7 +1,6 @@
 use chrono::NaiveDateTime;
 use diesel;
 use diesel::prelude::*;
-use log::Level::Debug;
 use models::*;
 use schema::{fee_schedule_ranges, fee_schedules};
 use utils::errors::ConvertToDatabaseError;
@@ -77,8 +76,6 @@ impl FeeSchedule {
             }
             found_range = Some(ranges[r].clone());
         }
-
-        jlog!(Debug, "Finding fee for price: {}", {"fee_schedule_id": self.id, "price": price, "found_range": &found_range});
 
         match found_range {
             Some(f) => Ok(f),

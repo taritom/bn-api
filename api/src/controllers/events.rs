@@ -937,13 +937,9 @@ pub fn holds(
     let mut list = Vec::<R>::new();
     for hold in holds {
         let (quantity, available) = hold.quantity(conn)?;
-        let (ticket_type, current_ticket_pricing) =
-            ticket_types_map.get(&hold.ticket_type_id).ok_or_else(|| {
-                application::internal_server_error::<HttpResponse>(
-                    "Failed to load hold ticket type",
-                )
-                .unwrap_err()
-            })?;
+        let (ticket_type, current_ticket_pricing) = ticket_types_map
+            .get(&hold.ticket_type_id)
+            .ok_or_else(|| ApplicationError::new("Failed to load hold ticket type".to_string()))?;
         let r = R {
             id: hold.id,
             name: hold.name,
