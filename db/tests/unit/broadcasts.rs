@@ -37,7 +37,10 @@ fn new_broadcast_commit() {
             .unwrap();
     assert_eq!(domain_actions.len(), 1, "DomainAction was not created");
     assert_eq!(domain_actions[0].main_table_id.unwrap(), broadcast.id);
-    assert_eq!(domain_actions[0].scheduled_at.date(), send_at.date());
+    assert_eq!(
+        domain_actions[0].scheduled_at.timestamp(),
+        send_at.timestamp()
+    );
 }
 
 #[test]

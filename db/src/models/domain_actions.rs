@@ -68,11 +68,11 @@ impl DomainAction {
 
     pub fn find_stuck(conn: &PgConnection) -> Result<Vec<DomainAction>, DatabaseError> {
         let sql = r#"
-            select *
-            from domain_actions
-            where status = 'Pending'
-            and blocked_until + interval '1 minute' < current_timestamp
-            order by created_at desc;"#;
+            SELECT *
+            FROM domain_actions
+            WHERE status = 'Pending'
+            AND blocked_until + interval '1 minute' < current_timestamp
+            ORDER BY created_at desc;"#;
         let result: Vec<DomainAction> = diesel::sql_query(sql)
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find stuck domain actions")?;
@@ -229,7 +229,7 @@ impl DomainAction {
     }
 }
 
-#[derive(Insertable)]
+#[derive(Clone, Insertable)]
 #[table_name = "domain_actions"]
 pub struct NewDomainAction {
     pub domain_event_id: Option<Uuid>,
@@ -256,7 +256,7 @@ impl NewDomainAction {
     }
 
     pub fn schedule_at(&mut self, schedule_at: NaiveDateTime) {
-        let diff = self.scheduled_at - schedule_at;
+        let diff = schedule_at - self.scheduled_at;
         self.scheduled_at = schedule_at;
         self.expires_at = self.expires_at + diff;
         self.blocked_until = self.blocked_until + diff;

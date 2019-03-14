@@ -77,6 +77,10 @@ impl TestProject {
         CompBuilder::new(&self.connection)
     }
 
+    pub fn create_domain_action(&self) -> DomainActionBuilder {
+        DomainActionBuilder::new(&self.connection)
+    }
+
     pub fn create_event(&self) -> EventBuilder {
         EventBuilder::new(&self.connection)
     }
