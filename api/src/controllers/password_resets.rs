@@ -32,12 +32,15 @@ pub fn create(
     })));
 
     let connection = connection.get();
-    let user = match User::find_by_email(&parameters.email, connection) {
+    let mut user = match User::find_by_email(&parameters.email, connection) {
         Ok(user) => user,
         Err(_) => return request_pending_response,
     };
 
-    let user = user.create_password_reset_token(connection)?;
+    if !user.has_valid_password_reset_token() {
+        user = user.create_password_reset_token(connection)?;
+    }
+
     mailers::user::password_reset_email(&state.config, &user).queue(connection)?;
 
     request_pending_response
