@@ -40,7 +40,25 @@ pub fn confirm_code_valid() {
         .with_start_date(start_date)
         .with_end_date(end_date)
         .finish();
-    assert!(code.confirm_code_valid().is_err());
+    let result = code.confirm_code_valid();
+
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("code_id"));
+                assert_eq!(errors["code_id"].len(), 1);
+                assert_eq!(errors["code_id"][0].code, "invalid");
+                assert_eq!(
+                    &errors["code_id"][0].message.clone().unwrap().into_owned(),
+                    "Code not valid for current datetime"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 }
 
 #[test]

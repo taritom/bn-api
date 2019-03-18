@@ -653,14 +653,17 @@ impl Order {
         for (index, item) in items.iter().enumerate() {
             mapped.push(match &item.redemption_code {
                 Some(r) => match Hold::find_by_redemption_code(r, conn).optional()? {
-                    Some(hold) => MatchData {
-                        index: Some(index),
-                        hold_id: Some(hold.id),
-                        hold: Some(hold),
-                        code_id: None,
-                        code: None,
-                        update_order_item: item,
-                    },
+                    Some(hold) => {
+                        hold.confirm_hold_valid()?;
+                        MatchData {
+                            index: Some(index),
+                            hold_id: Some(hold.id),
+                            hold: Some(hold),
+                            code_id: None,
+                            code: None,
+                            update_order_item: item,
+                        }
+                    }
                     None => match Code::find_by_redemption_code(r, conn).optional()? {
                         Some(code) => {
                             code.confirm_code_valid()?;

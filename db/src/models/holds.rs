@@ -4,6 +4,7 @@ use diesel::dsl;
 use diesel::prelude::*;
 use models::*;
 use schema::holds;
+use std::borrow::Cow;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::Validate;
@@ -139,6 +140,22 @@ impl Hold {
             .filter(holds::id.eq(id))
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve hold")
+    }
+
+    pub fn confirm_hold_valid(&self) -> Result<(), DatabaseError> {
+        if let Some(end_at) = self.end_at {
+            let now = Utc::now().naive_utc();
+            if now > end_at {
+                let mut errors = ValidationErrors::new();
+                let mut validation_error =
+                    create_validation_error("invalid", "Hold not valid for current datetime");
+                validation_error.add_param(Cow::from("hold_id"), &self.id);
+                validation_error.add_param(Cow::from("end_at"), &self.end_at);
+                errors.add("hold_id", validation_error);
+                return Err(errors.into());
+            }
+        }
+        Ok(())
     }
 
     pub fn find_by_parent_id(

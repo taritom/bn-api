@@ -1390,6 +1390,35 @@ fn replace_tickets_with_code_pricing() {
 }
 
 #[test]
+fn deleted_hold_not_applied() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let hold = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Comp)
+        .finish();
+    let redemption_code = hold.redemption_code.clone();
+    let ticket_type_id = hold.ticket_type_id;
+    hold.destroy(None, connection).unwrap();
+
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let result = cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id,
+            quantity: 1,
+            redemption_code,
+        }],
+        false,
+        true,
+        connection,
+    );
+
+    assert!(result.is_err());
+}
+
+#[test]
 fn remove_tickets() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -1921,6 +1950,7 @@ fn add_external_payment_for_expired_code() {
         1000,
         conn,
     );
+
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -1929,8 +1959,9 @@ fn add_external_payment_for_expired_code() {
             ValidationError { errors } => {
                 assert!(errors.contains_key("code_id"));
                 assert_eq!(errors["code_id"].len(), 1);
+                assert_eq!(errors["code_id"][0].code, "invalid");
                 assert_eq!(
-                    &errors["code_id"][0].code,
+                    &errors["code_id"][0].message.clone().unwrap().into_owned(),
                     "Code not valid for current datetime"
                 );
             }

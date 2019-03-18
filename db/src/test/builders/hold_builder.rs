@@ -1,3 +1,4 @@
+use chrono::prelude::*;
 use diesel::prelude::*;
 use models::*;
 use rand::prelude::*;
@@ -8,6 +9,7 @@ pub struct HoldBuilder<'a> {
     name: String,
     redemption_code: String,
     event_id: Option<Uuid>,
+    end_at: Option<NaiveDateTime>,
     ticket_type_id: Option<Uuid>,
     hold_type: HoldTypes,
     quantity: u32,
@@ -25,6 +27,7 @@ impl<'a> HoldBuilder<'a> {
             event_id: None,
             ticket_type_id: None,
             quantity: 10,
+            end_at: None,
         }
     }
 
@@ -35,6 +38,11 @@ impl<'a> HoldBuilder<'a> {
 
     pub fn with_quantity(mut self, quantity: u32) -> Self {
         self.quantity = quantity;
+        self
+    }
+
+    pub fn with_end_at(mut self, end_at: NaiveDateTime) -> Self {
+        self.end_at = Some(end_at);
         self
     }
 
@@ -91,7 +99,7 @@ impl<'a> HoldBuilder<'a> {
             } else {
                 None
             },
-            None,
+            self.end_at,
             None,
             self.hold_type,
             ticket_type_id,

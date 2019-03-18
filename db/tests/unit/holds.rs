@@ -1,6 +1,8 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
+use chrono::prelude::*;
+use time::Duration;
 use uuid::Uuid;
 
 #[test]
@@ -100,6 +102,35 @@ fn create_with_validation_errors() {
                 assert!(errors.contains_key("redemption_code"));
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "uniqueness");
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+}
+
+#[test]
+pub fn confirm_hold_valid() {
+    let db = TestProject::new();
+    let hold = db.create_hold().finish();
+    assert!(hold.confirm_hold_valid().is_ok());
+
+    let end_at = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));
+    let hold = db.create_hold().with_end_at(end_at).finish();
+    let result = hold.confirm_hold_valid();
+
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("hold_id"));
+                assert_eq!(errors["hold_id"].len(), 1);
+                assert_eq!(errors["hold_id"][0].code, "invalid");
+                assert_eq!(
+                    &errors["hold_id"][0].message.clone().unwrap().into_owned(),
+                    "Hold not valid for current datetime"
+                );
             }
             _ => panic!("Expected validation error"),
         },

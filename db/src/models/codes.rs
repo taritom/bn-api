@@ -163,10 +163,14 @@ impl Code {
     pub fn confirm_code_valid(&self) -> Result<(), DatabaseError> {
         let now = Utc::now().naive_utc();
         if now < self.start_date || now > self.end_date {
-            return DatabaseError::validation_error(
-                "code_id",
-                "Code not valid for current datetime",
-            );
+            let mut errors = ValidationErrors::new();
+            let mut validation_error =
+                create_validation_error("invalid", "Code not valid for current datetime");
+            validation_error.add_param(Cow::from("code_id"), &self.id);
+            validation_error.add_param(Cow::from("start_date"), &self.start_date);
+            validation_error.add_param(Cow::from("end_date"), &self.end_date);
+            errors.add("code_id", validation_error);
+            return Err(errors.into());
         }
         Ok(())
     }

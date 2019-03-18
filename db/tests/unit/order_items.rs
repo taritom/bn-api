@@ -409,8 +409,9 @@ fn update_with_validation_errors() {
             ValidationError { errors } => {
                 assert!(errors.contains_key("code_id"));
                 assert_eq!(errors["code_id"].len(), 1);
+                assert_eq!(&errors["code_id"][0].code, "invalid");
                 assert_eq!(
-                    &errors["code_id"][0].code,
+                    &errors["code_id"][0].message.clone().unwrap().into_owned(),
                     "Code not valid for current datetime"
                 );
             }
