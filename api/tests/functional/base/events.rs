@@ -756,7 +756,7 @@ pub fn expected_show_json(
         cover_image_url: Option<String>,
         additional_info: Option<String>,
         top_line_info: Option<String>,
-        age_limit: Option<i32>,
+        age_limit: Option<String>,
         video_url: Option<String>,
         organization: ShortOrganization,
         venue: Venue,

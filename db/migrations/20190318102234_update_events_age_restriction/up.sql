@@ -1,0 +1,2 @@
+ALTER TABLE events
+    ALTER COLUMN age_limit TYPE VARCHAR(255);

@@ -13,6 +13,8 @@ use schema::{
     artists, event_artists, events, order_items, orders, organization_users, organizations,
     payments, ticket_types, venues,
 };
+use serde::Deserializer;
+use serde_json::Value;
 use serde_with::rust::double_option;
 use std::borrow::Cow;
 use std::cmp::Ordering;
@@ -44,7 +46,7 @@ pub struct Event {
     pub fee_in_cents: i64,
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
-    pub age_limit: Option<i32>,
+    pub age_limit: Option<String>,
     pub top_line_info: Option<String>,
     pub cancelled_at: Option<NaiveDateTime>,
     pub updated_at: NaiveDateTime,
@@ -68,6 +70,23 @@ impl PartialOrd for Event {
     }
 }
 
+pub fn from_str_or_num_to_str<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: Value = Deserialize::deserialize(deserializer)?;
+
+    if value.is_string() {
+        Ok(Some(String::from(value.as_str().unwrap_or(""))))
+    } else if value.is_number() {
+        Ok(Some(String::from(
+            value.as_f64().unwrap_or(0f64).to_string(),
+        )))
+    } else {
+        Ok(None)
+    }
+}
+
 #[derive(Default, Insertable, Serialize, Deserialize, Validate, Clone)]
 #[table_name = "events"]
 pub struct NewEvent {
@@ -88,7 +107,12 @@ pub struct NewEvent {
     pub cover_image_url: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub additional_info: Option<String>,
-    pub age_limit: Option<i32>,
+    #[serde(default, deserialize_with = "from_str_or_num_to_str")]
+    #[validate(length(
+        max = "255",
+        message = "Age limit must be less than 255 characters long"
+    ))]
+    pub age_limit: Option<String>,
     #[validate(length(
         max = "100",
         message = "Top line info must be at most 100 characters long"
@@ -185,7 +209,12 @@ pub struct EventEditableAttributes {
     pub cover_image_url: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub additional_info: Option<Option<String>>,
-    pub age_limit: Option<i32>,
+    #[serde(default, deserialize_with = "from_str_or_num_to_str")]
+    #[validate(length(
+        max = "255",
+        message = "Age limit must be less than 255 characters long"
+    ))]
+    pub age_limit: Option<String>,
     pub cancelled_at: Option<NaiveDateTime>,
     #[validate(length(
         max = "100",
@@ -785,8 +814,8 @@ impl Event {
             additional_info: Option<String>,
             #[sql_type = "Nullable<Text>"]
             top_line_info: Option<String>,
-            #[sql_type = "Nullable<Integer>"]
-            age_limit: Option<i32>,
+            #[sql_type = "Nullable<Text>"]
+            age_limit: Option<String>,
             #[sql_type = "Nullable<Timestamp>"]
             cancelled_at: Option<NaiveDateTime>,
             #[sql_type = "Nullable<BigInt>"]
@@ -876,7 +905,7 @@ impl Event {
                 promo_image_url: r.promo_image_url,
                 additional_info: r.additional_info,
                 top_line_info: r.top_line_info,
-                age_limit: r.age_limit.map(|i| i as u32),
+                age_limit: r.age_limit,
                 cancelled_at: r.cancelled_at,
                 max_ticket_price: r.max_price.map(|i| i as u32),
                 min_ticket_price: r.min_price.map(|i| i as u32),
@@ -1447,7 +1476,7 @@ pub struct EventSummaryResult {
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub top_line_info: Option<String>,
-    pub age_limit: Option<u32>,
+    pub age_limit: Option<String>,
     pub cancelled_at: Option<NaiveDateTime>,
     pub min_ticket_price: Option<u32>,
     pub max_ticket_price: Option<u32>,

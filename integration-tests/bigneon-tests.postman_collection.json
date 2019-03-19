@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "bedf2793-58ce-4df4-8eed-d0c100ac9ce6",
+		"_postman_id": "69045735-2ee8-4947-8227-52ea575dda01",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -3779,7 +3779,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\",\n    \"event_type\": \"Music\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"is_external\": true,\n    \"external_url\": \"https://www.eventbrite.com/e/why-cloud-why-xero-why-now-johannesburg-limited-seats-tickets-52952818305?aff=ebdshpmoodssection\",\n    \"event_type\": \"Music\",\n    \"age_limit\": 15\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",
@@ -3887,7 +3887,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"override_status\": \"SoldOut\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"event_start\": \"2059-11-13T12:00:00\",\n    \"override_status\": \"SoldOut\",\n    \"age_limit\": 18\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events/{{external_event_id}}",
@@ -4022,7 +4022,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"event_end\": \"2020-11-14T12:00:00\",\n    \"event_type\": \"Music\",\n    \"private_access_code\": \"TABLE91\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"event_end\": \"2020-11-14T12:00:00\",\n    \"event_type\": \"Music\",\n    \"private_access_code\": \"TABLE91\",\n    \"age_limit\": \"21\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",
@@ -4129,7 +4129,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"event_end\": \"2020-11-14T12:00:00\",\n    \"event_type\": \"Music\"\n}"
+									"raw": "{\n    \"name\": \"It's my party\",\n    \"organization_id\": \"{{last_org_id}}\",\n    \"venue_id\": \"{{last_venue_id}}\",\n    \"event_start\": \"2020-11-13T12:00:00\",\n    \"event_end\": \"2020-11-14T12:00:00\",\n    \"event_type\": \"Music\",\n    \"age_limit\": \"A custom age limit\"\n}"
 								},
 								"url": {
 									"raw": "http://{{server}}/events",

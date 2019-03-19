@@ -142,7 +142,7 @@ table! {
         fee_in_cents -> Int8,
         promo_image_url -> Nullable<Text>,
         additional_info -> Nullable<Text>,
-        age_limit -> Nullable<Int4>,
+        age_limit -> Nullable<Varchar>,
         top_line_info -> Nullable<Varchar>,
         cancelled_at -> Nullable<Timestamp>,
         updated_at -> Timestamp,

@@ -263,7 +263,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/settlements/{id}", |r| {
         r.method(Method::GET).with(settlements::show);
-        //            r.method(Method::PUT).with(stages::update);
         r.method(Method::DELETE).with(settlements::destroy);
     })
     .resource("/tickets/transfer", |r| {
