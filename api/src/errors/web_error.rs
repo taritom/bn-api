@@ -190,7 +190,7 @@ impl ConvertToWebError for SerdeError {
 impl ConvertToWebError for TariError {
     fn to_response(&self) -> HttpResponse {
         error!("Tari error: {}", self);
-        internal_error("Internal error: Problem with the Tari client")
+        internal_error("There was an error during the ticket transfer process")
     }
 }
 
