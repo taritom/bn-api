@@ -202,7 +202,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(settlements::create);
     })
     .resource("/organizations/{id}/settlements/prepare", |r| {
-        r.method(Method::GET).with(settlements::prepare);
+        r.method(Method::POST).with(settlements::prepare);
     })
     .resource("/organizations/{id}/invites", |r| {
         r.method(Method::GET).with(organization_invites::index);
