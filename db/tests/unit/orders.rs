@@ -75,6 +75,156 @@ fn set_external_payment_type() {
 }
 
 #[test]
+fn update_quantities_check_limits() {
+    let project = TestProject::new();
+    let creator = project.create_user().finish();
+
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+
+    // Ticket type with no limit
+    assert_eq!(ticket_type.limit_per_person, 0);
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 10,
+                redemption_code: None,
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+
+    // Ticket type with limit
+    let ticket_type = ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                limit_per_person: Some(3),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    assert_eq!(ticket_type.limit_per_person, 3);
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 3,
+                redemption_code: None,
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 4,
+                redemption_code: None,
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_err());
+
+    // Hold with no limit
+    let hold = project
+        .create_hold()
+        .with_ticket_type_id(ticket_type.id)
+        .finish();
+    assert!(hold.max_per_user.is_none());
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 10,
+                redemption_code: hold.redemption_code,
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+
+    // Hold with limit of 0
+    let hold = project
+        .create_hold()
+        .with_ticket_type_id(ticket_type.id)
+        .with_max_per_user(0)
+        .finish();
+    assert_eq!(hold.max_per_user, Some(0));
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 10,
+                redemption_code: hold.redemption_code,
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+
+    // Hold with limit above 0
+    let hold = project
+        .create_hold()
+        .with_ticket_type_id(ticket_type.id)
+        .with_max_per_user(3)
+        .finish();
+    assert_eq!(hold.max_per_user, Some(3));
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 3,
+                redemption_code: hold.redemption_code.clone(),
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 4,
+                redemption_code: hold.redemption_code.clone(),
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_err());
+}
+
+#[test]
 fn add_tickets() {
     let project = TestProject::new();
     let creator = project.create_user().finish();

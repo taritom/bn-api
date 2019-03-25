@@ -303,7 +303,7 @@ pub fn show(
     let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
 
     if let Some(ref u) = user {
-        let tickets_bought = Order::quantity_for_user_for_event(&u.id(), &event.id, connection)?;
+        let tickets_bought = Order::quantity_for_user_for_event(u.id(), event.id, connection)?;
         for (tt_id, num) in tickets_bought {
             let limit = TicketType::find(tt_id, connection)?.limit_per_person;
             if limit > 0 {
@@ -924,7 +924,7 @@ pub fn holds(
         pub redemption_code: Option<String>,
         pub discount_in_cents: Option<i64>,
         pub end_at: Option<NaiveDateTime>,
-        pub max_per_order: Option<i64>,
+        pub max_per_user: Option<i64>,
         pub hold_type: HoldTypes,
         pub ticket_type_id: Uuid,
         pub ticket_type_name: String,
@@ -947,7 +947,7 @@ pub fn holds(
             redemption_code: hold.redemption_code,
             discount_in_cents: hold.discount_in_cents,
             end_at: hold.end_at,
-            max_per_order: hold.max_per_order,
+            max_per_user: hold.max_per_user,
             hold_type: hold.hold_type,
             ticket_type_id: hold.ticket_type_id,
             ticket_type_name: ticket_type.name.clone(),
