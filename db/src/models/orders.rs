@@ -21,7 +21,7 @@ use utils::dates::*;
 use utils::errors::*;
 use utils::iterators::intersect_set;
 use uuid::Uuid;
-use validator::ValidationErrors;
+use validator::*;
 use validators::*;
 
 const CART_EXPIRY_TIME_MINUTES: i64 = 15;
@@ -107,6 +107,41 @@ pub struct OrderDetailsLineItem {
 }
 
 impl Order {
+    pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let validation_errors = append_validation_error(
+            Ok(()),
+            "event_id",
+            Order::order_contains_items_from_only_one_event(self.id, conn)?,
+        );
+
+        Ok(validation_errors?)
+    }
+
+    pub fn order_contains_items_from_only_one_event(
+        id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        let event_count = order_items::table
+            .filter(order_items::order_id.eq(id))
+            .filter(order_items::event_id.is_not_null())
+            .select(sql::<BigInt>("count(distinct event_id) AS event_count"))
+            .get_result::<i64>(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not get count of unique events in cart",
+            )?;
+
+        if event_count > 1 {
+            let mut validation_error = create_validation_error(
+                "cart_event_limit_reached",
+                "Cart limited to one event for purchasing",
+            );
+            validation_error.add_param(Cow::from("order_id"), &id);
+            return Ok(Err(validation_error.into()));
+        }
+        Ok(Ok(()))
+    }
+
     pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
         let cart_user: Option<User> = users::table
             .filter(users::last_cart_id.eq(self.id))
@@ -922,6 +957,7 @@ impl Order {
             }
         }
         self.update_fees(conn)?;
+        self.validate_record(conn)?;
 
         Ok(())
     }
