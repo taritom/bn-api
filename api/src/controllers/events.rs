@@ -791,9 +791,9 @@ pub fn update_artists(
     Ok(HttpResponse::Ok().json(&added_artists))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct GuestListQueryParameters {
-    pub query: String,
+    pub query: Option<String>,
 }
 
 impl From<GuestListQueryParameters> for Paging {
@@ -829,7 +829,9 @@ pub fn guest_list(
         &event,
         conn,
     )?;
-    let tickets = event.guest_list(&query.query, conn)?;
+
+    let query_string = query.clone().query.unwrap_or("".to_string());
+    let tickets = event.guest_list(&query_string, conn)?;
 
     #[derive(Serialize)]
     struct R {
