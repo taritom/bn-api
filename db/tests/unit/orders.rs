@@ -1448,6 +1448,8 @@ fn replace_tickets_with_code_pricing() {
     .unwrap();
     let items = cart.items(connection).unwrap();
 
+    println!("{:?}", items);
+
     assert_eq!(items.len(), 2);
     let order_item = items
         .iter()
