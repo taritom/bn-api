@@ -1201,7 +1201,7 @@ impl Order {
                             0
                         END
                     )
-                AS BIGINT) as unit_price_in_cents,
+                AS BIGINT) as face_value_in_cents,
                 CAST(
                     SUM(
                         CASE WHEN fi.id IS NOT NULL
@@ -1241,7 +1241,7 @@ impl Order {
             #[sql_type = "BigInt"]
             ticket_quantity: i64,
             #[sql_type = "BigInt"]
-            unit_price_in_cents: i64,
+            face_value_in_cents: i64,
             #[sql_type = "BigInt"]
             fees_in_cents: i64,
         }
@@ -1272,8 +1272,8 @@ impl Order {
                 order_metadata.ticket_quantity.to_string(),
             ),
             (
-                "unit_price_in_cents".to_string(),
-                order_metadata.unit_price_in_cents.to_string(),
+                "face_value_in_cents".to_string(),
+                order_metadata.face_value_in_cents.to_string(),
             ),
             (
                 "fees_in_cents".to_string(),
