@@ -105,6 +105,10 @@ impl TestProject {
         PaymentMethodBuilder::new(&self.connection)
     }
 
+    pub fn create_payment(&self) -> PaymentBuilder {
+        PaymentBuilder::new(&self.connection)
+    }
+
     pub fn create_region(&self) -> RegionBuilder {
         RegionBuilder::new(&self.connection)
     }
