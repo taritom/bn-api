@@ -1,4 +1,15 @@
-FROM quay.io/tarilabs/rust:1.30-alpine as builder
+FROM rust:1.33-slim as builder
+
+RUN apt update && apt install \
+    libpq-dev \
+    musl-tools \
+    openssl \
+    libssl-dev \
+    pkg-config \
+    gcc \
+    make \
+    build-essential \
+    -y
 
 # create a new empty shell project
 RUN USER=root cargo new --bin bn-api
@@ -27,7 +38,12 @@ ADD Cargo.lock Cargo.toml ./
 RUN cargo build --release
 
 # Create a base minimal image for adding our executables to
-FROM quay.io/tarilabs/run:alpine as base
+FROM bitnami/minideb:stretch as base
+RUN apt update && apt install \
+    openssl \
+    libpq5 \
+    -y
+
 # Now create a new image with only the essentials and throw everything else away
 FROM base
 COPY --from=builder /bn-api/target/release/server /usr/bin/
