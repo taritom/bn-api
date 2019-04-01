@@ -68,9 +68,12 @@ impl UserDisplayTicketType {
                     result.available = hold.quantity(conn)?.1;
                     result.redemption_code = Some(redemption_code.clone());
                 }
-            } else if let Some(code_availability) =
-                Code::find_by_redemption_code_with_availability(redemption_code, None, conn)
-                    .optional()?
+            } else if let Some(code_availability) = Code::find_by_redemption_code_with_availability(
+                redemption_code,
+                Some(ticket_type.event_id),
+                conn,
+            )
+            .optional()?
             {
                 let now = Utc::now().naive_utc();
                 if now >= code_availability.code.start_date

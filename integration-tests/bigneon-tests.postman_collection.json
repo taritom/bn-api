@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "487a8e1b-ef6f-4b31-b942-ffb368a9dfd7",
+		"_postman_id": "c14507d2-01c9-4a46-b3a9-8fc35fd25dcb",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -5603,7 +5603,7 @@
 									"",
 									"let json = JSON.parse(responseBody);",
 									"pm.environment.set(\"last_code_id\", json.id);",
-									"pm.environment.set(\"discount_redemption_code\", json.redemption_code);",
+									"pm.environment.set(\"discount_redemption_code\", json.redemption_codes[0]);",
 									"",
 									"pm.test(\"discount should have correct information\", function(){",
 									"    pm.expect(json.name).to.equal(\"Discount Tickets\");",
@@ -5641,7 +5641,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_code\" : \"RedeemDiscountCode{{$timestamp}}\",\n\t\"max_uses\" : 10,\n\t\"discount_in_cents\" : 100,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"max_tickets_per_user\" : 10,\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
+							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_codes\" : [\"RedeemDiscountCode{{$timestamp}}\"],\n\t\"max_uses\" : 10,\n\t\"discount_in_cents\" : 100,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"max_tickets_per_user\" : 10,\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
@@ -5996,7 +5996,7 @@
 									"",
 									"let json = JSON.parse(responseBody);",
 									"pm.environment.set(\"last_code_id\", json.id);",
-									"pm.environment.set(\"access_redemption_code\", json.redemption_code);",
+									"pm.environment.set(\"access_redemption_code\", json.redemption_codes[0]);",
 									"",
 									"pm.test(\"discount should have correct information\", function(){",
 									"    pm.expect(json.name).to.equal(\"Access Tickets\");",
@@ -6034,7 +6034,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Access Tickets\",\n\t\"code_type\" : \"Access\",\n\t\"redemption_code\" : \"AccessDiscountCode{{$timestamp}}\",\n\t\"max_uses\" : 10,\n\t\"discount_in_cents\" : null,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"max_tickets_per_user\" : 10,\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
+							"raw": "{\n\t\"name\":\"Access Tickets\",\n\t\"code_type\" : \"Access\",\n\t\"redemption_codes\" : [\"AccessDiscountCode{{$timestamp}}\"],\n\t\"max_uses\" : 10,\n\t\"discount_in_cents\" : null,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"max_tickets_per_user\" : 10,\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
@@ -6433,7 +6433,7 @@
 									"",
 									"let json = JSON.parse(responseBody);",
 									"pm.environment.set(\"last_code_id\", json.id);",
-									"pm.environment.set(\"discount_percentage_redemption_code_clamped\", json.redemption_code);",
+									"pm.environment.set(\"discount_percentage_redemption_code_clamped\", json.redemption_codes[0]);",
 									"",
 									"pm.test(\"discount should have correct information\", function(){",
 									"    pm.expect(json.name).to.equal(\"Discount Tickets\");",
@@ -6470,7 +6470,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_code\" : \"RedeemDiscountCode{{$timestamp}}_percentage_clamped\",\n\t\"max_uses\" : 10,\n\t\"discount_as_percentage\" : 110,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
+							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_codes\" : [\"RedeemDiscountCode{{$timestamp}}_percentage_clamped\"],\n\t\"max_uses\" : 10,\n\t\"discount_as_percentage\" : 110,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
@@ -6501,7 +6501,7 @@
 									"",
 									"let json = JSON.parse(responseBody);",
 									"pm.environment.set(\"last_code_id\", json.id);",
-									"pm.environment.set(\"discount_redemption_code_clamped\", json.redemption_code);",
+									"pm.environment.set(\"discount_redemption_code_clamped\", json.redemption_codes[0]);",
 									"",
 									"pm.test(\"discount should have correct information\", function(){",
 									"    pm.expect(json.name).to.equal(\"Discount Tickets\");",
@@ -6539,7 +6539,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_code\" : \"RedeemDiscountCode{{$timestamp}}_absolute_clamped\",\n\t\"max_uses\" : 10,\n\t\"discount_in_cents\" : 9999,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"max_tickets_per_user\" : 2,\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
+							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_codes\" : [\"RedeemDiscountCode{{$timestamp}}_absolute_clamped\"],\n\t\"max_uses\" : 10,\n\t\"discount_in_cents\" : 9999,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"max_tickets_per_user\" : 2,\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
@@ -10196,7 +10196,7 @@
 									"",
 									"let json = JSON.parse(responseBody);",
 									"pm.environment.set(\"last_code_id\", json.id);",
-									"pm.environment.set(\"discount_redemption_code\", json.redemption_code);",
+									"pm.environment.set(\"discount_redemption_code\", json.redemption_codes[0]);",
 									"",
 									"pm.test(\"discount should have correct information\", function(){",
 									"    pm.expect(json.name).to.equal(\"Discount Tickets\");",
@@ -10234,7 +10234,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_code\" : \"RedeemDiscountCode{{$timestamp}}_absolute\",\n\t\"max_uses\" : 10,\n\t\"discount_in_cents\" : 100,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"max_tickets_per_user\" : 2,\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
+							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_codes\" : [\"RedeemDiscountCode{{$timestamp}}_absolute\"],\n\t\"max_uses\" : 10,\n\t\"discount_in_cents\" : 100,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"max_tickets_per_user\" : 2,\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
@@ -10265,7 +10265,7 @@
 									"",
 									"let json = JSON.parse(responseBody);",
 									"pm.environment.set(\"last_code_id\", json.id);",
-									"pm.environment.set(\"discount_percentage_redemption_code\", json.redemption_code);",
+									"pm.environment.set(\"discount_percentage_redemption_code\", json.redemption_codes[0]);",
 									"",
 									"pm.test(\"discount should have correct information\", function(){",
 									"    pm.expect(json.name).to.equal(\"Discount Tickets\");",
@@ -10302,7 +10302,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_code\" : \"RedeemDiscountCode{{$timestamp}}_percentage\",\n\t\"max_uses\" : 10,\n\t\"discount_as_percentage\" : 10,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
+							"raw": "{\n\t\"name\":\"Discount Tickets\",\n\t\"code_type\" : \"Discount\",\n\t\"redemption_codes\" : [\"RedeemDiscountCode{{$timestamp}}_percentage\"],\n\t\"max_uses\" : 10,\n\t\"discount_as_percentage\" : 10,\n\t\"start_date\": \"2018-01-01T12:00:00\",\n\t\"end_date\": \"2059-01-01T12:00:00\",\n\t\"ticket_type_ids\": [\"{{last_ticket_type_id}}\"]\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/events/{{last_event_id}}/codes",
