@@ -24,7 +24,7 @@ use uuid::Uuid;
 use validator::*;
 use validators::*;
 
-const CART_EXPIRY_TIME_MINUTES: i64 = 15;
+pub const CART_EXPIRY_TIME_MINUTES: i64 = 15;
 const ORDER_NUMBER_LENGTH: usize = 8;
 
 #[derive(Associations, Debug, Identifiable, PartialEq, Queryable, Serialize)]
@@ -33,7 +33,7 @@ pub struct Order {
     pub id: Uuid,
     pub user_id: Uuid,
     pub status: OrderStatus,
-    order_type: String,
+    pub order_type: OrderTypes,
     pub order_date: NaiveDateTime,
     pub expires_at: Option<NaiveDateTime>,
     pub version: i64,
@@ -48,29 +48,6 @@ pub struct Order {
     pub create_user_agent: Option<String>,
     pub purchase_user_agent: Option<String>,
     pub external_payment_type: Option<ExternalPaymentType>,
-}
-
-#[derive(Insertable)]
-#[table_name = "orders"]
-pub struct NewOrder {
-    user_id: Uuid,
-    status: OrderStatus,
-    expires_at: Option<NaiveDateTime>,
-    order_type: String,
-    create_user_agent: Option<String>,
-}
-
-impl NewOrder {
-    pub fn commit(&self, conn: &PgConnection) -> Result<Order, DatabaseError> {
-        use schema::orders;
-        DatabaseError::wrap(
-            ErrorCode::InsertError,
-            "Could not create new order",
-            diesel::insert_into(orders::table)
-                .values(self)
-                .get_result(conn),
-        )
-    }
 }
 
 #[derive(AsChangeset, Deserialize, Serialize)]
@@ -355,6 +332,7 @@ impl Order {
     pub fn payments(&self, conn: &PgConnection) -> Result<Vec<Payment>, DatabaseError> {
         payments::table
             .filter(payments::order_id.eq(self.id))
+            .order_by(payments::created_at)
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading payments")
     }
@@ -462,8 +440,8 @@ impl Order {
             .inner_join(orders::table.on(users::last_cart_id.eq(orders::id.nullable())))
             .filter(users::id.eq(user_id))
             .filter(orders::user_id.eq(user_id))
-            .filter(orders::status.eq("Draft"))
-            .filter(orders::order_type.eq("Cart"))
+            .filter(orders::status.eq(OrderStatus::Draft))
+            .filter(orders::order_type.eq(OrderTypes::Cart))
             .filter(
                 orders::expires_at
                     .is_null()
@@ -1170,18 +1148,12 @@ impl Order {
         ticket_type_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
-        let items = self.items(conn)?;
-        let mut tickets: Vec<OrderItem> = Vec::new();
-        for ci in items {
-            if ci.item_type == OrderItemTypes::Tickets && ci.ticket_type_id == Some(ticket_type_id)
-            {
-                tickets.push(ci);
-            }
-        }
-
+        let items = self.items(conn)?.into_iter().filter(|i| {
+            i.item_type == OrderItemTypes::Tickets && i.ticket_type_id == Some(ticket_type_id)
+        });
         let mut result: Vec<TicketInstance> = vec![];
-        for t in tickets {
-            let mut instances = TicketInstance::find_for_order_item(t.id, conn)?;
+        for item in items {
+            let mut instances = TicketInstance::find_for_order_item(item.id, conn)?;
             result.append(&mut instances);
         }
 
@@ -1643,7 +1615,7 @@ impl Order {
         Ok(())
     }
 
-    fn order_items_in_invalid_state(
+    pub fn order_items_in_invalid_state(
         &self,
         conn: &PgConnection,
     ) -> Result<Vec<OrderItem>, DatabaseError> {
@@ -1814,7 +1786,7 @@ impl Order {
         if self.status != OrderStatus::Draft {
             return DatabaseError::validation_error(
                 "status",
-                "Cannot change the order user unless the order is in draft status",
+                "Cannot clear invalid items unless the order is in draft status",
             );
         }
 
@@ -1837,6 +1809,13 @@ impl Order {
         current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
+        if self.status != OrderStatus::Draft {
+            return DatabaseError::validation_error(
+                "status",
+                "Cannot change the box office pricing unless the order is in draft status",
+            );
+        }
+
         let old_box_office_pricing = self.box_office_pricing;
         self.box_office_pricing = box_office_pricing;
         jlog!(Debug, "Changing order to use box office pricing", { "order_id": self.id});

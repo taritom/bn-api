@@ -1,13 +1,1396 @@
 use bigneon_db::dev::times;
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
-use bigneon_db::schema::{orders, ticket_instances};
+use bigneon_db::schema::{order_items, orders, ticket_instances};
+use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
+use std::collections::HashMap;
 use time::Duration;
 use uuid::Uuid;
+
+#[test]
+fn main_event_id() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 1,
+                redemption_code: None,
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+
+    assert_eq!(event.id, cart.main_event_id(connection).unwrap());
+}
+
+#[test]
+fn set_user_agent() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let user_agent = Some("Fake User Agent 1".to_string());
+    let user_agent2 = Some("Fake User Agent 2".to_string());
+    let user_agent3 = Some("Fake User Agent 3".to_string());
+    assert!(cart.create_user_agent.is_none());
+    assert!(cart.purchase_user_agent.is_none());
+
+    cart.set_user_agent(user_agent.clone(), false, connection)
+        .unwrap();
+    assert_eq!(user_agent.clone(), cart.create_user_agent);
+    assert!(cart.purchase_user_agent.is_none());
+
+    cart.set_user_agent(user_agent2.clone(), false, connection)
+        .unwrap();
+    assert_eq!(user_agent2.clone(), cart.create_user_agent);
+    assert!(cart.purchase_user_agent.is_none());
+
+    cart.set_user_agent(user_agent3.clone(), true, connection)
+        .unwrap();
+    assert_eq!(user_agent2, cart.create_user_agent);
+    assert_eq!(user_agent3, cart.purchase_user_agent);
+}
+
+#[test]
+fn find_or_create_cart() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+
+    // No cart yet
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let cart_id = cart.id;
+    assert_eq!(user.id, cart.user_id);
+    assert_eq!(OrderStatus::Draft, cart.status);
+
+    // Cart now exists
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    assert_eq!(cart_id, cart.id);
+    assert_eq!(user.id, cart.user_id);
+    assert_eq!(OrderStatus::Draft, cart.status);
+
+    // Purchase existing cart creates new cart
+    let event = project
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let total = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(OrderStatus::Paid, cart.status);
+
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+    assert_ne!(cart_id, cart.id);
+    assert_eq!(user.id, cart.user_id);
+    assert_eq!(OrderStatus::Draft, cart.status);
+}
+
+#[test]
+fn find() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+
+    let found_cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(found_cart, cart);
+}
+
+#[test]
+fn set_remove_expiry() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+
+    // set_expiry, with provided expiration date
+    let expiration = NaiveDate::from_ymd(2055, 7, 8).and_hms(7, 8, 10);
+    cart.set_expiry(Some(user.id), Some(expiration.clone()), connection)
+        .unwrap();
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+    assert_eq!(
+        cart.expires_at.map(|e| e.timestamp()),
+        Some(expiration.timestamp())
+    );
+
+    // set_expiry, Default expiration
+    cart.set_expiry(Some(user.id), None, connection).unwrap();
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(2, domain_events.len());
+    let default_expiry =
+        NaiveDateTime::from(Utc::now().naive_utc() + Duration::minutes(CART_EXPIRY_TIME_MINUTES));
+    assert!((default_expiry.timestamp() - cart.expires_at.unwrap().timestamp()).abs() < 2);
+
+    // remove_expiry
+    cart.remove_expiry(user.id, connection).unwrap();
+    assert!(cart.expires_at.is_none());
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(3, domain_events.len());
+}
+
+#[test]
+fn order_number() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+
+    cart.id = Uuid::parse_str("01234567-1234-1234-1234-1234567890ab").unwrap();
+    assert_eq!("567890ab".to_string(), cart.order_number());
+}
+
+#[test]
+fn update_fees() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let fee_schedule = project.create_fee_schedule().finish(creator.id);
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fee_schedule(&fee_schedule)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    // Remove all fees
+    let items = cart.items(connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    diesel::delete(
+        order_items::table.filter(
+            order_items::parent_id
+                .eq(order_item.id)
+                .or(order_items::item_type.eq(OrderItemTypes::EventFees)),
+        ),
+    )
+    .execute(connection)
+    .unwrap();
+    let items = cart.items(connection).unwrap();
+    assert!(items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::EventFees)
+        .is_none());
+    assert!(order_item.find_fee_item(connection).unwrap().is_none());
+
+    // Trigger fee
+    cart.update_fees(connection).unwrap();
+    let items = cart.items(connection).unwrap();
+    let event_fee_item = items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::EventFees);
+    assert!(event_fee_item.is_some());
+
+    let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    assert_eq!(fee_item.parent_id, Some(order_item.id));
+    assert_eq!(fee_item.item_type, OrderItemTypes::PerUnitFees);
+
+    // Using a Comp, no fees
+    let comp = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Comp)
+        .finish();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: comp.ticket_type_id,
+            quantity: 2,
+            redemption_code: comp.redemption_code,
+        }],
+        false,
+        true,
+        connection,
+    )
+    .unwrap();
+
+    cart.update_fees(connection).unwrap();
+}
+
+#[test]
+fn quantity_for_user_for_event() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let expected = HashMap::new();
+    let ticket_type_quantities =
+        Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
+    assert_eq!(expected, ticket_type_quantities);
+
+    // Two in cart
+    cart.update_quantities(
+        user.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let ticket_type_quantities =
+        Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
+    let mut expected = HashMap::new();
+    expected.insert(ticket_type.id, 2);
+    expected.insert(ticket_type2.id, 1);
+    assert_eq!(expected, ticket_type_quantities);
+
+    // Two purchased
+    let total = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+
+    let ticket_type_quantities =
+        Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
+    let mut expected = HashMap::new();
+    expected.insert(ticket_type.id, 2);
+    expected.insert(ticket_type2.id, 1);
+    assert_eq!(expected, ticket_type_quantities);
+
+    // Two in cart, two purchased
+    let last_order = cart;
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let ticket_type_quantities =
+        Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
+    let mut expected = HashMap::new();
+    expected.insert(ticket_type.id, 4);
+    expected.insert(ticket_type2.id, 1);
+    assert_eq!(expected, ticket_type_quantities);
+
+    // Two in cart, two purchased, one refunded
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let ticket = &tickets[0];
+    let refund_items = vec![RefundItem {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    last_order
+        .refund(refund_items, user.id, connection)
+        .unwrap();
+    let ticket_type_quantities =
+        Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
+    let mut expected = HashMap::new();
+    expected.insert(ticket_type.id, 3);
+    expected.insert(ticket_type2.id, 1);
+    assert_eq!(expected, ticket_type_quantities);
+
+    // Box office user purchasing an additional two tickets for this user
+    let user2 = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user2)
+        .on_behalf_of_user(&user)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    let ticket_type_quantities =
+        Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
+    let mut expected = HashMap::new();
+    expected.insert(ticket_type.id, 5);
+    expected.insert(ticket_type2.id, 1);
+    assert_eq!(expected, ticket_type_quantities);
+
+    let ticket_type_quantities =
+        Order::quantity_for_user_for_event(user2.id, event.id, connection).unwrap();
+    let expected = HashMap::new();
+    assert_eq!(expected, ticket_type_quantities);
+}
+
+#[test]
+fn items() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let fee_schedule = project.create_fee_schedule().finish(creator.id);
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fee_schedule(&fee_schedule)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let items = cart.items(connection).unwrap();
+    assert_eq!(5, items.len());
+    assert_eq!(
+        1,
+        items
+            .iter()
+            .filter(|i| i.item_type == OrderItemTypes::EventFees)
+            .count()
+    );
+    assert_eq!(
+        2,
+        items
+            .iter()
+            .filter(|i| i.item_type == OrderItemTypes::PerUnitFees)
+            .count()
+    );
+    assert_eq!(
+        2,
+        items
+            .iter()
+            .filter(|i| i.item_type == OrderItemTypes::Tickets)
+            .count()
+    );
+}
+
+#[test]
+fn tickets() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let expected = HashMap::new();
+    let ticket_type_quantities =
+        Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
+    assert_eq!(expected, ticket_type_quantities);
+
+    cart.update_quantities(
+        user.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let total = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
+
+    let items: Vec<OrderItem> = cart
+        .items(connection)
+        .unwrap()
+        .into_iter()
+        .filter(|t| t.item_type == OrderItemTypes::Tickets)
+        .collect();
+    let order_item = &items[0];
+    let order_item2 = &items[1];
+
+    let tickets = cart.tickets(ticket_type.id, connection).unwrap();
+    assert_eq!(2, tickets.len());
+    assert_eq!(
+        TicketInstance::find_for_order_item(order_item.id, connection).unwrap(),
+        tickets
+    );
+
+    let tickets = cart.tickets(ticket_type2.id, connection).unwrap();
+    assert_eq!(1, tickets.len());
+    assert_eq!(
+        TicketInstance::find_for_order_item(order_item2.id, connection).unwrap(),
+        tickets
+    );
+}
+
+#[test]
+fn items_for_display() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let display_items = cart.items_for_display(None, user.id, connection).unwrap();
+    assert_eq!(4, display_items.len());
+    assert!(display_items.iter().find(|i| i.id == items[0].id).is_some());
+    assert!(display_items.iter().find(|i| i.id == items[1].id).is_some());
+    assert!(display_items.iter().find(|i| i.id == items[2].id).is_some());
+    assert!(display_items.iter().find(|i| i.id == items[3].id).is_some());
+}
+
+#[test]
+fn find_item_by_type() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let fee_schedule = project.create_fee_schedule().finish(creator.id);
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&fee_schedule)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let total = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
+
+    let result = cart
+        .find_item_by_type(ticket_type.id, OrderItemTypes::Tickets, connection)
+        .unwrap();
+    assert_eq!(result.item_type, OrderItemTypes::Tickets);
+    assert_eq!(result.ticket_type_id, Some(ticket_type.id));
+
+    let result = cart
+        .find_item_by_type(ticket_type2.id, OrderItemTypes::Tickets, connection)
+        .unwrap();
+    assert_eq!(result.item_type, OrderItemTypes::Tickets);
+    assert_eq!(result.ticket_type_id, Some(ticket_type2.id));
+}
+
+#[test]
+fn add_provider_payment() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let fee_schedule = project.create_fee_schedule().finish(creator.id);
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&fee_schedule)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let external_reference = "External Reference".to_string();
+    cart.add_provider_payment(
+        Some(external_reference.clone()),
+        PaymentProviders::Stripe,
+        Some(user.id),
+        500,
+        PaymentStatus::Completed,
+        None,
+        serde_json::Value::Null,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(OrderStatus::Draft, cart.status);
+    let payment = &cart.payments(connection).unwrap()[0];
+    assert_eq!(Some(external_reference.clone()), payment.external_reference);
+    assert_eq!(PaymentProviders::Stripe, payment.provider);
+    assert_eq!(PaymentStatus::Completed, payment.status);
+
+    let remaining = cart.calculate_total(connection).unwrap() - 500;
+    cart.add_provider_payment(
+        Some(external_reference.clone()),
+        PaymentProviders::Stripe,
+        Some(user.id),
+        remaining,
+        PaymentStatus::Completed,
+        None,
+        serde_json::Value::Null,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(OrderStatus::Paid, cart.status);
+    let payment = &cart.payments(connection).unwrap()[1];
+    assert_eq!(Some(external_reference.clone()), payment.external_reference);
+    assert_eq!(PaymentProviders::Stripe, payment.provider);
+    assert_eq!(PaymentStatus::Completed, payment.status);
+}
+
+#[test]
+fn add_credit_card_payment() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let fee_schedule = project.create_fee_schedule().finish(creator.id);
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&fee_schedule)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let external_reference = "External Reference".to_string();
+    cart.add_credit_card_payment(
+        user.id,
+        500,
+        PaymentProviders::Stripe,
+        external_reference.clone(),
+        PaymentStatus::Completed,
+        serde_json::Value::Null,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(OrderStatus::Draft, cart.status);
+    let payment = &cart.payments(connection).unwrap()[0];
+    assert_eq!(Some(external_reference.clone()), payment.external_reference);
+    assert_eq!(PaymentProviders::Stripe, payment.provider);
+    assert_eq!(PaymentStatus::Completed, payment.status);
+
+    let remaining = cart.calculate_total(connection).unwrap() - 500;
+    cart.add_credit_card_payment(
+        user.id,
+        remaining,
+        PaymentProviders::Stripe,
+        external_reference.clone(),
+        PaymentStatus::Completed,
+        serde_json::Value::Null,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(OrderStatus::Paid, cart.status);
+    let payment = &cart.payments(connection).unwrap()[1];
+    assert_eq!(Some(external_reference.clone()), payment.external_reference);
+    assert_eq!(PaymentProviders::Stripe, payment.provider);
+    assert_eq!(PaymentStatus::Completed, payment.status);
+}
+
+#[test]
+fn add_checkout_url() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let checkout_url = "http://example.com".to_string();
+    let expires = NaiveDateTime::from(Utc::now().naive_utc() + Duration::minutes(10));
+    let domain_event_count = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap()
+    .len();
+    assert_eq!(0, domain_event_count);
+
+    cart.add_checkout_url(user.id, checkout_url.clone(), expires.clone(), connection)
+        .unwrap();
+    let domain_event_count = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderUpdated),
+        connection,
+    )
+    .unwrap()
+    .len();
+    assert_eq!(2, domain_event_count);
+    assert_eq!(Some(checkout_url.clone()), cart.checkout_url);
+    assert_eq!(
+        Some(expires.clone().timestamp()),
+        cart.expires_at.map(|e| e.timestamp())
+    );
+}
+
+#[test]
+fn order_items_in_invalid_state() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let creator = project.create_user().finish();
+    let fee_schedule = project.create_fee_schedule().finish(creator.id);
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&fee_schedule)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let hold = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Discount)
+        .with_quantity(10)
+        .with_ticket_type_id(ticket_type.id)
+        .finish();
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .with_code_type(CodeTypes::Discount)
+        .for_ticket_type(&ticket_type)
+        .with_discount_in_cents(Some(10))
+        .finish();
+
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    assert!(cart
+        .order_items_in_invalid_state(connection)
+        .unwrap()
+        .is_empty());
+
+    // Ticket associated was nullified
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .into_iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    diesel::update(
+        ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
+    )
+    .set((ticket_instances::status.eq(TicketInstanceStatus::Nullified),))
+    .execute(connection)
+    .unwrap();
+    assert_eq!(
+        cart.order_items_in_invalid_state(connection).unwrap(),
+        vec![order_item.clone()]
+    );
+
+    // Past reservation date on ticket
+    cart.clear_cart(user.id, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .into_iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
+    diesel::update(
+        ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
+    )
+    .set((ticket_instances::reserved_until.eq(one_minute_ago),))
+    .execute(connection)
+    .unwrap();
+    assert_eq!(
+        cart.order_items_in_invalid_state(connection).unwrap(),
+        vec![order_item.clone()]
+    );
+
+    // Code end date has passed
+    cart.clear_cart(user.id, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: Some(code.redemption_code.clone()),
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .into_iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    code.update(
+        UpdateCodeAttributes {
+            end_date: Some(one_minute_ago),
+            ..Default::default()
+        },
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        cart.order_items_in_invalid_state(connection).unwrap(),
+        vec![order_item.clone()]
+    );
+
+    // Hold end date has passed
+    cart.clear_cart(user.id, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: hold.redemption_code.clone(),
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .into_iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    hold.update(
+        UpdateHoldAttributes {
+            end_at: Some(Some(one_minute_ago)),
+            ..Default::default()
+        },
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        cart.order_items_in_invalid_state(connection).unwrap(),
+        vec![order_item.clone()]
+    );
+
+    // Ticket quantity does not equal order item count
+    cart.clear_cart(user.id, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let order_item = items
+        .into_iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    diesel::delete(
+        ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
+    )
+    .execute(connection)
+    .unwrap();
+    assert_eq!(
+        cart.order_items_in_invalid_state(connection).unwrap(),
+        vec![order_item.clone()]
+    );
+}
+
+#[test]
+fn reset_to_draft() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+
+    // Paid fails with error
+    let cart = Order::find_or_create_cart(&user, connection).unwrap();
+    diesel::update(orders::table.filter(orders::id.eq(cart.id)))
+        .set((orders::status.eq(OrderStatus::Paid),))
+        .execute(connection)
+        .unwrap();
+
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(
+        cart.reset_to_draft(Some(user.id), connection),
+        DatabaseError::business_process_error("Cannot reset to draft, the order is already paid",)
+    );
+
+    // Cancelled fails with error
+    diesel::update(orders::table.filter(orders::id.eq(cart.id)))
+        .set((orders::status.eq(OrderStatus::Cancelled),))
+        .execute(connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(
+        cart.reset_to_draft(Some(user.id), connection),
+        DatabaseError::business_process_error(
+            "Cannot reset this order because it has been cancelled",
+        )
+    );
+
+    // Draft does nothing
+    diesel::update(orders::table.filter(orders::id.eq(cart.id)))
+        .set((orders::status.eq(OrderStatus::Draft),))
+        .execute(connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert!(cart.reset_to_draft(Some(user.id), connection).is_ok());
+    assert_eq!(cart.status, OrderStatus::Draft);
+
+    // PendingPayment is set back to draft
+    diesel::update(orders::table.filter(orders::id.eq(cart.id)))
+        .set((orders::status.eq(OrderStatus::PendingPayment),))
+        .execute(connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert!(cart.reset_to_draft(Some(user.id), connection).is_ok());
+    assert_eq!(cart.status, OrderStatus::Draft);
+}
+
+#[test]
+fn total_paid() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let fee_schedule = project.create_fee_schedule().finish(creator.id);
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&fee_schedule)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(cart.total_paid(connection).unwrap(), 0);
+
+    let external_reference = "External Reference".to_string();
+    cart.add_provider_payment(
+        Some(external_reference.clone()),
+        PaymentProviders::Stripe,
+        Some(user.id),
+        500,
+        PaymentStatus::Completed,
+        None,
+        serde_json::Value::Null,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(OrderStatus::Draft, cart.status);
+    assert_eq!(cart.total_paid(connection).unwrap(), 500);
+
+    let remaining = cart.calculate_total(connection).unwrap() - 500;
+    cart.add_provider_payment(
+        Some(external_reference.clone()),
+        PaymentProviders::Stripe,
+        Some(user.id),
+        remaining,
+        PaymentStatus::Completed,
+        None,
+        serde_json::Value::Null,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(OrderStatus::Paid, cart.status);
+    assert_eq!(
+        cart.total_paid(connection).unwrap(),
+        cart.calculate_total(connection).unwrap()
+    );
+}
+
+#[test]
+fn clear_invalid_items() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(2)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = event.ticket_types(true, None, connection).unwrap();
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    assert!(cart
+        .order_items_in_invalid_state(connection)
+        .unwrap()
+        .is_empty());
+
+    // Ticket associated was nullified
+    cart.update_quantities(
+        user.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 2,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let order_item = cart
+        .items(&connection)
+        .unwrap()
+        .into_iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    diesel::update(
+        ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
+    )
+    .set((ticket_instances::status.eq(TicketInstanceStatus::Nullified),))
+    .execute(connection)
+    .unwrap();
+    assert_eq!(
+        cart.order_items_in_invalid_state(connection).unwrap(),
+        vec![order_item.clone()]
+    );
+    cart.clear_invalid_items(user.id, connection).unwrap();
+
+    assert!(OrderItem::find(order_item.id, connection).is_err());
+    assert!(cart
+        .items(connection)
+        .unwrap()
+        .into_iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type2.id))
+        .is_some());
+
+    diesel::update(orders::table.filter(orders::id.eq(cart.id)))
+        .set((orders::status.eq(OrderStatus::Paid),))
+        .execute(connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(
+        cart.clear_invalid_items(user.id, connection),
+        DatabaseError::validation_error(
+            "status",
+            "Cannot clear invalid items unless the order is in draft status",
+        )
+    );
+}
+
+#[test]
+fn calculate_total() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let creator = project.create_user().finish();
+    let fee_schedule = project.create_fee_schedule().finish(creator.id);
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&fee_schedule)
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    assert_eq!(0, cart.calculate_total(connection).unwrap());
+
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let items = cart.items(&connection).unwrap();
+    let mut total = 0;
+    for item in items {
+        total += item.quantity * item.unit_price_in_cents;
+    }
+    assert_eq!(total, cart.calculate_total(connection).unwrap());
+}
+
+#[test]
+fn lock_version() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    assert_eq!(0, cart.version);
+
+    assert!(cart.lock_version(connection).is_ok());
+    assert_eq!(1, cart.version);
+
+    assert!(cart.lock_version(connection).is_ok());
+    assert_eq!(2, cart.version);
+}
+
+#[test]
+fn set_behalf_of_user() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let behalf_of_user = project.create_user().finish();
+    let behalf_of_user2 = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    assert!(cart.on_behalf_of_user_id.is_none());
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderBehalfOfUserChanged),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+
+    cart.set_behalf_of_user(behalf_of_user.clone(), user.id, connection)
+        .unwrap();
+    assert_eq!(Some(behalf_of_user.id), cart.on_behalf_of_user_id);
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderBehalfOfUserChanged),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+
+    cart.set_behalf_of_user(behalf_of_user2.clone(), user.id, connection)
+        .unwrap();
+    assert_eq!(Some(behalf_of_user2.id), cart.on_behalf_of_user_id);
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::OrderBehalfOfUserChanged),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(2, domain_events.len());
+
+    diesel::update(orders::table.filter(orders::id.eq(cart.id)))
+        .set((orders::status.eq(OrderStatus::Paid),))
+        .execute(connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(
+        cart.set_behalf_of_user(behalf_of_user.clone(), user.id, connection),
+        DatabaseError::validation_error(
+            "status",
+            "Cannot change the order user unless the order is in draft status",
+        )
+    );
+}
 
 #[test]
 fn create() {
