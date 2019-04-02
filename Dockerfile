@@ -42,6 +42,7 @@ FROM bitnami/minideb:stretch as base
 RUN apt update && apt install \
     openssl \
     libpq5 \
+    curl \
     -y
 
 # Now create a new image with only the essentials and throw everything else away
