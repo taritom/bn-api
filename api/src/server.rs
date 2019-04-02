@@ -91,6 +91,7 @@ impl Server {
                                         .unwrap(),
                                 ])
                                 .allowed_header(http::header::CONTENT_TYPE)
+                                .expose_headers(vec!["x-app-version"])
                                 .max_age(3600);
 
                             routing::routes(&mut cors_config)
