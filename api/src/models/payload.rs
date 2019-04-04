@@ -3,6 +3,7 @@ use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::{Error, Responder};
 use bigneon_db::models::Payload;
+use errors::BigNeonError;
 use serde::Serialize;
 
 #[derive(Debug)]
@@ -23,6 +24,14 @@ where
     pub fn payload(&self) -> &Payload<T> {
         &self.1
     }
+
+    pub fn into_http_response(self) -> Result<HttpResponse, BigNeonError> {
+        let body = serde_json::to_string(&self.1)?;
+        Ok(HttpResponse::new(self.0)
+            .into_builder()
+            .content_type("application/json")
+            .body(body))
+    }
 }
 
 impl<T> Responder for WebPayload<T>
@@ -33,11 +42,7 @@ where
     type Error = Error;
 
     fn respond_to<S>(self, _req: &HttpRequest<S>) -> Result<HttpResponse, Error> {
-        let body = serde_json::to_string(&self.1)?;
-        Ok(HttpResponse::new(self.0)
-            .into_builder()
-            .content_type("application/json")
-            .body(body))
+        Ok(self.into_http_response()?)
     }
 }
 

@@ -389,3 +389,85 @@ mod box_office_sales_summary_tests {
         base::reports::box_office_sales_summary(Roles::OrgBoxOffice, false);
     }
 }
+
+#[cfg(test)]
+mod transaction_detail_report_tests {
+    use super::*;
+    #[test]
+    fn transaction_detail_report_org_member() {
+        base::reports::transaction_detail_report(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn transaction_detail_report_admin() {
+        base::reports::transaction_detail_report(Roles::Admin, true, false);
+    }
+    #[test]
+    fn transaction_detail_report_user() {
+        base::reports::transaction_detail_report(Roles::User, false, false);
+    }
+    #[test]
+    fn transaction_detail_report_org_owner() {
+        base::reports::transaction_detail_report(Roles::OrgOwner, true, false);
+    }
+    #[test]
+    fn transaction_detail_report_door_person() {
+        base::reports::transaction_detail_report(Roles::DoorPerson, false, false);
+    }
+    #[test]
+    fn transaction_detail_report_promoter() {
+        base::reports::transaction_detail_report(Roles::Promoter, false, false);
+    }
+    #[test]
+    fn transaction_detail_report_promoter_read_only() {
+        base::reports::transaction_detail_report(Roles::PromoterReadOnly, false, false);
+    }
+    #[test]
+    fn transaction_detail_report_org_admin() {
+        base::reports::transaction_detail_report(Roles::OrgAdmin, true, false);
+    }
+    #[test]
+    fn transaction_detail_report_box_office() {
+        base::reports::transaction_detail_report(Roles::OrgBoxOffice, false, false);
+    }
+}
+
+#[cfg(test)]
+mod transaction_detail_report_with_event_tests {
+    use super::*;
+    #[test]
+    fn transaction_detail_report_with_event_org_member() {
+        base::reports::transaction_detail_report(Roles::OrgMember, false, true);
+    }
+    #[test]
+    fn transaction_detail_report_with_event_admin() {
+        base::reports::transaction_detail_report(Roles::Admin, true, true);
+    }
+    #[test]
+    fn transaction_detail_report_with_event_user() {
+        base::reports::transaction_detail_report(Roles::User, false, true);
+    }
+    #[test]
+    fn transaction_detail_report_with_event_org_owner() {
+        base::reports::transaction_detail_report(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn transaction_detail_report_with_event_door_person() {
+        base::reports::transaction_detail_report(Roles::DoorPerson, false, true);
+    }
+    #[test]
+    fn transaction_detail_report_with_event_promoter() {
+        base::reports::transaction_detail_report(Roles::Promoter, false, true);
+    }
+    #[test]
+    fn transaction_detail_report_with_event_promoter_read_only() {
+        base::reports::transaction_detail_report(Roles::PromoterReadOnly, false, true);
+    }
+    #[test]
+    fn transaction_detail_report_with_event_org_admin() {
+        base::reports::transaction_detail_report(Roles::OrgAdmin, true, true);
+    }
+    #[test]
+    fn transaction_detail_report_with_event_box_office() {
+        base::reports::transaction_detail_report(Roles::OrgBoxOffice, false, true);
+    }
+}

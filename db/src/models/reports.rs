@@ -170,6 +170,9 @@ pub struct TicketSalesAndCounts {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct TransactionReportRow {
+    #[serde(skip_serializing)]
+    #[sql_type = "BigInt"]
+    pub total: i64,
     #[sql_type = "Text"]
     pub event_name: String,
     #[sql_type = "Text"]
@@ -690,22 +693,35 @@ impl Report {
     }
 
     pub fn transaction_detail_report(
+        query_filter: Option<String>,
         event_id: Option<Uuid>,
         organization_id: Option<Uuid>,
         start: Option<NaiveDateTime>,
         end: Option<NaiveDateTime>,
+        page: u32,
+        limit: u32,
         conn: &PgConnection,
-    ) -> Result<Vec<TransactionReportRow>, DatabaseError> {
+    ) -> Result<Payload<TransactionReportRow>, DatabaseError> {
         let query = include_str!("../queries/reports/reports_transaction_details.sql");
         let q = diesel::sql_query(query)
             .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Nullable<dUuid>, _>(organization_id)
             .bind::<Nullable<Timestamp>, _>(start)
-            .bind::<Nullable<Timestamp>, _>(end);
+            .bind::<Nullable<Timestamp>, _>(end)
+            .bind::<Nullable<Text>, _>(query_filter)
+            .bind::<BigInt, _>((page * limit) as i64)
+            .bind::<Nullable<BigInt>, _>(Some(limit as i64));
         let transaction_rows: Vec<TransactionReportRow> = q
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch report results")?;
-        Ok(transaction_rows)
+        let total = if transaction_rows.is_empty() {
+            0
+        } else {
+            transaction_rows[0].total
+        };
+        let mut paging = Paging::new(page, limit);
+        paging.total = total as u64;
+        Ok(Payload::new(transaction_rows, paging))
     }
 
     pub fn summary_event_report(
@@ -884,11 +900,16 @@ impl Report {
     ) -> Result<Vec<ReconciliationSummaryResult>, DatabaseError> {
         let event_id: Option<Uuid> = None;
         let query = include_str!("../queries/reports/reports_transaction_details.sql");
+        let query_filter: Option<String> = None;
+        let limit: Option<i64> = None;
         let q = diesel::sql_query(query)
             .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Nullable<dUuid>, _>(organization_id)
             .bind::<Nullable<Timestamp>, _>(start)
-            .bind::<Nullable<Timestamp>, _>(end);
+            .bind::<Nullable<Timestamp>, _>(end)
+            .bind::<Nullable<Text>, _>(query_filter)
+            .bind::<BigInt, _>(0)
+            .bind::<Nullable<BigInt>, _>(limit);
 
         let transaction_rows: Vec<TransactionReportRow> = q
             .get_results(conn)
@@ -968,11 +989,16 @@ impl Report {
     ) -> Result<Vec<ReconciliationDetailEventResult>, DatabaseError> {
         let event_id: Option<Uuid> = None;
         let query = include_str!("../queries/reports/reports_transaction_details.sql");
+        let query_filter: Option<String> = None;
+        let limit: Option<i64> = None;
         let q = diesel::sql_query(query)
             .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Nullable<dUuid>, _>(organization_id)
             .bind::<Nullable<Timestamp>, _>(start)
-            .bind::<Nullable<Timestamp>, _>(end);
+            .bind::<Nullable<Timestamp>, _>(end)
+            .bind::<Nullable<Text>, _>(query_filter)
+            .bind::<BigInt, _>(0)
+            .bind::<Nullable<BigInt>, _>(limit);
 
         let transaction_rows: Vec<TransactionReportRow> = q
             .get_results(conn)

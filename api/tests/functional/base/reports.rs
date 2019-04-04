@@ -1,8 +1,13 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::reports::{self, *};
-use bigneon_api::models::PathParameters;
+use bigneon_api::errors::BigNeonError;
+use bigneon_api::models::{PathParameters, WebPayload};
 use bigneon_db::models::*;
+use bigneon_db::schema::orders;
 use chrono::prelude::*;
+use chrono::Duration;
+use diesel;
+use diesel::prelude::*;
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -204,4 +209,283 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
     };
 
     assert_eq!(expected_report_data, report_data);
+}
+
+pub fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let creator = database.create_user().finish();
+    let organization = database
+        .create_organization()
+        .with_event_fee()
+        .with_fee_schedule(&database.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_name("Event1".to_string())
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
+    let event2 = database
+        .create_event()
+        .with_organization(&organization)
+        .with_name("Event2".to_string())
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type2 = event2
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
+
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
+    let ticket_pricing = ticket_type
+        .current_ticket_pricing(false, connection)
+        .unwrap();
+    let fee_schedule_range = fee_schedule
+        .get_range(ticket_pricing.price_in_cents, connection)
+        .unwrap();
+    let ticket_pricing2 = ticket_type2
+        .current_ticket_pricing(false, connection)
+        .unwrap();
+    let fee_schedule_range2 = fee_schedule
+        .get_range(ticket_pricing2.price_in_cents, connection)
+        .unwrap();
+
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let user3 = database.create_user().finish();
+    let user4 = database.create_user().finish();
+
+    let mut order = database
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .with_external_payment_type(ExternalPaymentType::Voucher)
+        .finish();
+    let order_paid_at = Utc::now().naive_utc() - Duration::days(5);
+    order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set(orders::paid_at.eq(order_paid_at))
+        .get_result::<Order>(connection)
+        .unwrap();
+
+    let mut order2 = database
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user2)
+        .is_paid()
+        .with_external_payment_type(ExternalPaymentType::Voucher)
+        .finish();
+    let order2_paid_at = Utc::now().naive_utc() - Duration::days(4);
+    order2 = diesel::update(orders::table.filter(orders::id.eq(order2.id)))
+        .set(orders::paid_at.eq(order2_paid_at))
+        .get_result::<Order>(connection)
+        .unwrap();
+
+    let mut order3 = database
+        .create_order()
+        .quantity(2)
+        .for_event(&event2)
+        .for_user(&user3)
+        .is_paid()
+        .with_external_payment_type(ExternalPaymentType::Voucher)
+        .finish();
+    let order3_paid_at = Utc::now().naive_utc() - Duration::days(3);
+    order3 = diesel::update(orders::table.filter(orders::id.eq(order3.id)))
+        .set(orders::paid_at.eq(order3_paid_at))
+        .get_result::<Order>(connection)
+        .unwrap();
+
+    let mut order4 = database
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user4)
+        .is_paid()
+        .with_external_payment_type(ExternalPaymentType::Voucher)
+        .finish();
+    let order4_paid_at = Utc::now().naive_utc() - Duration::days(2);
+    order4 = diesel::update(orders::table.filter(orders::id.eq(order4.id)))
+        .set(orders::paid_at.eq(order4_paid_at))
+        .get_result::<Order>(connection)
+        .unwrap();
+
+    let auth_db_user = database.create_user().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&auth_db_user, role, Some(&organization), &database);
+
+    let event_filter = format!(
+        "/reports?report=transaction_detail_report&event_id={}",
+        event.id
+    );
+    let test_request = if filter_event {
+        TestRequest::create_with_uri(&event_filter)
+    } else {
+        TestRequest::create_with_uri("/reports?report=transaction_detail_report")
+    };
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    let query = Query::<ReportQueryParameters>::extract(&test_request.request).unwrap();
+    let response: Result<WebPayload<TransactionReportRow>, BigNeonError> =
+        reports::transaction_detail_report((
+            database.connection.clone().into(),
+            query,
+            path,
+            auth_user,
+        ));
+
+    if !should_succeed {
+        support::expects_unauthorized(&response.unwrap_err().into_inner().to_response());
+        return;
+    }
+
+    let response = response.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let report_payload = response.payload();
+
+    let paging = Paging::new(0, 100);
+    let mut payload = Payload::new(
+        if filter_event {
+            vec![
+                build_transaction_report_row(
+                    3,
+                    &user,
+                    &order,
+                    &event,
+                    &ticket_type,
+                    &fee_schedule_range,
+                    2,
+                    ticket_pricing.price_in_cents,
+                ),
+                build_transaction_report_row(
+                    3,
+                    &user2,
+                    &order2,
+                    &event,
+                    &ticket_type,
+                    &fee_schedule_range,
+                    2,
+                    ticket_pricing.price_in_cents,
+                ),
+                build_transaction_report_row(
+                    3,
+                    &user4,
+                    &order4,
+                    &event,
+                    &ticket_type,
+                    &fee_schedule_range,
+                    2,
+                    ticket_pricing.price_in_cents,
+                ),
+            ]
+        } else {
+            vec![
+                build_transaction_report_row(
+                    4,
+                    &user,
+                    &order,
+                    &event,
+                    &ticket_type,
+                    &fee_schedule_range,
+                    2,
+                    ticket_pricing.price_in_cents,
+                ),
+                build_transaction_report_row(
+                    4,
+                    &user2,
+                    &order2,
+                    &event,
+                    &ticket_type,
+                    &fee_schedule_range,
+                    2,
+                    ticket_pricing.price_in_cents,
+                ),
+                build_transaction_report_row(
+                    4,
+                    &user3,
+                    &order3,
+                    &event2,
+                    &ticket_type2,
+                    &fee_schedule_range2,
+                    2,
+                    ticket_pricing2.price_in_cents,
+                ),
+                build_transaction_report_row(
+                    4,
+                    &user4,
+                    &order4,
+                    &event,
+                    &ticket_type,
+                    &fee_schedule_range,
+                    2,
+                    ticket_pricing.price_in_cents,
+                ),
+            ]
+        },
+        paging,
+    );
+
+    payload.paging.total = if filter_event { 3 } else { 4 };
+    payload.paging.dir = SortingDir::Asc;
+
+    assert_eq!(report_payload, &payload);
+}
+
+fn build_transaction_report_row(
+    total: i64,
+    user: &User,
+    order: &Order,
+    event: &Event,
+    ticket_type: &TicketType,
+    fee_schedule_range: &FeeScheduleRange,
+    quantity: i64,
+    price_per_ticket: i64,
+) -> TransactionReportRow {
+    TransactionReportRow {
+        total,
+        quantity,
+        event_name: event.name.clone(),
+        ticket_name: ticket_type.name.clone(),
+        actual_quantity: quantity,
+        refunded_quantity: 0,
+        unit_price_in_cents: price_per_ticket,
+        gross: (price_per_ticket
+            + fee_schedule_range.client_fee_in_cents
+            + fee_schedule_range.company_fee_in_cents)
+            * quantity
+            + event.company_fee_in_cents
+            + event.client_fee_in_cents,
+        company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
+        client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
+        gross_fee_in_cents: fee_schedule_range.company_fee_in_cents
+            + fee_schedule_range.client_fee_in_cents,
+        gross_fee_in_cents_total: (fee_schedule_range.company_fee_in_cents
+            + fee_schedule_range.client_fee_in_cents)
+            * quantity,
+        event_fee_company_in_cents: event.company_fee_in_cents,
+        event_fee_client_in_cents: event.client_fee_in_cents,
+        event_fee_gross_in_cents: event.company_fee_in_cents + event.client_fee_in_cents,
+        event_fee_gross_in_cents_total: event.company_fee_in_cents + event.client_fee_in_cents,
+        fee_range_id: Some(fee_schedule_range.id),
+        order_type: OrderTypes::Cart,
+        payment_method: Some(PaymentMethods::External),
+        payment_provider: Some("External".into()),
+        transaction_date: order.paid_at.clone().unwrap(),
+        redemption_code: None,
+        order_id: order.id,
+        event_id: event.id,
+        user_id: user.id,
+        first_name: user.first_name.clone().unwrap(),
+        last_name: user.last_name.clone().unwrap(),
+        email: user.email.clone().unwrap(),
+        event_start: event.event_start,
+    }
 }

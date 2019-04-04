@@ -1,11 +1,13 @@
-use actix_web::{HttpResponse, Path, Query};
+use actix_web::{http::StatusCode, HttpResponse, Path, Query};
 use auth::user::User as AuthUser;
-use bigneon_db::models::{Event, Organization, Report, Scopes};
+use bigneon_db::models::*;
 use chrono::prelude::*;
 use db::Connection;
 use errors::*;
 use helpers::application;
-use models::PathParameters;
+use models::{PathParameters, WebPayload};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::str;
 use uuid::Uuid;
 
@@ -15,6 +17,38 @@ pub struct ReportQueryParameters {
     pub start_utc: Option<NaiveDateTime>,
     pub end_utc: Option<NaiveDateTime>,
     pub event_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    query: Option<String>,
+    page: Option<u32>,
+    limit: Option<u32>,
+}
+
+impl From<ReportQueryParameters> for Paging {
+    fn from(s: ReportQueryParameters) -> Paging {
+        let mut query_tags: HashMap<String, Value> = HashMap::new();
+        if let Some(ref query) = s.query {
+            query_tags.insert("query".to_owned(), json!(query.clone()));
+        }
+        if let Some(ref start_utc) = s.start_utc {
+            query_tags.insert("start_utc".to_owned(), json!(start_utc.clone()));
+        }
+        if let Some(ref end_utc) = s.end_utc {
+            query_tags.insert("end_utc".to_owned(), json!(end_utc.clone()));
+        }
+        if let Some(ref event_id) = s.event_id {
+            query_tags.insert("event_id".to_owned(), json!(event_id));
+        }
+        query_tags.insert("report".to_owned(), json!(s.report.clone()));
+
+        PagingParameters {
+            page: s.page,
+            limit: s.limit,
+            dir: None,
+            sort: None,
+            tags: query_tags,
+        }
+        .into()
+    }
 }
 
 pub fn get_report(
@@ -27,7 +61,9 @@ pub fn get_report(
 ) -> Result<HttpResponse, BigNeonError> {
     match query.report.trim() {
         "box_office_sales_summary" => box_office_sales_summary((connection, query, path, user)),
-        "transaction_details" => transaction_detail_report((connection, query, path, user)),
+        "transaction_details" => {
+            Ok(transaction_detail_report((connection, query, path, user))?.into_http_response()?)
+        }
         "event_summary" => event_summary_report((connection, query, path, user)),
         "weekly_settlement" => weekly_settlement_report((connection, query, path, user)),
         "ticket_count" => ticket_counts((connection, query, path, user)),
@@ -67,7 +103,7 @@ pub fn transaction_detail_report(
         Path<PathParameters>,
         AuthUser,
     ),
-) -> Result<HttpResponse, BigNeonError> {
+) -> Result<WebPayload<TransactionReportRow>, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
     let organization = Organization::find(path.id, connection)?;
@@ -84,13 +120,16 @@ pub fn transaction_detail_report(
     }
 
     let result = Report::transaction_detail_report(
+        query.query.clone(),
         query.event_id,
         Some(path.id),
         query.start_utc,
         query.end_utc,
+        query.page.unwrap_or(0),
+        query.limit.unwrap_or(100),
         connection,
     )?;
-    Ok(HttpResponse::Ok().json(result))
+    Ok(WebPayload::new(StatusCode::OK, result))
 }
 
 pub fn event_summary_report(
