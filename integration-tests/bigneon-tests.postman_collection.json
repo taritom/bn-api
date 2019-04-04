@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "c14507d2-01c9-4a46-b3a9-8fc35fd25dcb",
+		"_postman_id": "7a140db6-da82-4075-ac83-2469b903c3d6",
 		"name": "bigneon-tests",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -5674,7 +5674,8 @@
 									"pm.test(\"discount should have correct information\", function(){",
 									"    pm.expect(json.name).to.equal(\"New Discount Name\");",
 									"    pm.expect(json.max_uses).to.equal(10);",
-									"    pm.expect(json.discount_in_cents).to.equal(100);",
+									"    pm.expect(json.discount_in_cents).to.null;",
+									"    pm.expect(json.discount_as_percentage).to.equal(5);",
 									"    pm.expect(json.start_date).to.equal(\"2018-01-01T12:00:00\");",
 									"    pm.expect(json.end_date).to.equal(\"2059-01-01T12:00:00\");",
 									"    pm.expect(json.max_tickets_per_user).to.equal(10);",
@@ -5706,7 +5707,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\t\t\"name\" : \"New Discount Name\"\n}"
+							"raw": "{\n\t\t\t\"name\" : \"New Discount Name\",\n\t\t\t\"discount_as_percentage\": 5\n}"
 						},
 						"url": {
 							"raw": "http://{{server}}/codes/{{last_code_id}}",
@@ -5869,7 +5870,8 @@
 									"pm.test(\"discount should have correct information\", function(){",
 									"    pm.expect(json.name).to.equal(\"New Discount Name\");",
 									"    pm.expect(json.max_uses).to.equal(10);",
-									"    pm.expect(json.discount_in_cents).to.equal(100);",
+									"    pm.expect(json.discount_in_cents).to.null;",
+									"    pm.expect(json.discount_as_percentage).to.equal(5);",
 									"    pm.expect(json.start_date).to.equal(\"2018-01-01T12:00:00\");",
 									"    pm.expect(json.end_date).to.equal(\"2059-01-01T12:00:00\");",
 									"    pm.expect(json.max_tickets_per_user).to.equal(10);",
@@ -5935,7 +5937,7 @@
 									"let access_code = pm.environment.get(\"discount_redemption_code\");",
 									"pm.test(\"should have discount applied\", function() {",
 									"   pm.expect(r.ticket_types[1].redemption_code).to.equal(access_code);",
-									"   pm.expect(r.ticket_types[1].ticket_pricing.discount_in_cents).to.equal(100);",
+									"   pm.expect(r.ticket_types[1].ticket_pricing.discount_in_cents).to.equal(150);",
 									"});",
 									"",
 									"pm.test(\"should have normal pricing\", function(){",

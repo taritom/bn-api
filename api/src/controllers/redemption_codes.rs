@@ -17,7 +17,7 @@ pub struct PathParameters {
 #[serde(tag = "type")]
 pub enum RedemptionCodeResponse {
     Hold {
-        ticket_type: UserDisplayTicketType,
+        ticket_types: Vec<UserDisplayTicketType>,
         redemption_code: Option<String>,
         max_per_user: Option<i64>,
         discount_in_cents: Option<i64>,
@@ -33,7 +33,7 @@ pub enum RedemptionCodeResponse {
         code_type: CodeTypes,
         start_date: NaiveDateTime,
         end_date: NaiveDateTime,
-        max_tickets_per_user: Option<i64>,
+        max_per_user: Option<i64>,
     },
 }
 
@@ -65,7 +65,7 @@ pub fn show(
                 .clone()
                 .map(|tp| tp.discount_in_cents);
             RedemptionCodeResponse::Hold {
-                ticket_type,
+                ticket_types: vec![ticket_type],
                 redemption_code: hold.redemption_code.clone(),
                 max_per_user: hold.max_per_user,
                 discount_in_cents,
@@ -100,7 +100,7 @@ pub fn show(
                 code_type: code_available.code.code_type,
                 start_date: code_available.code.start_date,
                 end_date: code_available.code.end_date,
-                max_tickets_per_user: code_available.code.max_tickets_per_user,
+                max_per_user: code_available.code.max_tickets_per_user,
             }
         } else {
             return application::not_found();

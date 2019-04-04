@@ -50,7 +50,17 @@ impl DisplayTicketPricing {
                         .collect::<Vec<Uuid>>()
                         .contains(&ticket_pricing.ticket_type_id)
                     {
-                        discount_in_cents = code_availability.code.discount_in_cents.unwrap_or(0);
+                        if code_availability.code.discount_as_percentage.unwrap_or(0) > 0 {
+                            discount_in_cents = (ticket_pricing.price_in_cents as f64
+                                * code_availability.code.discount_as_percentage.unwrap_or(0) as f64
+                                / 100f64)
+                                .floor() as i64;
+                        }
+
+                        if code_availability.code.discount_in_cents.unwrap_or(0) > 0 {
+                            discount_in_cents =
+                                code_availability.code.discount_in_cents.unwrap_or(0);
+                        }
                     }
                 }
             }

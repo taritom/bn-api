@@ -31,7 +31,7 @@ fn show_hold() {
 
     match redemption_code_response {
         RedemptionCodeResponse::Hold {
-            ticket_type,
+            ticket_types,
             redemption_code,
             max_per_user,
             discount_in_cents,
@@ -52,7 +52,7 @@ fn show_hold() {
             )
             .unwrap();
             assert_eq!(redemption_code, hold.redemption_code);
-            assert_eq!(ticket_type, user_display_ticket_type);
+            assert_eq!(ticket_types, vec![user_display_ticket_type]);
             assert_eq!(max_per_user, hold.max_per_user);
             assert_eq!(discount_in_cents, hold.discount_in_cents);
             assert_eq!(hold_type, HoldTypes::Discount);
@@ -83,7 +83,7 @@ fn show_comp() {
 
     match redemption_code_response {
         RedemptionCodeResponse::Hold {
-            ticket_type,
+            ticket_types,
             redemption_code,
             max_per_user,
             discount_in_cents,
@@ -108,7 +108,7 @@ fn show_comp() {
                 .clone()
                 .map(|tp| tp.discount_in_cents);
             assert_eq!(redemption_code, hold.redemption_code);
-            assert_eq!(ticket_type, user_display_ticket_type);
+            assert_eq!(ticket_types, vec![user_display_ticket_type]);
             assert_eq!(max_per_user, hold.max_per_user);
             assert_eq!(discount_in_cents, expected_discount_in_cents);
             assert_eq!(hold_type, HoldTypes::Comp);
@@ -165,7 +165,7 @@ fn show_code() {
             code_type,
             start_date,
             end_date,
-            max_tickets_per_user,
+            max_per_user: max_tickets_per_user,
             available,
         } => {
             let user_display_ticket_type = UserDisplayTicketType::from_ticket_type(

@@ -67,7 +67,7 @@ pub struct DisplayCode {
     pub ticket_type_ids: Vec<Uuid>,
 }
 
-#[derive(AsChangeset, Default, Deserialize, Validate)]
+#[derive(AsChangeset, Debug, Default, Deserialize, Validate)]
 #[table_name = "codes"]
 pub struct UpdateCodeAttributes {
     pub name: Option<String>,
@@ -335,6 +335,7 @@ impl Code {
                 update_attrs.end_date.unwrap_or(self.end_date),
             ),
         );
+
         validation_errors = validators::append_validation_error(
             validation_errors,
             "discount_in_cents",
@@ -348,6 +349,7 @@ impl Code {
                     .unwrap_or(self.discount_as_percentage),
             ),
         );
+
         validation_errors = validators::append_validation_error(
             validation_errors,
             "redemption_code",
@@ -370,7 +372,17 @@ impl Code {
         update_attrs: UpdateCodeAttributes,
         conn: &PgConnection,
     ) -> Result<Code, DatabaseError> {
+        let mut update_attrs = update_attrs;
+
+        if update_attrs.discount_in_cents.is_some() || update_attrs.discount_as_percentage.is_some()
+        {
+            update_attrs.discount_in_cents = Some(update_attrs.discount_in_cents.unwrap_or(None));
+            update_attrs.discount_as_percentage =
+                Some(update_attrs.discount_as_percentage.unwrap_or(None));
+        }
+
         self.validate_record(&update_attrs, conn)?;
+
         diesel::update(
             codes::table
                 .filter(codes::id.eq(self.id))
