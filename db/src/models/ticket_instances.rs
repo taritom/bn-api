@@ -1115,7 +1115,8 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
         let day_before_event_start = ticket_intermediary
             .event_start
             .map(|event_start| event_start - Duration::hours(24));
-        let bounded_redeem_date = ticket_intermediary
+
+        let redemption_allowed_after_date = ticket_intermediary
             .redeem_date
             .map(|redeem_date| {
                 if day_before_event_start.is_none() {
@@ -1127,11 +1128,13 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
             })
             .or(day_before_event_start)
             .unwrap();
-        let redeem_key = if bounded_redeem_date > Utc::now().naive_utc() {
-            None
-        } else {
+
+        let redeem_key = if Utc::now().naive_utc() > redemption_allowed_after_date {
             ticket_intermediary.redeem_key.clone()
+        } else {
+            None
         };
+
         DisplayTicket {
             id: ticket_intermediary.id,
             order_id: ticket_intermediary.order_id,
