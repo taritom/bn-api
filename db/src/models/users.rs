@@ -163,18 +163,18 @@ impl User {
         external_user_id: String,
         first_name: String,
         last_name: String,
-        email: String,
+        email: Option<String>,
         site: String,
         access_token: String,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         let rand_password = random_alpha_string(16);
         let hash = PasswordHash::generate(rand_password.as_str(), None);
-        let lower_email = email.to_lowercase();
+        let lower_email = email.map(|s| s.to_lowercase());
         let new_user = NewUser {
             first_name: Some(first_name),
             last_name: Some(last_name),
-            email: Some(lower_email.to_string()),
+            email: lower_email,
             phone: None,
             hashed_pw: hash.to_string(),
             role: vec![Roles::User],

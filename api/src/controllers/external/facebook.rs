@@ -17,7 +17,7 @@ struct FacebookGraphResponse {
     id: String,
     first_name: String,
     last_name: String,
-    email: String,
+    email: Option<String>,
 }
 
 // TODO: Not covered by tests
@@ -56,36 +56,48 @@ pub fn web_login(
         None => {
             jlog!(Debug, "User not found for external id");
 
-            // Link account if email exists
-            match User::find_by_email(&facebook_graph_response.email.clone(), connection) {
-                Ok(user) => {
-                    jlog!(Debug, "User has existing account, linking external service");
-                    user.add_external_login(
-                        facebook_graph_response.id.clone(),
-                        FACEBOOK_SITE.to_string(),
-                        auth_token.access_token.clone(),
-                        connection,
-                    )?;
-                    user
-                }
-                Err(e) => {
-                    match e.code {
-                        // Not found
-                        2000 => {
-                            jlog!(Debug, "Creating new user");
-                            User::create_from_external_login(
-                                facebook_graph_response.id.clone(),
-                                facebook_graph_response.first_name.clone(),
-                                facebook_graph_response.last_name.clone(),
-                                facebook_graph_response.email.clone(),
-                                FACEBOOK_SITE.to_string(),
-                                auth_token.access_token.clone(),
-                                connection,
-                            )?
+            if let Some(email) = facebook_graph_response.email.as_ref() {
+                // Link account if email exists
+                match User::find_by_email(&email, connection) {
+                    Ok(user) => {
+                        jlog!(Debug, "User has existing account, linking external service");
+                        user.add_external_login(
+                            facebook_graph_response.id.clone(),
+                            FACEBOOK_SITE.to_string(),
+                            auth_token.access_token.clone(),
+                            connection,
+                        )?;
+                        user
+                    }
+                    Err(e) => {
+                        match e.code {
+                            // Not found
+                            2000 => {
+                                jlog!(Debug, "Creating new user");
+                                User::create_from_external_login(
+                                    facebook_graph_response.id.clone(),
+                                    facebook_graph_response.first_name.clone(),
+                                    facebook_graph_response.last_name.clone(),
+                                    facebook_graph_response.email.clone(),
+                                    FACEBOOK_SITE.to_string(),
+                                    auth_token.access_token.clone(),
+                                    connection,
+                                )?
+                            }
+                            _ => return Err(e.into()),
                         }
-                        _ => return Err(e.into()),
                     }
                 }
+            } else {
+                User::create_from_external_login(
+                    facebook_graph_response.id.clone(),
+                    facebook_graph_response.first_name.clone(),
+                    facebook_graph_response.last_name.clone(),
+                    None,
+                    FACEBOOK_SITE.to_string(),
+                    auth_token.access_token.clone(),
+                    connection,
+                )?
             }
         }
     };

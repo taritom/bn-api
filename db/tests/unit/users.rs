@@ -1039,7 +1039,7 @@ fn create_from_external_login() {
         external_id.to_string(),
         first_name.to_string(),
         last_name.to_string(),
-        email.to_string(),
+        Some(email.to_string()),
         site.to_string(),
         access_token.to_string(),
         project.get_connection(),
