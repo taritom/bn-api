@@ -229,6 +229,14 @@ pub struct TransactionReportRow {
     pub email: String,
     #[sql_type = "Nullable<Timestamp>"]
     pub event_start: Option<NaiveDateTime>,
+    #[sql_type = "BigInt"]
+    pub promo_discount_value_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub promo_quantity: i64,
+    #[sql_type = "Nullable<Text>"]
+    pub promo_code_name: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub promo_redemption_code: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -487,5 +487,9 @@ fn build_transaction_report_row(
         last_name: user.last_name.clone().unwrap(),
         email: user.email.clone().unwrap(),
         event_start: event.event_start,
+        promo_discount_value_in_cents: 0,
+        promo_quantity: 0,
+        promo_code_name: None,
+        promo_redemption_code: None,
     }
 }
