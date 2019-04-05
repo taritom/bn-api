@@ -36,7 +36,7 @@ SELECT COUNT(*) OVER ()                                                         
                        (COALESCE(oi_fees.quantity, 0) - COALESCE(oi_fees.refunded_quantity, 0)) *
                        COALESCE(oi_fees.unit_price_in_cents, 0) +
                        (COALESCE(oi_event_fees.quantity, 0) - COALESCE(oi_event_fees.refunded_quantity, 0)) *
-                       COALESCE(oi_event_fees.unit_price_in_cents, 0) -
+                       COALESCE(oi_event_fees.unit_price_in_cents, 0) +
                        (COALESCE(oi_promo_code.unit_price_in_cents, 0) * (COALESCE(oi_promo_code.quantity, 0) - COALESCE(oi_promo_code.refunded_quantity, 0)))
            AS BIGINT)                                                                                       AS gross,
        COALESCE(u.first_name, '')                                                                         AS first_name,

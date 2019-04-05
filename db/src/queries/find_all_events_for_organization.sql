@@ -43,8 +43,9 @@ SELECT e.id,
         WHERE t2.event_id
                 = e.id)
                                  AS max_price,
-       (SELECT cast(sum(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)) AS BIGINT)
+       (SELECT cast(sum((oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)) + (COALESCE(oi_promo_code.unit_price_in_cents * (oi_promo_code.quantity - oi_promo_code.refunded_quantity),0))) AS BIGINT)
         FROM order_items oi
+          LEFT JOIN order_items oi_promo_code ON oi_promo_code.parent_id = oi.id
                INNER JOIN orders o ON oi.order_id = o.id
         WHERE oi.event_id = e.id
           AND oi.item_type = 'Tickets'

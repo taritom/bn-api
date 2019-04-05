@@ -28,12 +28,14 @@ FROM (
                 CAST(COALESCE(SUM((oi.quantity - oi.refunded_quantity) * oi_fees.company_fee_in_cents), 0) AS BIGINT) AS total_company_fee_in_cents,
                 CAST(COALESCE(SUM((oi.quantity - oi.refunded_quantity) * oi_fees.client_fee_in_cents), 0) AS BIGINT)  AS total_client_fee_in_cents,
 
-                CAST(COALESCE(SUM((oi.quantity - oi.refunded_quantity) * oi.unit_price_in_cents), 0) AS BIGINT)       AS total_net_income,
+
+                CAST(COALESCE( SUM(((oi.quantity - oi.refunded_quantity) * oi.unit_price_in_cents)) + SUM(((COALESCE(oi_promo_code.quantity,0) - COALESCE(oi_promo_code.refunded_quantity, 0)) * COALESCE(oi_promo_code.unit_price_in_cents))), 0) AS BIGINT)       AS total_net_income,
                 tp.name                                                        AS pricing_name,
                 tt.name                                                        AS ticket_name
          FROM orders
                   LEFT JOIN order_items oi ON orders.id = oi.order_id
-                  LEFT JOIN order_items oi_fees ON oi.id = oi_fees.parent_id
+                  LEFT JOIN order_items oi_fees ON (oi_fees.item_type = 'PerUnitFees' AND oi.id = oi_fees.parent_id)
+                  LEFT JOIN order_items oi_promo_code ON (oi_promo_code.item_type = 'Discount' AND oi.id = oi_promo_code.parent_id)
                   LEFT JOIN ticket_types tt ON (oi.ticket_type_id = tt.id)
                   LEFT JOIN ticket_pricing tp ON (oi.ticket_pricing_id = tp.id)
                   LEFT JOIN holds h ON oi.hold_id = h.id

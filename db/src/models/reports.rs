@@ -31,11 +31,15 @@ pub struct TicketSalesRow {
     #[sql_type = "Nullable<Text>"]
     pub event_name: Option<String>,
     #[sql_type = "Nullable<Text>"]
-    pub hold_name: Option<String>,
+    pub hold_name: Option<String>, //This could also be the promo code name
+    #[sql_type = "Nullable<Text>"]
+    pub promo_redemption_code: Option<String>,
     #[sql_type = "Nullable<Text>"]
     pub ticket_pricing_name: Option<String>,
     #[sql_type = "Nullable<BigInt>"]
     pub ticket_pricing_price_in_cents: Option<i64>,
+    #[sql_type = "Nullable<BigInt>"]
+    pub promo_code_discounted_ticket_price: Option<i64>,
     #[sql_type = "BigInt"]
     pub box_office_order_count: i64,
     #[sql_type = "BigInt"]
@@ -48,6 +52,11 @@ pub struct TicketSalesRow {
     pub box_office_sales_in_cents: i64,
     #[sql_type = "BigInt"]
     pub online_sales_in_cents: i64,
+    #[sql_type = "BigInt"]
+    #[sql_type = "BigInt"]
+    pub box_office_face_sales_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub online_face_sales_in_cents: i64,
     #[sql_type = "BigInt"]
     pub box_office_sale_count: i64,
     #[sql_type = "BigInt"]
