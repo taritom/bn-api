@@ -51,7 +51,7 @@ fn destroy_multiple() {
 
     let mut display_code = code.for_display(connection).unwrap();
     assert_eq!(
-        display_code.ticket_type_ids.sort(),
+        display_code.display_code.ticket_type_ids.sort(),
         vec![ticket_type.id, ticket_type2.id, ticket_type3.id].sort()
     );
 
@@ -59,7 +59,10 @@ fn destroy_multiple() {
         .unwrap();
 
     let display_code = code.for_display(connection).unwrap();
-    assert_eq!(display_code.ticket_type_ids, vec![ticket_type2.id]);
+    assert_eq!(
+        display_code.display_code.ticket_type_ids,
+        vec![ticket_type2.id]
+    );
 }
 
 #[test]

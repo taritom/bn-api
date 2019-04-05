@@ -85,8 +85,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         max_uses: 10,
         discount_in_cents: Some(100),
         discount_as_percentage: None,
-        start_date,
-        end_date,
+        start_date: Some(start_date),
+        end_date: Some(end_date),
         max_tickets_per_user: None,
         ticket_type_ids: vec![ticket_type_id],
     });

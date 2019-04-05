@@ -449,12 +449,15 @@ fn for_display() {
         .for_ticket_type(&ticket_type2)
         .finish();
 
-    let mut display_code: DisplayCode = code.for_display(connection).unwrap();
-    assert_eq!(code.id, display_code.id);
-    assert_eq!(code.name, display_code.name);
-    assert_eq!(vec![code.redemption_code], display_code.redemption_codes);
+    let mut display_code: DisplayCodeAvailability = code.for_display(connection).unwrap();
+    assert_eq!(code.id, display_code.display_code.id);
+    assert_eq!(code.name, display_code.display_code.name);
     assert_eq!(
-        display_code.ticket_type_ids.sort(),
+        vec![code.redemption_code],
+        display_code.display_code.redemption_codes
+    );
+    assert_eq!(
+        display_code.display_code.ticket_type_ids.sort(),
         vec![ticket_type.id, ticket_type2.id].sort()
     );
 }
@@ -480,7 +483,7 @@ fn update_ticket_types() {
         .finish();
     let mut display_code = code.for_display(&connection).unwrap();
     assert_eq!(
-        display_code.ticket_type_ids.sort(),
+        display_code.display_code.ticket_type_ids.sort(),
         vec![ticket_type.id, ticket_type2.id].sort()
     );
 
@@ -488,7 +491,7 @@ fn update_ticket_types() {
         .unwrap();
     let mut display_code = code.for_display(&connection).unwrap();
     assert_eq!(
-        display_code.ticket_type_ids.sort(),
+        display_code.display_code.ticket_type_ids.sort(),
         vec![ticket_type.id, ticket_type3.id].sort()
     );
 }

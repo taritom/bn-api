@@ -6,6 +6,7 @@ use diesel::sql_types::{Array, BigInt, Nullable, Text, Timestamp, Uuid as dUuid}
 use models::*;
 use schema::{codes, order_items, orders};
 use std::borrow::Cow;
+use test::times;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
@@ -35,7 +36,7 @@ pub struct CodeAvailability {
     pub available: i64,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Queryable, Serialize, QueryableByName)]
+#[derive(Debug, Deserialize, PartialEq, QueryableByName, Serialize)]
 pub struct DisplayCode {
     #[sql_type = "dUuid"]
     pub id: Uuid,
@@ -53,10 +54,10 @@ pub struct DisplayCode {
     pub discount_in_cents: Option<i64>,
     #[sql_type = "Nullable<BigInt>"]
     pub discount_as_percentage: Option<i64>,
-    #[sql_type = "Timestamp"]
-    pub start_date: NaiveDateTime,
-    #[sql_type = "Timestamp"]
-    pub end_date: NaiveDateTime,
+    #[sql_type = "Nullable<Timestamp>"]
+    pub start_date: Option<NaiveDateTime>,
+    #[sql_type = "Nullable<Timestamp>"]
+    pub end_date: Option<NaiveDateTime>,
     #[sql_type = "Nullable<BigInt>"]
     pub max_tickets_per_user: Option<i64>,
     #[sql_type = "Timestamp"]
@@ -65,6 +66,13 @@ pub struct DisplayCode {
     pub updated_at: NaiveDateTime,
     #[sql_type = "Array<dUuid>"]
     pub ticket_type_ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct DisplayCodeAvailability {
+    #[serde(flatten)]
+    pub display_code: DisplayCode,
+    pub available: i64,
 }
 
 #[derive(AsChangeset, Debug, Default, Deserialize, Validate)]
@@ -161,13 +169,30 @@ impl Code {
         Ok(())
     }
 
-    pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayCode, DatabaseError> {
+    pub fn for_display(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<DisplayCodeAvailability, DatabaseError> {
         let ticket_type_ids = TicketType::find_for_code(self.id, conn)?
             .into_iter()
             .map(|tt| tt.id)
             .collect::<Vec<Uuid>>();
 
-        Ok(DisplayCode {
+        let end_date;
+        if self.end_date == times::infinity() {
+            end_date = None;
+        } else {
+            end_date = Some(self.end_date);
+        }
+
+        let start_date;
+        if self.start_date == times::zero() {
+            start_date = None;
+        } else {
+            start_date = Some(self.start_date);
+        }
+
+        let display_code = DisplayCode {
             id: self.id,
             name: self.name.clone(),
             event_id: self.event_id,
@@ -176,12 +201,20 @@ impl Code {
             max_uses: self.max_uses,
             discount_in_cents: self.discount_in_cents,
             discount_as_percentage: self.discount_as_percentage,
-            start_date: self.start_date,
-            end_date: self.end_date,
+            start_date,
+            end_date,
             max_tickets_per_user: self.max_tickets_per_user,
             created_at: self.created_at,
             updated_at: self.updated_at,
             ticket_type_ids,
+        };
+
+        let available =
+            display_code.max_uses - Code::find_number_of_uses(display_code.id, None, conn)?;
+
+        Ok(DisplayCodeAvailability {
+            display_code,
+            available,
         })
     }
 
@@ -251,7 +284,7 @@ impl Code {
         event_id: Uuid,
         code_type: Option<CodeTypes>,
         conn: &PgConnection,
-    ) -> Result<Vec<DisplayCode>, DatabaseError> {
+    ) -> Result<Vec<DisplayCodeAvailability>, DatabaseError> {
         let query = r#"
                 SELECT
                     codes.id,
@@ -274,13 +307,25 @@ impl Code {
                     AND ($2 IS NULL OR codes.code_type = $2)
                 ORDER BY codes.name;"#;
 
-        diesel::sql_query(query)
+        let display_codes: Vec<DisplayCode> = diesel::sql_query(query)
             .bind::<diesel::sql_types::Uuid, _>(event_id)
             .bind::<diesel::sql_types::Nullable<diesel::sql_types::Text>, _>(
                 code_type.map(|s| s.to_string()),
             )
             .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Cannot find codes for event")
+            .to_db_error(ErrorCode::QueryError, "Cannot find codes for event")?;
+
+        let mut display_codes_availability = Vec::new();
+
+        for dc in display_codes {
+            let available = dc.max_uses - Code::find_number_of_uses(dc.id, None, conn)?;
+            display_codes_availability.push(DisplayCodeAvailability {
+                display_code: dc,
+                available: available,
+            });
+        }
+
+        Ok(display_codes_availability)
     }
 
     // Validate that for the Discount code type one, and only one, discount type is specified.

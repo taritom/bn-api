@@ -195,8 +195,8 @@ fn create_with_validation_errors() {
         max_uses: 10,
         discount_in_cents: Some(100),
         discount_as_percentage: None,
-        start_date,
-        end_date,
+        start_date: Some(start_date),
+        end_date: Some(end_date),
         max_tickets_per_user: None,
         ticket_type_ids: vec![ticket_type_id],
     });
@@ -236,8 +236,8 @@ fn create_with_validation_errors() {
         max_uses: 10,
         discount_in_cents: None,
         discount_as_percentage: None,
-        start_date,
-        end_date,
+        start_date: Some(start_date),
+        end_date: Some(end_date),
         max_tickets_per_user: None,
         ticket_type_ids: vec![ticket_type_id],
     });
@@ -267,8 +267,8 @@ fn create_with_validation_errors() {
         max_uses: 10,
         discount_in_cents: Some(100),
         discount_as_percentage: Some(15),
-        start_date,
-        end_date,
+        start_date: Some(start_date),
+        end_date: Some(end_date),
         max_tickets_per_user: None,
         ticket_type_ids: vec![ticket_type_id],
     });
@@ -308,8 +308,8 @@ fn create_fails_adding_ticket_type_id_from_other_event() {
         max_uses: 10,
         discount_in_cents: Some(100),
         discount_as_percentage: None,
-        start_date,
-        end_date,
+        start_date: Some(start_date),
+        end_date: Some(end_date),
         max_tickets_per_user: None,
         ticket_type_ids: vec![ticket_type_id],
     });
@@ -350,9 +350,9 @@ fn update_with_validation_errors() {
     let start_date = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(1));
     let end_date = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));
     let json = Json(UpdateCodeRequest {
-        redemption_code: Some("a".into()),
-        start_date: Some(start_date),
-        end_date: Some(end_date),
+        redemption_codes: Some(vec!["a".into()]),
+        start_date: Some(Some(start_date)),
+        end_date: Some(Some(end_date)),
         ..Default::default()
     });
 
@@ -434,7 +434,7 @@ pub fn update_adding_keeping_and_removing_ticket_types() {
         .finish();
     let mut display_code = code.for_display(connection).unwrap();
     assert_eq!(
-        display_code.ticket_type_ids.sort(),
+        display_code.display_code.ticket_type_ids.sort(),
         vec![ticket_type.id, ticket_type2.id].sort()
     );
 

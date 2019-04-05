@@ -1,5 +1,6 @@
 use actix_web::{HttpResponse, Path};
 use auth::user::User;
+use bigneon_db::dev::times;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use db::Connection;
@@ -18,8 +19,8 @@ pub struct CreateCodeRequest {
     pub max_uses: u32,
     pub discount_in_cents: Option<u32>,
     pub discount_as_percentage: Option<u32>,
-    pub start_date: NaiveDateTime,
-    pub end_date: NaiveDateTime,
+    pub start_date: Option<NaiveDateTime>,
+    pub end_date: Option<NaiveDateTime>,
     pub max_tickets_per_user: Option<u32>,
     pub ticket_type_ids: Vec<Uuid>,
 }
@@ -27,14 +28,16 @@ pub struct CreateCodeRequest {
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct UpdateCodeRequest {
     pub name: Option<String>,
-    pub redemption_code: Option<String>,
+    pub redemption_codes: Option<Vec<String>>,
     pub max_uses: Option<i64>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub discount_in_cents: Option<Option<u32>>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub discount_as_percentage: Option<Option<u32>>,
-    pub start_date: Option<NaiveDateTime>,
-    pub end_date: Option<NaiveDateTime>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub start_date: Option<Option<NaiveDateTime>>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub end_date: Option<Option<NaiveDateTime>>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub max_tickets_per_user: Option<Option<u32>>,
     pub ticket_type_ids: Option<Vec<Uuid>>,
@@ -42,16 +45,38 @@ pub struct UpdateCodeRequest {
 
 impl From<UpdateCodeRequest> for UpdateCodeAttributes {
     fn from(attributes: UpdateCodeRequest) -> Self {
+        let start_date = match attributes.start_date {
+            None => None,
+            Some(s) => match s {
+                None => Some(times::zero()),
+                Some(v) => Some(v),
+            },
+        };
+
+        let end_date = match attributes.end_date {
+            None => None,
+            Some(s) => match s {
+                None => Some(times::infinity()),
+                Some(v) => Some(v),
+            },
+        };
+
+        let redemption_code = if let Some(s) = attributes.redemption_codes {
+            Some(s.concat())
+        } else {
+            None
+        };
+
         UpdateCodeAttributes {
             name: attributes.name,
-            redemption_code: attributes.redemption_code,
+            redemption_code,
             max_uses: attributes.max_uses.map(|m| m as i64),
             discount_in_cents: attributes.discount_in_cents.map(|d| d.map(|d2| d2 as i64)),
             discount_as_percentage: attributes
                 .discount_as_percentage
                 .map(|d| d.map(|d2| d2 as i64)),
-            start_date: attributes.start_date,
-            end_date: attributes.end_date,
+            start_date,
+            end_date,
             max_tickets_per_user: attributes
                 .max_tickets_per_user
                 .map(|m| m.map(|m2| m2 as i64)),
@@ -108,8 +133,8 @@ pub fn create(
         req.max_uses,
         req.discount_in_cents,
         req.discount_as_percentage,
-        req.start_date,
-        req.end_date,
+        req.start_date.unwrap_or(times::zero()),
+        req.end_date.unwrap_or(times::infinity()),
         req.max_tickets_per_user,
     )
     .commit(conn)?;
