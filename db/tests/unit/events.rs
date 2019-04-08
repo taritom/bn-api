@@ -2,6 +2,7 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use chrono::Duration;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[test]
@@ -807,6 +808,14 @@ fn search() {
     all_events_for_admin.push(event5);
     all_events_for_admin.push(event6);
 
+    let paging: &Paging = &Paging {
+        page: 0,
+        limit: 10,
+        sort: "".to_string(),
+        dir: SortingDir::Asc,
+        total: 0,
+        tags: HashMap::new(),
+    };
     // All events unauthorized user
     let all_found_events = Event::search(
         None,
@@ -820,10 +829,11 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_equiv!(all_events, all_found_events);
+    assert_equiv!(all_events, all_found_events.0);
 
     // All events organization owner
     let all_found_events = Event::search(
@@ -838,10 +848,11 @@ fn search() {
         SortingDir::Asc,
         Some(organization_owner),
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_equiv!(all_events_for_organization, all_found_events);
+    assert_equiv!(all_events_for_organization, all_found_events.0);
 
     // All events organization user
     let all_found_events = Event::search(
@@ -856,10 +867,11 @@ fn search() {
         SortingDir::Asc,
         Some(organization_user),
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_equiv!(all_events_for_organization, all_found_events);
+    assert_equiv!(all_events_for_organization, all_found_events.0);
 
     // All events normal user not part of event organization
     let all_found_events = Event::search(
@@ -874,10 +886,11 @@ fn search() {
         SortingDir::Asc,
         Some(user),
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_equiv!(all_events, all_found_events);
+    assert_equiv!(all_events, all_found_events.0);
 
     // All events for admin
     let all_found_events = Event::search(
@@ -892,10 +905,11 @@ fn search() {
         SortingDir::Asc,
         Some(admin),
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_equiv!(all_events_for_admin, all_found_events);
+    assert_equiv!(all_events_for_admin, all_found_events.0);
 
     // No name specified
     let all_found_events = Event::search(
@@ -910,10 +924,11 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_equiv!(all_events, all_found_events);
+    assert_equiv!(all_events, all_found_events.0);
 
     // Limited by publicly accessible and specific to an organization
     let all_found_events = Event::search(
@@ -928,11 +943,12 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 1);
-    assert_eq!(all_events[0], all_found_events[0]);
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
 
     // Limited by just Published and Offline events
     let all_found_events = Event::search(
@@ -947,12 +963,13 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 2);
-    assert_eq!(all_events[0], all_found_events[0]);
-    assert_eq!(all_events[2], all_found_events[1]);
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+    assert_eq!(all_events[2], all_found_events.0[1]);
 
     // Limited by just Closed events
     let all_found_events = Event::search(
@@ -967,11 +984,12 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 1);
-    assert_eq!(all_events[1], all_found_events[0]);
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[1], all_found_events.0[0]);
 
     // Event name search
     let all_found_events = Event::search(
@@ -986,12 +1004,13 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 2);
-    assert_eq!(all_events[1], all_found_events[0]);
-    assert_eq!(all_events[2], all_found_events[1]);
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[1], all_found_events.0[0]);
+    assert_eq!(all_events[2], all_found_events.0[1]);
 
     // Venue name search
     let all_found_events = Event::search(
@@ -1006,11 +1025,12 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 1);
-    assert_eq!(all_events[0], all_found_events[0]);
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
 
     // Venue id  search
     let all_found_events = Event::search(
@@ -1025,11 +1045,12 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 1);
-    assert_eq!(all_events[0], all_found_events[0]);
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
 
     // Artist name search for artist in both events
     let all_found_events = Event::search(
@@ -1044,12 +1065,13 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 2);
-    assert_eq!(all_events[0], all_found_events[0]);
-    assert_eq!(all_events[1], all_found_events[1]);
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+    assert_eq!(all_events[1], all_found_events.0[1]);
 
     // Artist name search for artist at only one event
     let all_found_events = Event::search(
@@ -1064,11 +1086,12 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 1);
-    assert_eq!(all_events[0], all_found_events[0]);
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
 
     // Match names Venue2 and Artist2 returning all events
     let all_found_events = Event::search(
@@ -1083,10 +1106,11 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_equiv!(all_events, all_found_events);
+    assert_equiv!(all_events, all_found_events.0);
 
     // Match events belonging to given region
     let all_found_events = Event::search(
@@ -1101,11 +1125,12 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 1);
-    assert_eq!(all_events[0], all_found_events[0]);
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
 
     // Match events belonging to other region
     let all_found_events = Event::search(
@@ -1120,12 +1145,13 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 2);
-    assert_eq!(all_events[1], all_found_events[0]);
-    assert_eq!(all_events[2], all_found_events[1]);
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[1], all_found_events.0[0]);
+    assert_eq!(all_events[2], all_found_events.0[1]);
 
     // Combination of query and region resulting in no records
     let all_found_events = Event::search(
@@ -1140,10 +1166,11 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 0);
+    assert_eq!(all_found_events.0.len(), 0);
 
     // Combination of query and region resulting in records
     let all_found_events = Event::search(
@@ -1158,11 +1185,12 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 1);
-    assert_eq!(all_events[0], all_found_events[0]);
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
 
     let all_found_events = Event::search(
         None,
@@ -1176,12 +1204,13 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 2);
-    assert_eq!(all_events[1], all_found_events[0]);
-    assert_eq!(all_events[2], all_found_events[1]);
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[1], all_found_events.0[0]);
+    assert_eq!(all_events[2], all_found_events.0[1]);
 
     let all_found_events = Event::search(
         None,
@@ -1195,11 +1224,12 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        paging,
         project.get_connection(),
     )
     .unwrap();
-    assert_eq!(all_found_events.len(), 1);
-    assert_eq!(all_events[0], all_found_events[0]);
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
 }
 
 #[test]

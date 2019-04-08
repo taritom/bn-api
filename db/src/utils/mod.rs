@@ -5,8 +5,8 @@ pub mod hash;
 pub mod iterators;
 mod math;
 pub mod migration;
+pub mod pagination;
 pub mod passwords;
 pub mod rand;
 pub mod text;
-
 pub use self::math::*;

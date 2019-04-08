@@ -250,6 +250,12 @@ impl From<ConnectionError> for DatabaseError {
     }
 }
 
+impl From<diesel::result::Error> for DatabaseError {
+    fn from(e: diesel::result::Error) -> Self {
+        DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
+    }
+}
+
 impl From<EnumParseError> for DatabaseError {
     fn from(e: EnumParseError) -> Self {
         DatabaseError::new(ErrorCode::ParseError, Some(e.to_string()))

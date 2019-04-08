@@ -31,7 +31,7 @@ impl Paging {
 impl From<PagingParameters> for Paging {
     fn from(received: PagingParameters) -> Self {
         let default_page = if let Some(i) = received.page { i } else { 0 };
-        let default_limit = if let Some(i) = received.limit { i } else { 100 };
+        let default_limit = if let Some(i) = received.limit { i } else { 50 };
         let default_sort = if let Some(ref i) = received.sort {
             i.clone()
         } else {

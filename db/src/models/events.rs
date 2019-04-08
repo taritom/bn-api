@@ -21,6 +21,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use time::Duration;
 use utils::errors::*;
+use utils::pagination::*;
 use utils::text;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
@@ -1086,8 +1087,9 @@ impl Event {
         sort_direction: SortingDir,
         user: Option<User>,
         past_or_upcoming: PastOrUpcoming,
+        paging: &Paging,
         conn: &PgConnection,
-    ) -> Result<Vec<Event>, DatabaseError> {
+    ) -> Result<(Vec<Event>, i64), DatabaseError> {
         let sort_column = match sort_field {
             EventSearchSortField::Name => "name",
             EventSearchSortField::EventStart => "event_start",
@@ -1198,7 +1200,10 @@ impl Event {
             query = query.filter(venues::region_id.eq(region_id));
         }
 
-        let result = query.load(conn);
+        let result = query
+            .paginate(paging.page as i64)
+            .per_page(paging.limit as i64)
+            .load_and_count_pages(conn);
 
         DatabaseError::wrap(ErrorCode::QueryError, "Unable to load all events", result)
     }

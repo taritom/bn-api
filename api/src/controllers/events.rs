@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use utils::{marketing_contacts, ServiceLocator};
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct SearchParameters {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     query: Option<String>,
@@ -132,7 +132,7 @@ pub fn index(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let query = query.into_inner();
-
+    let paging = query.clone().into();
     let user = auth_user
         .into_inner()
         .and_then(|auth_user| Some(auth_user.user));
@@ -158,7 +158,7 @@ pub fn index(
         _ => EventSearchSortField::EventStart,
     };
 
-    let events = Event::search(
+    let events_count = Event::search(
         query.query.clone(),
         query.region_id,
         query.organization_id,
@@ -174,15 +174,18 @@ pub fn index(
         query.dir.clone().unwrap_or(SortingDir::Asc),
         user.clone(),
         past_or_upcoming,
+        &paging,
         connection,
     )?;
+    let (events, count) = events_count;
 
     let mut payload = Payload::new(
         event_venues_from_events(events, user, &state, connection)?,
         query.into(),
     );
-    payload.paging.total = payload.data.len() as u64;
-    payload.paging.limit = 100;
+
+    payload.paging.total = count as u64;
+    payload.paging.limit = paging.limit;
 
     Ok(HttpResponse::Ok().json(&payload))
 }
