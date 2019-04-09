@@ -1740,9 +1740,11 @@ impl Order {
             );
             action.expires_at = action.scheduled_at.into_builder().add_days(3).finish();
             action.commit(conn)?;
-        };
-        jlog!(Debug, "Order was checked for completion but was short", {"required_amount": total_required, "total_paid": total_paid, "order_id": self.id});
-        Ok(())
+            Ok(())
+        } else {
+            jlog!(Debug, "Order was checked for completion but was short", {"required_amount": total_required, "total_paid": total_paid, "order_id": self.id});
+            Ok(())
+        }
     }
 
     fn clear_user_cart(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {

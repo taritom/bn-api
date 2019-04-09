@@ -158,7 +158,7 @@ impl ProcessPaymentIPNExecutor {
 
             payment.update_amount(
                 None,
-                (ipn.payment_details.received_amount.unwrap_or(0f64) * 100f64) as i64,
+                (ipn.payment_details.received_amount.unwrap_or(0f64) * 100f64).round() as i64,
                 connection,
             )?;
             jlog!(Debug, "IPN: Marking payment complete", {"ipn_id": ipn.id, "order_id": order_id, "status": status});
