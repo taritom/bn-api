@@ -1,9 +1,11 @@
 use chrono::NaiveDateTime;
+use dev::times;
 use diesel;
 use diesel::dsl::{self, select};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Timestamp, Uuid as dUuid};
-use models::{TicketPricingStatus, TicketType};
+use models::domain_events::DomainEvent;
+use models::{DomainEventTypes, Tables, TicketPricingStatus, TicketType};
 use schema::{order_items, ticket_pricing};
 use std::borrow::Cow;
 use utils::errors::*;
@@ -13,7 +15,7 @@ use validators::{self, *};
 
 sql_function!(fn ticket_pricing_no_overlapping_periods(id: dUuid, ticket_type_id: dUuid, start_date: Timestamp, end_date: Timestamp, is_box_office_only: Bool, is_default_status: Bool) -> Bool);
 
-#[derive(Clone, Identifiable, Associations, Queryable, PartialEq, Debug)]
+#[derive(Clone, Identifiable, Associations, Queryable, PartialEq, Debug, Serialize)]
 #[belongs_to(TicketType)]
 #[table_name = "ticket_pricing"]
 pub struct TicketPricing {
@@ -29,7 +31,7 @@ pub struct TicketPricing {
     updated_at: NaiveDateTime,
 }
 
-#[derive(AsChangeset, Clone, Default, Deserialize)]
+#[derive(AsChangeset, Clone, Default, Deserialize, Serialize)]
 #[table_name = "ticket_pricing"]
 pub struct TicketPricingEditableAttributes {
     pub name: Option<String>,
@@ -78,16 +80,28 @@ impl TicketPricing {
     pub fn update(
         &self,
         attributes: TicketPricingEditableAttributes,
+        current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
         self.validate_record(&attributes)?;
 
         if self.affected_order_count(conn)? == 0 || attributes.price_in_cents.is_none() {
             // No orders affected or price does not change, update existing record
-            diesel::update(self)
-                .set((attributes, ticket_pricing::updated_at.eq(dsl::now)))
+            let result = diesel::update(self)
+                .set((&attributes, ticket_pricing::updated_at.eq(dsl::now)))
                 .get_result(conn)
-                .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing")
+                .to_db_error(ErrorCode::UpdateError, "Could not update ticket_pricing");
+
+            DomainEvent::create(
+                DomainEventTypes::TicketPricingUpdated,
+                format!("Ticketing pricing '{}' updated", self.name),
+                Tables::TicketPricing,
+                Some(self.id),
+                current_user_id,
+                Some(json!(&attributes)),
+            )
+            .commit(conn)?;
+            result
         } else {
             // Orders affected, create new ticket pricing and delete old
             let new_ticket_pricing = TicketPricing::create(
@@ -101,8 +115,8 @@ impl TicketPricing {
                     .unwrap_or(self.is_box_office_only),
                 Some(self.status),
             );
-            self.destroy(conn)?;
-            new_ticket_pricing.commit(conn)
+            self.destroy(current_user_id, conn)?;
+            new_ticket_pricing.commit(current_user_id, conn)
         }
     }
 
@@ -110,7 +124,7 @@ impl TicketPricing {
         ticket_type: &TicketType,
         start_date: NaiveDateTime,
     ) -> Result<Result<(), ValidationError>, DatabaseError> {
-        if ticket_type.start_date > start_date {
+        if ticket_type.start_date.unwrap_or(start_date) > start_date {
             let mut validation_error = create_validation_error(
                 "ticket_pricing_overlapping_ticket_type_start_date",
                 "Ticket pricing dates overlap ticket type start date",
@@ -186,28 +200,83 @@ impl TicketPricing {
             .to_db_error(ErrorCode::QueryError, "Could not load order_items")
     }
 
-    pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
+    pub fn destroy(
+        &self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         //Check if there is any order items linked to this ticket pricing
         if self.affected_order_count(conn)? == 0 {
             //Ticket pricing is unused -> delete
             diesel::delete(self)
                 .execute(conn)
-                .to_db_error(ErrorCode::DeleteError, "Error removing ticket pricing")
+                .to_db_error(ErrorCode::DeleteError, "Error removing ticket pricing")?;
+            DomainEvent::create(
+                DomainEventTypes::TicketPricingDeleted,
+                format!("Ticket pricing '{}' deleted", &self.name),
+                Tables::TicketPricing,
+                Some(self.id),
+                current_user_id,
+                Some(json!(self)),
+            )
+            .commit(conn)?;
+            Ok(())
         } else {
             //Ticket pricing is used -> mark status for deletion
-            diesel::update(self)
+            let result: TicketPricing = diesel::update(self)
                 .set((
                     ticket_pricing::status.eq(TicketPricingStatus::Deleted),
                     ticket_pricing::updated_at.eq(dsl::now),
                 ))
-                //.get_result(conn)
-                .execute(conn)
+                .get_result(conn)
                 .to_db_error(
                     ErrorCode::UpdateError,
                     "Could not update ticket_pricing status",
                 )?;
-            Ok(0 as usize)
+            DomainEvent::create(
+                DomainEventTypes::TicketPricingDeleted,
+                format!("Ticket pricing '{}' deleted", &result.name),
+                Tables::TicketPricing,
+                Some(self.id),
+                current_user_id,
+                Some(json!(result)),
+            )
+            .commit(conn)?;
+
+            Ok(())
         }
+    }
+
+    pub fn start_sales(
+        mut self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if self.start_date > times::now() {
+            let old_start_date = self.start_date;
+            self.start_date = times::now();
+            diesel::update(&self)
+                .set((
+                    ticket_pricing::start_date.eq(self.start_date),
+                    ticket_pricing::updated_at.eq(dsl::now),
+                ))
+                .execute(conn)
+                .to_db_error(
+                    ErrorCode::UpdateError,
+                    "Could not update start date on Ticket Pricing",
+                )?;
+
+            DomainEvent::create(
+                DomainEventTypes::TicketPricingSalesStarted,
+                format!("Sales have started on '{}'", self.name),
+                Tables::TicketPricing,
+                Some(self.id),
+                current_user_id,
+                Some(json!({"old_start_date": old_start_date, "new_start_date": self.start_date})),
+            )
+            .commit(conn)?;
+        }
+        Ok(())
     }
 
     pub fn get_default(
@@ -321,11 +390,26 @@ impl NewTicketPricing {
         Ok(validation_errors?)
     }
 
-    pub fn commit(self, conn: &PgConnection) -> Result<TicketPricing, DatabaseError> {
+    pub fn commit(
+        self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<TicketPricing, DatabaseError> {
         self.validate_record()?;
-        diesel::insert_into(ticket_pricing::table)
+        let result: TicketPricing = diesel::insert_into(ticket_pricing::table)
             .values(self)
             .get_result(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not create ticket pricing")
+            .to_db_error(ErrorCode::InsertError, "Could not create ticket pricing")?;
+
+        DomainEvent::create(
+            DomainEventTypes::TicketPricingCreated,
+            format!("Ticket pricing '{}' created", result.id),
+            Tables::TicketPricing,
+            Some(result.id),
+            current_user_id,
+            Some(json!(result)),
+        )
+        .commit(conn)?;
+        Ok(result)
     }
 }

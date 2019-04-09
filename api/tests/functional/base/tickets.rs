@@ -116,7 +116,6 @@ pub fn redeem_ticket(role: Roles, should_test_succeed: bool) {
             redeem_key: ticket.redeem_key.unwrap(),
         };
 
-        println!("{:?}", request_data);
         let response: HttpResponse = events::redeem_ticket((
             database.connection.clone().into(),
             path2,

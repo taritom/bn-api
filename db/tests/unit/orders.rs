@@ -1500,6 +1500,7 @@ fn update_quantities_check_limits() {
                 limit_per_person: Some(3),
                 ..Default::default()
             },
+            None,
             connection,
         )
         .unwrap();
@@ -1705,7 +1706,7 @@ fn add_tickets_below_min_fee() {
             "Free Tix".to_string(),
             None,
             10,
-            times::zero(),
+            Some(times::zero()),
             times::infinity(),
             event.issuer_wallet(connection).unwrap().id,
             Some(1),
@@ -1713,6 +1714,8 @@ fn add_tickets_below_min_fee() {
             0,
             SoldOutBehavior::ShowSoldOut,
             false,
+            None,
+            None,
             connection,
         )
         .unwrap();
@@ -2468,7 +2471,9 @@ fn add_tickets_with_increment() {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+    let ticket_type = ticket_type
+        .update(update_parameters, None, connection)
+        .unwrap();
 
     let add_tickets_result = cart.update_quantities(
         user.id,
@@ -2598,6 +2603,7 @@ fn replace_tickets_for_box_office() {
             NaiveDate::from_ymd(9999, 7, 8).and_hms(7, 8, 10),
             5000,
             true,
+            None,
             None,
             connection,
         )
@@ -2831,8 +2837,6 @@ fn replace_tickets_with_code_pricing() {
     .unwrap();
     let items = cart.items(connection).unwrap();
 
-    println!("{:?}", items);
-
     assert_eq!(items.len(), 2);
     let order_item = items
         .iter()
@@ -3015,7 +3019,9 @@ fn remove_tickets_with_increment() {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+    let ticket_type = ticket_type
+        .update(update_parameters, None, connection)
+        .unwrap();
     let add_tickets_result = cart.update_quantities(
         user.id,
         &[UpdateOrderItem {

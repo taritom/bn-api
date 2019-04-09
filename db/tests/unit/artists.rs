@@ -294,11 +294,6 @@ fn update() {
     let name = "Old Name";
     let artist = project.create_artist().with_name(name.into()).finish();
 
-    println!(
-        "Created at: {}, updated at:{}",
-        artist.created_at, artist.updated_at
-    );
-
     let mut artist_parameters = ArtistEditableAttributes::new();
     artist_parameters.name = Some("New Name".into());
     artist_parameters.bio = Some("Bio".into());

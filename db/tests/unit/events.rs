@@ -1261,6 +1261,7 @@ fn current_ticket_pricing_range() {
             3000,
             false,
             None,
+            None,
             connection,
         )
         .unwrap();
@@ -1280,6 +1281,7 @@ fn current_ticket_pricing_range() {
             8000,
             false,
             None,
+            None,
             connection,
         )
         .unwrap();
@@ -1297,6 +1299,7 @@ fn current_ticket_pricing_range() {
             NaiveDate::from_ymd(9999, 7, 8).and_hms(7, 8, 10),
             20000,
             false,
+            None,
             None,
             connection,
         )
@@ -1317,6 +1320,7 @@ fn current_ticket_pricing_range() {
             5000,
             true,
             None,
+            None,
             connection,
         )
         .unwrap();
@@ -1329,6 +1333,7 @@ fn current_ticket_pricing_range() {
             NaiveDate::from_ymd(9999, 7, 8).and_hms(7, 8, 10),
             1000,
             true,
+            None,
             None,
             connection,
         )
@@ -1558,7 +1563,7 @@ fn add_ticket_type() {
             "General Admission".to_string(),
             None,
             100,
-            sd,
+            Some(sd),
             ed,
             wallet_id,
             None,
@@ -1566,6 +1571,8 @@ fn add_ticket_type() {
             100,
             SoldOutBehavior::ShowSoldOut,
             false,
+            None,
+            None,
             conn,
         )
         .unwrap();
@@ -1587,7 +1594,7 @@ fn ticket_types() {
             "General Admission".to_string(),
             None,
             100,
-            sd,
+            Some(sd),
             ed,
             wallet_id,
             None,
@@ -1595,6 +1602,8 @@ fn ticket_types() {
             100,
             SoldOutBehavior::ShowSoldOut,
             false,
+            None,
+            None,
             conn,
         )
         .unwrap();
@@ -1603,7 +1612,7 @@ fn ticket_types() {
             "VIP".to_string(),
             None,
             100,
-            sd,
+            Some(sd),
             ed,
             wallet_id,
             None,
@@ -1611,6 +1620,8 @@ fn ticket_types() {
             100,
             SoldOutBehavior::ShowSoldOut,
             false,
+            None,
+            None,
             conn,
         )
         .unwrap();
@@ -1659,7 +1670,6 @@ fn get_all_localized_times() {
         .finish();
 
     let localized_times: EventLocalizedTimes = event.get_all_localized_times(&Some(venue));
-    println!("{}", localized_times.event_start.unwrap().to_rfc2822());
     assert_eq!(
         localized_times.event_start.unwrap().to_rfc2822(),
         "Tue,  1 Jan 2019 14:00:00 +0200"

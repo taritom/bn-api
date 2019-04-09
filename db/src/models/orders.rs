@@ -1172,6 +1172,49 @@ impl Order {
         Event::find_by_ids(unique_events, conn)
     }
 
+    /// Returns a list of ticket types found in this order as well as the number of
+    /// remaining available tickets for that ticket type
+    pub fn ticket_types(&self, conn: &PgConnection) -> Result<Vec<(Uuid, i64)>, DatabaseError> {
+        let query = r#"
+            SELECT remaining.id AS ticket_type_id, remaining.count
+            FROM (SELECT tt.id,
+                SUM(CASE
+                   WHEN (ti.status = 'Available' OR (ti.status = 'Reserved' AND ti.reserved_until < now())) THEN 1
+                   ELSE 0 END) AS count
+                FROM ticket_types tt
+                INNER JOIN assets a
+                    INNER JOIN ticket_instances ti
+                          ON a.id = ti.asset_id
+                        ON tt.id = a.ticket_type_id
+                GROUP BY tt.id
+                ) AS remaining
+                INNER JOIN order_items oi
+                    ON remaining.id = oi.ticket_type_id
+            WHERE oi.order_id = $1;
+        "#;
+
+        #[derive(QueryableByName)]
+        struct R {
+            #[sql_type = "dUuid"]
+            ticket_type_id: Uuid,
+            #[sql_type = "BigInt"]
+            count: i64,
+        };
+
+        let results: Vec<R> = diesel::sql_query(query)
+            .bind::<sql_types::Uuid, _>(self.id)
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not find ticket types for order",
+            )?;
+
+        Ok(results
+            .into_iter()
+            .map(|r| (r.ticket_type_id, r.count))
+            .collect_vec())
+    }
+
     pub fn purchase_metadata(
         &self,
         conn: &PgConnection,

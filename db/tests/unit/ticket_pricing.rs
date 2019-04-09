@@ -24,7 +24,7 @@ fn create() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     let pricing2 = TicketPricing::create(
@@ -36,11 +36,11 @@ fn create() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     let pricing = ticket_type
-        .ticket_pricing(project.get_connection())
+        .ticket_pricing(false, project.get_connection())
         .unwrap();
     assert_eq!(pricing, vec![ticket_pricing, pricing2]);
 }
@@ -67,7 +67,7 @@ fn ticket_pricing_no_overlapping_periods() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     let ticket_pricing2 = TicketPricing::create(
@@ -79,7 +79,7 @@ fn ticket_pricing_no_overlapping_periods() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     let ticket_pricing3 = TicketPricing::create(
@@ -91,7 +91,7 @@ fn ticket_pricing_no_overlapping_periods() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     // ticket_pricing1 and ticket_pricing2 overlap
@@ -133,58 +133,6 @@ fn ticket_pricing_no_overlapping_periods() {
 }
 
 #[test]
-fn create_with_same_date_validation_errors() {
-    let project = TestProject::new();
-    let event = project.create_event().with_tickets().finish();
-    let ticket_type = &event
-        .ticket_types(true, None, project.get_connection())
-        .unwrap()[0];
-    let same_date = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
-
-    let mut ticket_pricing = TicketPricing::create(
-        ticket_type.id,
-        "Early Bird".to_string(),
-        same_date,
-        same_date,
-        100,
-        false,
-        None,
-    );
-
-    let result = ticket_pricing.clone().commit(project.get_connection());
-    match result {
-        Ok(_) => {
-            panic!("Expected validation error");
-        }
-        Err(error) => match &error.error_code {
-            ValidationError { errors } => {
-                assert!(errors.contains_key("ticket_pricing.start_date"));
-                assert_eq!(errors["ticket_pricing.start_date"].len(), 1);
-                assert_eq!(
-                    errors["ticket_pricing.start_date"][0].code,
-                    "start_date_must_be_before_end_date"
-                );
-                assert_eq!(
-                    &errors["ticket_pricing.start_date"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
-                    "Start date must be before end date"
-                );
-            }
-            _ => panic!("Expected validation error"),
-        },
-    }
-
-    // Period without start date validation
-    ticket_pricing.start_date = same_date;
-    ticket_pricing.end_date = NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11);
-    let result = ticket_pricing.clone().commit(project.get_connection());
-    assert!(result.is_ok());
-}
-
-#[test]
 fn create_with_validation_errors() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
@@ -204,7 +152,7 @@ fn create_with_validation_errors() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     let mut ticket_pricing = TicketPricing::create(
@@ -217,7 +165,9 @@ fn create_with_validation_errors() {
         None,
     );
 
-    let result = ticket_pricing.clone().commit(project.get_connection());
+    let result = ticket_pricing
+        .clone()
+        .commit(None, project.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -246,7 +196,9 @@ fn create_with_validation_errors() {
     // Period without start date validation
     ticket_pricing.start_date = end_date1;
     ticket_pricing.end_date = NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11);
-    let result = ticket_pricing.clone().commit(project.get_connection());
+    let result = ticket_pricing
+        .clone()
+        .commit(None, project.get_connection());
     assert!(result.is_ok());
 }
 
@@ -270,7 +222,7 @@ fn update_with_validation_errors() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
     let ticket_pricing = TicketPricing::create(
         ticket_type.id,
@@ -281,13 +233,17 @@ fn update_with_validation_errors() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     let mut ticket_pricing_parameters: TicketPricingEditableAttributes = Default::default();
     ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11));
     ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11));
-    let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
+    let result = ticket_pricing.update(
+        ticket_pricing_parameters.clone(),
+        None,
+        project.get_connection(),
+    );
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -316,7 +272,11 @@ fn update_with_validation_errors() {
     // Updates without start date validation triggering
     ticket_pricing_parameters.start_date = Some(end_date1);
     ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
-    let result = ticket_pricing.update(ticket_pricing_parameters.clone(), project.get_connection());
+    let result = ticket_pricing.update(
+        ticket_pricing_parameters.clone(),
+        None,
+        project.get_connection(),
+    );
     assert!(result.is_ok());
 }
 
@@ -337,7 +297,7 @@ fn update() {
         false,
         None,
     )
-    .commit(connection)
+    .commit(None, connection)
     .unwrap();
     //Change editable parameters and submit ticket pricing update request
     let update_name = String::from("updated_event_name");
@@ -352,7 +312,7 @@ fn update() {
         is_box_office_only: Some(false),
     };
     let updated_ticket_pricing = ticket_pricing
-        .update(update_parameters, connection)
+        .update(update_parameters, None, connection)
         .unwrap();
     assert_eq!(updated_ticket_pricing.id, ticket_pricing.id);
     assert_eq!(updated_ticket_pricing.name, update_name);
@@ -383,7 +343,7 @@ fn update_with_affected_orders() {
         false,
         None,
     )
-    .commit(connection)
+    .commit(None, connection)
     .unwrap();
 
     let user = project.create_user().finish();
@@ -420,7 +380,7 @@ fn update_with_affected_orders() {
         is_box_office_only: Some(false),
     };
     let updated_ticket_pricing = ticket_pricing
-        .update(update_parameters, connection)
+        .update(update_parameters, None, connection)
         .unwrap();
 
     // ID should be new but everything else should match updated logic
@@ -473,7 +433,7 @@ fn remove() {
         false,
         None,
     )
-    .commit(connection)
+    .commit(None, connection)
     .unwrap();
 
     let start_date = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
@@ -487,11 +447,11 @@ fn remove() {
         false,
         None,
     )
-    .commit(connection)
+    .commit(None, connection)
     .unwrap();
     //Remove ticket pricing and check if it is still available
-    ticket_pricing1.destroy(connection).unwrap();
-    let ticket_pricings = ticket_type.ticket_pricing(connection).unwrap();
+    ticket_pricing1.destroy(None, connection).unwrap();
+    let ticket_pricings = ticket_type.ticket_pricing(false, connection).unwrap();
     let found_index1 = ticket_pricings
         .iter()
         .position(|ref r| r.id == ticket_pricing1.id);
@@ -520,7 +480,7 @@ fn find() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
     let found_ticket_pricing =
         TicketPricing::find(ticket_pricing.id, project.get_connection()).unwrap();

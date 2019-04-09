@@ -110,7 +110,16 @@ string_enum! { DomainEventTypes [
     TicketInstanceNullified,
     TicketInstancePurchased,
     TicketInstanceRedeemed,
-    TicketInstanceReleasedFromHold
+    TicketInstanceReleasedFromHold,
+    TicketPricingAdded,
+    TicketPricingCreated,
+    TicketPricingDeleted,
+    TicketPricingSalesStarted,
+    TicketPricingUpdated,
+    TicketTypeCreated,
+    TicketTypeSalesStarted,
+    TicketTypeSoldOut,
+    TicketTypeUpdated
 ]}
 string_enum! { DomainActionTypes [
     BroadcastPushNotification,
@@ -147,10 +156,11 @@ string_enum! { Roles [Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOf
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
-string_enum! { Tables [Broadcasts, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations, Payments, PaymentMethods, TicketInstances, Users] }
+string_enum! { Tables [Broadcasts, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations,
+Payments, PaymentMethods, TicketInstances, TicketTypes, TicketPricing, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
-string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled] }
+string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, Cancelled, Deleted] }
 string_enum! { SoldOutBehavior[ ShowSoldOut, Hide ]}
 
 impl Roles {

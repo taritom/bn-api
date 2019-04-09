@@ -7,3 +7,7 @@ pub fn zero() -> NaiveDateTime {
 pub fn infinity() -> NaiveDateTime {
     NaiveDate::from_ymd(4900, 12, 31).and_hms(1, 2, 3)
 }
+
+pub fn now() -> NaiveDateTime {
+    Utc::now().naive_utc()
+}

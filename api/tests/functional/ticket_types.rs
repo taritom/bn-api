@@ -207,7 +207,7 @@ pub fn create_with_validation_errors() {
         name: "VIP".into(),
         description: None,
         capacity: 1000,
-        start_date,
+        start_date: Some(start_date),
         end_date,
         ticket_pricing,
         increment: None,
@@ -215,6 +215,7 @@ pub fn create_with_validation_errors() {
         price_in_cents: 10000,
         sold_out_behavior: SoldOutBehavior::ShowSoldOut,
         is_private: false,
+        parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -271,7 +272,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         name: "VIP".into(),
         description: None,
         capacity: 1000,
-        start_date,
+        start_date: Some(start_date),
         end_date,
         ticket_pricing,
         increment: None,
@@ -279,6 +280,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         price_in_cents: 10000,
         sold_out_behavior: SoldOutBehavior::ShowSoldOut,
         is_private: false,
+        parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -344,7 +346,7 @@ pub fn create_with_overlapping_periods() {
         name: "VIP".into(),
         description: None,
         capacity: 1000,
-        start_date,
+        start_date: Some(start_date),
         end_date,
         ticket_pricing,
         increment: None,
@@ -352,6 +354,7 @@ pub fn create_with_overlapping_periods() {
         price_in_cents: 20000,
         sold_out_behavior: SoldOutBehavior::ShowSoldOut,
         is_private: false,
+        parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -431,7 +434,7 @@ pub fn create_with_out_of_bounds_ticket_capacity() {
         name: "VIP".into(),
         description: None,
         capacity: 11000,
-        start_date,
+        start_date: Some(start_date),
         end_date,
         ticket_pricing,
         increment: None,
@@ -439,6 +442,7 @@ pub fn create_with_out_of_bounds_ticket_capacity() {
         price_in_cents: 20000,
         sold_out_behavior: SoldOutBehavior::ShowSoldOut,
         is_private: false,
+        parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -471,7 +475,7 @@ pub fn update_with_invalid_id() {
     let conn = database.connection.get();
     let created_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
     let created_ticket_capacity = created_ticket_type.valid_ticket_count(conn).unwrap();
-    created_ticket_type.ticket_pricing(conn).unwrap();
+    created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
     let test_request =
@@ -495,7 +499,7 @@ pub fn update_with_invalid_id() {
         name: Some("Updated VIP".into()),
         description: None,
         capacity: Some(created_ticket_capacity),
-        start_date,
+        start_date: Some(start_date),
         end_date,
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
@@ -503,6 +507,7 @@ pub fn update_with_invalid_id() {
         price_in_cents: Some(20000),
         sold_out_behavior: None,
         is_private: Some(false),
+        parent_id: None,
     };
 
     //Send update request
@@ -537,7 +542,7 @@ pub fn update_with_validation_errors() {
     let conn = database.connection.get();
     let created_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
     let created_ticket_capacity = created_ticket_type.valid_ticket_count(conn).unwrap();
-    let created_ticket_pricing = created_ticket_type.ticket_pricing(conn).unwrap();
+    let created_ticket_pricing = created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
     let test_request =
@@ -563,7 +568,7 @@ pub fn update_with_validation_errors() {
         name: Some("Updated VIP".into()),
         description: None,
         capacity: Some(created_ticket_capacity),
-        start_date,
+        start_date: Some(start_date),
         end_date,
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
@@ -571,6 +576,7 @@ pub fn update_with_validation_errors() {
         price_in_cents: Some(20000),
         sold_out_behavior: None,
         is_private: None,
+        parent_id: None,
     };
 
     //Send update request
@@ -616,7 +622,7 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
     let conn = database.connection.get();
     let created_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
     let created_ticket_capacity = created_ticket_type.valid_ticket_count(conn).unwrap();
-    let created_ticket_pricing = created_ticket_type.ticket_pricing(conn).unwrap();
+    let created_ticket_pricing = created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
     let test_request =
@@ -642,7 +648,7 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
         name: Some("Updated VIP".into()),
         description: None,
         capacity: Some(created_ticket_capacity),
-        start_date,
+        start_date: Some(start_date),
         end_date,
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
@@ -650,6 +656,7 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
         price_in_cents: Some(20000),
         sold_out_behavior: None,
         is_private: None,
+        parent_id: None,
     };
 
     //Send update request
@@ -698,7 +705,7 @@ pub fn update_with_overlapping_periods() {
     let conn = database.connection.get();
     let created_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
     let created_ticket_capacity = created_ticket_type.valid_ticket_count(conn).unwrap();
-    let created_ticket_pricing = created_ticket_type.ticket_pricing(conn).unwrap();
+    let created_ticket_pricing = created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
     let test_request =
@@ -733,7 +740,7 @@ pub fn update_with_overlapping_periods() {
         name: Some("Updated VIP".into()),
         description: None,
         capacity: Some(created_ticket_capacity),
-        start_date,
+        start_date: Some(start_date),
         end_date,
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
@@ -741,6 +748,7 @@ pub fn update_with_overlapping_periods() {
         price_in_cents: Some(20000),
         sold_out_behavior: None,
         is_private: None,
+        parent_id: None,
     };
 
     //Send update request

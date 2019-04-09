@@ -473,7 +473,7 @@ table! {
         name -> Text,
         description -> Nullable<Text>,
         status -> Text,
-        start_date -> Timestamp,
+        start_date -> Nullable<Timestamp>,
         end_date -> Timestamp,
         increment -> Int4,
         limit_per_person -> Int4,
@@ -483,6 +483,8 @@ table! {
         cancelled_at -> Nullable<Timestamp>,
         sold_out_behavior -> Text,
         is_private -> Bool,
+        parent_id -> Nullable<Uuid>,
+        rank -> Int4,
     }
 }
 

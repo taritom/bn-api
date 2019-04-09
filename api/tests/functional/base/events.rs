@@ -73,6 +73,7 @@ pub fn show_box_office_pricing(role: Roles, should_test_succeed: bool) {
             5000,
             true,
             None,
+            None,
             conn,
         )
         .unwrap();

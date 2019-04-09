@@ -1259,7 +1259,7 @@ impl Event {
         name: String,
         description: Option<String>,
         quantity: u32,
-        start_date: NaiveDateTime,
+        start_date: Option<NaiveDateTime>,
         end_date: NaiveDateTime,
         wallet_id: Uuid,
         increment: Option<i32>,
@@ -1267,6 +1267,8 @@ impl Event {
         price_in_cents: i64,
         sold_out_behavior: SoldOutBehavior,
         is_private: bool,
+        parent_id: Option<Uuid>,
+        current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         let asset_name = format!("{}.{}", self.name, &name);
@@ -1281,8 +1283,9 @@ impl Event {
             price_in_cents,
             sold_out_behavior,
             is_private,
+            parent_id,
         )
-        .commit(conn)?;
+        .commit(current_user_id, conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;
         TicketInstance::create_multiple(asset.id, 0, quantity, wallet_id, conn)?;
         Ok(ticket_type)

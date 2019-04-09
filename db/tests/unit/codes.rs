@@ -226,7 +226,6 @@ pub fn create_with_validation_errors() {
     )
     .commit(db.get_connection());
 
-    println!("{:?}", result);
     match result {
         Ok(_) => {
             panic!("Expected validation error");

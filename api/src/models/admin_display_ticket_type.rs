@@ -11,7 +11,7 @@ pub struct AdminDisplayTicketType {
     pub description: Option<String>,
     pub capacity: u32,
     pub status: TicketTypeStatus,
-    pub start_date: NaiveDateTime,
+    pub start_date: Option<NaiveDateTime>,
     pub end_date: NaiveDateTime,
     pub available: u32,
     pub increment: u32,
@@ -20,6 +20,7 @@ pub struct AdminDisplayTicketType {
     pub price_in_cents: i64,
     pub sold_out_behavior: SoldOutBehavior,
     pub is_private: bool,
+    pub parent_id: Option<Uuid>,
 }
 
 impl AdminDisplayTicketType {
@@ -47,6 +48,7 @@ impl AdminDisplayTicketType {
             description: ticket_type.description.clone(),
             status: ticket_type.status,
             start_date: ticket_type.start_date,
+            parent_id: ticket_type.parent_id,
             end_date: ticket_type.end_date,
             ticket_pricing: ticket_pricing_list,
             available,

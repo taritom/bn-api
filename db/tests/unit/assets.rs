@@ -19,7 +19,7 @@ fn update_asset_blockchain_id() {
             "VIP".to_string(),
             None,
             100,
-            sd,
+            Some(sd),
             ed,
             wallet_id,
             None,
@@ -27,6 +27,8 @@ fn update_asset_blockchain_id() {
             100,
             SoldOutBehavior::ShowSoldOut,
             false,
+            None,
+            None,
             conn,
         )
         .unwrap();
@@ -55,7 +57,7 @@ fn asset_find() {
             "VIP".to_string(),
             None,
             100,
-            sd,
+            Some(sd),
             ed,
             wallet_id,
             None,
@@ -63,6 +65,8 @@ fn asset_find() {
             100,
             SoldOutBehavior::ShowSoldOut,
             false,
+            None,
+            None,
             conn,
         )
         .unwrap();

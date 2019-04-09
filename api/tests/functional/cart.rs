@@ -366,7 +366,9 @@ fn add_with_increment() {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+    let ticket_type = ticket_type
+        .update(update_parameters, None, connection)
+        .unwrap();
     let ticket_type_id = ticket_type.id;
 
     let input = Json(cart::UpdateCartRequest {
@@ -430,7 +432,9 @@ fn update_with_increment_failure_invalid_quantity() {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+    let ticket_type = ticket_type
+        .update(update_parameters, None, connection)
+        .unwrap();
     let ticket_type_id = ticket_type.id;
 
     let input = Json(cart::UpdateCartRequest {
@@ -695,7 +699,9 @@ fn remove_with_increment() {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+    let ticket_type = ticket_type
+        .update(update_parameters, None, connection)
+        .unwrap();
     let ticket_type_id = ticket_type.id;
     let user = database.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -791,7 +797,9 @@ fn remove_with_increment_failure_invalid_quantity() {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+    let ticket_type = ticket_type
+        .update(update_parameters, None, connection)
+        .unwrap();
     let ticket_type_id = ticket_type.id;
     let user = database.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();

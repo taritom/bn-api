@@ -18,6 +18,7 @@ pub struct UserDisplayTicketType {
     pub ticket_pricing: Option<DisplayTicketPricing>,
     pub redemption_code: Option<String>,
     pub event_id: Uuid,
+    pub rank: i32,
 }
 
 impl UserDisplayTicketType {
@@ -51,13 +52,14 @@ impl UserDisplayTicketType {
             name: ticket_type.name.clone(),
             description: ticket_type.description.clone(),
             status,
-            start_date: ticket_type.start_date,
+            start_date: ticket_type.start_date(conn)?,
             end_date: ticket_type.end_date,
             ticket_pricing,
             available,
             redemption_code: None,
             increment: ticket_type.increment,
             limit_per_person: ticket_type.limit_per_person as u32,
+            rank: ticket_type.rank,
         };
 
         if let Some(ref redemption_code) = redemption_code {

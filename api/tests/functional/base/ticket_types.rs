@@ -48,7 +48,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         name: "VIP".into(),
         description: None,
         capacity: 1000,
-        start_date,
+        start_date: Some(start_date),
+
         end_date,
         ticket_pricing,
         increment: None,
@@ -56,6 +57,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         price_in_cents: 20000,
         sold_out_behavior: SoldOutBehavior::ShowSoldOut,
         is_private: false,
+        parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -91,7 +93,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let conn = database.connection.get();
     let created_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
     let created_ticket_capacity = created_ticket_type.valid_ticket_count(conn).unwrap();
-    let created_ticket_pricing = created_ticket_type.ticket_pricing(conn).unwrap();
+    let created_ticket_pricing = created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
     let test_request =
@@ -126,7 +128,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         name: Some("Updated VIP".into()),
         description: None,
         capacity: Some(created_ticket_capacity),
-        start_date,
+        start_date: Some(start_date),
         end_date,
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
@@ -134,6 +136,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         price_in_cents: Some(15000),
         sold_out_behavior: Some(SoldOutBehavior::Hide),
         is_private: Some(false),
+        parent_id: None,
     };
     let request_json = serde_json::to_string(&request_data).unwrap();
 
@@ -150,7 +153,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     //Check if fields have been updated by retrieving the ticket type and pricing
     let updated_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
     let updated_ticket_capacity = updated_ticket_type.valid_ticket_count(conn).unwrap();
-    let updated_ticket_pricing = updated_ticket_type.ticket_pricing(conn).unwrap();
+    let updated_ticket_pricing = updated_ticket_type.ticket_pricing(false, conn).unwrap();
     let mut new_ticket_pricing: Vec<UpdateTicketPricingRequest> = Vec::new();
     new_ticket_pricing.reserve(updated_ticket_pricing.len());
     for current_ticket_pricing in &updated_ticket_pricing {
@@ -182,6 +185,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         price_in_cents: Some(updated_ticket_type.price_in_cents),
         sold_out_behavior: Some(SoldOutBehavior::Hide),
         is_private: Some(false),
+        parent_id: None,
     };
     let updated_json = serde_json::to_string(&updated_data).unwrap();
 

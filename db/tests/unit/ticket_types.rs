@@ -19,7 +19,7 @@ fn create() {
             "VIP".to_string(),
             None,
             100,
-            sd,
+            Some(sd),
             ed,
             wallet_id,
             None,
@@ -27,6 +27,8 @@ fn create() {
             100,
             SoldOutBehavior::ShowSoldOut,
             false,
+            None,
+            None,
             conn,
         )
         .unwrap();
@@ -47,7 +49,7 @@ pub fn create_with_validation_errors() {
         "VIP".to_string(),
         None,
         100,
-        start_date,
+        Some(start_date),
         end_date,
         wallet_id,
         None,
@@ -55,6 +57,8 @@ pub fn create_with_validation_errors() {
         100,
         SoldOutBehavior::ShowSoldOut,
         false,
+        None,
+        None,
         connection,
     );
     match result {
@@ -392,7 +396,7 @@ fn create_large_amount() {
             "VIP".to_string(),
             None,
             100_000,
-            sd,
+            Some(sd),
             ed,
             wallet_id,
             None,
@@ -400,59 +404,14 @@ fn create_large_amount() {
             100,
             SoldOutBehavior::ShowSoldOut,
             false,
+            None,
+            None,
             conn,
         )
         .unwrap();
 
     assert_eq!(ticket_type.event_id, event.id);
     assert_eq!(ticket_type.name, "VIP".to_string())
-}
-
-#[test]
-pub fn create_with_same_date_validation_errors() {
-    let project = TestProject::new();
-    let connection = project.get_connection();
-    let event = project.create_event().finish();
-    let wallet_id = event.issuer_wallet(connection).unwrap().id;
-    let same_date = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
-    let result = event.add_ticket_type(
-        "VIP".to_string(),
-        None,
-        100,
-        same_date,
-        same_date,
-        wallet_id,
-        None,
-        0,
-        100,
-        SoldOutBehavior::ShowSoldOut,
-        false,
-        connection,
-    );
-    match result {
-        Ok(_) => {
-            panic!("Expected validation error");
-        }
-        Err(error) => match &error.error_code {
-            ValidationError { errors } => {
-                assert!(errors.contains_key("start_date"));
-                assert_eq!(errors["start_date"].len(), 1);
-                assert_eq!(
-                    errors["start_date"][0].code,
-                    "start_date_must_be_before_end_date"
-                );
-                assert_eq!(
-                    &errors["start_date"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
-                    "Start date must be before end date"
-                );
-            }
-            _ => panic!("Expected validation error"),
-        },
-    }
 }
 
 #[test]
@@ -467,10 +426,11 @@ fn validate_ticket_pricing() {
     let ticket_type = ticket_type
         .update(
             TicketTypeEditableAttributes {
-                start_date: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
+                start_date: Some(Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11))),
                 end_date: Some(NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11)),
                 ..Default::default()
             },
+            None,
             project.get_connection(),
         )
         .unwrap();
@@ -488,7 +448,7 @@ fn validate_ticket_pricing() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
     let ticket_pricing = TicketPricing::create(
         ticket_type.id,
@@ -499,7 +459,7 @@ fn validate_ticket_pricing() {
         false,
         None,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
     let mut ticket_pricing_parameters: TicketPricingEditableAttributes = Default::default();
 
@@ -561,10 +521,11 @@ fn validate_ticket_pricing() {
     let ticket_type = ticket_type
         .update(
             TicketTypeEditableAttributes {
-                start_date: Some(NaiveDate::from_ymd(2016, 6, 1).and_hms(4, 10, 11)),
+                start_date: Some(Some(NaiveDate::from_ymd(2016, 6, 1).and_hms(4, 10, 11))),
                 end_date: Some(NaiveDate::from_ymd(2055, 7, 6).and_hms(4, 10, 11)),
                 ..Default::default()
             },
+            None,
             project.get_connection(),
         )
         .unwrap();
@@ -573,7 +534,11 @@ fn validate_ticket_pricing() {
     ticket_pricing_parameters.start_date = Some(end_date1);
     ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
     ticket_pricing
-        .update(ticket_pricing_parameters.clone(), project.get_connection())
+        .update(
+            ticket_pricing_parameters.clone(),
+            None,
+            project.get_connection(),
+        )
         .unwrap();
     ticket_type
         .validate_ticket_pricing(project.get_connection())
@@ -583,7 +548,11 @@ fn validate_ticket_pricing() {
     ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 4).and_hms(4, 10, 11));
     ticket_pricing_parameters.end_date = Some(start_date1);
     ticket_pricing
-        .update(ticket_pricing_parameters.clone(), project.get_connection())
+        .update(
+            ticket_pricing_parameters.clone(),
+            None,
+            project.get_connection(),
+        )
         .unwrap();
 
     ticket_type
@@ -662,14 +631,16 @@ fn update() {
     let update_end_date = NaiveDate::from_ymd(2018, 6, 1).and_hms(8, 5, 34);
     let update_parameters = TicketTypeEditableAttributes {
         name: Some(update_name.clone()),
-        start_date: Some(update_start_date),
+        start_date: Some(Some(update_start_date)),
         end_date: Some(update_end_date),
         ..Default::default()
     };
-    let updated_ticket_type = ticket_type.update(update_parameters, connection).unwrap();
+    let updated_ticket_type = ticket_type
+        .update(update_parameters, None, connection)
+        .unwrap();
     assert_eq!(updated_ticket_type.id, ticket_type.id);
     assert_eq!(updated_ticket_type.name, update_name);
-    assert_eq!(updated_ticket_type.start_date, update_start_date);
+    assert_eq!(updated_ticket_type.start_date, Some(update_start_date));
     assert_eq!(updated_ticket_type.end_date, update_end_date);
 }
 
@@ -697,11 +668,11 @@ pub fn update_with_validation_errors() {
     let update_end_date = NaiveDate::from_ymd(2018, 4, 1).and_hms(8, 5, 34);
     let update_parameters = TicketTypeEditableAttributes {
         name: Some(update_name.clone()),
-        start_date: Some(update_start_date),
+        start_date: Some(Some(update_start_date)),
         end_date: Some(update_end_date),
         ..Default::default()
     };
-    let result = ticket_type.update(update_parameters, connection);
+    let result = ticket_type.update(update_parameters, None, connection);
     match result {
         Ok(_) => {
             panic!("Expected validation error");

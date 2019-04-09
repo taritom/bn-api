@@ -166,10 +166,10 @@ impl<'a> EventBuilder<'a> {
             for x in 0..self.ticket_type_count {
                 let ticket_type = event
                     .add_ticket_type(
-                        format!("Ticket Type {}", x).into(),
+                        format!("Ticket Type {}", x),
                         None,
                         self.ticket_quantity,
-                        event_start,
+                        Some(event_start),
                         event_end,
                         wallet_id,
                         None,
@@ -177,6 +177,8 @@ impl<'a> EventBuilder<'a> {
                         100,
                         SoldOutBehavior::ShowSoldOut,
                         false,
+                        None,
+                        None,
                         self.connection,
                     )
                     .unwrap();
@@ -190,6 +192,7 @@ impl<'a> EventBuilder<'a> {
                             100,
                             false,
                             None,
+                            None,
                             self.connection,
                         )
                         .unwrap();
@@ -201,6 +204,7 @@ impl<'a> EventBuilder<'a> {
                             standard_end,
                             150,
                             false,
+                            None,
                             None,
                             self.connection,
                         )

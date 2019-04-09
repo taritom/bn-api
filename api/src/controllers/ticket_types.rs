@@ -9,6 +9,7 @@ use extractors::*;
 use helpers::application;
 use log::Level::Debug;
 use models::{AdminDisplayTicketType, EventTicketPathParameters, PathParameters};
+use serde_with::rust::double_option;
 use server::AppState;
 use tari_client::MessagePayloadCreateAsset as TariNewAsset;
 use uuid::Uuid;
@@ -28,17 +29,19 @@ pub struct CreateTicketTypeRequest {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub description: Option<String>,
     pub capacity: u32,
-    pub start_date: NaiveDateTime,
+    pub start_date: Option<NaiveDateTime>,
+    pub parent_id: Option<Uuid>,
     pub end_date: NaiveDateTime,
     pub ticket_pricing: Vec<CreateTicketPricingRequest>,
     pub increment: Option<i32>,
     pub limit_per_person: i32,
     pub price_in_cents: i64,
     pub sold_out_behavior: SoldOutBehavior,
+    #[serde(default)]
     pub is_private: bool,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct UpdateTicketPricingRequest {
     pub id: Option<Uuid>,
     pub name: Option<String>,
@@ -48,13 +51,14 @@ pub struct UpdateTicketPricingRequest {
     pub is_box_office_only: Option<bool>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct UpdateTicketTypeRequest {
     pub name: Option<String>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub description: Option<Option<String>>,
     pub capacity: Option<u32>,
-    pub start_date: Option<NaiveDateTime>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub start_date: Option<Option<NaiveDateTime>>,
     pub end_date: Option<NaiveDateTime>,
     pub ticket_pricing: Option<Vec<UpdateTicketPricingRequest>>,
     pub increment: Option<i32>,
@@ -62,6 +66,8 @@ pub struct UpdateTicketTypeRequest {
     pub price_in_cents: Option<i64>,
     pub sold_out_behavior: Option<SoldOutBehavior>,
     pub is_private: Option<bool>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub parent_id: Option<Option<Uuid>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -111,6 +117,8 @@ pub fn create(
         data.price_in_cents,
         data.sold_out_behavior,
         data.is_private,
+        data.parent_id,
+        Some(user.id()),
         connection,
     )?;
     //Add each ticket pricing entry for newly created ticket type
@@ -122,6 +130,7 @@ pub fn create(
             current_pricing_entry.price_in_cents,
             current_pricing_entry.is_box_office_only.unwrap_or(false),
             None,
+            Some(user.id()),
             connection,
         )?;
     }
@@ -265,8 +274,9 @@ pub fn update(
         }
 
         let valid_ticket_count = ticket_type.valid_ticket_count(connection)?;
-        jlog!(Debug, "Update ticket type: Capacity changed", {"ticket_type_id": path.ticket_type_id, "new_capacity": requested_capacity, "old_capacity": valid_ticket_count});
+
         if valid_ticket_count < requested_capacity {
+            jlog!(Debug, "Update ticket type: Capacity increased", {"ticket_type_id": path.ticket_type_id, "new_capacity": requested_capacity, "old_capacity": valid_ticket_count});
             let starting_tari_id = ticket_type.ticket_count(connection)?;
             let additional_ticket_count = requested_capacity - valid_ticket_count;
             let asset = Asset::find_by_ticket_type(ticket_type.id, connection)?;
@@ -294,6 +304,7 @@ pub fn update(
                 ),
             }
         } else if valid_ticket_count > requested_capacity {
+            jlog!(Debug, "Update ticket type: Capacity decreased", {"ticket_type_id": path.ticket_type_id, "new_capacity": requested_capacity, "old_capacity": valid_ticket_count});
             let nullify_ticket_count = valid_ticket_count - requested_capacity;
             nullify_tickets(
                 state,
@@ -317,12 +328,13 @@ pub fn update(
         price_in_cents: data.price_in_cents,
         sold_out_behavior: data.sold_out_behavior,
         is_private: data.is_private,
+        parent_id: data.parent_id,
     };
-    let updated_ticket_type = ticket_type.update(update_parameters, connection)?;
+    let updated_ticket_type = ticket_type.update(update_parameters, Some(user.id()), connection)?;
 
     if let Some(ref data_ticket_pricing) = data.ticket_pricing {
         //Retrieve the current list of pricing associated with this ticket_type and remove unwanted pricing
-        let ticket_pricing = updated_ticket_type.ticket_pricing(connection)?;
+        let ticket_pricing = updated_ticket_type.ticket_pricing(false, connection)?;
         for current_ticket_pricing in &ticket_pricing {
             let mut found_flag = false;
             for request_ticket_pricing in data_ticket_pricing {
@@ -334,7 +346,7 @@ pub fn update(
                 }
             }
             if !found_flag {
-                current_ticket_pricing.destroy(connection)?;
+                current_ticket_pricing.destroy(Some(user.id()), connection)?;
             }
         }
 
@@ -353,7 +365,11 @@ pub fn update(
                     .iter()
                     .position(|ref r| r.id == current_ticket_pricing_id);
                 match found_index {
-                    Some(index) => ticket_pricing[index].update(update_parameters, connection)?,
+                    Some(index) => ticket_pricing[index].update(
+                        update_parameters,
+                        Some(user.id()),
+                        connection,
+                    )?,
                     None => {
                         return application::internal_server_error(&format!(
                             "Unable to find specified ticket pricing with id {}",
@@ -376,6 +392,7 @@ pub fn update(
                     price_in_cents,
                     current_ticket_pricing.is_box_office_only.unwrap_or(false),
                     None,
+                    Some(user.id()),
                     connection,
                 )?;
             } else {

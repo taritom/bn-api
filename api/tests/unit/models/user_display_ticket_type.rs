@@ -31,6 +31,7 @@ fn from_ticket_type() {
             5000,
             true,
             None,
+            None,
             conn,
         )
         .unwrap();
@@ -250,7 +251,7 @@ fn from_ticket_type() {
             "Free tickets".to_string(),
             None,
             10,
-            times::zero(),
+            Some(times::zero()),
             times::infinity(),
             event.issuer_wallet(conn).unwrap().id,
             None,
@@ -258,12 +259,13 @@ fn from_ticket_type() {
             0,
             SoldOutBehavior::ShowSoldOut,
             false,
+            None,
+            None,
             conn,
         )
         .unwrap();
     let ticket_type = event.ticket_types(true, None, conn).unwrap().remove(0);
 
-    println!("{:?}", ticket_type);
     let display_ticket_type = UserDisplayTicketType::from_ticket_type(
         &ticket_type,
         &FeeSchedule::find(event.organization(conn).unwrap().fee_schedule_id, conn).unwrap(),
@@ -273,6 +275,5 @@ fn from_ticket_type() {
     )
     .unwrap();
 
-    println!("{:?}", display_ticket_type);
     assert_eq!(display_ticket_type.ticket_pricing.unwrap().fee_in_cents, 0);
 }

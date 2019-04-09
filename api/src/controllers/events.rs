@@ -281,7 +281,8 @@ pub fn show(
             }
 
             // If the ticket type is sold out, hide it if necessary
-            if display_ticket_type.status == TicketTypeStatus::SoldOut
+            if (display_ticket_type.status == TicketTypeStatus::SoldOut
+                || display_ticket_type.status == TicketTypeStatus::NoActivePricing)
                 && ticket_type.sold_out_behavior == SoldOutBehavior::Hide
             {
                 continue;
@@ -416,8 +417,8 @@ pub fn show(
         ticket_types: display_ticket_types,
         total_interest,
         user_is_interested: user_interest,
-        min_ticket_price: min_ticket_price,
-        max_ticket_price: max_ticket_price,
+        min_ticket_price,
+        max_ticket_price,
         is_external: event.is_external,
         external_url: event.external_url,
         override_status: event.override_status,

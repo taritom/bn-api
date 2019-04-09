@@ -30,6 +30,7 @@ pub fn update_box_office_pricing(role: Roles, should_test_succeed: bool) {
             5000,
             true,
             None,
+            None,
             connection,
         )
         .unwrap();
@@ -104,6 +105,7 @@ pub fn replace_box_office_pricing(role: Roles, should_test_succeed: bool) {
             NaiveDate::from_ymd(9999, 7, 8).and_hms(7, 8, 10),
             5000,
             true,
+            None,
             None,
             connection,
         )

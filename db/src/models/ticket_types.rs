@@ -1,21 +1,26 @@
 use chrono::NaiveDateTime;
+use dev::times;
 use diesel;
 use diesel::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
 use diesel::sql_types::{Nullable, Text, Uuid as dUuid};
+use itertools::Itertools;
 use models::*;
 use schema::{
     assets, events, fee_schedules, organizations, ticket_instances, ticket_pricing,
     ticket_type_codes, ticket_types,
 };
+use serde_with::rust::double_option;
 use std::cmp::Ordering;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
 use validators;
 
-#[derive(Associations, Clone, Debug, Identifiable, PartialEq, Queryable, QueryableByName)]
+#[derive(
+    Associations, Clone, Debug, Identifiable, PartialEq, Queryable, QueryableByName, Serialize,
+)]
 #[table_name = "ticket_types"]
 #[belongs_to(Event)]
 pub struct TicketType {
@@ -24,7 +29,7 @@ pub struct TicketType {
     pub name: String,
     pub description: Option<String>,
     pub status: TicketTypeStatus,
-    pub start_date: NaiveDateTime,
+    pub start_date: Option<NaiveDateTime>,
     pub end_date: NaiveDateTime,
     pub increment: i32,
     pub limit_per_person: i32,
@@ -34,6 +39,8 @@ pub struct TicketType {
     pub cancelled_at: Option<NaiveDateTime>,
     pub sold_out_behavior: SoldOutBehavior,
     pub is_private: bool,
+    pub parent_id: Option<Uuid>,
+    pub rank: i32,
 }
 
 impl PartialOrd for TicketType {
@@ -42,18 +49,22 @@ impl PartialOrd for TicketType {
     }
 }
 
-#[derive(AsChangeset, Default, Deserialize)]
+#[derive(AsChangeset, Default, Deserialize, Serialize)]
 #[table_name = "ticket_types"]
 pub struct TicketTypeEditableAttributes {
     pub name: Option<String>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub description: Option<Option<String>>,
-    pub start_date: Option<NaiveDateTime>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub start_date: Option<Option<NaiveDateTime>>,
     pub end_date: Option<NaiveDateTime>,
     pub increment: Option<i32>,
     pub limit_per_person: Option<i32>,
     pub price_in_cents: Option<i64>,
     pub sold_out_behavior: Option<SoldOutBehavior>,
     pub is_private: Option<bool>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub parent_id: Option<Option<Uuid>>,
 }
 
 impl TicketType {
@@ -79,7 +90,8 @@ impl TicketType {
     ) -> Result<Vec<TicketType>, DatabaseError> {
         ticket_types::table
             .filter(ticket_types::id.eq_any(ids))
-            .order_by(ticket_types::name)
+            .order_by(ticket_types::rank)
+            .then_order_by(ticket_types::name)
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading ticket types")
     }
@@ -89,13 +101,14 @@ impl TicketType {
         event_id: Uuid,
         name: String,
         description: Option<String>,
-        start_date: NaiveDateTime,
+        start_date: Option<NaiveDateTime>,
         end_date: NaiveDateTime,
         increment: Option<i32>,
         limit_per_person: i32,
         price_in_cents: i64,
         sold_out_behavior: SoldOutBehavior,
         is_private: bool,
+        parent_id: Option<Uuid>,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -109,39 +122,51 @@ impl TicketType {
             price_in_cents,
             sold_out_behavior,
             is_private,
+            parent_id,
         }
     }
 
     pub fn update(
         &self,
         attributes: TicketTypeEditableAttributes,
+        current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
-        self.validate_record(&attributes)?;
+        self.validate_record(&attributes, conn)?;
         let result: TicketType = diesel::update(self)
             .set((&attributes, ticket_types::updated_at.eq(dsl::now)))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket_types")?;
 
+        DomainEvent::create(
+            DomainEventTypes::TicketTypeUpdated,
+            format!("Ticket type '{}' updated", &self.name),
+            Tables::TicketTypes,
+            Some(self.id),
+            current_user_id,
+            Some(json!(attributes)),
+        )
+        .commit(conn)?;
+
         //Delete the old default ticket pricing and create a new default to preserve the purchase history
-        let ticket_pricing = TicketPricing::get_default(self.id, conn);
+        let ticket_pricing = TicketPricing::get_default(self.id, conn).optional()?;
 
         match ticket_pricing {
-            Ok(tp) => {
-                tp.destroy(conn)?;
+            Some(tp) => {
+                tp.destroy(current_user_id, conn)?;
             }
-            Err(e) => {
-                println!("{}", e.message);
-            }
+            None => (),
         }
 
         self.add_ticket_pricing(
             result.name.clone(),
-            result.start_date,
+            // TODO: Replace with nullable
+            result.start_date(conn)?,
             result.end_date,
             result.price_in_cents,
             false,
             Some(TicketPricingStatus::Default),
+            current_user_id,
             conn,
         )?;
 
@@ -161,6 +186,34 @@ impl TicketType {
         Ok(result)
     }
 
+    pub fn parent(&self, conn: &PgConnection) -> Result<Option<TicketType>, DatabaseError> {
+        match self.parent_id {
+            Some(parent_id) => Ok(Some(TicketType::find(parent_id, conn)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Gets the start date if it is present, or the parent's end date
+    pub fn start_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
+        let date = match self.start_date {
+            Some(sd) => Ok(sd),
+            None => self
+                .parent(conn)?
+                .ok_or_else(|| {
+                    DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some(
+                            "Ticket type must have a start date or start after another ticket type"
+                                .to_string(),
+                        ),
+                    )
+                })
+                .map(|tt| tt.end_date),
+        };
+
+        date
+    }
+
     pub fn find_for_code(
         code_id: Uuid,
         conn: &PgConnection,
@@ -171,6 +224,8 @@ impl TicketType {
             )
             .filter(ticket_type_codes::code_id.eq(code_id))
             .select(ticket_types::all_columns)
+            .order_by(ticket_types::rank)
+            .then_order_by(ticket_types::name)
             .get_results(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -188,23 +243,33 @@ impl TicketType {
     pub fn validate_record(
         &self,
         attributes: &TicketTypeEditableAttributes,
+        conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        let validation_errors = validators::append_validation_error(
-            Ok(()),
-            "start_date",
-            validators::start_date_valid(
-                attributes.start_date.unwrap_or(self.start_date),
-                attributes.end_date.unwrap_or(self.end_date),
-            ),
-        );
-
-        Ok(validation_errors?)
+        match attributes.start_date {
+            Some(start_date) => Ok(validators::append_validation_error(
+                Ok(()),
+                "start_date",
+                validators::start_date_valid(
+                    start_date.unwrap_or(self.start_date(conn)?),
+                    attributes.end_date.unwrap_or(self.end_date),
+                ),
+            )?),
+            None => Ok(validators::append_validation_error(
+                Ok(()),
+                "start_date",
+                validators::start_date_valid(
+                    self.start_date(conn)?,
+                    attributes.end_date.unwrap_or(self.end_date),
+                ),
+            )?),
+        }
     }
 
     pub fn validate_ticket_pricing(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut validation_errors: Result<(), ValidationErrors> = Ok(());
 
-        for ticket_pricing in self.ticket_pricing(conn)? {
+        // Default pricing is not included in validation
+        for ticket_pricing in self.ticket_pricing(false, conn)? {
             validation_errors = validators::append_validation_error(
                 validation_errors,
                 "ticket_pricing",
@@ -239,6 +304,91 @@ impl TicketType {
         Ok(validation_errors?)
     }
 
+    pub fn check_for_sold_out_triggers(
+        &self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if self.valid_available_ticket_count(conn)? > 0 {
+            return Ok(());
+        }
+
+        // Find child ticket types
+        for child in self.find_dependent_ticket_types(conn)? {
+            if child.start_date.is_none() {
+                child.start_sales(current_user_id, conn)?;
+            }
+        }
+
+        DomainEvent::create(
+            DomainEventTypes::TicketTypeSoldOut,
+            format!("Ticket type '{}' has sold out", self.name),
+            Tables::TicketTypes,
+            Some(self.id),
+            None,
+            None,
+        )
+        .commit(conn)?;
+
+        Ok(())
+    }
+
+    pub fn start_sales(
+        mut self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let old_start_date = self.start_date;
+        if self.start_date.unwrap_or(times::infinity()) > times::now() {
+            self.start_date = Some(times::now());
+
+            diesel::update(&self)
+                .set((
+                    ticket_types::start_date.eq(self.start_date),
+                    ticket_types::updated_at.eq(dsl::now),
+                ))
+                .execute(conn)
+                .to_db_error(
+                    ErrorCode::UpdateError,
+                    "Could not update start date on ticket type",
+                )?;
+
+            DomainEvent::create(
+                DomainEventTypes::TicketTypeSalesStarted,
+                format!("Ticket sales have started for '{}'", self.name),
+                Tables::TicketTypes,
+                Some(self.id),
+                current_user_id,
+                Some(json!({"old_start_date": old_start_date, "new_start_date": self.start_date })),
+            )
+            .commit(conn)?;
+
+            let pricings = self.ticket_pricing(true, conn)?;
+            let pricing = pricings
+                .into_iter()
+                .sorted_by(|a, b| Ord::cmp(&a.start_date, &b.start_date))
+                .pop();
+            match pricing {
+                Some(price) => price.start_sales(current_user_id, conn)?,
+                None => (),
+            }
+        }
+
+        Ok(())
+    }
+    pub fn find_dependent_ticket_types(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketType>, DatabaseError> {
+        ticket_types::table
+            .filter(ticket_types::parent_id.eq(Some(self.id)))
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load dependent ticket types",
+            )
+    }
+
     pub fn find_by_event_id(
         event_id: Uuid,
         filter_access_tokens: bool,
@@ -263,7 +413,7 @@ impl TicketType {
                             ttc.redemption_code = $2 and ttc.start_date <= now() and ttc.end_date >= now()
                         )
                     )
-                    ORDER BY tt.name
+                    ORDER BY tt.rank, tt.name
                     "#;
 
             diesel::sql_query(query)
@@ -277,6 +427,8 @@ impl TicketType {
         } else {
             ticket_types::table
                 .filter(ticket_types::event_id.eq(event_id))
+                .order_by(ticket_types::rank)
+                .then_order_by(ticket_types::name)
                 .load(conn)
                 .to_db_error(
                     ErrorCode::QueryError,
@@ -359,16 +511,28 @@ impl TicketType {
         TicketPricing::get_current_ticket_pricing(self.id, box_office_pricing, false, conn)
     }
 
-    pub fn ticket_pricing(&self, conn: &PgConnection) -> Result<Vec<TicketPricing>, DatabaseError> {
-        ticket_pricing::table
+    pub fn ticket_pricing(
+        &self,
+        include_default: bool,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketPricing>, DatabaseError> {
+        let mut query = ticket_pricing::table
             .filter(ticket_pricing::ticket_type_id.eq(self.id))
-            .filter(ticket_pricing::status.eq(TicketPricingStatus::Published))
-            .order_by(ticket_pricing::name)
-            .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load ticket pricing for ticket type",
-            )
+            .into_boxed();
+
+        if include_default {
+            query = query.filter(
+                ticket_pricing::status
+                    .eq(TicketPricingStatus::Published)
+                    .or(ticket_pricing::status.eq(TicketPricingStatus::Default)),
+            );
+        } else {
+            query = query.filter(ticket_pricing::status.eq(TicketPricingStatus::Published));
+        }
+        query.order_by(ticket_pricing::name).load(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not load ticket pricing for ticket type",
+        )
     }
 
     pub fn is_event_not_draft(
@@ -418,9 +582,11 @@ impl TicketType {
         price_in_cents: i64,
         is_box_office_only: bool,
         status: Option<TicketPricingStatus>,
+        current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketPricing, DatabaseError> {
-        TicketPricing::create(
+        let desc = format!("Ticket pricing '{}' added", &name);
+        let result = TicketPricing::create(
             self.id,
             name,
             start_date,
@@ -429,7 +595,18 @@ impl TicketType {
             is_box_office_only,
             status,
         )
-        .commit(conn)
+        .commit(current_user_id, conn)?;
+
+        DomainEvent::create(
+            DomainEventTypes::TicketPricingAdded,
+            desc,
+            Tables::TicketTypes,
+            Some(self.id),
+            current_user_id,
+            Some(json!({"ticket_pricing_id": result.id})),
+        )
+        .commit(conn)?;
+        Ok(result)
     }
 }
 
@@ -440,43 +617,98 @@ pub struct NewTicketType {
     name: String,
     description: Option<String>,
     status: TicketTypeStatus,
-    start_date: NaiveDateTime,
+    start_date: Option<NaiveDateTime>,
     end_date: NaiveDateTime,
     increment: Option<i32>,
     limit_per_person: i32,
     price_in_cents: i64,
     sold_out_behavior: SoldOutBehavior,
     is_private: bool,
+    parent_id: Option<Uuid>,
 }
 
 impl NewTicketType {
-    pub fn commit(self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
-        self.validate_record()?;
+    pub fn commit(
+        self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<TicketType, DatabaseError> {
+        self.validate_record(conn)?;
         let result: TicketType = diesel::insert_into(ticket_types::table)
             .values(self)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create ticket type")?;
 
+        let max_rank: Option<i32> = ticket_types::table
+            .filter(ticket_types::event_id.eq(result.event_id))
+            .select(dsl::max(ticket_types::rank))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not find the correct rank for ticket type",
+            )?;
+
+        let result: TicketType = diesel::update(&result)
+            .set(ticket_types::rank.eq(max_rank.unwrap_or(0) + 1))
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not update rank of ticket type",
+            )?;
+
+        DomainEvent::create(
+            DomainEventTypes::TicketTypeCreated,
+            format!("Ticket type '{}' created", &result.name),
+            Tables::TicketTypes,
+            Some(result.id),
+            current_user_id,
+            Some(json!(&result)),
+        )
+        .commit(conn)?;
+
         result.add_ticket_pricing(
             result.name.clone(),
-            result.start_date,
+            result.start_date(conn)?,
             result.end_date,
             result.price_in_cents,
             false,
             Some(TicketPricingStatus::Default),
+            current_user_id,
             conn,
         )?;
 
         Ok(result)
     }
 
-    pub fn validate_record(&self) -> Result<(), DatabaseError> {
+    pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let validation_errors = validators::append_validation_error(
             Ok(()),
             "start_date",
-            validators::start_date_valid(self.start_date, self.end_date),
+            validators::start_date_valid(self.start_date(conn)?, self.end_date),
         );
 
         Ok(validation_errors?)
+    }
+
+    /// Gets the start date if it is present, or the parent's end date
+    pub fn start_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
+        let date = match self.start_date {
+            Some(sd) => Ok(sd),
+            None =>
+                TicketType::find(
+                    self.parent_id.ok_or_else(|| {
+                        DatabaseError::new(
+                            ErrorCode::BusinessProcessError,
+                            Some(
+                                "Could not create ticket type, it must have a start date or start after another ticket type"
+                                    .to_string(),
+                            ),
+                        )
+                    })?,
+                    conn,
+                ).map(|tt| tt.end_date)
+        };
+
+        date
     }
 }
