@@ -998,6 +998,7 @@ fn order_items_in_invalid_state() {
             end_date: Some(one_minute_ago),
             ..Default::default()
         },
+        None,
         connection,
     )
     .unwrap();
@@ -1959,6 +1960,7 @@ fn items_valid_for_purchase() {
             end_date: Some(one_minute_ago),
             ..Default::default()
         },
+        None,
         connection,
     )
     .unwrap();
@@ -3397,6 +3399,7 @@ fn add_external_payment_for_expired_code() {
             end_date: Some(end_date),
             ..Default::default()
         },
+        None,
         conn,
     )
     .unwrap();
@@ -3725,6 +3728,7 @@ fn for_display_with_invalid_items() {
             end_date: Some(one_minute_ago),
             ..Default::default()
         },
+        None,
         connection,
     )
     .unwrap();

@@ -64,6 +64,7 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         discount_as_percentage -> Nullable<Int8>,
+        deleted_at -> Nullable<Timestamp>,
     }
 }
 
@@ -214,7 +215,7 @@ table! {
         phone -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        status -> Text,
+        deleted_at -> Nullable<Timestamp>,
     }
 }
 

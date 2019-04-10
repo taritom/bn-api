@@ -198,6 +198,7 @@ fn confirm_code_valid() {
             end_date: Some(end_date),
             ..Default::default()
         },
+        None,
         connection,
     )
     .unwrap();

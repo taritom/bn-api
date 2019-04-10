@@ -404,7 +404,7 @@ impl TicketType {
                         FROM ticket_type_codes ttc
                         JOIN codes c ON ttc.code_id = c.id
                         JOIN ticket_types tt ON tt.id = ttc.ticket_type_id
-                        WHERE c.code_type = 'Access' AND tt.event_id = $1
+                        WHERE c.code_type = 'Access' AND tt.event_id = $1 AND c.deleted_at IS NULL
                     ) ttc ON ttc.ticket_type_id = tt.id
                     WHERE tt.event_id = $1
                     AND (

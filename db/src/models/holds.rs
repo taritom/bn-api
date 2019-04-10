@@ -27,7 +27,7 @@ pub struct Hold {
     pub phone: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-    pub status: HoldStatus,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 #[derive(AsChangeset, Default, Validate)]
@@ -204,7 +204,7 @@ impl Hold {
     pub fn find_for_event(event_id: Uuid, conn: &PgConnection) -> Result<Vec<Hold>, DatabaseError> {
         holds::table
             .filter(holds::event_id.eq(event_id))
-            .filter(holds::status.ne(HoldStatus::Deleted))
+            .filter(holds::deleted_at.is_null())
             .order_by(holds::name.asc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve holds for event")
@@ -237,6 +237,7 @@ impl Hold {
                         Some(self.id),
                         "holds".into(),
                         redemption_code.clone(),
+                        self.event_id,
                         conn,
                     )?,
                 );
@@ -301,7 +302,7 @@ impl Hold {
 
         diesel::update(holds::table.filter(holds::id.eq(self.id)))
             .set((
-                holds::status.eq(HoldStatus::Deleted),
+                holds::deleted_at.eq(dsl::now),
                 holds::updated_at.eq(dsl::now),
             ))
             .execute(conn)
@@ -459,7 +460,7 @@ impl Hold {
     ) -> Result<Hold, DatabaseError> {
         holds::table
             .filter(holds::redemption_code.eq(redemption_code.to_uppercase()))
-            .filter(holds::status.ne(HoldStatus::Deleted))
+            .filter(holds::deleted_at.is_null())
             .first(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -557,6 +558,7 @@ impl NewHold {
                     None,
                     "holds".into(),
                     redemption_code.clone(),
+                    self.event_id,
                     conn,
                 )?,
             );

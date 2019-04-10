@@ -29,7 +29,7 @@ fn create() {
         end_date,
         None,
     )
-    .commit(db.get_connection())
+    .commit(None, db.get_connection())
     .unwrap();
 }
 
@@ -85,7 +85,7 @@ pub fn create_with_validation_errors() {
         end_date,
         None,
     )
-    .commit(db.get_connection());
+    .commit(None, db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -132,7 +132,7 @@ pub fn create_with_validation_errors() {
     }
 
     // Dupe redemption code
-    let code = db.create_code().finish();
+    let code = db.create_code().with_event(&event).finish();
     let start_date = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
     let end_date = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
     let result = Code::create(
@@ -147,7 +147,7 @@ pub fn create_with_validation_errors() {
         end_date,
         None,
     )
-    .commit(db.get_connection());
+    .commit(None, db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -171,7 +171,7 @@ pub fn create_with_validation_errors() {
     }
 
     // Redemption code used by a hold
-    let hold = db.create_hold().finish();
+    let hold = db.create_hold().with_event(&event).finish();
     let start_date = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
     let end_date = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
     let result = Code::create(
@@ -186,7 +186,7 @@ pub fn create_with_validation_errors() {
         end_date,
         None,
     )
-    .commit(db.get_connection());
+    .commit(None, db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -224,7 +224,7 @@ pub fn create_with_validation_errors() {
         end_date,
         None,
     )
-    .commit(db.get_connection());
+    .commit(None, db.get_connection());
 
     match result {
         Ok(_) => {
@@ -263,7 +263,7 @@ pub fn create_with_validation_errors() {
         end_date,
         None,
     )
-    .commit(db.get_connection());
+    .commit(None, db.get_connection());
 
     assert!(result.is_ok());
 }
@@ -277,14 +277,17 @@ fn update() {
         name: Some("New name".into()),
         ..Default::default()
     };
-    let new_code = code.update(update_patch, db.get_connection()).unwrap();
+    let new_code = code
+        .update(update_patch, None, db.get_connection())
+        .unwrap();
     assert_eq!(new_code.name, "New name".to_string());
 }
 
 #[test]
 pub fn update_with_validation_errors() {
     let db = TestProject::new();
-    let code = db.create_code().finish();
+    let event = db.create_event().with_tickets().finish();
+    let code = db.create_code().with_event(&event).finish();
     let start_date = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(1));
     let end_date = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));
 
@@ -295,7 +298,7 @@ pub fn update_with_validation_errors() {
         discount_in_cents: Some(None),
         ..Default::default()
     };
-    let result = code.update(update_patch, db.get_connection());
+    let result = code.update(update_patch, None, db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -346,12 +349,12 @@ pub fn update_with_validation_errors() {
     }
 
     // Dupe redemption code
-    let code2 = db.create_code().finish();
+    let code2 = db.create_code().with_event(&event).finish();
     let update_patch = UpdateCodeAttributes {
         redemption_code: Some(code2.redemption_code),
         ..Default::default()
     };
-    let result = code.update(update_patch, db.get_connection());
+    let result = code.update(update_patch, None, db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -375,12 +378,12 @@ pub fn update_with_validation_errors() {
     }
 
     // Dupe redemption code used by hold
-    let hold = db.create_hold().finish();
+    let hold = db.create_hold().with_event(&event).finish();
     let update_patch = UpdateCodeAttributes {
         redemption_code: hold.redemption_code,
         ..Default::default()
     };
-    let result = code.update(update_patch, db.get_connection());
+    let result = code.update(update_patch, None, db.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -520,7 +523,7 @@ fn organization() {
 fn destroy() {
     let project = TestProject::new();
     let code = project.create_code().finish();
-    assert!(code.destroy(project.get_connection()).unwrap() > 0);
+    assert!(code.destroy(None, project.get_connection()).unwrap() > 0);
     assert!(Code::find(code.id, project.get_connection()).is_err());
 }
 
@@ -723,4 +726,35 @@ pub fn find_number_of_uses() {
     )
     .unwrap();
     assert_eq!(code_availability.available, 30);
+}
+
+#[test]
+pub fn find_for_event_access_code() {
+    let db = TestProject::new();
+    let conn = db.get_connection();
+    let event = db.create_event().with_ticket_pricing().finish();
+
+    let ticket_type_ids = event.ticket_types(true, None, conn).unwrap();
+
+    let code1 = db
+        .create_code()
+        .with_name("Access 1".into())
+        .with_redemption_code("ACCESS1".into())
+        .with_event(&event)
+        .with_code_type(CodeTypes::Access)
+        .for_ticket_type(&ticket_type_ids[0])
+        .finish();
+
+    assert_eq!(event.ticket_types(true, None, conn).unwrap().len(), 0);
+    assert_eq!(
+        event
+            .ticket_types(true, Some(code1.redemption_code.clone()), conn)
+            .unwrap()
+            .len(),
+        1
+    );
+
+    code1.destroy(None, conn).unwrap();
+
+    assert_eq!(event.ticket_types(true, None, conn).unwrap().len(), 1);
 }

@@ -137,7 +137,7 @@ pub fn create(
         req.end_date.unwrap_or(times::infinity()),
         req.max_tickets_per_user,
     )
-    .commit(conn)?;
+    .commit(Some(user.id()), conn)?;
 
     code.update_ticket_types(req.ticket_type_ids.clone(), conn)?;
     application::created(json!(code.for_display(conn)?))
@@ -161,7 +161,7 @@ pub fn update(
         conn,
     )?;
 
-    let code = code.update(req.clone().into(), conn)?;
+    let code = code.update(req.clone().into(), Some(user.id()), conn)?;
 
     if let Some(ref ticket_type_ids) = req.ticket_type_ids {
         code.update_ticket_types(ticket_type_ids.clone(), conn)?;
@@ -182,6 +182,6 @@ pub fn destroy(
         conn,
     )?;
 
-    code.destroy(&*conn)?;
+    code.destroy(Some(user.id()), &*conn)?;
     Ok(HttpResponse::Ok().json(json!({})))
 }

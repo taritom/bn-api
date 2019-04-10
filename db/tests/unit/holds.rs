@@ -54,7 +54,7 @@ fn create_with_validation_errors() {
     }
 
     // Dupe redemption code
-    let hold = db.create_hold().finish();
+    let hold = db.create_hold().with_event(&event).finish();
     let result = Hold::create_hold(
         "test".to_string(),
         event.id,
@@ -81,7 +81,7 @@ fn create_with_validation_errors() {
     }
 
     // Redemption code used by a code
-    let code = db.create_code().finish();
+    let code = db.create_code().with_event(&event).finish();
     let result = Hold::create_hold(
         "test".to_string(),
         event.id,
@@ -162,8 +162,10 @@ fn update_with_validation_errors() {
     let creator = project.create_user().finish();
 
     let connection = project.get_connection();
+    let event = project.create_event().with_tickets().finish();
     let hold = project
         .create_hold()
+        .with_event(&event)
         .with_hold_type(HoldTypes::Comp)
         .finish();
     assert!(hold.discount_in_cents.is_none());
@@ -188,7 +190,7 @@ fn update_with_validation_errors() {
     }
 
     // Dupe redemption code
-    let hold2 = project.create_hold().finish();
+    let hold2 = project.create_hold().with_event(&event).finish();
     let update_patch = UpdateHoldAttributes {
         redemption_code: Some(hold2.redemption_code),
         ..Default::default()
@@ -209,7 +211,7 @@ fn update_with_validation_errors() {
     }
 
     // Dupe redemption code used by code
-    let code = project.create_code().finish();
+    let code = project.create_code().with_event(&event).finish();
     let update_patch = UpdateHoldAttributes {
         redemption_code: Some(Some(code.redemption_code)),
         ..Default::default()
@@ -358,19 +360,19 @@ fn destroy() {
     let connection = project.get_connection();
     let hold = project.create_hold().finish();
     assert!(hold.clone().destroy(None, connection).is_ok());
-    assert_eq!(
-        Hold::find(hold.id, connection).unwrap().status,
-        HoldStatus::Deleted
-    );
+    assert!(Hold::find(hold.id, connection)
+        .unwrap()
+        .deleted_at
+        .is_some());
 
     // Destroy hold with comps
     let comp = project.create_comp().finish();
     let hold = Hold::find(comp.id, connection).unwrap();
     hold.clone().destroy(None, connection).unwrap();
-    assert_eq!(
-        Hold::find(hold.id, connection).unwrap().status,
-        HoldStatus::Deleted
-    );
+    assert!(Hold::find(hold.id, connection)
+        .unwrap()
+        .deleted_at
+        .is_some());
 }
 
 #[test]

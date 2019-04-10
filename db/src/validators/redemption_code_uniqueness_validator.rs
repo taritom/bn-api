@@ -7,18 +7,20 @@ use uuid::Uuid;
 use validator::*;
 use validators::*;
 
-sql_function!(fn redemption_code_unique_per_event(id: dUuid, table: Text, redemption_code: Text) -> Bool);
+sql_function!(fn redemption_code_unique_per_event(id: dUuid, table: Text, redemption_code: Text, event_id: dUuid) -> Bool);
 
 pub fn redemption_code_unique_per_event_validation(
     id: Option<Uuid>,
     table: String,
     redemption_code: String,
+    event_id: Uuid,
     conn: &PgConnection,
 ) -> Result<Result<(), ValidationError>, DatabaseError> {
     let result = select(redemption_code_unique_per_event(
         id.unwrap_or(Uuid::default()),
         table,
         redemption_code.clone(),
+        event_id,
     ))
     .get_result::<bool>(conn)
     .to_db_error(

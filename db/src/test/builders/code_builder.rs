@@ -122,7 +122,7 @@ impl<'a> CodeBuilder<'a> {
             self.end_date,
             self.max_tickets_per_user,
         )
-        .commit(self.connection)
+        .commit(None, self.connection)
         .unwrap();
 
         for ticket_type_id in self.ticket_type_ids {

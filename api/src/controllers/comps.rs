@@ -30,7 +30,7 @@ pub fn index(
 
     let mut list = Vec::<DisplayHold>::new();
     for hold in comps.data {
-        if hold.status == HoldStatus::Deleted {
+        if hold.deleted_at.is_some() {
             continue;
         }
         let r = hold.into_display(conn)?;

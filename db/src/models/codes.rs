@@ -27,6 +27,7 @@ pub struct Code {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub discount_as_percentage: Option<i64>,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -66,6 +67,8 @@ pub struct DisplayCode {
     pub updated_at: NaiveDateTime,
     #[sql_type = "Array<dUuid>"]
     pub ticket_type_ids: Vec<Uuid>,
+    #[sql_type = "Nullable<Timestamp>"]
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -102,6 +105,7 @@ impl Code {
             Some(e) => codes::table
                 .filter(codes::redemption_code.eq(redemption_code.to_uppercase()))
                 .filter(codes::event_id.eq(e))
+                .filter(codes::deleted_at.is_null())
                 .first(conn)
                 .to_db_error(
                     ErrorCode::QueryError,
@@ -109,6 +113,7 @@ impl Code {
                 )?,
             None => codes::table
                 .filter(codes::redemption_code.eq(redemption_code.to_uppercase()))
+                .filter(codes::deleted_at.is_null())
                 .first(conn)
                 .to_db_error(
                     ErrorCode::QueryError,
@@ -207,6 +212,7 @@ impl Code {
             created_at: self.created_at,
             updated_at: self.updated_at,
             ticket_type_ids,
+            deleted_at: None,
         };
 
         let available =
@@ -300,11 +306,13 @@ impl Code {
                     codes.max_tickets_per_user,
                     codes.created_at,
                     codes.updated_at,
-                    array(select ticket_type_id from ticket_type_codes where ticket_type_codes.code_id = codes.id) as ticket_type_ids
+                    ARRAY(select ticket_type_id FROM ticket_type_codes WHERE ticket_type_codes.code_id = codes.id) as ticket_type_ids,
+                    codes.deleted_at
                 FROM codes
                 WHERE
                     codes.event_id = $1
                     AND ($2 IS NULL OR codes.code_type = $2)
+                    AND codes.deleted_at IS NULL
                 ORDER BY codes.name;"#;
 
         let display_codes: Vec<DisplayCode> = diesel::sql_query(query)
@@ -405,6 +413,7 @@ impl Code {
                     .redemption_code
                     .clone()
                     .unwrap_or(self.redemption_code.clone()),
+                self.event_id,
                 conn,
             )?,
         );
@@ -415,6 +424,7 @@ impl Code {
     pub fn update(
         &self,
         update_attrs: UpdateCodeAttributes,
+        current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Code, DatabaseError> {
         let mut update_attrs = update_attrs;
@@ -428,29 +438,60 @@ impl Code {
 
         self.validate_record(&update_attrs, conn)?;
 
-        diesel::update(
+        let result = diesel::update(
             codes::table
                 .filter(codes::id.eq(self.id))
                 .filter(codes::updated_at.eq(self.updated_at)),
         )
         .set((update_attrs, codes::updated_at.eq(dsl::now)))
         .get_result(conn)
-        .to_db_error(ErrorCode::UpdateError, "Could not update code")
+        .to_db_error(ErrorCode::UpdateError, "Could not update code")?;
+
+        DomainEvent::create(
+            DomainEventTypes::CodeUpdated,
+            format!("Code  {} deleted", self.name),
+            Tables::Codes,
+            Some(self.id),
+            current_user_id,
+            Some(json!(&self)),
+        )
+        .commit(conn)?;
+
+        Ok(result)
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<Code, DatabaseError> {
         codes::table
             .filter(codes::id.eq(id))
+            .filter(codes::deleted_at.is_null())
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve code")
     }
 
-    pub fn destroy(&self, conn: &PgConnection) -> Result<usize, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::DeleteError,
-            "Could not remove code",
-            diesel::delete(self).execute(conn),
+    pub fn destroy(
+        &self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<usize, DatabaseError> {
+        let result = diesel::update(codes::table.filter(codes::id.eq(self.id)))
+            .set((
+                codes::deleted_at.eq(dsl::now),
+                codes::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(ErrorCode::DeleteError, "Could not delete code")?;
+
+        DomainEvent::create(
+            DomainEventTypes::CodeDeleted,
+            format!("Code  {} deleted", self.name),
+            Tables::Codes,
+            Some(self.id),
+            current_user_id,
+            Some(json!(&self)),
         )
+        .commit(conn)?;
+
+        Ok(result)
     }
 }
 
@@ -474,13 +515,29 @@ pub struct NewCode {
 }
 
 impl NewCode {
-    pub fn commit(self, conn: &PgConnection) -> Result<Code, DatabaseError> {
+    pub fn commit(
+        self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Code, DatabaseError> {
         self.validate_record(conn)?;
 
-        diesel::insert_into(codes::table)
-            .values(self)
+        let result: Code = diesel::insert_into(codes::table)
+            .values(&self)
             .get_result(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not create code")
+            .to_db_error(ErrorCode::InsertError, "Could not create code")?;
+
+        DomainEvent::create(
+            DomainEventTypes::CodeCreated,
+            format!("Code  {} created", self.name),
+            Tables::Codes,
+            Some(result.id),
+            current_user_id,
+            Some(json!(&self)),
+        )
+        .commit(conn)?;
+
+        Ok(result)
     }
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -507,6 +564,7 @@ impl NewCode {
                 None,
                 "codes".into(),
                 self.redemption_code.clone(),
+                self.event_id,
                 conn,
             )?,
         );
