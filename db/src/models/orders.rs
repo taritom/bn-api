@@ -57,7 +57,7 @@ pub struct UpdateOrderAttributes {
     pub note: Option<Option<String>>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RefundItem {
     pub order_item_id: Uuid,
     pub ticket_instance_id: Option<Uuid>,
@@ -180,6 +180,7 @@ impl Order {
         conn: &PgConnection,
     ) -> Result<u32, DatabaseError> {
         let mut total_to_be_refunded: u32 = 0;
+
         for refund_item in refund_items {
             let mut order_item = OrderItem::find(refund_item.order_item_id, conn)?;
 
@@ -262,6 +263,7 @@ impl Order {
                 where oi2.order_id = order_items.order_id
                 and oi2.event_id = order_items.event_id
                 and item_type <> 'EventFees'
+                and item_type <> 'Discount'
                 and oi2.refunded_quantity <> oi2.quantity
             )"))
             .select(order_items::all_columns)
