@@ -324,6 +324,12 @@ pub struct BoxOfficeSalesSummaryOperatorEventRow {
 pub struct EventSummarySalesRow {
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
+    #[sql_type = "Nullable<dUuid>"]
+    pub hold_id: Option<Uuid>,
+    #[sql_type = "Nullable<Text>"]
+    pub hold_name: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub promo_redemption_code: Option<String>,
     #[sql_type = "Text"]
     pub ticket_name: String,
     #[sql_type = "Text"]
