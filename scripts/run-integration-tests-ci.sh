@@ -9,7 +9,11 @@
 export SERVER_PID=$!$1
 
 # Run newman tests
-newman run --timeout-request 60000 ./integration-tests/bigneon-tests.postman_collection.json -e ./integration-tests/travis.postman_environment.json
+#newman run --timeout-request 60000 ./integration-tests/bigneon-tests.postman_collection.json -e ./integration-tests/travis.postman_environment.json
+
+cd ./integration-tests/mocha
+npm install && npm test
+
 NEWMAN_EXIT_CODE=$?
 kill -s SIGTERM $SERVER_PID
 
@@ -18,5 +22,7 @@ then
     cat /tmp/api.log
     exit $NEWMAN_EXIT_CODE
 fi
+
+cd ../../
 
 ./target/release/server -b true
