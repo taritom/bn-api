@@ -14,8 +14,6 @@ use validator::*;
 use validators::{self, *};
 
 sql_function!(fn order_items_quantity_in_increments(item_type: Text, quantity: BigInt, ticket_pricing_id: Nullable<dUuid>) -> Bool);
-sql_function!(fn order_items_code_id_max_uses_valid(order_id: dUuid, code_id: dUuid) -> Bool);
-sql_function!(fn order_items_code_id_max_tickets_per_user_valid(order_item_id: dUuid, order_id: dUuid, code_id: dUuid, quantity: BigInt) -> Bool);
 sql_function!(fn order_items_ticket_type_id_valid_for_access_code(ticket_type_id: dUuid, code_id: Nullable<dUuid>) -> Bool);
 
 #[derive(Identifiable, Associations, Queryable, QueryableByName, AsChangeset)]
@@ -311,17 +309,6 @@ impl OrderItem {
         let validation_errors = validators::append_validation_error(
             validation_errors,
             "quantity",
-            OrderItem::code_id_max_tickets_per_user_valid(
-                Some(self.id),
-                self.order_id,
-                self.code_id,
-                self.quantity,
-                conn,
-            )?,
-        );
-        let validation_errors = validators::append_validation_error(
-            validation_errors,
-            "quantity",
             OrderItem::code_id_max_uses_valid(self.order_id, self.code_id, self.quantity, conn)?,
         );
         Ok(validation_errors?)
@@ -363,45 +350,6 @@ impl OrderItem {
             return Ok(Err(validation_error));
         }
         Ok(Ok(()))
-    }
-
-    fn code_id_max_tickets_per_user_valid(
-        id: Option<Uuid>,
-        order_id: Uuid,
-        code_id: Option<Uuid>,
-        quantity: i64,
-        conn: &PgConnection,
-    ) -> Result<Result<(), ValidationError>, DatabaseError> {
-        match code_id {
-            None => return Ok(Ok(())),
-            Some(code_id) => {
-                let result = select(order_items_code_id_max_tickets_per_user_valid(
-                    id.unwrap_or(Uuid::default()),
-                    order_id,
-                    code_id,
-                    quantity,
-                ))
-                .get_result::<bool>(conn)
-                .to_db_error(
-                    if id.is_none() {
-                        ErrorCode::InsertError
-                    } else {
-                        ErrorCode::UpdateError
-                    },
-                    "Could not confirm code_id valid for max tickets per user",
-                )?;
-                if !result {
-                    let mut validation_error = create_validation_error(
-                        "max_tickets_per_user_reached",
-                        "Redemption code maximum tickets limit exceeded",
-                    );
-                    validation_error.add_param(Cow::from("order_item_id"), &id);
-
-                    return Ok(Err(validation_error));
-                }
-                Ok(Ok(()))
-            }
-        }
     }
 
     fn code_id_max_uses_valid(
@@ -616,17 +564,6 @@ impl NewTicketsOrderItem {
                 self.item_type.clone(),
                 self.quantity,
                 Some(self.ticket_pricing_id),
-                conn,
-            )?,
-        );
-        validation_errors = validators::append_validation_error(
-            validation_errors,
-            "quantity",
-            OrderItem::code_id_max_tickets_per_user_valid(
-                None,
-                self.order_id,
-                self.code_id,
-                self.quantity,
                 conn,
             )?,
         );

@@ -1498,27 +1498,14 @@ fn update_quantities_check_limits() {
     let ticket_type = ticket_type
         .update(
             TicketTypeEditableAttributes {
-                limit_per_person: Some(3),
+                limit_per_person: Some(4),
                 ..Default::default()
             },
             None,
             connection,
         )
         .unwrap();
-    assert_eq!(ticket_type.limit_per_person, 3);
-    assert!(cart
-        .update_quantities(
-            user.id,
-            &vec![UpdateOrderItem {
-                ticket_type_id: ticket_type.id,
-                quantity: 3,
-                redemption_code: None,
-            }],
-            false,
-            true,
-            connection,
-        )
-        .is_ok());
+    assert_eq!(ticket_type.limit_per_person, 4);
     assert!(cart
         .update_quantities(
             user.id,
@@ -1531,9 +1518,34 @@ fn update_quantities_check_limits() {
             true,
             connection,
         )
-        .is_err());
+        .is_ok());
+    let result = cart.update_quantities(
+        user.id,
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 5,
+            redemption_code: None,
+        }],
+        false,
+        true,
+        connection,
+    );
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    match &error.error_code {
+        ValidationError { errors } => {
+            assert!(errors.contains_key("quantity"));
+            assert_eq!(errors["quantity"].len(), 1);
+            assert_eq!(errors["quantity"][0].code, "limit_per_person_exceeded");
+            assert_eq!(
+                &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                "You have exceeded the max tickets per customer limit."
+            );
+        }
+        _ => panic!("Expected validation error"),
+    }
 
-    // Hold with no limit
+    // Hold with no limit (under ticket type limit)
     let hold = project
         .create_hold()
         .with_ticket_type_id(ticket_type.id)
@@ -1544,7 +1556,7 @@ fn update_quantities_check_limits() {
             user.id,
             &vec![UpdateOrderItem {
                 ticket_type_id: ticket_type.id,
-                quantity: 10,
+                quantity: 3,
                 redemption_code: hold.redemption_code,
             }],
             false,
@@ -1565,7 +1577,7 @@ fn update_quantities_check_limits() {
             user.id,
             &vec![UpdateOrderItem {
                 ticket_type_id: ticket_type.id,
-                quantity: 10,
+                quantity: 3,
                 redemption_code: hold.redemption_code,
             }],
             false,
@@ -1594,19 +1606,254 @@ fn update_quantities_check_limits() {
             connection,
         )
         .is_ok());
+    let result = cart.update_quantities(
+        user.id,
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 4,
+            redemption_code: hold.redemption_code.clone(),
+        }],
+        false,
+        true,
+        connection,
+    );
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    match &error.error_code {
+        ValidationError { errors } => {
+            assert!(errors.contains_key("quantity"));
+            assert_eq!(errors["quantity"].len(), 1);
+            assert_eq!(errors["quantity"][0].code, "limit_per_person_exceeded");
+            assert_eq!(
+                &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                &format!(
+                    "Max of {} uses for code {} exceeded",
+                    3,
+                    hold.redemption_code.unwrap()
+                )
+            );
+        }
+        _ => panic!("Expected validation error"),
+    }
+
+    // Hold order but ticket type limit reached prior to hold limit
+    let hold = project
+        .create_hold()
+        .with_ticket_type_id(ticket_type.id)
+        .with_max_per_user(3)
+        .finish();
+    assert_eq!(hold.max_per_user, Some(3));
     assert!(cart
         .update_quantities(
             user.id,
             &vec![UpdateOrderItem {
                 ticket_type_id: ticket_type.id,
-                quantity: 4,
+                quantity: 3,
                 redemption_code: hold.redemption_code.clone(),
             }],
             false,
             true,
             connection,
         )
-        .is_err());
+        .is_ok());
+    ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                limit_per_person: Some(2),
+                ..Default::default()
+            },
+            None,
+            connection,
+        )
+        .unwrap();
+    cart.clear_cart(user.id, connection).unwrap();
+    let result = cart.update_quantities(
+        user.id,
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 3,
+            redemption_code: hold.redemption_code.clone(),
+        }],
+        false,
+        true,
+        connection,
+    );
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    match &error.error_code {
+        ValidationError { errors } => {
+            assert!(errors.contains_key("quantity"));
+            assert_eq!(errors["quantity"].len(), 1);
+            assert_eq!(errors["quantity"][0].code, "limit_per_person_exceeded");
+            assert_eq!(
+                &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                "You have exceeded the max tickets per customer limit."
+            );
+        }
+        _ => panic!("Expected validation error"),
+    }
+    ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                limit_per_person: Some(4),
+                ..Default::default()
+            },
+            None,
+            connection,
+        )
+        .unwrap();
+
+    // Code with no limit (under ticket type limit)
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .with_max_tickets_per_user(None)
+        .finish();
+    assert!(code.max_tickets_per_user.is_none());
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 3,
+                redemption_code: Some(code.redemption_code),
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+
+    // Code with limit of 0
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .with_max_tickets_per_user(Some(0))
+        .finish();
+    assert_eq!(code.max_tickets_per_user, Some(0));
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 3,
+                redemption_code: Some(code.redemption_code),
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+
+    // Code with limit above 0
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .with_max_tickets_per_user(Some(3))
+        .finish();
+    assert_eq!(code.max_tickets_per_user, Some(3));
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 3,
+                redemption_code: Some(code.redemption_code.clone()),
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+    let result = cart.update_quantities(
+        user.id,
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 4,
+            redemption_code: Some(code.redemption_code.clone()),
+        }],
+        false,
+        true,
+        connection,
+    );
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    match &error.error_code {
+        ValidationError { errors } => {
+            assert!(errors.contains_key("quantity"));
+            assert_eq!(errors["quantity"].len(), 1);
+            assert_eq!(errors["quantity"][0].code, "limit_per_person_exceeded");
+            assert_eq!(
+                &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                &format!(
+                    "Max of {} uses for code {} exceeded",
+                    3, code.redemption_code
+                )
+            );
+        }
+        _ => panic!("Expected validation error"),
+    }
+
+    // Code order but ticket type limit reached prior to hold limit
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .with_max_tickets_per_user(Some(3))
+        .finish();
+    assert_eq!(code.max_tickets_per_user, Some(3));
+    assert!(cart
+        .update_quantities(
+            user.id,
+            &vec![UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 3,
+                redemption_code: Some(code.redemption_code.clone()),
+            }],
+            false,
+            true,
+            connection,
+        )
+        .is_ok());
+    ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                limit_per_person: Some(2),
+                ..Default::default()
+            },
+            None,
+            connection,
+        )
+        .unwrap();
+    cart.clear_cart(user.id, connection).unwrap();
+    let result = cart.update_quantities(
+        user.id,
+        &vec![UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 3,
+            redemption_code: Some(code.redemption_code.clone()),
+        }],
+        false,
+        true,
+        connection,
+    );
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    match &error.error_code {
+        ValidationError { errors } => {
+            assert!(errors.contains_key("quantity"));
+            assert_eq!(errors["quantity"].len(), 1);
+            assert_eq!(errors["quantity"][0].code, "limit_per_person_exceeded");
+            assert_eq!(
+                &errors["quantity"][0].message.clone().unwrap().into_owned(),
+                "You have exceeded the max tickets per customer limit."
+            );
+        }
+        _ => panic!("Expected validation error"),
+    }
 }
 
 #[test]

@@ -83,6 +83,25 @@ pub struct OrderDetailsLineItem {
     pub refundable: bool,
 }
 
+#[derive(Debug)]
+struct LimitCheck {
+    ticket_type_id: Uuid,
+    hold_id: Option<Uuid>,
+    code_id: Option<Uuid>,
+    limit_per_person: u32,
+    redemption_code: Option<String>,
+}
+
+struct MatchData<'a> {
+    index: Option<usize>,
+    hold_id: Option<Uuid>,
+    hold: Option<Hold>,
+    code_id: Option<Uuid>,
+    code: Option<Code>,
+    redemption_code: Option<String>,
+    update_order_item: &'a UpdateOrderItem,
+}
+
 impl Order {
     pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let validation_errors = append_validation_error(
@@ -646,24 +665,7 @@ impl Order {
 
         let current_items = self.items(conn)?;
 
-        #[derive(Debug)]
-        struct LimitCheck {
-            ticket_type_id: Uuid,
-            hold_id: Option<Uuid>,
-            limit_per_person: u32,
-        }
-
-        struct MatchData<'a> {
-            index: Option<usize>,
-            hold_id: Option<Uuid>,
-            hold: Option<Hold>,
-            code_id: Option<Uuid>,
-            code: Option<Code>,
-            update_order_item: &'a UpdateOrderItem,
-        }
-
         let mut check_ticket_limits: Vec<LimitCheck> = vec![];
-
         let mut mapped = vec![];
         for (index, item) in items.iter().enumerate() {
             mapped.push(match &item.redemption_code {
@@ -676,6 +678,7 @@ impl Order {
                             hold: Some(hold),
                             code_id: None,
                             code: None,
+                            redemption_code: item.redemption_code.clone(),
                             update_order_item: item,
                         }
                     }
@@ -690,6 +693,7 @@ impl Order {
                                 hold: None,
                                 code_id: Some(code_availability.code.id),
                                 code: Some(code_availability.code),
+                                redemption_code: item.redemption_code.clone(),
                                 update_order_item: item,
                             }
                         }
@@ -707,6 +711,7 @@ impl Order {
                     hold: None,
                     code_id: None,
                     code: None,
+                    redemption_code: None,
                     update_order_item: item,
                 },
             });
@@ -759,16 +764,8 @@ impl Order {
                             conn,
                         )?;
                         let ticket_type = TicketType::find(ticket_type_id, conn)?;
-
-                        let limit_per_person = match match_data.hold {
-                            Some(ref hold) => hold.max_per_user.unwrap_or(0) as u32,
-                            None => ticket_type.limit_per_person as u32,
-                        };
-                        check_ticket_limits.push(LimitCheck {
-                            ticket_type_id: ticket_type.id,
-                            hold_id: match_data.hold_id,
-                            limit_per_person,
-                        });
+                        check_ticket_limits
+                            .append(&mut Order::check_ticket_limits(&ticket_type, &match_data));
 
                         // TODO: Move this to an external processer
                         if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
@@ -861,16 +858,7 @@ impl Order {
                 conn,
             )?;
             let ticket_type = TicketType::find(match_data.update_order_item.ticket_type_id, conn)?;
-
-            let limit_per_person = match match_data.hold {
-                Some(ref hold) => hold.max_per_user.unwrap_or(0) as u32,
-                None => ticket_type.limit_per_person as u32,
-            };
-            check_ticket_limits.push(LimitCheck {
-                ticket_type_id: ticket_type.id,
-                hold_id: match_data.hold_id,
-                limit_per_person,
-            });
+            check_ticket_limits.append(&mut Order::check_ticket_limits(&ticket_type, &match_data));
 
             let mut price_in_cents = ticket_pricing.price_in_cents;
             if let Some(h) = match_data.hold.as_ref() {
@@ -915,28 +903,36 @@ impl Order {
             self.remove_expiry(current_user_id, conn)?;
         }
         for limit_check in check_ticket_limits {
-            let ordered_quantity = Order::quantity_for_user_for_ticket_type_by_hold(
+            let ordered_quantity = Order::quantity_for_user_for_ticket_type(
                 self.user_id,
                 limit_check.ticket_type_id,
                 limit_check.hold_id,
+                limit_check.code_id,
                 &conn,
             )?;
 
             if limit_check.limit_per_person > 0
                 && ordered_quantity > limit_check.limit_per_person.into()
             {
-                let mut error = create_validation_error(
-                    "limit_per_person_exceeded",
-                    if limit_check.hold_id.is_some() {
-                        "Exceeded limit per person per hold"
+                let mut error = ValidationError::new("limit_per_person_exceeded");
+                error.message = Some(Cow::from(
+                    if limit_check.hold_id.is_some() || limit_check.code_id.is_some() {
+                        format!(
+                            "Max of {} uses for code {} exceeded",
+                            &limit_check.limit_per_person,
+                            limit_check.redemption_code.unwrap_or("".into())
+                        )
                     } else {
-                        "Exceeded limit per person per event"
+                        "You have exceeded the max tickets per customer limit.".into()
                     },
-                );
+                ));
                 error.add_param(Cow::from("limit_per_person"), &limit_check.limit_per_person);
                 error.add_param(Cow::from("ticket_type_id"), &limit_check.ticket_type_id);
                 if let Some(hold_id) = limit_check.hold_id {
                     error.add_param(Cow::from("hold_id"), &hold_id);
+                }
+                if let Some(code_id) = limit_check.code_id {
+                    error.add_param(Cow::from("code_id"), &code_id);
                 }
                 error.add_param(Cow::from("attempted_quantity"), &ordered_quantity);
                 let mut errors = ValidationErrors::new();
@@ -948,6 +944,35 @@ impl Order {
         self.validate_record(conn)?;
 
         Ok(())
+    }
+
+    fn check_ticket_limits(ticket_type: &TicketType, match_data: &MatchData) -> Vec<LimitCheck> {
+        let mut check_ticket_limits: Vec<LimitCheck> = vec![];
+        check_ticket_limits.push(LimitCheck {
+            ticket_type_id: ticket_type.id,
+            hold_id: None,
+            code_id: None,
+            limit_per_person: ticket_type.limit_per_person as u32,
+            redemption_code: None,
+        });
+        if let Some(ref hold) = match_data.hold {
+            check_ticket_limits.push(LimitCheck {
+                ticket_type_id: ticket_type.id,
+                hold_id: Some(hold.id),
+                code_id: None,
+                limit_per_person: hold.max_per_user.unwrap_or(0) as u32,
+                redemption_code: match_data.redemption_code.clone(),
+            });
+        } else if let Some(ref code) = match_data.code {
+            check_ticket_limits.push(LimitCheck {
+                ticket_type_id: ticket_type.id,
+                hold_id: None,
+                code_id: Some(code.id),
+                limit_per_person: code.max_tickets_per_user.unwrap_or(0) as u32,
+                redemption_code: match_data.redemption_code.clone(),
+            });
+        }
+        check_ticket_limits
     }
 
     pub fn has_items(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
@@ -1050,10 +1075,11 @@ impl Order {
         Ok(())
     }
 
-    fn quantity_for_user_for_ticket_type_by_hold(
+    fn quantity_for_user_for_ticket_type(
         user_id: Uuid,
         ticket_type_id: Uuid,
         hold_id: Option<Uuid>,
+        code_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<i64, DatabaseError> {
         use schema::*;
@@ -1080,13 +1106,12 @@ impl Order {
             )
             .into_boxed();
 
-        match hold_id {
-            Some(hold_id) => {
-                query = query.filter(order_items::hold_id.nullable().eq(hold_id));
-            }
-            None => {
-                query = query.filter(order_items::hold_id.is_null());
-            }
+        if let Some(hold_id) = hold_id {
+            query = query.filter(order_items::hold_id.nullable().eq(hold_id));
+        }
+
+        if let Some(code_id) = code_id {
+            query = query.filter(order_items::code_id.nullable().eq(code_id));
         }
 
         query

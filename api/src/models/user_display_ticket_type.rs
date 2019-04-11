@@ -66,7 +66,13 @@ impl UserDisplayTicketType {
             if let Some(hold) = Hold::find_by_redemption_code(redemption_code, conn).optional()? {
                 if hold.ticket_type_id == ticket_type.id {
                     result.description = Some(format!("Using promo code: {}", redemption_code));
-                    result.limit_per_person = hold.max_per_user.unwrap_or(0) as u32;
+                    let hold_limit_per_person = hold.max_per_user.unwrap_or(0) as u32;
+                    // Limited by the minimum of hold max_per_user and ticket_type limit_per_person with 0 acting as no limit
+                    if result.limit_per_person == 0
+                        || result.limit_per_person > hold_limit_per_person
+                    {
+                        result.limit_per_person = hold_limit_per_person;
+                    }
                     result.available = hold.quantity(conn)?.1;
                     result.redemption_code = Some(redemption_code.clone());
                 }
@@ -85,8 +91,14 @@ impl UserDisplayTicketType {
                         .contains(&ticket_type)
                     {
                         result.description = Some(format!("Using promo code: {}", redemption_code));
-                        result.limit_per_person =
+                        let code_limit_per_person =
                             code_availability.code.max_tickets_per_user.unwrap_or(0) as u32;
+                        // Limited by the minimum of code max_per_user and ticket_type limit_per_person with 0 acting as no limit
+                        if result.limit_per_person == 0
+                            || result.limit_per_person > code_limit_per_person
+                        {
+                            result.limit_per_person = code_limit_per_person;
+                        }
                         result.redemption_code = Some(redemption_code.clone());
                     }
                 }

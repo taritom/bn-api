@@ -282,6 +282,18 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        role -> Array<Text>,
+        event_ids -> Array<Uuid>,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         name -> Text,
@@ -305,18 +317,6 @@ table! {
         cc_fee_percent -> Float4,
         globee_api_key -> Nullable<Text>,
         max_instances_per_ticket_type -> Int8,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-        role -> Array<Text>,
-        event_ids -> Array<Uuid>,
     }
 }
 
@@ -383,21 +383,6 @@ table! {
 }
 
 table! {
-    settlements (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        start_time -> Timestamp,
-        end_time -> Timestamp,
-        status -> Text,
-        comment -> Nullable<Text>,
-        only_finished_events -> Bool,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     settlement_transactions (id) {
         id -> Uuid,
         settlement_id -> Uuid,
@@ -407,6 +392,21 @@ table! {
         transaction_type -> Text,
         value_in_cents -> Int8,
         comment -> Nullable<Text>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    settlements (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        start_time -> Timestamp,
+        end_time -> Timestamp,
+        status -> Text,
+        comment -> Nullable<Text>,
+        only_finished_events -> Bool,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -619,15 +619,15 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     payment_methods,
     payments,
     push_notification_tokens,
     refunded_tickets,
     regions,
-    settlements,
     settlement_transactions,
+    settlements,
     stages,
     ticket_instances,
     ticket_pricing,

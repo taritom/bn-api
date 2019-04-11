@@ -233,7 +233,7 @@ fn update_with_validation_errors() {
         .for_ticket_type(&ticket_type)
         .with_code_type(CodeTypes::Discount)
         .with_max_tickets_per_user(Some(5))
-        .with_max_uses(6)
+        .with_max_uses(100)
         .finish();
 
     // max_tickets_per_user_reached 6 with a limit of 5
@@ -257,10 +257,13 @@ fn update_with_validation_errors() {
             ValidationError { errors } => {
                 assert!(errors.contains_key("quantity"));
                 assert_eq!(errors["quantity"].len(), 1);
-                assert_eq!(errors["quantity"][0].code, "max_tickets_per_user_reached");
+                assert_eq!(errors["quantity"][0].code, "limit_per_person_exceeded");
                 assert_eq!(
                     &errors["quantity"][0].message.clone().unwrap().into_owned(),
-                    "Redemption code maximum tickets limit exceeded"
+                    &format!(
+                        "Max of {} uses for code {} exceeded",
+                        5, code.redemption_code
+                    )
                 );
             }
             _ => panic!("Expected validation error"),

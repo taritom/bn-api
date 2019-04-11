@@ -23,6 +23,17 @@ fn from_ticket_type() {
     let conn = database.connection.get();
 
     let ticket_type = event.ticket_types(true, None, conn).unwrap().remove(0);
+    let ticket_type = ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                limit_per_person: Some(150),
+                ..Default::default()
+            },
+            Some(admin.id),
+            conn,
+        )
+        .unwrap();
+
     let box_office_pricing = ticket_type
         .add_ticket_pricing(
             "Box office".into(),
@@ -68,6 +79,10 @@ fn from_ticket_type() {
             .unwrap();
     assert_eq!(display_ticket_type.available, 100);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
+    assert_eq!(
+        display_ticket_type.limit_per_person,
+        ticket_type.limit_per_person as u32
+    );
     assert_eq!(
         Some(
             DisplayTicketPricing::from_ticket_pricing(
@@ -139,6 +154,7 @@ fn from_ticket_type() {
     // Holds code with discount
     let hold = database
         .create_hold()
+        .with_max_per_user(100)
         .with_hold_type(HoldTypes::Discount)
         .with_quantity(1)
         .with_ticket_type_id(ticket_type.id)
@@ -156,6 +172,7 @@ fn from_ticket_type() {
         conn,
     )
     .unwrap();
+    assert_eq!(display_ticket_type.limit_per_person, 100);
     let display_ticket_pricing = display_ticket_type.ticket_pricing.unwrap();
     assert_eq!(display_ticket_pricing.discount_in_cents, 10);
     assert_eq!(display_ticket_pricing.fee_in_cents, discounted_fee_in_cents);
@@ -187,6 +204,7 @@ fn from_ticket_type() {
         .create_code()
         .with_event(&event)
         .with_code_type(CodeTypes::Discount)
+        .with_max_tickets_per_user(Some(99))
         .for_ticket_type(&ticket_type)
         .with_discount_in_cents(Some(10))
         .finish();
@@ -203,6 +221,7 @@ fn from_ticket_type() {
         conn,
     )
     .unwrap();
+    assert_eq!(display_ticket_type.limit_per_person, 99);
     let display_ticket_pricing = display_ticket_type.ticket_pricing.unwrap();
     assert_eq!(display_ticket_pricing.discount_in_cents, 10);
     assert_eq!(display_ticket_pricing.fee_in_cents, discounted_fee_in_cents);
