@@ -599,7 +599,7 @@ pub fn find_number_of_uses() {
 
     let code_availability = Code::find_by_redemption_code_with_availability(
         code.redemption_code.clone().as_str(),
-        None,
+        Some(event.id),
         conn,
     )
     .unwrap();
@@ -630,7 +630,7 @@ pub fn find_number_of_uses() {
 
     let code_availability = Code::find_by_redemption_code_with_availability(
         code.redemption_code.clone().as_str(),
-        None,
+        Some(event.id),
         conn,
     )
     .unwrap();
@@ -650,7 +650,7 @@ pub fn find_number_of_uses() {
 
     let code_availability = Code::find_by_redemption_code_with_availability(
         code.redemption_code.clone().as_str(),
-        None,
+        Some(event.id),
         conn,
     )
     .unwrap();
@@ -699,7 +699,7 @@ pub fn find_number_of_uses() {
 
     let code_availability = Code::find_by_redemption_code_with_availability(
         code.redemption_code.clone().as_str(),
-        None,
+        Some(event.id),
         conn,
     )
     .unwrap();
@@ -721,7 +721,7 @@ pub fn find_number_of_uses() {
 
     let code_availability = Code::find_by_redemption_code_with_availability(
         code.redemption_code.clone().as_str(),
-        None,
+        Some(event.id),
         conn,
     )
     .unwrap();

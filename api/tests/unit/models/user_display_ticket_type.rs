@@ -62,6 +62,7 @@ fn from_ticket_type() {
                 &box_office_pricing,
                 &fee_schedule,
                 None,
+                None,
                 true,
                 conn
             )
@@ -88,6 +89,7 @@ fn from_ticket_type() {
             DisplayTicketPricing::from_ticket_pricing(
                 &ticket_pricing,
                 &fee_schedule,
+                None,
                 None,
                 false,
                 conn

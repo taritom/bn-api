@@ -456,16 +456,21 @@ impl Hold {
 
     pub fn find_by_redemption_code(
         redemption_code: &str,
+        event_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Hold, DatabaseError> {
-        holds::table
+        let mut query = holds::table
             .filter(holds::redemption_code.eq(redemption_code.to_uppercase()))
             .filter(holds::deleted_at.is_null())
-            .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load hold with that redeem key",
-            )
+            .into_boxed();
+        if let Some(e) = event_id {
+            query = query.filter(holds::event_id.eq(e))
+        }
+
+        query.first(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Could not load hold with that redeem key",
+        )
     }
 
     pub fn find_by_ticket_type(

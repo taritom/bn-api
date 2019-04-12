@@ -92,6 +92,7 @@ struct LimitCheck {
     redemption_code: Option<String>,
 }
 
+#[derive(Debug)]
 struct MatchData<'a> {
     index: Option<usize>,
     hold_id: Option<Uuid>,
@@ -668,8 +669,11 @@ impl Order {
         let mut check_ticket_limits: Vec<LimitCheck> = vec![];
         let mut mapped = vec![];
         for (index, item) in items.iter().enumerate() {
+            let ticket_type = TicketType::find(item.ticket_type_id, conn)?;
             mapped.push(match &item.redemption_code {
-                Some(r) => match Hold::find_by_redemption_code(r, conn).optional()? {
+                Some(r) => match Hold::find_by_redemption_code(r, Some(ticket_type.event_id), conn)
+                    .optional()?
+                {
                     Some(hold) => {
                         hold.confirm_hold_valid()?;
                         MatchData {
@@ -682,8 +686,12 @@ impl Order {
                             update_order_item: item,
                         }
                     }
-                    None => match Code::find_by_redemption_code_with_availability(r, None, conn)
-                        .optional()?
+                    None => match Code::find_by_redemption_code_with_availability(
+                        r,
+                        Some(ticket_type.event_id),
+                        conn,
+                    )
+                    .optional()?
                     {
                         Some(code_availability) => {
                             code_availability.code.confirm_code_valid()?;
@@ -857,6 +865,7 @@ impl Order {
                 false,
                 conn,
             )?;
+
             let ticket_type = TicketType::find(match_data.update_order_item.ticket_type_id, conn)?;
             check_ticket_limits.append(&mut Order::check_ticket_limits(&ticket_type, &match_data));
 
@@ -886,10 +895,10 @@ impl Order {
                 hold_id: match_data.hold_id,
                 code_id: match_data.code_id,
             }
-            .commit(conn)?;
+            .commit(conn);
 
             TicketInstance::reserve_tickets(
-                &order_item,
+                &order_item?,
                 self.expires_at,
                 match_data.update_order_item.ticket_type_id,
                 match_data.hold_id,

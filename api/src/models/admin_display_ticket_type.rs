@@ -37,6 +37,7 @@ impl AdminDisplayTicketType {
                 &ticket_pricing,
                 fee_schedule,
                 None,
+                Some(ticket_type.event_id),
                 false,
                 conn,
             )?);

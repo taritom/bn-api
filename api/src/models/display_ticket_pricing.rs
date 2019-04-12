@@ -21,13 +21,16 @@ impl DisplayTicketPricing {
         ticket_pricing: &TicketPricing,
         fee_schedule: &FeeSchedule,
         redemption_code: Option<String>,
+        event_id: Option<Uuid>,
         box_office_pricing: bool,
         conn: &PgConnection,
     ) -> Result<DisplayTicketPricing, DatabaseError> {
         let mut is_comp = false;
         let mut discount_in_cents = 0;
         if let Some(redemption_code) = redemption_code {
-            if let Some(hold) = Hold::find_by_redemption_code(&redemption_code, conn).optional()? {
+            if let Some(hold) =
+                Hold::find_by_redemption_code(&redemption_code, event_id, conn).optional()?
+            {
                 if hold.ticket_type_id == ticket_pricing.ticket_type_id {
                     if hold.hold_type == HoldTypes::Comp {
                         is_comp = true;
@@ -37,7 +40,7 @@ impl DisplayTicketPricing {
                     }
                 }
             } else if let Some(code_availability) =
-                Code::find_by_redemption_code_with_availability(&redemption_code, None, conn)
+                Code::find_by_redemption_code_with_availability(&redemption_code, event_id, conn)
                     .optional()?
             {
                 let now = Utc::now().naive_utc();
