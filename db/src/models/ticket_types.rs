@@ -338,28 +338,14 @@ impl TicketType {
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        let old_start_date = self.start_date;
         if self.start_date.unwrap_or(times::infinity()) > times::now() {
-            self.start_date = Some(times::now());
-
-            diesel::update(&self)
-                .set((
-                    ticket_types::start_date.eq(self.start_date),
-                    ticket_types::updated_at.eq(dsl::now),
-                ))
-                .execute(conn)
-                .to_db_error(
-                    ErrorCode::UpdateError,
-                    "Could not update start date on ticket type",
-                )?;
-
             DomainEvent::create(
                 DomainEventTypes::TicketTypeSalesStarted,
                 format!("Ticket sales have started for '{}'", self.name),
                 Tables::TicketTypes,
                 Some(self.id),
                 current_user_id,
-                Some(json!({"old_start_date": old_start_date, "new_start_date": self.start_date })),
+                None,
             )
             .commit(conn)?;
 
