@@ -907,7 +907,7 @@ pub fn holds(
     let event = Event::find(path.id, conn)?;
     let organization = &event.organization(conn)?;
     user.requires_scope_for_organization_event(Scopes::HoldRead, &organization, &event, conn)?;
-    let holds = Hold::find_for_event(path.id, conn)?;
+    let holds = Hold::find_for_event(path.id, false, conn)?;
     let mut ticket_type_ids: Vec<Uuid> = holds.iter().map(|h| h.ticket_type_id).collect();
     ticket_type_ids.sort();
     ticket_type_ids.dedup();
@@ -938,12 +938,15 @@ pub fn holds(
         pub price_in_cents: Option<u32>,
         pub available: u32,
         pub quantity: u32,
+        pub children_available: u32,
+        pub children_quantity: u32,
         pub parent_hold_id: Option<Uuid>,
     }
 
     let mut list = Vec::<R>::new();
     for hold in holds {
         let (quantity, available) = hold.quantity(conn)?;
+        let (children_quantity, children_available) = hold.children_quantity(conn)?;
         let (ticket_type, current_ticket_pricing) = ticket_types_map
             .get(&hold.ticket_type_id)
             .ok_or_else(|| ApplicationError::new("Failed to load hold ticket type".to_string()))?;
@@ -963,6 +966,8 @@ pub fn holds(
                 .map(|tp| tp.price_in_cents as u32),
             available,
             quantity,
+            children_available,
+            children_quantity,
             parent_hold_id: hold.parent_hold_id,
         };
 

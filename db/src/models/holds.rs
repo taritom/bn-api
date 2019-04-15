@@ -201,10 +201,21 @@ impl Hold {
         Ok(payload)
     }
 
-    pub fn find_for_event(event_id: Uuid, conn: &PgConnection) -> Result<Vec<Hold>, DatabaseError> {
-        holds::table
+    pub fn find_for_event(
+        event_id: Uuid,
+        include_children: bool,
+        conn: &PgConnection,
+    ) -> Result<Vec<Hold>, DatabaseError> {
+        let mut query = holds::table
             .filter(holds::event_id.eq(event_id))
             .filter(holds::deleted_at.is_null())
+            .into_boxed();
+
+        if !include_children {
+            query = query.filter(holds::parent_hold_id.is_null());
+        }
+
+        query
             .order_by(holds::name.asc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not retrieve holds for event")
@@ -430,7 +441,18 @@ impl Hold {
     }
 
     pub fn quantity(&self, conn: &PgConnection) -> Result<(u32, u32), DatabaseError> {
-        TicketInstance::count_for_hold(self.id, self.ticket_type_id, conn)
+        TicketInstance::count_for_hold(self.id, self.ticket_type_id, false, conn)
+    }
+
+    pub fn children_quantity(&self, conn: &PgConnection) -> Result<(u32, u32), DatabaseError> {
+        let (total_quantity, total_available) =
+            TicketInstance::count_for_hold(self.id, self.ticket_type_id, true, conn)?;
+        let (hold_quantity, hold_available) =
+            TicketInstance::count_for_hold(self.id, self.ticket_type_id, false, conn)?;
+        Ok((
+            total_quantity - hold_quantity,
+            total_available - hold_available,
+        ))
     }
 
     pub fn event(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {

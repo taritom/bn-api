@@ -6,6 +6,91 @@ use time::Duration;
 use uuid::Uuid;
 
 #[test]
+fn quantity_and_children_quantity() {
+    let db = TestProject::new();
+    let connection = db.get_connection();
+    let event = db.create_event().with_ticket_pricing().finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let hold = db
+        .create_hold()
+        .with_name("Hold 1".to_string())
+        .with_event(&event)
+        .with_quantity(10)
+        .finish();
+    let hold2 = db
+        .create_hold()
+        .with_name("Hold 2".to_string())
+        .with_event(&event)
+        .with_quantity(10)
+        .finish();
+    let comp = db
+        .create_comp()
+        .with_name("Comp 1".to_string())
+        .with_hold(&hold)
+        .with_quantity(2)
+        .finish();
+    let comp2 = db
+        .create_comp()
+        .with_name("Comp 2".to_string())
+        .with_hold(&comp)
+        .with_quantity(1)
+        .finish();
+
+    // Purchase 1 of first hold's remaining 9
+    let user = db.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: hold.redemption_code.clone(),
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    let total = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        connection,
+    )
+    .unwrap();
+
+    let (quantity, available) = hold.quantity(connection).unwrap();
+    assert_eq!(quantity, 8);
+    assert_eq!(available, 7);
+    let (quantity, available) = hold.children_quantity(connection).unwrap();
+    assert_eq!(quantity, 2);
+    assert_eq!(available, 2);
+
+    let (quantity, available) = hold2.quantity(connection).unwrap();
+    assert_eq!(quantity, 10);
+    assert_eq!(available, 10);
+    let (quantity, available) = hold2.children_quantity(connection).unwrap();
+    assert_eq!(quantity, 0);
+    assert_eq!(available, 0);
+
+    let (quantity, available) = comp.quantity(connection).unwrap();
+    assert_eq!(quantity, 1);
+    assert_eq!(available, 1);
+    let (quantity, available) = comp.children_quantity(connection).unwrap();
+    assert_eq!(quantity, 1);
+    assert_eq!(available, 1);
+
+    let (quantity, available) = comp2.quantity(connection).unwrap();
+    assert_eq!(quantity, 1);
+    assert_eq!(available, 1);
+    let (quantity, available) = comp2.children_quantity(connection).unwrap();
+    assert_eq!(quantity, 0);
+    assert_eq!(available, 0);
+}
+
+#[test]
 fn create() {
     let db = TestProject::new();
     let event = db.create_event().with_tickets().finish();
@@ -430,10 +515,19 @@ fn find_for_event() {
         .with_name("Hold 2".to_string())
         .with_event(&event)
         .finish();
+    let comp = db
+        .create_comp()
+        .with_name("Comp".to_string())
+        .with_hold(&hold)
+        .finish();
 
-    let holds = Hold::find_for_event(event.id, db.get_connection()).unwrap();
+    // Only parent holds
+    let holds = Hold::find_for_event(event.id, false, db.get_connection()).unwrap();
+    assert_eq!(vec![hold.clone(), hold2.clone()], holds);
 
-    assert_eq!(vec![hold, hold2], holds);
+    // Include children
+    let holds = Hold::find_for_event(event.id, true, db.get_connection()).unwrap();
+    assert_eq!(vec![comp, hold, hold2], holds);
 }
 
 #[test]

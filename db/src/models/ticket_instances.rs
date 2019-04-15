@@ -514,6 +514,7 @@ impl TicketInstance {
     pub fn count_for_hold(
         hold_id: Uuid,
         ticket_type_id: Uuid,
+        include_children: bool,
         conn: &PgConnection,
     ) -> Result<(u32, u32), DatabaseError> {
         #[derive(Queryable)]
@@ -522,10 +523,33 @@ impl TicketInstance {
             available_count: Option<i64>,
         };
 
-        match ticket_instances::table
+        let mut query = ticket_instances::table
             .inner_join(assets::table)
-            .filter(ticket_instances::hold_id.eq(hold_id))
             .filter(assets::ticket_type_id.eq(ticket_type_id))
+            .into_boxed();
+
+        if include_children {
+            query = query.filter(
+                sql("ticket_instances.hold_id in
+                    (WITH RECURSIVE holds_r(id) AS (
+                     SELECT h.id
+                     FROM holds AS h
+                     WHERE h.id = ")
+                .bind::<dUuid, _>(hold_id)
+                .sql(
+                    "UNION ALL
+                     SELECT h.id
+                     FROM holds_r AS p, holds AS h
+                     WHERE h.parent_hold_id = p.id
+                    )
+                    SELECT id FROM holds_r)",
+                ),
+            );
+        } else {
+            query = query.filter(ticket_instances::hold_id.eq(hold_id));
+        }
+
+        let result = query
             .select((
                 sql::<sql_types::Nullable<sql_types::BigInt>>(
                     "COUNT(DISTINCT ticket_instances.id)",
@@ -539,14 +563,15 @@ impl TicketInstance {
                 ErrorCode::QueryError,
                 "Could not retrieve the number of tickets in this hold",
             )
-            .optional()?
-            {
-                Some(r) => Ok((
-                    r.ticket_count.unwrap_or(0) as u32,
-                    r.available_count.unwrap_or(0) as u32,
-                )),
-                None => Ok((0, 0)),
-            }
+            .optional()?;
+
+        match result {
+            Some(r) => Ok((
+                r.ticket_count.unwrap_or(0) as u32,
+                r.available_count.unwrap_or(0) as u32,
+            )),
+            None => Ok((0, 0)),
+        }
     }
 
     pub fn find_for_order_item(

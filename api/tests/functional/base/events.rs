@@ -600,6 +600,16 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         .with_name("Hold 2".to_string())
         .with_event(&event)
         .finish();
+    let comp = database
+        .create_comp()
+        .with_quantity(2)
+        .with_hold(&hold)
+        .finish();
+    let _comp2 = database
+        .create_comp()
+        .with_quantity(1)
+        .with_hold(&comp)
+        .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -618,6 +628,8 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         pub price_in_cents: Option<u32>,
         pub available: u32,
         pub quantity: u32,
+        pub children_available: u32,
+        pub children_quantity: u32,
         pub parent_hold_id: Option<Uuid>,
     }
 
@@ -653,8 +665,10 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
             price_in_cents: ticket_type
                 .ticket_pricing
                 .map(|tp| tp.price_in_cents as u32),
-            available: 10,
-            quantity: 10,
+            available: 8,
+            quantity: 8,
+            children_available: 2,
+            children_quantity: 2,
             parent_hold_id: None,
         },
         R {
@@ -673,6 +687,8 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
                 .map(|tp| tp.price_in_cents as u32),
             available: 10,
             quantity: 10,
+            children_available: 0,
+            children_quantity: 0,
             parent_hold_id: None,
         },
     ];
