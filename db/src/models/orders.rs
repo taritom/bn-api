@@ -27,7 +27,7 @@ use validators::*;
 pub const CART_EXPIRY_TIME_MINUTES: i64 = 15;
 const ORDER_NUMBER_LENGTH: usize = 8;
 
-#[derive(Associations, Debug, Identifiable, PartialEq, Queryable, Serialize)]
+#[derive(Associations, Debug, Deserialize, Identifiable, PartialEq, Queryable, Serialize)]
 #[belongs_to(User)]
 pub struct Order {
     pub id: Uuid,
@@ -351,6 +351,58 @@ impl Order {
             .to_db_error(ErrorCode::QueryError, "Error loading organizations")
     }
 
+    pub fn is_expired(&self) -> bool {
+        self.expires_at.is_some() && self.expires_at < Some(Utc::now().naive_utc())
+    }
+
+    pub fn try_refresh_expired_cart(
+        &mut self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        jlog!(Level::Debug, "Attempting to refresh expired cart");
+        self.lock_version(conn)?;
+        let new_expires_at = Utc::now().naive_utc() + Duration::minutes(CART_EXPIRY_TIME_MINUTES);
+
+        if self.status != OrderStatus::Draft && self.status != OrderStatus::PendingPayment {
+            return DatabaseError::business_process_error(
+                "Can't refresh expired cart unless the order is in draft or pending payment statuses",
+            );
+        } else if !self.is_expired() {
+            return DatabaseError::business_process_error("Cart is not expired");
+        }
+
+        for item in self.items(conn)? {
+            if item.item_type != OrderItemTypes::Tickets {
+                continue;
+            } else if item.ticket_type_id.is_none() {
+                // Sanity check given unwrap below
+                return DatabaseError::business_process_error(
+                    "Ticket type required for order refresh",
+                );
+            }
+
+            // Sanity check: clear unexpired tickets (should affect 0; it inherits expires_at from order)
+            let quantity = item.calculate_quantity(conn)?;
+            TicketInstance::release_tickets(&item, quantity as u32, current_user_id, conn)?;
+
+            // Reserve new tickets for each order item
+            TicketInstance::reserve_tickets(
+                &item,
+                Some(new_expires_at),
+                item.ticket_type_id.unwrap(),
+                item.hold_id,
+                item.quantity as u32,
+                conn,
+            )?;
+        }
+
+        // Update cart expiration
+        self.set_expiry(None, Some(new_expires_at), true, conn)?;
+
+        Ok(())
+    }
+
     pub fn payments(&self, conn: &PgConnection) -> Result<Vec<Payment>, DatabaseError> {
         payments::table
             .filter(payments::order_id.eq(self.id))
@@ -488,6 +540,7 @@ impl Order {
         &mut self,
         current_user_id: Option<Uuid>,
         expires_at: Option<NaiveDateTime>,
+        force: bool,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         let old_expiry = self.expires_at;
@@ -504,7 +557,10 @@ impl Order {
                 orders::id
                     .eq(self.id)
                     .and(orders::version.eq(self.version))
-                    .and(sql("COALESCE(expires_at, '31 Dec 9999') > now()")),
+                    .and(
+                        sql("COALESCE(expires_at, '31 Dec 9999') > now()")
+                            .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(force)),
+                    ),
             ),
         )
         .set((
@@ -641,7 +697,7 @@ impl Order {
             }
             // Use calculated quantity as reserved may have been taken in the meantime no longer pointing to this order item
             let quantity = current_line.calculate_quantity(conn)?;
-            TicketInstance::release_tickets(&current_line, quantity as u32, user_id, conn)?;
+            TicketInstance::release_tickets(&current_line, quantity as u32, Some(user_id), conn)?;
             self.destroy_item(current_line.id, conn)?;
         }
         Ok(())
@@ -748,7 +804,7 @@ impl Order {
                         TicketInstance::release_tickets(
                             &current_line,
                             current_line.quantity as u32 - match_data.update_order_item.quantity,
-                            current_user_id,
+                            Some(current_user_id),
                             conn,
                         )?;
                         current_line.quantity = match_data.update_order_item.quantity as i64;
@@ -837,7 +893,7 @@ impl Order {
                     TicketInstance::release_tickets(
                         &current_line,
                         current_line.quantity as u32,
-                        current_user_id,
+                        Some(current_user_id),
                         conn,
                     )?;
                     self.destroy_item(current_line.id, conn)?;
@@ -850,7 +906,7 @@ impl Order {
 
         // Set cart expiration time if not currently set (empty carts have no expiration)
         if self.expires_at.is_none() {
-            self.set_expiry(Some(current_user_id), None, conn)?;
+            self.set_expiry(Some(current_user_id), None, false, conn)?;
         }
 
         for match_data in mapped {
@@ -1671,7 +1727,7 @@ impl Order {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         self.checkout_url = Some(checkout_url.clone());
-        self.set_expiry(Some(current_user_id), Some(expires), conn)?;
+        self.set_expiry(Some(current_user_id), Some(expires), false, conn)?;
         diesel::update(&*self)
             .set((
                 orders::checkout_url.eq(&self.checkout_url),
@@ -1877,7 +1933,7 @@ impl Order {
         for item in order_items {
             // Use calculated quantity as reserved may have been taken in the meantime
             let quantity = item.calculate_quantity(conn)?;
-            TicketInstance::release_tickets(&item, quantity as u32, user_id, conn)?;
+            TicketInstance::release_tickets(&item, quantity as u32, Some(user_id), conn)?;
             self.destroy_item(item.id, conn)?;
         }
 

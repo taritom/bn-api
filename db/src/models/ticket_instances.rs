@@ -85,7 +85,7 @@ impl TicketInstance {
         }
 
         if new_status == TicketInstanceStatus::Nullified {
-            tickets[0].create_nullified_domain_event(user_id, conn)?;
+            tickets[0].create_nullified_domain_event(Some(user_id), conn)?;
         }
 
         Ok(())
@@ -369,7 +369,7 @@ impl TicketInstance {
     pub fn release_tickets(
         order_item: &OrderItem,
         quantity: u32,
-        user_id: Uuid,
+        user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Vec<TicketInstance>, DatabaseError> {
         let query = include_str!("../queries/release_tickets.sql");
@@ -1048,7 +1048,7 @@ impl TicketInstance {
 
     fn create_nullified_domain_event(
         &self,
-        user_id: Uuid,
+        user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         DomainEvent::create(
@@ -1056,7 +1056,7 @@ impl TicketInstance {
             "Ticket nullified".to_string(),
             Tables::TicketInstances,
             Some(self.id),
-            Some(user_id),
+            user_id,
             None,
         )
         .commit(conn)?;
@@ -1079,7 +1079,7 @@ impl TicketInstance {
             .to_db_error(ErrorCode::QueryError, "Could not nullify tickets")?;
 
         for ticket_instance in &updated_ticket_instances {
-            ticket_instance.create_nullified_domain_event(user_id, conn)?;
+            ticket_instance.create_nullified_domain_event(Some(user_id), conn)?;
         }
         Ok(updated_ticket_instances)
     }

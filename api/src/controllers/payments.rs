@@ -7,6 +7,7 @@ use bigneon_db::prelude::*;
 use errors::*;
 use extractors::OptionalUser;
 use helpers::application;
+use log::Level::Debug;
 use server::AppState;
 use uuid::Uuid;
 
@@ -32,7 +33,7 @@ pub fn callback(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
-    let order = Order::find(path.id, conn)?;
+    let mut order = Order::find(path.id, conn)?;
     let mut payments: Vec<Payment> = order
         .payments(conn)?
         .into_iter()
@@ -50,6 +51,17 @@ pub fn callback(
 
     if query.success {
         if payment.status == PaymentStatus::Requested {
+            // If expired attempt to refresh cart
+            if order.is_expired() {
+                match order.try_refresh_expired_cart(user.id(), conn) {
+                    Ok(_) => {
+                        jlog!(Debug, "Payments: refreshed expired cart", {"payment_id": payment.id, "order_id": order.id})
+                    }
+                    Err(_) => {
+                        jlog!(Debug, "Payments: Attempted to refresh expired cart but failed", {"payment_id": payment.id, "order_id": order.id})
+                    }
+                }
+            }
             payment.mark_pending_ipn(user.id(), conn)?;
         }
         application::redirect(&format!(

@@ -242,6 +242,7 @@ impl Payment {
             order.set_expiry(
                 current_user_id,
                 Some(Utc::now().naive_utc() + Duration::minutes(120)),
+                false,
                 conn,
             )?;
         }

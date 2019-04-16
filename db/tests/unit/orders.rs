@@ -44,6 +44,225 @@ fn main_event_id() {
 }
 
 #[test]
+fn try_refresh_expired_cart() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+
+    // Order must be expired
+    let mut order = Order::find_or_create_cart(&user, connection).unwrap();
+    assert_eq!(
+        order.try_refresh_expired_cart(Some(user.id), connection),
+        DatabaseError::business_process_error("Cart is not expired",)
+    );
+
+    // Order must be in draft or pending payment status
+    order
+        .update_quantities(
+            user.id,
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 99,
+                redemption_code: None,
+            }],
+            false,
+            false,
+            connection,
+        )
+        .unwrap();
+    let ticket_ids: Vec<Uuid> = order
+        .tickets(ticket_type.id, connection)
+        .unwrap()
+        .into_iter()
+        .map(|t| t.id)
+        .collect();
+    diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set((orders::status.eq(OrderStatus::Cancelled),))
+        .execute(connection)
+        .unwrap();
+    let mut order = Order::find(order.id, connection).unwrap();
+    assert_eq!(
+        order.try_refresh_expired_cart(Some(user.id), connection),
+        DatabaseError::business_process_error(
+            "Can't refresh expired cart unless the order is in draft or pending payment statuses",
+        )
+    );
+
+    // Past expiration should succeed to refresh if tickets available
+    let past_expiry = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(5));
+    diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set((
+            orders::expires_at.eq(past_expiry),
+            orders::status.eq(OrderStatus::Draft),
+        ))
+        .execute(connection)
+        .unwrap();
+    diesel::update(ticket_instances::table.filter(ticket_instances::id.eq_any(ticket_ids.clone())))
+        .set(ticket_instances::reserved_until.eq(past_expiry))
+        .execute(connection)
+        .unwrap();
+    let mut order = Order::find(order.id, connection).unwrap();
+    assert_eq!(
+        order.expires_at.map(|e| e.timestamp()),
+        Some(past_expiry.timestamp())
+    );
+    order
+        .try_refresh_expired_cart(Some(user.id), connection)
+        .unwrap();
+
+    let default_expiry =
+        NaiveDateTime::from(Utc::now().naive_utc() + Duration::minutes(CART_EXPIRY_TIME_MINUTES));
+    let order = Order::find(order.id, connection).unwrap();
+    assert!((default_expiry.timestamp() - order.expires_at.unwrap().timestamp()).abs() < 2);
+    for ticket in order.tickets(ticket_type.id, connection).unwrap() {
+        assert!(
+            (default_expiry.timestamp() - ticket.reserved_until.unwrap().timestamp()).abs() < 2
+        );
+    }
+
+    // Purchase 1 of the 100 remaining tickets does not cause an issue for refresh as 99 are available
+    // Invalidate existing items to allow for purchase by other user
+    diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set((orders::expires_at.eq(past_expiry),))
+        .execute(connection)
+        .unwrap();
+    diesel::update(ticket_instances::table.filter(ticket_instances::id.eq_any(ticket_ids.clone())))
+        .set(ticket_instances::reserved_until.eq(past_expiry))
+        .execute(connection)
+        .unwrap();
+    let mut order = Order::find(order.id, connection).unwrap();
+    let mut order2 = Order::find_or_create_cart(&user2, connection).unwrap();
+    order2
+        .update_quantities(
+            user.id,
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 1,
+                redemption_code: None,
+            }],
+            false,
+            false,
+            connection,
+        )
+        .unwrap();
+    let total = order2.calculate_total(connection).unwrap();
+    order2
+        .add_external_payment(
+            Some("Test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user2.id,
+            total,
+            connection,
+        )
+        .unwrap();
+
+    order
+        .try_refresh_expired_cart(Some(user.id), connection)
+        .unwrap();
+    let default_expiry =
+        NaiveDateTime::from(Utc::now().naive_utc() + Duration::minutes(CART_EXPIRY_TIME_MINUTES));
+    let order = Order::find(order.id, connection).unwrap();
+    assert!((default_expiry.timestamp() - order.expires_at.unwrap().timestamp()).abs() < 2);
+    for ticket in order.tickets(ticket_type.id, connection).unwrap() {
+        assert!(
+            (default_expiry.timestamp() - ticket.reserved_until.unwrap().timestamp()).abs() < 2
+        );
+    }
+
+    // Purchase 1 of the 99 remaining tickets leading to failure when original order refreshes
+    // Invalidate existing items to allow for purchase by other user
+    diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set((orders::expires_at.eq(past_expiry),))
+        .execute(connection)
+        .unwrap();
+    diesel::update(ticket_instances::table.filter(ticket_instances::id.eq_any(ticket_ids)))
+        .set(ticket_instances::reserved_until.eq(past_expiry))
+        .execute(connection)
+        .unwrap();
+    let mut order = Order::find(order.id, connection).unwrap();
+    let mut order2 = Order::find_or_create_cart(&user2, connection).unwrap();
+    order2
+        .update_quantities(
+            user.id,
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 1,
+                redemption_code: None,
+            }],
+            false,
+            false,
+            connection,
+        )
+        .unwrap();
+    let total = order2.calculate_total(connection).unwrap();
+    order2
+        .add_external_payment(
+            Some("Test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user2.id,
+            total,
+            connection,
+        )
+        .unwrap();
+
+    // Order fails given lack of available tickets
+    let result = order.try_refresh_expired_cart(Some(user.id), connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("quantity"));
+                assert_eq!(errors["quantity"].len(), 1);
+                assert_eq!(
+                    errors["quantity"][0].code,
+                    "Could not reserve the correct amount of tickets"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+}
+
+#[test]
+fn is_expired() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let order = Order::find_or_create_cart(&user, connection).unwrap();
+
+    // No expiration date set
+    assert_eq!(order.expires_at, None);
+    assert!(!order.is_expired());
+
+    // Past expiration date
+    let past_expiry = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(5));
+    diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set((orders::expires_at.eq(past_expiry),))
+        .execute(connection)
+        .unwrap();
+    let order = Order::find(order.id, connection).unwrap();
+    assert!(order.is_expired());
+
+    // Future expiration date
+    let future_expiry = NaiveDateTime::from(Utc::now().naive_utc() + Duration::minutes(5));
+    diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set((orders::expires_at.eq(future_expiry),))
+        .execute(connection)
+        .unwrap();
+    let order = Order::find(order.id, connection).unwrap();
+    assert!(!order.is_expired());
+}
+
+#[test]
 fn set_user_agent() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -154,7 +373,7 @@ fn set_remove_expiry() {
 
     // set_expiry, with provided expiration date
     let expiration = NaiveDate::from_ymd(2055, 7, 8).and_hms(7, 8, 10);
-    cart.set_expiry(Some(user.id), Some(expiration.clone()), connection)
+    cart.set_expiry(Some(user.id), Some(expiration.clone()), false, connection)
         .unwrap();
     let domain_events = DomainEvent::find(
         Tables::Orders,
@@ -170,7 +389,8 @@ fn set_remove_expiry() {
     );
 
     // set_expiry, Default expiration
-    cart.set_expiry(Some(user.id), None, connection).unwrap();
+    cart.set_expiry(Some(user.id), None, false, connection)
+        .unwrap();
     let domain_events = DomainEvent::find(
         Tables::Orders,
         Some(cart.id),
@@ -194,6 +414,26 @@ fn set_remove_expiry() {
     )
     .unwrap();
     assert_eq!(3, domain_events.len());
+
+    // Set past expiry
+    let past_expiry = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(5));
+    cart.set_expiry(Some(user.id), Some(past_expiry), false, connection)
+        .unwrap();
+    assert_eq!(
+        cart.expires_at.map(|e| e.timestamp()),
+        Some(past_expiry.timestamp())
+    );
+
+    // Cart fails to set expiry due to past date currently set
+    assert!(cart
+        .set_expiry(Some(user.id), None, false, connection)
+        .is_err());
+
+    // Cart succeeds forcing expiry
+    assert!(cart
+        .set_expiry(Some(user.id), None, true, connection)
+        .is_ok());
+    assert!((default_expiry.timestamp() - cart.expires_at.unwrap().timestamp()).abs() < 2);
 }
 
 #[test]

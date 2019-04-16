@@ -100,6 +100,20 @@ impl ProcessPaymentIPNExecutor {
 
         order = Order::find(order_id, connection)?;
 
+        // If expired attempt to refresh cart
+        if order.is_expired()
+            && (order.status == OrderStatus::PendingPayment || order.status == OrderStatus::Draft)
+        {
+            match order.try_refresh_expired_cart(None, connection) {
+                Ok(_) => {
+                    jlog!(Debug, "IPN: refreshed expired cart", {"ipn_id": ipn.id, "order_id": order.id})
+                }
+                Err(_) => {
+                    jlog!(Debug, "IPN: Attempted to refresh expired cart but failed", {"ipn_id": ipn.id, "order_id": order.id})
+                }
+            }
+        }
+
         jlog!(Debug, "Found IPN", {"ipn_id": ipn.id, "order_id": order_id});
 
         let external_reference = format!("globee-{}", ipn.id);

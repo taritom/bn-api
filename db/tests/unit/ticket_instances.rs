@@ -734,7 +734,7 @@ fn release_tickets() {
 
     // Release tickets
     let released_tickets =
-        TicketInstance::release_tickets(&order_item, 4, user.id, connection).unwrap();
+        TicketInstance::release_tickets(&order_item, 4, Some(user.id), connection).unwrap();
 
     assert_eq!(released_tickets.len(), 4);
     assert!(released_tickets
@@ -753,7 +753,7 @@ fn release_tickets() {
         .transaction::<Vec<TicketInstance>, Error, _>(|| {
             // Release requesting too many tickets
             let released_tickets =
-                TicketInstance::release_tickets(&order_item, 7, user.id, connection);
+                TicketInstance::release_tickets(&order_item, 7, Some(user.id), connection);
             assert_eq!(released_tickets.unwrap_err().code, 7200,);
 
             Err(Error::RollbackTransaction)
@@ -792,7 +792,7 @@ fn release_tickets_cancelled_ticket_type() {
     // Cancel ticket type
     ticket_type.cancel(connection).unwrap();
     let released_tickets =
-        TicketInstance::release_tickets(&order_item, 4, user.id, connection).unwrap();
+        TicketInstance::release_tickets(&order_item, 4, Some(user.id), connection).unwrap();
 
     assert_eq!(released_tickets.len(), 4);
     assert!(released_tickets
