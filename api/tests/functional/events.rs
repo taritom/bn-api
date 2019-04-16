@@ -306,6 +306,7 @@ pub fn index_search_with_filter() {
         organization_id: event.organization_id,
         venue_id: event.venue_id,
         created_at: event.created_at,
+        updated_at: event.updated_at,
         event_start: event.event_start,
         door_time: event.door_time,
         status: event.status,
@@ -1560,6 +1561,7 @@ struct EventVenueEntry {
     localized_times: EventLocalizedTimeStrings,
     tracking_keys: TrackingKeys,
     event_type: EventTypes,
+    updated_at: NaiveDateTime,
 }
 
 fn event_venue_entry(
@@ -1579,6 +1581,7 @@ fn event_venue_entry(
         organization_id: event.organization_id,
         venue_id: event.venue_id,
         created_at: event.created_at,
+        updated_at: event.updated_at,
         event_start: event.event_start,
         door_time: event.door_time,
         status: event.status.clone(),

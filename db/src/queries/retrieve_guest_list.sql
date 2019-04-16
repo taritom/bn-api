@@ -18,7 +18,7 @@ SELECT ti.id,
                    OR NOW() > e.redeem_date
                    OR NOW() > e.event_start - INTERVAL '1 day'
                THEN ti.redeem_key
-           ELSE NULL END                                         AS redeem_key,
+           ELSE NULL END                                       AS redeem_key,
        ti.status,
        e.id                                                    AS event_id,
        e.name                                                  AS event_name,
@@ -26,7 +26,8 @@ SELECT ti.id,
        e.event_start                                           AS event_start,
        v.id                                                    AS venue_id,
        v.name                                                  AS venue_name,
-       e.redeem_date                                           AS redeem_date
+       e.redeem_date                                           AS redeem_date,
+       ti.updated_at                                           AS updated_at
 
 FROM ticket_instances ti
          INNER JOIN assets a ON ti.asset_id = a.id
@@ -42,4 +43,5 @@ WHERE t2.event_id = $1
     OR u.last_name ILIKE '%' || $2 || '%'
     OR u.email ILIKE '%' || $2 || '%'
     OR u.phone ILIKE '%' || $2 || '%')
+  AND ($3 IS NULL OR ti.updated_at >= $3)
 ORDER BY u.last_name, ti.id

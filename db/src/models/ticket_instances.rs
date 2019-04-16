@@ -778,6 +778,7 @@ impl TicketInstance {
                 events::event_start,
                 events::venue_id,
                 venues::name.nullable(),
+                ticket_instances::updated_at,
             ))
             .first::<RedeemableTicket>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;

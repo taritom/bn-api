@@ -1,5 +1,6 @@
 target
 .env
+env.json
 .orig
 log/
 node_modules

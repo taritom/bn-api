@@ -37,6 +37,7 @@ pub struct SearchParameters {
     sort: Option<String>,
     dir: Option<SortingDir>,
     past_or_upcoming: Option<String>,
+    updated_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -65,6 +66,7 @@ struct EventVenueEntry {
     localized_times: EventLocalizedTimeStrings,
     tracking_keys: TrackingKeys,
     event_type: EventTypes,
+    updated_at: NaiveDateTime,
 }
 
 impl From<SearchParameters> for Paging {
@@ -799,12 +801,14 @@ pub fn update_artists(
 #[derive(Deserialize, Clone)]
 pub struct GuestListQueryParameters {
     pub query: Option<String>,
+    pub changes_since: Option<NaiveDateTime>,
 }
 
 impl From<GuestListQueryParameters> for Paging {
     fn from(s: GuestListQueryParameters) -> Paging {
         let mut default_tags: HashMap<String, Value> = HashMap::new();
         default_tags.insert("query".to_owned(), json!(s.query.clone()));
+        default_tags.insert("changes_since".to_owned(), json!(s.changes_since.clone()));
 
         Paging {
             page: 0,
@@ -836,7 +840,8 @@ pub fn guest_list(
     )?;
 
     let query_string = query.clone().query.unwrap_or("".to_string());
-    let tickets = event.guest_list(&query_string, conn)?;
+    let changes_since = query.clone().changes_since;
+    let tickets = event.guest_list(&query_string, &changes_since, conn)?;
 
     #[derive(Serialize)]
     struct R {
@@ -1176,6 +1181,7 @@ fn event_venues_from_events(
             organization_id,
             venue_id: event.venue_id,
             created_at: event.created_at,
+            updated_at: event.updated_at,
             event_start: event.event_start,
             door_time: event.door_time,
             status: event.status,
