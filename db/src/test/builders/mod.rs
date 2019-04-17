@@ -14,6 +14,7 @@ pub use self::payment_method_builder::*;
 pub use self::region_builder::*;
 pub use self::settlementtransaction_builder::*;
 pub use self::stage_builder::*;
+pub use self::ticket_type_builder::*;
 pub use self::user_builder::*;
 pub use self::venue_builder::*;
 
@@ -33,5 +34,6 @@ mod payment_method_builder;
 mod region_builder;
 mod settlementtransaction_builder;
 mod stage_builder;
+mod ticket_type_builder;
 mod user_builder;
 mod venue_builder;

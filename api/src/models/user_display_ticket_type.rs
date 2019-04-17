@@ -112,8 +112,47 @@ impl UserDisplayTicketType {
         if ticket_type.status == TicketTypeStatus::Published {
             if result.available == 0 {
                 result.status = TicketTypeStatus::SoldOut;
-            } else if result.ticket_pricing.is_none() {
-                result.status = TicketTypeStatus::NoActivePricing;
+            } else {
+                if result.ticket_pricing.is_none() {
+                    result.status = TicketTypeStatus::NoActivePricing;
+
+                    let pricings = ticket_type.ticket_pricing(true, conn)?;
+
+                    let min_pricing = pricings.iter().min_by_key(|p| p.start_date);
+                    let max_pricing = pricings.iter().max_by_key(|p| p.end_date);
+
+                    if min_pricing
+                        .map(|p| p.start_date)
+                        .unwrap_or(ticket_type.start_date(conn)?)
+                        > dates::now().finish()
+                    {
+                        result.status = TicketTypeStatus::OnSaleSoon;
+                        result.ticket_pricing = Some(DisplayTicketPricing::from_ticket_pricing(
+                            min_pricing.unwrap(),
+                            fee_schedule,
+                            redemption_code.clone(),
+                            Some(ticket_type.event_id),
+                            box_office_pricing,
+                            conn,
+                        )?)
+                    }
+
+                    if max_pricing
+                        .map(|p| p.end_date)
+                        .unwrap_or(ticket_type.end_date)
+                        < dates::now().finish()
+                    {
+                        result.status = TicketTypeStatus::SaleEnded;
+                        result.ticket_pricing = Some(DisplayTicketPricing::from_ticket_pricing(
+                            max_pricing.unwrap(),
+                            fee_schedule,
+                            redemption_code.clone(),
+                            Some(ticket_type.event_id),
+                            box_office_pricing,
+                            conn,
+                        )?)
+                    }
+                }
             }
         }
 

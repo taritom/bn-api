@@ -213,8 +213,7 @@ pub fn create_with_validation_errors() {
         increment: None,
         limit_per_person: 0,
         price_in_cents: 10000,
-        sold_out_behavior: SoldOutBehavior::ShowSoldOut,
-        is_private: false,
+        visibility: TicketTypeVisibility::Always,
         parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
@@ -278,8 +277,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         increment: None,
         limit_per_person: 0,
         price_in_cents: 10000,
-        sold_out_behavior: SoldOutBehavior::ShowSoldOut,
-        is_private: false,
+        visibility: TicketTypeVisibility::Always,
         parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
@@ -352,8 +350,7 @@ pub fn create_with_overlapping_periods() {
         increment: None,
         limit_per_person: 0,
         price_in_cents: 20000,
-        sold_out_behavior: SoldOutBehavior::ShowSoldOut,
-        is_private: false,
+        visibility: TicketTypeVisibility::Always,
         parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
@@ -440,8 +437,7 @@ pub fn create_with_out_of_bounds_ticket_capacity() {
         increment: None,
         limit_per_person: 0,
         price_in_cents: 20000,
-        sold_out_behavior: SoldOutBehavior::ShowSoldOut,
-        is_private: false,
+        visibility: TicketTypeVisibility::Always,
         parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
@@ -505,9 +501,8 @@ pub fn update_with_invalid_id() {
         increment: None,
         limit_per_person: Some(0),
         price_in_cents: Some(20000),
-        sold_out_behavior: None,
-        is_private: Some(false),
         parent_id: None,
+        ..Default::default()
     };
 
     //Send update request
@@ -574,9 +569,8 @@ pub fn update_with_validation_errors() {
         increment: None,
         limit_per_person: Some(0),
         price_in_cents: Some(20000),
-        sold_out_behavior: None,
-        is_private: None,
         parent_id: None,
+        ..Default::default()
     };
 
     //Send update request
@@ -654,9 +648,8 @@ pub fn update_with_validation_errors_on_ticket_pricing() {
         increment: None,
         limit_per_person: Some(0),
         price_in_cents: Some(20000),
-        sold_out_behavior: None,
-        is_private: None,
         parent_id: None,
+        ..Default::default()
     };
 
     //Send update request
@@ -746,9 +739,8 @@ pub fn update_with_overlapping_periods() {
         increment: None,
         limit_per_person: Some(0),
         price_in_cents: Some(20000),
-        sold_out_behavior: None,
-        is_private: None,
         parent_id: None,
+        ..Default::default()
     };
 
     //Send update request

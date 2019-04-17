@@ -18,6 +18,7 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate globee;
 extern crate jsonwebtoken as jwt;
+extern crate serde;
 extern crate uuid;
 extern crate validator;
 

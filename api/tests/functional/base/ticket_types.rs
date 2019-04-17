@@ -55,8 +55,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         increment: None,
         limit_per_person: 0,
         price_in_cents: 20000,
-        sold_out_behavior: SoldOutBehavior::ShowSoldOut,
-        is_private: false,
+        visibility: TicketTypeVisibility::Always,
         parent_id: None,
     };
     let response: HttpResponse = ticket_types::create((
@@ -134,8 +133,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         increment: None,
         limit_per_person: Some(0),
         price_in_cents: Some(15000),
-        sold_out_behavior: Some(SoldOutBehavior::Hide),
-        is_private: Some(false),
+        visibility: Some(TicketTypeVisibility::WhenAvailable),
         parent_id: None,
     };
     let request_json = serde_json::to_string(&request_data).unwrap();
@@ -183,8 +181,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         increment: None,
         limit_per_person: Some(0),
         price_in_cents: Some(updated_ticket_type.price_in_cents),
-        sold_out_behavior: Some(SoldOutBehavior::Hide),
-        is_private: Some(false),
+        visibility: Some(TicketTypeVisibility::WhenAvailable),
         parent_id: None,
     };
     let updated_json = serde_json::to_string(&updated_data).unwrap();

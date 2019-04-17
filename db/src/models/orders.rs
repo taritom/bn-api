@@ -2112,7 +2112,7 @@ pub struct ResultForTicketTypeTotal {
     total_quantity: i32,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct TicketsRemaining {
     pub ticket_type_id: Uuid,
     pub tickets_remaining: i32,

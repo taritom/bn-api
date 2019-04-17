@@ -5,6 +5,7 @@ use bigneon_api::controllers::events::*;
 use bigneon_api::extractors::*;
 use bigneon_api::models::*;
 use bigneon_db::models::*;
+use bigneon_db::utils::dates;
 use chrono::prelude::*;
 use diesel::PgConnection;
 use functional::base;
@@ -13,7 +14,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use support;
 use support::database::TestDatabase;
-use support::test_request::TestRequest;
+use support::test_request::{RequestBuilder, TestRequest};
 use uuid::Uuid;
 
 #[test]
@@ -754,41 +755,198 @@ fn show_with_access_restricted_ticket_type_and_access_code() {
     assert_eq!(body, event_expected_json);
 }
 
+#[test]
+fn show_with_visibility_always_before_sale() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_ticket_type()
+        .visibility(TicketTypeVisibility::Always)
+        .starting(dates::now().add_hours(10).finish())
+        .finish();
+    let conn = database.connection;
+    let _time = dates::now().add_days(-10).finish();
+
+    let request = RequestBuilder::new(&format!("/events/{}", event.id));
+
+    let mut path: Path<PathParameters> = request.path();
+    path.id = event.id;
+
+    let response: HttpResponse = events::show((
+        request.state(),
+        conn.clone(),
+        path,
+        request.query(),
+        auth_user.into_optional(),
+    ))
+    .into();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let result: EventShowResult = support::unwrap_body_to_object(&response).unwrap();
+    println!("{:?}", result);
+    assert_eq!(result.ticket_types[0].status, TicketTypeStatus::OnSaleSoon);
+}
+
+#[test]
+fn show_with_visibility_always_before_sale_pricing() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_ticket_type()
+        .visibility(TicketTypeVisibility::Always)
+        .starting(dates::now().add_hours(-1).finish())
+        .with_pricing()
+        .starting(dates::now().add_hours(1).finish())
+        .finish();
+    let conn = database.connection;
+    let _time = dates::now().add_days(-10).finish();
+
+    let request = RequestBuilder::new(&format!("/events/{}", event.id));
+
+    let mut path: Path<PathParameters> = request.path();
+    path.id = event.id;
+
+    let response: HttpResponse = events::show((
+        request.state(),
+        conn.clone(),
+        path,
+        request.query(),
+        auth_user.into_optional(),
+    ))
+    .into();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let result: EventShowResult = support::unwrap_body_to_object(&response).unwrap();
+    println!("{:?}", result);
+    assert_eq!(result.ticket_types[0].status, TicketTypeStatus::Published);
+}
+
+#[test]
+fn show_with_visibility_always_after_sale() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+
+    let _start = dates::now().add_hours(-1).finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_ticket_type()
+        .visibility(TicketTypeVisibility::Always)
+        .ending(dates::now().add_hours(-1).finish())
+        .finish();
+    let conn = database.connection;
+    let _time = dates::now().add_days(-10).finish();
+
+    println!("{:?}", event.id);
+
+    let request = RequestBuilder::new(&format!("/events/{}", event.id));
+
+    let mut path: Path<PathParameters> = request.path();
+    path.id = event.id;
+
+    let response: HttpResponse = events::show((
+        request.state(),
+        conn.clone(),
+        path,
+        request.query(),
+        auth_user.into_optional(),
+    ))
+    .into();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let result: EventShowResult = support::unwrap_body_to_object(&response).unwrap();
+    assert_eq!(result.ticket_types[0].status, TicketTypeStatus::SaleEnded);
+}
+
+#[test]
+fn show_with_hidden_ticket_type() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_ticket_type()
+        .visibility(TicketTypeVisibility::Hidden)
+        .finish();
+    let conn = database.connection;
+    let _time = dates::now().add_days(-10).finish();
+
+    println!("{:?}", event.id);
+
+    let request = RequestBuilder::new(&format!("/events/{}", event.id));
+
+    let mut path: Path<PathParameters> = request.path();
+    path.id = event.id;
+
+    let response: HttpResponse = events::show((
+        request.state(),
+        conn.clone(),
+        path,
+        request.query(),
+        auth_user.into_optional(),
+    ))
+    .into();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let result: EventShowResult = support::unwrap_body_to_object(&response).unwrap();
+    assert_eq!(result.ticket_types.len(), 0);
+}
+
 #[cfg(test)]
 mod show_box_office_pricing_tests {
     use super::*;
+
     #[test]
     fn show_box_office_pricing_org_member() {
         base::events::show_box_office_pricing(Roles::OrgMember, true);
     }
+
     #[test]
     fn show_box_office_pricing_admin() {
         base::events::show_box_office_pricing(Roles::Admin, true);
     }
+
     #[test]
     fn show_box_office_pricing_user() {
         base::events::show_box_office_pricing(Roles::User, false);
     }
+
     #[test]
     fn show_box_office_pricing_org_owner() {
         base::events::show_box_office_pricing(Roles::OrgOwner, true);
     }
+
     #[test]
     fn show_box_office_pricing_door_person() {
         base::events::show_box_office_pricing(Roles::DoorPerson, false);
     }
+
     #[test]
     fn show_box_office_pricing_promoter() {
         base::events::show_box_office_pricing(Roles::Promoter, false);
     }
+
     #[test]
     fn show_box_office_pricing_promoter_read_only() {
         base::events::show_box_office_pricing(Roles::PromoterReadOnly, false);
     }
+
     #[test]
     fn show_box_office_pricing_org_admin() {
         base::events::show_box_office_pricing(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn show_box_office_pricing_box_office() {
         base::events::show_box_office_pricing(Roles::OrgBoxOffice, true);
@@ -798,38 +956,47 @@ mod show_box_office_pricing_tests {
 #[cfg(test)]
 mod dashboard_tests {
     use super::*;
+
     #[test]
     fn dashboard_org_member() {
         base::events::dashboard(Roles::OrgMember, true);
     }
+
     #[test]
     fn dashboard_admin() {
         base::events::dashboard(Roles::Admin, true);
     }
+
     #[test]
     fn dashboard_user() {
         base::events::dashboard(Roles::User, false);
     }
+
     #[test]
     fn dashboard_org_owner() {
         base::events::dashboard(Roles::OrgOwner, true);
     }
+
     #[test]
     fn dashboard_door_person() {
         base::events::dashboard(Roles::DoorPerson, false);
     }
+
     #[test]
     fn dashboard_promoter() {
         base::events::dashboard(Roles::Promoter, true);
     }
+
     #[test]
     fn dashboard_promoter_read_only() {
         base::events::dashboard(Roles::PromoterReadOnly, true);
     }
+
     #[test]
     fn dashboard_org_admin() {
         base::events::dashboard(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn dashboard_box_office() {
         base::events::dashboard(Roles::OrgBoxOffice, true);
@@ -839,38 +1006,47 @@ mod dashboard_tests {
 #[cfg(test)]
 mod create_tests {
     use super::*;
+
     #[test]
     fn create_org_member() {
         base::events::create(Roles::OrgMember, true);
     }
+
     #[test]
     fn create_admin() {
         base::events::create(Roles::Admin, true);
     }
+
     #[test]
     fn create_user() {
         base::events::create(Roles::User, false);
     }
+
     #[test]
     fn create_org_owner() {
         base::events::create(Roles::OrgOwner, true);
     }
+
     #[test]
     fn create_door_person() {
         base::events::create(Roles::DoorPerson, false);
     }
+
     #[test]
     fn create_promoter() {
         base::events::create(Roles::Promoter, true);
     }
+
     #[test]
     fn create_promoter_read_only() {
         base::events::create(Roles::PromoterReadOnly, false);
     }
+
     #[test]
     fn create_org_admin() {
         base::events::create(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn create_box_office() {
         base::events::create(Roles::OrgBoxOffice, false);
@@ -880,38 +1056,47 @@ mod create_tests {
 #[cfg(test)]
 mod update_tests {
     use super::*;
+
     #[test]
     fn update_org_member() {
         base::events::update(Roles::OrgMember, true);
     }
+
     #[test]
     fn update_admin() {
         base::events::update(Roles::Admin, true);
     }
+
     #[test]
     fn update_user() {
         base::events::update(Roles::User, false);
     }
+
     #[test]
     fn update_org_owner() {
         base::events::update(Roles::OrgOwner, true);
     }
+
     #[test]
     fn update_door_person() {
         base::events::update(Roles::DoorPerson, false);
     }
+
     #[test]
     fn update_promoter() {
         base::events::update(Roles::Promoter, true);
     }
+
     #[test]
     fn update_promoter_read_only() {
         base::events::update(Roles::PromoterReadOnly, false);
     }
+
     #[test]
     fn update_org_admin() {
         base::events::update(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn update_box_office() {
         base::events::update(Roles::OrgBoxOffice, false);
@@ -921,38 +1106,47 @@ mod update_tests {
 #[cfg(test)]
 mod cancel_tests {
     use super::*;
+
     #[test]
     fn cancel_org_member() {
         base::events::cancel(Roles::OrgMember, true);
     }
+
     #[test]
     fn cancel_admin() {
         base::events::cancel(Roles::Admin, true);
     }
+
     #[test]
     fn cancel_user() {
         base::events::cancel(Roles::User, false);
     }
+
     #[test]
     fn cancel_org_owner() {
         base::events::cancel(Roles::OrgOwner, true);
     }
+
     #[test]
     fn cancel_door_person() {
         base::events::cancel(Roles::DoorPerson, false);
     }
+
     #[test]
     fn cancel_promoter() {
         base::events::cancel(Roles::Promoter, false);
     }
+
     #[test]
     fn cancel_promoter_read_only() {
         base::events::cancel(Roles::PromoterReadOnly, false);
     }
+
     #[test]
     fn cancel_org_admin() {
         base::events::cancel(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn cancel_box_office() {
         base::events::cancel(Roles::OrgBoxOffice, false);
@@ -962,38 +1156,47 @@ mod cancel_tests {
 #[cfg(test)]
 mod add_artist_tests {
     use super::*;
+
     #[test]
     fn add_artist_org_member() {
         base::events::add_artist(Roles::OrgMember, true);
     }
+
     #[test]
     fn add_artist_admin() {
         base::events::add_artist(Roles::Admin, true);
     }
+
     #[test]
     fn add_artist_user() {
         base::events::add_artist(Roles::User, false);
     }
+
     #[test]
     fn add_artist_org_owner() {
         base::events::add_artist(Roles::OrgOwner, true);
     }
+
     #[test]
     fn add_artist_door_person() {
         base::events::add_artist(Roles::DoorPerson, false);
     }
+
     #[test]
     fn add_artist_promoter() {
         base::events::add_artist(Roles::Promoter, true)
     }
+
     #[test]
     fn add_artist_promoter_read_only() {
         base::events::add_artist(Roles::PromoterReadOnly, false);
     }
+
     #[test]
     fn add_artist_org_admin() {
         base::events::add_artist(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn add_artist_box_office() {
         base::events::add_artist(Roles::OrgBoxOffice, false);
@@ -1003,38 +1206,47 @@ mod add_artist_tests {
 #[cfg(test)]
 mod list_interested_users_tests {
     use super::*;
+
     #[test]
     fn list_interested_users_org_member() {
         base::events::list_interested_users(Roles::OrgMember, true);
     }
+
     #[test]
     fn list_interested_users_admin() {
         base::events::list_interested_users(Roles::Admin, true);
     }
+
     #[test]
     fn list_interested_users_user() {
         base::events::list_interested_users(Roles::User, true);
     }
+
     #[test]
     fn list_interested_users_org_owner() {
         base::events::list_interested_users(Roles::OrgOwner, true);
     }
+
     #[test]
     fn list_interested_users_door_person() {
         base::events::list_interested_users(Roles::DoorPerson, true);
     }
+
     #[test]
     fn list_interested_users_promoter() {
         base::events::list_interested_users(Roles::Promoter, true);
     }
+
     #[test]
     fn list_interested_users_promoter_read_only() {
         base::events::list_interested_users(Roles::PromoterReadOnly, true);
     }
+
     #[test]
     fn list_interested_users_org_admin() {
         base::events::list_interested_users(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn list_interested_users_box_office() {
         base::events::list_interested_users(Roles::OrgBoxOffice, true);
@@ -1044,38 +1256,47 @@ mod list_interested_users_tests {
 #[cfg(test)]
 mod add_interest_tests {
     use super::*;
+
     #[test]
     fn add_interest_org_member() {
         base::events::add_interest(Roles::OrgMember, true);
     }
+
     #[test]
     fn add_interest_admin() {
         base::events::add_interest(Roles::Admin, true);
     }
+
     #[test]
     fn add_interest_user() {
         base::events::add_interest(Roles::User, true);
     }
+
     #[test]
     fn add_interest_org_owner() {
         base::events::add_interest(Roles::OrgOwner, true);
     }
+
     #[test]
     fn add_interest_door_person() {
         base::events::add_interest(Roles::DoorPerson, true);
     }
+
     #[test]
     fn add_interest_promoter() {
         base::events::add_interest(Roles::Promoter, true);
     }
+
     #[test]
     fn add_interest_promoter_read_only() {
         base::events::add_interest(Roles::PromoterReadOnly, true);
     }
+
     #[test]
     fn add_interest_org_admin() {
         base::events::add_interest(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn add_interest_box_office() {
         base::events::add_interest(Roles::OrgBoxOffice, true);
@@ -1085,38 +1306,47 @@ mod add_interest_tests {
 #[cfg(test)]
 mod remove_interest_tests {
     use super::*;
+
     #[test]
     fn remove_interest_org_member() {
         base::events::remove_interest(Roles::OrgMember, true);
     }
+
     #[test]
     fn remove_interest_admin() {
         base::events::remove_interest(Roles::Admin, true);
     }
+
     #[test]
     fn remove_interest_user() {
         base::events::remove_interest(Roles::User, true);
     }
+
     #[test]
     fn remove_interest_org_owner() {
         base::events::remove_interest(Roles::OrgOwner, true);
     }
+
     #[test]
     fn remove_interest_door_person() {
         base::events::remove_interest(Roles::DoorPerson, true);
     }
+
     #[test]
     fn remove_interest_promoter() {
         base::events::remove_interest(Roles::Promoter, true);
     }
+
     #[test]
     fn remove_interest_promoter_read_only() {
         base::events::remove_interest(Roles::PromoterReadOnly, true);
     }
+
     #[test]
     fn remove_interest_org_admin() {
         base::events::remove_interest(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn remove_interest_box_office() {
         base::events::remove_interest(Roles::OrgBoxOffice, true);
@@ -1126,38 +1356,47 @@ mod remove_interest_tests {
 #[cfg(test)]
 mod update_artists_tests {
     use super::*;
+
     #[test]
     fn update_artists_org_member() {
         base::events::update_artists(Roles::OrgMember, true);
     }
+
     #[test]
     fn update_artists_admin() {
         base::events::update_artists(Roles::Admin, true);
     }
+
     #[test]
     fn update_artists_user() {
         base::events::update_artists(Roles::User, false);
     }
+
     #[test]
     fn update_artists_org_owner() {
         base::events::update_artists(Roles::OrgOwner, true);
     }
+
     #[test]
     fn update_artists_door_person() {
         base::events::update_artists(Roles::DoorPerson, false);
     }
+
     #[test]
     fn update_artists_promoter() {
         base::events::update_artists(Roles::Promoter, true);
     }
+
     #[test]
     fn update_artists_promoter_read_only() {
         base::events::update_artists(Roles::PromoterReadOnly, false);
     }
+
     #[test]
     fn update_artists_org_admin() {
         base::events::update_artists(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn update_artists_box_office() {
         base::events::update_artists(Roles::OrgBoxOffice, false);
@@ -1167,38 +1406,47 @@ mod update_artists_tests {
 #[cfg(test)]
 mod guest_list_tests {
     use super::*;
+
     #[test]
     fn guest_list_org_member() {
         base::events::guest_list(Roles::OrgMember, true);
     }
+
     #[test]
     fn guest_list_admin() {
         base::events::guest_list(Roles::Admin, true);
     }
+
     #[test]
     fn guest_list_user() {
         base::events::guest_list(Roles::User, false);
     }
+
     #[test]
     fn guest_list_org_owner() {
         base::events::guest_list(Roles::OrgOwner, true);
     }
+
     #[test]
     fn guest_list_door_person() {
         base::events::guest_list(Roles::DoorPerson, true);
     }
+
     #[test]
     fn guest_list_promoter() {
         base::events::guest_list(Roles::Promoter, true);
     }
+
     #[test]
     fn guest_list_promoter_read_only() {
         base::events::guest_list(Roles::PromoterReadOnly, true);
     }
+
     #[test]
     fn guest_list_org_admin() {
         base::events::guest_list(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn guest_list_box_office() {
         base::events::guest_list(Roles::OrgBoxOffice, true);
@@ -1208,38 +1456,47 @@ mod guest_list_tests {
 #[cfg(test)]
 mod codes_tests {
     use super::*;
+
     #[test]
     fn codes_org_member() {
         base::events::codes(Roles::OrgMember, true);
     }
+
     #[test]
     fn codes_admin() {
         base::events::codes(Roles::Admin, true);
     }
+
     #[test]
     fn codes_user() {
         base::events::codes(Roles::User, false);
     }
+
     #[test]
     fn codes_org_owner() {
         base::events::codes(Roles::OrgOwner, true);
     }
+
     #[test]
     fn codes_door_person() {
         base::events::codes(Roles::DoorPerson, true);
     }
+
     #[test]
     fn codes_promoter() {
         base::events::codes(Roles::Promoter, true);
     }
+
     #[test]
     fn codes_promoter_read_only() {
         base::events::codes(Roles::PromoterReadOnly, true);
     }
+
     #[test]
     fn codes_org_admin() {
         base::events::codes(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn codes_box_office() {
         base::events::codes(Roles::OrgBoxOffice, true);
@@ -1249,38 +1506,47 @@ mod codes_tests {
 #[cfg(test)]
 mod holds_tests {
     use super::*;
+
     #[test]
     fn holds_org_member() {
         base::events::holds(Roles::OrgMember, true);
     }
+
     #[test]
     fn holds_admin() {
         base::events::holds(Roles::Admin, true);
     }
+
     #[test]
     fn holds_user() {
         base::events::holds(Roles::User, false);
     }
+
     #[test]
     fn holds_org_owner() {
         base::events::holds(Roles::OrgOwner, true);
     }
+
     #[test]
     fn holds_door_person() {
         base::events::holds(Roles::DoorPerson, true);
     }
+
     #[test]
     fn holds_promoter() {
         base::events::holds(Roles::Promoter, true);
     }
+
     #[test]
     fn holds_promoter_read_only() {
         base::events::holds(Roles::PromoterReadOnly, true);
     }
+
     #[test]
     fn holds_org_admin() {
         base::events::holds(Roles::OrgAdmin, true);
     }
+
     #[test]
     fn holds_box_office() {
         base::events::holds(Roles::OrgBoxOffice, true);

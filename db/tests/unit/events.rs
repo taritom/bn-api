@@ -1,5 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
+use bigneon_db::utils::dates;
 use chrono::prelude::*;
 use chrono::Duration;
 use std::collections::HashMap;
@@ -1252,6 +1253,8 @@ fn current_ticket_pricing_range() {
     let connection = project.get_connection();
     let event = project
         .create_event()
+        .with_sales_starting(dates::now().add_hours(-2).finish())
+        .with_sales_ending(dates::now().add_hours(-1).finish())
         .with_tickets()
         .with_ticket_type_count(2)
         .finish();
@@ -1583,8 +1586,7 @@ fn add_ticket_type() {
             None,
             0,
             100,
-            SoldOutBehavior::ShowSoldOut,
-            false,
+            TicketTypeVisibility::Always,
             None,
             None,
             conn,
@@ -1614,8 +1616,7 @@ fn ticket_types() {
             None,
             0,
             100,
-            SoldOutBehavior::ShowSoldOut,
-            false,
+            TicketTypeVisibility::Always,
             None,
             None,
             conn,
@@ -1632,8 +1633,7 @@ fn ticket_types() {
             None,
             0,
             100,
-            SoldOutBehavior::ShowSoldOut,
-            false,
+            TicketTypeVisibility::Always,
             None,
             None,
             conn,
@@ -1690,9 +1690,9 @@ fn get_all_localized_times() {
     );
     assert_eq!(
         localized_times.event_end.unwrap().to_rfc2822(),
-        "Wed,  2 Jan 2019 14:00:00 +0200"
+        "Thu,  3 Jan 2019 14:00:00 +0200"
     );
-    assert_ne!(
+    assert_eq!(
         localized_times.door_time.unwrap().to_rfc2822(),
         "Tue,  1 Jan 2019 13:00:00 +0200"
     );

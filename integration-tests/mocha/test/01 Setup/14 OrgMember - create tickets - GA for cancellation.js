@@ -40,9 +40,8 @@ let requestBody = `{
 	"start_date":"1982-02-01T02:22:00",
 	"end_date": "9999-01-10T02:22:00",
 	"price_in_cents": 2500,
-	"sold_out_behavior": "ShowSoldOut",
+	"visibility": "Always",
 	"limit_per_person": 50,
-	"is_private": false,
 	"ticket_pricing":[{
 		"name": "Standard",
 		"price_in_cents": 3000,

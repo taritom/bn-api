@@ -378,9 +378,9 @@ impl Event {
                 limit 1
             )
             where tt.event_id = ANY($1)
-            and tt.is_private = false
+            and tt.visibility != 'Hidden'
             and tt.status = 'Published'
-            and (tt.sold_out_behavior != 'Hide'
+            and (tt.visibility != 'WhenAvailable'
                 or exists (
                     select 8
                     from ticket_instances ti
@@ -1267,8 +1267,7 @@ impl Event {
         increment: Option<i32>,
         limit_per_person: i32,
         price_in_cents: i64,
-        sold_out_behavior: SoldOutBehavior,
-        is_private: bool,
+        visibility: TicketTypeVisibility,
         parent_id: Option<Uuid>,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
@@ -1283,8 +1282,7 @@ impl Event {
             increment,
             limit_per_person,
             price_in_cents,
-            sold_out_behavior,
-            is_private,
+            visibility,
             parent_id,
         )
         .commit(current_user_id, conn)?;

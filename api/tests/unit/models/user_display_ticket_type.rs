@@ -252,17 +252,29 @@ fn from_ticket_type() {
     assert_eq!(display_ticket_pricing.discount_in_cents, 0);
     assert_eq!(display_ticket_pricing.fee_in_cents, fee_in_cents);
 
-    // No active ticket pricing
-    let event = database.create_event().with_tickets().finish();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_sales_starting(dates::now().add_hours(1).finish())
+        .finish();
     let ticket_type = event.ticket_types(true, None, conn).unwrap().remove(0);
     let display_ticket_type =
         UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn)
             .unwrap();
     assert_eq!(display_ticket_type.available, 100);
-    assert_eq!(
-        display_ticket_type.status,
-        TicketTypeStatus::NoActivePricing
-    );
+    assert_eq!(display_ticket_type.status, TicketTypeStatus::OnSaleSoon);
+
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_sales_ending(dates::now().add_hours(-1).finish())
+        .finish();
+    let ticket_type = event.ticket_types(true, None, conn).unwrap().remove(0);
+    let display_ticket_type =
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn)
+            .unwrap();
+    assert_eq!(display_ticket_type.available, 100);
+    assert_eq!(display_ticket_type.status, TicketTypeStatus::SaleEnded);
 
     // Below min fee = 0
 
@@ -278,8 +290,7 @@ fn from_ticket_type() {
             None,
             10,
             0,
-            SoldOutBehavior::ShowSoldOut,
-            false,
+            TicketTypeVisibility::Always,
             None,
             None,
             conn,

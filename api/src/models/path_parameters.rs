@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, PartialEq)]
 pub struct PathParameters {
     pub id: Uuid,
 }

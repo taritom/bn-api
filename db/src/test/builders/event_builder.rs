@@ -1,11 +1,12 @@
 use chrono::prelude::*;
-use chrono::NaiveDate;
-use chrono::NaiveDateTime;
 use diesel::prelude::*;
+use models::TicketTypeVisibility;
 use prelude::*;
 use rand::prelude::*;
+use std::cmp;
 use test::builders::*;
-use time::Duration;
+use test::times;
+use utils::dates::IntoDateBuilder;
 use uuid::Uuid;
 
 pub struct EventBuilder<'a> {
@@ -15,13 +16,15 @@ pub struct EventBuilder<'a> {
     venue_id: Option<Uuid>,
     event_start: Option<NaiveDateTime>,
     event_end: Option<NaiveDateTime>,
-    connection: &'a PgConnection,
+    pub connection: &'a PgConnection,
     with_tickets: bool,
     with_ticket_pricing: bool,
     ticket_quantity: u32,
     ticket_type_count: i64,
     is_external: bool,
     publish_date: Option<NaiveDateTime>,
+    sales_start: Option<NaiveDateTime>,
+    sales_end: Option<NaiveDateTime>,
     private_access_code: Option<String>,
 }
 
@@ -43,6 +46,8 @@ impl<'a> EventBuilder<'a> {
             is_external: false,
             publish_date: Some(NaiveDate::from_ymd(2018, 7, 8).and_hms(9, 10, 11)),
             private_access_code: None,
+            sales_start: None,
+            sales_end: None,
         }
     }
 
@@ -116,24 +121,41 @@ impl<'a> EventBuilder<'a> {
         self
     }
 
+    pub fn with_sales_starting(mut self, time: NaiveDateTime) -> Self {
+        self.sales_start = Some(time);
+        self
+    }
+
+    pub fn with_sales_ending(mut self, time: NaiveDateTime) -> Self {
+        self.sales_end = Some(time);
+        self
+    }
+
+    pub fn with_ticket_type(self) -> TicketTypeBuilder<'a> {
+        TicketTypeBuilder::new(self)
+    }
+
     pub fn finish(&mut self) -> Event {
         let organization_id = self
             .organization_id
             .or_else(|| Some(OrganizationBuilder::new(self.connection).finish().id))
             .unwrap();
+        let event_start = self
+            .event_start
+            .unwrap_or(dates::now().add_days(2).finish());
+        let event_end = self
+            .event_end
+            .unwrap_or(event_start.into_builder().add_days(2).finish());
 
         let event = Event::create(
             &self.name,
             self.status,
             organization_id,
             self.venue_id,
-            Some(
-                self.event_start
-                    .unwrap_or(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
-            ),
-            Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(7, 8, 10)),
+            Some(event_start),
+            Some(event_start.into_builder().add_hours(-1).finish()),
             self.publish_date,
-            self.event_end,
+            Some(event_end),
         )
         .commit(None, self.connection)
         .unwrap();
@@ -153,13 +175,35 @@ impl<'a> EventBuilder<'a> {
         let event = event.update(None, attributes, self.connection).unwrap();
 
         if self.with_tickets {
-            let early_bird_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2));
-            let early_bird_end = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
-            let standard_start = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
-            let standard_end = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
+            let early_bird_start = cmp::max(
+                self.sales_start.unwrap_or(times::zero()),
+                dates::now().add_days(-2).finish(),
+            );
+            let early_bird_end = cmp::min(
+                self.sales_end.unwrap_or(times::infinity()),
+                dates::now().add_days(-1).finish(),
+            );
+            let standard_start = cmp::max(
+                self.sales_start.unwrap_or(times::zero()),
+                dates::now().add_days(-1).finish(),
+            );
+            let standard_end = cmp::min(
+                self.sales_end.unwrap_or(times::infinity()),
+                dates::now().add_days(2).finish(),
+            );
 
-            let event_start = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2));
-            let event_end = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(4));
+            // TODO: The times should actually be linked to the event start date,
+            // but there are many tests that need to be updated to allow this
+            let sales_start = event_start.into_builder().add_days(-4).finish();
+            //            // No active pricing gap
+            //            let early_bird_start = event_start.into_builder().add_days(-4).finish();
+            //            let early_bird_end = event_start.into_builder().add_days(-3).finish();
+            //            let standard_start = event_start.into_builder().add_days(-3).finish();
+            //            let standard_end = event_start.into_builder().add_hours(-3).finish();
+            //            // No active pricing gap
+            let sales_end = event_start.into_builder().add_hours(-2).finish();
+
+            // No sales an hour before the event
 
             let wallet_id = event.issuer_wallet(self.connection).unwrap().id;
 
@@ -169,14 +213,13 @@ impl<'a> EventBuilder<'a> {
                         format!("Ticket Type {}", x),
                         None,
                         self.ticket_quantity,
-                        Some(event_start),
-                        event_end,
+                        Some(self.sales_start.unwrap_or(sales_start)),
+                        self.sales_end.unwrap_or(sales_end),
                         wallet_id,
                         None,
                         0,
                         100,
-                        SoldOutBehavior::ShowSoldOut,
-                        false,
+                        TicketTypeVisibility::Always,
                         None,
                         None,
                         self.connection,

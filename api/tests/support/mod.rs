@@ -4,6 +4,7 @@ pub mod test_request;
 use actix_web::{http::StatusCode, Body::Binary, HttpResponse};
 use bigneon_api::auth::user::User as AuthUser;
 use bigneon_db::models::{Organization, Roles, User};
+use serde::Deserialize;
 use serde_json;
 use std::collections::HashMap;
 use std::str;
@@ -23,6 +24,13 @@ pub fn unwrap_body_to_string(response: &HttpResponse) -> Result<&str, &'static s
         Binary(binary) => Ok(str::from_utf8(binary.as_ref()).unwrap()),
         _ => Err("Unexpected response body"),
     }
+}
+
+pub fn unwrap_body_to_object<'a, T>(response: &'a HttpResponse) -> Result<T, &'static str>
+where
+    T: Deserialize<'a>,
+{
+    Ok(serde_json::from_str(unwrap_body_to_string(response)?).unwrap())
 }
 
 pub fn validation_response_from_response(

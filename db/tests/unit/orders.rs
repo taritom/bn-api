@@ -2200,8 +2200,7 @@ fn add_tickets_below_min_fee() {
             Some(1),
             10,
             0,
-            SoldOutBehavior::ShowSoldOut,
-            false,
+            TicketTypeVisibility::Always,
             None,
             None,
             connection,
@@ -2285,6 +2284,7 @@ fn purchase_metadata() {
         .with_name("EventName".into())
         .with_organization(&organization)
         .with_tickets()
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(12, 0, 0))
         .with_ticket_pricing()
         .finish();
     let ticket_type = event

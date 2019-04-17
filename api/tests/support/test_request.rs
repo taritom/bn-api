@@ -1,8 +1,9 @@
-use actix_web::{test, FromRequest, HttpRequest, State};
+use actix_web::{test, FromRequest, HttpRequest, Path, Query, State};
 use bigneon_api::config::{Config, Environment};
 use bigneon_api::db::Database;
 use bigneon_api::server::AppState;
 use bigneon_api::utils::spotify;
+use serde::de::DeserializeOwned;
 
 pub struct TestRequest {
     pub request: HttpRequest<AppState>,
@@ -52,5 +53,34 @@ impl TestRequest {
 
     pub fn extract_state(&self) -> State<AppState> {
         State::<AppState>::extract(&self.request)
+    }
+}
+
+pub struct RequestBuilder {
+    request: TestRequest,
+}
+
+impl RequestBuilder {
+    pub fn new(uri: &str) -> Self {
+        let request = TestRequest::create_with_uri(&uri);
+        RequestBuilder { request }
+    }
+
+    pub fn state(&self) -> State<AppState> {
+        self.request.extract_state()
+    }
+
+    pub fn path<P>(&self) -> Path<P>
+    where
+        P: DeserializeOwned,
+    {
+        Path::<P>::extract(&self.request.request).unwrap()
+    }
+
+    pub fn query<Q>(&self) -> Query<Q>
+    where
+        Q: DeserializeOwned,
+    {
+        Query::<Q>::extract(&self.request.request).unwrap()
     }
 }

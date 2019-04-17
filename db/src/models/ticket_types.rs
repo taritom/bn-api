@@ -37,10 +37,9 @@ pub struct TicketType {
     updated_at: NaiveDateTime,
     pub price_in_cents: i64,
     pub cancelled_at: Option<NaiveDateTime>,
-    pub sold_out_behavior: SoldOutBehavior,
-    pub is_private: bool,
     pub parent_id: Option<Uuid>,
     pub rank: i32,
+    pub visibility: TicketTypeVisibility,
 }
 
 impl PartialOrd for TicketType {
@@ -61,8 +60,7 @@ pub struct TicketTypeEditableAttributes {
     pub increment: Option<i32>,
     pub limit_per_person: Option<i32>,
     pub price_in_cents: Option<i64>,
-    pub sold_out_behavior: Option<SoldOutBehavior>,
-    pub is_private: Option<bool>,
+    pub visibility: Option<TicketTypeVisibility>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub parent_id: Option<Option<Uuid>>,
 }
@@ -106,8 +104,7 @@ impl TicketType {
         increment: Option<i32>,
         limit_per_person: i32,
         price_in_cents: i64,
-        sold_out_behavior: SoldOutBehavior,
-        is_private: bool,
+        visibility: TicketTypeVisibility,
         parent_id: Option<Uuid>,
     ) -> NewTicketType {
         NewTicketType {
@@ -120,8 +117,7 @@ impl TicketType {
             increment,
             limit_per_person,
             price_in_cents,
-            sold_out_behavior,
-            is_private,
+            visibility,
             parent_id,
         }
     }
@@ -334,7 +330,7 @@ impl TicketType {
     }
 
     pub fn start_sales(
-        mut self,
+        self,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
@@ -608,8 +604,7 @@ pub struct NewTicketType {
     increment: Option<i32>,
     limit_per_person: i32,
     price_in_cents: i64,
-    sold_out_behavior: SoldOutBehavior,
-    is_private: bool,
+    visibility: TicketTypeVisibility,
     parent_id: Option<Uuid>,
 }
 

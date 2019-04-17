@@ -9,7 +9,10 @@ use diesel::PgConnection;
 use errors::*;
 use extractors::*;
 use helpers::application;
-use models::{PathParameters, RedeemTicketPathParameters, UserDisplayTicketType, WebPayload};
+use models::{
+    EventShowResult, PathParameters, RedeemTicketPathParameters, ShortOrganization,
+    UserDisplayTicketType, WebPayload,
+};
 use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
@@ -278,33 +281,22 @@ pub fn show(
             )?;
 
             // Only show private ticket types via holds
-            if ticket_type.is_private && display_ticket_type.redemption_code.is_none() {
+            if ticket_type.visibility == TicketTypeVisibility::Hidden
+                && display_ticket_type.redemption_code.is_none()
+            {
                 continue;
             }
 
             // If the ticket type is sold out, hide it if necessary
             if (display_ticket_type.status == TicketTypeStatus::SoldOut
                 || display_ticket_type.status == TicketTypeStatus::NoActivePricing)
-                && ticket_type.sold_out_behavior == SoldOutBehavior::Hide
+                && ticket_type.visibility == TicketTypeVisibility::WhenAvailable
             {
                 continue;
             };
 
             display_ticket_types.push(display_ticket_type);
         }
-    }
-
-    //This struct is used to just contain the id and name of the org
-    #[derive(Serialize)]
-    struct ShortOrganization {
-        id: Uuid,
-        name: String,
-    }
-
-    #[derive(Serialize)]
-    pub struct TicketsRemaining {
-        pub ticket_type_id: Uuid,
-        pub tickets_remaining: i32,
     }
 
     let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
@@ -347,46 +339,7 @@ pub fn show(
         false
     };
 
-    #[derive(Serialize)]
-    struct R {
-        id: Uuid,
-        name: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        private_access_code: Option<Option<String>>,
-        organization_id: Uuid,
-        venue_id: Option<Uuid>,
-        created_at: NaiveDateTime,
-        event_start: Option<NaiveDateTime>,
-        door_time: Option<NaiveDateTime>,
-        event_end: Option<NaiveDateTime>,
-        cancelled_at: Option<NaiveDateTime>,
-        fee_in_cents: i64,
-        status: EventStatus,
-        publish_date: Option<NaiveDateTime>,
-        promo_image_url: Option<String>,
-        cover_image_url: Option<String>,
-        additional_info: Option<String>,
-        top_line_info: Option<String>,
-        age_limit: Option<String>,
-        video_url: Option<String>,
-        organization: ShortOrganization,
-        venue: Option<Venue>,
-        artists: Vec<DisplayEventArtist>,
-        ticket_types: Vec<UserDisplayTicketType>,
-        total_interest: u32,
-        user_is_interested: bool,
-        min_ticket_price: Option<i64>,
-        max_ticket_price: Option<i64>,
-        is_external: bool,
-        external_url: Option<String>,
-        override_status: Option<EventOverrideStatus>,
-        limited_tickets_remaining: Vec<TicketsRemaining>,
-        localized_times: EventLocalizedTimeStrings,
-        tracking_keys: TrackingKeys,
-        event_type: EventTypes,
-    }
-
-    let payload = &R {
+    let payload = &EventShowResult {
         id: event.id,
         private_access_code: if show_private_access_code {
             Some(event.private_access_code)

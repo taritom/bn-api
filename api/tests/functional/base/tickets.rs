@@ -4,6 +4,7 @@ use bigneon_api::controllers::tickets::{self, ShowTicketResponse};
 use bigneon_api::extractors::*;
 use bigneon_api::models::{PathParameters, RedeemTicketPathParameters};
 use bigneon_db::models::*;
+use bigneon_db::utils::dates;
 use serde_json;
 use support;
 use support::database::TestDatabase;
@@ -141,6 +142,7 @@ pub fn show_redeemable_ticket(role: Roles, should_test_succeed: bool) {
     let event = database
         .create_event()
         .with_organization(&organization)
+        .with_event_start(dates::now().finish())
         .with_ticket_pricing()
         .with_venue(&venue)
         .finish();

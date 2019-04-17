@@ -37,9 +37,8 @@ const get = async function (request_body) {
 let requestBody = `{
 	"start_date":"1999-02-01T02:22:00",
 	"end_date": "8999-01-10T02:22:00",
-	"sold_out_behavior": "ShowSoldOut",
-	"price_in_cents": 3000,
-	"is_private": false
+	"visibility": "Always",
+	"price_in_cents": 3000
 }`;
 
 

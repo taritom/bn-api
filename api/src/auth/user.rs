@@ -4,6 +4,7 @@ use bigneon_db::models::{Event, Organization, Roles, Scopes};
 use bigneon_db::prelude::errors::EnumParseError;
 use diesel::PgConnection;
 use errors::*;
+use extractors::OptionalUser;
 use log::Level::Warn;
 use logging::*;
 use serde_json::Value;
@@ -172,5 +173,9 @@ impl User {
             "User does not have the required permissions".to_string(),
         )
         .into())
+    }
+
+    pub fn into_optional(self) -> OptionalUser {
+        OptionalUser(Some(self))
     }
 }

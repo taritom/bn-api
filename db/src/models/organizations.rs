@@ -89,7 +89,7 @@ pub struct NewOrganization {
     pub max_instances_per_ticket_type: Option<i64>,
 }
 
-#[derive(Default, Serialize, Clone)]
+#[derive(Default, Serialize, Clone, Deserialize, Debug)]
 pub struct TrackingKeys {
     pub google_ga_key: Option<String>,
     pub facebook_pixel_key: Option<String>,

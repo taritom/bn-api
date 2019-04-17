@@ -24,6 +24,12 @@ impl DateBuilder {
         }
     }
 
+    pub fn add_hours(self, hours: i64) -> DateBuilder {
+        DateBuilder {
+            date: self.date + Duration::hours(hours),
+        }
+    }
+
     pub fn finish(self) -> NaiveDateTime {
         self.date
     }

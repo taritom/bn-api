@@ -215,6 +215,7 @@ pub fn show() {
     let event = database
         .create_event()
         .with_organization(&organization)
+        .with_event_start(dates::now().finish())
         .with_ticket_pricing()
         .finish();
     let conn = database.connection.get();
