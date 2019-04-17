@@ -1226,7 +1226,7 @@ mod codes_tests {
     }
     #[test]
     fn codes_door_person() {
-        base::events::codes(Roles::DoorPerson, false);
+        base::events::codes(Roles::DoorPerson, true);
     }
     #[test]
     fn codes_promoter() {
@@ -1242,7 +1242,7 @@ mod codes_tests {
     }
     #[test]
     fn codes_box_office() {
-        base::events::codes(Roles::OrgBoxOffice, false);
+        base::events::codes(Roles::OrgBoxOffice, true);
     }
 }
 

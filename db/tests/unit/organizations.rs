@@ -719,11 +719,13 @@ pub fn get_scopes_for_user() {
             .collect::<Vec<String>>(),
         vec![
             "box-office-ticket:read",
+            "code:read",
             "dashboard:read",
             "event:scan",
             "event:view-guests",
             "hold:read",
             "order:make-external-payment",
+            "order:read",
             "org:read-events",
             "redeem:ticket",
             "ticket:read",
@@ -738,8 +740,10 @@ pub fn get_scopes_for_user() {
             .map(|i| i.to_string())
             .collect::<Vec<String>>(),
         vec![
+            "code:read",
             "event:scan",
             "hold:read",
+            "order:read",
             "org:read-events",
             "redeem:ticket",
             "ticket:read",

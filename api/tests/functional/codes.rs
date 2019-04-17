@@ -32,7 +32,7 @@ mod show_tests {
     }
     #[test]
     fn show_door_person() {
-        base::codes::show(Roles::DoorPerson, false);
+        base::codes::show(Roles::DoorPerson, true);
     }
     #[test]
     fn show_promoter() {
@@ -48,7 +48,7 @@ mod show_tests {
     }
     #[test]
     fn show_box_office() {
-        base::codes::show(Roles::OrgBoxOffice, false);
+        base::codes::show(Roles::OrgBoxOffice, true);
     }
 }
 

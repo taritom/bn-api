@@ -70,7 +70,7 @@ mod show_other_user_order_tests {
     }
     #[test]
     fn show_other_user_order_door_person() {
-        base::orders::show_other_user_order(Roles::DoorPerson, false);
+        base::orders::show_other_user_order(Roles::DoorPerson, true);
     }
     #[test]
     fn show_other_user_order_promoter() {
@@ -86,7 +86,7 @@ mod show_other_user_order_tests {
     }
     #[test]
     fn show_other_user_order_box_office() {
-        base::orders::show_other_user_order(Roles::OrgBoxOffice, false);
+        base::orders::show_other_user_order(Roles::OrgBoxOffice, true);
     }
 }
 
@@ -239,7 +239,7 @@ mod details_tests {
     }
     #[test]
     fn details_door_person() {
-        base::orders::details(Roles::DoorPerson, false);
+        base::orders::details(Roles::DoorPerson, true);
     }
     #[test]
     fn details_promoter() {
@@ -255,7 +255,7 @@ mod details_tests {
     }
     #[test]
     fn details_box_office() {
-        base::orders::details(Roles::OrgBoxOffice, false);
+        base::orders::details(Roles::OrgBoxOffice, true);
     }
 }
 
