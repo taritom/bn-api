@@ -84,6 +84,7 @@ pub struct NewOrganization {
     pub allowed_payment_providers: Option<Vec<PaymentProviders>>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub timezone: Option<String>,
+    pub cc_fee_percent: f32,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub globee_api_key: Option<String>,
     pub max_instances_per_ticket_type: Option<i64>,

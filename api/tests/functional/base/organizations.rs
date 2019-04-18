@@ -181,6 +181,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         client_event_fee_in_cents: None,
         company_event_fee_in_cents: None,
         allowed_payment_providers: None,
+        cc_fee_percent: None,
         timezone: None,
         globee_api_key: None,
         max_instances_per_ticket_type: Some(11000),

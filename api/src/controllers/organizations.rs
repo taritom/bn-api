@@ -58,6 +58,7 @@ pub struct NewOrganizationRequest {
     pub timezone: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub globee_api_key: Option<String>,
+    pub cc_fee_percent: Option<f32>,
     pub max_instances_per_ticket_type: Option<i64>,
 }
 
@@ -153,6 +154,7 @@ pub fn create(
         facebook_pixel_key: new_organization.facebook_pixel_key.clone(),
         allowed_payment_providers: new_organization.allowed_payment_providers.clone(),
         timezone: new_organization.timezone.clone(),
+        cc_fee_percent: new_organization.cc_fee_percent.unwrap_or(0f32),
         globee_api_key: new_organization.globee_api_key.clone(),
         max_instances_per_ticket_type: Some(match new_organization.max_instances_per_ticket_type {
             Some(x) => x,

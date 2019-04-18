@@ -263,27 +263,32 @@ impl Order {
             }
         }
 
-        for mut event_fee_item in self.event_fee_items_with_no_associated_items(conn)? {
-            total_to_be_refunded += event_fee_item.refund_one_unit(true, conn)?;
+        for mut fee_item in self.per_order_fee_items_with_no_associated_items(conn)? {
+            total_to_be_refunded += fee_item.refund_one_unit(true, conn)?;
         }
 
         Ok(total_to_be_refunded)
     }
 
-    fn event_fee_items_with_no_associated_items(
+    fn per_order_fee_items_with_no_associated_items(
         &self,
         conn: &PgConnection,
     ) -> Result<Vec<OrderItem>, DatabaseError> {
         order_items::table
             .filter(order_items::refunded_quantity.ne(order_items::quantity))
             .filter(order_items::order_id.eq(self.id))
-            .filter(order_items::item_type.eq(OrderItemTypes::EventFees))
+            .filter(
+                order_items::item_type
+                    .eq(OrderItemTypes::EventFees)
+                    .or(order_items::item_type.eq(OrderItemTypes::CreditCardFees)),
+            )
             .filter(sql("not exists(
                 select id from order_items oi2
                 where oi2.order_id = order_items.order_id
                 and oi2.event_id = order_items.event_id
                 and item_type <> 'EventFees'
                 and item_type <> 'Discount'
+                and item_type <> 'CreditCardFees'
                 and oi2.refunded_quantity <> oi2.quantity
             )"))
             .select(order_items::all_columns)
@@ -1058,6 +1063,7 @@ impl Order {
             o.update_discount(&self, conn)?;
             match o.item_type {
                 OrderItemTypes::EventFees => self.destroy_item(o.id, conn)?,
+                OrderItemTypes::CreditCardFees => self.destroy_item(o.id, conn)?,
                 _ => {}
             }
         }
@@ -1133,6 +1139,25 @@ impl Order {
                         event.client_fee_in_cents + event.company_fee_in_cents;
                     new_event_fee.commit(conn)?;
                     per_event_fees_included.insert(event_id, true);
+                }
+                // Credit card fees are set per organization
+                let org = Organization::find(event.organization_id, conn)?;
+                if org.cc_fee_percent > 0f32 {
+                    let cc_fee = (self.calculate_total(conn)? as f32
+                        * (org.cc_fee_percent / 100f32))
+                        .round() as i64;
+                    NewFeesOrderItem {
+                        order_id: self.id,
+                        item_type: OrderItemTypes::CreditCardFees,
+                        event_id: Some(event.id),
+                        unit_price_in_cents: cc_fee,
+                        fee_schedule_range_id: None,
+                        company_fee_in_cents: cc_fee,
+                        client_fee_in_cents: 0,
+                        quantity: 1,
+                        parent_id: None,
+                    }
+                    .commit(conn)?;
                 }
             }
         }
@@ -1427,6 +1452,7 @@ impl Order {
                 0
             }
         });
+
         let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
         for e in self.events(conn)? {
             if let Some(ref organization_ids) = organization_ids {
@@ -1516,6 +1542,7 @@ impl Order {
                 })
                 .collect();
         let items = self.items_for_display(organization_ids, user_id, conn)?;
+
         Ok(DisplayOrder {
             id: self.id,
             status: self.status.clone(),

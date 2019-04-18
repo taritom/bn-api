@@ -13,6 +13,7 @@ pub struct OrganizationBuilder<'a> {
     event_fee_in_cents: Option<i64>,
     company_fee_in_cents: Option<i64>,
     client_fee_in_cents: Option<i64>,
+    cc_fee_percent: Option<f32>,
     use_address: bool,
 }
 
@@ -28,6 +29,7 @@ impl<'a> OrganizationBuilder<'a> {
             event_fee_in_cents: None,
             company_fee_in_cents: None,
             client_fee_in_cents: None,
+            cc_fee_percent: None,
         }
     }
 
@@ -55,6 +57,11 @@ impl<'a> OrganizationBuilder<'a> {
         self.event_fee_in_cents = Some(250);
         self.company_fee_in_cents = Some(100);
         self.client_fee_in_cents = Some(150);
+        self
+    }
+
+    pub fn with_cc_fee(mut self, cc_fee_percent: f32) -> Self {
+        self.cc_fee_percent = Some(cc_fee_percent);
         self
     }
 
@@ -87,6 +94,7 @@ impl<'a> OrganizationBuilder<'a> {
         let event_fee_update = OrganizationEditableAttributes {
             company_event_fee_in_cents: self.company_fee_in_cents,
             client_event_fee_in_cents: self.client_fee_in_cents,
+            cc_fee_percent: self.cc_fee_percent,
             ..Default::default()
         };
 

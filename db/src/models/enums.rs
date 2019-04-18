@@ -148,7 +148,7 @@ string_enum! { FanSortField [FirstName, LastName, Email, Phone, Orders, FirstOrd
 string_enum! { HistoryType [Purchase]}
 string_enum! { HoldTypes [Discount, Comp] }
 string_enum! { OrderStatus [Cancelled, Draft, Paid, PendingPayment] }
-string_enum! { OrderItemTypes [Tickets, PerUnitFees, EventFees, Discount]}
+string_enum! { OrderItemTypes [Tickets, PerUnitFees, EventFees, Discount, CreditCardFees]}
 string_enum! { OrderTypes [Cart, BackOffice] }
 string_enum! { PaymentMethods [CreditCard, External, Free, Provider] }
 string_enum! { PaymentProviders [External, Globee, Free, Stripe] }

@@ -137,6 +137,7 @@ impl OrderItem {
         if self.item_type == OrderItemTypes::PerUnitFees
             || self.item_type == OrderItemTypes::EventFees
             || self.item_type == OrderItemTypes::Discount
+            || self.item_type == OrderItemTypes::CreditCardFees
         {
             return Ok(());
         }
@@ -192,10 +193,7 @@ impl OrderItem {
         order: &Order,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        if self.item_type == OrderItemTypes::PerUnitFees
-            || self.item_type == OrderItemTypes::EventFees
-            || self.item_type == OrderItemTypes::Discount
-        {
+        if self.item_type != OrderItemTypes::Tickets {
             return Ok(());
         }
 
@@ -434,6 +432,7 @@ impl OrderItem {
              WHEN item_type = 'PerUnitFees' THEN 'Ticket Fees'
              WHEN item_type = 'EventFees' THEN 'Event Fees - ' || e.name
              WHEN item_type = 'Discount' THEN 'Discount'
+             WHEN item_type = 'CreditCardFees' THEN 'Credit Card Fees'
              ELSE e.name || ' - ' || tt.name
            END AS description,
            COALESCE(h.redemption_code, c.redemption_code) as redemption_code,

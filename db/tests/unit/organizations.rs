@@ -1004,3 +1004,83 @@ fn search_fans() {
         .unwrap();
     assert_eq!(search_results.data.len(), 0);
 }
+
+#[test]
+fn credit_card_fees() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_cc_fee(0f32)
+        .with_event_fee()
+        .finish();
+
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .finish();
+
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    for i in cart.items(connection).unwrap().iter() {
+        assert_ne!(i.item_type, OrderItemTypes::CreditCardFees);
+    }
+
+    let pre_cc_fee_total = cart.calculate_total(connection).unwrap();
+
+    let org_update = OrganizationEditableAttributes {
+        cc_fee_percent: Some(5f32),
+        ..Default::default()
+    };
+
+    organization
+        .update(org_update, &"encryption_key".to_string(), connection)
+        .unwrap();
+
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let mut cc_fee_count = 0;
+    for i in cart.items(connection).unwrap().iter() {
+        if i.item_type == OrderItemTypes::CreditCardFees {
+            cc_fee_count += 1;
+        }
+    }
+    assert_eq!(cc_fee_count, 1);
+    assert_eq!(
+        cart.calculate_total(connection).unwrap(),
+        pre_cc_fee_total + (pre_cc_fee_total as f32 * (5f32 / 100f32)).round() as i64
+    );
+}
