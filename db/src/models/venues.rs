@@ -288,6 +288,7 @@ pub struct DisplayVenue {
     pub postal_code: String,
     pub phone: Option<String>,
     pub promo_image_url: Option<String>,
+    pub timezone: String,
 }
 
 impl From<Venue> for DisplayVenue {
@@ -302,6 +303,7 @@ impl From<Venue> for DisplayVenue {
             postal_code: venue.postal_code,
             phone: venue.phone,
             promo_image_url: venue.promo_image_url,
+            timezone: venue.timezone,
         }
     }
 }
