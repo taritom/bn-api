@@ -9,6 +9,7 @@ use bigneon_db::models::*;
 use config::{Config, Environment};
 use errors::*;
 use futures::future::Either;
+use log::Level::Info;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 
@@ -123,7 +124,20 @@ impl Communication {
             Environment::Test => Either::A(future::ok(())), //Disable communication system when testing
             _ => {
                 let res = match config.block_external_comms {
-                    true => Either::A(future::ok(())), //Disable communication system when block_external_comms is true,
+                    true => {
+                        let destination_addresses = communication.destinations.get();
+                        jlog!(Info, "Blocked communication", {
+                            "comm_type": communication.comm_type,
+                            "title": communication.title,
+                            "body": communication.body,
+                            "source": communication.source,
+                            "destination_addresses": destination_addresses,
+                            "template_id": communication.template_id,
+                            "template_data": communication.template_data,
+                        });
+
+                        Either::A(future::ok(()))
+                    }
                     _ => {
                         let destination_addresses = communication.destinations.get();
 

@@ -41,7 +41,7 @@ pub fn create(
     let user = new_user.commit(connection)?;
     let user = user.create_password_reset_token(connection)?;
 
-    mailers::user::invite_user_email(&state.config, &user).queue(connection)?;
+    mailers::user::invite_user_email(&state.config, &user, connection)?;
 
     application::created(json!({}))
 }

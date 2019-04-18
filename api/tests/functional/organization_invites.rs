@@ -1,5 +1,6 @@
-use actix_web::{FromRequest, HttpResponse, Path};
-use bigneon_api::controllers::organization_invites;
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
+use bigneon_api::controllers::organization_invites::{self, InviteResponseQuery};
+use bigneon_api::extractors::OptionalUser;
 use bigneon_api::models::OrganizationInvitePathParameters;
 use bigneon_db::models::*;
 use functional::base;
@@ -210,6 +211,123 @@ mod accept_tests {
     fn accept_box_office() {
         base::organization_invites::accept_invite_status_of_invite(Roles::OrgBoxOffice, true);
     }
+}
+
+#[test]
+pub fn accept_invite_for_other_email_succeeds() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
+    database.create_user().finish();
+
+    let email = "different@email.com".to_string();
+    let invite = database
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&user)
+        .with_email(&email)
+        .with_security_token(None)
+        .finish();
+
+    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get())
+        .unwrap();
+
+    let test_request = TestRequest::create_with_uri(
+        format!(
+            "/accept_invite?security_token={}",
+            &invite.security_token.unwrap().to_string()
+        )
+        .as_str(),
+    );
+    let parameters = Query::<InviteResponseQuery>::extract(&test_request.request).unwrap();
+
+    let response: HttpResponse = organization_invites::accept_request((
+        database.connection.into(),
+        parameters,
+        OptionalUser(Some(auth_user)),
+    ))
+    .into();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[test]
+pub fn accept_invite_for_user_id_succeeds() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
+    database.create_user().finish();
+
+    let invite = database
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&user2)
+        .link_to_user(&user)
+        .with_security_token(None)
+        .finish();
+
+    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get())
+        .unwrap();
+
+    let test_request = TestRequest::create_with_uri(
+        format!(
+            "/accept_invite?security_token={}",
+            &invite.security_token.unwrap().to_string()
+        )
+        .as_str(),
+    );
+    let parameters = Query::<InviteResponseQuery>::extract(&test_request.request).unwrap();
+
+    let response: HttpResponse = organization_invites::accept_request((
+        database.connection.into(),
+        parameters,
+        OptionalUser(Some(auth_user)),
+    ))
+    .into();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[test]
+pub fn accept_invite_for_other_user_id_fails() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
+    database.create_user().finish();
+
+    let invite = database
+        .create_organization_invite()
+        .with_org(&organization)
+        .with_invitee(&user)
+        .link_to_user(&user2)
+        .with_security_token(None)
+        .finish();
+
+    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get())
+        .unwrap();
+
+    let test_request = TestRequest::create_with_uri(
+        format!(
+            "/accept_invite?security_token={}",
+            &invite.security_token.unwrap().to_string()
+        )
+        .as_str(),
+    );
+    let parameters = Query::<InviteResponseQuery>::extract(&test_request.request).unwrap();
+
+    let response: HttpResponse = organization_invites::accept_request((
+        database.connection.into(),
+        parameters,
+        OptionalUser(Some(auth_user)),
+    ))
+    .into();
+    support::expects_unauthorized(&response);
 }
 
 #[test]

@@ -264,17 +264,10 @@ pub fn accept_request(
     //Check that the user is logged in, that if the invite has a user_id associated with it that it is the currently logged in user
     match user.into_inner() {
         Some(u) => {
-            let valid_for_acceptance = match invite_details.user_id {
+            let mut valid_for_acceptance = true;
+            if let Some(user_id) = invite_details.user_id {
                 // If the user_id was provided confirm that the current user is the accepting user
-                Some(user_id) => user_id == u.id(),
-                None => {
-                    // If not confirm that the current user has an email set and that it matches the invite
-                    if let Some(email) = u.email() {
-                        invite_details.user_email == email
-                    } else {
-                        false
-                    }
-                }
+                valid_for_acceptance = user_id == u.id();
             };
 
             if valid_for_acceptance {
