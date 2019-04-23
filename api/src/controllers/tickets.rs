@@ -269,6 +269,7 @@ pub fn receive_transfer(
     let tickets = TicketInstance::receive_ticket_transfer(
         transfer_authorization.into_inner(),
         &sender_wallet,
+        auth_user.id(),
         receiver_wallet.id,
         connection,
     )?;

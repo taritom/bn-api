@@ -3,8 +3,6 @@ SET
     order_item_id = NULL,
     reserved_until = NULL,
     redeem_key = NULL,
-    transfer_key = NULL,
-    transfer_expiry_date = NULL,
     status = $5,
     updated_at = now()
 WHERE id IN (SELECT t.id
@@ -24,7 +22,5 @@ WHERE id IN (SELECT t.id
       reserved_until,
       status,
       redeem_key,
-      transfer_key,
-      transfer_expiry_date,
       created_at,
       updated_at;

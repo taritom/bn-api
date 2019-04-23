@@ -423,6 +423,7 @@ fn get_profile_for_organization() {
     TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,
+        user2.id,
         receiver_wallet.id,
         connection,
     )
@@ -576,6 +577,7 @@ fn get_profile_for_organization() {
     TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,
+        user2.id,
         receiver_wallet.id,
         connection,
     )

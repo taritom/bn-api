@@ -376,6 +376,7 @@ pub fn refund_for_non_refundable_tickets() {
     TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,
+        user2.id,
         receiver_wallet.id,
         connection,
     )

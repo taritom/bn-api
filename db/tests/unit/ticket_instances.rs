@@ -82,6 +82,65 @@ fn find_for_user_for_display() {
     assert_eq!(found_tickets[0].0.id, event.id);
     assert_eq!(found_tickets[0].1.len(), 2);
 
+    // Pending transfer
+    assert_eq!(found_tickets[0].1[0].pending_transfer, false);
+    assert_eq!(
+        TicketInstance::find_for_display(found_tickets[0].1[0].id, connection)
+            .unwrap()
+            .2
+            .pending_transfer,
+        false
+    );
+    let transfer = Transfer::create(
+        found_tickets[0].1[0].id,
+        user.id,
+        Uuid::new_v4(),
+        NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11),
+    )
+    .commit(None, connection)
+    .unwrap();
+
+    let found_tickets =
+        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
+            .unwrap();
+    assert_eq!(found_tickets.len(), 1);
+    assert_eq!(found_tickets[0].0.id, event.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
+    assert_eq!(found_tickets[0].1[0].pending_transfer, true);
+    assert_eq!(
+        TicketInstance::find_for_display(found_tickets[0].1[0].id, connection)
+            .unwrap()
+            .2
+            .pending_transfer,
+        true
+    );
+
+    // Pending transfer expired
+    diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET transfer_expiry_date = '2018-06-06 09:49:09.643207'
+        WHERE id = $1;
+        "#,
+    )
+    .bind::<sql_types::Uuid, _>(transfer.id)
+    .execute(connection)
+    .unwrap();
+    let found_tickets =
+        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
+            .unwrap();
+    assert_eq!(found_tickets.len(), 1);
+    assert_eq!(found_tickets[0].0.id, event.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
+    assert_eq!(found_tickets[0].1[0].pending_transfer, false);
+    assert_eq!(
+        TicketInstance::find_for_display(found_tickets[0].1[0].id, connection)
+            .unwrap()
+            .2
+            .pending_transfer,
+        false
+    );
+
     // other event
     let found_tickets =
         TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, connection)
@@ -318,8 +377,6 @@ fn release() {
     // Reload ticket
     let ticket = TicketInstance::find(ticket.id, connection).unwrap();
     assert!(ticket.order_item_id.is_none());
-    assert!(ticket.transfer_key.is_none());
-    assert!(ticket.transfer_expiry_date.is_none());
     assert_eq!(ticket.status, TicketInstanceStatus::Available);
 
     // Cart adds ticket type (which only had 1 ticket) setting this to Reserved
@@ -389,8 +446,6 @@ fn release_for_cancelled_ticket_type() {
     // Reload ticket
     let ticket = TicketInstance::find(ticket.id, connection).unwrap();
     assert!(ticket.order_item_id.is_none());
-    assert!(ticket.transfer_key.is_none());
-    assert!(ticket.transfer_expiry_date.is_none());
     assert_eq!(ticket.status, TicketInstanceStatus::Nullified);
 
     // Ticket was nullified so domain event is created for nullification
@@ -483,6 +538,7 @@ fn was_transferred() {
     TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,
+        user2.id,
         receiver_wallet.id,
         connection,
     )
@@ -1185,17 +1241,19 @@ fn receive_ticket_transfer() {
     let user2 = project.create_user().finish();
     //try receive ones that are expired
     let transfer_auth =
-        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, 0, None, None, connection)
+        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, 10, None, None, connection)
             .unwrap();
+    let transfer =
+        &Transfer::find_active_pending_by_ticket_instance_ids(&ticket_ids, connection).unwrap()[0];
 
     let _q: Vec<TicketInstance> = diesel::sql_query(
         r#"
-        UPDATE ticket_instances
+        UPDATE transfers
         SET transfer_expiry_date = '2018-06-06 09:49:09.643207'
         WHERE id = $1;
         "#,
     )
-    .bind::<sql_types::Uuid, _>(ticket_ids[0])
+    .bind::<sql_types::Uuid, _>(transfer.id)
     .get_results(connection)
     .unwrap();
 
@@ -1206,6 +1264,7 @@ fn receive_ticket_transfer() {
     let receive_auth2 = TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,
+        user2.id,
         receiver_wallet.id,
         connection,
     );
@@ -1228,6 +1287,7 @@ fn receive_ticket_transfer() {
     let receive_auth1 = TicketInstance::receive_ticket_transfer(
         wrong_auth,
         &sender_wallet,
+        user2.id,
         receiver_wallet.id,
         connection,
     );
@@ -1237,6 +1297,7 @@ fn receive_ticket_transfer() {
     let _receive_auth3 = TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,
+        user2.id,
         receiver_wallet.id,
         connection,
     );

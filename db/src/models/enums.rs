@@ -159,11 +159,12 @@ string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull]
 string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { Tables [Broadcasts, Codes, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations,
-Payments, PaymentMethods, TicketInstances, TicketTypes, TicketPricing, Users] }
+Payments, PaymentMethods, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, OnSaleSoon, SaleEnded, Cancelled, Deleted] }
 string_enum! { TicketTypeVisibility [ Always, Hidden, WhenAvailable ]}
+string_enum! { TransferStatus [Pending, Cancelled, Completed] }
 
 impl Roles {
     pub fn get_event_limited_roles() -> Vec<Roles> {

@@ -20,7 +20,5 @@ WHERE id IN (SELECT t.id
       reserved_until,
       status,
       redeem_key,
-      transfer_key,
-      transfer_expiry_date,
       created_at,
       updated_at;
