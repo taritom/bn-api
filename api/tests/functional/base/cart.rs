@@ -44,6 +44,7 @@ pub fn update_box_office_pricing(role: Roles, should_test_succeed: bool) {
             quantity: 2,
             redemption_code: None,
         }],
+        tracking_data: None,
     });
 
     let response: HttpResponse = cart::update_cart((
@@ -146,6 +147,7 @@ pub fn replace_box_office_pricing(role: Roles, should_test_succeed: bool) {
             quantity: 2,
             redemption_code: None,
         }],
+        tracking_data: None,
     });
 
     let response: HttpResponse = cart::replace_cart((

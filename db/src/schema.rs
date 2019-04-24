@@ -261,6 +261,12 @@ table! {
         create_user_agent -> Nullable<Text>,
         purchase_user_agent -> Nullable<Text>,
         external_payment_type -> Nullable<Text>,
+        tracking_data -> Nullable<Jsonb>,
+        source -> Nullable<Text>,
+        campaign -> Nullable<Text>,
+        medium -> Nullable<Text>,
+        term -> Nullable<Text>,
+        content -> Nullable<Text>,
     }
 }
 

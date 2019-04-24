@@ -20,6 +20,8 @@ use payments::AuthThenCompletePaymentBehavior;
 use payments::PaymentProcessor;
 use payments::PaymentProcessorBehavior;
 use payments::RedirectToPaymentPageBehavior;
+use serde_json;
+use serde_json::Value;
 use server::AppState;
 use std::collections::HashMap;
 use utils::ServiceLocator;
@@ -37,6 +39,7 @@ pub struct CartItem {
 pub struct UpdateCartRequest {
     pub items: Vec<CartItem>,
     pub box_office_pricing: Option<bool>,
+    pub tracking_data: Option<Value>,
 }
 
 pub fn update_cart(
@@ -99,6 +102,7 @@ pub fn update_cart(
     )?;
 
     cart.set_user_agent(request_info.user_agent.clone(), false, connection)?;
+    cart.set_tracking_data(json.tracking_data.clone(), Some(user.id()), connection)?;
 
     // Beware there could be multiple carts that meet this condition
     for (ticket_type_id, remaining) in cart.ticket_types(connection)? {
@@ -194,6 +198,7 @@ pub fn replace_cart(
     )?;
 
     cart.set_user_agent(request_info.user_agent.clone(), false, connection)?;
+    cart.set_tracking_data(json.tracking_data.clone(), Some(user.id()), connection)?;
     // Beware there could be multiple carts that meet this condition
     for (ticket_type_id, remaining) in cart.ticket_types(connection)? {
         if remaining == 0 {
@@ -222,6 +227,7 @@ pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigN
 #[derive(Deserialize)]
 pub struct CheckoutCartRequest {
     pub method: PaymentRequest,
+    pub tracking_data: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -301,6 +307,8 @@ pub fn checkout(
             "Could not complete this checkout because it contains invalid order items",
         );
     }
+
+    order.set_tracking_data(req.tracking_data.clone(), Some(user.id()), connection.get())?;
 
     let order_items = order.items(connection.get())?;
 

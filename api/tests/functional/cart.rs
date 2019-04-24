@@ -190,6 +190,7 @@ fn update() {
             quantity: 2,
             redemption_code: None,
         }],
+        tracking_data: None,
     });
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -248,6 +249,7 @@ fn update_with_draft_event() {
             quantity: 2,
             redemption_code: None,
         }],
+        tracking_data: None,
         box_office_pricing: None,
     });
 
@@ -279,6 +281,7 @@ fn update_multiple() {
     let ticket_type_id2 = ticket_types[1].id;
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
+        tracking_data: None,
         items: vec![
             cart::CartItem {
                 ticket_type_id,
@@ -373,6 +376,7 @@ fn add_with_increment() {
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
+        tracking_data: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 4,
@@ -439,6 +443,7 @@ fn update_with_increment_failure_invalid_quantity() {
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
+        tracking_data: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 2,
@@ -481,6 +486,7 @@ fn update_with_existing_cart() {
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
+        tracking_data: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 2,
@@ -567,6 +573,7 @@ fn reduce() {
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
+        tracking_data: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 6,
@@ -655,6 +662,7 @@ fn remove() {
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
+        tracking_data: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 0,
@@ -741,6 +749,7 @@ fn remove_with_increment() {
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
+        tracking_data: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 8,
@@ -839,6 +848,7 @@ fn remove_with_increment_failure_invalid_quantity() {
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
+        tracking_data: None,
         items: vec![cart::CartItem {
             ticket_type_id,
             quantity: 5,
@@ -884,6 +894,7 @@ fn checkout_external() {
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
+        tracking_data: None,
         method: PaymentRequest::External {
             reference: Some("TestRef".to_string()),
             external_payment_type: ExternalPaymentType::Voucher,
@@ -937,6 +948,7 @@ fn checkout_external_with_free_cart() {
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
+        tracking_data: None,
         method: PaymentRequest::External {
             reference: Some("TestRef".to_string()),
             external_payment_type: ExternalPaymentType::Cash,
@@ -993,6 +1005,7 @@ fn checkout_paid_fails_with_free_cart() {
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
+        tracking_data: None,
         method: PaymentRequest::Card {
             token: "abc".into(),
             provider: PaymentProviders::Stripe,
@@ -1049,6 +1062,7 @@ fn checkout_free() {
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
+        tracking_data: None,
         method: PaymentRequest::Free,
     });
 
@@ -1096,6 +1110,7 @@ fn checkout_free_for_paid_items() {
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
+        tracking_data: None,
         method: PaymentRequest::Free,
     });
 
@@ -1226,6 +1241,7 @@ fn checkout_fails_for_invalid_items() {
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
+        tracking_data: None,
         method: PaymentRequest::External {
             reference: Some("TestRef".to_string()),
             external_payment_type: ExternalPaymentType::Cash,
@@ -1283,6 +1299,7 @@ fn checkout_provider_globee() {
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
+        tracking_data: None,
         method: PaymentRequest::Provider {
             provider: PaymentProviders::Globee,
         },

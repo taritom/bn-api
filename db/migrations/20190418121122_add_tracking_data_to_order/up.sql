@@ -1,0 +1,12 @@
+ALTER TABLE orders
+    ADD tracking_data JSONB;
+ALTER TABLE orders
+    ADD source TEXT;
+ALTER TABLE orders
+    ADD campaign TEXT;
+ALTER TABLE orders
+    ADD medium TEXT;
+ALTER TABLE orders
+    ADD term TEXT;
+ALTER TABLE orders
+    ADD content TEXT;

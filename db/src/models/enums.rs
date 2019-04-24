@@ -109,6 +109,7 @@ string_enum! { DomainEventTypes [
     TransferTicketStarted,
     TransferTicketCancelled,
     TransferTicketCompleted,
+    TrackingDataUpdated,
     TicketInstanceAddedToHold,
     TicketInstanceNullified,
     TicketInstancePurchased,

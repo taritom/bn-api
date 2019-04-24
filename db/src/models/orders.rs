@@ -48,6 +48,12 @@ pub struct Order {
     pub create_user_agent: Option<String>,
     pub purchase_user_agent: Option<String>,
     pub external_payment_type: Option<ExternalPaymentType>,
+    pub tracking_data: Option<serde_json::Value>,
+    pub source: Option<String>,
+    pub campaign: Option<String>,
+    pub medium: Option<String>,
+    pub term: Option<String>,
+    pub content: Option<String>,
 }
 
 #[derive(AsChangeset, Deserialize, Serialize)]
@@ -443,6 +449,58 @@ impl Order {
         if affected_rows != 1 {
             return DatabaseError::concurrency_error("Could not update user agent.");
         }
+
+        Ok(())
+    }
+
+    pub fn set_tracking_data(
+        &mut self,
+        tracking_data: Option<serde_json::Value>,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        self.updated_at = Utc::now().naive_utc();
+
+        let mut source: Option<&str> = None;
+        let mut medium: Option<&str> = None;
+        let mut campaign: Option<&str> = None;
+        let mut term: Option<&str> = None;
+        let mut content: Option<&str> = None;
+
+        if let Some(td) = tracking_data.as_ref() {
+            source = td
+                .get("fbclid")
+                .map(|_| "facebook")
+                .or(td.get("utm_source").and_then(|s| s.as_str()))
+                .or(td.get("referrer").and_then(|r| r.as_str()));
+            medium = td.get("utm_medium").and_then(|m| m.as_str());
+            campaign = td.get("utm_campaign").and_then(|c| c.as_str());
+            term = td.get("utm_term").and_then(|t| t.as_str());
+            content = td.get("utm_content").and_then(|c| c.as_str());
+        }
+
+        diesel::update(orders::table.filter(orders::id.eq(self.id)))
+            .set((
+                orders::tracking_data.eq(tracking_data.clone()),
+                orders::source.eq(source),
+                orders::medium.eq(medium),
+                orders::campaign.eq(campaign),
+                orders::term.eq(term),
+                orders::content.eq(content),
+                orders::updated_at.eq(self.updated_at),
+            ))
+            .execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update user agent")?;
+
+        DomainEvent::create(
+            DomainEventTypes::TrackingDataUpdated,
+            "Tracking data updated".to_string(),
+            Tables::Orders,
+            Some(self.id),
+            current_user_id,
+            tracking_data.clone(),
+        )
+        .commit(conn)?;
 
         Ok(())
     }
@@ -1933,7 +1991,7 @@ impl Order {
         let query = diesel::sql_query(
             "SELECT CAST(SUM(amount) as BigInt) as s FROM payments WHERE order_id = $1 AND status='Completed';",
         )
-        .bind::<diesel::sql_types::Uuid, _>(self.id);
+            .bind::<diesel::sql_types::Uuid, _>(self.id);
 
         let sum: ResultForSum = query.get_result(conn).to_db_error(
             ErrorCode::QueryError,
