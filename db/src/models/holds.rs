@@ -160,16 +160,18 @@ impl Hold {
 
     pub fn find_by_parent_id(
         parent_id: Uuid,
-        hold_type: HoldTypes,
+        hold_type: Option<HoldTypes>,
         page: u32,
         limit: u32,
         conn: &PgConnection,
     ) -> Result<Payload<Hold>, DatabaseError> {
         let total: i64 = holds::table
+            .filter(holds::parent_hold_id.eq(parent_id))
             .filter(
                 holds::hold_type
+                    .nullable()
                     .eq(hold_type)
-                    .and(holds::parent_hold_id.eq(parent_id)),
+                    .or(hold_type.is_none()),
             )
             .count()
             .first(conn)
@@ -181,12 +183,14 @@ impl Hold {
         let paging = Paging::new(page, limit);
         let mut payload = Payload::new(
             holds::table
+                .filter(holds::parent_hold_id.eq(parent_id))
                 .filter(
                     holds::hold_type
+                        .nullable()
                         .eq(hold_type)
-                        .and(holds::parent_hold_id.eq(parent_id)),
+                        .or(hold_type.is_none()),
                 )
-                .order_by(holds::name)
+                .order_by((holds::hold_type, holds::name))
                 .limit(limit as i64)
                 .offset((page * limit) as i64)
                 .load(conn)
@@ -268,20 +272,27 @@ impl Hold {
         &self,
         current_user_id: Option<Uuid>,
         name: String,
+        email: Option<String>,
+        phone: Option<String>,
         redemption_code: String,
         quantity: u32,
         discount_in_cents: Option<u32>,
         hold_type: HoldTypes,
         end_at: Option<NaiveDateTime>,
         max_per_user: Option<u32>,
+        child: bool,
         conn: &PgConnection,
     ) -> Result<Hold, DatabaseError> {
         let new_hold = NewHold {
             name,
-            parent_hold_id: self.parent_hold_id,
+            parent_hold_id: if child {
+                Some(self.id)
+            } else {
+                self.parent_hold_id
+            },
             event_id: self.event_id,
-            email: None,
-            phone: None,
+            email: email,
+            phone: phone,
             redemption_code: Some(redemption_code.to_uppercase()),
             discount_in_cents: discount_in_cents.map(|m| m as i64),
             end_at,
@@ -518,13 +529,14 @@ impl Hold {
             max_per_user: self.max_per_user,
             email: self.email,
             phone: self.phone,
+            hold_type: self.hold_type,
             available,
             quantity,
         })
     }
 
     pub fn comps(&self, conn: &PgConnection) -> Result<Vec<Hold>, DatabaseError> {
-        Ok(Hold::find_by_parent_id(self.id, HoldTypes::Comp, 0, 100000, conn)?.data)
+        Ok(Hold::find_by_parent_id(self.id, Some(HoldTypes::Comp), 0, 100000, conn)?.data)
     }
 }
 
@@ -599,6 +611,7 @@ impl NewHold {
 pub struct DisplayHold {
     pub id: Uuid,
     pub parent_hold_id: Option<Uuid>,
+    pub hold_type: HoldTypes,
     pub name: String,
     pub event_id: Uuid,
     pub redemption_code: Option<String>,

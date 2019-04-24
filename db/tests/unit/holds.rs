@@ -502,6 +502,126 @@ fn find() {
 }
 
 #[test]
+fn split() {
+    let db = TestProject::new();
+    let connection = db.get_connection();
+    let hold = db.create_hold().finish();
+    let name = "Name1".to_string();
+    let redemption_code = "ABCD34927262".to_string();
+    let child = true;
+    let end_at = None;
+    let max_per_user = None;
+    let discount_in_cents = None;
+    let email = Some("email@domain.com".to_string());
+    let phone = Some("11111111111111".to_string());
+    let quantity = 2;
+    let hold_type = HoldTypes::Comp;
+
+    // Split off a comp that uses the current hold as its new parent
+    let new_hold = hold
+        .split(
+            None,
+            name.clone(),
+            email.clone(),
+            phone.clone(),
+            redemption_code.clone(),
+            quantity,
+            discount_in_cents,
+            hold_type,
+            end_at,
+            max_per_user,
+            child,
+            connection,
+        )
+        .unwrap();
+
+    assert_eq!(name, new_hold.name);
+    assert_eq!(email.clone(), new_hold.email);
+    assert_eq!(phone.clone(), new_hold.phone);
+    assert_eq!(Some(redemption_code), new_hold.redemption_code);
+    assert_eq!(quantity, new_hold.quantity(connection).unwrap().0);
+    assert_eq!(
+        discount_in_cents.map(|n| n as i64),
+        new_hold.discount_in_cents
+    );
+    assert_eq!(hold_type, new_hold.hold_type);
+    assert_eq!(end_at, new_hold.end_at);
+    assert_eq!(max_per_user.map(|n| n as i64), new_hold.max_per_user);
+    assert_eq!(Some(hold.id), new_hold.parent_hold_id);
+
+    // Split off a discount hold that uses the current hold as its parent
+    let hold_type = HoldTypes::Discount;
+    let discount_in_cents = Some(33);
+    let name = "Name2".to_string();
+    let redemption_code = "ABCD34927263".to_string();
+    let new_hold = hold
+        .split(
+            None,
+            name.clone(),
+            email.clone(),
+            phone.clone(),
+            redemption_code.clone(),
+            quantity,
+            discount_in_cents,
+            hold_type,
+            end_at,
+            max_per_user,
+            child,
+            connection,
+        )
+        .unwrap();
+
+    assert_eq!(name, new_hold.name);
+    assert_eq!(email.clone(), new_hold.email);
+    assert_eq!(phone.clone(), new_hold.phone);
+    assert_eq!(Some(redemption_code), new_hold.redemption_code);
+    assert_eq!(quantity, new_hold.quantity(connection).unwrap().0);
+    assert_eq!(
+        discount_in_cents.map(|n| n as i64),
+        new_hold.discount_in_cents
+    );
+    assert_eq!(hold_type, new_hold.hold_type);
+    assert_eq!(end_at, new_hold.end_at);
+    assert_eq!(max_per_user.map(|n| n as i64), new_hold.max_per_user);
+    assert_eq!(Some(hold.id), new_hold.parent_hold_id);
+
+    // Split off Discount that isn't a child of existing hold
+    let child = false;
+    let name = "Name3".to_string();
+    let redemption_code = "ABCD34927264".to_string();
+    let new_hold = hold
+        .split(
+            None,
+            name.clone(),
+            email.clone(),
+            phone.clone(),
+            redemption_code.clone(),
+            quantity,
+            discount_in_cents,
+            hold_type,
+            end_at,
+            max_per_user,
+            child,
+            connection,
+        )
+        .unwrap();
+
+    assert_eq!(name, new_hold.name);
+    assert_eq!(email.clone(), new_hold.email);
+    assert_eq!(phone.clone(), new_hold.phone);
+    assert_eq!(Some(redemption_code), new_hold.redemption_code);
+    assert_eq!(quantity, new_hold.quantity(connection).unwrap().0);
+    assert_eq!(
+        discount_in_cents.map(|n| n as i64),
+        new_hold.discount_in_cents
+    );
+    assert_eq!(hold_type, new_hold.hold_type);
+    assert_eq!(end_at, new_hold.end_at);
+    assert_eq!(max_per_user.map(|n| n as i64), new_hold.max_per_user);
+    assert_eq!(hold.parent_hold_id, new_hold.parent_hold_id);
+}
+
+#[test]
 fn find_for_event() {
     let db = TestProject::new();
     let event = db.create_event().with_ticket_pricing().finish();
@@ -539,7 +659,7 @@ fn find_by_parent_hold_id() {
     // Record found
     let found_comp = Hold::find_by_parent_id(
         comp.parent_hold_id.unwrap(),
-        HoldTypes::Comp,
+        Some(HoldTypes::Comp),
         0,
         1000,
         connection,
@@ -549,18 +669,23 @@ fn find_by_parent_hold_id() {
 
     // Comp does not exist for hold so returns error
     assert!(
-        Hold::find_by_parent_id(Uuid::new_v4(), HoldTypes::Comp, 0, 1000, connection)
+        Hold::find_by_parent_id(Uuid::new_v4(), Some(HoldTypes::Comp), 0, 1000, connection)
             .unwrap()
             .is_empty()
     );
 
     assert!(Hold::find_by_parent_id(
         comp.parent_hold_id.unwrap(),
-        HoldTypes::Discount,
+        Some(HoldTypes::Discount),
         0,
         1000,
         connection
     )
     .unwrap()
     .is_empty());
+
+    // Record found when not filtering by types
+    let found_comp =
+        Hold::find_by_parent_id(comp.parent_hold_id.unwrap(), None, 0, 1000, connection).unwrap();
+    assert_eq!(comp, found_comp.data[0]);
 }

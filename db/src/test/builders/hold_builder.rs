@@ -14,6 +14,7 @@ pub struct HoldBuilder<'a> {
     hold_type: HoldTypes,
     quantity: u32,
     max_per_user: Option<u32>,
+    parent_hold_id: Option<Uuid>,
     connection: &'a PgConnection,
 }
 
@@ -30,11 +31,17 @@ impl<'a> HoldBuilder<'a> {
             quantity: 10,
             end_at: None,
             max_per_user: None,
+            parent_hold_id: None,
         }
     }
 
     pub fn with_hold_type(mut self, hold_type: HoldTypes) -> Self {
         self.hold_type = hold_type;
+        self
+    }
+
+    pub fn with_parent(mut self, hold: &Hold) -> Self {
+        self.parent_hold_id = Some(hold.id);
         self
     }
 

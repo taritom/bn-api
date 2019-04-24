@@ -22,7 +22,7 @@ pub fn index(
 
     let comps = Hold::find_by_parent_id(
         path.id,
-        HoldTypes::Comp,
+        Some(HoldTypes::Comp),
         query_parameters.page(),
         query_parameters.limit(),
         conn,

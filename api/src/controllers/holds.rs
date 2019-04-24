@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, Path};
+use actix_web::{http::StatusCode, HttpResponse, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -6,7 +6,7 @@ use db::Connection;
 use errors::BigNeonError;
 use extractors::*;
 use helpers::application;
-use models::PathParameters;
+use models::{PathParameters, WebPayload};
 use serde_with::rust::double_option;
 use uuid::Uuid;
 
@@ -206,11 +206,45 @@ pub struct SplitHoldRequest {
     pub name: String,
     pub redemption_code: String,
     pub discount_in_cents: Option<u32>,
-
     pub hold_type: HoldTypes,
     pub quantity: u32,
     pub end_at: Option<NaiveDateTime>,
     pub max_per_user: Option<u32>,
+    pub child: Option<bool>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+}
+
+pub fn children(
+    (conn, path, query_parameters, user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+        User,
+    ),
+) -> Result<WebPayload<DisplayHold>, BigNeonError> {
+    let conn = conn.get();
+    let hold = Hold::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::HoldRead, &hold.organization(conn)?, conn)?;
+
+    let holds = Hold::find_by_parent_id(
+        path.id,
+        None,
+        query_parameters.page(),
+        query_parameters.limit(),
+        conn,
+    )?;
+
+    let mut list = Vec::<DisplayHold>::new();
+    for hold in holds.data {
+        let r = hold.into_display(conn)?;
+
+        list.push(r);
+    }
+
+    let payload = Payload::new(list, holds.paging);
+
+    Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
 pub fn split(
@@ -233,12 +267,15 @@ pub fn split(
     let new_hold = hold.split(
         Some(user.id()),
         req.name.clone(),
+        req.email.clone(),
+        req.phone.clone(),
         req.redemption_code.clone(),
         req.quantity,
         req.discount_in_cents,
         req.hold_type,
         req.end_at,
         req.max_per_user,
+        req.child.unwrap_or(false),
         conn,
     )?;
     Ok(HttpResponse::Created().json(new_hold))

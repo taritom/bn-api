@@ -51,6 +51,88 @@ mod create_tests {
 }
 
 #[cfg(test)]
+mod children_tests {
+    use super::*;
+    #[test]
+    fn children_org_member() {
+        base::holds::children(Roles::OrgMember, true);
+    }
+    #[test]
+    fn children_admin() {
+        base::holds::children(Roles::Admin, true);
+    }
+    #[test]
+    fn children_user() {
+        base::holds::children(Roles::User, false);
+    }
+    #[test]
+    fn children_org_owner() {
+        base::holds::children(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn children_door_person() {
+        base::holds::children(Roles::DoorPerson, true);
+    }
+    #[test]
+    fn children_promoter() {
+        base::holds::children(Roles::Promoter, true);
+    }
+    #[test]
+    fn children_promoter_read_only() {
+        base::holds::children(Roles::PromoterReadOnly, true);
+    }
+    #[test]
+    fn children_org_admin() {
+        base::holds::children(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn children_box_office() {
+        base::holds::children(Roles::OrgBoxOffice, true);
+    }
+}
+
+#[cfg(test)]
+mod split_tests {
+    use super::*;
+    #[test]
+    fn split_org_member() {
+        base::holds::split(Roles::OrgMember, true);
+    }
+    #[test]
+    fn split_admin() {
+        base::holds::split(Roles::Admin, true);
+    }
+    #[test]
+    fn split_user() {
+        base::holds::split(Roles::User, false);
+    }
+    #[test]
+    fn split_org_owner() {
+        base::holds::split(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn split_door_person() {
+        base::holds::split(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn split_promoter() {
+        base::holds::split(Roles::Promoter, true);
+    }
+    #[test]
+    fn split_promoter_read_only() {
+        base::holds::split(Roles::PromoterReadOnly, false);
+    }
+    #[test]
+    fn split_org_admin() {
+        base::holds::split(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn split_box_office() {
+        base::holds::split(Roles::OrgBoxOffice, false);
+    }
+}
+
+#[cfg(test)]
 mod update_tests {
     use super::*;
     #[test]

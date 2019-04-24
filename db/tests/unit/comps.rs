@@ -169,10 +169,10 @@ fn find_for_hold() {
     let _hold2 = hold2.update(update_patch, connection).unwrap();
 
     let found_comps =
-        Hold::find_by_parent_id(hold1.id, HoldTypes::Comp, 0, 1000, connection).unwrap();
+        Hold::find_by_parent_id(hold1.id, Some(HoldTypes::Comp), 0, 1000, connection).unwrap();
     assert_eq!(vec![comp1, comp2], found_comps.data);
 
     let found_comps =
-        Hold::find_by_parent_id(hold3.id, HoldTypes::Comp, 0, 1000, connection).unwrap();
+        Hold::find_by_parent_id(hold3.id, Some(HoldTypes::Comp), 0, 1000, connection).unwrap();
     assert!(found_comps.is_empty());
 }

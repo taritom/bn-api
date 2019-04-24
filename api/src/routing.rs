@@ -153,6 +153,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/holds/{id}/split", |r| {
         r.method(Method::POST).with(holds::split);
     })
+    .resource("/holds/{id}/children", |r| {
+        r.method(Method::GET).with(holds::children);
+    })
     .resource("/holds/{id}", |r| {
         r.method(Method::PATCH).with(holds::update);
         r.method(Method::GET).with(holds::show);
