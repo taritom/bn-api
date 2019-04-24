@@ -86,6 +86,7 @@ pub struct DeepLink {
     pub feature: Option<String>,
     pub tags: Vec<String>,
     pub data: DeepLinkData,
+    pub alias: Option<String>,
 }
 
 #[derive(Serialize, Default)]

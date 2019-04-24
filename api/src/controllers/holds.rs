@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpResponse, Path, Query};
+use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -6,8 +6,11 @@ use db::Connection;
 use errors::BigNeonError;
 use extractors::*;
 use helpers::application;
+use log::Level::Warn;
 use models::{PathParameters, WebPayload};
 use serde_with::rust::double_option;
+use server::AppState;
+use std::error::Error;
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize)]
@@ -194,6 +197,43 @@ pub fn show(
     };
 
     Ok(HttpResponse::Ok().json(r))
+}
+
+pub fn link(
+    (conn, path, user, state): (Connection, Path<PathParameters>, User, State<AppState>),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    let hold = Hold::find(path.id, conn)?;
+    let event = hold.event(conn)?;
+    user.requires_scope_for_organization_event(
+        Scopes::HoldRead,
+        &hold.organization(conn)?,
+        &event,
+        conn,
+    )?;
+    if hold.redemption_code.is_none() {
+        return application::not_found();
+    }
+
+    let linker = state.service_locator.create_deep_linker()?;
+    let raw_url = format!(
+        "{}/events/{}/tickets?code={}",
+        &state.config.front_end_url,
+        event.id,
+        hold.redemption_code.as_ref().unwrap()
+    );
+    let link = match linker
+        .create_deep_link_with_alias(&raw_url, hold.redemption_code.as_ref().unwrap())
+    {
+        Ok(l) => l,
+        Err(e) => {
+            jlog!(Warn, "Error when creating an aliased link",
+            {"error": e.description(), "raw_url": &raw_url, "alias": hold.redemption_code.as_ref().unwrap()});
+            // Alias might not be unique, create without
+            linker.create_deep_link(&raw_url)?
+        }
+    };
+    Ok(HttpResponse::Ok().json(json!({ "link": link })))
 }
 
 #[derive(Deserialize)]

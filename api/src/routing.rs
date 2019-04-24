@@ -48,6 +48,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/cart/checkout", |r| {
         r.method(Method::POST).with(cart::checkout);
     })
+    .resource("/codes/{id}/link", |r| {
+        r.method(Method::GET).with(codes::link);
+    })
     .resource("/codes/{id}", |r| {
         r.method(Method::GET).with(codes::show);
         r.method(Method::PUT).with(codes::update);
@@ -155,6 +158,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/holds/{id}/children", |r| {
         r.method(Method::GET).with(holds::children);
+    })
+    .resource("/holds/{id}/link", |r| {
+        r.method(Method::GET).with(holds::link);
     })
     .resource("/holds/{id}", |r| {
         r.method(Method::PATCH).with(holds::update);

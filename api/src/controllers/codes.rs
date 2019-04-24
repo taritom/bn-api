@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, Path};
+use actix_web::{HttpResponse, Path, State};
 use auth::user::User;
 use bigneon_db::dev::times;
 use bigneon_db::models::*;
@@ -9,6 +9,7 @@ use extractors::*;
 use helpers::application;
 use models::PathParameters;
 use serde_with::rust::double_option;
+use server::AppState;
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize)]
@@ -97,6 +98,33 @@ pub fn show(
     )?;
 
     Ok(HttpResponse::Ok().json(code.for_display(conn)?))
+}
+
+pub fn link(
+    (conn, path, user, state): (Connection, Path<PathParameters>, User, State<AppState>),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    let code = Code::find(path.id, conn)?;
+    let event = code.event(conn)?;
+    user.requires_scope_for_organization_event(
+        Scopes::CodeRead,
+        &code.organization(conn)?,
+        &event,
+        conn,
+    )?;
+    let linker = state.service_locator.create_deep_linker()?;
+    let raw_url = format!(
+        "{}/events/{}/tickets?code={}",
+        &state.config.front_end_url, event.id, &code.redemption_code
+    );
+    let link = match linker.create_deep_link_with_alias(&raw_url, &code.redemption_code) {
+        Ok(l) => l,
+        Err(_) => {
+            // Alias might not be unique, create without
+            linker.create_deep_link(&raw_url)?
+        }
+    };
+    Ok(HttpResponse::Ok().json(json!({ "link": link })))
 }
 
 pub fn create(
