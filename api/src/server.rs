@@ -62,7 +62,7 @@ impl Server {
 
         if process_http {
             info!("Listening on {}", bind_addr);
-            let keep_alive = server::KeepAlive::Tcp(config.http_keep_alive);
+            //            let keep_alive = server::KeepAlive::Tcp(config.http_keep_alive);
             server::new({
                 move || {
                     App::with_state(AppState::new(config.clone(), database.clone()))
@@ -98,7 +98,7 @@ impl Server {
                         })
                 }
             })
-            .keep_alive(keep_alive)
+            //            .keep_alive(keep_alive)
             .bind(&bind_addr)
             .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
             .run();
