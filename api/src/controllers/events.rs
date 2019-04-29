@@ -288,8 +288,7 @@ pub fn show(
             }
 
             // If the ticket type is sold out, hide it if necessary
-            if (display_ticket_type.status == TicketTypeStatus::SoldOut
-                || display_ticket_type.status == TicketTypeStatus::NoActivePricing)
+            if display_ticket_type.status != TicketTypeStatus::Published
                 && ticket_type.visibility == TicketTypeVisibility::WhenAvailable
             {
                 continue;
