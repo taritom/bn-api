@@ -133,6 +133,7 @@ FROM ticket_instances ti
          LEFT JOIN organizations o ON o.id = e2.organization_id
 WHERE ($1 IS NULL OR e2.id = $1)
   AND ($2 IS NULL OR e2.organization_id = $2)
+  AND (tt2.status <> 'Cancelled')
 GROUP BY e.id, e.name, o.id, o.name, tt.id, tt.name, tt.status;
 $body$
     LANGUAGE SQL;
