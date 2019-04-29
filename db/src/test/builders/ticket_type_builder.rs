@@ -6,6 +6,8 @@ use utils::dates::IntoDateBuilder;
 pub struct TicketTypeBuilder<'a> {
     event: EventBuilder<'a>,
     quantity: u32,
+    price_in_cents: Option<i64>,
+    name: Option<String>,
     sales_start: Option<NaiveDateTime>,
     sales_end: Option<NaiveDateTime>,
     visibility: TicketTypeVisibility,
@@ -16,6 +18,8 @@ impl<'a> TicketTypeBuilder<'a> {
         TicketTypeBuilder {
             event,
             quantity: 100,
+            price_in_cents: None,
+            name: None,
             sales_start: None,
             sales_end: None,
             visibility: TicketTypeVisibility::Always,
@@ -41,6 +45,16 @@ impl<'a> TicketTypeBuilder<'a> {
         TicketPricingBuilder::new(self)
     }
 
+    pub fn with_price(mut self, price_in_cents: i64) -> Self {
+        self.price_in_cents = Some(price_in_cents);
+        self
+    }
+
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = Some(name);
+        self
+    }
+
     pub fn finish(mut self) -> Event {
         let connection = self.event.connection;
         let event = self.event.finish();
@@ -58,7 +72,7 @@ impl<'a> TicketTypeBuilder<'a> {
             .finish();
         event
             .add_ticket_type(
-                "Ticket Builder".to_string(),
+                self.name.unwrap_or("Ticket Builder".to_string()),
                 None,
                 self.quantity,
                 Some(self.sales_start.unwrap_or(sales_start)),
@@ -66,7 +80,7 @@ impl<'a> TicketTypeBuilder<'a> {
                 event.issuer_wallet(self.event.connection).unwrap().id,
                 None,
                 0,
-                100,
+                self.price_in_cents.unwrap_or(100),
                 self.visibility,
                 None,
                 None,

@@ -12,7 +12,7 @@ sql_function!(fn ticket_sales_per_ticket_pricing(start: Nullable<Timestamp>, end
 sql_function!(fn ticket_count_per_ticket_type(event_id: Nullable<dUuid>, organization_id: Nullable<dUuid>, group_by: Option<Text>) -> Vec<TicketCountRow>);
 pub struct Report {}
 
-#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, QueryableByName)]
 pub struct TicketSalesRow {
     #[sql_type = "Nullable<dUuid>"]
     pub organization_id: Option<Uuid>,
@@ -81,6 +81,8 @@ pub struct TicketSalesRow {
     pub per_order_client_online_fees: i64,
     #[sql_type = "BigInt"]
     pub per_order_total_fees_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub user_count: i64,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
@@ -488,6 +490,7 @@ impl TicketSalesRow {
         group_by_ticket_type: bool,
         group_by_ticket_pricing: bool,
         group_by_hold: bool,
+        include_event_fees: bool,
         event_id: Option<Uuid>,
         organization_id: Option<Uuid>,
         conn: &PgConnection,
@@ -510,15 +513,17 @@ impl TicketSalesRow {
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not fetch ticket sales")?;
 
-        let event_fees = TicketSalesRow::fetch_per_event_fees(
-            start,
-            end,
-            true,
-            event_id,
-            organization_id,
-            conn,
-        )?;
-        rows.extend(event_fees);
+        if include_event_fees {
+            let event_fees = TicketSalesRow::fetch_per_event_fees(
+                start,
+                end,
+                true,
+                event_id,
+                organization_id,
+                conn,
+            )?;
+            rows.extend(event_fees);
+        }
         Ok(rows)
     }
 
@@ -881,6 +886,24 @@ impl Report {
         )
     }
 
+    pub fn promo_code_report(
+        event_id: Option<Uuid>,
+        organization_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Vec<TicketSalesRow>, DatabaseError> {
+        TicketSalesRow::fetch(
+            None,
+            None,
+            true,
+            true,
+            true,
+            false,
+            event_id,
+            organization_id,
+            conn,
+        )
+    }
+
     /// Fetches the generic ticket sales and counts data
     pub fn ticket_sales_and_counts(
         event_id: Option<Uuid>,
@@ -899,6 +922,7 @@ impl Report {
             group_by_ticket_type,
             group_by_ticket_pricing,
             group_by_hold,
+            true,
             event_id,
             organization_id,
             conn,

@@ -70,6 +70,7 @@ pub fn get_report(
         "audit_report" => audit_report((connection, query, path, user)),
         "reconciliation_summary" => reconciliation_summary_report((connection, query, path, user)),
         "reconciliation_details" => reconciliation_detail_report((connection, query, path, user)),
+        "promo_code" => promo_code_report((connection, query, path, user)),
         _ => application::not_found(),
     }
 }
@@ -261,6 +262,33 @@ pub fn ticket_counts(
     }
 
     let result = Report::ticket_count_report(query.event_id, Some(path.id), connection)?;
+    Ok(HttpResponse::Ok().json(result))
+}
+
+pub fn promo_code_report(
+    (connection, query, path, user): (
+        Connection,
+        Query<ReportQueryParameters>,
+        Path<PathParameters>,
+        AuthUser,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    //Check if they have org admin permissions
+    let organization = Organization::find(path.id, connection)?;
+    if let Some(event_id) = query.event_id {
+        let event = Event::find(event_id, connection)?;
+        user.requires_scope_for_organization_event(
+            Scopes::EventFinancialReports,
+            &organization,
+            &event,
+            connection,
+        )?;
+    } else {
+        user.requires_scope_for_organization(Scopes::OrgReports, &organization, connection)?;
+    }
+
+    let result = Report::promo_code_report(query.event_id, Some(path.id), connection)?;
     Ok(HttpResponse::Ok().json(result))
 }
 

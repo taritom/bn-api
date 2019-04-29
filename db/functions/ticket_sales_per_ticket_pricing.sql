@@ -43,7 +43,8 @@ CREATE OR REPLACE FUNCTION ticket_sales_per_ticket_pricing(start TIMESTAMP, "end
         client_online_fees_in_cents        BIGINT,
         per_order_company_online_fees      BIGINT,
         per_order_client_online_fees       BIGINT,
-        per_order_total_fees_in_cents      BIGINT
+        per_order_total_fees_in_cents      BIGINT,
+        user_count                         BIGINT
 
     )
 AS
@@ -144,7 +145,9 @@ SELECT e.organization_id                            AS organization_id,
        --These are calculated by event_fees_per_event and inserted in the code.
        CAST(0 AS BIGINT)                            AS per_order_company_online_fees,
        CAST(0 AS BIGINT)                            AS per_order_client_online_fees,
-       CAST(0 AS BIGINT)                            AS per_order_total_fees_in_cents
+       CAST(0 AS BIGINT)                            AS per_order_total_fees_in_cents,
+       CAST(COUNT(DISTINCT(CASE WHEN o.status = 'Paid' THEN COALESCE(o.on_behalf_of_user_id, o.user_id) END)) AS BIGINT)
+                                                    AS user_count
 
 FROM order_items oi
          LEFT JOIN order_items oi_promo_code

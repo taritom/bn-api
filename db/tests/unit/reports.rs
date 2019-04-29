@@ -1,6 +1,7 @@
-use bigneon_db::dev::TestProject;
+use bigneon_db::dev::{times, TestProject};
 use bigneon_db::models::*;
 use bigneon_db::schema::orders;
+use bigneon_db::utils::dates;
 use chrono::{Duration, NaiveDate, Utc};
 use diesel;
 use diesel::prelude::*;
@@ -692,4 +693,200 @@ fn build_transaction_report_row(
         promo_code_name: None,
         promo_redemption_code: None,
     }
+}
+
+#[test]
+fn promo_code_report() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+
+    let creator = project.create_user().finish();
+
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_name("Event1".to_string())
+        .with_ticket_type()
+        .with_name("GA".to_string())
+        .with_price(1000)
+        .finish();
+
+    let wallet_id = event.issuer_wallet(connection).unwrap().id;
+
+    event
+        .add_ticket_type(
+            "VIP".to_string(),
+            None,
+            100,
+            Some(dates::now().add_days(-1).finish()),
+            times::infinity(),
+            wallet_id,
+            None,
+            0,
+            2000,
+            TicketTypeVisibility::Always,
+            None,
+            None,
+            connection,
+        )
+        .unwrap();
+
+    let ticket_types = event.ticket_types(false, None, connection).unwrap();
+
+    let ticket_type = &ticket_types[0];
+    let ticket_type2 = &ticket_types[1];
+    let code = project
+        .create_code()
+        .with_name("Discount 1".into())
+        .with_event(&event)
+        .with_discount_in_cents(Some(100))
+        .for_ticket_type(ticket_type)
+        .for_ticket_type(ticket_type2)
+        .with_code_type(CodeTypes::Discount)
+        .finish();
+
+    let code2 = project
+        .create_code()
+        .with_name("Discount 2".into())
+        .with_event(&event)
+        .with_discount_in_cents(Some(300))
+        .for_ticket_type(ticket_type)
+        .with_code_type(CodeTypes::Discount)
+        .finish();
+
+    //Buy some ticket with no codes
+    let mut cart = Order::find_or_create_cart(&creator, connection).unwrap();
+
+    cart.update_quantities(
+        creator.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: None,
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let total1 = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        creator.id,
+        total1,
+        connection,
+    )
+    .unwrap();
+
+    //Buy some tickets with discounts
+    //Buy some ticket with no codes
+    let mut cart = Order::find_or_create_cart(&creator, connection).unwrap();
+
+    cart.update_quantities(
+        creator.id,
+        &[
+            UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 1,
+                redemption_code: Some(code.redemption_code.clone()),
+            },
+            UpdateOrderItem {
+                ticket_type_id: ticket_type2.id,
+                quantity: 1,
+                redemption_code: Some(code.redemption_code.clone()),
+            },
+        ],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let total2 = cart.calculate_total(connection).unwrap();
+    assert_eq!(total2, total1 - 200);
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        creator.id,
+        total2,
+        connection,
+    )
+    .unwrap();
+
+    //Buy some more ticket with the second code
+
+    let mut cart = Order::find_or_create_cart(&creator, connection).unwrap();
+
+    cart.update_quantities(
+        creator.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 10,
+            redemption_code: Some(code2.redemption_code.clone()),
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let total3 = cart.calculate_total(connection).unwrap();
+    cart.add_external_payment(
+        Some("Test".to_string()),
+        ExternalPaymentType::CreditCard,
+        creator.id,
+        total3,
+        connection,
+    )
+    .unwrap();
+
+    //Check report
+    let report =
+        Report::promo_code_report(Some(event.id), Some(organization.id), connection).unwrap();
+
+    //The order of the rows coming back is not consistent
+    let mut test_pass_count = 0;
+    for row in report {
+        if row.hold_name.is_none() && row.ticket_name == Some("GA".to_string()) {
+            test_pass_count += (row.box_office_sales_in_cents == 1000) as i32;
+        }
+
+        if row.hold_name.is_none() && row.ticket_name == Some("VIP".to_string()) {
+            test_pass_count += (row.box_office_sales_in_cents == 2000) as i32;
+        }
+
+        if row.hold_name == Some("Discount 1".to_string())
+            && row.ticket_name == Some("GA".to_string())
+        {
+            test_pass_count += (row.box_office_sales_in_cents == 900) as i32;
+        }
+
+        if row.hold_name == Some("Discount 1".to_string())
+            && row.ticket_name == Some("VIP".to_string())
+        {
+            test_pass_count += (row.box_office_sales_in_cents == 1900) as i32;
+        }
+
+        if row.hold_name == Some("Discount 2".to_string())
+            && row.ticket_name == Some("GA".to_string())
+        {
+            test_pass_count += (row.box_office_sales_in_cents == 7000) as i32;
+        }
+    }
+
+    assert_eq!(test_pass_count, 5);
 }

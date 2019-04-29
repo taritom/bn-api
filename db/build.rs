@@ -24,7 +24,9 @@ fn main() {
     .unwrap();
     for entry in fs::read_dir(&dest_path).unwrap() {
         let entry = entry.unwrap();
-        if entry.file_name() == "functions.sql" {
+        if entry.file_name() == "functions.sql"
+            || !entry.file_name().to_str().unwrap().ends_with(".sql")
+        {
             continue;
         }
         let file_name = entry.path();
