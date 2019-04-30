@@ -1,5 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
 use auth::user::User as AuthUser;
+use bigneon_db::dev::times;
 use bigneon_db::prelude::*;
 use chrono::prelude::*;
 use chrono::Duration;
@@ -270,6 +271,7 @@ pub fn show(
         connection,
     )?;
     let mut display_ticket_types = Vec::new();
+    let mut sales_start_date = Some(times::infinity());
     for ticket_type in ticket_types {
         if ticket_type.status != TicketTypeStatus::Cancelled {
             let display_ticket_type = UserDisplayTicketType::from_ticket_type(
@@ -285,6 +287,12 @@ pub fn show(
                 && display_ticket_type.redemption_code.is_none()
             {
                 continue;
+            }
+
+            if sales_start_date.unwrap()
+                > ticket_type.start_date.clone().unwrap_or(times::infinity())
+            {
+                sales_start_date = ticket_type.start_date.clone();
             }
 
             // If the ticket type is sold out, hide it if necessary
@@ -380,6 +388,7 @@ pub fn show(
         localized_times,
         tracking_keys,
         event_type: event.event_type,
+        sales_start_date: sales_start_date,
     };
 
     Ok(HttpResponse::Ok().json(&payload))

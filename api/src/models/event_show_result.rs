@@ -40,6 +40,7 @@ pub struct EventShowResult {
     pub localized_times: EventLocalizedTimeStrings,
     pub tracking_keys: TrackingKeys,
     pub event_type: EventTypes,
+    pub sales_start_date: Option<NaiveDateTime>,
 }
 
 //This struct is used to just contain the id and name of the org

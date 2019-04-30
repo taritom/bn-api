@@ -3,6 +3,7 @@ use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::*;
 use bigneon_api::extractors::*;
 use bigneon_api::models::{PathParameters, UserDisplayTicketType};
+use bigneon_db::dev::times;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use chrono::Duration;
@@ -788,6 +789,7 @@ pub fn expected_show_json(
         localized_times: EventLocalizedTimeStrings,
         tracking_keys: TrackingKeys,
         event_type: EventTypes,
+        pub sales_start_date: Option<NaiveDateTime>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -803,9 +805,12 @@ pub fn expected_show_json(
     }
 
     let mut display_ticket_types: Vec<UserDisplayTicketType> = Vec::new();
-
+    let mut sales_start_date = Some(times::infinity());
     for tt in ticket_types {
         if tt.status != TicketTypeStatus::Cancelled {
+            if sales_start_date.unwrap() > tt.start_date.clone().unwrap_or(times::infinity()) {
+                sales_start_date = tt.start_date.clone();
+            }
             display_ticket_types.push(
                 UserDisplayTicketType::from_ticket_type(
                     &tt,
@@ -876,6 +881,7 @@ pub fn expected_show_json(
             ..Default::default()
         },
         event_type: event.event_type,
+        sales_start_date,
     })
     .unwrap()
 }
