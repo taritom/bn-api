@@ -248,6 +248,18 @@ pub struct TransactionReportRow {
     pub promo_code_name: Option<String>,
     #[sql_type = "Nullable<Text>"]
     pub promo_redemption_code: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub source: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub medium: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub campaign: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub term: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub content: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub platform: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

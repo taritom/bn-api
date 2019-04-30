@@ -47,7 +47,13 @@ SELECT COUNT(*) OVER ()                                                         
        CAST(COALESCE(oi_promo_code.unit_price_in_cents, 0) AS BIGINT)                                     AS promo_discount_value_in_cents,
        CAST(COALESCE(oi_promo_code.quantity, 0) - COALESCE(oi_promo_code.refunded_quantity, 0) AS BIGINT) AS promo_quantity,
        c.name                                                                                             AS promo_code_name,
-       c.redemption_code                                                                                  AS promo_redemption_code
+       c.redemption_code                                                                                  AS promo_redemption_code,
+       o.source,
+       o.medium,
+       o.campaign,
+       o.term,
+       o.content,
+       null as platform
 FROM orders o
          LEFT JOIN order_items oi ON (o.id = oi.order_id AND oi.item_type = 'Tickets')
          LEFT JOIN order_items oi_fees ON (oi_fees.item_type = 'PerUnitFees' AND oi.id = oi_fees.parent_id)

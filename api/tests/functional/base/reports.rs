@@ -491,5 +491,11 @@ fn build_transaction_report_row(
         promo_quantity: 0,
         promo_code_name: None,
         promo_redemption_code: None,
+        source: None,
+        medium: None,
+        campaign: None,
+        term: None,
+        content: None,
+        platform: None,
     }
 }
