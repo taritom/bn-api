@@ -31,7 +31,8 @@ impl AdminDisplayTicketType {
         let available = ticket_type.valid_available_ticket_count(conn)?;
         let capacity = ticket_type.valid_ticket_count(conn)?;
         let mut ticket_pricing_list = Vec::new();
-        for ticket_pricing in ticket_type.valid_ticket_pricing(false, conn)? {
+        let ticket_pricings = ticket_type.valid_ticket_pricing(false, conn)?;
+        for ticket_pricing in &ticket_pricings {
             ticket_pricing_list.push(DisplayTicketPricing::from_ticket_pricing(
                 &ticket_pricing,
                 fee_schedule,
@@ -42,7 +43,7 @@ impl AdminDisplayTicketType {
             )?);
         }
 
-        Ok(AdminDisplayTicketType {
+        let mut result = AdminDisplayTicketType {
             id: ticket_type.id,
             name: ticket_type.name.clone(),
             description: ticket_type.description.clone(),
@@ -50,13 +51,45 @@ impl AdminDisplayTicketType {
             start_date: ticket_type.start_date,
             parent_id: ticket_type.parent_id,
             end_date: ticket_type.end_date,
-            ticket_pricing: ticket_pricing_list,
+            ticket_pricing: ticket_pricing_list.clone(),
             available,
             capacity,
             increment: ticket_type.increment as u32,
             limit_per_person: ticket_type.limit_per_person as u32,
             price_in_cents: ticket_type.price_in_cents,
             visibility: ticket_type.visibility,
-        })
+        };
+
+        let current_ticket_pricing = ticket_type.current_ticket_pricing(false, conn).optional()?;
+
+        if ticket_type.status == TicketTypeStatus::Published {
+            if result.available == 0 {
+                result.status = TicketTypeStatus::SoldOut;
+            } else {
+                if current_ticket_pricing.is_none() {
+                    result.status = TicketTypeStatus::NoActivePricing;
+                    let min_pricing = ticket_pricings.iter().min_by_key(|p| p.start_date);
+                    let max_pricing = ticket_pricings.iter().max_by_key(|p| p.end_date);
+
+                    if min_pricing
+                        .map(|p| p.start_date)
+                        .unwrap_or(ticket_type.start_date(conn)?)
+                        > dates::now().finish()
+                    {
+                        result.status = TicketTypeStatus::OnSaleSoon;
+                    }
+
+                    if max_pricing
+                        .map(|p| p.end_date)
+                        .unwrap_or(ticket_type.end_date)
+                        < dates::now().finish()
+                    {
+                        result.status = TicketTypeStatus::SaleEnded;
+                    }
+                }
+            }
+        }
+
+        Ok(result)
     }
 }
