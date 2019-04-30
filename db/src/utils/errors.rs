@@ -4,6 +4,7 @@ use diesel::result::DatabaseErrorKind;
 use diesel::result::Error as DieselError;
 use diesel::result::QueryResult;
 use log::Level;
+use regex;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::collections::HashMap;
 use std::error::Error;
@@ -264,6 +265,11 @@ impl From<EnumParseError> for DatabaseError {
 
 impl From<TariError> for DatabaseError {
     fn from(e: TariError) -> Self {
+        DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
+    }
+}
+impl From<regex::Error> for DatabaseError {
+    fn from(e: regex::Error) -> Self {
         DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
     }
 }

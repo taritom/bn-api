@@ -33,6 +33,7 @@ itertools = "0.7"
 log = "0.4"
 logging = {path="../logging"}
 macros={path="../macros"}
+regex="1.1.6"
 ring = "0.13.5"
 serde = "1.0"
 serde_derive = "1.0"

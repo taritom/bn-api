@@ -32,6 +32,7 @@ extern crate logging;
 extern crate macros;
 
 extern crate rand;
+extern crate regex;
 extern crate ring;
 #[macro_use]
 extern crate embed_dirs_derive;

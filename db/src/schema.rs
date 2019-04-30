@@ -267,6 +267,7 @@ table! {
         medium -> Nullable<Text>,
         term -> Nullable<Text>,
         content -> Nullable<Text>,
+        platform -> Nullable<Text>,
     }
 }
 

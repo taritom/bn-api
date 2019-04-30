@@ -10,6 +10,7 @@ use diesel::sql_types::{BigInt, Bool, Integer, Nullable, Text, Uuid as dUuid};
 use itertools::Itertools;
 use log::Level::{self, Debug};
 use models::*;
+use regex::RegexSet;
 use schema::{events, order_items, orders, organization_users, organizations, payments, users};
 use serde_json;
 use serde_json::Value;
@@ -54,6 +55,7 @@ pub struct Order {
     pub medium: Option<String>,
     pub term: Option<String>,
     pub content: Option<String>,
+    pub platform: Option<String>,
 }
 
 #[derive(AsChangeset, Deserialize, Serialize)]
@@ -430,6 +432,22 @@ impl Order {
     ) -> Result<(), DatabaseError> {
         self.lock_version(conn)?;
         self.updated_at = Utc::now().naive_utc();
+
+        let mut platform: Option<String> = None;
+        if user_agent.is_some() {
+            let agent = user_agent.as_ref().unwrap();
+
+            let set = RegexSet::new(&[r"okhttp", r"Big.*Neon", r"Mozilla"])?;
+
+            let matches = set.matches(agent).into_iter().collect_vec();
+
+            if matches.contains(&0) || matches.contains(&1) {
+                platform = Some("App".to_string());
+            }
+            if matches.contains(&2) {
+                platform = Some("Web".to_string());
+            }
+        }
         if purchase_completed {
             self.purchase_user_agent = user_agent;
         } else {
@@ -442,6 +460,7 @@ impl Order {
         .set((
             orders::purchase_user_agent.eq(self.purchase_user_agent.clone()),
             orders::create_user_agent.eq(self.create_user_agent.clone()),
+            orders::platform.eq(platform),
             orders::updated_at.eq(self.updated_at),
         ))
         .execute(conn)

@@ -53,7 +53,7 @@ SELECT COUNT(*) OVER ()                                                         
        o.campaign,
        o.term,
        o.content,
-       null as platform
+       o.platform
 FROM orders o
          LEFT JOIN order_items oi ON (o.id = oi.order_id AND oi.item_type = 'Tickets')
          LEFT JOIN order_items oi_fees ON (oi_fees.item_type = 'PerUnitFees' AND oi.id = oi_fees.parent_id)
