@@ -91,6 +91,7 @@ impl TicketInstance {
         Ok(())
     }
 
+    // Check if a ticket has been transferred from the original user. Ignore the case when it was done by a Box Office user
     pub fn was_transferred(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
         ticket_instances::table
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
@@ -103,7 +104,7 @@ impl TicketInstance {
             )
             .filter(ticket_instances::id.eq(self.id))
             .select(
-                sql::<Bool>("case when order_items.id is null then true else orders.user_id <> wallets.user_id end")
+                sql::<Bool>("CASE WHEN order_items.id IS NULL THEN TRUE ELSE (orders.user_id <> wallets.user_id AND (orders.on_behalf_of_user_id IS NULL OR wallets.user_id <> orders.on_behalf_of_user_id)) END")
             )
             .get_result(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to check if ticket instance was transferred")
