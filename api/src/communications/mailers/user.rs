@@ -60,7 +60,7 @@ pub fn invite_user_email(
     conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
     let invite_link = format!(
-        "{}/password-reset?token={}",
+        "{}/password-reset?token={}&invite=true",
         config.front_end_url.clone(),
         user.password_reset_token
             .expect("Password reset token is not set")
