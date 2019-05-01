@@ -14,7 +14,7 @@ use server::AppState;
 use tari_client::MessagePayloadCreateAsset as TariNewAsset;
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct CreateTicketPricingRequest {
     pub name: String,
     pub price_in_cents: i64,
@@ -23,7 +23,12 @@ pub struct CreateTicketPricingRequest {
     pub is_box_office_only: Option<bool>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
+pub struct CreateMultipleTicketTypeRequest {
+    pub ticket_types: Vec<CreateTicketTypeRequest>,
+}
+
+#[derive(Clone, Deserialize)]
 pub struct CreateTicketTypeRequest {
     pub name: String,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
@@ -92,65 +97,46 @@ pub fn create(
         connection,
     )?;
 
-    //Check that requested ticket capacity is less than max_instances_per_ticket_type
-    if data.capacity as i64 > organization.max_instances_per_ticket_type {
-        return application::internal_server_error(
-            "Requested capacity larger than organization maximum tickets per ticket type",
-        );
-    }
-
-    //Retrieve default wallet
-    let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
-
-    //Add new ticket type
-    let ticket_type = event.add_ticket_type(
-        data.name.clone(),
-        data.description.clone(),
-        data.capacity,
-        data.start_date,
-        data.end_date,
-        org_wallet.id,
-        data.increment,
-        data.limit_per_person,
-        data.price_in_cents,
-        data.visibility,
-        data.parent_id,
-        Some(user.id()),
+    let created_ticket_types = create_ticket_types(
+        &event,
+        &organization,
+        &user,
+        vec![data.into_inner()],
+        &state,
         connection,
     )?;
-    //Add each ticket pricing entry for newly created ticket type
-    for current_pricing_entry in &data.ticket_pricing {
-        let _pricing_result = ticket_type.add_ticket_pricing(
-            current_pricing_entry.name.clone(),
-            current_pricing_entry.start_date,
-            current_pricing_entry.end_date,
-            current_pricing_entry.price_in_cents,
-            current_pricing_entry.is_box_office_only.unwrap_or(false),
-            None,
-            Some(user.id()),
-            connection,
-        )?;
-    }
+    Ok(HttpResponse::Created().json(&created_ticket_types[0]))
+}
 
-    ticket_type.validate_ticket_pricing(connection)?;
-
-    // TODO: move this to an async processor...
-
-    let tari_asset_id = state.config.tari_client.create_asset(
-        &org_wallet.secret_key,
-        &org_wallet.public_key,
-        TariNewAsset {
-            name: format!("{}.{}", event.id, data.name),
-            total_supply: data.capacity as u64,
-            authorised_signers: Vec::new(),
-            rule_flags: 0,
-            rule_metadata: "".to_string(),
-            expiry_date: data.end_date.timestamp(),
-        },
+pub fn create_multiple(
+    (connection, path, data, user, state): (
+        Connection,
+        Path<PathParameters>,
+        Json<CreateMultipleTicketTypeRequest>,
+        User,
+        State<AppState>,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let data = data.into_inner();
+    let event = Event::find(path.id, connection)?;
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization_event(
+        Scopes::TicketTypeWrite,
+        &organization,
+        &event,
+        connection,
     )?;
-    let asset = Asset::find_by_ticket_type(ticket_type.id, connection)?;
-    let _asset = asset.update_blockchain_id(tari_asset_id, connection)?;
-    Ok(HttpResponse::Created().json(DisplayCreatedTicket { id: ticket_type.id }))
+
+    let created_ticket_types = create_ticket_types(
+        &event,
+        &organization,
+        &user,
+        data.ticket_types,
+        &state,
+        connection,
+    )?;
+    Ok(HttpResponse::Created().json(created_ticket_types))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -448,4 +434,83 @@ fn nullify_tickets(
     }
 
     Ok(())
+}
+
+fn create_ticket_types(
+    event: &Event,
+    organization: &Organization,
+    user: &User,
+    data: Vec<CreateTicketTypeRequest>,
+    state: &State<AppState>,
+    connection: &PgConnection,
+) -> Result<Vec<DisplayCreatedTicket>, BigNeonError> {
+    let mut created_ticket_types = Vec::new();
+
+    //Check that any requested ticket capacity is less than max_instances_per_ticket_type
+    if data
+        .iter()
+        .find(|tt| tt.capacity as i64 > organization.max_instances_per_ticket_type)
+        .is_some()
+    {
+        application::internal_server_error::<HttpResponse>(
+            "Requested capacity larger than organization maximum tickets per ticket type",
+        )?;
+    }
+
+    //Retrieve default wallet
+    let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
+
+    //Add new ticket types
+    for ref ticket_type_data in &data {
+        let ticket_type = event.add_ticket_type(
+            ticket_type_data.name.clone(),
+            ticket_type_data.description.clone(),
+            ticket_type_data.capacity,
+            ticket_type_data.start_date,
+            ticket_type_data.end_date,
+            org_wallet.id,
+            ticket_type_data.increment,
+            ticket_type_data.limit_per_person,
+            ticket_type_data.price_in_cents,
+            ticket_type_data.visibility,
+            ticket_type_data.parent_id,
+            Some(user.id()),
+            connection,
+        )?;
+        //Add each ticket pricing entry for newly created ticket type
+        for current_pricing_entry in &ticket_type_data.ticket_pricing {
+            let _pricing_result = ticket_type.add_ticket_pricing(
+                current_pricing_entry.name.clone(),
+                current_pricing_entry.start_date,
+                current_pricing_entry.end_date,
+                current_pricing_entry.price_in_cents,
+                current_pricing_entry.is_box_office_only.unwrap_or(false),
+                None,
+                Some(user.id()),
+                connection,
+            )?;
+        }
+
+        ticket_type.validate_ticket_pricing(connection)?;
+
+        // TODO: move this to an async processor...
+
+        let tari_asset_id = state.config.tari_client.create_asset(
+            &org_wallet.secret_key,
+            &org_wallet.public_key,
+            TariNewAsset {
+                name: format!("{}.{}", event.id, ticket_type_data.name),
+                total_supply: ticket_type_data.capacity as u64,
+                authorised_signers: Vec::new(),
+                rule_flags: 0,
+                rule_metadata: "".to_string(),
+                expiry_date: ticket_type_data.end_date.timestamp(),
+            },
+        )?;
+        let asset = Asset::find_by_ticket_type(ticket_type.id, connection)?;
+        let _asset = asset.update_blockchain_id(tari_asset_id, connection)?;
+        created_ticket_types.push(DisplayCreatedTicket { id: ticket_type.id });
+    }
+
+    Ok(created_ticket_types)
 }

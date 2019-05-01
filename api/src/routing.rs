@@ -116,6 +116,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(ticket_types::index);
         r.method(Method::POST).with(ticket_types::create);
     })
+    .resource("/events/{id}/ticket_types/multiple", |r| {
+        r.method(Method::POST).with(ticket_types::create_multiple);
+    })
     .resource("/events/{event_id}/ticket_types/{ticket_type_id}", |r| {
         r.method(Method::PATCH).with(ticket_types::update);
         r.method(Method::DELETE).with(ticket_types::cancel);

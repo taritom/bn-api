@@ -54,6 +54,47 @@ mod create_tests {
 }
 
 #[cfg(test)]
+mod create_multiple_tests {
+    use super::*;
+    #[test]
+    fn create_multiple_org_member() {
+        base::ticket_types::create_multiple(Roles::OrgMember, true);
+    }
+    #[test]
+    fn create_multiple_admin() {
+        base::ticket_types::create_multiple(Roles::Admin, true);
+    }
+    #[test]
+    fn create_multiple_user() {
+        base::ticket_types::create_multiple(Roles::User, false);
+    }
+    #[test]
+    fn create_multiple_org_owner() {
+        base::ticket_types::create_multiple(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn create_multiple_door_person() {
+        base::ticket_types::create_multiple(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn create_multiple_promoter() {
+        base::ticket_types::create_multiple(Roles::Promoter, true);
+    }
+    #[test]
+    fn create_multiple_promoter_read_only() {
+        base::ticket_types::create_multiple(Roles::PromoterReadOnly, false);
+    }
+    #[test]
+    fn create_multiple_org_admin() {
+        base::ticket_types::create_multiple(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn create_multiple_box_office() {
+        base::ticket_types::create_multiple(Roles::OrgBoxOffice, false);
+    }
+}
+
+#[cfg(test)]
 mod update_tests {
     use super::*;
     #[test]

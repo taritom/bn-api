@@ -74,6 +74,123 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     }
 }
 
+pub fn create_multiple(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    //Construct Ticket creation and pricing request
+    let test_request = TestRequest::create();
+    let state = test_request.extract_state();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+    let mut ticket_types: Vec<CreateTicketTypeRequest> = Vec::new();
+    let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
+    let start_date = NaiveDate::from_ymd(2018, 5, 1).and_hms(6, 20, 21);
+    let middle_date = NaiveDate::from_ymd(2018, 6, 2).and_hms(7, 45, 31);
+    let end_date = NaiveDate::from_ymd(2018, 7, 3).and_hms(9, 23, 23);
+    ticket_pricing.push(CreateTicketPricingRequest {
+        name: String::from("Early bird"),
+        price_in_cents: 10000,
+        start_date,
+        end_date: middle_date,
+        is_box_office_only: Some(false),
+    });
+    ticket_pricing.push(CreateTicketPricingRequest {
+        name: String::from("Base"),
+        price_in_cents: 20000,
+        start_date: middle_date,
+        end_date,
+        is_box_office_only: Some(false),
+    });
+    ticket_types.push(CreateTicketTypeRequest {
+        name: "VIP".into(),
+        description: None,
+        capacity: 1000,
+        start_date: Some(start_date),
+        end_date,
+        ticket_pricing,
+        increment: None,
+        limit_per_person: 0,
+        price_in_cents: 20000,
+        visibility: TicketTypeVisibility::Always,
+        parent_id: None,
+    });
+    let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
+    ticket_pricing.push(CreateTicketPricingRequest {
+        name: String::from("Base"),
+        price_in_cents: 10000,
+        start_date,
+        end_date: end_date,
+        is_box_office_only: Some(false),
+    });
+    ticket_types.push(CreateTicketTypeRequest {
+        name: "GA".into(),
+        description: None,
+        capacity: 2000,
+        start_date: Some(start_date),
+        end_date,
+        ticket_pricing,
+        increment: None,
+        limit_per_person: 0,
+        price_in_cents: 10000,
+        visibility: TicketTypeVisibility::Always,
+        parent_id: None,
+    });
+    let response: HttpResponse = ticket_types::create_multiple((
+        database.connection.clone().into(),
+        path,
+        Json(CreateMultipleTicketTypeRequest { ticket_types }),
+        auth_user,
+        state,
+    ))
+    .into();
+
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+        match ticket_types.iter().find(|tt| tt.name == "GA") {
+            Some(ticket_type) => {
+                assert_eq!(ticket_type.name, "GA".to_string());
+                assert_eq!(
+                    ticket_type.ticket_pricing(true, connection).unwrap().len(),
+                    2
+                );
+                assert_eq!(
+                    ticket_type.start_date.map(|d| d.timestamp()),
+                    Some(start_date.timestamp())
+                );
+                assert_eq!(ticket_type.end_date.timestamp(), end_date.timestamp());
+            }
+            None => panic!("Expected GA ticket type to exist"),
+        }
+        match ticket_types.iter().find(|tt| tt.name == "VIP") {
+            Some(ticket_type) => {
+                assert_eq!(ticket_type.name, "VIP".to_string());
+                assert_eq!(
+                    ticket_type.ticket_pricing(true, connection).unwrap().len(),
+                    3
+                );
+                assert_eq!(
+                    ticket_type.start_date.map(|d| d.timestamp()),
+                    Some(start_date.timestamp())
+                );
+                assert_eq!(ticket_type.end_date.timestamp(), end_date.timestamp());
+            }
+            None => panic!("Expected VIP ticket type to exist"),
+        }
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
 pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let request = TestRequest::create();
