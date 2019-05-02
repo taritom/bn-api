@@ -7,6 +7,7 @@ use diesel::sql_types;
 use diesel::sql_types::{Array, BigInt, Bool, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use log::Level::Debug;
+use log::Level::Error;
 use models::*;
 use rand;
 use rand::Rng;
@@ -440,6 +441,7 @@ impl TicketInstance {
                     "Could not reserve tickets, not enough tickets are available",
                 );
             } else {
+                jlog!(Error, "Reserved too many tickets for hold", {"quantity_requested": quantity, "quantity_reserved": quantity, "tickets":&tickets});
                 // This is an unlikely scenario
                 return DatabaseError::business_process_error(&format!(
                     "Reserved too many tickets, expected {} tickets, reserved {}",

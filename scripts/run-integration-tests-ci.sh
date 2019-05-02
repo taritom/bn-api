@@ -25,4 +25,8 @@ fi
 
 cd ../../
 
-./target/release/server -b true
+./target/release/server -b true || {
+    echo "Tasks failed"
+    exit 1
+}
+
