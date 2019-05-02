@@ -558,6 +558,64 @@ fn update_fees() {
 }
 
 #[test]
+fn refund_can_refund_previously_refunded_and_repurchased_tickets() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_a_specific_number_of_tickets(1)
+        .with_ticket_pricing()
+        .finish();
+    let ticket_types = &event.ticket_types(true, None, connection).unwrap();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+
+    for user in vec![user.clone(), user2, user3, user] {
+        let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+        cart.update_quantities(
+            user.id,
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_types[0].id,
+                quantity: 1,
+                redemption_code: None,
+            }],
+            false,
+            false,
+            connection,
+        )
+        .unwrap();
+        let total = cart.calculate_total(connection).unwrap();
+        cart.add_external_payment(
+            Some("Test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            total,
+            connection,
+        )
+        .unwrap();
+        let items = cart.items(&connection).unwrap();
+        let order_item = items
+            .iter()
+            .find(|i| i.ticket_type_id == Some(ticket_types[0].id))
+            .unwrap();
+        let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+        let refund_items = vec![RefundItem {
+            order_item_id: order_item.id,
+            ticket_instance_id: Some(tickets[0].id),
+        }];
+
+        assert!(cart.refund(refund_items, user.id, connection).is_ok());
+        let ticket = TicketInstance::find(tickets[0].id, connection).unwrap();
+        assert!(ticket.order_item_id.is_none());
+        let order_item = OrderItem::find_in_order(cart.id, order_item.id, connection).unwrap();
+        assert_eq!(order_item.refunded_quantity, 1);
+    }
+}
+
+#[test]
 fn quantity_for_user_for_event() {
     let project = TestProject::new();
     let connection = project.get_connection();

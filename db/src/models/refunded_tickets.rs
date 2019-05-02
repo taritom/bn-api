@@ -25,6 +25,16 @@ impl RefundedTicket {
         }
     }
 
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<RefundedTicket, DatabaseError> {
+        refunded_tickets::table
+            .filter(refunded_tickets::id.eq(id))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve refunded ticket data",
+            )
+    }
+
     pub fn find_by_ticket_instance_ids(
         ticket_instance_ids: Vec<Uuid>,
         conn: &PgConnection,
@@ -45,6 +55,7 @@ impl RefundedTicket {
         if let Some(order_item_id) = ticket_instance.order_item_id {
             let refunded_ticket = refunded_tickets::table
                 .filter(refunded_tickets::ticket_instance_id.eq(ticket_instance.id))
+                .filter(refunded_tickets::order_item_id.eq(order_item_id))
                 .first(conn)
                 .optional()
                 .to_db_error(
