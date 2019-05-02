@@ -11,6 +11,7 @@ pub mod event_interest;
 pub mod events;
 pub mod fee_schedule_ranges;
 pub mod fee_schedules;
+pub mod genres;
 pub mod holds;
 pub mod order_items;
 pub mod orders;

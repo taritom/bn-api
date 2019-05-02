@@ -176,6 +176,7 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
 
 pub fn add_artist(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let event = database
@@ -186,6 +187,15 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
         .create_artist()
         .with_organization(&organization)
         .finish();
+
+    artist
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            connection,
+        )
+        .unwrap();
+    assert!(event.genres(connection).unwrap().is_empty());
+
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -203,12 +213,22 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        events::add_artist((database.connection.into(), path, json, auth_user.clone())).into();
+    let response: HttpResponse = events::add_artist((
+        database.connection.clone().into(),
+        path,
+        json,
+        auth_user.clone(),
+    ))
+    .into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
+        assert_eq!(
+            event.genres(connection).unwrap(),
+            vec!["emo".to_string(), "hard-rock".to_string()]
+        );
     } else {
         support::expects_unauthorized(&response);
+        assert!(event.genres(connection).unwrap().is_empty());
     }
 }
 
@@ -333,6 +353,7 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
 
 pub fn update_artists(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let event = database
@@ -341,6 +362,17 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
         .finish();
     let artist1 = database.create_artist().finish();
     let artist2 = database.create_artist().finish();
+    artist1
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            connection,
+        )
+        .unwrap();
+    artist2
+        .set_genres(&vec!["happy".to_string()], connection)
+        .unwrap();
+    assert!(event.genres(connection).unwrap().is_empty());
+
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
@@ -362,7 +394,7 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
         stage_id: None,
     });
     let response: HttpResponse = events::update_artists((
-        database.connection.into(),
+        database.connection.clone().into(),
         path,
         Json(payload),
         auth_user.clone(),
@@ -372,11 +404,20 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            event.genres(connection).unwrap(),
+            vec![
+                "emo".to_string(),
+                "happy".to_string(),
+                "hard-rock".to_string()
+            ]
+        );
         let returned_event_artists: Vec<EventArtist> = serde_json::from_str(&body).unwrap();
         assert_eq!(returned_event_artists[0].artist_id, artist1.id);
         assert_eq!(returned_event_artists[1].set_time, None);
         assert_eq!(returned_event_artists[1].importance, 1);
     } else {
+        assert!(event.genres(connection).unwrap().is_empty());
         support::expects_unauthorized(&response);
     }
 }

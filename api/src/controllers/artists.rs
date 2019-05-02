@@ -5,14 +5,15 @@ use db::Connection;
 use errors::*;
 use extractors::*;
 use helpers::application;
-use models::{CreateArtistRequest, PathParameters, WebPayload};
+use models::{CreateArtistRequest, PathParameters, UpdateArtistRequest, WebPayload};
 use utils::spotify;
 
 pub fn search(
     (connection, query_parameters, user): (Connection, Query<PagingParameters>, OptionalUser),
 ) -> Result<WebPayload<CreateArtistRequest>, BigNeonError> {
+    let connection = connection.get();
     let db_user = user.into_inner().map(|u| u.user);
-    let artists = Artist::search(&db_user, query_parameters.get_tag("q"), connection.get())?;
+    let artists = Artist::search(&db_user, query_parameters.get_tag("q"), connection)?;
 
     let try_spotify = query_parameters
         .get_tag("spotify")
@@ -49,7 +50,7 @@ pub fn show(
     (connection, parameters): (Connection, Path<PathParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let artist = Artist::find(&parameters.id, connection)?;
+    let artist = Artist::find(&parameters.id, connection)?.for_display(connection)?;
     Ok(HttpResponse::Ok().json(&artist))
 }
 
@@ -65,6 +66,7 @@ pub fn create(
     }
 
     let create_artist = json_create_artist.into_inner();
+    let mut genres = create_artist.genres.clone().unwrap_or(Vec::new());
     let mut artist = match &create_artist.spotify_id {
         Some(spotify_id) => {
             let spotify_client = &spotify::SINGLETON;
@@ -72,8 +74,11 @@ pub fn create(
             let spotify_artist_result = spotify_client.read_artist(&spotify_id)?;
             match spotify_artist_result {
                 Some(artist) => {
-                    let mut new_artist: NewArtist = artist.into();
+                    let mut new_artist: NewArtist = artist.clone().into();
                     let client_data: NewArtist = create_artist.clone().into();
+                    if let Some(mut spotify_genres) = artist.genres {
+                        genres.append(&mut spotify_genres);
+                    }
                     new_artist.merge(client_data);
                     new_artist.commit(connection)?
                 }
@@ -86,11 +91,13 @@ pub fn create(
         }
     };
 
+    artist.set_genres(&genres, connection)?;
+
     // New artists belonging to an organization start private
     if artist.organization_id.is_some() {
         artist = artist.set_privacy(true, connection)?;
     }
-    Ok(HttpResponse::Created().json(&artist))
+    Ok(HttpResponse::Created().json(&artist.for_display(connection)?))
 }
 
 pub fn show_from_organizations(
@@ -116,11 +123,12 @@ pub fn update(
     (connection, parameters, artist_parameters, user): (
         Connection,
         Path<PathParameters>,
-        Json<ArtistEditableAttributes>,
+        Json<UpdateArtistRequest>,
         User,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
+    let artist_parameters = artist_parameters.into_inner();
     let artist = Artist::find(&parameters.id, connection)?;
     if !artist.is_private || artist.organization_id.is_none() {
         user.requires_scope(Scopes::ArtistWrite)?;
@@ -129,8 +137,14 @@ pub fn update(
         user.requires_scope_for_organization(Scopes::ArtistWrite, &organization, connection)?;
     }
 
-    let updated_artist = artist.update(&artist_parameters, connection)?;
-    Ok(HttpResponse::Ok().json(&updated_artist))
+    let genres = artist_parameters.genres.clone();
+    let updated_artist = artist.update(&artist_parameters.into(), connection)?;
+
+    if let Some(genres) = genres {
+        artist.set_genres(&genres, connection)?;
+    }
+
+    Ok(HttpResponse::Ok().json(&updated_artist.for_display(connection)?))
 }
 
 pub fn toggle_privacy(
@@ -141,5 +155,5 @@ pub fn toggle_privacy(
     let connection = connection.get();
     let artist = Artist::find(&parameters.id, connection)?;
     let updated_artist = artist.set_privacy(!artist.is_private, connection)?;
-    Ok(HttpResponse::Ok().json(updated_artist))
+    Ok(HttpResponse::Ok().json(&updated_artist.for_display(connection)?))
 }

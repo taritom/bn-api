@@ -10,8 +10,8 @@ use diesel::sql_types::{BigInt, Bool, Date, Integer, Nullable, Text, Timestamp, 
 use log::Level;
 use models::*;
 use schema::{
-    artists, event_artists, events, order_items, orders, organization_users, organizations,
-    payments, ticket_types, venues,
+    artists, event_artists, event_genres, events, genres, order_items, orders, organization_users,
+    organizations, payments, ticket_types, venues,
 };
 use serde::Deserializer;
 use serde_json::Value;
@@ -255,6 +255,51 @@ pub struct EventLocalizedTimeStrings {
 }
 
 impl Event {
+    pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
+        genres::table
+            .inner_join(event_genres::table.on(event_genres::genre_id.eq(genres::id)))
+            .filter(event_genres::event_id.eq(self.id))
+            .select(genres::name)
+            .order_by(genres::name)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not get genres for event")
+    }
+
+    pub fn update_genres(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let query = r#"
+            INSERT INTO event_genres (event_id, genre_id)
+            SELECT $1 as event_id, ag.genre_id
+            FROM event_artists ea
+            JOIN artist_genres ag ON ag.artist_id = ea.artist_id
+            WHERE ea.event_id = $1
+            AND ag.genre_id not in (select genre_id from event_genres where event_id = $1);
+        "#;
+
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .execute(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not set genres on event")?;
+
+        let query = r#"
+            DELETE FROM event_genres
+            WHERE NOT genre_id = ANY(
+                SELECT ag.genre_id
+                FROM event_artists ea
+                JOIN artist_genres ag ON ag.artist_id = ea.artist_id
+                WHERE ea.event_id = $1
+            ) AND event_id = $1;
+        "#;
+
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .execute(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not clear old genres on event")?;
+
+        User::update_genre_info_for_associated_event_users(self.id, conn)?;
+
+        Ok(())
+    }
+
     pub fn create(
         name: &str,
         status: EventStatus,
@@ -1422,6 +1467,7 @@ impl Event {
         let display_venue: Option<DisplayVenue> =
             venue.clone().and_then(|venue| Some(venue.into()));
         let artists = self.artists(conn)?;
+        let genres = self.genres(conn)?;
 
         let localized_times = self.get_all_localized_time_strings(&venue);
         let (min_ticket_price, max_ticket_price) =
@@ -1436,6 +1482,7 @@ impl Event {
             additional_info: self.additional_info,
             top_line_info: self.top_line_info,
             artists,
+            genres,
             venue: display_venue,
             max_ticket_price,
             min_ticket_price,
@@ -1469,6 +1516,7 @@ pub struct DisplayEvent {
     pub override_status: Option<EventOverrideStatus>,
     pub localized_times: EventLocalizedTimeStrings,
     pub event_type: EventTypes,
+    pub genres: Vec<String>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

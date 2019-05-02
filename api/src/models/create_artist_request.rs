@@ -1,4 +1,4 @@
-use bigneon_db::models::{Artist, NewArtist};
+use bigneon_db::models::{DisplayArtist, NewArtist};
 use chrono::NaiveDateTime;
 use uuid::Uuid;
 
@@ -22,6 +22,7 @@ pub struct CreateArtistRequest {
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub other_image_urls: Option<Vec<String>>,
+    pub genres: Option<Vec<String>>,
 }
 
 impl Into<NewArtist> for CreateArtistRequest {
@@ -46,8 +47,8 @@ impl Into<NewArtist> for CreateArtistRequest {
     }
 }
 
-impl From<Artist> for CreateArtistRequest {
-    fn from(artist: Artist) -> Self {
+impl From<DisplayArtist> for CreateArtistRequest {
+    fn from(artist: DisplayArtist) -> Self {
         CreateArtistRequest {
             id: Some(artist.id),
             organization_id: artist.organization_id,
@@ -63,6 +64,7 @@ impl From<Artist> for CreateArtistRequest {
             snapchat_username: artist.snapchat_username,
             soundcloud_username: artist.soundcloud_username,
             bandcamp_username: artist.bandcamp_username,
+            genres: Some(artist.genres),
             spotify_id: artist.spotify_id,
             created_at: Some(artist.created_at),
             updated_at: Some(artist.updated_at),

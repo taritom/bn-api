@@ -125,6 +125,10 @@ impl TestProject {
         StageBuilder::new(&self.connection)
     }
 
+    pub fn create_event_artist(&self) -> EventArtistBuilder {
+        EventArtistBuilder::new(&self.connection)
+    }
+
     pub fn create_fee_schedule(&self) -> FeeScheduleBuilder {
         FeeScheduleBuilder::new(&self.connection)
     }

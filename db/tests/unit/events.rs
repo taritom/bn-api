@@ -7,6 +7,150 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 #[test]
+fn genres() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let artist = project
+        .create_artist()
+        .with_name("Artist 1".to_string())
+        .finish();
+    let artist2 = project
+        .create_artist()
+        .with_name("Artist 2".to_string())
+        .finish();
+
+    let event = project.create_event().finish();
+    let event2 = project.create_event().finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist2)
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event2)
+        .with_artist(&artist2)
+        .finish();
+
+    // No genres set
+    assert!(artist.genres(connection).unwrap().is_empty());
+    assert!(artist2.genres(connection).unwrap().is_empty());
+    assert!(event.genres(connection).unwrap().is_empty());
+    assert!(event2.genres(connection).unwrap().is_empty());
+
+    artist
+        .set_genres(
+            &vec![
+                "emo".to_string(),
+                "test".to_string(),
+                "Hard Rock".to_string(),
+            ],
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        artist.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert!(artist2.genres(connection).unwrap().is_empty());
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert!(event2.genres(connection).unwrap().is_empty());
+
+    artist2
+        .set_genres(&vec!["emo".to_string(), "happy".to_string()], connection)
+        .unwrap();
+    assert_eq!(
+        artist.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(
+        artist2.genres(connection).unwrap(),
+        vec!["emo".to_string(), "happy".to_string()]
+    );
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "happy".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(
+        event2.genres(connection).unwrap(),
+        vec!["emo".to_string(), "happy".to_string()]
+    );
+}
+
+#[test]
+fn update_genres() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let artist = project.create_artist().finish();
+    artist
+        .set_genres(&vec!["emo".to_string(), "happy".to_string()], connection)
+        .unwrap();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .quantity(1)
+        .finish();
+
+    assert!(event.genres(connection).unwrap().is_empty());
+    assert!(user.genres(connection).unwrap().is_empty());
+
+    assert!(event.update_genres(connection).is_ok());
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec!["emo".to_string(), "happy".to_string()]
+    );
+    assert_eq!(
+        user.genres(connection).unwrap(),
+        vec!["emo".to_string(), "happy".to_string()]
+    );
+}
+
+#[test]
 fn create() {
     let project = TestProject::new();
     let venue = project.create_venue().finish();

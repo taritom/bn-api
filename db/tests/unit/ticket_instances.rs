@@ -1197,7 +1197,6 @@ fn authorize_ticket_transfer() {
 fn receive_ticket_transfer() {
     let project = TestProject::new();
     let admin = project.create_user().finish();
-
     let connection = project.get_connection();
     let organization = project
         .create_organization()
@@ -1209,6 +1208,18 @@ fn receive_ticket_transfer() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
+    let artist = project.create_artist().finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    artist
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            connection,
+        )
+        .unwrap();
 
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -1293,6 +1304,13 @@ fn receive_ticket_transfer() {
     );
     assert!(receive_auth1.is_err());
 
+    // Genres prior to transfer
+    assert_eq!(
+        user.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
+    assert!(user2.genres(connection).unwrap().is_empty());
+
     //legit receive tickets
     let _receive_auth3 = TicketInstance::receive_ticket_transfer(
         transfer_auth,
@@ -1300,6 +1318,13 @@ fn receive_ticket_transfer() {
         user2.id,
         receiver_wallet.id,
         connection,
+    );
+
+    // Genres have moved to user2
+    assert!(user.genres(connection).unwrap().is_empty());
+    assert_eq!(
+        user2.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
     );
 
     //Look if one of the tickets does have the new wallet_id
@@ -1313,13 +1338,37 @@ fn receive_ticket_transfer() {
 #[test]
 fn transfer_to_existing_user() {
     let project = TestProject::new();
-    let original_purchaser = project.create_user().finish();
-
+    let admin = project.create_user().finish();
     let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let artist = project.create_artist().finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    artist
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            connection,
+        )
+        .unwrap();
 
+    let original_purchaser = project.create_user().finish();
     let receiver = project.create_user().finish();
+
     project
         .create_order()
+        .for_event(&event)
         .for_user(&original_purchaser)
         .quantity(5)
         .is_paid()
@@ -1330,6 +1379,13 @@ fn transfer_to_existing_user() {
         .map(|ti| ti.id)
         .collect();
 
+    // Genres prior to transfer
+    assert_eq!(
+        original_purchaser.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
+    assert!(receiver.genres(connection).unwrap().is_empty());
+
     TicketInstance::direct_transfer(
         original_purchaser.id,
         &ticket_ids,
@@ -1339,4 +1395,11 @@ fn transfer_to_existing_user() {
         connection,
     )
     .unwrap();
+
+    // Genres updated with tickets now transferred
+    assert!(original_purchaser.genres(connection).unwrap().is_empty());
+    assert_eq!(
+        receiver.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
 }

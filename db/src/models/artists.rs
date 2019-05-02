@@ -2,8 +2,11 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use diesel::sql_types::{Array, Uuid as dUuid};
 use models::*;
-use schema::{artists, organization_users, organizations};
+use schema::{
+    artist_genres, artists, event_artists, events, genres, organization_users, organizations,
+};
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -116,6 +119,76 @@ impl NewArtist {
 }
 
 impl Artist {
+    pub fn find_spotify_linked_artists(conn: &PgConnection) -> Result<Vec<Artist>, DatabaseError> {
+        artists::table
+            .filter(artists::spotify_id.is_not_null())
+            .order_by(artists::name)
+            .select(artists::all_columns)
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Unable to load artists with linked spotify ids",
+            )
+    }
+
+    pub fn events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
+        events::table
+            .inner_join(event_artists::table.on(event_artists::event_id.eq(events::id)))
+            .filter(event_artists::artist_id.eq(self.id))
+            .order_by(events::name)
+            .select(events::all_columns)
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load events for artist")
+    }
+
+    pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
+        genres::table
+            .inner_join(artist_genres::table.on(artist_genres::genre_id.eq(genres::id)))
+            .filter(artist_genres::artist_id.eq(self.id))
+            .select(genres::name)
+            .order_by(genres::name)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not get genres for artist")
+    }
+
+    pub fn set_genres(
+        &self,
+        genres: &Vec<String>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let genre_ids = Genre::find_or_create(genres, conn)?;
+
+        let query = r#"
+            INSERT INTO artist_genres (artist_id, genre_id)
+            SELECT $1 as artist_id, g.id as genre_id
+            FROM genres g
+            WHERE g.id = ANY($2)
+            AND g.id not in (select genre_id from artist_genres where artist_id = $1);
+        "#;
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .bind::<Array<dUuid>, _>(genre_ids.clone())
+            .execute(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not set genres")?;
+
+        let query = r#"
+            DELETE FROM artist_genres ag
+            WHERE ag.artist_id = $1
+            AND NOT (ag.genre_id = ANY($2));
+        "#;
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .bind::<Array<dUuid>, _>(genre_ids)
+            .execute(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not clear old genres")?;
+
+        for event in self.events(conn)? {
+            event.update_genres(conn)?;
+        }
+
+        Ok(())
+    }
+
     pub fn create(
         name: &str,
         organization_id: Option<Uuid>,
@@ -135,13 +208,13 @@ impl Artist {
         user: &Option<User>,
         query_filter: Option<String>,
         conn: &PgConnection,
-    ) -> Result<Vec<Artist>, DatabaseError> {
+    ) -> Result<Vec<DisplayArtist>, DatabaseError> {
         let query_like = match query_filter {
             Some(n) => format!("%{}%", text::escape_control_chars(&n)),
             None => "%".to_string(),
         };
         //TODO Add pagination to the query
-        let query = match user {
+        let artists: Vec<Artist> = match user {
             Some(u) => artists::table
                 .left_join(
                     organization_users::table.on(artists::organization_id
@@ -169,13 +242,29 @@ impl Artist {
                 .order_by(artists::name)
                 .select(artists::all_columns)
                 .load(conn),
-        };
+        }
+        .to_db_error(ErrorCode::QueryError, "Unable to search artists")?;
 
-        query.to_db_error(ErrorCode::QueryError, "Unable to search artists")
+        let artist_ids: Vec<Uuid> = artists.iter().map(|a| a.id).collect();
+        let genre_mapping = Genre::find_by_artist_ids(&artist_ids, conn)?;
+
+        Ok(artists
+            .into_iter()
+            .map(|a| {
+                let genres = genre_mapping
+                    .get(&a.id)
+                    .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
+                    .unwrap_or(Vec::new());
+                DisplayArtist::from(a, genres)
+            })
+            .collect())
     }
 
-    pub fn all(user: Option<&User>, conn: &PgConnection) -> Result<Vec<Artist>, DatabaseError> {
-        let query = match user {
+    pub fn all(
+        user: Option<&User>,
+        conn: &PgConnection,
+    ) -> Result<Vec<DisplayArtist>, DatabaseError> {
+        let artists: Vec<Artist> = match user {
             Some(u) => artists::table
                 .left_join(
                     organization_users::table.on(artists::organization_id
@@ -200,25 +289,42 @@ impl Artist {
                 .order_by(artists::name)
                 .select(artists::all_columns)
                 .load(conn),
-        };
+        }
+        .to_db_error(ErrorCode::QueryError, "Unable to load all artists")?;
 
-        query.to_db_error(ErrorCode::QueryError, "Unable to load all artists")
+        let artist_ids: Vec<Uuid> = artists.iter().map(|a| a.id).collect();
+        let genre_mapping = Genre::find_by_artist_ids(&artist_ids, conn)?;
+
+        Ok(artists
+            .into_iter()
+            .map(|a| {
+                let genres = genre_mapping
+                    .get(&a.id)
+                    .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
+                    .unwrap_or(Vec::new());
+                DisplayArtist::from(a, genres)
+            })
+            .collect())
+    }
+
+    pub fn for_display(self, conn: &PgConnection) -> Result<DisplayArtist, DatabaseError> {
+        let genres = self.genres(conn)?;
+        Ok(DisplayArtist::from(self, genres))
     }
 
     pub fn find(id: &Uuid, conn: &PgConnection) -> Result<Artist, DatabaseError> {
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Error loading artist",
-            artists::table.find(id).first::<Artist>(conn),
-        )
+        artists::table
+            .find(id)
+            .first::<Artist>(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading artist")
     }
 
     pub fn find_for_organization(
         user_id: Option<Uuid>,
         organization_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<Vec<Artist>, DatabaseError> {
-        let query = match user_id {
+    ) -> Result<Vec<DisplayArtist>, DatabaseError> {
+        let artists: Vec<Artist> = match user_id {
             Some(u) => artists::table
                 .left_join(
                     organization_users::table.on(artists::organization_id
@@ -244,9 +350,22 @@ impl Artist {
                 .order_by(artists::name)
                 .select(artists::all_columns)
                 .load(conn),
-        };
+        }
+        .to_db_error(ErrorCode::QueryError, "Unable to load all artists")?;
 
-        query.to_db_error(ErrorCode::QueryError, "Unable to load all artists")
+        let artist_ids: Vec<Uuid> = artists.iter().map(|a| a.id).collect();
+        let genre_mapping = Genre::find_by_artist_ids(&artist_ids, conn)?;
+
+        Ok(artists
+            .into_iter()
+            .map(|a| {
+                let genres = genre_mapping
+                    .get(&a.id)
+                    .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
+                    .unwrap_or(Vec::new());
+                DisplayArtist::from(a, genres)
+            })
+            .collect())
     }
 
     pub fn update(
@@ -328,5 +447,54 @@ pub struct ArtistEditableAttributes {
 impl ArtistEditableAttributes {
     pub fn new() -> ArtistEditableAttributes {
         Default::default()
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+pub struct DisplayArtist {
+    pub id: Uuid,
+    pub organization_id: Option<Uuid>,
+    pub is_private: bool,
+    pub name: String,
+    pub bio: String,
+    pub image_url: Option<String>,
+    pub thumb_image_url: Option<String>,
+    pub website_url: Option<String>,
+    pub youtube_video_urls: Vec<String>,
+    pub facebook_username: Option<String>,
+    pub instagram_username: Option<String>,
+    pub snapchat_username: Option<String>,
+    pub soundcloud_username: Option<String>,
+    pub bandcamp_username: Option<String>,
+    pub spotify_id: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub other_image_urls: Option<Vec<String>>,
+    pub genres: Vec<String>,
+}
+
+impl DisplayArtist {
+    fn from(artist: Artist, genres: Vec<String>) -> Self {
+        DisplayArtist {
+            id: artist.id,
+            organization_id: artist.organization_id,
+            is_private: artist.is_private,
+            name: artist.name,
+            bio: artist.bio,
+            image_url: artist.image_url,
+            thumb_image_url: artist.thumb_image_url,
+            website_url: artist.website_url,
+            youtube_video_urls: artist.youtube_video_urls,
+            facebook_username: artist.facebook_username,
+            instagram_username: artist.instagram_username,
+            snapchat_username: artist.snapchat_username,
+            soundcloud_username: artist.soundcloud_username,
+            bandcamp_username: artist.bandcamp_username,
+            spotify_id: artist.spotify_id,
+            created_at: artist.created_at,
+            updated_at: artist.updated_at,
+            other_image_urls: artist.other_image_urls,
+            genres,
+        }
     }
 }

@@ -7,6 +7,7 @@ pub mod codes;
 pub mod comps;
 pub mod events;
 pub mod external;
+pub mod genres;
 pub mod holds;
 pub mod ipns;
 pub mod orders;

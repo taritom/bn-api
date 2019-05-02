@@ -1,4 +1,14 @@
 table! {
+    artist_genres (id) {
+        id -> Uuid,
+        artist_id -> Uuid,
+        genre_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     artists (id) {
         id -> Uuid,
         organization_id -> Nullable<Uuid>,
@@ -120,6 +130,16 @@ table! {
 }
 
 table! {
+    event_genres (id) {
+        id -> Uuid,
+        event_id -> Uuid,
+        genre_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     event_interest (id) {
         id -> Uuid,
         event_id -> Uuid,
@@ -196,6 +216,15 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         organization_id -> Uuid,
+    }
+}
+
+table! {
+    genres (id) {
+        id -> Uuid,
+        name -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -508,6 +537,16 @@ table! {
 }
 
 table! {
+    user_genres (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        genre_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     users (id) {
         id -> Uuid,
         first_name -> Nullable<Text>,
@@ -569,6 +608,8 @@ table! {
     }
 }
 
+joinable!(artist_genres -> artists (artist_id));
+joinable!(artist_genres -> genres (genre_id));
 joinable!(artists -> organizations (organization_id));
 joinable!(assets -> ticket_types (ticket_type_id));
 joinable!(broadcasts -> events (event_id));
@@ -578,6 +619,8 @@ joinable!(domain_events -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
 joinable!(event_artists -> stages (stage_id));
+joinable!(event_genres -> events (event_id));
+joinable!(event_genres -> genres (genre_id));
 joinable!(event_interest -> events (event_id));
 joinable!(event_interest -> users (user_id));
 joinable!(events -> organizations (organization_id));
@@ -616,12 +659,15 @@ joinable!(ticket_type_codes -> codes (code_id));
 joinable!(ticket_type_codes -> ticket_types (ticket_type_id));
 joinable!(ticket_types -> events (event_id));
 joinable!(transfers -> ticket_instances (ticket_instance_id));
+joinable!(user_genres -> genres (genre_id));
+joinable!(user_genres -> users (user_id));
 joinable!(venues -> organizations (organization_id));
 joinable!(venues -> regions (region_id));
 joinable!(wallets -> organizations (organization_id));
 joinable!(wallets -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
+    artist_genres,
     artists,
     assets,
     broadcasts,
@@ -629,11 +675,13 @@ allow_tables_to_appear_in_same_query!(
     domain_actions,
     domain_events,
     event_artists,
+    event_genres,
     event_interest,
     events,
     external_logins,
     fee_schedule_ranges,
     fee_schedules,
+    genres,
     holds,
     order_items,
     orders,
@@ -653,6 +701,7 @@ allow_tables_to_appear_in_same_query!(
     ticket_type_codes,
     ticket_types,
     transfers,
+    user_genres,
     users,
     venues,
     wallets,

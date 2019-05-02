@@ -5,6 +5,7 @@ mod cart;
 mod codes;
 mod comps;
 mod events;
+mod genres;
 mod holds;
 mod orders;
 mod organization_invites;

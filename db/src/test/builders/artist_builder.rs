@@ -9,6 +9,7 @@ pub struct ArtistBuilder<'a> {
     is_private: bool,
     bio: String,
     website_url: String,
+    spotify_id: Option<String>,
     connection: &'a PgConnection,
 }
 
@@ -20,9 +21,15 @@ impl<'a> ArtistBuilder<'a> {
             bio: "Bigraphy".into(),
             website_url: "http://www.example.com".into(),
             connection,
+            spotify_id: None,
             is_private: false,
             organization_id: None,
         }
+    }
+
+    pub fn with_spotify_id(mut self, spotify_id: String) -> Self {
+        self.spotify_id = Some(spotify_id);
+        self
     }
 
     pub fn with_name(mut self, name: String) -> Self {
@@ -41,14 +48,15 @@ impl<'a> ArtistBuilder<'a> {
     }
 
     pub fn finish(&self) -> Artist {
-        let artist = Artist::create(
+        let mut artist = Artist::create(
             &self.name,
             self.organization_id,
             &self.bio,
             &self.website_url,
-        )
-        .commit(self.connection)
-        .unwrap();
+        );
+        artist.spotify_id = self.spotify_id.clone();
+
+        let artist = artist.commit(self.connection).unwrap();
         artist
             .set_privacy(self.is_private, self.connection)
             .unwrap()

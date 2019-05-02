@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::artists;
 use bigneon_api::extractors::*;
-use bigneon_api::models::{CreateArtistRequest, PathParameters};
+use bigneon_api::models::{CreateArtistRequest, PathParameters, UpdateArtistRequest};
 use bigneon_db::models::*;
 use serde_json;
 use support;
@@ -96,33 +96,69 @@ pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
 
 pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let organization = database.create_organization().finish();
     let artist = database.create_artist().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+    database
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    artist
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        artist.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
+
     let name = "New Name";
     let bio = "New Bio";
     let website_url = "http://www.example2.com";
-
-    let auth_user = support::create_auth_user(role, None, &database);
+    let auth_user = support::create_auth_user(role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
-    let mut attributes: ArtistEditableAttributes = Default::default();
+    let mut attributes: UpdateArtistRequest = Default::default();
     attributes.name = Some(name.to_string());
     attributes.bio = Some(bio.to_string());
     attributes.website_url = Some(Some(website_url.to_string()));
     attributes.youtube_video_urls = Some(Vec::new());
+    attributes.genres = Some(vec!["emo".to_string()]);
     let json = Json(attributes);
 
     let response: HttpResponse =
-        artists::update((database.connection.into(), path, json, auth_user)).into();
+        artists::update((database.connection.clone().into(), path, json, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         let updated_artist: Artist = serde_json::from_str(&body).unwrap();
         assert_eq!(updated_artist.name, name);
+        assert_eq!(artist.genres(connection).unwrap(), vec!["emo".to_string()]);
+        assert_eq!(event.genres(connection).unwrap(), vec!["emo".to_string()]);
     } else {
         support::expects_unauthorized(&response);
+        assert_eq!(
+            artist.genres(connection).unwrap(),
+            vec!["emo".to_string(), "hard-rock".to_string()]
+        );
+        assert_eq!(
+            event.genres(connection).unwrap(),
+            vec!["emo".to_string(), "hard-rock".to_string()]
+        );
     }
 }
 
@@ -151,7 +187,7 @@ pub fn update_with_organization(role: Roles, should_test_succeed: bool, is_priva
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
-    let mut attributes: ArtistEditableAttributes = Default::default();
+    let mut attributes: UpdateArtistRequest = Default::default();
     attributes.name = Some(name.to_string());
     attributes.bio = Some(bio.to_string());
     attributes.website_url = Some(Some(website_url.to_string()));

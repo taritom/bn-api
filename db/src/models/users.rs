@@ -6,7 +6,7 @@ use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use models::*;
-use schema::{events, organization_users, organizations, users};
+use schema::{events, genres, organization_users, organizations, user_genres, users};
 use serde_json::Value;
 use std::collections::HashMap;
 use time::Duration;
@@ -125,6 +125,110 @@ impl NewUser {
 }
 
 impl User {
+    pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
+        genres::table
+            .inner_join(user_genres::table.on(user_genres::genre_id.eq(genres::id)))
+            .filter(user_genres::user_id.eq(self.id))
+            .select(genres::name)
+            .order_by(genres::name)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not get genres for user")
+    }
+
+    pub fn update_genre_info(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let query = r#"
+            INSERT INTO user_genres (user_id, genre_id)
+            SELECT DISTINCT w.user_id, eg.genre_id
+            FROM event_genres eg
+            JOIN ticket_types tt ON tt.event_id = eg.event_id
+            JOIN assets a ON a.ticket_type_id = tt.id
+            JOIN ticket_instances ti ON ti.asset_id = a.id
+            JOIN wallets w ON w.id = ti.wallet_id
+            LEFT JOIN user_genres ug ON ug.genre_id = eg.genre_id AND ug.user_id = w.user_id
+            WHERE w.user_id = $1
+            AND ug.id IS NULL;
+        "#;
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .execute(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not set genres on user")?;
+
+        let query = r#"
+            DELETE FROM user_genres
+            WHERE NOT genre_id = ANY(
+                SELECT DISTINCT eg.genre_id
+                FROM event_genres eg
+                JOIN ticket_types tt ON tt.event_id = eg.event_id
+                JOIN assets a ON a.ticket_type_id = tt.id
+                JOIN ticket_instances ti ON ti.asset_id = a.id
+                JOIN wallets w ON w.id = ti.wallet_id
+                WHERE w.user_id = $1
+            ) AND user_id = $1;
+        "#;
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(self.id)
+            .execute(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not clear old genres on user")?;
+
+        Ok(())
+    }
+
+    pub(crate) fn update_genre_info_for_associated_event_users(
+        event_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let query = r#"
+            INSERT INTO user_genres (user_id, genre_id)
+            SELECT DISTINCT w.user_id, eg.genre_id
+            FROM event_genres eg
+            JOIN ticket_types tt ON tt.event_id = eg.event_id
+            JOIN assets a ON a.ticket_type_id = tt.id
+            JOIN ticket_instances ti ON ti.asset_id = a.id
+            JOIN wallets w ON w.id = ti.wallet_id
+            LEFT JOIN user_genres ug ON ug.genre_id = eg.genre_id AND ug.user_id = w.user_id
+            WHERE eg.event_id = $1
+            AND ti.status IN ('Purchased', 'Redeemed')
+            AND ug.id IS NULL;
+        "#;
+
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(event_id)
+            .execute(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not set genres on users")?;
+
+        let query = r#"
+            DELETE FROM user_genres
+            WHERE id = ANY(
+                SELECT DISTINCT ug.id
+                FROM user_genres ug
+                WHERE ug.user_id = ANY (
+                    SELECT w.user_id from wallets w
+                    JOIN ticket_instances ti on ti.wallet_id = w.id
+                    JOIN assets a ON ti.asset_id = a.id
+                    JOIN ticket_types tt ON tt.id = a.ticket_type_id
+                    WHERE tt.event_id = $1
+                    AND ti.status IN ('Purchased', 'Redeemed')
+                )
+                AND NOT ug.genre_id = ANY (
+                    SELECT DISTINCT eg.genre_id
+                    FROM event_genres eg
+                    JOIN ticket_types tt ON tt.event_id = eg.event_id
+                    JOIN assets a ON a.ticket_type_id = tt.id
+                    JOIN ticket_instances ti ON ti.asset_id = a.id
+                    JOIN wallets w ON w.id = ti.wallet_id
+                    WHERE w.user_id = ug.user_id
+                )
+            );
+        "#;
+
+        diesel::sql_query(query)
+            .bind::<dUuid, _>(event_id)
+            .execute(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not clear old genres on user")?;
+
+        Ok(())
+    }
+
     pub fn create(
         first_name: Option<String>,
         last_name: Option<String>,

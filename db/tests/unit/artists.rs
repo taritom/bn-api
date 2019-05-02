@@ -4,6 +4,276 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[test]
+fn find_spotify_linked_artists() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let artist = project
+        .create_artist()
+        .with_name("Artist 1".to_string())
+        .with_spotify_id("spotify_1".to_string())
+        .finish();
+    let artist2 = project
+        .create_artist()
+        .with_name("Artist 2".to_string())
+        .with_spotify_id("spotify_2".to_string())
+        .finish();
+    let _artist3 = project
+        .create_artist()
+        .with_name("Artist 3".to_string())
+        .finish();
+
+    assert_eq!(
+        Artist::find_spotify_linked_artists(connection),
+        Ok(vec![artist, artist2])
+    );
+}
+
+#[test]
+fn set_genres() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let artist = project
+        .create_artist()
+        .with_name("Artist 1".to_string())
+        .finish();
+    let artist2 = project
+        .create_artist()
+        .with_name("Artist 2".to_string())
+        .finish();
+
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist2)
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event2)
+        .with_artist(&artist2)
+        .finish();
+
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .quantity(1)
+        .finish();
+    project
+        .create_order()
+        .for_event(&event2)
+        .for_user(&user2)
+        .is_paid()
+        .quantity(1)
+        .finish();
+
+    // No genres set
+    assert!(artist.genres(connection).unwrap().is_empty());
+    assert!(artist2.genres(connection).unwrap().is_empty());
+    assert!(event.genres(connection).unwrap().is_empty());
+    assert!(event2.genres(connection).unwrap().is_empty());
+    assert!(user.genres(connection).unwrap().is_empty());
+    assert!(user2.genres(connection).unwrap().is_empty());
+    assert!(user3.genres(connection).unwrap().is_empty());
+
+    artist
+        .set_genres(
+            &vec![
+                "emo".to_string(),
+                "test".to_string(),
+                "Hard Rock".to_string(),
+            ],
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        artist.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert!(artist2.genres(connection).unwrap().is_empty());
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert!(event2.genres(connection).unwrap().is_empty());
+    assert_eq!(
+        user.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert!(user2.genres(connection).unwrap().is_empty());
+    assert!(user3.genres(connection).unwrap().is_empty());
+
+    artist2
+        .set_genres(&vec!["emo".to_string(), "happy".to_string()], connection)
+        .unwrap();
+    assert_eq!(
+        artist.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(
+        artist2.genres(connection).unwrap(),
+        vec!["emo".to_string(), "happy".to_string()]
+    );
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "happy".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(
+        event2.genres(connection).unwrap(),
+        vec!["emo".to_string(), "happy".to_string()]
+    );
+    assert_eq!(
+        user.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "happy".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(
+        user2.genres(connection).unwrap(),
+        vec!["emo".to_string(), "happy".to_string()]
+    );
+    assert!(user3.genres(connection).unwrap().is_empty());
+
+    // Remove genre
+    artist2
+        .set_genres(&vec!["emo".to_string()], connection)
+        .unwrap();
+    assert_eq!(
+        artist.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(artist2.genres(connection).unwrap(), vec!["emo".to_string()]);
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(event2.genres(connection).unwrap(), vec!["emo".to_string()]);
+    assert_eq!(
+        user.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(user2.genres(connection).unwrap(), vec!["emo".to_string()]);
+    assert!(user3.genres(connection).unwrap().is_empty());
+}
+
+#[test]
+fn for_display() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let artist = project.create_artist().finish();
+    artist
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            connection,
+        )
+        .unwrap();
+
+    let display_artist = artist.clone().for_display(connection).unwrap();
+    assert_eq!(display_artist.id, artist.id);
+    assert_eq!(display_artist.name, artist.name);
+    assert_eq!(
+        display_artist.genres,
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
+}
+
+#[test]
+fn events() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let artist = project.create_artist().finish();
+    let artist2 = project.create_artist().finish();
+    let event = project
+        .create_event()
+        .with_name("Event 1".to_string())
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_name("Event 2".to_string())
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist2)
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event2)
+        .with_artist(&artist2)
+        .finish();
+
+    assert_eq!(artist.events(connection), Ok(vec![event.clone()]));
+    assert_eq!(artist2.events(connection), Ok(vec![event, event2]));
+}
+
+#[test]
 fn commit() {
     let project = TestProject::new();
     let name = "Name";
@@ -335,6 +605,7 @@ fn organization() {
 #[test]
 fn find_for_organization() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let owner = project.create_user().finish();
     let member = project.create_user().finish();
     let user = project.create_user().finish();
@@ -347,20 +618,26 @@ fn find_for_organization() {
         .create_artist()
         .with_name("Artist1".to_string())
         .with_organization(&organization)
-        .finish();
+        .finish()
+        .for_display(connection)
+        .unwrap();
 
     let artist2 = project
         .create_artist()
         .with_name("Artist2".to_string())
         .with_organization(&organization)
-        .finish();
+        .finish()
+        .for_display(connection)
+        .unwrap();
 
     let artist3 = project
         .create_artist()
         .with_name("Artist3".to_string())
         .with_organization(&organization)
         .make_private()
-        .finish();
+        .finish()
+        .for_display(connection)
+        .unwrap();
 
     // Add another artist for another org to make sure it isn't included
     let organization2 = project
@@ -371,37 +648,34 @@ fn find_for_organization() {
         .create_artist()
         .with_name("Artist4".to_string())
         .with_organization(&organization2)
-        .finish();
+        .finish()
+        .for_display(connection)
+        .unwrap();
 
     let user = project.create_user().finish();
 
     let mut all_artists = vec![artist1, artist2];
 
-    let found_artists =
-        Artist::find_for_organization(None, organization.id, project.get_connection()).unwrap();
+    let found_artists = Artist::find_for_organization(None, organization.id, connection).unwrap();
     assert_eq!(found_artists, all_artists);
 
-    let found_artists =
-        Artist::find_for_organization(None, organization.id, project.get_connection()).unwrap();
+    let found_artists = Artist::find_for_organization(None, organization.id, connection).unwrap();
     assert_eq!(found_artists, all_artists);
     assert!(!found_artists.contains(&artist3));
     assert!(!found_artists.contains(&artist4));
 
     // Private artist is not shown for users
     let found_artists =
-        Artist::find_for_organization(Some(user.id), organization.id, project.get_connection())
-            .unwrap();
+        Artist::find_for_organization(Some(user.id), organization.id, connection).unwrap();
     assert_eq!(found_artists, all_artists);
 
     // Private artist is shown for owners and members
     all_artists.push(artist3);
     let found_artists =
-        Artist::find_for_organization(Some(owner.id), organization.id, project.get_connection())
-            .unwrap();
+        Artist::find_for_organization(Some(owner.id), organization.id, connection).unwrap();
     assert_eq!(found_artists, all_artists);
 
     let found_artists =
-        Artist::find_for_organization(Some(member.id), organization.id, project.get_connection())
-            .unwrap();
+        Artist::find_for_organization(Some(member.id), organization.id, connection).unwrap();
     assert_eq!(found_artists, all_artists);
 }

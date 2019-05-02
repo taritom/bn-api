@@ -233,6 +233,25 @@ fn try_refresh_expired_cart() {
 }
 
 #[test]
+fn user() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let order = Order::find_or_create_cart(&user, connection).unwrap();
+    let user = User::find(user.id, connection).unwrap();
+    let user2 = User::find(user.id, connection).unwrap();
+
+    let order2 = project
+        .create_order()
+        .for_user(&user2)
+        .on_behalf_of_user(&user)
+        .finish();
+
+    assert_eq!(order.user(connection), Ok(user));
+    assert_eq!(order2.user(connection), Ok(user2));
+}
+
+#[test]
 fn is_expired() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -3781,13 +3800,24 @@ fn calculate_cart_total() {
 #[test]
 fn add_external_payment() {
     let project = TestProject::new();
+    let conn = project.get_connection();
     let user = project.create_user().finish();
     let event = project
         .create_event()
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let conn = project.get_connection();
+    let artist = project.create_artist().finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    artist
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], conn)
+        .unwrap();
+    assert!(user.genres(conn).unwrap().is_empty());
+
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket = &event.ticket_types(true, None, conn).unwrap()[0];
     cart.update_quantities(
@@ -3816,6 +3846,7 @@ fn add_external_payment() {
     .unwrap();
     assert_eq!(cart.status, OrderStatus::Draft);
     assert!(cart.paid_at.is_none());
+    assert!(user.genres(conn).unwrap().is_empty());
 
     // Fully paid
     cart.add_external_payment(
@@ -3841,6 +3872,10 @@ fn add_external_payment() {
     )
     .unwrap();
     assert_eq!(1, domain_events.len());
+    assert_eq!(
+        user.genres(conn).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
 }
 
 #[test]

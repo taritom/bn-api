@@ -134,6 +134,13 @@ impl Spotify {
                     name: artist["name"].as_str().map(|s| s.to_string()),
                     bio: Some("".to_string()),
                     spotify_id: artist["id"].as_str().map(|s| s.to_string()),
+                    genres: artist["genres"].as_array().map(|a| {
+                        a.iter()
+                            .map(|s| s.as_str().map(|g| g.to_string()))
+                            .filter(|s| s.is_some())
+                            .map(|s| s.unwrap())
+                            .collect()
+                    }),
                     image_url,
                     other_image_urls: artist["images"].as_array().map(|a| {
                         a.iter()
@@ -186,6 +193,13 @@ impl Spotify {
                 name: artist["name"].as_str().map(|s| s.to_string()),
                 bio: Some("".to_string()),
                 spotify_id: artist["id"].as_str().map(|s| s.to_string()),
+                genres: artist["genres"].as_array().map(|a| {
+                    a.iter()
+                        .map(|s| s.as_str().map(|g| g.to_string()))
+                        .filter(|s| s.is_some())
+                        .map(|s| s.unwrap())
+                        .collect()
+                }),
                 image_url,
                 thumb_image_url,
                 other_image_urls: artist["images"].as_array().map(|a| {

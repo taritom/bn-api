@@ -7,15 +7,18 @@ extern crate log;
 #[macro_use]
 extern crate logging;
 extern crate clap;
+extern crate uuid;
 
 use bigneon_api::config::{Config, Environment};
 use bigneon_api::db::Database;
+use bigneon_api::utils::spotify;
 use bigneon_api::utils::ServiceLocator;
 use bigneon_db::prelude::*;
 use clap::*;
 use dotenv::dotenv;
 use log::Level::*;
 use std::{thread, time};
+use uuid::Uuid;
 
 pub fn main() {
     logging::setup_logger();
@@ -33,12 +36,76 @@ pub fn main() {
         .subcommand(
             SubCommand::with_name("sync-purchase-metadata").about("Syncs purchase metadata"),
         )
+        .subcommand(
+            SubCommand::with_name("sync-spotify-genres")
+                .about("Syncs spotify genres across artist records appending any missing genres"),
+        )
         .get_matches();
 
     match matches.subcommand() {
         ("sync-purchase-metadata", Some(_)) => sync_purchase_metadata(database, service_locator),
+        ("sync-spotify-genres", Some(_)) => sync_spotify_genres(config, database),
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
+        }
+    }
+}
+
+fn sync_spotify_genres(config: Config, database: Database) {
+    info!("Syncing spotify genres data");
+    let connection = database
+        .get_connection()
+        .expect("Expected connection to establish");
+    let connection = connection.get();
+    let artists = Artist::find_spotify_linked_artists(connection)
+        .expect("Expected to find all artists linked to spotify");
+
+    let artist_ids: Vec<Uuid> = artists.iter().map(|a| a.id).collect();
+    let genre_mapping = Genre::find_by_artist_ids(&artist_ids, connection)
+        .expect("Expected to find all genres for spotify linked artists");
+
+    if config.spotify_auth_token.is_some() {
+        let token = config.spotify_auth_token.clone().unwrap();
+        spotify::SINGLETON.set_auth_token(&token);
+    }
+
+    let spotify_client = &spotify::SINGLETON;
+    let mut i = 0;
+    for artist in artists {
+        i += 1;
+        if let Some(spotify_id) = artist.spotify_id.clone() {
+            let result = spotify_client.read_artist(&spotify_id);
+            match result {
+                Ok(spotify_artist_result) => match spotify_artist_result {
+                    Some(spotify_artist) => {
+                        let mut genres = spotify_artist.genres.clone().unwrap_or(Vec::new());
+                        let mut artist_genres = genre_mapping
+                            .get(&artist.id)
+                            .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
+                            .unwrap_or(Vec::new());
+                        genres.append(&mut artist_genres);
+
+                        let result = artist.set_genres(&genres, connection);
+
+                        match result {
+                            Ok(_) => {
+                                if i % 5 == 0 {
+                                    thread::sleep(time::Duration::from_secs(1))
+                                }
+                            }
+                            Err(error) => {
+                                error!("Error: {}", error);
+                                break;
+                            }
+                        }
+                    }
+                    None => error!("Error no spotify artist returned"),
+                },
+                Err(error) => {
+                    error!("Error: {}", error);
+                    break;
+                }
+            }
         }
     }
 }

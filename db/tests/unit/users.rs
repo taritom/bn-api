@@ -8,9 +8,113 @@ use validator::Validate;
 
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
-use bigneon_db::schema::orders;
+use bigneon_db::schema::{orders, user_genres};
 use bigneon_db::utils::errors;
 use bigneon_db::utils::errors::ErrorCode;
+
+#[test]
+fn update_genre_info() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let artist = project.create_artist().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    artist
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            connection,
+        )
+        .unwrap();
+    let user = project.create_user().finish();
+
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .quantity(1)
+        .finish();
+    // Clearing all genres
+    diesel::delete(user_genres::table.filter(user_genres::user_id.eq(user.id)))
+        .execute(connection)
+        .unwrap();
+
+    assert!(user.genres(connection).unwrap().is_empty());
+
+    assert!(user.update_genre_info(connection).is_ok());
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
+    assert_eq!(
+        user.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
+}
+
+#[test]
+fn genres() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let artist = project.create_artist().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    artist
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            connection,
+        )
+        .unwrap();
+
+    // No genres as no purchases yet
+    let user = project.create_user().finish();
+    assert!(user.genres(connection).unwrap().is_empty());
+
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .quantity(1)
+        .finish();
+
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
+    assert_eq!(
+        user.genres(connection).unwrap(),
+        vec!["emo".to_string(), "hard-rock".to_string()]
+    );
+}
 
 #[test]
 fn commit() {

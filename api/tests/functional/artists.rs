@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::artists;
 use bigneon_api::extractors::*;
-use bigneon_api::models::{CreateArtistRequest, PathParameters};
+use bigneon_api::models::{CreateArtistRequest, PathParameters, UpdateArtistRequest};
 use bigneon_db::prelude::*;
 use functional::base;
 use serde_json;
@@ -14,6 +14,7 @@ use uuid::Uuid;
 #[test]
 fn index() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let artist = database
         .create_artist()
         .with_name("Artist1".to_string())
@@ -23,11 +24,14 @@ fn index() {
         .with_name("Artist2".to_string())
         .finish();
 
-    let expected_artists = vec![artist, artist2];
+    let expected_artists = vec![
+        artist.for_display(connection).unwrap(),
+        artist2.for_display(connection).unwrap(),
+    ];
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = artists::index((
-        database.connection.into(),
+        database.connection.clone().into(),
         query_parameters,
         OptionalUser(None),
     ))
@@ -53,6 +57,7 @@ fn index() {
 #[test]
 fn index_with_org_linked_and_private_venues() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let artist = database
         .create_artist()
         .with_name("Artist1".to_string())
@@ -86,7 +91,11 @@ fn index_with_org_linked_and_private_venues() {
     ))
     .into();
 
-    let mut expected_artists = vec![artist, artist2, artist3];
+    let mut expected_artists = vec![
+        artist.for_display(connection).unwrap(),
+        artist2.for_display(connection).unwrap(),
+        artist3.for_display(connection).unwrap(),
+    ];
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     let wrapped_expected_artists = Payload {
@@ -124,7 +133,7 @@ fn index_with_org_linked_and_private_venues() {
         Vec::new(),
         database.connection.clone().get(),
     );
-    expected_artists.push(artist4);
+    expected_artists.push(artist4.for_display(connection).unwrap());
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = artists::index((
         database.connection.clone().into(),
@@ -151,7 +160,7 @@ fn index_with_org_linked_and_private_venues() {
     let admin = support::create_auth_user(Roles::Admin, None, &database);
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = artists::index((
-        database.connection.into(),
+        database.connection.clone().into(),
         query_parameters,
         OptionalUser(Some(admin)),
     ))
@@ -242,7 +251,13 @@ pub fn search_with_spotify() {
 pub fn show() {
     let database = TestDatabase::new();
     let artist = database.create_artist().finish();
-    let artist_expected_json = serde_json::to_string(&artist).unwrap();
+    let artist_expected_json = serde_json::to_string(
+        &artist
+            .clone()
+            .for_display(database.connection.get())
+            .unwrap(),
+    )
+    .unwrap();
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -257,6 +272,7 @@ pub fn show() {
 #[test]
 pub fn show_from_organizations_private_artist_same_org() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database
         .create_organization()
@@ -276,7 +292,10 @@ pub fn show_from_organizations_private_artist_same_org() {
 
     let user2 = database.create_user().finish();
 
-    let all_artists = vec![artist, artist2];
+    let all_artists = vec![
+        artist.for_display(connection).unwrap(),
+        artist2.for_display(connection).unwrap(),
+    ];
     let wrapped_expected_artists = Payload {
         data: all_artists,
         paging: Paging {
@@ -304,7 +323,7 @@ pub fn show_from_organizations_private_artist_same_org() {
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = artists::show_from_organizations((
-        database.connection.into(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(user)),
@@ -607,7 +626,7 @@ pub fn update_with_validation_errors() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
-    let mut attributes: ArtistEditableAttributes = Default::default();
+    let mut attributes: UpdateArtistRequest = Default::default();
     attributes.name = Some(name.to_string());
     attributes.bio = Some(bio.to_string());
     attributes.website_url = Some(Some(website_url.to_string()));

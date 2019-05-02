@@ -136,6 +136,9 @@ impl Transfer {
             .commit(conn)?;
         }
 
+        User::find(self.source_user_id, conn)?.update_genre_info(conn)?;
+        User::find(destination_user_id, conn)?.update_genre_info(conn)?;
+
         Ok(transfer)
     }
 

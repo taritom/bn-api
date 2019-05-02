@@ -1823,6 +1823,13 @@ impl Order {
         self.add_payment(payment, Some(current_user_id), conn)
     }
 
+    pub fn user(&self, conn: &PgConnection) -> Result<User, DatabaseError> {
+        users::table
+            .filter(users::id.eq(self.on_behalf_of_user_id.unwrap_or(self.user_id)))
+            .first(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load user")
+    }
+
     pub fn add_checkout_url(
         &mut self,
         current_user_id: Uuid,
@@ -1979,6 +1986,8 @@ impl Order {
             );
             action.expires_at = action.scheduled_at.into_builder().add_days(3).finish();
             action.commit(conn)?;
+
+            self.user(&conn)?.update_genre_info(conn)?;
             Ok(())
         } else {
             jlog!(Debug, "Order was checked for completion but was short", {"required_amount": total_required, "total_paid": total_paid, "order_id": self.id});

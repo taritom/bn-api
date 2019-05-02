@@ -715,6 +715,7 @@ pub fn add_artist(
         event_artist.stage_id,
     )
     .commit(Some(user.id()), connection)?;
+    event.update_genres(connection)?;
     Ok(HttpResponse::Created().json(&event_artist))
 }
 
@@ -755,6 +756,8 @@ pub fn update_artists(
         );
         rank += 1;
     }
+
+    event.update_genres(connection)?;
 
     Ok(HttpResponse::Ok().json(&added_artists))
 }
