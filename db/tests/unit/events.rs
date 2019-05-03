@@ -10,6 +10,7 @@ use uuid::Uuid;
 fn genres() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let creator = project.create_user().finish();
     let artist = project
         .create_artist()
         .with_name("Artist 1".to_string())
@@ -38,6 +39,9 @@ fn genres() {
         .finish();
 
     // No genres set
+    assert!(event.update_genres(Some(creator.id), connection).is_ok());
+    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
+
     assert!(artist.genres(connection).unwrap().is_empty());
     assert!(artist2.genres(connection).unwrap().is_empty());
     assert!(event.genres(connection).unwrap().is_empty());
@@ -50,9 +54,13 @@ fn genres() {
                 "test".to_string(),
                 "Hard Rock".to_string(),
             ],
+            None,
             connection,
         )
         .unwrap();
+    assert!(event.update_genres(Some(creator.id), connection).is_ok());
+    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
+
     assert_eq!(
         artist.genres(connection).unwrap(),
         vec![
@@ -73,8 +81,15 @@ fn genres() {
     assert!(event2.genres(connection).unwrap().is_empty());
 
     artist2
-        .set_genres(&vec!["emo".to_string(), "happy".to_string()], connection)
+        .set_genres(
+            &vec!["emo".to_string(), "happy".to_string()],
+            None,
+            connection,
+        )
         .unwrap();
+    assert!(event.update_genres(Some(creator.id), connection).is_ok());
+    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
+
     assert_eq!(
         artist.genres(connection).unwrap(),
         vec![
@@ -113,7 +128,11 @@ fn update_genres() {
         .finish();
     let artist = project.create_artist().finish();
     artist
-        .set_genres(&vec!["emo".to_string(), "happy".to_string()], connection)
+        .set_genres(
+            &vec!["emo".to_string(), "happy".to_string()],
+            None,
+            connection,
+        )
         .unwrap();
     let event = project
         .create_event()
@@ -138,8 +157,16 @@ fn update_genres() {
 
     assert!(event.genres(connection).unwrap().is_empty());
     assert!(user.genres(connection).unwrap().is_empty());
+    let domain_events = DomainEvent::find(
+        Tables::Events,
+        Some(event.id),
+        Some(DomainEventTypes::GenresUpdated),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
 
-    assert!(event.update_genres(connection).is_ok());
+    assert!(event.update_genres(Some(creator.id), connection).is_ok());
     assert_eq!(
         event.genres(connection).unwrap(),
         vec!["emo".to_string(), "happy".to_string()]
@@ -148,6 +175,18 @@ fn update_genres() {
         user.genres(connection).unwrap(),
         vec!["emo".to_string(), "happy".to_string()]
     );
+    let domain_events = DomainEvent::find(
+        Tables::Events,
+        Some(event.id),
+        Some(DomainEventTypes::GenresUpdated),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+    assert_eq!(
+        domain_events[0].event_data,
+        Some(json!({ "genres": vec!["emo", "happy"] }))
+    )
 }
 
 #[test]
@@ -860,6 +899,8 @@ fn find_all_events_for_organization() {
 fn search() {
     //create event
     let project = TestProject::new();
+    let creator = project.create_user().finish();
+    let connection = project.get_connection();
     let region1 = project.create_region().finish();
     let region2 = project.create_region().finish();
     let venue1 = project
@@ -880,7 +921,7 @@ fn search() {
     let admin = project
         .create_user()
         .finish()
-        .add_role(Roles::Admin, project.get_connection())
+        .add_role(Roles::Admin, connection)
         .unwrap();
     let organization = project
         .create_organization()
@@ -898,12 +939,8 @@ fn search() {
         .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
         .finish();
 
-    event
-        .add_artist(None, artist1.id, project.get_connection())
-        .unwrap();
-    event
-        .add_artist(None, artist2.id, project.get_connection())
-        .unwrap();
+    event.add_artist(None, artist1.id, connection).unwrap();
+    event.add_artist(None, artist2.id, connection).unwrap();
 
     //find more than one event
     let event2 = project
@@ -916,9 +953,7 @@ fn search() {
         .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
         .finish();
 
-    event2
-        .add_artist(None, artist1.id, project.get_connection())
-        .unwrap();
+    event2.add_artist(None, artist1.id, connection).unwrap();
 
     let event3 = project
         .create_event()
@@ -960,6 +995,24 @@ fn search() {
         .with_publish_date(NaiveDate::from_ymd(2999, 7, 8).and_hms(9, 10, 11))
         .finish();
 
+    artist1
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            None,
+            connection,
+        )
+        .unwrap();
+    artist2
+        .set_genres(
+            &vec!["emo".to_string(), "rock".to_string()],
+            None,
+            connection,
+        )
+        .unwrap();
+
+    assert!(event.update_genres(Some(creator.id), connection).is_ok());
+    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
+
     let all_events = vec![event, event2, event3];
     let mut all_events_for_organization = all_events.clone();
     all_events_for_organization.push(event4);
@@ -984,12 +1037,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_equiv!(all_events, all_found_events.0);
@@ -1003,12 +1057,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         Some(organization_owner),
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_equiv!(all_events_for_organization, all_found_events.0);
@@ -1022,12 +1077,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         Some(organization_user),
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_equiv!(all_events_for_organization, all_found_events.0);
@@ -1041,12 +1097,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         Some(user),
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_equiv!(all_events, all_found_events.0);
@@ -1060,12 +1117,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         Some(admin),
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_equiv!(all_events_for_admin, all_found_events.0);
@@ -1079,12 +1137,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_equiv!(all_events, all_found_events.0);
@@ -1097,13 +1156,14 @@ fn search() {
         None,
         None,
         None,
+        None,
         Some(vec![EventStatus::Published]),
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 1);
@@ -1117,13 +1177,14 @@ fn search() {
         None,
         None,
         None,
+        None,
         Some(vec![EventStatus::Published, EventStatus::Offline]),
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 2);
@@ -1138,13 +1199,14 @@ fn search() {
         None,
         None,
         None,
+        None,
         Some(vec![EventStatus::Closed]),
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 1);
@@ -1159,12 +1221,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 2);
@@ -1180,12 +1243,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 1);
@@ -1200,12 +1264,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 1);
@@ -1220,12 +1285,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 2);
@@ -1241,12 +1307,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 1);
@@ -1261,12 +1328,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_equiv!(all_events, all_found_events.0);
@@ -1280,12 +1348,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 1);
@@ -1300,12 +1369,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 2);
@@ -1321,12 +1391,13 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 0);
@@ -1340,18 +1411,20 @@ fn search() {
         None,
         None,
         None,
+        None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 1);
     assert_eq!(all_events[0], all_found_events.0[0]);
 
     let all_found_events = Event::search(
+        None,
         None,
         None,
         None,
@@ -1364,7 +1437,7 @@ fn search() {
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 2);
@@ -1377,6 +1450,7 @@ fn search() {
         None,
         None,
         None,
+        None,
         Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11)),
         None,
         EventSearchSortField::EventStart,
@@ -1384,11 +1458,74 @@ fn search() {
         None,
         PastOrUpcoming::Past,
         paging,
-        project.get_connection(),
+        connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 1);
     assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Genre search showing two events tagged
+    let all_found_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        Some(vec!["Emo".to_string()]),
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+    assert_eq!(all_events[1], all_found_events.0[1]);
+
+    // Genre requiring both genres
+    let all_found_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        Some(vec!["Rock".to_string(), "Emo".to_string()]),
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Genre search finding none
+    let all_found_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        Some(vec!["Happy".to_string()]),
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 0);
 }
 
 #[test]

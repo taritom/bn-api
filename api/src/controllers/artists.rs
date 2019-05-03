@@ -2,6 +2,7 @@ use actix_web::{http::StatusCode, HttpResponse, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use db::Connection;
+use domain_events::executors::update_genres::UpdateGenresPayload;
 use errors::*;
 use extractors::*;
 use helpers::application;
@@ -91,7 +92,18 @@ pub fn create(
         }
     };
 
-    artist.set_genres(&genres, connection)?;
+    artist.set_genres(&genres, Some(user.id()), connection)?;
+
+    // Trigger update for associated genres (events and users with tickets)
+    let action = DomainAction::create(
+        None,
+        DomainActionTypes::UpdateGenres,
+        None,
+        json!(UpdateGenresPayload { user_id: user.id() }),
+        Some(Tables::Artists.to_string()),
+        Some(artist.id),
+    );
+    action.commit(connection)?;
 
     // New artists belonging to an organization start private
     if artist.organization_id.is_some() {
@@ -141,7 +153,17 @@ pub fn update(
     let updated_artist = artist.update(&artist_parameters.into(), connection)?;
 
     if let Some(genres) = genres {
-        artist.set_genres(&genres, connection)?;
+        artist.set_genres(&genres, Some(user.id()), connection)?;
+
+        let action = DomainAction::create(
+            None,
+            DomainActionTypes::UpdateGenres,
+            None,
+            json!(UpdateGenresPayload { user_id: user.id() }),
+            Some(Tables::Artists.to_string()),
+            Some(artist.id),
+        );
+        action.commit(connection)?;
     }
 
     Ok(HttpResponse::Ok().json(&updated_artist.for_display(connection)?))

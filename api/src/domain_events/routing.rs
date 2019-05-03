@@ -11,6 +11,7 @@ use domain_events::executors::marketing_contacts::{
 use domain_events::executors::process_payment_ipn::ProcessPaymentIPNExecutor;
 use domain_events::executors::send_communication::SendCommunicationExecutor;
 use domain_events::executors::send_order_complete::SendOrderCompleteExecutor;
+use domain_events::executors::update_genres::UpdateGenresExecutor;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
@@ -67,9 +68,11 @@ impl DomainActionRouter {
                 PaymentProviderIPN => Box::new(ProcessPaymentIPNExecutor::new(&conf)),
                 SendPurchaseCompletedCommunication => {
                     Box::new(SendOrderCompleteExecutor::new(conf))
-                } //
-                  // DO NOT add
-                  // _ =>
+                }
+                UpdateGenres => Box::new(UpdateGenresExecutor::new()),
+                //
+                // DO NOT add
+                // _ =>
             }
         };
 
@@ -95,6 +98,9 @@ impl DomainActionRouter {
         .expect("Configuration error");
 
         self.add_executor(PaymentProviderIPN, find_executor(PaymentProviderIPN))
+            .expect("Configuration error");
+
+        self.add_executor(UpdateGenres, find_executor(UpdateGenres))
             .expect("Configuration error");
 
         self.add_executor(

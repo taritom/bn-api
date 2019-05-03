@@ -3872,8 +3872,13 @@ fn add_external_payment() {
         .with_artist(&artist)
         .finish();
     artist
-        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], conn)
+        .set_genres(
+            &vec!["emo".to_string(), "hard-rock".to_string()],
+            None,
+            conn,
+        )
         .unwrap();
+    event.update_genres(None, conn).unwrap();
     assert!(user.genres(conn).unwrap().is_empty());
 
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();

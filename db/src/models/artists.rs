@@ -154,13 +154,14 @@ impl Artist {
     pub fn set_genres(
         &self,
         genres: &Vec<String>,
+        user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         let genre_ids = Genre::find_or_create(genres, conn)?;
 
         let query = r#"
             INSERT INTO artist_genres (artist_id, genre_id)
-            SELECT $1 as artist_id, g.id as genre_id
+            SELECT DISTINCT $1 as artist_id, g.id as genre_id
             FROM genres g
             WHERE g.id = ANY($2)
             AND g.id not in (select genre_id from artist_genres where artist_id = $1);
@@ -182,9 +183,15 @@ impl Artist {
             .execute(conn)
             .to_db_error(ErrorCode::QueryError, "Could not clear old genres")?;
 
-        for event in self.events(conn)? {
-            event.update_genres(conn)?;
-        }
+        DomainEvent::create(
+            DomainEventTypes::GenresUpdated,
+            "Artist genres updated".to_string(),
+            Tables::Artists,
+            Some(self.id),
+            user_id,
+            Some(json!({ "genres": genres })),
+        )
+        .commit(conn)?;
 
         Ok(())
     }

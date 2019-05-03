@@ -33,10 +33,6 @@ fn set_genres() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
     let artist = project
         .create_artist()
         .with_name("Artist 1".to_string())
@@ -46,61 +42,20 @@ fn set_genres() {
         .with_name("Artist 2".to_string())
         .finish();
 
-    let event = project
-        .create_event()
-        .with_organization(&organization)
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
-    let event2 = project
-        .create_event()
-        .with_organization(&organization)
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
-    project
-        .create_event_artist()
-        .with_event(&event)
-        .with_artist(&artist)
-        .finish();
-    project
-        .create_event_artist()
-        .with_event(&event)
-        .with_artist(&artist2)
-        .finish();
-    project
-        .create_event_artist()
-        .with_event(&event2)
-        .with_artist(&artist2)
-        .finish();
-
-    let user = project.create_user().finish();
-    let user2 = project.create_user().finish();
-    let user3 = project.create_user().finish();
-
-    project
-        .create_order()
-        .for_event(&event)
-        .for_user(&user)
-        .is_paid()
-        .quantity(1)
-        .finish();
-    project
-        .create_order()
-        .for_event(&event2)
-        .for_user(&user2)
-        .is_paid()
-        .quantity(1)
-        .finish();
-
     // No genres set
     assert!(artist.genres(connection).unwrap().is_empty());
     assert!(artist2.genres(connection).unwrap().is_empty());
-    assert!(event.genres(connection).unwrap().is_empty());
-    assert!(event2.genres(connection).unwrap().is_empty());
-    assert!(user.genres(connection).unwrap().is_empty());
-    assert!(user2.genres(connection).unwrap().is_empty());
-    assert!(user3.genres(connection).unwrap().is_empty());
+
+    for (table, id) in vec![(Tables::Artists, artist.id), (Tables::Artists, artist2.id)] {
+        let domain_events = DomainEvent::find(
+            table,
+            Some(id),
+            Some(DomainEventTypes::GenresUpdated),
+            connection,
+        )
+        .unwrap();
+        assert_eq!(0, domain_events.len());
+    }
 
     artist
         .set_genres(
@@ -109,6 +64,7 @@ fn set_genres() {
                 "test".to_string(),
                 "Hard Rock".to_string(),
             ],
+            Some(creator.id),
             connection,
         )
         .unwrap();
@@ -121,28 +77,27 @@ fn set_genres() {
         ]
     );
     assert!(artist2.genres(connection).unwrap().is_empty());
-    assert_eq!(
-        event.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert!(event2.genres(connection).unwrap().is_empty());
-    assert_eq!(
-        user.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert!(user2.genres(connection).unwrap().is_empty());
-    assert!(user3.genres(connection).unwrap().is_empty());
+
+    for (table, id, event_count) in vec![
+        (Tables::Artists, artist.id, 1),
+        (Tables::Artists, artist2.id, 0),
+    ] {
+        let domain_events = DomainEvent::find(
+            table,
+            Some(id),
+            Some(DomainEventTypes::GenresUpdated),
+            connection,
+        )
+        .unwrap();
+        assert_eq!(event_count, domain_events.len());
+    }
 
     artist2
-        .set_genres(&vec!["emo".to_string(), "happy".to_string()], connection)
+        .set_genres(
+            &vec!["emo".to_string(), "happy".to_string()],
+            Some(creator.id),
+            connection,
+        )
         .unwrap();
     assert_eq!(
         artist.genres(connection).unwrap(),
@@ -156,37 +111,24 @@ fn set_genres() {
         artist2.genres(connection).unwrap(),
         vec!["emo".to_string(), "happy".to_string()]
     );
-    assert_eq!(
-        event.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "happy".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert_eq!(
-        event2.genres(connection).unwrap(),
-        vec!["emo".to_string(), "happy".to_string()]
-    );
-    assert_eq!(
-        user.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "happy".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert_eq!(
-        user2.genres(connection).unwrap(),
-        vec!["emo".to_string(), "happy".to_string()]
-    );
-    assert!(user3.genres(connection).unwrap().is_empty());
+
+    for (table, id, event_count) in vec![
+        (Tables::Artists, artist.id, 1),
+        (Tables::Artists, artist2.id, 1),
+    ] {
+        let domain_events = DomainEvent::find(
+            table,
+            Some(id),
+            Some(DomainEventTypes::GenresUpdated),
+            connection,
+        )
+        .unwrap();
+        assert_eq!(event_count, domain_events.len());
+    }
 
     // Remove genre
     artist2
-        .set_genres(&vec!["emo".to_string()], connection)
+        .set_genres(&vec!["emo".to_string()], Some(creator.id), connection)
         .unwrap();
     assert_eq!(
         artist.genres(connection).unwrap(),
@@ -197,25 +139,20 @@ fn set_genres() {
         ]
     );
     assert_eq!(artist2.genres(connection).unwrap(), vec!["emo".to_string()]);
-    assert_eq!(
-        event.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert_eq!(event2.genres(connection).unwrap(), vec!["emo".to_string()]);
-    assert_eq!(
-        user.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert_eq!(user2.genres(connection).unwrap(), vec!["emo".to_string()]);
-    assert!(user3.genres(connection).unwrap().is_empty());
+
+    for (table, id, event_count) in vec![
+        (Tables::Artists, artist.id, 1),
+        (Tables::Artists, artist2.id, 2),
+    ] {
+        let domain_events = DomainEvent::find(
+            table,
+            Some(id),
+            Some(DomainEventTypes::GenresUpdated),
+            connection,
+        )
+        .unwrap();
+        assert_eq!(event_count, domain_events.len());
+    }
 }
 
 #[test]
@@ -226,6 +163,7 @@ fn for_display() {
     artist
         .set_genres(
             &vec!["emo".to_string(), "hard-rock".to_string()],
+            None,
             connection,
         )
         .unwrap();

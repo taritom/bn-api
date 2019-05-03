@@ -85,6 +85,7 @@ string_enum! { DomainEventTypes [
     EventUpdated,
     EventUnpublished,
     FeeScheduleCreated,
+    GenresUpdated,
     HoldCreated,
     HoldDeleted,
     HoldQuantityChanged,
@@ -133,8 +134,8 @@ string_enum! { DomainActionTypes [
     MarketingContactsCreateEventList,
     MarketingContactsBulkEventFanListImport,
     PaymentProviderIPN,
-    SendPurchaseCompletedCommunication
-
+    SendPurchaseCompletedCommunication,
+    UpdateGenres
 ]}
 string_enum! { BroadcastStatus [Pending, InProgress, Completed, Cancelled]}
 string_enum! { BroadcastChannel [PushNotification]}
@@ -159,7 +160,7 @@ string_enum! { Roles [Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOf
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
-string_enum! { Tables [Broadcasts, Codes, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations,
+string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations,
 Payments, PaymentMethods, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }

@@ -265,10 +265,14 @@ impl Event {
             .to_db_error(ErrorCode::QueryError, "Could not get genres for event")
     }
 
-    pub fn update_genres(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn update_genres(
+        &self,
+        user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         let query = r#"
             INSERT INTO event_genres (event_id, genre_id)
-            SELECT $1 as event_id, ag.genre_id
+            SELECT DISTINCT $1 as event_id, ag.genre_id
             FROM event_artists ea
             JOIN artist_genres ag ON ag.artist_id = ea.artist_id
             WHERE ea.event_id = $1
@@ -296,6 +300,16 @@ impl Event {
             .to_db_error(ErrorCode::QueryError, "Could not clear old genres on event")?;
 
         User::update_genre_info_for_associated_event_users(self.id, conn)?;
+
+        DomainEvent::create(
+            DomainEventTypes::GenresUpdated,
+            "Event genres updated".to_string(),
+            Tables::Events,
+            Some(self.id),
+            user_id,
+            Some(json!({"genres": self.genres(conn)?})),
+        )
+        .commit(conn)?;
 
         Ok(())
     }
@@ -1127,6 +1141,7 @@ impl Event {
         region_id: Option<Uuid>,
         organization_id: Option<Uuid>,
         venue_id: Option<Uuid>,
+        genres: Option<Vec<String>>,
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
         status_filter: Option<Vec<EventStatus>>,
@@ -1231,6 +1246,17 @@ impl Event {
         }
 
         query = query.filter(events::private_access_code.is_null()); //we dont ever want to show private events when searching
+
+        if let Some(genres) = genres {
+            let genres = Genre::format_names(&genres);
+            query = query.filter(
+                sql("(")
+                .bind::<Integer, _>(genres.len() as i32)
+                .sql(" = (select count(eg.genre_id) from event_genres eg join genres g on eg.genre_id = g.id where eg.event_id = events.id and g.name = ANY(")
+                .bind::<Array<Text>, _>(genres)
+                .sql(")))")
+            );
+        }
 
         if let Some(organization_id) = organization_id {
             query = query.filter(events::organization_id.eq(organization_id));

@@ -1217,9 +1217,11 @@ fn receive_ticket_transfer() {
     artist
         .set_genres(
             &vec!["emo".to_string(), "hard-rock".to_string()],
+            None,
             connection,
         )
         .unwrap();
+    event.update_genres(None, connection).unwrap();
 
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -1359,9 +1361,11 @@ fn transfer_to_existing_user() {
     artist
         .set_genres(
             &vec!["emo".to_string(), "hard-rock".to_string()],
+            None,
             connection,
         )
         .unwrap();
+    event.update_genres(None, connection).unwrap();
 
     let original_purchaser = project.create_user().finish();
     let receiver = project.create_user().finish();

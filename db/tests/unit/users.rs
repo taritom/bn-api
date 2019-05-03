@@ -36,9 +36,11 @@ fn update_genre_info() {
     artist
         .set_genres(
             &vec!["emo".to_string(), "hard-rock".to_string()],
+            None,
             connection,
         )
         .unwrap();
+    event.update_genres(None, connection).unwrap();
     let user = project.create_user().finish();
 
     project
@@ -90,9 +92,11 @@ fn genres() {
     artist
         .set_genres(
             &vec!["emo".to_string(), "hard-rock".to_string()],
+            None,
             connection,
         )
         .unwrap();
+    event.update_genres(None, connection).unwrap();
 
     // No genres as no purchases yet
     let user = project.create_user().finish();

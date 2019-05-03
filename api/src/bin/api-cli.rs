@@ -85,10 +85,26 @@ fn sync_spotify_genres(config: Config, database: Database) {
                             .unwrap_or(Vec::new());
                         genres.append(&mut artist_genres);
 
-                        let result = artist.set_genres(&genres, connection);
+                        let result = artist.set_genres(&genres, None, connection);
 
                         match result {
                             Ok(_) => {
+                                let mut exit_outer_loop = false;
+                                for event in artist
+                                    .events(connection)
+                                    .expect("Expected to find artist events")
+                                {
+                                    if let Err(error) = event.update_genres(None, connection) {
+                                        error!("Error: {}", error);
+                                        exit_outer_loop = true;
+                                        break;
+                                    };
+                                }
+
+                                if exit_outer_loop {
+                                    break;
+                                }
+
                                 if i % 5 == 0 {
                                     thread::sleep(time::Duration::from_secs(1))
                                 }

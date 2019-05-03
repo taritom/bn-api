@@ -62,6 +62,7 @@ fn find_by_artist_ids() {
                 "hard-rock".to_string(),
                 "test".to_string(),
             ],
+            None,
             connection,
         )
         .unwrap();
@@ -80,7 +81,11 @@ fn find_by_artist_ids() {
     assert!(result.get(&artist2.id).is_none());
 
     artist2
-        .set_genres(&vec!["emo".to_string(), "happy".to_string()], connection)
+        .set_genres(
+            &vec!["emo".to_string(), "happy".to_string()],
+            None,
+            connection,
+        )
         .unwrap();
     let result = Genre::find_by_artist_ids(&vec![artist.id, artist2.id], connection).unwrap();
     assert_eq!(

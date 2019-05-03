@@ -7,6 +7,7 @@ use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
 use db::Connection;
 use diesel::PgConnection;
+use domain_events::executors::update_genres::UpdateGenresPayload;
 use errors::*;
 use extractors::*;
 use helpers::application;
@@ -28,6 +29,11 @@ pub struct SearchParameters {
     region_id: Option<Uuid>,
     organization_id: Option<Uuid>,
     venue_id: Option<Uuid>,
+    #[serde(
+        default,
+        with = "serde_with::rust::StringWithSeparator::<CommaSeparator>"
+    )]
+    genres: Vec<String>,
     #[serde(
         default,
         with = "serde_with::rust::StringWithSeparator::<CommaSeparator>"
@@ -169,6 +175,11 @@ pub fn index(
         query.region_id,
         query.organization_id,
         query.venue_id,
+        if query.genres.is_empty() {
+            None
+        } else {
+            Some(query.genres.clone())
+        },
         query.start_utc,
         query.end_utc,
         if query.status.is_empty() {
@@ -715,7 +726,18 @@ pub fn add_artist(
         event_artist.stage_id,
     )
     .commit(Some(user.id()), connection)?;
-    event.update_genres(connection)?;
+
+    // Trigger update for event and associated users in background
+    let action = DomainAction::create(
+        None,
+        DomainActionTypes::UpdateGenres,
+        None,
+        json!(UpdateGenresPayload { user_id: user.id() }),
+        Some(Tables::Events.to_string()),
+        Some(event.id),
+    );
+    action.commit(connection)?;
+
     Ok(HttpResponse::Created().json(&event_artist))
 }
 
@@ -757,7 +779,15 @@ pub fn update_artists(
         rank += 1;
     }
 
-    event.update_genres(connection)?;
+    let action = DomainAction::create(
+        None,
+        DomainActionTypes::UpdateGenres,
+        None,
+        json!(UpdateGenresPayload { user_id: user.id() }),
+        Some(Tables::Events.to_string()),
+        Some(event.id),
+    );
+    action.commit(connection)?;
 
     Ok(HttpResponse::Ok().json(&added_artists))
 }

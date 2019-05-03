@@ -191,6 +191,7 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     artist
         .set_genres(
             &vec!["emo".to_string(), "hard-rock".to_string()],
+            None,
             connection,
         )
         .unwrap();
@@ -222,6 +223,8 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     .into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
+        // Trigger sync right away as normally will happen via background worker
+        event.update_genres(None, connection).unwrap();
         assert_eq!(
             event.genres(connection).unwrap(),
             vec!["emo".to_string(), "hard-rock".to_string()]
@@ -365,11 +368,12 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
     artist1
         .set_genres(
             &vec!["emo".to_string(), "hard-rock".to_string()],
+            None,
             connection,
         )
         .unwrap();
     artist2
-        .set_genres(&vec!["happy".to_string()], connection)
+        .set_genres(&vec!["happy".to_string()], None, connection)
         .unwrap();
     assert!(event.genres(connection).unwrap().is_empty());
 
@@ -404,6 +408,8 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
+        // Trigger sync right away as normally will happen via background worker
+        event.update_genres(None, connection).unwrap();
         assert_eq!(
             event.genres(connection).unwrap(),
             vec![
