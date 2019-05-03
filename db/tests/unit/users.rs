@@ -11,6 +11,7 @@ use bigneon_db::prelude::*;
 use bigneon_db::schema::{orders, user_genres};
 use bigneon_db::utils::errors;
 use bigneon_db::utils::errors::ErrorCode;
+use bigneon_db::utils::errors::ErrorCode::ValidationError;
 
 #[test]
 fn update_genre_info() {
@@ -1092,6 +1093,61 @@ fn update() {
 
     let updated_user = user.update(&attributes.into(), connection).unwrap();
     assert_eq!(updated_user.email, Some(email.into()));
+}
+
+#[test]
+fn update_with_validation_errors() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+
+    let mut attributes: UserEditableAttributes = Default::default();
+    let email = user2.email.clone();
+    attributes.email = Some(email);
+
+    let result = user.update(&attributes.into(), connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("email"));
+                assert_eq!(errors["email"].len(), 1);
+                assert_eq!(errors["email"][0].code, "uniqueness");
+                assert_eq!(
+                    &errors["email"][0].message.clone().unwrap().into_owned(),
+                    "Email is already in use"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    // Ignores case
+    let mut attributes: UserEditableAttributes = Default::default();
+    let email = user2.email.clone().map(|e| e.to_uppercase());
+    attributes.email = Some(email);
+
+    let result = user.update(&attributes.into(), connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected validation error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("email"));
+                assert_eq!(errors["email"].len(), 1);
+                assert_eq!(errors["email"][0].code, "uniqueness");
+                assert_eq!(
+                    &errors["email"][0].message.clone().unwrap().into_owned(),
+                    "Email is already in use"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 }
 
 #[test]

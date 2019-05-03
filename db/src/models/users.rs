@@ -1,6 +1,7 @@
 use chrono::prelude::Utc;
 use chrono::NaiveDateTime;
 use diesel;
+use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
@@ -14,7 +15,8 @@ use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::passwords::PasswordHash;
 use utils::rand::random_alpha_string;
 use uuid::Uuid;
-use validator::Validate;
+use validator::*;
+use validators::{self, *};
 
 #[derive(Insertable, PartialEq, Debug, Validate)]
 #[table_name = "users"]
@@ -506,16 +508,58 @@ impl User {
         )
     }
 
+    fn email_unique(
+        id: Uuid,
+        email: String,
+        conn: &PgConnection,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        let email_in_use = select(exists(
+            users::table
+                .filter(users::id.ne(id))
+                .filter(users::email.eq(email.to_lowercase())),
+        ))
+        .get_result(conn)
+        .to_db_error(
+            ErrorCode::QueryError,
+            "Could not check if user email is unique",
+        )?;
+
+        if email_in_use {
+            let validation_error = create_validation_error("uniqueness", "Email is already in use");
+            return Ok(Err(validation_error));
+        }
+
+        Ok(Ok(()))
+    }
+
+    fn validate_record(
+        &self,
+        update_attrs: &UserEditableAttributes,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let mut validation_errors = update_attrs.validate();
+
+        if let Some(Some(ref email)) = update_attrs.email {
+            validation_errors = validators::append_validation_error(
+                validation_errors,
+                "email",
+                User::email_unique(self.id, email.to_string(), conn)?,
+            );
+        }
+
+        Ok(validation_errors?)
+    }
+
     pub fn update(
         &self,
         attributes: &UserEditableAttributes,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         let mut lower_cased_attributes = (*attributes).clone();
-        lower_cased_attributes.validate()?;
         lower_cased_attributes.email = lower_cased_attributes
             .email
             .map(|o| o.map(|e| e.to_lowercase()));
+        self.validate_record(&lower_cased_attributes, conn)?;
 
         let query =
             diesel::update(self).set((lower_cased_attributes, users::updated_at.eq(dsl::now)));

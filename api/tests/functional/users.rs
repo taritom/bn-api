@@ -636,7 +636,8 @@ pub fn update_current_user_with_validation_errors() {
                 .unwrap(),
         );
 
-    let response = result.into();
+    let response: HttpResponse = result.into();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let email = validation_response.fields.get("email").unwrap();
     assert_eq!(email[0].code, "email");
@@ -663,5 +664,12 @@ fn update_current_user_address_exists() {
                 .unwrap(),
         );
     let response: HttpResponse = result.into();
-    assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let validation_response = support::validation_response_from_response(&response).unwrap();
+    let email = validation_response.fields.get("email").unwrap();
+    assert_eq!(email[0].code, "uniqueness");
+    assert_eq!(
+        &email[0].message.clone().unwrap().into_owned(),
+        "Email is already in use"
+    );
 }
