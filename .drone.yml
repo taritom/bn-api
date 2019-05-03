@@ -1,7 +1,8 @@
 ---
 
 env: &env
-  CARGO_INCREMENTAL: "1"
+  CARGO_INCREMENTAL: "0"
+  CARGO_HOME: "/drone/src/target/tmp/cargo"
   RUST_BACKTRACE: "1"
   API_PORT: "8088"
   API_BASE_URL: "http://localhost:8088"
@@ -30,7 +31,7 @@ env: &env
   GLOBEE_API_KEY: "GDFOzMkPAw79a8TCAHKkiknJB6bEYgbb"
   GLOBEE_BASE_URL: "https://test.globee.com/payment-api/v1/"
   VALIDATE_IPNS: false
-  CONNECTION_POOL_MAX: 1
+  CONNECTION_POOL_MAX: 20
   CONNECTION_POOL_MIN: 1
   BRANCH_IO_BRANCH_KEY:
       from_secret: BRANCH_IO_BRANCH_KEY
@@ -75,7 +76,7 @@ steps:
       image: rust:1.31.1
       environment: *env
       commands:
-      - cargo build --release --all-targets
+      - cargo build --release --bins
       - test -x target/release/server
       - test -x target/release/bndb_cli
       when:
@@ -125,20 +126,20 @@ steps:
         event: [pull_request, push]
         branch: master
 
-    - name: api-tests
-      depends_on:
-        - compile
-      image: rust:1.31.1
-      environment:
-          <<: *env
-          DATABASE_URL: postgres://app:password@database/api_tests
-          TEST_DATABASE_URL: postgres://app:password@database/api_tests
-          TEST_DATABASE_ADMIN_URL: postgres://app:password@database/api_tests
-      commands:
-        - ./scripts/run-api-tests-ci.sh
-      when:
-          event: [pull_request, push]
-          branch: master
+#    - name: api-tests
+#      depends_on:
+#        - compile
+#      image: rust:1.31.1
+#      environment:
+#          <<: *env
+#          DATABASE_URL: postgres://app:password@database/api_tests
+#          TEST_DATABASE_URL: postgres://app:password@database/api_tests
+#          TEST_DATABASE_ADMIN_URL: postgres://app:password@database/api_tests
+#      commands:
+#        - ./scripts/run-api-tests-ci.sh
+#      when:
+#          event: [pull_request, push]
+#          branch: master
 
     - name: integration-tests
       depends_on:
@@ -183,7 +184,7 @@ steps:
       depends_on:
 #        - publish
 #        - cargo-audit
-        - api-tests
+#        - api-tests
         - integration-tests
         - other-tests
       image: sdbondi/git-ssh-client:0.2-alpine
@@ -243,7 +244,7 @@ steps:
       image: plugins/slack
       depends_on:
         - other-tests
-        - api-tests
+#        - api-tests
         - integration-tests
       settings:
         webhook:
@@ -273,6 +274,6 @@ services:
 
 ---
 kind: signature
-hmac: e7c072ddefa240289421c0db943af5611adf9c1b42f1e5630808a8f972ab7410
+hmac: c8c2c870c3c10a9483298d773587e709ba2081b293a0cd65816d5a1cb6e8442f
 
 ...
