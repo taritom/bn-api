@@ -972,12 +972,12 @@ impl Event {
                 publish_date: r.publish_date,
                 on_sale: r.on_sale,
                 total_tickets: 0,
-                sold_unreserved: 0,
-                sold_held: 0,
+                sold_unreserved: Some(0),
+                sold_held: Some(0),
                 tickets_open: 0,
                 tickets_held: 0,
                 tickets_redeemed: 0,
-                sales_total_in_cents: r.sales_total_in_cents.unwrap_or(0) as u32,
+                sales_total_in_cents: Some(r.sales_total_in_cents.unwrap_or(0) as u32),
                 ticket_types: vec![],
                 is_external: r.is_external,
                 external_url: r.external_url,
@@ -991,8 +991,12 @@ impl Event {
                 ticket_type.sales_total_in_cents =
                     Some(ticket_type.sales_total_in_cents.unwrap_or(0));
                 result.total_tickets += ticket_type.total as u32;
-                result.sold_unreserved += ticket_type.sold_unreserved as u32;
-                result.sold_held += ticket_type.sold_held as u32;
+                result.sold_unreserved = Some(
+                    result.sold_unreserved.unwrap_or(0)
+                        + ticket_type.sold_unreserved.unwrap_or(0) as u32,
+                );
+                result.sold_held =
+                    Some(result.sold_held.unwrap_or(0) + ticket_type.sold_held.unwrap_or(0) as u32);
                 result.tickets_open += ticket_type.open as u32;
                 result.tickets_held += ticket_type.held as u32;
                 result.tickets_redeemed += ticket_type.redeemed as u32;
@@ -1565,12 +1569,12 @@ pub struct EventSummaryResult {
     pub publish_date: Option<NaiveDateTime>,
     pub on_sale: Option<NaiveDateTime>,
     pub total_tickets: u32,
-    pub sold_unreserved: u32,
-    pub sold_held: u32,
+    pub sold_unreserved: Option<u32>,
+    pub sold_held: Option<u32>,
     pub tickets_open: u32,
     pub tickets_held: u32,
     pub tickets_redeemed: u32,
-    pub sales_total_in_cents: u32,
+    pub sales_total_in_cents: Option<u32>,
     pub ticket_types: Vec<EventSummaryResultTicketType>,
     pub is_external: bool,
     pub external_url: Option<String>,
@@ -1591,10 +1595,10 @@ pub struct EventSummaryResultTicketType {
     pub max_price: i64,
     #[sql_type = "BigInt"]
     pub total: i64,
-    #[sql_type = "BigInt"]
-    pub sold_unreserved: i64,
-    #[sql_type = "BigInt"]
-    pub sold_held: i64,
+    #[sql_type = "Nullable<BigInt>"]
+    pub sold_unreserved: Option<i64>,
+    #[sql_type = "Nullable<BigInt>"]
+    pub sold_held: Option<i64>,
     #[sql_type = "BigInt"]
     pub open: i64,
     #[sql_type = "BigInt"]

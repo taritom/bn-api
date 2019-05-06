@@ -350,7 +350,7 @@ pub fn show(
         user.has_scope_for_organization_event(
             Scopes::EventWrite,
             &organization,
-            &event,
+            event.id,
             connection,
         )?
     } else {
@@ -517,7 +517,7 @@ pub fn show_from_organizations(
     user.requires_scope_for_organization(Scopes::OrgReadEvents, &org, conn)?;
 
     let user_roles = org.get_roles_for_user(&user.user, conn)?;
-    let events = Event::find_all_events_for_organization(
+    let mut events = Event::find_all_events_for_organization(
         path.id,
         paging
             .get_tag("past_or_upcoming")
@@ -536,6 +536,18 @@ pub fn show_from_organizations(
         paging.limit(),
         conn,
     )?;
+    for event in events.data.iter_mut() {
+        if !user.has_scope_for_organization_event(Scopes::DashboardRead, &org, event.id, conn)? {
+            event.sales_total_in_cents = None;
+            event.sold_held = None;
+            event.sold_unreserved = None;
+            for tt in event.ticket_types.iter_mut() {
+                tt.sold_unreserved = None;
+                tt.sold_held = None;
+                tt.sales_total_in_cents = None;
+            }
+        }
+    }
     Ok(WebPayload::new(StatusCode::OK, events))
 }
 

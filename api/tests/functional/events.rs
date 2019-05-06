@@ -999,7 +999,7 @@ mod dashboard_tests {
 
     #[test]
     fn dashboard_box_office() {
-        base::events::dashboard(Roles::OrgBoxOffice, true);
+        base::events::dashboard(Roles::OrgBoxOffice, false);
     }
 }
 

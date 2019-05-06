@@ -720,7 +720,6 @@ pub fn get_scopes_for_user() {
         vec![
             "box-office-ticket:read",
             "code:read",
-            "dashboard:read",
             "event:scan",
             "event:view-guests",
             "hold:read",

@@ -49,7 +49,7 @@ impl User {
         &self,
         scope: Scopes,
         organization: Option<&Organization>,
-        event: Option<&Event>,
+        event_id: Option<Uuid>,
         connection: Option<&PgConnection>,
         log_on_failure: bool,
     ) -> Result<bool, BigNeonError> {
@@ -66,7 +66,7 @@ impl User {
 
             if organization_scopes.contains(&scope) {
                 // User is an event limited access user so their organization event ids must include this event
-                if event.is_some() {
+                if event_id.is_some() {
                     // If the user's roles include an event limited role
                     let user_roles = organization.get_roles_for_user(&self.user, connection)?;
                     if Roles::get_event_limited_roles()
@@ -77,7 +77,7 @@ impl User {
                         if self
                             .user
                             .get_event_ids_for_organization(organization.id, connection)?
-                            .contains(&event.unwrap().id)
+                            .contains(&event_id.unwrap())
                         {
                             return Ok(true);
                         }
@@ -107,10 +107,10 @@ impl User {
         &self,
         scope: Scopes,
         organization: &Organization,
-        event: &Event,
+        event_id: Uuid,
         conn: &PgConnection,
     ) -> Result<bool, BigNeonError> {
-        self.check_scope_access(scope, Some(organization), Some(event), Some(conn), false)
+        self.check_scope_access(scope, Some(organization), Some(event_id), Some(conn), false)
     }
 
     pub fn has_scope_for_organization(
@@ -149,7 +149,7 @@ impl User {
         event: &Event,
         conn: &PgConnection,
     ) -> Result<(), BigNeonError> {
-        if self.check_scope_access(scope, Some(organization), Some(event), Some(conn), true)? {
+        if self.check_scope_access(scope, Some(organization), Some(event.id), Some(conn), true)? {
             return Ok(());
         }
         Err(AuthError::new(

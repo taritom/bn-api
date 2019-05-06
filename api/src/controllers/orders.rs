@@ -144,7 +144,7 @@ pub fn refund(
             if !user.has_scope_for_organization_event(
                 Scopes::OrderRefund,
                 &organization,
-                &event,
+                event.id,
                 connection,
             )? {
                 authorized_to_refund_items = false;
