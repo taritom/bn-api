@@ -503,9 +503,13 @@ impl OrderItem {
         conn: &PgConnection,
     ) -> Result<Vec<OrderItem>, DatabaseError> {
         order_items::table
+            .left_join(ticket_types::table)
             .filter(order_items::order_id.eq(order_id))
             .order_by(order_items::event_id.asc())
+            .then_order_by(ticket_types::rank.asc())
+            .then_order_by(ticket_types::name.asc())
             .then_order_by(order_items::item_type.asc())
+            .select(order_items::all_columns)
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load order items")
     }
