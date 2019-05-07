@@ -212,7 +212,7 @@ impl TicketInstance {
                 .left_join(
                     transfers::table.on(ticket_instances::id.eq(transfers::ticket_instance_id)),
                 )
-                .filter(events::event_start.ge(
+                .filter(events::event_end.ge(
                     start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
                 ))
                 .filter(events::event_end.le(

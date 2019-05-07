@@ -166,7 +166,38 @@ pub fn index() {
     assert_eq!(
         vec![
             (
-                event.for_display(conn).unwrap(),
+                event.clone().for_display(conn).unwrap(),
+                vec![expected_ticket.clone()]
+            ),
+            (
+                event2.clone().for_display(conn).unwrap(),
+                vec![expected_ticket2.clone()]
+            )
+        ],
+        found_tickets
+    );
+
+    // Tickets include live event
+    let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
+    path.id = None;
+    let mut parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
+    parameters.start_utc = Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 11, 11));
+    let response = tickets::index((
+        database.connection.clone().into(),
+        path,
+        parameters,
+        auth_user.clone(),
+    ))
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
+        serde_json::from_str(&body).unwrap();
+    let found_tickets = found_data.data;
+    assert_eq!(
+        vec![
+            (
+                event.clone().for_display(conn).unwrap(),
                 vec![expected_ticket.clone()]
             ),
             (

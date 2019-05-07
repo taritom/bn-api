@@ -173,6 +173,21 @@ fn find_for_user_for_display() {
     assert_eq!(found_tickets[1].0.id, event2.id);
     assert_eq!(found_tickets[1].1.len(), 2);
 
+    // start date past event start time but before event end time returns both
+    let found_tickets = TicketInstance::find_for_user_for_display(
+        user.id,
+        None,
+        Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(11, 10, 11)),
+        None,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(found_tickets.len(), 2);
+    assert_eq!(found_tickets[0].0.id, event.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
+    assert_eq!(found_tickets[1].0.id, event2.id);
+    assert_eq!(found_tickets[1].1.len(), 2);
+
     // start date filters out event
 
     let found_tickets = TicketInstance::find_for_user_for_display(
