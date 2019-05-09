@@ -955,13 +955,35 @@ impl TicketInstance {
                 Some("ECDSA Signature is not valid".to_string()),
             ));
         }
+
+        // TODO This is currently required because each transfers record is tied back to the ticket instance
+        // in a denormalized way. It's not ideal and is an artifact of the transfers model having been
+        // designed around the existing implementation. See: https://github.com/big-neon/bn-api/issues/1252
+        let transfer_is_expired: bool = select(exists(
+            transfers::table
+                .filter(transfers::transfer_key.eq(transfer_authorization.transfer_key))
+                .filter(transfers::status.eq(TransferStatus::Pending))
+                .filter(transfers::transfer_expiry_date.lt(dsl::now)),
+        ))
+        .get_result(conn)
+        .to_db_error(
+            ErrorCode::QueryError,
+            "Could not check if transfer was expired",
+        )?;
+        if transfer_is_expired {
+            return Err(DatabaseError::new(
+                ErrorCode::BusinessProcessError,
+                Some("The transfer has expired.".to_string()),
+            ));
+        }
+
         //Confirm that transfer authorization time has not passed and that the sender still owns the tickets
         //being transfered
         let tickets: Vec<TicketInstance> = ticket_instances::table
             .inner_join(transfers::table.on(transfers::ticket_instance_id.eq(ticket_instances::id)))
             .filter(transfers::transfer_key.eq(transfer_authorization.transfer_key))
-            .filter(transfers::transfer_expiry_date.gt(dsl::now))
             .filter(transfers::status.eq(TransferStatus::Pending))
+            .filter(transfers::transfer_expiry_date.ge(dsl::now))
             .select(ticket_instances::all_columns)
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load ticket instances")?;

@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, FromRequest, Path, Query};
+use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use chrono::prelude::*;
 use serde_json;
 use uuid::Uuid;
@@ -10,6 +10,8 @@ use bigneon_api::controllers::tickets::{
 use bigneon_api::extractors::*;
 use bigneon_api::models::{OptionalPathParameters, PathParameters};
 use bigneon_db::prelude::*;
+use diesel::sql_types;
+use diesel::RunQueryDsl;
 use functional::base;
 use support;
 use support::database::TestDatabase;
@@ -627,4 +629,94 @@ fn receive_ticket_transfer() {
     .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[test]
+fn receive_ticket_transfer_fails_expired_transfer() {
+    let database = TestDatabase::new();
+    let request = TestRequest::create();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("Event1".into())
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
+        .with_venue(&venue)
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let conn = database.connection.get();
+
+    let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
+    let ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
+
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 5,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        conn,
+    )
+    .unwrap();
+
+    let total = cart.calculate_total(conn).unwrap();
+    cart.add_external_payment(
+        Some("test".to_string()),
+        ExternalPaymentType::CreditCard,
+        user.id,
+        total,
+        conn,
+    )
+    .unwrap();
+    let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
+    let ticket_ids = vec![tickets[0].id, tickets[1].id];
+    let transfer_auth = TicketInstance::authorize_ticket_transfer(
+        auth_user.id(),
+        &ticket_ids,
+        3600,
+        None,
+        None,
+        conn,
+    )
+    .unwrap();
+
+    let transfer =
+        &Transfer::find_active_pending_by_ticket_instance_ids(&ticket_ids, conn).unwrap()[0];
+
+    let _q: Vec<TicketInstance> = diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET transfer_expiry_date = '2018-06-06 09:49:09.643207'
+        WHERE id = $1;
+        "#,
+    )
+    .bind::<sql_types::Uuid, _>(transfer.id)
+    .get_results(conn)
+    .unwrap();
+
+    //Try receive transfer
+    let user2 = database.create_user().finish();
+    let auth_user2 = support::create_auth_user_from_user(&user2, Roles::User, None, &database);
+
+    let response: HttpResponse = tickets::receive_transfer((
+        database.connection.clone().into(),
+        Json(transfer_auth.clone()),
+        auth_user2.clone(),
+        request.extract_state(),
+    ))
+    .into();
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(
+        body,
+        json!({"error": "The transfer has expired."}).to_string()
+    );
 }

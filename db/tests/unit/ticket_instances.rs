@@ -1296,8 +1296,10 @@ fn receive_ticket_transfer() {
         receiver_wallet.id,
         connection,
     );
-
-    assert!(receive_auth2.is_err());
+    assert_eq!(
+        receive_auth2,
+        DatabaseError::business_process_error("The transfer has expired.",)
+    );
 
     //try receive the wrong number of tickets (too few)
     let transfer_auth = TicketInstance::authorize_ticket_transfer(

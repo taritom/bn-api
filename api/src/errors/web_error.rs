@@ -220,10 +220,7 @@ impl ConvertToWebError for DatabaseError {
             5000 => internal_error("Internal error"),
             7000 => {
                 let cause = self.cause.clone().unwrap_or("Unknown Cause".to_string());
-                status_code_and_message(
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    format!("Business process error: {}", cause.as_str()).as_str(),
-                )
+                status_code_and_message(StatusCode::UNPROCESSABLE_ENTITY, cause.as_str())
             }
             7200 => match &self.error_code {
                 ValidationError { errors } => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY)
