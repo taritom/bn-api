@@ -2166,7 +2166,8 @@ impl Order {
     }
 
     /// Updates the lock version in the database and forces a Concurrency error if
-    /// another process has updated it
+    /// another process has updated it. It will also keep a row lock on the order
+    /// preventing multiple processes from updating data until it has finished
     pub fn lock_version(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let rows_affected = diesel::update(
             orders::table

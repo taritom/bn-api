@@ -12,8 +12,7 @@ use bigneon_db::prelude::*;
 use config::Config;
 use db::*;
 use domain_events::errors::DomainActionError;
-use domain_events::executor_future::ExecutorFuture;
-use domain_events::routing::DomainActionRouter;
+use domain_events::routing::{DomainActionExecutor, DomainActionRouter};
 use logging::*;
 use tokio::prelude::*;
 use tokio::runtime::current_thread;
@@ -64,7 +63,7 @@ impl DomainActionMonitor {
             let mut runtime = current_thread::Runtime::new().unwrap();
 
             for f in futures {
-                let timeout = Timeout::new(f, Duration::from_secs(55));
+                let timeout = Timeout::new(f.0.execute(f.1, f.2), Duration::from_secs(55));
 
                 runtime.block_on(timeout.or_else(|err| {
                     jlog! {Error,"bigneon::domain_actions", "Action: failed", {"error": err.to_string()}};
@@ -137,11 +136,11 @@ impl DomainActionMonitor {
         router
     }
 
-    fn find_actions(
+    fn find_actions<'a>(
         database: &Database,
-        router: &DomainActionRouter,
+        router: &'a DomainActionRouter,
         limit: usize,
-    ) -> Result<Vec<ExecutorFuture>, DomainActionError> {
+    ) -> Result<Vec<(&'a DomainActionExecutor, DomainAction, Connection)>, DomainActionError> {
         let connection = database.get_connection()?;
 
         let pending_actions = DomainAction::find_pending(None, connection.get())?;
@@ -213,8 +212,8 @@ impl DomainActionMonitor {
             let command = command.unwrap();
 
             per_action_connection.begin_transaction()?;
-            let f = command.execute(action, per_action_connection);
-            result.push(f);
+            // let f = command.execute(action, per_action_connection);
+            result.push((command, action, per_action_connection));
         }
 
         Ok(result)
@@ -245,17 +244,18 @@ impl DomainActionMonitor {
             }
             //Check for actions that are due to be processed
 
-            let futures = DomainActionMonitor::find_actions(
+            let actions = DomainActionMonitor::find_actions(
                 &database,
                 &router,
                 cmp::max(1, conf.connection_pool.max / 2) as usize,
             )?;
 
-            if futures.len() == 0 {
+            if actions.len() == 0 {
                 thread::sleep(Duration::from_secs(interval));
             } else {
-                for f in futures {
-                    let timeout = Timeout::new(f, Duration::from_secs(55));
+                for (command, action, connection) in actions {
+                    let timeout =
+                        Timeout::new(command.execute(action, connection), Duration::from_secs(55));
 
                     runtime.spawn(timeout.or_else(|err| {
                         jlog! {Error,"bigneon::domain_actions", "Action:  failed", {"error": err.to_string()}};

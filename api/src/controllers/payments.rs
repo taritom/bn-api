@@ -34,6 +34,20 @@ pub fn callback(
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let mut order = Order::find(path.id, conn)?;
+    // Try to get a lock. IPNs might come in quickly, so try a few times
+    for _ in 0..5 {
+        match order.lock_version(conn) {
+            Ok(_) => break,
+            Err(err) => match err.error_code {
+                ErrorCode::ConcurrencyError => {
+                    // Get the latest order and try again...
+                    order = Order::find(path.id, conn)?;
+                }
+                _ => return Err(err.into()),
+            },
+        }
+    }
+
     let mut payments: Vec<Payment> = order
         .payments(conn)?
         .into_iter()

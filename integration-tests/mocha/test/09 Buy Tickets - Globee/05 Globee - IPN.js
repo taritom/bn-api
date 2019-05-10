@@ -80,6 +80,12 @@ describe('Globee - IPN', function () {
 
     });
 
+
+    it("should be 200", function () {
+        expect(response.status).to.equal(200);
+    })
+
+
 // no tests
 
 

@@ -100,6 +100,11 @@ impl ProcessPaymentIPNExecutor {
 
         order = Order::find(order_id, connection)?;
 
+        // Lock the order to prevent other processes from adding/updating payments.
+        // This is a fairly heavy way of locking, but it should prevent deadlocks
+        // of processes trying to update orders and payments in different orders
+        order.lock_version(connection)?;
+
         // If expired attempt to refresh cart
         if order.is_expired()
             && (order.status == OrderStatus::PendingPayment || order.status == OrderStatus::Draft)
