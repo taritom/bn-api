@@ -261,6 +261,8 @@ fn guest_list() {
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
     let user4 = project.create_user().finish();
+    let user5 = project.create_user().finish();
+    let user6 = project.create_user().finish();
 
     // 1 normal order, 2 orders made on behalf of users by box office user 2
     project
@@ -316,19 +318,49 @@ fn guest_list() {
     assert!(guest_ids.contains(&Some(user3.id)));
     assert!(guest_ids.contains(&Some(user4.id)));
 
-    //Check the updated_at filter from 10 seconds ago
-    let ten_seconds_ago = Utc::now().naive_utc() + Duration::seconds(-10);
+    //Check the updated_at filter from 100 seconds ago
+    let hundred_seconds_ago = Utc::now().naive_utc() + Duration::seconds(-100);
     let guest_list = event
-        .guest_list("", &Some(ten_seconds_ago), connection)
+        .guest_list("", &Some(hundred_seconds_ago), connection)
         .unwrap();
     assert_eq!(4, guest_list.len());
 
-    //Check the updated_at filter in 10 seconds time
-    let ten_seconds_later = Utc::now().naive_utc() + Duration::seconds(10);
+    //Check the updated_at filter in 100 seconds time
+    let hundred_seconds_later = Utc::now().naive_utc() + Duration::seconds(100);
     let guest_list = event
-        .guest_list("", &Some(ten_seconds_later), connection)
+        .guest_list("", &Some(hundred_seconds_later), connection)
         .unwrap();
     assert_eq!(0, guest_list.len());
+
+    // Transfer tickets for users 1 and 4 changing guest list to show the new users
+    for (from_user, new_user) in vec![(&user, &user5), (&user4, &user6)] {
+        let ticket_ids: Vec<Uuid> = TicketInstance::find_for_user(from_user.id, connection)
+            .unwrap()
+            .into_iter()
+            .map(|ti| ti.id)
+            .collect();
+        TicketInstance::direct_transfer(
+            from_user.id,
+            &ticket_ids,
+            "nowhere",
+            "Test",
+            new_user.id,
+            connection,
+        )
+        .unwrap();
+    }
+    let guest_list = event.guest_list("", &None, connection).unwrap();
+    assert_eq!(4, guest_list.len());
+    let guest_ids = guest_list
+        .iter()
+        .map(|r| r.ticket.user_id)
+        .collect::<Vec<Option<Uuid>>>();
+    assert!(!guest_ids.contains(&Some(user.id)));
+    assert!(guest_ids.contains(&Some(user2.id)));
+    assert!(guest_ids.contains(&Some(user3.id)));
+    assert!(!guest_ids.contains(&Some(user4.id)));
+    assert!(guest_ids.contains(&Some(user5.id)));
+    assert!(guest_ids.contains(&Some(user6.id)));
 }
 
 #[test]
