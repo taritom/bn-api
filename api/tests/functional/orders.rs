@@ -506,13 +506,10 @@ pub fn refund_hold_ticket() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     let refund_response: RefundResponse = serde_json::from_str(&body).unwrap();
     let expected_refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
-    assert_eq!(
-        refund_response.amount_refunded,
-        expected_refund_amount as u32
-    );
+    assert_eq!(refund_response.amount_refunded, expected_refund_amount);
 
     let mut expected_refund_breakdown = HashMap::new();
-    expected_refund_breakdown.insert(PaymentMethods::External, expected_refund_amount as u32);
+    expected_refund_breakdown.insert(PaymentMethods::External, expected_refund_amount);
     assert_eq!(refund_response.refund_breakdown, expected_refund_breakdown);
 
     // Reload ticket
@@ -635,13 +632,10 @@ pub fn refund_removes_event_fee_if_all_event_tickets_refunded() {
     let expected_refund_amount = event_fee_item.unit_price_in_cents
         + order_item.unit_price_in_cents * 2
         + fee_item.unit_price_in_cents * 2;
-    assert_eq!(
-        refund_response.amount_refunded,
-        expected_refund_amount as u32
-    );
+    assert_eq!(refund_response.amount_refunded, expected_refund_amount);
 
     let mut expected_refund_breakdown = HashMap::new();
-    expected_refund_breakdown.insert(PaymentMethods::External, expected_refund_amount as u32);
+    expected_refund_breakdown.insert(PaymentMethods::External, expected_refund_amount);
     assert_eq!(refund_response.refund_breakdown, expected_refund_breakdown);
 
     // Reload ticket

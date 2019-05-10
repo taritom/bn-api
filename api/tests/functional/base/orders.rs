@@ -170,9 +170,9 @@ pub fn details(role: Roles, should_succeed: bool) {
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
     assert_eq!(
-        cart.refund(refund_items, auth_user.id(), connection)
+        cart.refund(&refund_items, auth_user.id(), connection)
             .unwrap(),
-        refund_amount as u32
+        refund_amount
     );
 
     let mut expected_order_details = vec![
@@ -324,13 +324,10 @@ pub fn refund(role: Roles, should_succeed: bool) {
         let expected_refund_amount = event_fee_item.unit_price_in_cents
             + order_item.unit_price_in_cents
             + fee_item.unit_price_in_cents;
-        assert_eq!(
-            refund_response.amount_refunded,
-            expected_refund_amount as u32
-        );
+        assert_eq!(refund_response.amount_refunded, expected_refund_amount);
 
         let mut expected_refund_breakdown = HashMap::new();
-        expected_refund_breakdown.insert(PaymentMethods::External, expected_refund_amount as u32);
+        expected_refund_breakdown.insert(PaymentMethods::External, expected_refund_amount);
         assert_eq!(refund_response.refund_breakdown, expected_refund_breakdown);
 
         // Reload ticket

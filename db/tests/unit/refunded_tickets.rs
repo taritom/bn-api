@@ -72,7 +72,7 @@ fn find_or_create_by_ticket_instance() {
         order_item_id: refunded_ticket.order_item_id,
         ticket_instance_id: Some(ticket.id),
     }];
-    assert!(order.refund(refund_items, user.id, connection).is_ok());
+    assert!(order.refund(&refund_items, user.id, connection).is_ok());
 
     let refunded_ticket = RefundedTicket::find(refunded_ticket.id, connection).unwrap();
     assert_eq!(ticket.order_item_id, Some(refunded_ticket.order_item_id));

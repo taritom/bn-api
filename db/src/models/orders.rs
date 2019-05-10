@@ -203,11 +203,11 @@ impl Order {
 
     pub fn refund(
         &self,
-        refund_items: Vec<RefundItem>,
+        refund_items: &[RefundItem],
         user_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<u32, DatabaseError> {
-        let mut total_to_be_refunded: u32 = 0;
+    ) -> Result<i64, DatabaseError> {
+        let mut total_to_be_refunded: i64 = 0;
 
         for refund_item in refund_items {
             let mut order_item = OrderItem::find(refund_item.order_item_id, conn)?;
@@ -218,6 +218,7 @@ impl Order {
                 );
             }
 
+            // Find the ticket instance if it was specified
             let ticket_instance = match refund_item.ticket_instance_id {
                 Some(id) => Some(TicketInstance::find(id, conn)?),
                 None => None,
@@ -233,37 +234,12 @@ impl Order {
                         );
                     }
                     Some(ref ticket_instance) => {
-                        let mut refunded_ticket =
-                            RefundedTicket::find_or_create_by_ticket_instance(
-                                ticket_instance,
-                                conn,
-                            )?;
-
-                        if refunded_ticket.ticket_refunded_at.is_some()
-                            || (refunded_ticket.fee_refunded_at.is_some()
-                                && order_item.item_type == OrderItemTypes::PerUnitFees)
-                        {
-                            return DatabaseError::business_process_error("Already refunded");
-                        } else if ticket_instance.was_transferred(conn)? {
-                            return DatabaseError::business_process_error(
-                                "Ticket was transferred so ineligible for refund",
-                            );
-                        }
-
-                        let only_refund_fees = order_item.item_type == OrderItemTypes::PerUnitFees;
-                        let refund_fees = refunded_ticket.fee_refunded_at.is_none();
-                        refunded_ticket.mark_refunded(only_refund_fees, conn)?;
-
-                        // Do not release redeemed tickets back into inventory
-                        if ticket_instance.status == TicketInstanceStatus::Purchased {
-                            ticket_instance.release(
-                                TicketInstanceStatus::Purchased,
-                                user_id,
-                                conn,
-                            )?;
-                        }
-
-                        total_to_be_refunded += order_item.refund_one_unit(refund_fees, conn)?;
+                        total_to_be_refunded += Order::refund_ticket_instance(
+                            &ticket_instance,
+                            &mut order_item,
+                            user_id,
+                            conn,
+                        )?;
                     }
                 }
             } else {
@@ -271,14 +247,52 @@ impl Order {
             }
         }
 
-        for mut fee_item in self.per_order_fee_items_with_no_associated_items(conn)? {
+        // If there are no more items for an event, refund the per event fees
+        for mut fee_item in self.find_orphaned_per_event_fees(conn)? {
             total_to_be_refunded += fee_item.refund_one_unit(true, conn)?;
         }
 
         Ok(total_to_be_refunded)
     }
 
-    fn per_order_fee_items_with_no_associated_items(
+    fn refund_ticket_instance(
+        ticket_instance: &TicketInstance,
+        order_item: &mut OrderItem,
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<i64, DatabaseError> {
+        let mut refunded_ticket =
+            RefundedTicket::find_or_create_by_ticket_instance(ticket_instance, conn)?;
+
+        if refunded_ticket.ticket_refunded_at.is_some()
+            || (refunded_ticket.fee_refunded_at.is_some()
+                && order_item.item_type == OrderItemTypes::PerUnitFees)
+        {
+            return DatabaseError::business_process_error("Already refunded");
+        }
+
+        if ticket_instance.was_transferred(conn)? {
+            return DatabaseError::business_process_error(
+                "Ticket was transferred so ineligible for refund",
+            );
+        }
+        let refund_fees = refunded_ticket.fee_refunded_at.is_none();
+
+        if order_item.item_type == OrderItemTypes::PerUnitFees {
+            refunded_ticket.mark_fee_only_refunded(conn)?;
+        } else {
+            refunded_ticket.mark_ticket_and_fee_refunded(conn)?;
+        }
+
+        // Release tickets if they are purchased (i.e. not yet redeemed)
+        if ticket_instance.status == TicketInstanceStatus::Purchased {
+            ticket_instance.release(TicketInstanceStatus::Purchased, user_id, conn)?;
+        }
+
+        order_item.refund_one_unit(refund_fees, conn)
+    }
+
+    fn find_orphaned_per_event_fees(
         &self,
         conn: &PgConnection,
     ) -> Result<Vec<OrderItem>, DatabaseError> {
@@ -291,12 +305,12 @@ impl Order {
                     .or(order_items::item_type.eq(OrderItemTypes::CreditCardFees)),
             )
             .filter(sql("not exists(
-                select id from order_items oi2
+                select oi2.id from order_items oi2
                 where oi2.order_id = order_items.order_id
                 and oi2.event_id = order_items.event_id
-                and item_type <> 'EventFees'
-                and item_type <> 'Discount'
-                and item_type <> 'CreditCardFees'
+                and oi2.item_type <> 'EventFees'
+                and oi2.item_type <> 'Discount'
+                and oi2.item_type <> 'CreditCardFees'
                 and oi2.refunded_quantity <> oi2.quantity
             )"))
             .select(order_items::all_columns)

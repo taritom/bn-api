@@ -5,6 +5,7 @@ use bigneon_db::models::*;
 use communications::mailers;
 use config::Environment;
 use db::Connection;
+use diesel::pg::PgConnection;
 use diesel::Connection as DieselConnection;
 use errors::BigNeonError;
 use extractors::*;
@@ -102,8 +103,8 @@ pub struct RefundAttributes {
 
 #[derive(Deserialize, Serialize)]
 pub struct RefundResponse {
-    pub amount_refunded: u32,
-    pub refund_breakdown: HashMap<PaymentMethods, u32>,
+    pub amount_refunded: i64,
+    pub refund_breakdown: HashMap<PaymentMethods, i64>,
 }
 
 pub fn refund(
@@ -127,36 +128,7 @@ pub fn refund(
         );
     }
 
-    // Find list of organizations related to order item id events for confirming user access
-    let order_item_ids: Vec<Uuid> = items
-        .iter()
-        .map(|refund_item| refund_item.order_item_id)
-        .collect();
-    let mut organization_map = HashMap::new();
-    for organization in Organization::find_by_order_item_ids(&order_item_ids, connection)? {
-        organization_map.insert(organization.id, organization);
-    }
-
-    // Check for any organizations where user lacks order refund access
-    let mut authorized_to_refund_items = !organization_map.is_empty();
-    for event in Event::find_by_order_item_ids(&order_item_ids, connection)? {
-        if let Some(organization) = organization_map.get(&event.organization_id) {
-            if !user.has_scope_for_organization_event(
-                Scopes::OrderRefund,
-                &organization,
-                event.id,
-                connection,
-            )? {
-                authorized_to_refund_items = false;
-                break;
-            }
-        } else {
-            authorized_to_refund_items = false;
-            break;
-        }
-    }
-
-    if !authorized_to_refund_items {
+    if !is_authorized_to_refund(&user, connection, &items)? {
         let mut details_data = HashMap::new();
         details_data.insert("order_id", json!(path.id));
         details_data.insert("items", json!(items));
@@ -170,7 +142,7 @@ pub fn refund(
         .collect::<Vec<Uuid>>();
 
     // Refund amount is fee inclusive if fee no longer applies to the order
-    let refund_due = order.refund(items, user.id(), connection)?;
+    let refund_due = order.refund(&items, user.id(), connection)?;
 
     // Transfer tickets back to the organization wallets
     let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
@@ -196,7 +168,7 @@ pub fn refund(
     }
     let mut modified_tokens: HashMap<Uuid, Vec<u64>> = HashMap::new();
 
-    let mut refund_breakdown: HashMap<PaymentMethods, u32> = HashMap::new();
+    let mut refund_breakdown: HashMap<PaymentMethods, i64> = HashMap::new();
     let mut payment_remaining_balance_map: HashMap<Option<String>, i64> = HashMap::new();
     let mut amount_refunded = 0;
 
@@ -266,7 +238,7 @@ pub fn refund(
                 continue;
             }
 
-            let amount_to_refund = cmp::min(refund_due - amount_refunded, remaining_balance as u32);
+            let amount_to_refund = cmp::min(refund_due - amount_refunded, remaining_balance);
             let mut refund_data = None;
             if payment.payment_method == PaymentMethods::CreditCard {
 
@@ -370,6 +342,41 @@ pub fn refund(
         amount_refunded,
         refund_breakdown
     })))
+}
+
+fn is_authorized_to_refund(
+    user: &User,
+    connection: &PgConnection,
+    items: &Vec<RefundItem>,
+) -> Result<bool, BigNeonError> {
+    // Find list of organizations related to order item id events for confirming user access
+    let order_item_ids: Vec<Uuid> = items
+        .iter()
+        .map(|refund_item| refund_item.order_item_id)
+        .collect();
+    let mut organization_map = HashMap::new();
+    for organization in Organization::find_by_order_item_ids(&order_item_ids, connection)? {
+        organization_map.insert(organization.id, organization);
+    }
+    // Check for any organizations where user lacks order refund access
+    let mut authorized_to_refund_items = !organization_map.is_empty();
+    for event in Event::find_by_order_item_ids(&order_item_ids, connection)? {
+        if let Some(organization) = organization_map.get(&event.organization_id) {
+            if !user.has_scope_for_organization_event(
+                Scopes::OrderRefund,
+                &organization,
+                event.id,
+                connection,
+            )? {
+                authorized_to_refund_items = false;
+                break;
+            }
+        } else {
+            authorized_to_refund_items = false;
+            break;
+        }
+    }
+    Ok(authorized_to_refund_items)
 }
 
 pub fn update(

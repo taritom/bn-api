@@ -121,7 +121,7 @@ impl StripeClient {
     pub fn partial_refund(
         &self,
         charge_id: &str,
-        amount: u32,
+        amount: i64,
     ) -> Result<RefundResult, StripeError> {
         let params = vec![
             ("charge".to_string(), charge_id.to_string()),

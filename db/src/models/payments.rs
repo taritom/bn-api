@@ -96,7 +96,7 @@ impl Payment {
     pub fn log_refund(
         &self,
         current_user_id: Uuid,
-        refund_amount: u32,
+        refund_amount: i64,
         refund_data: Option<serde_json::Value>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
@@ -107,7 +107,7 @@ impl Payment {
             self.payment_method,
             self.provider.clone(),
             self.external_reference.clone(),
-            -(refund_amount as i64),
+            -refund_amount,
             refund_data.clone(),
             None,
         )

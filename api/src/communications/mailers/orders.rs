@@ -9,7 +9,7 @@ pub fn refund_email(
     user_first_name: &String,
     user_email: String,
     display_order: DisplayOrder,
-    amount_refunded: u32,
+    amount_refunded: i64,
     config: &Config,
     conn: &PgConnection,
 ) -> Result<(), BigNeonError> {

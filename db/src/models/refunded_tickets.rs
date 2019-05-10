@@ -72,6 +72,17 @@ impl RefundedTicket {
         }
     }
 
+    pub fn mark_ticket_and_fee_refunded(
+        &mut self,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        self.mark_refunded(false, conn)
+    }
+
+    pub fn mark_fee_only_refunded(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        self.mark_refunded(true, conn)
+    }
+
     pub fn mark_refunded(
         &mut self,
         just_fee: bool,

@@ -80,7 +80,7 @@ impl PaymentProcessor for StripePaymentProcessor {
     fn partial_refund(
         &self,
         auth_token: &str,
-        amount: u32,
+        amount: i64,
     ) -> Result<ChargeAuthResult, PaymentProcessorError> {
         Ok(self
             .client

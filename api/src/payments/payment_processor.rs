@@ -60,7 +60,7 @@ pub trait PaymentProcessor {
     fn partial_refund(
         &self,
         auth_token: &str,
-        amount: u32,
+        amount: i64,
     ) -> Result<ChargeAuthResult, PaymentProcessorError>;
 
     fn update_metadata(

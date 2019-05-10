@@ -717,7 +717,7 @@ pub fn find_number_of_uses() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    cart.refund(refund_items, user.id, conn).unwrap();
+    cart.refund(&refund_items, user.id, conn).unwrap();
 
     let code_availability = Code::find_by_redemption_code_with_availability(
         code.redemption_code.clone().as_str(),

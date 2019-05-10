@@ -69,12 +69,14 @@ impl OrderItem {
         &mut self,
         refund_fees: bool,
         conn: &PgConnection,
-    ) -> Result<u32, DatabaseError> {
+    ) -> Result<i64, DatabaseError> {
         if self.order(conn)?.status != OrderStatus::Paid {
             return DatabaseError::business_process_error(
                 "Order item must have associated paid order to refund unit",
             );
-        } else if self.refunded_quantity == self.quantity {
+        }
+
+        if self.refunded_quantity == self.quantity {
             return DatabaseError::business_process_error(
                 "Order item refund failed as requested refund quantity exceeds remaining quantity",
             );
@@ -83,20 +85,17 @@ impl OrderItem {
         self.refunded_quantity += 1;
 
         // Check if any discounts exist for this order_item
-        let discount = self.find_discount_item(conn)?;
-        let discount_amount;
-        if let Some(oi) = discount {
-            discount_amount = oi.unit_price_in_cents;
-        } else {
-            discount_amount = 0;
-        }
+        let discount_amount = self
+            .find_discount_item(conn)?
+            .map(|oi| oi.unit_price_in_cents)
+            .unwrap_or(0);
 
         let mut refund_amount_in_cents = self.unit_price_in_cents + discount_amount;
         // Refund fees if ticket is being refunded
         if refund_fees && self.item_type == OrderItemTypes::Tickets {
             let fee_item = self.find_fee_item(conn)?;
             if let Some(mut fee_item) = fee_item {
-                refund_amount_in_cents += fee_item.refund_one_unit(true, conn)? as i64;
+                refund_amount_in_cents += fee_item.refund_one_unit(true, conn)?;
             }
         }
 
@@ -107,7 +106,7 @@ impl OrderItem {
             ))
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not refund ticket instance")?;
-        Ok(refund_amount_in_cents as u32)
+        Ok(refund_amount_in_cents)
     }
 
     pub fn code(&self, conn: &PgConnection) -> Result<Option<Code>, DatabaseError> {

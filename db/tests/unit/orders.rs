@@ -607,7 +607,7 @@ fn refund_can_refund_previously_refunded_and_repurchased_tickets() {
             ticket_instance_id: Some(tickets[0].id),
         }];
 
-        assert!(cart.refund(refund_items, user.id, connection).is_ok());
+        assert!(cart.refund(&refund_items, user.id, connection).is_ok());
         let ticket = TicketInstance::find(tickets[0].id, connection).unwrap();
         assert!(ticket.order_item_id.is_none());
         let order_item = OrderItem::find_in_order(cart.id, order_item.id, connection).unwrap();
@@ -717,7 +717,7 @@ fn quantity_for_user_for_event() {
         ticket_instance_id: Some(ticket.id),
     }];
     last_order
-        .refund(refund_items, user.id, connection)
+        .refund(&refund_items, user.id, connection)
         .unwrap();
     let ticket_type_quantities =
         Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
@@ -2693,8 +2693,8 @@ fn details() {
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
     assert_eq!(
-        cart.refund(refund_items, user.id, connection).unwrap(),
-        refund_amount as u32
+        cart.refund(&refund_items, user.id, connection).unwrap(),
+        refund_amount
     );
 
     let mut expected_order_details = vec![
@@ -2752,7 +2752,7 @@ fn details() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    assert!(cart.refund(refund_items, user.id, connection).is_err());
+    assert!(cart.refund(&refund_items, user.id, connection).is_err());
     let order_details = cart
         .details(&vec![organization.id], user2.id, connection)
         .unwrap();
@@ -2767,8 +2767,8 @@ fn details() {
         + fee_item.unit_price_in_cents
         + event_fee_item.unit_price_in_cents;
     assert_eq!(
-        cart.refund(refund_items, user.id, connection).unwrap(),
-        refund_amount as u32
+        cart.refund(&refund_items, user.id, connection).unwrap(),
+        refund_amount
     );
 
     let mut expected_order_details = vec![
@@ -2911,8 +2911,8 @@ fn refund() {
         + order_item.unit_price_in_cents
         + fee_item.unit_price_in_cents;
     assert_eq!(
-        cart.refund(refund_items, user.id, connection).unwrap(),
-        refund_amount as u32
+        cart.refund(&refund_items, user.id, connection).unwrap(),
+        refund_amount
     );
 
     // Reload ticket
