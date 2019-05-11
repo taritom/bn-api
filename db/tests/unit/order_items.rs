@@ -302,6 +302,13 @@ fn update_with_validation_errors() {
         .for_ticket_type(&ticket_type2)
         .with_code_type(CodeTypes::Access)
         .finish();
+    // Check to confirm having multiple access codes tied to a ticket type will not interfere
+    project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type2)
+        .with_code_type(CodeTypes::Access)
+        .finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let result = cart.update_quantities(
         user.id,
@@ -317,7 +324,7 @@ fn update_with_validation_errors() {
 
     match result {
         Ok(_) => {
-            panic!("Expected validation error");
+            panic!("Expected error");
         }
         Err(error) => match &error.error_code {
             ValidationError { errors } => {
