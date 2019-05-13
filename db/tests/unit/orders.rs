@@ -602,7 +602,7 @@ fn refund_can_refund_previously_refunded_and_repurchased_tickets() {
             .find(|i| i.ticket_type_id == Some(ticket_types[0].id))
             .unwrap();
         let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
-        let refund_items = vec![RefundItem {
+        let refund_items = vec![RefundItemRequest {
             order_item_id: order_item.id,
             ticket_instance_id: Some(tickets[0].id),
         }];
@@ -688,7 +688,7 @@ fn quantity_for_user_for_event() {
     assert_eq!(expected, ticket_type_quantities);
 
     // Two in cart, two purchased
-    let last_order = cart;
+    let mut last_order = cart;
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     cart.update_quantities(
         user.id,
@@ -712,7 +712,7 @@ fn quantity_for_user_for_event() {
     // Two in cart, two purchased, one refunded
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
-    let refund_items = vec![RefundItem {
+    let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
@@ -2687,15 +2687,13 @@ fn details() {
     let ticket = &tickets[0];
     let ticket2 = &tickets[1];
 
-    let refund_items = vec![RefundItem {
+    let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
-    assert_eq!(
-        cart.refund(&refund_items, user.id, connection).unwrap(),
-        refund_amount
-    );
+    let (_refund, amount) = cart.refund(&refund_items, user.id, connection).unwrap();
+    assert_eq!(amount, refund_amount);
 
     let mut expected_order_details = vec![
         OrderDetailsLineItem {
@@ -2748,7 +2746,7 @@ fn details() {
         .is_empty());
 
     // Refund already refunded ticket which doesn't change anything
-    let refund_items = vec![RefundItem {
+    let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
@@ -2759,17 +2757,15 @@ fn details() {
     assert_eq!(expected_order_details, order_details);
 
     // Refund last item triggering event fee to refund as well
-    let refund_items = vec![RefundItem {
+    let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket2.id),
     }];
     let refund_amount = order_item.unit_price_in_cents
         + fee_item.unit_price_in_cents
         + event_fee_item.unit_price_in_cents;
-    assert_eq!(
-        cart.refund(&refund_items, user.id, connection).unwrap(),
-        refund_amount
-    );
+    let (_refund, amount) = cart.refund(&refund_items, user.id, connection).unwrap();
+    assert_eq!(amount, refund_amount);
 
     let mut expected_order_details = vec![
         OrderDetailsLineItem {
@@ -2898,11 +2894,11 @@ fn refund() {
 
     // Refund first ticket and event fee (leaving one ticket + one fee item for that ticket)
     let refund_items = vec![
-        RefundItem {
+        RefundItemRequest {
             order_item_id: order_item.id,
             ticket_instance_id: Some(ticket.id),
         },
-        RefundItem {
+        RefundItemRequest {
             order_item_id: event_fee_item.id,
             ticket_instance_id: None,
         },
@@ -2910,10 +2906,41 @@ fn refund() {
     let refund_amount = event_fee_item.unit_price_in_cents
         + order_item.unit_price_in_cents
         + fee_item.unit_price_in_cents;
+    let (refund, amount) = cart.refund(&refund_items, user.id, connection).unwrap();
+    assert_eq!(amount, refund_amount);
+    assert_eq!(refund.user_id, user.id);
+    assert_eq!(refund.order_id, cart.id);
+
+    // Each order item has a corresponding refund_item record
+    let refund_items = refund.items(connection).unwrap();
+    assert_eq!(refund_items.len(), 3);
+    let found_item = refund_items
+        .iter()
+        .find(|ri| ri.order_item_id == order_item.id)
+        .unwrap();
+    let found_fee_item = refund_items
+        .iter()
+        .find(|ri| ri.order_item_id == fee_item.id)
+        .unwrap();
+    let found_event_fee_item = refund_items
+        .iter()
+        .find(|ri| ri.order_item_id == event_fee_item.id)
+        .unwrap();
+
+    assert_eq!(found_item.order_item_id, order_item.id);
+    assert_eq!(found_item.amount, order_item.unit_price_in_cents);
+    assert_eq!(found_item.quantity, 1);
+
+    assert_eq!(found_fee_item.order_item_id, fee_item.id);
+    assert_eq!(found_fee_item.amount, fee_item.unit_price_in_cents);
+    assert_eq!(found_fee_item.quantity, 1);
+
+    assert_eq!(found_event_fee_item.order_item_id, event_fee_item.id);
     assert_eq!(
-        cart.refund(&refund_items, user.id, connection).unwrap(),
-        refund_amount
+        found_event_fee_item.amount,
+        event_fee_item.unit_price_in_cents
     );
+    assert_eq!(found_event_fee_item.quantity, 1);
 
     // Reload ticket
     let ticket = TicketInstance::find(ticket.id, connection).unwrap();

@@ -52,7 +52,7 @@ fn find_or_create_by_ticket_instance() {
         .with_a_specific_number_of_tickets(1)
         .finish();
     let user = project.create_user().finish();
-    let order = project
+    let mut order = project
         .create_order()
         .for_event(&event)
         .for_user(&user)
@@ -68,7 +68,7 @@ fn find_or_create_by_ticket_instance() {
     assert!(refunded_ticket.ticket_refunded_at.is_none());
     assert!(refunded_ticket.fee_refunded_at.is_none());
 
-    let refund_items = vec![RefundItem {
+    let refund_items = vec![RefundItemRequest {
         order_item_id: refunded_ticket.order_item_id,
         ticket_instance_id: Some(ticket.id),
     }];

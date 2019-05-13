@@ -2,7 +2,7 @@ use diesel::prelude::*;
 use prelude::*;
 use uuid::Uuid;
 
-pub struct SettlementtransactionBuilder<'a> {
+pub struct SettlementTransactionBuilder<'a> {
     settlement_id: Option<Uuid>,
     event_id: Uuid,
     order_item_id: Option<Uuid>,
@@ -13,9 +13,9 @@ pub struct SettlementtransactionBuilder<'a> {
     connection: &'a PgConnection,
 }
 
-impl<'a> SettlementtransactionBuilder<'a> {
-    pub fn new(connection: &PgConnection) -> SettlementtransactionBuilder {
-        SettlementtransactionBuilder {
+impl<'a> SettlementTransactionBuilder<'a> {
+    pub fn new(connection: &PgConnection) -> SettlementTransactionBuilder {
+        SettlementTransactionBuilder {
             settlement_id: None,
             event_id: Uuid::new_v4(),
             order_item_id: None,

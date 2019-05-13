@@ -6,6 +6,7 @@ fn log_refund() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let creator = project.create_user().finish();
+    let refund = project.create_refund().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
@@ -24,10 +25,11 @@ fn log_refund() {
         .with_organization(&organization)
         .with_event(&event)
         .finish();
-    assert!(
-        payment.log_refund(user.id, 100, None, connection).is_ok(),
-        true
-    )
+    let refund_payment = payment
+        .log_refund(user.id, &refund, 100, None, connection)
+        .unwrap();
+    assert_eq!(refund_payment.refund_id, Some(refund.id));
+    assert_eq!(refund_payment.amount, -100);
 }
 
 #[test]

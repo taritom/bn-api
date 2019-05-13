@@ -98,7 +98,7 @@ pub fn details(
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct RefundAttributes {
-    pub items: Vec<RefundItem>,
+    pub items: Vec<RefundItemRequest>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -120,7 +120,7 @@ pub fn refund(
     jlog!(Debug, "Request to refund received", {"order_id": path.id, "request": refund_attributes.clone()});
     let connection = conn.get();
     let items = refund_attributes.items;
-    let order = Order::find(path.id, connection)?;
+    let mut order = Order::find(path.id, connection)?;
 
     if order.status != OrderStatus::Paid {
         return application::internal_server_error(
@@ -142,7 +142,7 @@ pub fn refund(
         .collect::<Vec<Uuid>>();
 
     // Refund amount is fee inclusive if fee no longer applies to the order
-    let refund_due = order.refund(&items, user.id(), connection)?;
+    let (refund, refund_due) = order.refund(&items, user.id(), connection)?;
 
     // Transfer tickets back to the organization wallets
     let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
@@ -265,7 +265,7 @@ pub fn refund(
                     }
                 };
             }
-            payment.log_refund(user.id(), amount_to_refund, refund_data, connection)?;
+            payment.log_refund(user.id(), &refund, amount_to_refund, refund_data, connection)?;
             *refund_breakdown.entry(payment.payment_method).or_insert(0) += amount_to_refund;
             amount_refunded += amount_to_refund;
         }
@@ -347,7 +347,7 @@ pub fn refund(
 fn is_authorized_to_refund(
     user: &User,
     connection: &PgConnection,
-    items: &Vec<RefundItem>,
+    items: &Vec<RefundItemRequest>,
 ) -> Result<bool, BigNeonError> {
     // Find list of organizations related to order item id events for confirming user access
     let order_item_ids: Vec<Uuid> = items

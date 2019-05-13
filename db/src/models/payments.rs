@@ -26,6 +26,7 @@ pub struct Payment {
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     pub url_nonce: Option<String>,
+    pub refund_id: Option<Uuid>,
 }
 
 impl Payment {
@@ -39,6 +40,7 @@ impl Payment {
         amount: i64,
         raw_data: Option<serde_json::Value>,
         url_nonce: Option<String>,
+        refund_id: Option<Uuid>,
     ) -> NewPayment {
         NewPayment {
             order_id,
@@ -50,6 +52,7 @@ impl Payment {
             amount,
             raw_data,
             url_nonce,
+            refund_id,
         }
     }
 
@@ -96,11 +99,12 @@ impl Payment {
     pub fn log_refund(
         &self,
         current_user_id: Uuid,
+        refund: &Refund,
         refund_amount: i64,
         refund_data: Option<serde_json::Value>,
         conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
-        Payment::create(
+    ) -> Result<Payment, DatabaseError> {
+        let refund_payment = Payment::create(
             self.order_id,
             self.created_by,
             PaymentStatus::Refunded,
@@ -110,6 +114,7 @@ impl Payment {
             -refund_amount,
             refund_data.clone(),
             None,
+            Some(refund.id),
         )
         .commit(Some(current_user_id), conn)?;
 
@@ -122,7 +127,7 @@ impl Payment {
             refund_data,
         )
         .commit(conn)?;
-        Ok(())
+        Ok(refund_payment)
     }
 
     pub fn add_ipn(
@@ -298,6 +303,7 @@ pub struct NewPayment {
     provider: PaymentProviders,
     raw_data: Option<serde_json::Value>,
     url_nonce: Option<String>,
+    refund_id: Option<Uuid>,
 }
 
 impl NewPayment {

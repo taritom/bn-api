@@ -85,10 +85,13 @@ impl OrderItem {
         self.refunded_quantity += 1;
 
         // Check if any discounts exist for this order_item
-        let discount_amount = self
-            .find_discount_item(conn)?
-            .map(|oi| oi.unit_price_in_cents)
-            .unwrap_or(0);
+        let discount = self.find_discount_item(conn)?;
+        let discount_amount;
+        if let Some(mut oi) = discount {
+            discount_amount = oi.refund_one_unit(true, conn)?
+        } else {
+            discount_amount = 0;
+        }
 
         let mut refund_amount_in_cents = self.unit_price_in_cents + discount_amount;
         // Refund fees if ticket is being refunded

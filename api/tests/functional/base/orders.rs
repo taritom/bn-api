@@ -164,16 +164,15 @@ pub fn details(role: Roles, should_succeed: bool) {
     let ticket = &tickets[0];
     let ticket2 = &tickets[1];
 
-    let refund_items = vec![RefundItem {
+    let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
-    assert_eq!(
-        cart.refund(&refund_items, auth_user.id(), connection)
-            .unwrap(),
-        refund_amount
-    );
+    let (_refund, amount) = cart
+        .refund(&refund_items, auth_user.id(), connection)
+        .unwrap();
+    assert_eq!(amount, refund_amount);
 
     let mut expected_order_details = vec![
         OrderDetailsLineItem {
@@ -292,11 +291,11 @@ pub fn refund(role: Roles, should_succeed: bool) {
 
     // Refund first ticket and event fee (leaving one ticket + one fee item for that ticket)
     let refund_items = vec![
-        RefundItem {
+        RefundItemRequest {
             order_item_id: order_item.id,
             ticket_instance_id: Some(ticket.id),
         },
-        RefundItem {
+        RefundItemRequest {
             order_item_id: event_fee_item.id,
             ticket_instance_id: None,
         },

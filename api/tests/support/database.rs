@@ -70,6 +70,10 @@ impl TestDatabase {
         OrderBuilder::new(self.connection.get())
     }
 
+    pub fn create_refund(&self) -> RefundBuilder {
+        RefundBuilder::new(self.connection.get())
+    }
+
     pub fn create_organization(&self) -> OrganizationBuilder {
         OrganizationBuilder::new(self.connection.get())
     }

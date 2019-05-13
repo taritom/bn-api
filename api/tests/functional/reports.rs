@@ -326,7 +326,7 @@ pub fn ticket_counts_report() {
     //------Test a refund
     // Refund first ticket and event fee (leaving one ticket + one fee item for that ticket)
     //    let refund_items = vec![
-    //        RefundItem {
+    //        RefundItemRequest {
     //            order_item_id: order_item.id,
     //            ticket_instance_id: Some(ticket.id),
     //        },

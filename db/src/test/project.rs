@@ -93,6 +93,10 @@ impl TestProject {
         OrderBuilder::new(&self.connection)
     }
 
+    pub fn create_refund(&self) -> RefundBuilder {
+        RefundBuilder::new(&self.connection)
+    }
+
     pub fn create_organization(&self) -> OrganizationBuilder {
         OrganizationBuilder::new(&self.connection)
     }
@@ -133,8 +137,8 @@ impl TestProject {
         FeeScheduleBuilder::new(&self.connection)
     }
 
-    pub fn create_new_settlement_transaction(&self) -> SettlementtransactionBuilder {
-        SettlementtransactionBuilder::new(&self.connection)
+    pub fn create_new_settlement_transaction(&self) -> SettlementTransactionBuilder {
+        SettlementTransactionBuilder::new(&self.connection)
     }
 
     pub fn get_connection(&self) -> &PgConnection {

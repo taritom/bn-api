@@ -713,7 +713,7 @@ pub fn find_number_of_uses() {
         .unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, conn).unwrap();
     let ticket = &tickets[0];
-    let refund_items = vec![RefundItem {
+    let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];

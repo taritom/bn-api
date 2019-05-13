@@ -66,7 +66,7 @@ pub struct UpdateOrderAttributes {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct RefundItem {
+pub struct RefundItemRequest {
     pub order_item_id: Uuid,
     pub ticket_instance_id: Option<Uuid>,
 }
@@ -202,15 +202,27 @@ impl Order {
     }
 
     pub fn refund(
-        &self,
-        refund_items: &[RefundItem],
+        &mut self,
+        refund_data: &[RefundItemRequest],
         user_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<i64, DatabaseError> {
+    ) -> Result<(Refund, i64), DatabaseError> {
+        self.lock_version(conn)?;
         let mut total_to_be_refunded: i64 = 0;
+        let refund = Refund::create(self.id, user_id).commit(conn)?;
+        let previous_item_refund_counts: HashMap<Uuid, i64> = self
+            .items(conn)?
+            .iter()
+            .map(|i| (i.id, i.refunded_quantity))
+            .collect();
 
-        for refund_item in refund_items {
-            let mut order_item = OrderItem::find(refund_item.order_item_id, conn)?;
+        for refund_datum in refund_data {
+            let mut order_item = OrderItem::find(refund_datum.order_item_id, conn)?;
+            if order_item.item_type == OrderItemTypes::Discount {
+                return DatabaseError::business_process_error(
+                    "Discount order items can not be refunded",
+                );
+            }
 
             if order_item.order_id != self.id {
                 return DatabaseError::business_process_error(
@@ -219,7 +231,7 @@ impl Order {
             }
 
             // Find the ticket instance if it was specified
-            let ticket_instance = match refund_item.ticket_instance_id {
+            let ticket_instance = match refund_datum.ticket_instance_id {
                 Some(id) => Some(TicketInstance::find(id, conn)?),
                 None => None,
             };
@@ -252,7 +264,36 @@ impl Order {
             total_to_be_refunded += fee_item.refund_one_unit(true, conn)?;
         }
 
-        Ok(total_to_be_refunded)
+        // Refund items automatically refund their dependencies so the difference in refund_quantity
+        // is used to calculate the refund item data.
+        let new_item_refund_counts: HashMap<Uuid, i64> = self
+            .items(conn)?
+            .iter()
+            .map(|i| (i.id, i.refunded_quantity))
+            .collect();
+        let mut calculated_refunded_value = 0;
+        for (order_item_id, count) in new_item_refund_counts {
+            let order_item = OrderItem::find(order_item_id, conn)?;
+            if let Some(old_count) = previous_item_refund_counts.get(&order_item_id) {
+                let difference = count - old_count;
+                let amount = difference * order_item.unit_price_in_cents;
+                calculated_refunded_value += amount;
+                if difference > 0 {
+                    RefundItem::create(refund.id, order_item.id, difference, amount)
+                        .commit(conn)?;
+                }
+            }
+        }
+
+        if calculated_refunded_value != (total_to_be_refunded) {
+            return DatabaseError::business_process_error(
+                &format!("Error processing refund, calculated refund does not match expected total, expected {}, calculated {}",
+                total_to_be_refunded,
+                calculated_refunded_value
+            ));
+        }
+
+        Ok((refund, total_to_be_refunded))
     }
 
     fn refund_ticket_instance(
@@ -1758,6 +1799,7 @@ impl Order {
             0,
             None,
             None,
+            None,
         );
         self.add_payment(payment, Some(current_user_id), conn)
     }
@@ -1780,6 +1822,7 @@ impl Order {
             PaymentProviders::External,
             external_reference,
             amount,
+            None,
             None,
             None,
         );
@@ -1807,6 +1850,7 @@ impl Order {
             amount,
             Some(data),
             url_nonce,
+            None,
         );
 
         self.add_payment(payment, current_user_id, conn)
@@ -1831,6 +1875,7 @@ impl Order {
             Some(external_reference),
             amount,
             Some(provider_data),
+            None,
             None,
         );
 

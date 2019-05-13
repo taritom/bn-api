@@ -384,11 +384,11 @@ pub fn refund_for_non_refundable_tickets() {
 
     // Refund first ticket and event fee (leaving one ticket + one fee item for that ticket)
     let refund_items = vec![
-        RefundItem {
+        RefundItemRequest {
             order_item_id: order_item.id,
             ticket_instance_id: Some(ticket.id),
         },
-        RefundItem {
+        RefundItemRequest {
             order_item_id: event_fee_item.id,
             ticket_instance_id: None,
         },
@@ -482,7 +482,7 @@ pub fn refund_hold_ticket() {
     let ticket = &tickets[0];
 
     // Refund first ticket and event fee (leaving one ticket + one fee item for that ticket)
-    let refund_items = vec![RefundItem {
+    let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
@@ -601,11 +601,11 @@ pub fn refund_removes_event_fee_if_all_event_tickets_refunded() {
 
     // Refund first ticket and event fee (leaving one ticket + one fee item for that ticket)
     let refund_items = vec![
-        RefundItem {
+        RefundItemRequest {
             order_item_id: order_item.id,
             ticket_instance_id: Some(ticket.id),
         },
-        RefundItem {
+        RefundItemRequest {
             order_item_id: order_item.id,
             ticket_instance_id: Some(ticket2.id),
         },
