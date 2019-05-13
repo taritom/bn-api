@@ -199,32 +199,31 @@ impl TicketInstance {
         end_time: Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<Vec<(DisplayEvent, Vec<DisplayTicket>)>, DatabaseError> {
-        let mut query =
-            ticket_instances::table
-                .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
-                .inner_join(
-                    order_items::table
-                        .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-                )
-                .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-                .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
-                .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-                .left_join(
-                    transfers::table.on(ticket_instances::id.eq(transfers::ticket_instance_id)),
-                )
-                .filter(events::event_end.ge(
-                    start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
-                ))
-                .filter(events::event_end.le(
-                    end_time.unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0)),
-                ))
-                .filter(wallets::user_id.eq(user_id))
-                .filter(
-                    transfers::id
-                        .is_null()
-                        .or(transfers::status.eq(TransferStatus::Pending)),
-                )
-                .into_boxed();
+        let mut query = ticket_instances::table
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(
+                order_items::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            )
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .left_join(transfers::table.on(ticket_instances::id.eq(transfers::ticket_instance_id)))
+            .filter(
+                events::event_end
+                    .ge(start_time
+                        .unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0))),
+            )
+            .filter(
+                events::event_end
+                    .le(end_time
+                        .unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))),
+            )
+            .filter(wallets::user_id.eq(user_id))
+            .filter(transfers::id.is_null().or(
+                transfers::status.eq_any(vec![TransferStatus::Pending, TransferStatus::Completed]),
+            ))
+            .into_boxed();
 
         if let Some(event_id) = event_id {
             query = query.filter(events::id.eq(event_id));
