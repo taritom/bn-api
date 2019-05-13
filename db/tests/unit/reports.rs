@@ -7,6 +7,621 @@ use diesel;
 use diesel::prelude::*;
 
 #[test]
+fn ticket_count_report() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+
+    let creator = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_name("Event1".to_string())
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
+    let event2 = project
+        .create_event()
+        .with_organization(&organization)
+        .with_name("Event2".to_string())
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type2 = event2
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
+    let event3 = project
+        .create_event()
+        .with_name("Event3".to_string())
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let ticket_pricing = ticket_type
+        .current_ticket_pricing(false, connection)
+        .unwrap();
+    let ticket_pricing2 = ticket_type2
+        .current_ticket_pricing(false, connection)
+        .unwrap();
+
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+
+    // Partially refunded order
+    let mut order = project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .on_behalf_of_user(&user2)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    let items = order.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let ticket = &tickets[0];
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    order.refund(&refund_items, user.id, connection).unwrap();
+
+    // Redeem ticket
+    let ticket2 = &tickets[1];
+    TicketInstance::redeem_ticket(
+        ticket2.id,
+        ticket2.redeem_key.clone().unwrap(),
+        user.id,
+        connection,
+    )
+    .unwrap();
+
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event2)
+        .for_user(&user3)
+        .is_paid()
+        .finish();
+
+    // Hold order
+    let hold = project
+        .create_hold()
+        .with_quantity(10)
+        .with_ticket_type_id(ticket_type.id)
+        .with_hold_type(HoldTypes::Discount)
+        .finish();
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .finish();
+    project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user)
+        .on_behalf_of_user(&user3)
+        .is_paid()
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .finish();
+
+    // Comp order
+    let comp = project
+        .create_hold()
+        .with_quantity(10)
+        .with_ticket_type_id(ticket_type.id)
+        .with_hold_type(HoldTypes::Comp)
+        .finish();
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .with_redemption_code(comp.redemption_code.clone().unwrap())
+        .finish();
+
+    // Discount code order
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .finish();
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .with_redemption_code(code.redemption_code.clone())
+        .finish();
+
+    // Orders for other organization
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event3)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event3)
+        .for_user(&user3)
+        .is_paid()
+        .finish();
+
+    // Specific event
+    let result = Report::ticket_count_report(Some(event.id), None, connection).unwrap();
+
+    let expected_counts = vec![TicketCountRow {
+        organization_id: Some(event.organization_id),
+        event_id: Some(event.id),
+        ticket_type_id: Some(ticket_type.id),
+        ticket_name: Some(ticket_type.name.clone()),
+        ticket_status: Some(ticket_type.status.to_string()),
+        event_name: Some(event.name.clone()),
+        organization_name: Some(organization.name.clone()),
+        allocation_count_including_nullified: 100,
+        allocation_count: 100,
+        unallocated_count: 90,
+        reserved_count: 0,
+        redeemed_count: 1,
+        purchased_count: 9,
+        nullified_count: 0,
+        available_for_purchase_count: 75,
+        total_refunded_count: 1,
+        comp_count: 10,
+        comp_available_count: 8,
+        comp_redeemed_count: 0,
+        comp_purchased_count: 2,
+        comp_reserved_count: 0,
+        comp_nullified_count: 0,
+        hold_count: 10,
+        hold_available_count: 7,
+        hold_redeemed_count: 0,
+        hold_purchased_count: 3,
+        hold_reserved_count: 0,
+        hold_nullified_count: 0,
+    }];
+    assert_eq!(expected_counts, result.counts);
+    assert_eq!(5, result.sales.len());
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.hold_id == Some(hold.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_pricing_id: Some(ticket_pricing.id),
+            hold_id: Some(hold.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            hold_name: Some(hold.name.clone()),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            promo_code_discounted_ticket_price: Some(-10),
+            box_office_order_count: 1,
+            online_order_count: 1,
+            box_office_sales_in_cents: 140,
+            online_sales_in_cents: 280,
+            box_office_face_sales_in_cents: 150,
+            online_face_sales_in_cents: 300,
+            box_office_sale_count: 1,
+            online_sale_count: 2,
+            total_online_fees_in_cents: 40,
+            company_online_fees_in_cents: 16,
+            client_online_fees_in_cents: 24,
+            user_count: 2,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.hold_id == Some(comp.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_pricing_id: Some(ticket_pricing.id),
+            hold_id: Some(comp.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            hold_name: Some(comp.name.clone()),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            promo_code_discounted_ticket_price: Some(-150),
+            online_order_count: 1,
+            online_face_sales_in_cents: 300,
+            comp_sale_count: 2,
+            user_count: 1,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result
+            .sales
+            .iter()
+            .find(|s| s.promo_redemption_code == Some(code.redemption_code.clone())),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_pricing_id: Some(ticket_pricing.id),
+            hold_id: Some(code.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            hold_name: Some(code.name.clone()),
+            promo_redemption_code: Some(code.redemption_code.clone()),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            promo_code_discounted_ticket_price: Some(-100),
+            online_order_count: 1,
+            online_sales_in_cents: 100,
+            online_face_sales_in_cents: 300,
+            online_sale_count: 2,
+            total_online_fees_in_cents: 20,
+            company_online_fees_in_cents: 8,
+            client_online_fees_in_cents: 12,
+            user_count: 1,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.promo_redemption_code == None
+            && s.hold_id == None
+            && s.ticket_type_id == Some(ticket_type.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_pricing_id: Some(ticket_pricing.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            box_office_order_count: 1,
+            online_order_count: 1,
+            box_office_sales_in_cents: 150,
+            online_sales_in_cents: 300,
+            box_office_face_sales_in_cents: 150,
+            online_face_sales_in_cents: 300,
+            box_office_sale_count: 1,
+            box_office_refunded_count: 1,
+            online_sale_count: 2,
+            total_online_fees_in_cents: 40,
+            company_online_fees_in_cents: 16,
+            client_online_fees_in_cents: 24,
+            user_count: 2,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.promo_redemption_code == None
+            && s.hold_id == None
+            && s.ticket_type_id == Some(ticket_type.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_pricing_id: Some(ticket_pricing.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            box_office_order_count: 1,
+            online_order_count: 1,
+            box_office_sales_in_cents: 150,
+            online_sales_in_cents: 300,
+            box_office_face_sales_in_cents: 150,
+            online_face_sales_in_cents: 300,
+            box_office_sale_count: 1,
+            box_office_refunded_count: 1,
+            online_sale_count: 2,
+            total_online_fees_in_cents: 40,
+            company_online_fees_in_cents: 16,
+            client_online_fees_in_cents: 24,
+            user_count: 2,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.promo_redemption_code == None
+            && s.hold_id == None
+            && s.ticket_type_id == None),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            per_order_company_online_fees: 300,
+            per_order_client_online_fees: 450,
+            per_order_total_fees_in_cents: 750,
+            ..Default::default()
+        })
+    );
+
+    // Organization check
+    let result = Report::ticket_count_report(None, Some(organization.id), connection).unwrap();
+
+    assert_eq!(2, result.counts.len());
+    assert_eq!(
+        result.counts.iter().find(|c| c.event_id == Some(event.id)),
+        Some(&TicketCountRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            organization_name: Some(organization.name.clone()),
+            allocation_count_including_nullified: 100,
+            allocation_count: 100,
+            unallocated_count: 90,
+            reserved_count: 0,
+            redeemed_count: 1,
+            purchased_count: 9,
+            nullified_count: 0,
+            available_for_purchase_count: 75,
+            total_refunded_count: 1,
+            comp_count: 10,
+            comp_available_count: 8,
+            comp_redeemed_count: 0,
+            comp_purchased_count: 2,
+            comp_reserved_count: 0,
+            comp_nullified_count: 0,
+            hold_count: 10,
+            hold_available_count: 7,
+            hold_redeemed_count: 0,
+            hold_purchased_count: 3,
+            hold_reserved_count: 0,
+            hold_nullified_count: 0,
+        })
+    );
+    assert_eq!(
+        result.counts.iter().find(|c| c.event_id == Some(event2.id)),
+        Some(&TicketCountRow {
+            organization_id: Some(event2.organization_id),
+            event_id: Some(event2.id),
+            ticket_type_id: Some(ticket_type2.id),
+            ticket_name: Some(ticket_type2.name.clone()),
+            ticket_status: Some(ticket_type2.status.to_string()),
+            event_name: Some(event2.name.clone()),
+            organization_name: Some(organization.name.clone()),
+            allocation_count_including_nullified: 100,
+            allocation_count: 100,
+            unallocated_count: 98,
+            reserved_count: 0,
+            redeemed_count: 0,
+            purchased_count: 2,
+            nullified_count: 0,
+            available_for_purchase_count: 98,
+            total_refunded_count: 0,
+            comp_count: 0,
+            comp_available_count: 0,
+            comp_redeemed_count: 0,
+            comp_purchased_count: 0,
+            comp_reserved_count: 0,
+            comp_nullified_count: 0,
+            hold_count: 0,
+            hold_available_count: 0,
+            hold_redeemed_count: 0,
+            hold_purchased_count: 0,
+            hold_reserved_count: 0,
+            hold_nullified_count: 0,
+        })
+    );
+
+    assert_eq!(7, result.sales.len());
+    assert_eq!(
+        result.sales.iter().find(|s| s.hold_id == Some(hold.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_pricing_id: Some(ticket_pricing.id),
+            hold_id: Some(hold.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            hold_name: Some(hold.name),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            promo_code_discounted_ticket_price: Some(-10),
+            box_office_order_count: 1,
+            online_order_count: 1,
+            box_office_sales_in_cents: 140,
+            online_sales_in_cents: 280,
+            box_office_face_sales_in_cents: 150,
+            online_face_sales_in_cents: 300,
+            box_office_sale_count: 1,
+            online_sale_count: 2,
+            total_online_fees_in_cents: 40,
+            company_online_fees_in_cents: 16,
+            client_online_fees_in_cents: 24,
+            user_count: 2,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.hold_id == Some(comp.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_pricing_id: Some(ticket_pricing.id),
+            hold_id: Some(comp.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            hold_name: Some(comp.name),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            promo_code_discounted_ticket_price: Some(-150),
+            online_order_count: 1,
+            online_face_sales_in_cents: 300,
+            comp_sale_count: 2,
+            user_count: 1,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result
+            .sales
+            .iter()
+            .find(|s| s.promo_redemption_code == Some(code.redemption_code.clone())),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_pricing_id: Some(ticket_pricing.id),
+            hold_id: Some(code.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            hold_name: Some(code.name),
+            promo_redemption_code: Some(code.redemption_code),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            promo_code_discounted_ticket_price: Some(-100),
+            online_order_count: 1,
+            online_sales_in_cents: 100,
+            online_face_sales_in_cents: 300,
+            online_sale_count: 2,
+            total_online_fees_in_cents: 20,
+            company_online_fees_in_cents: 8,
+            client_online_fees_in_cents: 12,
+            user_count: 1,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.promo_redemption_code == None
+            && s.hold_id == None
+            && s.ticket_type_id == Some(ticket_type.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_pricing_id: Some(ticket_pricing.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            box_office_order_count: 1,
+            online_order_count: 1,
+            box_office_sales_in_cents: 150,
+            online_sales_in_cents: 300,
+            box_office_face_sales_in_cents: 150,
+            online_face_sales_in_cents: 300,
+            box_office_sale_count: 1,
+            box_office_refunded_count: 1,
+            online_sale_count: 2,
+            total_online_fees_in_cents: 40,
+            company_online_fees_in_cents: 16,
+            client_online_fees_in_cents: 24,
+            user_count: 2,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result
+            .sales
+            .iter()
+            .find(|s| s.ticket_type_id == Some(ticket_type2.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event2.organization_id),
+            event_id: Some(event2.id),
+            ticket_type_id: Some(ticket_type2.id),
+            ticket_pricing_id: Some(ticket_pricing2.id),
+            ticket_name: Some(ticket_type2.name.clone()),
+            ticket_status: Some(ticket_type2.status.to_string()),
+            event_name: Some(event2.name.clone()),
+            ticket_pricing_name: Some(ticket_pricing2.name.clone()),
+            ticket_pricing_price_in_cents: Some(150),
+            box_office_order_count: 0,
+            online_order_count: 1,
+            online_sales_in_cents: 300,
+            online_face_sales_in_cents: 300,
+            online_sale_count: 2,
+            total_online_fees_in_cents: 40,
+            company_online_fees_in_cents: 16,
+            client_online_fees_in_cents: 24,
+            user_count: 1,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.promo_redemption_code == None
+            && s.hold_id == None
+            && s.ticket_type_id == None
+            && s.event_id == Some(event.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            per_order_company_online_fees: 300,
+            per_order_client_online_fees: 450,
+            per_order_total_fees_in_cents: 750,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.promo_redemption_code == None
+            && s.hold_id == None
+            && s.ticket_type_id == None
+            && s.event_id == Some(event2.id)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event2.organization_id),
+            event_id: Some(event2.id),
+            per_order_company_online_fees: 100,
+            per_order_client_online_fees: 150,
+            per_order_total_fees_in_cents: 250,
+            ..Default::default()
+        })
+    );
+}
+
+#[test]
 fn transaction_detail_report() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -87,7 +702,6 @@ fn transaction_detail_report() {
         .for_event(&event)
         .for_user(&user)
         .is_paid()
-        .with_external_payment_type(ExternalPaymentType::Voucher)
         .finish();
     let order_paid_at = Utc::now().naive_utc() - Duration::days(5);
     order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
@@ -101,7 +715,6 @@ fn transaction_detail_report() {
         .for_event(&event)
         .for_user(&user2)
         .is_paid()
-        .with_external_payment_type(ExternalPaymentType::Voucher)
         .finish();
     let order2_paid_at = Utc::now().naive_utc() - Duration::days(4);
     order2 = diesel::update(orders::table.filter(orders::id.eq(order2.id)))
@@ -115,7 +728,6 @@ fn transaction_detail_report() {
         .for_event(&event2)
         .for_user(&user3)
         .is_paid()
-        .with_external_payment_type(ExternalPaymentType::Voucher)
         .finish();
     let order3_paid_at = Utc::now().naive_utc() - Duration::days(3);
     order3 = diesel::update(orders::table.filter(orders::id.eq(order3.id)))
@@ -129,7 +741,6 @@ fn transaction_detail_report() {
         .for_event(&event)
         .for_user(&user4)
         .is_paid()
-        .with_external_payment_type(ExternalPaymentType::Voucher)
         .finish();
     let order4_paid_at = Utc::now().naive_utc() - Duration::days(2);
     order4 = diesel::update(orders::table.filter(orders::id.eq(order4.id)))
@@ -143,7 +754,6 @@ fn transaction_detail_report() {
         .for_event(&event3)
         .for_user(&user)
         .is_paid()
-        .with_external_payment_type(ExternalPaymentType::Voucher)
         .finish();
     let _order6 = project
         .create_order()
@@ -151,7 +761,6 @@ fn transaction_detail_report() {
         .for_event(&event3)
         .for_user(&user3)
         .is_paid()
-        .with_external_payment_type(ExternalPaymentType::Voucher)
         .finish();
 
     // No query, for event
@@ -677,8 +1286,8 @@ fn build_transaction_report_row(
         event_fee_gross_in_cents_total: event.company_fee_in_cents + event.client_fee_in_cents,
         fee_range_id: Some(fee_schedule_range.id),
         order_type: OrderTypes::Cart,
-        payment_method: Some(PaymentMethods::External),
-        payment_provider: Some("External".into()),
+        payment_method: Some(PaymentMethods::CreditCard),
+        payment_provider: Some(PaymentProviders::Stripe.to_string()),
         transaction_date: order.paid_at.clone().unwrap(),
         redemption_code: None,
         order_id: order.id,

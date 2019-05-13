@@ -61,7 +61,10 @@ SELECT e.organization_id                            AS organization_id,
        c.redemption_code                            AS promo_redemption_code,
        tp.name                                      AS ticket_pricing_name,
        tp.price_in_cents                            AS ticket_pricing_price_in_cents,
-       oi_promo_code_price.unit_price_in_cents      AS promo_code_discounted_ticket_price,
+       CAST(CASE WHEN gh.hold_type = 'Comp' THEN -tp.price_in_cents
+                        WHEN gh.hold_type = 'Discount' THEN -LEAST(gh.discount_in_cents, tp.price_in_cents)
+                        ELSE oi_promo_code_price.unit_price_in_cents END
+                      AS BIGINT)                    AS promo_code_discounted_ticket_price,
        -- Order count
        CAST(COALESCE(SUM(CASE WHEN o.status = 'Paid' THEN 1 ELSE 0 END)
                          FILTER (WHERE p.is_box_office IS TRUE AND o.status = 'Paid'),
@@ -86,10 +89,10 @@ SELECT e.organization_id                            AS organization_id,
                      0) AS BIGINT)                  AS online_sales_in_cents,
 
        -- Actual Face Values
-       CAST(COALESCE(SUM(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity))
+       CAST(COALESCE(SUM(tp.price_in_cents * (oi.quantity - oi.refunded_quantity))
                          FILTER (WHERE p.is_box_office IS TRUE AND o.status = 'Paid'),
                      0) AS BIGINT)                  AS box_office_face_sales_in_cents,
-       CAST(COALESCE(SUM(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity))
+       CAST(COALESCE(SUM(tp.price_in_cents * (oi.quantity - oi.refunded_quantity))
                          FILTER (WHERE p.is_box_office IS FALSE AND o.status = 'Paid'),
                      0) AS BIGINT)                  AS online_face_sales_in_cents,
 
@@ -171,7 +174,7 @@ FROM order_items oi
                     FROM payments p
                     WHERE p.status = 'Completed'
                     GROUP BY p.payment_method, p.order_id) AS p on o.id = p.order_id
-         LEFT JOIN (SELECT gh.id, gh.name FROM holds gh WHERE $3 LIKE '%hold%') as gh ON gh.id = oi.hold_id
+         LEFT JOIN (SELECT gh.id, gh.name, gh.hold_type, gh.discount_in_cents FROM holds gh WHERE $3 LIKE '%hold%') as gh ON gh.id = oi.hold_id
          LEFT JOIN (SELECT tt.id, tt.name, tt.status FROM ticket_types tt WHERE $3 LIKE '%ticket_type%') AS tt
                    ON tt.id = oi.ticket_type_id
          LEFT JOIN (SELECT tp.id, tp.name, tp.price_in_cents
@@ -182,9 +185,7 @@ FROM order_items oi
 WHERE oi.ticket_type_id IS NOT NULL
   AND ($1 IS NULL OR o.paid_at >= $1)
   AND ($2 IS NULL OR o.paid_at <= $2)
-GROUP BY e.id, tt.id, tt.name, tt.status, tp.id, tp.name, tp.price_in_cents, gh.id, gh.name, c.id, c.name,
-         c.redemption_code, oi_promo_code_price.unit_price_in_cents;
+GROUP BY e.id, tt.id, tt.name, tt.status, tp.id, tp.name, tp.price_in_cents, gh.id, gh.name, gh.hold_type,
+        gh.discount_in_cents, c.id, c.name, c.redemption_code, oi_promo_code_price.unit_price_in_cents;
 $body$
     LANGUAGE SQL;
-
-

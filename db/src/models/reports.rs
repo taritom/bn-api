@@ -173,7 +173,7 @@ pub struct TicketCountRow {
     pub hold_nullified_count: i64,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TicketSalesAndCounts {
     pub counts: Vec<TicketCountRow>,
     pub sales: Vec<TicketSalesRow>,
