@@ -1,6 +1,7 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
 use chrono::Utc;
+use itertools::Itertools;
 use serde_json::Value;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -164,7 +165,7 @@ pub fn find_unpublished() {
     let user = project.create_user().finish();
     let id = Uuid::new_v4();
 
-    let domain_event = DomainEvent::create(
+    DomainEvent::create(
         DomainEventTypes::PaymentMethodCreated,
         "Payment method was created".to_string(),
         Tables::PaymentMethods,
@@ -177,15 +178,32 @@ pub fn find_unpublished() {
 
     let mut found_events = DomainEvent::find_unpublished(100, connection).unwrap();
 
-    let db_event = found_events.remove(0);
-    assert_eq!(db_event, domain_event);
+    assert_equiv!(
+        found_events
+            .clone()
+            .into_iter()
+            .map(|e| e.event_type)
+            .filter(|e| e != &DomainEventTypes::UserCreated)
+            .collect_vec(),
+        [DomainEventTypes::PaymentMethodCreated,]
+    );
+
+    let db_event = found_events
+        .into_iter()
+        .filter(|e| e.event_type == DomainEventTypes::PaymentMethodCreated)
+        .collect_vec()
+        .remove(0);
 
     let mut publisher = DomainEventPublisher::new();
     publisher.add_subscription(DomainEventTypes::PaymentMethodCreated, |_| None);
     publisher.publish(db_event, connection).unwrap();
 
-    let found_events = DomainEvent::find_unpublished(100, connection).unwrap();
-    assert!(found_events.is_empty());
+    let mut found_events = DomainEvent::find_unpublished(100, connection)
+        .unwrap()
+        .into_iter()
+        .filter(|e| e.event_type != DomainEventTypes::UserCreated)
+        .collect_vec();
+    assert_eq!(found_events.len(), 0);
 }
 
 #[test]

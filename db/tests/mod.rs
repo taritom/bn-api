@@ -19,5 +19,6 @@ extern crate uuid;
 extern crate validator;
 #[macro_use]
 extern crate macros;
+extern crate itertools;
 
 mod unit;

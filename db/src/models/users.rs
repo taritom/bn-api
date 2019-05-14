@@ -68,13 +68,13 @@ pub struct DisplayUser {
     pub is_org_owner: bool,
 }
 
-#[derive(AsChangeset, Default, Deserialize, Validate, Clone)]
+#[derive(AsChangeset, Default, Deserialize, Validate, Clone, Serialize)]
 #[table_name = "users"]
 pub struct UserEditableAttributes {
     pub first_name: Option<Option<String>>,
     pub last_name: Option<Option<String>>,
     #[validate(email(message = "Email is invalid"))]
-    pub email: Option<Option<String>>,
+    pub email: Option<String>,
     pub phone: Option<Option<String>>,
     pub active: Option<bool>,
     pub role: Option<Vec<Roles>>,
@@ -113,13 +113,18 @@ pub struct AttendanceInformation {
 }
 
 impl NewUser {
-    pub fn commit(&self, conn: &PgConnection) -> Result<User, DatabaseError> {
+    pub fn commit(
+        &self,
+        current_user_id: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<User, DatabaseError> {
         self.validate()?;
         let user: User = diesel::insert_into(users::table)
             .values(self)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new user")?;
 
+        DomainEvent::create(DomainEventTypes::UserCreated, "User created".to_string(), Tables::Users, Some(user.id), current_user_id, Some(json!({"first_name": self.first_name, "last_name": self.last_name, "email": self.email, "phone": self.phone}))).commit(conn)?;
         Wallet::create_for_user(user.id, "Default".to_string(), true, conn)?;
 
         Ok(user)
@@ -272,6 +277,7 @@ impl User {
         email: Option<String>,
         site: String,
         access_token: String,
+        current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         let rand_password = random_alpha_string(16);
@@ -285,7 +291,7 @@ impl User {
             hashed_pw: hash.to_string(),
             role: vec![Roles::User],
         };
-        new_user.commit(conn).and_then(|user| {
+        new_user.commit(current_user_id, conn).and_then(|user| {
             user.add_external_login(external_user_id, site, access_token, conn)?;
             Ok(user)
         })
@@ -313,6 +319,7 @@ impl User {
         last_name: String,
         email: Option<String>,
         phone: Option<String>,
+        current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
         let hash = PasswordHash::generate("random", None);
@@ -324,7 +331,7 @@ impl User {
             hashed_pw: hash.to_string(),
             role: vec![Roles::User],
         };
-        new_user.commit(conn)
+        new_user.commit(current_user_id, conn)
     }
 
     pub fn get_history_for_organization(
@@ -539,7 +546,7 @@ impl User {
     ) -> Result<(), DatabaseError> {
         let mut validation_errors = update_attrs.validate();
 
-        if let Some(Some(ref email)) = update_attrs.email {
+        if let Some(ref email) = update_attrs.email {
             validation_errors = validators::append_validation_error(
                 validation_errors,
                 "email",
@@ -552,23 +559,34 @@ impl User {
 
     pub fn update(
         &self,
-        attributes: &UserEditableAttributes,
+        attributes: UserEditableAttributes,
+        current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
-        let mut lower_cased_attributes = (*attributes).clone();
-        lower_cased_attributes.email = lower_cased_attributes
-            .email
-            .map(|o| o.map(|e| e.to_lowercase()));
+        let mut lower_cased_attributes = attributes;
+        lower_cased_attributes.email = lower_cased_attributes.email.map(|e| e.to_lowercase());
         self.validate_record(&lower_cased_attributes, conn)?;
 
         let query =
-            diesel::update(self).set((lower_cased_attributes, users::updated_at.eq(dsl::now)));
+            diesel::update(self).set((&lower_cased_attributes, users::updated_at.eq(dsl::now)));
 
-        DatabaseError::wrap(
+        let result = DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Error updating user",
             query.get_result(conn),
+        )?;
+
+        DomainEvent::create(
+            DomainEventTypes::UserUpdated,
+            "User was updated".to_string(),
+            Tables::Users,
+            Some(self.id),
+            current_user_id,
+            Some(json!(&lower_cased_attributes)),
         )
+        .commit(conn)?;
+
+        Ok(result)
     }
 
     pub fn check_password(&self, password: &str) -> bool {

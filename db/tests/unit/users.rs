@@ -136,7 +136,7 @@ fn commit() {
         phone_number.clone(),
         password,
     )
-    .commit(project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     assert_eq!(user.first_name, first_name);
@@ -161,7 +161,7 @@ fn commit_duplicate_email() {
     let phone_number = Some("555-555-5555".to_string());
     let password = "examplePassword";
     let result = User::create(first_name, last_name, email, phone_number, password)
-        .commit(project.get_connection());
+        .commit(None, project.get_connection());
 
     assert_eq!(result.is_err(), true);
     assert_eq!(
@@ -1089,9 +1089,9 @@ fn update() {
     let user = project.create_user().finish();
     let mut attributes: UserEditableAttributes = Default::default();
     let email = "new_email@tari.com";
-    attributes.email = Some(Some(email.to_string()));
+    attributes.email = Some(email.to_string());
 
-    let updated_user = user.update(&attributes.into(), connection).unwrap();
+    let updated_user = user.update(attributes.into(), None, connection).unwrap();
     assert_eq!(updated_user.email, Some(email.into()));
 }
 
@@ -1104,9 +1104,9 @@ fn update_with_validation_errors() {
 
     let mut attributes: UserEditableAttributes = Default::default();
     let email = user2.email.clone();
-    attributes.email = Some(email);
+    attributes.email = email;
 
-    let result = user.update(&attributes.into(), connection);
+    let result = user.update(attributes.into(), None, connection);
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -1128,9 +1128,9 @@ fn update_with_validation_errors() {
     // Ignores case
     let mut attributes: UserEditableAttributes = Default::default();
     let email = user2.email.clone().map(|e| e.to_uppercase());
-    attributes.email = Some(email);
+    attributes.email = email;
 
-    let result = user.update(&attributes.into(), connection);
+    let result = user.update(attributes.into(), None, connection);
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -1176,7 +1176,7 @@ fn new_user_validate() {
 #[test]
 fn user_editable_attributes_validate() {
     let mut user_parameters: UserEditableAttributes = Default::default();
-    user_parameters.email = Some(Some("abc".into()));
+    user_parameters.email = Some("abc".into());
 
     let result = user_parameters.validate();
     assert!(result.is_err());
@@ -1208,6 +1208,7 @@ fn create_from_external_login() {
         Some(email.to_string()),
         site.to_string(),
         access_token.to_string(),
+        None,
         project.get_connection(),
     )
     .unwrap();

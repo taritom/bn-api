@@ -52,7 +52,7 @@ impl<'a> UserBuilder<'a> {
             Some(self.phone.to_string()),
             &self.password,
         )
-        .commit(self.connection)
+        .commit(None, self.connection)
         .unwrap()
     }
 }

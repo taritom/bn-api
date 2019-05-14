@@ -111,9 +111,11 @@ pub fn update_current_user(
 ) -> Result<CurrentUser, BigNeonError> {
     let connection = connection.get();
 
-    let updated_user = auth_user
-        .user
-        .update(&user_parameters.into_inner().into(), connection)?;
+    let updated_user = auth_user.user.update(
+        user_parameters.into_inner().into(),
+        Some(auth_user.id()),
+        connection,
+    )?;
     let current_user = current_user_from_user(&updated_user, connection)?;
     Ok(current_user)
 }
@@ -239,7 +241,7 @@ pub fn register(
     }
 
     let new_user: NewUser = parameters.into_inner().into();
-    match new_user.commit(connection.get()) {
+    match new_user.commit(None, connection.get()) {
         Ok(_) => (),
         Err(e) => match e.error_code {
             ErrorCode::DuplicateKeyError => {
@@ -287,7 +289,7 @@ pub fn register_and_login(
     let email = parameters.email.clone();
     let password = parameters.password.clone();
     let new_user: NewUser = parameters.into_inner().into();
-    match new_user.commit(connection.get()) {
+    match new_user.commit(None, connection.get()) {
         Ok(_) => (),
         Err(e) => match e.error_code {
             ErrorCode::DuplicateKeyError => {

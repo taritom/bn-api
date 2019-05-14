@@ -246,7 +246,7 @@ fn create_db_and_user(matches: &ArgMatches) {
         Some(phone.to_string()),
         &password,
     )
-    .commit(&db_connection)
+    .commit(None, &db_connection)
     .expect("Failed to create system admin");
     user.add_role(Roles::Admin, &db_connection)
         .expect("Could not assign System Administrator role to the user");

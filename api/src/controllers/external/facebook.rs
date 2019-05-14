@@ -81,6 +81,7 @@ pub fn web_login(
                                     facebook_graph_response.email.clone(),
                                     FACEBOOK_SITE.to_string(),
                                     auth_token.access_token.clone(),
+                                    None,
                                     connection,
                                 )?
                             }
@@ -96,6 +97,7 @@ pub fn web_login(
                     None,
                     FACEBOOK_SITE.to_string(),
                     auth_token.access_token.clone(),
+                    None,
                     connection,
                 )?
             }

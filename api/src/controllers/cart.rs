@@ -509,7 +509,12 @@ fn checkout_external(
     }
     if guest.is_none() {
         guest = Some(DbUser::create_stub(
-            first_name, last_name, email, phone, conn,
+            first_name,
+            last_name,
+            email,
+            phone,
+            Some(user.id()),
+            conn,
         )?);
     }
 

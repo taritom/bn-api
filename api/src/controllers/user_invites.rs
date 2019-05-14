@@ -18,7 +18,7 @@ pub struct UserInviteRequest {
 }
 
 pub fn create(
-    (state, connection, parameters, _auth_user): (
+    (state, connection, parameters, auth_user): (
         State<AppState>,
         Connection,
         Json<UserInviteRequest>,
@@ -38,7 +38,7 @@ pub fn create(
         Some(parameters.email.clone()),
     );
 
-    let user = new_user.commit(connection)?;
+    let user = new_user.commit(Some(auth_user.id()), connection)?;
     let user = user.create_password_reset_token(connection)?;
 
     mailers::user::invite_user_email(&state.config, &user, connection)?;

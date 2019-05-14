@@ -2,6 +2,7 @@ use diesel::deserialize::{self, FromSql};
 use diesel::pg::Pg;
 use diesel::serialize::{self, IsNull, Output, ToSql};
 use diesel::sql_types::*;
+use std::cmp::Ordering;
 use std::fmt;
 use std::io::Write;
 use std::str;
@@ -17,6 +18,18 @@ macro_rules! string_enum {
             $(
                 $value,
             )*
+        }
+
+        impl Ord for $name {
+            fn cmp(&self, other: &$name) -> Ordering {
+                self.to_string().cmp(&other.to_string())
+            }
+        }
+
+        impl PartialOrd  for $name {
+             fn partial_cmp(&self, other: &$name) -> Option<Ordering> {
+                 Some(self.cmp(&other))
+             }
         }
 
         impl ToSql<Text, Pg> for $name {
@@ -103,8 +116,10 @@ string_enum! { DomainEventTypes [
     PaymentMethodCreated,
     PaymentMethodUpdated,
     PaymentUpdated,
+    UserCreated,
     UserLogin,
     UserRegistration,
+    UserUpdated,
     LostPassword,
     PurchaseCompleted,
     TransferTicketStarted,

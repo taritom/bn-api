@@ -6,7 +6,7 @@ use validator::Validate;
 fn user_profile_attributes_validate() {
     let mut user_parameters: UserProfileAttributes = Default::default();
     user_parameters.phone = Some(Some("abc".into()));
-    user_parameters.email = Some(Some("abc".into()));
+    user_parameters.email = Some("abc".into());
     user_parameters.profile_pic_url = Some(Some("abc".into()));
     user_parameters.thumb_profile_pic_url = Some(Some("abc".into()));
     user_parameters.cover_photo_url = Some(Some("abc".into()));
