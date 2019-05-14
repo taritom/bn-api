@@ -124,12 +124,8 @@ impl TicketInstance {
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-            .left_join(transfers::table.on(ticket_instances::id.eq(transfers::ticket_instance_id)))
+            .left_join(transfers::table.on(ticket_instances::id.eq(transfers::ticket_instance_id).and(transfers::status.eq(TransferStatus::Pending))))
             .filter(ticket_instances::id.eq(id))
-            .filter(
-                transfers::id.is_null().or(transfers::status
-                    .eq(TransferStatus::Pending))
-            )
             .select((
                 ticket_instances::id,
                 order_items::order_id,

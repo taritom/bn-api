@@ -141,6 +141,58 @@ fn find_for_user_for_display() {
         false
     );
 
+    // Transfer is completed
+    diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET transfer_expiry_date = '2055-06-06 09:49:09.643207',
+        status = 'Completed'
+        WHERE id = $1;
+        "#,
+    )
+    .bind::<sql_types::Uuid, _>(transfer.id)
+    .execute(connection)
+    .unwrap();
+    let found_tickets =
+        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
+            .unwrap();
+    assert_eq!(found_tickets.len(), 1);
+    assert_eq!(found_tickets[0].0.id, event.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
+    assert_eq!(found_tickets[0].1[0].pending_transfer, false);
+    assert_eq!(
+        TicketInstance::find_for_display(found_tickets[0].1[0].id, connection)
+            .unwrap()
+            .2
+            .pending_transfer,
+        false
+    );
+
+    // Another pending transfer
+    Transfer::create(
+        found_tickets[0].1[0].id,
+        user.id,
+        Uuid::new_v4(),
+        NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11),
+    )
+    .commit(None, connection)
+    .unwrap();
+
+    let found_tickets =
+        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
+            .unwrap();
+    assert_eq!(found_tickets.len(), 1);
+    assert_eq!(found_tickets[0].0.id, event.id);
+    assert_eq!(found_tickets[0].1.len(), 2);
+    assert_eq!(found_tickets[0].1[0].pending_transfer, true);
+    assert_eq!(
+        TicketInstance::find_for_display(found_tickets[0].1[0].id, connection)
+            .unwrap()
+            .2
+            .pending_transfer,
+        true
+    );
+
     // other event
     let found_tickets =
         TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, connection)
