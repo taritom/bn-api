@@ -167,6 +167,7 @@ impl Hold {
     ) -> Result<Payload<Hold>, DatabaseError> {
         let total: i64 = holds::table
             .filter(holds::parent_hold_id.eq(parent_id))
+            .filter(holds::deleted_at.is_null())
             .filter(
                 holds::hold_type
                     .nullable()
@@ -184,6 +185,7 @@ impl Hold {
         let mut payload = Payload::new(
             holds::table
                 .filter(holds::parent_hold_id.eq(parent_id))
+                .filter(holds::deleted_at.is_null())
                 .filter(
                     holds::hold_type
                         .nullable()

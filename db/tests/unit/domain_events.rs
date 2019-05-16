@@ -176,7 +176,7 @@ pub fn find_unpublished() {
     .commit(connection)
     .unwrap();
 
-    let mut found_events = DomainEvent::find_unpublished(100, connection).unwrap();
+    let found_events = DomainEvent::find_unpublished(100, connection).unwrap();
 
     assert_equiv!(
         found_events

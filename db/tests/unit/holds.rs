@@ -683,9 +683,14 @@ fn find_by_parent_hold_id() {
     )
     .unwrap()
     .is_empty());
+    let parent_id = comp.parent_hold_id.unwrap();
 
     // Record found when not filtering by types
-    let found_comp =
-        Hold::find_by_parent_id(comp.parent_hold_id.unwrap(), None, 0, 1000, connection).unwrap();
+    let found_comp = Hold::find_by_parent_id(parent_id, None, 0, 1000, connection).unwrap();
     assert_eq!(comp, found_comp.data[0]);
+
+    // Should be removed from results once destroyed
+    comp.destroy(None, connection).unwrap();
+    let found_comp = Hold::find_by_parent_id(parent_id, None, 0, 1000, connection).unwrap();
+    assert_eq!(0, found_comp.data.len());
 }
