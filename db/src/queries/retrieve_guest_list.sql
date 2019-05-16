@@ -15,11 +15,11 @@ SELECT ti.id,
        CASE
            WHEN
                    e.redeem_date IS NULL
-                   OR NOW() > e.redeem_date
-                   OR NOW() > e.event_start - INTERVAL '1 day'
+                   OR NOW() >= e.redeem_date
+                   OR NOW() >= e.event_start - INTERVAL '1 day 1 minute'
                THEN ti.redeem_key
            ELSE NULL END                                       AS redeem_key,
-       ti.status,
+       ti.status                                               AS status,
        e.id                                                    AS event_id,
        e.name                                                  AS event_name,
        e.door_time                                             AS door_time,
@@ -27,7 +27,12 @@ SELECT ti.id,
        v.id                                                    AS venue_id,
        v.name                                                  AS venue_name,
        e.redeem_date                                           AS redeem_date,
-       ti.updated_at                                           AS updated_at
+       ti.updated_at                                           AS updated_at,
+       CASE
+           WHEN ti.redeemed_by_user_id IS NOT NULL THEN
+               CONCAT(redeemer.first_name, ' ', redeemer.last_name)
+           ELSE NULL END                                       AS redeemed_by,
+       ti.redeemed_at                                          AS redeemed_at
 
 FROM ticket_instances ti
          INNER JOIN assets a ON ti.asset_id = a.id
@@ -35,13 +40,15 @@ FROM ticket_instances ti
          INNER JOIN orders o ON o.id = oi.order_id
          INNER JOIN ticket_types t2 ON a.ticket_type_id = t2.id
          INNER JOIN wallets w ON ti.wallet_id = w.id
-         INNER JOIN users u ON w.user_id = u.id
+         INNER JOIN users u ON  w.user_id = u.id
          INNER JOIN events e ON t2.event_id = e.id
-         INNER JOIN venues v ON e.venue_id = v.id
-WHERE t2.event_id = $1
-  AND (u.first_name ILIKE '%' || $2 || '%'
+         LEFT JOIN venues v ON e.venue_id = v.id
+         LEFT JOIN users redeemer ON ti.redeemed_by_user_id = redeemer.id
+WHERE ($1 IS NULL OR t2.event_id = $1)
+  AND ($2 IS NULL OR u.first_name ILIKE '%' || $2 || '%'
     OR u.last_name ILIKE '%' || $2 || '%'
     OR u.email ILIKE '%' || $2 || '%'
     OR u.phone ILIKE '%' || $2 || '%')
   AND ($3 IS NULL OR ti.updated_at >= $3)
+  AND ($4 IS NULL OR ti.id = $4)
 ORDER BY u.last_name, ti.id

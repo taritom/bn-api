@@ -496,6 +496,8 @@ table! {
         status -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        redeemed_by_user_id -> Nullable<Uuid>,
+        redeemed_at -> Nullable<Timestamp>,
     }
 }
 

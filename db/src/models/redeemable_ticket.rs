@@ -45,4 +45,8 @@ pub struct RedeemableTicket {
     pub venue_name: Option<String>,
     #[sql_type = "Timestamp"]
     pub updated_at: NaiveDateTime,
+    #[sql_type = "Nullable<Text>"]
+    pub redeemed_by: Option<String>,
+    #[sql_type = "Nullable<Timestamp>"]
+    pub redeemed_at: Option<NaiveDateTime>,
 }

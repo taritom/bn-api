@@ -1092,16 +1092,18 @@ impl Event {
 
     pub fn guest_list(
         &self,
-        query: &str,
+        query: Option<String>,
         changes_since: &Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<Vec<GuestListItem>, DatabaseError> {
         let q = include_str!("../queries/retrieve_guest_list.sql");
 
+        let ticket_id: Option<Uuid> = None;
         let tickets = diesel::sql_query(q)
-            .bind::<dUuid, _>(self.id)
-            .bind::<Text, _>(query)
+            .bind::<Nullable<dUuid>, _>(Some(self.id))
+            .bind::<Nullable<Text>, _>(query)
             .bind::<Nullable<Timestamp>, _>(changes_since)
+            .bind::<Nullable<dUuid>, _>(ticket_id)
             .load::<RedeemableTicket>(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load guest list")?;
 

@@ -288,7 +288,7 @@ fn guest_list() {
         .quantity(1)
         .is_paid()
         .finish();
-    let guest_list = event.guest_list("", &None, connection).unwrap();
+    let guest_list = event.guest_list(None, &None, connection).unwrap();
     assert_eq!(3, guest_list.len());
     let guest_ids = guest_list
         .iter()
@@ -307,7 +307,7 @@ fn guest_list() {
         .quantity(1)
         .is_paid()
         .finish();
-    let guest_list = event.guest_list("", &None, connection).unwrap();
+    let guest_list = event.guest_list(None, &None, connection).unwrap();
     assert_eq!(4, guest_list.len());
     let guest_ids = guest_list
         .iter()
@@ -321,14 +321,14 @@ fn guest_list() {
     //Check the updated_at filter from 100 seconds ago
     let hundred_seconds_ago = Utc::now().naive_utc() + Duration::seconds(-100);
     let guest_list = event
-        .guest_list("", &Some(hundred_seconds_ago), connection)
+        .guest_list(None, &Some(hundred_seconds_ago), connection)
         .unwrap();
     assert_eq!(4, guest_list.len());
 
     //Check the updated_at filter in 100 seconds time
     let hundred_seconds_later = Utc::now().naive_utc() + Duration::seconds(100);
     let guest_list = event
-        .guest_list("", &Some(hundred_seconds_later), connection)
+        .guest_list(None, &Some(hundred_seconds_later), connection)
         .unwrap();
     assert_eq!(0, guest_list.len());
 
@@ -349,7 +349,7 @@ fn guest_list() {
         )
         .unwrap();
     }
-    let guest_list = event.guest_list("", &None, connection).unwrap();
+    let guest_list = event.guest_list(None, &None, connection).unwrap();
     assert_eq!(4, guest_list.len());
     let guest_ids = guest_list
         .iter()

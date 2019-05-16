@@ -468,7 +468,6 @@ pub fn redeem_ticket(
         &db_event,
         connection,
     )?;
-
     let redeemable =
         TicketInstance::show_redeemable_ticket(parameters.ticket_instance_id, connection)?;
 
@@ -845,9 +844,9 @@ pub fn guest_list(
         conn,
     )?;
 
-    let query_string = query.clone().query.unwrap_or("".to_string());
+    let query_string = query.clone().query;
     let changes_since = query.clone().changes_since;
-    let tickets = event.guest_list(&query_string, &changes_since, conn)?;
+    let tickets = event.guest_list(query_string, &changes_since, conn)?;
 
     #[derive(Serialize)]
     struct R {

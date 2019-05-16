@@ -1147,7 +1147,7 @@ fn show_redeemable_ticket() {
         redeem_date: Some(NaiveDateTime::from(
             Utc::now().naive_utc() + Duration::hours(12),
         )),
-        event_start: Some(event_start),
+        event_start: Some(event_start.clone()),
         event_end: Some(NaiveDateTime::from(event_start + Duration::hours(24))),
         ..Default::default()
     };

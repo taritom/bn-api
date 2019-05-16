@@ -12,8 +12,7 @@ use models::*;
 use rand;
 use rand::Rng;
 use schema::{
-    assets, events, order_items, orders, ticket_instances, ticket_types, transfers, users, venues,
-    wallets,
+    assets, events, order_items, orders, ticket_instances, ticket_types, transfers, wallets,
 };
 use std::cmp;
 use std::collections::HashMap;
@@ -36,6 +35,8 @@ pub struct TicketInstance {
     pub status: TicketInstanceStatus,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
+    pub redeemed_by_user_id: Option<Uuid>,
+    pub redeemed_at: Option<NaiveDateTime>,
 }
 
 impl TicketInstance {
@@ -702,7 +703,12 @@ impl TicketInstance {
             && ticket.redeem_key.unwrap() == redeem_key
         {
             diesel::update(ticket_instances::table.filter(ticket_instances::id.eq(ticket_id)))
-                .set(ticket_instances::status.eq(TicketInstanceStatus::Redeemed))
+                .set((
+                    ticket_instances::status.eq(TicketInstanceStatus::Redeemed),
+                    ticket_instances::redeemed_by_user_id.eq(user_id),
+                    ticket_instances::redeemed_at.eq(dsl::now),
+                    ticket_instances::updated_at.eq(dsl::now),
+                ))
                 .execute(conn)
                 .to_db_error(ErrorCode::UpdateError, "Could not set ticket to Redeemed")?;
 
@@ -727,75 +733,19 @@ impl TicketInstance {
         ticket_id: Uuid,
         conn: &PgConnection,
     ) -> Result<RedeemableTicket, DatabaseError> {
-        let mut ticket_data = ticket_instances::table
-            .inner_join(
-                order_items::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            )
-            .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
-            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
-            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
-            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-            .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
-            .inner_join(users::table.on(sql(
-                "coalesce(orders.on_behalf_of_user_id, wallets.user_id) = users.id",
-            )))
-            .filter(ticket_instances::id.eq(ticket_id))
-            .select((
-                ticket_instances::id,
-                ticket_types::name,
-                sql::<Nullable<dUuid>>("users.id as user_id"),
-                order_items::order_id,
-                sql::<dUuid>("order_items.id as order_item_id"),
-                sql::<BigInt>(
-                    "cast(unit_price_in_cents +
-                    coalesce((
-                        select sum(unit_price_in_cents)
-                        from order_items
-                        where parent_id = ticket_instances.order_item_id),
-                    0) as BigInt) AS price_in_cents
-                    ",
-                ),
-                users::first_name,
-                users::last_name,
-                users::email,
-                users::phone,
-                ticket_instances::redeem_key,
-                events::redeem_date,
-                ticket_instances::status,
-                events::id,
-                events::name,
-                events::door_time,
-                events::event_start,
-                events::venue_id,
-                venues::name.nullable(),
-                ticket_instances::updated_at,
-            ))
-            .first::<RedeemableTicket>(conn)
+        let q = include_str!("../queries/retrieve_guest_list.sql");
+
+        let event_id: Option<Uuid> = None;
+        let updated_at: Option<NaiveDateTime> = None;
+        let search: Option<String> = None;
+
+        let ticket_data = diesel::sql_query(q)
+            .bind::<Nullable<dUuid>, _>(event_id)
+            .bind::<Nullable<Text>, _>(search)
+            .bind::<Nullable<Timestamp>, _>(updated_at)
+            .bind::<Nullable<dUuid>, _>(Some(ticket_id))
+            .get_result::<RedeemableTicket>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
-
-        // Ensure that redeem_key is returned either 24 hours before event start or at redeem_date (whichever is earliest)
-        let day_before_event_start = ticket_data
-            .event_start
-            .map(|event_start| event_start - Duration::hours(24));
-
-        let bounded_redeem_date = ticket_data
-            .redeem_date
-            .map(|redeem_date| {
-                if day_before_event_start.is_none() {
-                    redeem_date
-                } else {
-                    // Whichever one is earlier
-                    cmp::min(day_before_event_start.unwrap(), redeem_date)
-                }
-            })
-            .or(day_before_event_start)
-            .unwrap();
-
-        if bounded_redeem_date > Utc::now().naive_utc() {
-            ticket_data.redeem_key = None; //Redeem key not available yet. Should this be an error?
-        }
 
         Ok(ticket_data)
     }
@@ -1027,7 +977,7 @@ impl TicketInstance {
                 Some(transfer) => transfer.complete(
                     receiver_user_id,
                     Some(json!({"receiver_wallet_id": receiver_wallet_id, "sender_wallet_id": sender_wallet.id, "num_tickets": transfer_authorization.num_tickets, "transfer_key": transfer_authorization.transfer_key})),
-                    conn
+                    conn,
                 )?,
                 None => return Err(DatabaseError::new(
                     ErrorCode::BusinessProcessError,
