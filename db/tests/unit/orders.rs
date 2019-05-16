@@ -1793,7 +1793,10 @@ fn update_quantities_check_limits() {
         .finish();
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
 
     // Ticket type with no limit
     assert_eq!(ticket_type.limit_per_person, 0);
@@ -1973,7 +1976,7 @@ fn update_quantities_check_limits() {
             connection,
         )
         .is_ok());
-    ticket_type
+    let ticket_type = ticket_type
         .update(
             TicketTypeEditableAttributes {
                 limit_per_person: Some(2),
@@ -2009,7 +2012,7 @@ fn update_quantities_check_limits() {
         }
         _ => panic!("Expected validation error"),
     }
-    ticket_type
+    let ticket_type = ticket_type
         .update(
             TicketTypeEditableAttributes {
                 limit_per_person: Some(4),
@@ -2135,7 +2138,7 @@ fn update_quantities_check_limits() {
             connection,
         )
         .is_ok());
-    ticket_type
+    let ticket_type = ticket_type
         .update(
             TicketTypeEditableAttributes {
                 limit_per_person: Some(2),
@@ -2273,7 +2276,7 @@ fn add_tickets_below_min_fee() {
             10,
             Some(times::zero()),
             times::infinity(),
-            event.issuer_wallet(connection).unwrap().id,
+            Some(event.issuer_wallet(connection).unwrap().id),
             Some(1),
             10,
             0,
@@ -3059,7 +3062,10 @@ fn add_tickets_with_increment() {
         .finish();
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
     let update_parameters = TicketTypeEditableAttributes {
         increment: Some(4),
         ..Default::default()
@@ -3607,7 +3613,10 @@ fn remove_tickets_with_increment() {
         .finish();
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
     let update_parameters = TicketTypeEditableAttributes {
         increment: Some(4),
         ..Default::default()

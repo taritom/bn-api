@@ -2,7 +2,7 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
 use bigneon_db::schema::ticket_instances;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
-use chrono::NaiveDate;
+use chrono::prelude::*;
 use diesel::prelude::*;
 use uuid::Uuid;
 
@@ -21,7 +21,7 @@ fn create() {
             100,
             Some(sd),
             ed,
-            wallet_id,
+            Some(wallet_id),
             None,
             0,
             100,
@@ -50,7 +50,7 @@ pub fn create_with_validation_errors() {
         100,
         Some(start_date),
         end_date,
-        wallet_id,
+        Some(wallet_id),
         None,
         0,
         100,
@@ -396,7 +396,7 @@ fn create_large_amount() {
             100_000,
             Some(sd),
             ed,
-            wallet_id,
+            Some(wallet_id),
             None,
             0,
             100,
@@ -415,9 +415,10 @@ fn create_large_amount() {
 fn validate_ticket_pricing() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
-    let ticket_type = &event
+    let ticket_type = event
         .ticket_types(true, None, project.get_connection())
-        .unwrap()[0];
+        .unwrap()
+        .remove(0);
 
     // Set short window for validations to detect dates outside of ticket type window
     let ticket_type = ticket_type
@@ -621,7 +622,10 @@ fn update() {
     let db = TestProject::new();
     let connection = db.get_connection();
     let event = db.create_event().with_tickets().finish();
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
     //Change editable parameter and submit ticket type update request
     let update_name = String::from("updated_event_name");
     let update_start_date = NaiveDate::from_ymd(2018, 4, 23).and_hms(5, 14, 18);
@@ -632,10 +636,11 @@ fn update() {
         end_date: Some(update_end_date),
         ..Default::default()
     };
+    let id = ticket_type.id;
     let updated_ticket_type = ticket_type
         .update(update_parameters, None, connection)
         .unwrap();
-    assert_eq!(updated_ticket_type.id, ticket_type.id);
+    assert_eq!(updated_ticket_type.id, id);
     assert_eq!(updated_ticket_type.name, update_name);
     assert_eq!(updated_ticket_type.start_date, Some(update_start_date));
     assert_eq!(updated_ticket_type.end_date, update_end_date);
@@ -658,7 +663,10 @@ pub fn update_with_validation_errors() {
     let db = TestProject::new();
     let connection = db.get_connection();
     let event = db.create_event().with_tickets().finish();
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
     //Change editable parameter and submit ticket type update request
     let update_name = String::from("updated_event_name");
     let update_start_date = NaiveDate::from_ymd(2018, 6, 23).and_hms(5, 14, 18);
@@ -706,4 +714,105 @@ fn find() {
 
     let found_ticket_type = TicketType::find(ticket_type.id, &db.get_connection()).unwrap();
     assert_eq!(&found_ticket_type, ticket_type);
+}
+
+#[test]
+fn tiered_pricing_update() {
+    let db = TestProject::new();
+    let conn = &db.connection;
+    let event = db.create_event().finish();
+    let end_date = dates::now().add_hours(2).finish();
+    let ticket_type_a = event
+        .add_ticket_type(
+            "A".to_string(),
+            None,
+            2,
+            Some(dates::now().add_hours(-1).finish()),
+            end_date,
+            None,
+            None,
+            10,
+            100,
+            TicketTypeVisibility::Always,
+            None,
+            None,
+            conn,
+        )
+        .unwrap();
+    let ticket_type_b = event
+        .add_ticket_type(
+            "B".to_string(),
+            None,
+            100,
+            None,
+            dates::now().add_hours(3).finish(),
+            None,
+            None,
+            10,
+            100,
+            TicketTypeVisibility::Always,
+            Some(ticket_type_a.id),
+            None,
+            conn,
+        )
+        .unwrap();
+
+    let pricing = ticket_type_b.ticket_pricing(true, conn).unwrap();
+    // Price should start when first tickets end
+    assert_eq!(
+        pricing[0].start_date.round_subsecs(4),
+        end_date.round_subsecs(4)
+    );
+
+    // Buy all the tickets
+    db.create_order()
+        .for_tickets(ticket_type_a.id)
+        .quantity(2)
+        .is_paid()
+        .finish();
+
+    let pricing = ticket_type_b.ticket_pricing(true, conn).unwrap();
+    // Price should now have started, because all of the tickets are sold
+    assert!(pricing[0].start_date <= dates::now().finish());
+
+    // Updating the ticket type should not change the sales date
+
+    let attrs = TicketTypeEditableAttributes {
+        visibility: Some(TicketTypeVisibility::Hidden),
+        ..Default::default()
+    };
+
+    let ticket_type_b = ticket_type_b.update(attrs, None, conn).unwrap();
+    let pricing = ticket_type_b.ticket_pricing(true, conn).unwrap();
+
+    assert!(pricing[0].start_date <= dates::now().finish());
+
+    // Update a ticket type to a specific start date
+    let new_start_date = dates::now().add_hours(1).finish();
+    let attrs = TicketTypeEditableAttributes {
+        start_date: Some(Some(new_start_date)),
+        parent_id: Some(None),
+        ..Default::default()
+    };
+
+    let ticket_type_b = ticket_type_b.update(attrs, None, conn).unwrap();
+    let pricing = ticket_type_b.ticket_pricing(true, conn).unwrap();
+    // Ticket sales should have paused.
+    assert_eq!(
+        pricing[0].start_date.round_subsecs(4),
+        new_start_date.round_subsecs(4)
+    );
+
+    // Update a ticket type to use parent again
+    let attrs = TicketTypeEditableAttributes {
+        start_date: Some(None),
+        parent_id: Some(Some(ticket_type_a.id)),
+        ..Default::default()
+    };
+
+    let ticket_type_b = ticket_type_b.update(attrs, None, conn).unwrap();
+    let pricing = ticket_type_b.ticket_pricing(true, conn).unwrap();
+
+    // Price should have started again, because all of the tickets are sold
+    assert!(pricing[0].start_date <= dates::now().finish());
 }

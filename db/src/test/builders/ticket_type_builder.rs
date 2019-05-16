@@ -77,7 +77,7 @@ impl<'a> TicketTypeBuilder<'a> {
                 self.quantity,
                 Some(self.sales_start.unwrap_or(sales_start)),
                 self.sales_end.unwrap_or(sales_end),
-                event.issuer_wallet(self.event.connection).unwrap().id,
+                Some(event.issuer_wallet(self.event.connection).unwrap().id),
                 None,
                 0,
                 self.price_in_cents.unwrap_or(100),

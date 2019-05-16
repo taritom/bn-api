@@ -286,7 +286,7 @@ fn from_ticket_type() {
             10,
             Some(times::zero()),
             times::infinity(),
-            event.issuer_wallet(conn).unwrap().id,
+            Some(event.issuer_wallet(conn).unwrap().id),
             None,
             10,
             0,

@@ -1144,6 +1144,13 @@ impl Order {
         }
         self.update_fees(conn)?;
         self.validate_record(conn)?;
+        // Beware there could be multiple orders that meet this condition
+        for (ticket_type_id, remaining) in self.ticket_types(conn)? {
+            if remaining == 0 {
+                TicketType::find(ticket_type_id, conn)?
+                    .check_for_sold_out_triggers(Some(current_user_id), conn)?;
+            }
+        }
 
         Ok(())
     }
@@ -1965,24 +1972,6 @@ impl Order {
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
-        //        match self.status {
-        //            OrderStatus::Paid => {
-        //                // still store the payment.
-        //            }
-        //            // orders can only expire if the order is in draft
-        //            OrderStatus::Draft => {
-        //             // Leave in draft,
-        //            }
-        //            OrderStatus::PendingPayment => {
-        //
-        //                // Will be checked for completion later
-        //            }
-        //            OrderStatus::Cancelled => {
-        //
-        //                // Still accept the payment so that the user's account can be credited
-        //            }
-        //        }
-
         // Confirm codes are still valid
         for item in self.items(conn)? {
             item.confirm_code_valid(conn)?;

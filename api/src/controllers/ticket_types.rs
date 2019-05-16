@@ -468,7 +468,7 @@ fn create_ticket_types(
             ticket_type_data.capacity,
             ticket_type_data.start_date,
             ticket_type_data.end_date,
-            org_wallet.id,
+            Some(org_wallet.id),
             ticket_type_data.increment,
             ticket_type_data.limit_per_person,
             ticket_type_data.price_in_cents,

@@ -215,7 +215,7 @@ impl<'a> EventBuilder<'a> {
                         self.ticket_quantity,
                         Some(self.sales_start.unwrap_or(sales_start)),
                         self.sales_end.unwrap_or(sales_end),
-                        wallet_id,
+                        Some(wallet_id),
                         None,
                         0,
                         100,

@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use dev::times;
 use diesel;
 use diesel::dsl;
@@ -123,13 +123,13 @@ impl TicketType {
     }
 
     pub fn update(
-        &self,
+        self,
         attributes: TicketTypeEditableAttributes,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         self.validate_record(&attributes, conn)?;
-        let result: TicketType = diesel::update(self)
+        let result: TicketType = diesel::update(&self)
             .set((&attributes, ticket_types::updated_at.eq(dsl::now)))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket_types")?;
@@ -147,17 +147,35 @@ impl TicketType {
         //Delete the old default ticket pricing and create a new default to preserve the purchase history
         let ticket_pricing = TicketPricing::get_default(self.id, conn).optional()?;
 
+        let mut previous_start_date: Option<NaiveDateTime> = None;
         match ticket_pricing {
             Some(tp) => {
+                previous_start_date = Some(tp.start_date);
                 tp.destroy(current_user_id, conn)?;
             }
             None => (),
         }
 
+        let mut start_date = result.start_date(conn)?;
+
+        // If the ticket type has a parent, the start date is dependent on the
+        // sales of that ticket type.
+        if let Some(parent) = result.parent(conn)? {
+            if parent.valid_available_ticket_count(conn)? == 0 {
+                // Try keep the previous date if it was set.
+                start_date =
+                    if previous_start_date.unwrap_or(times::infinity()) < Utc::now().naive_utc() {
+                        previous_start_date.unwrap()
+                    } else {
+                        Utc::now().naive_utc()
+                    }
+            }
+        }
+
         self.add_ticket_pricing(
             result.name.clone(),
             // TODO: Replace with nullable
-            result.start_date(conn)?,
+            start_date,
             result.end_date,
             result.price_in_cents,
             false,
@@ -316,15 +334,18 @@ impl TicketType {
             }
         }
 
-        DomainEvent::create(
-            DomainEventTypes::TicketTypeSoldOut,
-            format!("Ticket type '{}' has sold out", self.name),
-            Tables::TicketTypes,
-            Some(self.id),
-            None,
-            None,
-        )
-        .commit(conn)?;
+        // Ideally we want to track this event, but there's a chance that this can be
+        // abused to insert a lot of these events in the db, so might re-enable it at
+        // a later stage.
+        //        DomainEvent::create(
+        //            DomainEventTypes::TicketTypeSoldOut,
+        //            format!("Ticket type '{}' has sold out", self.name),
+        //            Tables::TicketTypes,
+        //            Some(self.id),
+        //            None,
+        //            None,
+        //        )
+        //        .commit(conn)?;
 
         Ok(())
     }

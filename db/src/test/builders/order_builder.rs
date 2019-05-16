@@ -52,6 +52,11 @@ impl<'a> OrderBuilder<'a> {
         self
     }
 
+    pub fn for_tickets(mut self, ticket_type_id: Uuid) -> OrderBuilder<'a> {
+        self.ticket_type_id = Some(ticket_type_id);
+        self
+    }
+
     pub fn quantity(mut self, quantity: u32) -> OrderBuilder<'a> {
         self.quantity = quantity;
         self

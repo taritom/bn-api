@@ -104,14 +104,6 @@ pub fn update_cart(
     cart.set_user_agent(request_info.user_agent.clone(), false, connection)?;
     cart.set_tracking_data(json.tracking_data.clone(), Some(user.id()), connection)?;
 
-    // Beware there could be multiple carts that meet this condition
-    for (ticket_type_id, remaining) in cart.ticket_types(connection)? {
-        if remaining == 0 {
-            TicketType::find(ticket_type_id, connection)?
-                .check_for_sold_out_triggers(None, connection)?;
-        }
-    }
-
     Ok(
         HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(
             None,
@@ -199,13 +191,6 @@ pub fn replace_cart(
 
     cart.set_user_agent(request_info.user_agent.clone(), false, connection)?;
     cart.set_tracking_data(json.tracking_data.clone(), Some(user.id()), connection)?;
-    // Beware there could be multiple carts that meet this condition
-    for (ticket_type_id, remaining) in cart.ticket_types(connection)? {
-        if remaining == 0 {
-            TicketType::find(ticket_type_id, connection)?
-                .check_for_sold_out_triggers(None, connection)?;
-        }
-    }
     Ok(
         HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(
             None,

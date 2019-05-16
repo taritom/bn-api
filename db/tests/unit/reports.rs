@@ -1340,7 +1340,7 @@ fn promo_code_report() {
             100,
             Some(dates::now().add_days(-1).finish()),
             times::infinity(),
-            wallet_id,
+            Some(wallet_id),
             None,
             0,
             2000,

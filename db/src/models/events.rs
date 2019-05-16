@@ -1338,7 +1338,7 @@ impl Event {
         quantity: u32,
         start_date: Option<NaiveDateTime>,
         end_date: NaiveDateTime,
-        wallet_id: Uuid,
+        wallet_id: Option<Uuid>,
         increment: Option<i32>,
         limit_per_person: i32,
         price_in_cents: i64,
@@ -1362,6 +1362,11 @@ impl Event {
         )
         .commit(current_user_id, conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;
+        let wallet_id = match wallet_id {
+            Some(w) => w,
+            None => Wallet::find_default_for_organization(self.organization_id, conn)?.id,
+        };
+
         TicketInstance::create_multiple(asset.id, 0, quantity, wallet_id, conn)?;
         Ok(ticket_type)
     }
