@@ -137,6 +137,8 @@ pub fn index() {
         status: TicketInstanceStatus::Purchased,
         redeem_key: ticket.redeem_key,
         pending_transfer: false,
+        first_name_override: None,
+        last_name_override: None,
     };
     assert_eq!(vec![expected_ticket.clone()], found_data.data);
     // Test without specified event
@@ -164,6 +166,8 @@ pub fn index() {
         status: TicketInstanceStatus::Purchased,
         redeem_key: ticket2.redeem_key,
         pending_transfer: false,
+        first_name_override: None,
+        last_name_override: None,
     };
     assert_eq!(
         vec![
@@ -295,6 +299,8 @@ pub fn show() {
         status: TicketInstanceStatus::Purchased,
         redeem_key: ticket.redeem_key,
         pending_transfer: false,
+        first_name_override: None,
+        last_name_override: None,
     };
 
     let expected_result = ShowTicketResponse {
@@ -303,6 +309,83 @@ pub fn show() {
         event: event.for_display(conn).unwrap(),
     };
     assert_eq!(expected_result, ticket_response);
+}
+
+#[cfg(test)]
+mod index_tests {
+    use super::*;
+    #[test]
+    fn update_org_member() {
+        base::tickets::update(Roles::OrgMember, false, false);
+    }
+    #[test]
+    fn update_admin() {
+        base::tickets::update(Roles::Admin, false, true);
+    }
+    #[test]
+    fn update_user() {
+        base::tickets::update(Roles::User, false, false);
+    }
+    #[test]
+    fn update_org_owner() {
+        base::tickets::update(Roles::OrgOwner, false, true);
+    }
+    #[test]
+    fn update_door_person() {
+        base::tickets::update(Roles::DoorPerson, false, false);
+    }
+    #[test]
+    fn update_promoter() {
+        base::tickets::update(Roles::Promoter, false, false);
+    }
+    #[test]
+    fn update_promoter_read_only() {
+        base::tickets::update(Roles::PromoterReadOnly, false, false);
+    }
+    #[test]
+    fn update_org_admin() {
+        base::tickets::update(Roles::OrgAdmin, false, true);
+    }
+    #[test]
+    fn update_box_office() {
+        base::tickets::update(Roles::OrgBoxOffice, false, false);
+    }
+    #[test]
+    fn update_owns_order_org_member() {
+        base::tickets::update(Roles::OrgMember, true, true);
+    }
+    #[test]
+    fn update_owns_order_admin() {
+        base::tickets::update(Roles::Admin, true, true);
+    }
+    #[test]
+    fn update_owns_order_user() {
+        base::tickets::update(Roles::User, true, true);
+    }
+    #[test]
+    fn update_owns_order_org_owner() {
+        base::tickets::update(Roles::OrgOwner, true, true);
+    }
+    #[test]
+    fn update_owns_order_door_person() {
+        base::tickets::update(Roles::DoorPerson, true, true);
+    }
+    #[test]
+    fn update_owns_order_promoter() {
+        base::tickets::update(Roles::Promoter, true, true);
+    }
+    #[test]
+    fn update_owns_order_promoter_read_only() {
+        base::tickets::update(Roles::PromoterReadOnly, true, true);
+    }
+    #[test]
+    fn update_owns_order_org_admin() {
+        base::tickets::update(Roles::OrgAdmin, true, true);
+    }
+    #[test]
+    fn update_owns_order_box_office() {
+        base::tickets::update(Roles::OrgBoxOffice, true, true);
+    }
 }
 
 #[cfg(test)]

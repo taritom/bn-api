@@ -198,7 +198,7 @@ pub fn find_unpublished() {
     publisher.add_subscription(DomainEventTypes::PaymentMethodCreated, |_| None);
     publisher.publish(db_event, connection).unwrap();
 
-    let mut found_events = DomainEvent::find_unpublished(100, connection)
+    let found_events = DomainEvent::find_unpublished(100, connection)
         .unwrap()
         .into_iter()
         .filter(|e| e.event_type != DomainEventTypes::UserCreated)

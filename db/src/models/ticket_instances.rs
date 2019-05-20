@@ -12,7 +12,8 @@ use models::*;
 use rand;
 use rand::Rng;
 use schema::{
-    assets, events, order_items, orders, ticket_instances, ticket_types, transfers, wallets,
+    assets, events, order_items, orders, organizations, ticket_instances, ticket_types, transfers,
+    users, wallets,
 };
 use std::cmp;
 use std::collections::HashMap;
@@ -20,8 +21,11 @@ use tari_client::*;
 use time::Duration;
 use utils::errors::*;
 use uuid::Uuid;
+use validators::*;
 
-#[derive(Debug, Identifiable, PartialEq, Deserialize, Serialize, Queryable, QueryableByName)]
+#[derive(
+    Clone, Debug, Identifiable, PartialEq, Deserialize, Serialize, Queryable, QueryableByName,
+)]
 #[table_name = "ticket_instances"]
 pub struct TicketInstance {
     pub id: Uuid,
@@ -37,9 +41,48 @@ pub struct TicketInstance {
     updated_at: NaiveDateTime,
     pub redeemed_by_user_id: Option<Uuid>,
     pub redeemed_at: Option<NaiveDateTime>,
+    pub first_name_override: Option<String>,
+    pub last_name_override: Option<String>,
+}
+
+#[derive(AsChangeset, Clone, Deserialize, Serialize)]
+#[table_name = "ticket_instances"]
+pub struct UpdateTicketInstanceAttributes {
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub first_name_override: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub last_name_override: Option<Option<String>>,
 }
 
 impl TicketInstance {
+    pub fn organization(&self, conn: &PgConnection) -> Result<Organization, DatabaseError> {
+        ticket_instances::table
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
+            .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
+            .filter(ticket_instances::id.eq(self.id))
+            .select(organizations::all_columns)
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load organization for ticket instance",
+            )
+    }
+
+    pub fn owner(&self, conn: &PgConnection) -> Result<User, DatabaseError> {
+        ticket_instances::table
+            .inner_join(wallets::table.on(wallets::id.eq(ticket_instances::wallet_id)))
+            .inner_join(users::table.on(users::id.nullable().eq(wallets::user_id)))
+            .filter(ticket_instances::id.eq(self.id))
+            .select(users::all_columns)
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load owner for ticket instance",
+            )
+    }
+
     pub fn ticket_type(&self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
         ticket_instances::table
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
@@ -149,6 +192,8 @@ impl TicketInstance {
                 events::redeem_date,
                 events::event_start,
                 sql::<Bool>("transfers.id is not null and transfers.transfer_expiry_date >= now() AS pending_transfer"),
+                ticket_instances::first_name_override,
+                ticket_instances::last_name_override,
             ))
             .first::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
@@ -251,6 +296,8 @@ impl TicketInstance {
                 events::redeem_date,
                 events::event_start,
                 sql::<Bool>("transfers.id is not null and transfers.transfer_expiry_date >= now() AS pending_transfer"),
+                ticket_instances::first_name_override,
+                ticket_instances::last_name_override,
             ))
             .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
@@ -356,6 +403,42 @@ impl TicketInstance {
         }
 
         Ok(tickets)
+    }
+
+    fn validate_record(
+        &self,
+        update_attrs: &UpdateTicketInstanceAttributes,
+    ) -> Result<(), DatabaseError> {
+        let mut validation_errors = Ok(());
+        let first_name = update_attrs
+            .first_name_override
+            .clone()
+            .unwrap_or(self.first_name_override.clone());
+        let last_name = update_attrs
+            .last_name_override
+            .clone()
+            .unwrap_or(self.last_name_override.clone());
+
+        if first_name.is_some() && last_name.is_none() {
+            validation_errors = append_validation_error(
+                validation_errors,
+                "last_name_override",
+                Err(create_validation_error(
+                    "required",
+                    "Ticket last name required if first name provided",
+                )),
+            );
+        } else if first_name.is_none() && last_name.is_some() {
+            validation_errors = append_validation_error(
+                validation_errors,
+                "first_name_override",
+                Err(create_validation_error(
+                    "required",
+                    "Ticket first name required if last name provided",
+                )),
+            );
+        }
+        Ok(validation_errors?)
     }
 
     pub fn release_tickets(
@@ -881,6 +964,40 @@ impl TicketInstance {
         })
     }
 
+    pub fn update(
+        self,
+        attrs: UpdateTicketInstanceAttributes,
+        current_user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<TicketInstance, DatabaseError> {
+        if self.status == TicketInstanceStatus::Redeemed {
+            return DatabaseError::business_process_error(
+                "Unable to update ticket as it has already been redeemed.",
+            );
+        } else if self.status != TicketInstanceStatus::Purchased {
+            return DatabaseError::business_process_error(
+                "Unable to update ticket as it is not purchased.",
+            );
+        }
+
+        self.validate_record(&attrs)?;
+
+        DomainEvent::create(
+            DomainEventTypes::TicketInstanceUpdated,
+            "Ticket instance updated".into(),
+            Tables::TicketInstances,
+            Some(self.id),
+            Some(current_user_id),
+            Some(json!(attrs)),
+        )
+        .commit(conn)?;
+
+        diesel::update(&self)
+            .set((attrs, ticket_instances::updated_at.eq(dsl::now)))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")
+    }
+
     pub fn receive_ticket_transfer(
         transfer_authorization: TransferAuthorization,
         sender_wallet: &Wallet,
@@ -961,6 +1078,7 @@ impl TicketInstance {
         //Perform transfer
         let mut update_count = 0;
         for (t_id, updated_at) in &ticket_ids_to_transfer {
+            let name_override: Option<String> = None;
             update_count += diesel::update(
                 ticket_instances::table
                     .filter(ticket_instances::id.eq(t_id))
@@ -969,6 +1087,8 @@ impl TicketInstance {
             .set((
                 ticket_instances::wallet_id.eq(receiver_wallet_id),
                 ticket_instances::updated_at.eq(dsl::now),
+                ticket_instances::first_name_override.eq(&name_override),
+                ticket_instances::last_name_override.eq(&name_override),
             ))
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
@@ -1053,6 +1173,8 @@ pub struct DisplayTicket {
     pub status: TicketInstanceStatus,
     pub redeem_key: Option<String>,
     pub pending_transfer: bool,
+    pub first_name_override: Option<String>,
+    pub last_name_override: Option<String>,
 }
 
 #[derive(Queryable, QueryableByName)]
@@ -1083,6 +1205,10 @@ pub struct DisplayTicketIntermediary {
     pub event_start: Option<NaiveDateTime>,
     #[sql_type = "Bool"]
     pub pending_transfer: bool,
+    #[sql_type = "Nullable<Text>"]
+    pub first_name_override: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub last_name_override: Option<String>,
 }
 
 impl From<DisplayTicketIntermediary> for DisplayTicket {
@@ -1118,6 +1244,8 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
             ticket_type_name: ticket_intermediary.name.clone(),
             status: ticket_intermediary.status.clone(),
             pending_transfer: ticket_intermediary.pending_transfer,
+            first_name_override: ticket_intermediary.first_name_override,
+            last_name_override: ticket_intermediary.last_name_override,
             redeem_key,
         }
     }

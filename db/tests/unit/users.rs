@@ -1404,6 +1404,8 @@ fn get_scopes_by_organization() {
             Scopes::RedeemTicket,
             Scopes::TicketAdmin,
             Scopes::TicketRead,
+            Scopes::TicketWrite,
+            Scopes::TicketWriteOwn,
             Scopes::TicketTransfer,
             Scopes::TicketTypeRead,
             Scopes::TicketTypeWrite,
@@ -1438,6 +1440,7 @@ fn get_scopes_by_organization() {
             Scopes::RedeemTicket,
             Scopes::TicketAdmin,
             Scopes::TicketRead,
+            Scopes::TicketWriteOwn,
             Scopes::TicketTransfer,
             Scopes::TicketTypeRead,
             Scopes::TicketTypeWrite,
@@ -1470,7 +1473,12 @@ fn get_global_scopes() {
             .into_iter()
             .map(|scope| scope.to_string())
             .collect::<Vec<String>>(),
-        vec!["event:interest", "order:read-own", "ticket:transfer"]
+        vec![
+            "event:interest",
+            "order:read-own",
+            "ticket:write-own",
+            "ticket:transfer"
+        ]
     );
     assert_eq!(
         user2
@@ -1478,7 +1486,12 @@ fn get_global_scopes() {
             .into_iter()
             .map(|scope| scope.to_string())
             .collect::<Vec<String>>(),
-        vec!["event:interest", "order:read-own", "ticket:transfer"]
+        vec![
+            "event:interest",
+            "order:read-own",
+            "ticket:write-own",
+            "ticket:transfer"
+        ]
     );
     assert_equiv!(
         user3
@@ -1523,6 +1536,8 @@ fn get_global_scopes() {
             "ticket:admin",
             "ticket:read",
             "ticket:transfer",
+            "ticket:write",
+            "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
             "user:read",

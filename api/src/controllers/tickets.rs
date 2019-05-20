@@ -105,6 +105,34 @@ pub fn show(
     Ok(HttpResponse::Ok().json(&ticket_response))
 }
 
+pub fn update(
+    (connection, parameters, ticket_parameters, user): (
+        Connection,
+        Path<PathParameters>,
+        Json<UpdateTicketInstanceAttributes>,
+        User,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let ticket_parameters = ticket_parameters.into_inner();
+    let ticket = TicketInstance::find(parameters.id, connection)?;
+    if ticket.owner(connection)?.id == user.id() {
+        user.requires_scope(Scopes::TicketWriteOwn)?;
+    } else {
+        let organization = ticket.organization(connection)?;
+        user.requires_scope_for_organization(Scopes::TicketWrite, &organization, connection)?;
+    }
+    ticket.update(ticket_parameters.into(), user.id(), connection)?;
+
+    let (event, user, ticket) = TicketInstance::find_for_display(parameters.id, connection)?;
+    let ticket_response = ShowTicketResponse {
+        event,
+        user,
+        ticket,
+    };
+    Ok(HttpResponse::Ok().json(&ticket_response))
+}
+
 pub fn show_redeemable_ticket(
     (connection, parameters, auth_user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {

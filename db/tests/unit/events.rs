@@ -288,6 +288,23 @@ fn guest_list() {
         .quantity(1)
         .is_paid()
         .finish();
+
+    // Update ticket for user.id to override name
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .pop()
+        .unwrap();
+    ticket
+        .update(
+            UpdateTicketInstanceAttributes {
+                first_name_override: Some(Some("First".to_string())),
+                last_name_override: Some(Some("Last".to_string())),
+            },
+            user.id,
+            &project.connection,
+        )
+        .unwrap();
+
     let guest_list = event.guest_list(None, &None, connection).unwrap();
     assert_eq!(3, guest_list.len());
     let guest_ids = guest_list
@@ -298,6 +315,25 @@ fn guest_list() {
     assert!(!guest_ids.contains(&Some(user2.id)));
     assert!(guest_ids.contains(&Some(user3.id)));
     assert!(guest_ids.contains(&Some(user4.id)));
+
+    let guest_list_user_record = guest_list
+        .iter()
+        .find(|gl| gl.ticket.user_id == Some(user.id))
+        .unwrap();
+    assert_eq!(
+        guest_list_user_record.ticket.first_name,
+        Some("First".to_string())
+    );
+    assert_eq!(
+        guest_list_user_record.ticket.last_name,
+        Some("Last".to_string())
+    );
+    let guest_list_user_record = guest_list
+        .iter()
+        .find(|gl| gl.ticket.user_id == Some(user3.id))
+        .unwrap();
+    assert_eq!(guest_list_user_record.ticket.first_name, user3.first_name);
+    assert_eq!(guest_list_user_record.ticket.last_name, user3.last_name);
 
     // User 2 (the box office user) purchases a ticket for themselves
     project
@@ -361,6 +397,13 @@ fn guest_list() {
     assert!(!guest_ids.contains(&Some(user4.id)));
     assert!(guest_ids.contains(&Some(user5.id)));
     assert!(guest_ids.contains(&Some(user6.id)));
+
+    let guest_list_user_record = guest_list
+        .iter()
+        .find(|gl| gl.ticket.user_id == Some(user5.id))
+        .unwrap();
+    assert_eq!(guest_list_user_record.ticket.first_name, user5.first_name);
+    assert_eq!(guest_list_user_record.ticket.last_name, user5.last_name);
 }
 
 #[test]

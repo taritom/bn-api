@@ -11,6 +11,7 @@ use uuid::Uuid;
 use bigneon_db::dev::times;
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
+use bigneon_db::utils::errors::ErrorCode::ValidationError;
 
 #[test]
 fn find_for_user_for_display() {
@@ -266,6 +267,176 @@ fn find_for_user_for_display() {
     assert_eq!(found_tickets.len(), 1);
     assert_eq!(found_tickets[0].0.id, event.id);
     assert_eq!(found_tickets[0].1.len(), 2);
+}
+
+#[test]
+pub fn update() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(1)
+        .finish();
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .pop()
+        .unwrap();
+    let attrs = UpdateTicketInstanceAttributes {
+        first_name_override: Some(Some("First".to_string())),
+        last_name_override: Some(Some("Last".to_string())),
+    };
+
+    let domain_event_count = DomainEvent::find(
+        Tables::TicketInstances,
+        Some(ticket.id),
+        Some(DomainEventTypes::TicketInstanceUpdated),
+        connection,
+    )
+    .unwrap()
+    .len();
+
+    let updated = ticket.update(attrs, user.id, &project.connection).unwrap();
+    assert_eq!(updated.first_name_override, Some("First".to_string()));
+    assert_eq!(updated.last_name_override, Some("Last".to_string()));
+    let new_domain_event_count = DomainEvent::find(
+        Tables::TicketInstances,
+        Some(updated.id),
+        Some(DomainEventTypes::TicketInstanceUpdated),
+        connection,
+    )
+    .unwrap()
+    .len();
+
+    // 1 order update event should be recorded from the update call
+    assert_eq!(domain_event_count + 1, new_domain_event_count);
+}
+
+#[test]
+pub fn update_with_validation_errors() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(1)
+        .finish();
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .pop()
+        .unwrap();
+    let attrs = UpdateTicketInstanceAttributes {
+        first_name_override: Some(Some("First".to_string())),
+        last_name_override: None,
+    };
+    let result = ticket.clone().update(attrs, user.id, connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("last_name_override"));
+                assert_eq!(errors["last_name_override"].len(), 1);
+                assert_eq!(errors["last_name_override"][0].code, "required");
+                assert_eq!(
+                    &errors["last_name_override"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Ticket last name required if first name provided"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    let attrs = UpdateTicketInstanceAttributes {
+        first_name_override: None,
+        last_name_override: Some(Some("Last".to_string())),
+    };
+    let result = ticket.clone().update(attrs, user.id, connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("first_name_override"));
+                assert_eq!(errors["first_name_override"].len(), 1);
+                assert_eq!(errors["first_name_override"][0].code, "required");
+                assert_eq!(
+                    &errors["first_name_override"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Ticket first name required if last name provided"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
+
+    let attrs = UpdateTicketInstanceAttributes {
+        first_name_override: Some(Some("First".to_string())),
+        last_name_override: Some(Some("Last".to_string())),
+    };
+    assert!(ticket
+        .clone()
+        .update(attrs.clone(), user.id, connection)
+        .is_ok());
+
+    // Cannot update redeemed ticket
+    TicketInstance::redeem_ticket(
+        ticket.id,
+        ticket.redeem_key.clone().unwrap(),
+        user.id,
+        connection,
+    )
+    .unwrap();
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    assert_eq!(
+        ticket.update(attrs.clone(), user.id, connection),
+        DatabaseError::business_process_error(
+            "Unable to update ticket as it has already been redeemed.",
+        )
+    );
+
+    // Cannot update pending ticket
+    let box_office_order = project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, &connection).unwrap()[0];
+    let ticket = box_office_order
+        .tickets(ticket_type.id, connection)
+        .unwrap()
+        .pop()
+        .unwrap();
+    assert_eq!(
+        ticket.update(attrs, user.id, connection),
+        DatabaseError::business_process_error("Unable to update ticket as it is not purchased.",)
+    );
 }
 
 #[test]
@@ -674,6 +845,8 @@ fn find() {
         status: TicketInstanceStatus::Reserved,
         redeem_key: ticket.redeem_key,
         pending_transfer: false,
+        first_name_override: None,
+        last_name_override: None,
     };
     assert_eq!(
         (display_event, None, expected_ticket),
@@ -748,6 +921,8 @@ fn find_show_no_token() {
         status: TicketInstanceStatus::Purchased,
         redeem_key: None,
         pending_transfer: false,
+        first_name_override: None,
+        last_name_override: None,
     };
     let (found_event, found_user, found_ticket) =
         TicketInstance::find_for_display(ticket.id, connection).unwrap();
@@ -1070,6 +1245,85 @@ fn redeem_ticket() {
 }
 
 #[test]
+fn organization() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .remove(0);
+    assert_eq!(organization, ticket.organization(connection).unwrap());
+}
+
+#[test]
+fn owner() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .remove(0);
+    assert_eq!(user, ticket.owner(connection).unwrap());
+
+    // Transferred
+    TicketInstance::direct_transfer(
+        user.id,
+        &vec![ticket.id],
+        "nowhere",
+        "Test",
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(user2, ticket.owner(connection).unwrap());
+
+    // Box office purchase
+    let box_office_order = project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user)
+        .on_behalf_of_user(&user3)
+        .is_paid()
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, &connection).unwrap()[0];
+    let ticket = box_office_order
+        .tickets(ticket_type.id, connection)
+        .unwrap()
+        .pop()
+        .unwrap();
+    assert_eq!(user3, ticket.owner(connection).unwrap());
+}
+
+#[test]
 fn show_redeemable_ticket() {
     let project = TestProject::new();
     let admin = project.create_user().finish();
@@ -1315,6 +1569,25 @@ fn receive_ticket_transfer() {
         connection,
     )
     .unwrap();
+    let updated_ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .pop()
+        .unwrap()
+        .update(
+            UpdateTicketInstanceAttributes {
+                first_name_override: Some(Some("Janus".to_string())),
+                last_name_override: Some(Some("Zeal".to_string())),
+            },
+            user.id,
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        updated_ticket.first_name_override,
+        Some("Janus".to_string())
+    );
+    assert_eq!(updated_ticket.last_name_override, Some("Zeal".to_string()));
+
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
 
@@ -1352,6 +1625,12 @@ fn receive_ticket_transfer() {
         receive_auth2,
         DatabaseError::business_process_error("The transfer has expired.",)
     );
+    let reloaded_ticket = TicketInstance::find(updated_ticket.id, connection).unwrap();
+    assert_eq!(
+        reloaded_ticket.first_name_override,
+        Some("Janus".to_string())
+    );
+    assert_eq!(reloaded_ticket.last_name_override, Some("Zeal".to_string()));
 
     //try receive the wrong number of tickets (too few)
     let transfer_auth = TicketInstance::authorize_ticket_transfer(
@@ -1374,6 +1653,12 @@ fn receive_ticket_transfer() {
         connection,
     );
     assert!(receive_auth1.is_err());
+    let reloaded_ticket = TicketInstance::find(updated_ticket.id, connection).unwrap();
+    assert_eq!(
+        reloaded_ticket.first_name_override,
+        Some("Janus".to_string())
+    );
+    assert_eq!(reloaded_ticket.last_name_override, Some("Zeal".to_string()));
 
     // Genres prior to transfer
     assert_eq!(
@@ -1400,10 +1685,11 @@ fn receive_ticket_transfer() {
 
     //Look if one of the tickets does have the new wallet_id
     let receive_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
-
-    let received_ticket = TicketInstance::find(ticket_ids[0], connection).unwrap();
-
-    assert_eq!(receive_wallet.id, received_ticket.wallet_id);
+    let reloaded_ticket = TicketInstance::find(updated_ticket.id, connection).unwrap();
+    // Transferred tickets have their name overrides cleared
+    assert_eq!(reloaded_ticket.first_name_override, None);
+    assert_eq!(reloaded_ticket.last_name_override, None);
+    assert_eq!(reloaded_ticket.wallet_id, receive_wallet.id);
 }
 
 #[test]

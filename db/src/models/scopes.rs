@@ -42,6 +42,8 @@ pub enum Scopes {
     RegionWrite,
     TicketAdmin,
     TicketRead,
+    TicketWrite,
+    TicketWriteOwn,
     TicketTransfer,
     TicketTypeRead,
     TicketTypeWrite,
@@ -98,6 +100,8 @@ impl fmt::Display for Scopes {
             Scopes::VenueWrite => "venue:write",
             Scopes::TicketAdmin => "ticket:admin",
             Scopes::TicketRead => "ticket:read",
+            Scopes::TicketWrite => "ticket:write",
+            Scopes::TicketWriteOwn => "ticket:write-own",
             Scopes::TicketTransfer => "ticket:transfer",
             Scopes::TicketTypeRead => "ticket-type:read",
             Scopes::TicketTypeWrite => "ticket-type:write",
@@ -148,6 +152,8 @@ impl FromStr for Scopes {
             "venue:write" => Scopes::VenueWrite,
             "ticket:admin" => Scopes::TicketAdmin,
             "ticket:read" => Scopes::TicketRead,
+            "ticket:write" => Scopes::TicketWrite,
+            "ticket:write-own" => Scopes::TicketWriteOwn,
             "ticket:transfer" => Scopes::TicketTransfer,
             "ticket-type:read" => Scopes::TicketTypeRead,
             "ticket-type:write" => Scopes::TicketTypeWrite,
@@ -181,6 +187,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::EventInterest,
                 Scopes::OrderReadOwn,
                 Scopes::TicketTransfer,
+                Scopes::TicketWriteOwn,
             ];
             roles
         }
@@ -277,6 +284,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::EventFinancialReports,
                 Scopes::EventReports,
                 Scopes::OrgReports,
+                Scopes::TicketWrite,
             ];
             roles.extend(get_scopes_for_role(OrgMember));
             roles.extend(get_scopes_for_role(Roles::OrgBoxOffice));
@@ -339,6 +347,8 @@ fn get_scopes_for_role_test() {
             Scopes::RedeemTicket,
             Scopes::TicketAdmin,
             Scopes::TicketRead,
+            Scopes::TicketWrite,
+            Scopes::TicketWriteOwn,
             Scopes::TicketTransfer,
             Scopes::TicketTypeRead,
             Scopes::TicketTypeWrite,
@@ -399,6 +409,8 @@ fn get_scopes_test() {
             "ticket:admin",
             "ticket:read",
             "ticket:transfer",
+            "ticket:write",
+            "ticket:write-own",
             "user:read",
             "venue:write",
         ],
@@ -449,6 +461,8 @@ fn get_scopes_test() {
             "ticket:admin",
             "ticket:read",
             "ticket:transfer",
+            "ticket:write",
+            "ticket:write-own",
             "user:read",
             "venue:write",
         ],
@@ -497,6 +511,8 @@ fn get_scopes_test() {
             "ticket:admin",
             "ticket:read",
             "ticket:transfer",
+            "ticket:write",
+            "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
             "user:read",

@@ -292,6 +292,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/tickets/{id}", |r| {
         r.method(Method::GET).with(tickets::show);
+        r.method(Method::PATCH).with(tickets::update);
     })
     .resource("/tickets", |r| {
         r.method(Method::GET).with(tickets::index);

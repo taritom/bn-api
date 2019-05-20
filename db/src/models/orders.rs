@@ -819,9 +819,8 @@ impl Order {
 
         diesel::update(&self)
             .set((attrs, orders::updated_at.eq(dsl::now)))
-            .execute(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update order")?;
-        Order::find(self.id, conn)
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update order")
     }
 
     pub fn clear_cart(&mut self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {

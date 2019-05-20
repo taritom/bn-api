@@ -467,6 +467,7 @@ fn current_user() {
         vec![
             Scopes::EventInterest,
             Scopes::OrderReadOwn,
+            Scopes::TicketWriteOwn,
             Scopes::TicketTransfer
         ],
         response.scopes
@@ -522,6 +523,8 @@ fn current_user_organization_owner() {
             "redeem:ticket",
             "ticket:admin",
             "ticket:read",
+            "ticket:write",
+            "ticket:write-own",
             "ticket:transfer",
             "ticket-type:read",
             "ticket-type:write",
@@ -559,6 +562,7 @@ fn current_user_organization_member() {
         vec![
             Scopes::EventInterest,
             Scopes::OrderReadOwn,
+            Scopes::TicketWriteOwn,
             Scopes::TicketTransfer
         ],
         current_user.scopes
@@ -591,6 +595,7 @@ fn current_user_organization_member() {
             "redeem:ticket",
             "ticket:admin",
             "ticket:read",
+            "ticket:write-own",
             "ticket:transfer",
             "ticket-type:read",
             "ticket-type:write",

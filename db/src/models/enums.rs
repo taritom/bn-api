@@ -131,6 +131,7 @@ string_enum! { DomainEventTypes [
     TicketInstancePurchased,
     TicketInstanceRedeemed,
     TicketInstanceReleasedFromHold,
+    TicketInstanceUpdated,
     TicketPricingAdded,
     TicketPricingCreated,
     TicketPricingDeleted,
