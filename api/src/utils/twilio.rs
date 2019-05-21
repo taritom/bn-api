@@ -26,7 +26,7 @@ pub fn send_sms_async(
         jlog!(Level::Info, "Message sent via Twilio", {
             "to":message.to,
             "from": message.from,
-            "body": message.body.map(|b| b[..8].to_string()),
+            "body": message.body,
             "status": message.status
         });
     }
