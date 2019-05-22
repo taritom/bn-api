@@ -403,7 +403,7 @@ fn show() {
 
     let response: HttpResponse = events::show((
         test_request.extract_state(),
-        database.connection.clone(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
@@ -475,7 +475,7 @@ fn show_private() {
 
     let response: HttpResponse = events::show((
         test_request.extract_state(),
-        database.connection.clone(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
@@ -505,7 +505,7 @@ fn show_private() {
 
     let response: HttpResponse = events::show((
         test_request.extract_state(),
-        database.connection.clone(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(auth_org_user)),
@@ -521,7 +521,7 @@ fn show_private() {
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = events::show((
         test_request.extract_state(),
-        database.connection.clone(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
@@ -539,7 +539,7 @@ fn show_private() {
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = events::show((
         test_request.extract_state(),
-        database.connection.clone(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
@@ -609,7 +609,7 @@ fn show_with_cancelled_ticket_type() {
 
     let response: HttpResponse = events::show((
         test_request.extract_state(),
-        database.connection.clone(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
@@ -675,7 +675,7 @@ fn show_with_access_restricted_ticket_type_and_no_code() {
 
     let response: HttpResponse = events::show((
         test_request.extract_state(),
-        database.connection.clone(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
@@ -744,7 +744,7 @@ fn show_with_access_restricted_ticket_type_and_access_code() {
 
     let response: HttpResponse = events::show((
         test_request.extract_state(),
-        database.connection.clone(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
@@ -778,7 +778,7 @@ fn show_with_visibility_always_before_sale() {
 
     let response: HttpResponse = events::show((
         request.state(),
-        conn.clone(),
+        conn.clone().into(),
         path,
         request.query(),
         auth_user.into_optional(),
@@ -816,7 +816,7 @@ fn show_with_visibility_always_before_sale_pricing() {
 
     let response: HttpResponse = events::show((
         request.state(),
-        conn.clone(),
+        conn.clone().into(),
         path,
         request.query(),
         auth_user.into_optional(),
@@ -855,7 +855,7 @@ fn show_with_visibility_always_after_sale() {
 
     let response: HttpResponse = events::show((
         request.state(),
-        conn.clone(),
+        conn.clone().into(),
         path,
         request.query(),
         auth_user.into_optional(),
@@ -891,7 +891,7 @@ fn show_with_hidden_ticket_type() {
 
     let response: HttpResponse = events::show((
         request.state(),
-        conn.clone(),
+        conn.clone().into(),
         path,
         request.query(),
         auth_user.into_optional(),

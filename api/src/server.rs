@@ -17,13 +17,15 @@ const LOGGER_FORMAT: &'static str = r#"{"level": "INFO", "target":"bigneon::requ
 pub struct AppState {
     pub config: Config,
     pub database: Database,
+    pub database_ro: Database,
     pub service_locator: ServiceLocator,
 }
 
 impl AppState {
-    pub fn new(config: Config, database: Database) -> AppState {
+    pub fn new(config: Config, database: Database, database_ro: Database) -> AppState {
         AppState {
             database,
+            database_ro,
             service_locator: ServiceLocator::new(&config),
             config,
         }
@@ -43,6 +45,7 @@ impl Server {
         let bind_addr = format!("{}:{}", config.api_host, config.api_port);
 
         let database = Database::from_config(&config);
+        let database_ro = Database::readonly_from_config(&config);
 
         let mut domain_action_monitor =
             DomainActionMonitor::new(config.clone(), database.clone(), 1);
@@ -65,37 +68,41 @@ impl Server {
             //            let keep_alive = server::KeepAlive::Tcp(config.http_keep_alive);
             server::new({
                 move || {
-                    App::with_state(AppState::new(config.clone(), database.clone()))
-                        .middleware(BigNeonLogger::new(LOGGER_FORMAT))
-                        .middleware(DatabaseTransaction::new())
-                        .middleware(AppVersionHeader::new())
-                        .middleware(Metatags::new(
-                            config.ssr_trigger_header.clone(),
-                            config.ssr_trigger_value.clone(),
-                            config.front_end_url.clone(),
-                            config.app_name.clone(),
-                        ))
-                        .configure(|a| {
-                            let mut cors_config = Cors::for_app(a);
-                            match config.allowed_origins.as_ref() {
-                                "*" => cors_config.send_wildcard(),
-                                _ => cors_config.allowed_origin(&config.allowed_origins),
-                            };
-                            cors_config
-                                .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
-                                .allowed_headers(vec![
-                                    http::header::AUTHORIZATION,
-                                    http::header::ACCEPT,
-                                    "X-API-Client-Version"
-                                        .parse::<http::header::HeaderName>()
-                                        .unwrap(),
-                                ])
-                                .allowed_header(http::header::CONTENT_TYPE)
-                                .expose_headers(vec!["x-app-version"])
-                                .max_age(3600);
+                    App::with_state(AppState::new(
+                        config.clone(),
+                        database.clone(),
+                        database_ro.clone(),
+                    ))
+                    .middleware(BigNeonLogger::new(LOGGER_FORMAT))
+                    .middleware(DatabaseTransaction::new())
+                    .middleware(AppVersionHeader::new())
+                    .middleware(Metatags::new(
+                        config.ssr_trigger_header.clone(),
+                        config.ssr_trigger_value.clone(),
+                        config.front_end_url.clone(),
+                        config.app_name.clone(),
+                    ))
+                    .configure(|a| {
+                        let mut cors_config = Cors::for_app(a);
+                        match config.allowed_origins.as_ref() {
+                            "*" => cors_config.send_wildcard(),
+                            _ => cors_config.allowed_origin(&config.allowed_origins),
+                        };
+                        cors_config
+                            .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
+                            .allowed_headers(vec![
+                                http::header::AUTHORIZATION,
+                                http::header::ACCEPT,
+                                "X-API-Client-Version"
+                                    .parse::<http::header::HeaderName>()
+                                    .unwrap(),
+                            ])
+                            .allowed_header(http::header::CONTENT_TYPE)
+                            .expose_headers(vec!["x-app-version"])
+                            .max_age(3600);
 
-                            routing::routes(&mut cors_config)
-                        })
+                        routing::routes(&mut cors_config)
+                    })
                 }
             })
             //            .keep_alive(keep_alive)

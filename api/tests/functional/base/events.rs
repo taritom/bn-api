@@ -96,7 +96,7 @@ pub fn show_box_office_pricing(role: Roles, should_test_succeed: bool) {
 
     let response: HttpResponse = events::show((
         test_request.extract_state(),
-        database.connection.clone(),
+        database.connection.clone().into(),
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),

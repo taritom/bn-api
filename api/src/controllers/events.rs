@@ -6,6 +6,7 @@ use chrono::prelude::*;
 use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
 use db::Connection;
+use db::ReadonlyConnection;
 use diesel::PgConnection;
 use domain_events::executors::update_genres::UpdateGenresPayload;
 use errors::*;
@@ -137,7 +138,7 @@ pub fn checkins(
 pub fn index(
     (state, connection, query, auth_user): (
         State<AppState>,
-        Connection,
+        ReadonlyConnection,
         Query<SearchParameters>,
         OptionalUser,
     ),
@@ -217,7 +218,7 @@ pub struct EventParameters {
 pub fn show(
     (state, connection, parameters, query, user): (
         State<AppState>,
-        Connection,
+        ReadonlyConnection,
         Path<PathParameters>,
         Query<EventParameters>,
         OptionalUser,

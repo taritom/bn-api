@@ -120,7 +120,9 @@ steps:
       environment:
         <<: *env
         DATABASE_URL: postgres://app:password@database/other_tests
+        READONLY_DATABASE_URL: postgres://app:password@database/other_tests
         TEST_DATABASE_URL: postgres://app:password@database/other_tests
+        TEST_READONLY_DATABASE_URL: postgres://app:password@database/other_tests
         TEST_DATABASE_ADMIN_URL: postgres://app:password@database/other_tests
       commands:
         - ./scripts/run-other-tests-ci.sh
@@ -150,7 +152,9 @@ steps:
       environment:
           <<: *env
           DATABASE_URL: postgres://app:password@database/integration_tests
+          READONLY_DATABASE_URL: postgres://app:password@database/integration_tests
           TEST_DATABASE_URL: postgres://app:password@database/integration_tests
+          TEST_READONLY_DATABASE_URL: postgres://app:password@database/integration_tests
           TEST_DATABASE_ADMIN_URL: postgres://app:password@database/integration_tests
       commands:
         - ./scripts/run-integration-tests-ci.sh
@@ -276,6 +280,6 @@ services:
 
 ---
 kind: signature
-hmac: 47584f2a04735c284f8b9455bcc95bb9779e41475fd1cf7759a488da7228c7ab
+hmac: fb3c0ff7a87461c5de0bd9861778c9a0d49ae89e9cd61fac4eec3664902e9d56
 
 ...

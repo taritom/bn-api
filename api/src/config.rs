@@ -17,6 +17,7 @@ pub struct Config {
     pub api_port: String,
     pub app_name: String,
     pub database_url: String,
+    pub readonly_database_url: String,
     pub domain: String,
     pub environment: Environment,
     pub facebook_app_id: Option<String>,
@@ -69,6 +70,7 @@ const APP_NAME: &str = "APP_NAME";
 const API_HOST: &str = "API_HOST";
 const API_PORT: &str = "API_PORT";
 const DATABASE_URL: &str = "DATABASE_URL";
+const READONLY_DATABASE_URL: &str = "READONLY_DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
@@ -81,6 +83,7 @@ const PRIMARY_CURRENCY: &str = "PRIMARY_CURRENCY";
 const STRIPE_SECRET_KEY: &str = "STRIPE_SECRET_KEY";
 const TARI_URL: &str = "TARI_URL";
 const TEST_DATABASE_URL: &str = "TEST_DATABASE_URL";
+const TEST_READONLY_DATABASE_URL: &str = "TEST_READONLY_DATABASE_URL";
 const TOKEN_SECRET: &str = "TOKEN_SECRET";
 const TOKEN_ISSUER: &str = "TOKEN_ISSUER";
 const HTTP_KEEP_ALIVE: &str = "HTTP_KEEP_ALIVE";
@@ -133,9 +136,15 @@ impl Config {
 
         let database_url = match environment {
             Environment::Test => env::var(&TEST_DATABASE_URL)
-                .unwrap_or_else(|_| panic!("{} must be defined.", DATABASE_URL)),
+                .unwrap_or_else(|_| panic!("{} must be defined.", TEST_DATABASE_URL)),
             _ => env::var(&DATABASE_URL)
                 .unwrap_or_else(|_| panic!("{} must be defined.", DATABASE_URL)),
+        };
+
+        let readonly_database_url = match environment {
+            Environment::Test => env::var(&TEST_READONLY_DATABASE_URL)
+                .unwrap_or_else(|_| panic!("{} must be defined.", TEST_READONLY_DATABASE_URL)),
+            _ => env::var(&READONLY_DATABASE_URL).unwrap_or_else(|_| database_url.clone()),
         };
 
         let domain = env::var(&DOMAIN).unwrap_or_else(|_| "api.bigneon.com".to_string());
@@ -302,6 +311,7 @@ impl Config {
             api_host,
             api_port,
             database_url,
+            readonly_database_url,
             domain,
             environment,
             facebook_app_id,

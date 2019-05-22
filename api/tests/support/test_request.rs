@@ -32,6 +32,7 @@ impl TestRequest {
         let test_request = test::TestRequest::with_state(AppState::new(
             config.clone(),
             Database::from_config(&config),
+            Database::readonly_from_config(&config),
         ));
 
         // TODO: actix-web test requests do not allow router customization except
