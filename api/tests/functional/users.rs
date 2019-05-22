@@ -467,6 +467,8 @@ fn current_user() {
         vec![
             Scopes::EventInterest,
             Scopes::OrderReadOwn,
+            Scopes::TransferCancelOwn,
+            Scopes::TransferReadOwn,
             Scopes::TicketWriteOwn,
             Scopes::TicketTransfer
         ],
@@ -520,6 +522,10 @@ fn current_user_organization_owner() {
             "org:reports",
             "org:users",
             "org:write",
+            "transfer:cancel",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
             "redeem:ticket",
             "ticket:admin",
             "ticket:read",
@@ -562,6 +568,8 @@ fn current_user_organization_member() {
         vec![
             Scopes::EventInterest,
             Scopes::OrderReadOwn,
+            Scopes::TransferCancelOwn,
+            Scopes::TransferReadOwn,
             Scopes::TicketWriteOwn,
             Scopes::TicketTransfer
         ],
@@ -592,6 +600,10 @@ fn current_user_organization_member() {
             "org:fans",
             "org:read",
             "org:read-events",
+            "transfer:cancel",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
             "redeem:ticket",
             "ticket:admin",
             "ticket:read",

@@ -660,6 +660,10 @@ pub fn get_scopes_for_user() {
             "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
+            "transfer:cancel",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
             "user:read",
             "venue:write"
         ]
@@ -709,6 +713,10 @@ pub fn get_scopes_for_user() {
             "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
+            "transfer:cancel",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
             "user:read",
             "venue:write"
         ]
@@ -776,7 +784,9 @@ pub fn get_scopes_for_user() {
             "org:read-events",
             "ticket:read",
             "ticket-type:read",
-            "ticket-type:write"
+            "ticket-type:write",
+            "transfer:cancel",
+            "transfer:read"
         ]
     );
 
@@ -797,7 +807,8 @@ pub fn get_scopes_for_user() {
             "order:read",
             "org:read-events",
             "ticket:read",
-            "ticket-type:read"
+            "ticket-type:read",
+            "transfer:read"
         ]
     );
 
@@ -837,6 +848,10 @@ pub fn get_scopes_for_user() {
             "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
+            "transfer:cancel",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
             "venue:write",
         ]
     );
@@ -886,6 +901,10 @@ pub fn get_scopes_for_user() {
             "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
+            "transfer:cancel",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
             "user:read",
             "venue:write"
         ]

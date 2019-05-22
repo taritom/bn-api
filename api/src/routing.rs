@@ -185,6 +185,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/orders/{id}/tickets", |r| {
         r.method(Method::GET).with(orders::tickets);
     })
+    .resource("/orders/{id}/transfers", |r| {
+        r.method(Method::GET).with(transfers::index);
+    })
     .resource("/orders/{id}", |r| {
         r.method(Method::GET).with(orders::show);
         r.method(Method::PATCH).with(orders::update);
@@ -299,6 +302,12 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/tickets/{id}/redeem", |r| {
         r.method(Method::GET).with(tickets::show_redeemable_ticket);
+    })
+    .resource("/transfers/{id}", |r| {
+        r.method(Method::DELETE).with(transfers::cancel);
+    })
+    .resource("/transfers", |r| {
+        r.method(Method::GET).with(transfers::index);
     })
     .resource("/users/me", |r| {
         r.method(Method::GET).with(users::current_user);

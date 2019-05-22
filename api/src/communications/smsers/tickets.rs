@@ -7,6 +7,30 @@ use utils::communication::Communication;
 use utils::communication::CommunicationType;
 use utils::deep_linker::DeepLinker;
 
+pub fn transfer_cancelled(
+    config: &Config,
+    phone: String,
+    from_user: &User,
+    conn: &PgConnection,
+) -> Result<(), BigNeonError> {
+    let source = CommAddress::from(config.communication_default_source_phone.clone());
+    let destinations = CommAddress::from(phone);
+    let body = format!(
+        "{} has cancelled their transferred tickets.",
+        from_user.full_name()
+    );
+    Communication::new(
+        CommunicationType::Sms,
+        body,
+        None,
+        Some(source),
+        destinations,
+        None,
+        None,
+    )
+    .queue(conn)
+}
+
 pub fn send_tickets(
     config: &Config,
     phone: String,

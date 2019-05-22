@@ -379,7 +379,7 @@ fn guest_list() {
             from_user.id,
             &ticket_ids,
             "nowhere",
-            "Test",
+            TransferMessageType::Email,
             new_user.id,
             connection,
         )

@@ -770,8 +770,7 @@ fn receive_ticket_transfer_fails_expired_transfer() {
     )
     .unwrap();
 
-    let transfer =
-        &Transfer::find_active_pending_by_ticket_instance_ids(&ticket_ids, conn).unwrap()[0];
+    let transfer = &Transfer::find_by_transfer_key(transfer_auth.transfer_key, conn).unwrap();
 
     let _q: Vec<TicketInstance> = diesel::sql_query(
         r#"

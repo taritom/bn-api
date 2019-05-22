@@ -38,6 +38,10 @@ pub enum Scopes {
     OrgReports,
     OrgUsers,
     OrgWrite,
+    TransferCancel,
+    TransferCancelOwn,
+    TransferRead,
+    TransferReadOwn,
     RedeemTicket,
     RegionWrite,
     TicketAdmin,
@@ -105,6 +109,10 @@ impl fmt::Display for Scopes {
             Scopes::TicketTransfer => "ticket:transfer",
             Scopes::TicketTypeRead => "ticket-type:read",
             Scopes::TicketTypeWrite => "ticket-type:write",
+            Scopes::TransferCancel => "transfer:cancel",
+            Scopes::TransferCancelOwn => "transfer:cancel-own",
+            Scopes::TransferRead => "transfer:read",
+            Scopes::TransferReadOwn => "transfer:read-own",
         };
         write!(f, "{}", s)
     }
@@ -157,6 +165,10 @@ impl FromStr for Scopes {
             "ticket:transfer" => Scopes::TicketTransfer,
             "ticket-type:read" => Scopes::TicketTypeRead,
             "ticket-type:write" => Scopes::TicketTypeWrite,
+            "transfer:cancel" => Scopes::TransferCancel,
+            "transfer:cancel-own" => Scopes::TransferCancelOwn,
+            "transfer:read" => Scopes::TransferRead,
+            "transfer:read-own" => Scopes::TransferReadOwn,
             _ => {
                 return Err(EnumParseError {
                     message: "Could not parse value".to_string(),
@@ -188,6 +200,8 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::OrderReadOwn,
                 Scopes::TicketTransfer,
                 Scopes::TicketWriteOwn,
+                Scopes::TransferCancelOwn,
+                Scopes::TransferReadOwn,
             ];
             roles
         }
@@ -225,6 +239,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::OrgReadEvents,
                 Scopes::TicketRead,
                 Scopes::TicketTypeRead,
+                Scopes::TransferRead,
             ];
             roles
         }
@@ -240,6 +255,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::TicketTypeWrite,
                 Scopes::HoldWrite,
                 // Scopes::OrderRefund,
+                Scopes::TransferCancel,
             ];
             roles.extend(get_scopes_for_role(Roles::PromoterReadOnly));
             roles
@@ -270,6 +286,8 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::TicketRead,
                 Scopes::TicketTypeRead,
                 Scopes::TicketTypeWrite,
+                Scopes::TransferRead,
+                Scopes::TransferCancel,
                 Scopes::VenueWrite,
             ];
             roles.extend(get_scopes_for_role(Roles::User));
@@ -352,6 +370,10 @@ fn get_scopes_for_role_test() {
             Scopes::TicketTransfer,
             Scopes::TicketTypeRead,
             Scopes::TicketTypeWrite,
+            Scopes::TransferCancel,
+            Scopes::TransferCancelOwn,
+            Scopes::TransferRead,
+            Scopes::TransferReadOwn,
             Scopes::UserRead,
             Scopes::VenueWrite,
             Scopes::OrgReadEvents
@@ -411,6 +433,10 @@ fn get_scopes_test() {
             "ticket:transfer",
             "ticket:write",
             "ticket:write-own",
+            "transfer:cancel-own",
+            "transfer:cancel",
+            "transfer:read-own",
+            "transfer:read",
             "user:read",
             "venue:write",
         ],
@@ -463,6 +489,10 @@ fn get_scopes_test() {
             "ticket:transfer",
             "ticket:write",
             "ticket:write-own",
+            "transfer:cancel",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
             "user:read",
             "venue:write",
         ],
@@ -515,6 +545,10 @@ fn get_scopes_test() {
             "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
+            "transfer:cancel",
+            "transfer:cancel-own",
+            "transfer:read",
+            "transfer:read-own",
             "user:read",
             "venue:write",
         ],

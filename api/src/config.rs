@@ -40,6 +40,8 @@ pub struct Config {
     pub sendgrid_template_bn_user_registered: String,
     pub sendgrid_template_bn_purchase_completed: String,
     pub sendgrid_template_bn_org_invite: String,
+    pub sendgrid_template_bn_cancel_transfer_tickets: String,
+    pub sendgrid_template_bn_cancel_transfer_tickets_receipt: String,
     pub sendgrid_template_bn_transfer_tickets: String,
     pub sendgrid_template_bn_password_reset: String,
     pub sendgrid_template_bn_user_invite: String,
@@ -96,6 +98,10 @@ const SENDGRID_TEMPLATE_BN_REFUND: &str = "SENDGRID_TEMPLATE_BN_REFUND";
 const SENDGRID_TEMPLATE_BN_USER_REGISTERED: &str = "SENDGRID_TEMPLATE_BN_USER_REGISTERED";
 const SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED: &str = "SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED";
 const SENDGRID_TEMPLATE_BN_ORG_INVITE: &str = "SENDGRID_TEMPLATE_BN_ORG_INVITE";
+const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT: &str =
+    "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT";
+const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS: &str =
+    "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS";
 const SENDGRID_TEMPLATE_BN_PASSWORD_RESET: &str = "SENDGRID_TEMPLATE_BN_PASSWORD_RESET";
 const SENDGRID_TEMPLATE_BN_USER_INVITE: &str = "SENDGRID_TEMPLATE_BN_USER_INVITE";
@@ -218,7 +224,20 @@ impl Config {
             env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS).unwrap_or_else(|_| {
                 panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS)
             });
-
+        let sendgrid_template_bn_cancel_transfer_tickets =
+            env::var(&SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS).unwrap_or_else(|_| {
+                panic!(
+                    "{} must be defined.",
+                    SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS
+                )
+            });
+        let sendgrid_template_bn_cancel_transfer_tickets_receipt =
+            env::var(&SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT).unwrap_or_else(|_| {
+                panic!(
+                    "{} must be defined.",
+                    SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT
+                )
+            });
         let sendgrid_template_bn_password_reset = env::var(&SENDGRID_TEMPLATE_BN_PASSWORD_RESET)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_PASSWORD_RESET));
         let sendgrid_template_bn_user_invite = env::var(&SENDGRID_TEMPLATE_BN_USER_INVITE)
@@ -308,6 +327,8 @@ impl Config {
             sendgrid_template_bn_user_registered,
             sendgrid_template_bn_purchase_completed,
             sendgrid_template_bn_org_invite,
+            sendgrid_template_bn_cancel_transfer_tickets,
+            sendgrid_template_bn_cancel_transfer_tickets_receipt,
             sendgrid_template_bn_transfer_tickets,
             sendgrid_template_bn_password_reset,
             sendgrid_template_bn_user_invite,

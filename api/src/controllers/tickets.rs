@@ -175,7 +175,7 @@ pub fn send_via_email_or_phone(
                 auth_user.id(),
                 &send_tickets_request.ticket_ids,
                 &send_tickets_request.email_or_phone,
-                "Email",
+                TransferMessageType::Email,
                 user.id,
                 connection,
             )?;
@@ -205,7 +205,7 @@ pub fn send_via_email_or_phone(
                     .validity_period_in_seconds
                     .unwrap_or(604_800) as u32,
                 Some(&send_tickets_request.email_or_phone),
-                Some("Email"),
+                Some(TransferMessageType::Email),
                 connection,
             )?;
             mailers::tickets::send_tickets(
@@ -227,7 +227,7 @@ pub fn send_via_email_or_phone(
                 .validity_period_in_seconds
                 .unwrap_or(604_800) as u32,
             Some(&send_tickets_request.email_or_phone),
-            Some("Phone"),
+            Some(TransferMessageType::Phone),
             connection,
         )?;
         smsers::tickets::send_tickets(

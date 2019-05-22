@@ -271,6 +271,16 @@ table! {
 }
 
 table! {
+    order_transfers (id) {
+        id -> Uuid,
+        order_id -> Uuid,
+        transfer_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     orders (id) {
         id -> Uuid,
         user_id -> Uuid,
@@ -550,9 +560,18 @@ table! {
 }
 
 table! {
-    transfers (id) {
+    transfer_tickets (id) {
         id -> Uuid,
         ticket_instance_id -> Uuid,
+        transfer_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    transfers (id) {
+        id -> Uuid,
         source_user_id -> Uuid,
         destination_user_id -> Nullable<Uuid>,
         transfer_expiry_date -> Timestamp,
@@ -560,6 +579,8 @@ table! {
         status -> Varchar,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        transfer_message_type -> Nullable<Text>,
+        transfer_address -> Nullable<Text>,
     }
 }
 
@@ -663,6 +684,8 @@ joinable!(order_items -> holds (hold_id));
 joinable!(order_items -> orders (order_id));
 joinable!(order_items -> ticket_pricing (ticket_pricing_id));
 joinable!(order_items -> ticket_types (ticket_type_id));
+joinable!(order_transfers -> orders (order_id));
+joinable!(order_transfers -> transfers (transfer_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
@@ -690,7 +713,8 @@ joinable!(ticket_pricing -> ticket_types (ticket_type_id));
 joinable!(ticket_type_codes -> codes (code_id));
 joinable!(ticket_type_codes -> ticket_types (ticket_type_id));
 joinable!(ticket_types -> events (event_id));
-joinable!(transfers -> ticket_instances (ticket_instance_id));
+joinable!(transfer_tickets -> ticket_instances (ticket_instance_id));
+joinable!(transfer_tickets -> transfers (transfer_id));
 joinable!(user_genres -> genres (genre_id));
 joinable!(user_genres -> users (user_id));
 joinable!(venues -> organizations (organization_id));
@@ -716,6 +740,7 @@ allow_tables_to_appear_in_same_query!(
     genres,
     holds,
     order_items,
+    order_transfers,
     orders,
     organization_invites,
     organization_users,
@@ -734,6 +759,7 @@ allow_tables_to_appear_in_same_query!(
     ticket_pricing,
     ticket_type_codes,
     ticket_types,
+    transfer_tickets,
     transfers,
     user_genres,
     users,

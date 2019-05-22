@@ -18,6 +18,7 @@ mod reports;
 mod stages;
 mod ticket_types;
 mod tickets;
+mod transfers;
 mod user_invites;
 mod users;
 mod venues;

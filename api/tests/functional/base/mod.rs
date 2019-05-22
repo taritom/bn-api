@@ -12,5 +12,6 @@ pub mod reports;
 pub mod stages;
 pub mod ticket_types;
 pub mod tickets;
+pub mod transfers;
 pub mod users;
 pub mod venues;

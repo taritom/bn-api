@@ -11,7 +11,10 @@ use itertools::Itertools;
 use log::Level::{self, Debug};
 use models::*;
 use regex::RegexSet;
-use schema::{events, order_items, orders, organization_users, organizations, payments, users};
+use schema::{
+    events, order_items, order_transfers, orders, organization_users, organizations, payments,
+    transfers, users,
+};
 use serde_json;
 use serde_json::Value;
 use std::borrow::Cow;
@@ -166,6 +169,16 @@ impl Order {
             "Failed to delete order record",
             diesel::delete(self).execute(conn),
         )
+    }
+
+    pub fn transfers(&self, conn: &PgConnection) -> Result<Vec<Transfer>, DatabaseError> {
+        order_transfers::table
+            .inner_join(transfers::table.on(transfers::id.eq(order_transfers::transfer_id)))
+            .filter(order_transfers::order_id.eq(self.id))
+            .select(transfers::all_columns)
+            .then_order_by(transfers::created_at.desc())
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load transfer tickets")
     }
 
     pub(crate) fn destroy_item(

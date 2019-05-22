@@ -2,6 +2,7 @@ use bigneon_db::dev::times;
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::schema::{order_items, orders, ticket_instances};
+use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
@@ -10,6 +11,35 @@ use diesel::prelude::*;
 use std::collections::HashMap;
 use time::Duration;
 use uuid::Uuid;
+
+#[test]
+fn transfers() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let order = project
+        .create_order()
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
+
+    let transfer = Transfer::create(
+        user.id,
+        Uuid::new_v4(),
+        dates::now().add_seconds(40).finish(),
+        None,
+        None,
+    )
+    .commit(&None, connection)
+    .unwrap();
+    transfer
+        .add_transfer_ticket(ticket.id, user.id, &None, connection)
+        .unwrap();
+    assert!(transfer.update_associated_orders(connection).is_ok());
+    assert_eq!(vec![transfer], order.transfers(connection).unwrap());
+}
 
 #[test]
 fn main_event_id() {

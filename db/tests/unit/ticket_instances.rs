@@ -93,13 +93,17 @@ fn find_for_user_for_display() {
         false
     );
     let transfer = Transfer::create(
-        found_tickets[0].1[0].id,
         user.id,
         Uuid::new_v4(),
         NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11),
+        None,
+        None,
     )
-    .commit(None, connection)
+    .commit(&None, connection)
     .unwrap();
+    transfer
+        .add_transfer_ticket(found_tickets[0].1[0].id, user.id, &None, connection)
+        .unwrap();
 
     let found_tickets =
         TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
@@ -170,14 +174,18 @@ fn find_for_user_for_display() {
     );
 
     // Another pending transfer
-    Transfer::create(
-        found_tickets[0].1[0].id,
+    let transfer = Transfer::create(
         user.id,
         Uuid::new_v4(),
         NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11),
+        None,
+        None,
     )
-    .commit(None, connection)
+    .commit(&None, connection)
     .unwrap();
+    transfer
+        .add_transfer_ticket(found_tickets[0].1[0].id, user.id, &None, connection)
+        .unwrap();
 
     let found_tickets =
         TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
@@ -242,7 +250,6 @@ fn find_for_user_for_display() {
     assert_eq!(found_tickets[1].1.len(), 2);
 
     // start date filters out event
-
     let found_tickets = TicketInstance::find_for_user_for_display(
         user.id,
         None,
@@ -1298,7 +1305,7 @@ fn owner() {
         user.id,
         &vec![ticket.id],
         "nowhere",
-        "Test",
+        TransferMessageType::Email,
         user2.id,
         connection,
     )
@@ -1596,8 +1603,7 @@ fn receive_ticket_transfer() {
     let transfer_auth =
         TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, 10, None, None, connection)
             .unwrap();
-    let transfer =
-        &Transfer::find_active_pending_by_ticket_instance_ids(&ticket_ids, connection).unwrap()[0];
+    let transfer = &Transfer::find_by_transfer_key(transfer_auth.transfer_key, connection).unwrap();
 
     let _q: Vec<TicketInstance> = diesel::sql_query(
         r#"
@@ -1725,18 +1731,20 @@ fn transfer_to_existing_user() {
     let original_purchaser = project.create_user().finish();
     let receiver = project.create_user().finish();
 
-    project
+    let order = project
         .create_order()
         .for_event(&event)
         .for_user(&original_purchaser)
         .quantity(5)
         .is_paid()
         .finish();
-    let ticket_ids: Vec<Uuid> = TicketInstance::find_for_user(original_purchaser.id, connection)
-        .unwrap()
-        .into_iter()
-        .map(|ti| ti.id)
-        .collect();
+    let mut ticket_ids: Vec<Uuid> =
+        TicketInstance::find_for_user(original_purchaser.id, connection)
+            .unwrap()
+            .into_iter()
+            .map(|ti| ti.id)
+            .collect();
+    ticket_ids.sort();
 
     // Genres prior to transfer
     assert_eq!(
@@ -1749,11 +1757,23 @@ fn transfer_to_existing_user() {
         original_purchaser.id,
         &ticket_ids,
         "nowhere",
-        "Test",
+        TransferMessageType::Email,
         receiver.id,
         connection,
     )
     .unwrap();
+
+    let transfer = order.transfers(connection).unwrap().pop().unwrap();
+    let mut transfer_ticket_ticket_ids: Vec<Uuid> = transfer
+        .transfer_tickets(connection)
+        .unwrap()
+        .into_iter()
+        .map(|ti| ti.ticket_instance_id)
+        .collect();
+    transfer_ticket_ticket_ids.sort();
+    assert_eq!(transfer.source_user_id, original_purchaser.id);
+    assert_eq!(transfer.destination_user_id, Some(receiver.id));
+    assert_eq!(transfer_ticket_ticket_ids, ticket_ids);
 
     // Genres updated with tickets now transferred
     assert!(original_purchaser.genres(connection).unwrap().is_empty());

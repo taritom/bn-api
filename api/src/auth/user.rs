@@ -1,6 +1,6 @@
 use actix_web::{HttpRequest, Result};
 use bigneon_db::models::User as DbUser;
-use bigneon_db::models::{Event, Organization, Roles, Scopes};
+use bigneon_db::models::{Event, Order, Organization, Roles, Scopes};
 use bigneon_db::prelude::errors::EnumParseError;
 use diesel::PgConnection;
 use errors::*;
@@ -11,6 +11,8 @@ use serde_json::Value;
 use server::AppState;
 use std::collections::HashMap;
 use uuid::Uuid;
+
+const MISSING_PERMISSIONS_MESSAGING: &str = "User does not have the required permissions";
 
 #[derive(Clone, Debug)]
 pub struct User {
@@ -113,6 +115,21 @@ impl User {
         self.check_scope_access(scope, Some(organization), Some(event_id), Some(conn), false)
     }
 
+    pub fn has_scope_for_order(
+        &self,
+        scope: Scopes,
+        order: &Order,
+        conn: &PgConnection,
+    ) -> Result<bool, BigNeonError> {
+        let mut has_scope = false;
+        for organization in order.organizations(conn)? {
+            if self.check_scope_access(scope, Some(&organization), None, Some(conn), false)? {
+                has_scope = true;
+            }
+        }
+        Ok(has_scope)
+    }
+
     pub fn has_scope_for_organization(
         &self,
         scope: Scopes,
@@ -137,9 +154,31 @@ impl User {
         }
         Err(AuthError::new(
             AuthErrorType::Unauthorized,
-            "User does not have the required permissions".to_string(),
+            MISSING_PERMISSIONS_MESSAGING.to_string(),
         )
         .into())
+    }
+
+    pub fn requires_scope_for_order(
+        &self,
+        scope: Scopes,
+        order: &Order,
+        conn: &PgConnection,
+    ) -> Result<(), BigNeonError> {
+        if !self.has_scope_for_order(scope, order, conn)? {
+            let mut logging_data = HashMap::new();
+            logging_data.insert("accessed_scope", json!(scope.to_string()));
+            logging_data.insert("global_scopes", json!(self.global_scopes));
+            logging_data.insert("order_id", json!(order.id));
+            self.log_unauthorized_access_attempt(logging_data);
+
+            return Err(AuthError::new(
+                AuthErrorType::Unauthorized,
+                MISSING_PERMISSIONS_MESSAGING.to_string(),
+            )
+            .into());
+        }
+        Ok(())
     }
 
     pub fn requires_scope_for_organization_event(
@@ -154,7 +193,7 @@ impl User {
         }
         Err(AuthError::new(
             AuthErrorType::Unauthorized,
-            "User does not have the required permissions".to_string(),
+            MISSING_PERMISSIONS_MESSAGING.to_string(),
         )
         .into())
     }
@@ -170,7 +209,7 @@ impl User {
         }
         Err(AuthError::new(
             AuthErrorType::Unauthorized,
-            "User does not have the required permissions".to_string(),
+            MISSING_PERMISSIONS_MESSAGING.to_string(),
         )
         .into())
     }

@@ -1401,6 +1401,10 @@ fn get_scopes_by_organization() {
             Scopes::OrgReports,
             Scopes::OrgUsers,
             Scopes::OrgWrite,
+            Scopes::TransferCancel,
+            Scopes::TransferCancelOwn,
+            Scopes::TransferRead,
+            Scopes::TransferReadOwn,
             Scopes::RedeemTicket,
             Scopes::TicketAdmin,
             Scopes::TicketRead,
@@ -1437,6 +1441,10 @@ fn get_scopes_by_organization() {
             Scopes::OrgFans,
             Scopes::OrgRead,
             Scopes::OrgReadEvents,
+            Scopes::TransferCancel,
+            Scopes::TransferCancelOwn,
+            Scopes::TransferRead,
+            Scopes::TransferReadOwn,
             Scopes::RedeemTicket,
             Scopes::TicketAdmin,
             Scopes::TicketRead,
@@ -1476,6 +1484,8 @@ fn get_global_scopes() {
         vec![
             "event:interest",
             "order:read-own",
+            "transfer:cancel-own",
+            "transfer:read-own",
             "ticket:write-own",
             "ticket:transfer"
         ]
@@ -1489,6 +1499,8 @@ fn get_global_scopes() {
         vec![
             "event:interest",
             "order:read-own",
+            "transfer:cancel-own",
+            "transfer:read-own",
             "ticket:write-own",
             "ticket:transfer"
         ]
@@ -1540,6 +1552,10 @@ fn get_global_scopes() {
             "ticket:write-own",
             "ticket-type:read",
             "ticket-type:write",
+            "transfer:cancel-own",
+            "transfer:cancel",
+            "transfer:read-own",
+            "transfer:read",
             "user:read",
             "venue:write"
         ]

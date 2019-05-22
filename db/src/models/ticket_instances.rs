@@ -16,7 +16,6 @@ use schema::{
     users, wallets,
 };
 use std::cmp;
-use std::collections::HashMap;
 use tari_client::*;
 use time::Duration;
 use utils::errors::*;
@@ -168,7 +167,16 @@ impl TicketInstance {
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-            .left_join(transfers::table.on(ticket_instances::id.eq(transfers::ticket_instance_id).and(transfers::status.eq(TransferStatus::Pending))))
+            .left_join(transfers::table.on(
+                sql("transfers.id = (
+                    SELECT tt.transfer_id
+                    FROM transfer_tickets tt
+                    JOIN transfers t
+                    ON tt.transfer_id = t.id
+                    WHERE tt.ticket_instance_id = ticket_instances.id
+                    AND t.status = 'Pending'
+                )")
+            ))
             .filter(ticket_instances::id.eq(id))
             .select((
                 ticket_instances::id,
@@ -251,15 +259,14 @@ impl TicketInstance {
                 .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
                 .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
                 .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-                .left_join(
-                    transfers::table.on(ticket_instances::id
-                        .eq(transfers::ticket_instance_id)
-                        .and(
-                            transfers::id
-                                .is_null()
-                                .or(transfers::status.eq_any(vec![TransferStatus::Pending])),
-                        )),
-                )
+                .left_join(transfers::table.on(sql("transfers.id = (
+                        SELECT tt.transfer_id
+                        FROM transfer_tickets tt
+                        JOIN transfers t
+                        ON tt.transfer_id = t.id
+                        WHERE tt.ticket_instance_id = ticket_instances.id
+                        AND t.status = 'Pending'
+                    )")))
                 .filter(events::event_end.ge(
                     start_time.unwrap_or_else(|| NaiveDate::from_ymd(1970, 1, 1).and_hms(0, 0, 0)),
                 ))
@@ -837,7 +844,7 @@ impl TicketInstance {
         from_user_id: Uuid,
         ticket_ids: &[Uuid],
         address: &str,
-        sent_via: &str,
+        sent_via: TransferMessageType,
         to_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
@@ -902,7 +909,7 @@ impl TicketInstance {
         ticket_ids: &[Uuid],
         validity_period_in_seconds: u32,
         address: Option<&str>,
-        sent_via: Option<&str>,
+        sent_via: Option<TransferMessageType>,
         conn: &PgConnection,
     ) -> Result<TransferAuthorization, DatabaseError> {
         //Confirm that tickets are purchased and owned by user
@@ -916,31 +923,29 @@ impl TicketInstance {
 
         let mut update_count = 0;
         let transfers = Transfer::find_active_pending_by_ticket_instance_ids(ticket_ids, conn)?;
-        let ticket_transfer_lookup: HashMap<Uuid, &Transfer> = transfers
-            .iter()
-            .map(|t| (t.ticket_instance_id, t))
-            .collect();
+        for transfer in transfers {
+            transfer.cancel(user_id, Some(transfer_key), conn)?;
+        }
 
+        let transfer_data = Some(json!({
+            "sent_via": sent_via,
+            "address": address,
+            "sender_wallet_id": wallet_id,
+            "transfer_key": &transfer_key
+        }));
+        let transfer = Transfer::create(
+            user_id,
+            transfer_key,
+            transfer_expiry_date,
+            sent_via,
+            address.map(|a| a.to_string()),
+        )
+        .commit(&transfer_data, conn)?;
         for (t_id, _) in ticket_ids_and_updated_at {
-            let existing_transfer = ticket_transfer_lookup.get(&t_id);
-
-            // Cancel any existing transfer
-            if let Some(transfer) = existing_transfer {
-                transfer.cancel(user_id, Some(transfer_key), conn)?;
-            }
-
-            Transfer::create(t_id, user_id, transfer_key, transfer_expiry_date).commit(
-                Some(json!({
-                    "sent_via": sent_via,
-                    "address": address,
-                    "sender_wallet_id": wallet_id,
-                    "transfer_key": &transfer_key
-                })),
-                conn,
-            )?;
-
+            transfer.add_transfer_ticket(t_id, user_id, &transfer_data, conn)?;
             update_count += 1;
         }
+        transfer.update_associated_orders(conn)?;
 
         if update_count != ticket_ids.len() {
             return Err(DatabaseError::new(
@@ -1020,43 +1025,27 @@ impl TicketInstance {
             ));
         }
 
-        // TODO This is currently required because each transfers record is tied back to the ticket instance
-        // in a denormalized way. It's not ideal and is an artifact of the transfers model having been
-        // designed around the existing implementation. See: https://github.com/big-neon/bn-api/issues/1252
-        let transfer_is_expired: bool = select(exists(
-            transfers::table
-                .filter(transfers::transfer_key.eq(transfer_authorization.transfer_key))
-                .filter(transfers::status.eq(TransferStatus::Pending))
-                .filter(transfers::transfer_expiry_date.lt(dsl::now)),
-        ))
-        .get_result(conn)
-        .to_db_error(
-            ErrorCode::QueryError,
-            "Could not check if transfer was expired",
-        )?;
-        if transfer_is_expired {
+        let transfer = Transfer::find_by_transfer_key(transfer_authorization.transfer_key, conn)?;
+        if transfer.is_expired() {
             return Err(DatabaseError::new(
                 ErrorCode::BusinessProcessError,
                 Some("The transfer has expired.".to_string()),
+            ));
+        } else if transfer.status == TransferStatus::Cancelled {
+            return Err(DatabaseError::new(
+                ErrorCode::BusinessProcessError,
+                Some("The transfer has been cancelled.".to_string()),
             ));
         }
 
         //Confirm that transfer authorization time has not passed and that the sender still owns the tickets
         //being transfered
-        let tickets: Vec<TicketInstance> = ticket_instances::table
-            .inner_join(transfers::table.on(transfers::ticket_instance_id.eq(ticket_instances::id)))
-            .filter(transfers::transfer_key.eq(transfer_authorization.transfer_key))
-            .filter(transfers::status.eq(TransferStatus::Pending))
-            .filter(transfers::transfer_expiry_date.ge(dsl::now))
-            .select(ticket_instances::all_columns)
-            .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load ticket instances")?;
-        let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
-        let transfers = Transfer::find_active_pending_by_ticket_instance_ids(&ticket_ids, conn)?;
-        let ticket_transfer_lookup: HashMap<Uuid, &Transfer> = transfers
+        let transfer_tickets = transfer.transfer_tickets(conn)?;
+        let ticket_ids: Vec<Uuid> = transfer_tickets
             .iter()
-            .map(|t| (t.ticket_instance_id, t))
+            .map(|tt| tt.ticket_instance_id)
             .collect();
+        let tickets = TicketInstance::find_by_ids(&ticket_ids, conn)?;
 
         let mut own_all = true;
         let mut ticket_ids_to_transfer: Vec<(Uuid, NaiveDateTime)> = Vec::new();
@@ -1092,19 +1081,13 @@ impl TicketInstance {
             ))
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket instance")?;
-
-            match ticket_transfer_lookup.get(&t_id) {
-                Some(transfer) => transfer.complete(
-                    receiver_user_id,
-                    Some(json!({"receiver_wallet_id": receiver_wallet_id, "sender_wallet_id": sender_wallet.id, "num_tickets": transfer_authorization.num_tickets, "transfer_key": transfer_authorization.transfer_key})),
-                    conn,
-                )?,
-                None => return Err(DatabaseError::new(
-                    ErrorCode::BusinessProcessError,
-                    Some("Transfer not found for ticket".to_string()),
-                )),
-            };
         }
+
+        transfer.complete(
+            receiver_user_id,
+            Some(json!({"receiver_wallet_id": receiver_wallet_id, "sender_wallet_id": sender_wallet.id, "num_tickets": transfer_authorization.num_tickets, "transfer_key": transfer_authorization.transfer_key})),
+            conn
+        )?;
 
         if update_count != transfer_authorization.num_tickets as usize {
             return Err(DatabaseError::new(
