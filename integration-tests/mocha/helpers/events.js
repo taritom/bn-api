@@ -27,10 +27,10 @@ const create = async function (saveVarName) {
 }
 
 
-const createTickets = async function (event, saveVarName) {
+const createTickets = async function (event, saveVarName, quantity) {
     let requestBody = `{
 	"name":"Default_Pricing_{{$timestamp}}",
-	"capacity": 100,
+	"capacity": ${quantity || 100},
 	"start_date":"1982-02-01T02:22:00",
 	"end_date": "9999-01-10T02:22:00",
 	"price_in_cents": 2500,

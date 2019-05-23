@@ -3,7 +3,7 @@ const expect = require('chai').expect;
 const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
-const pm = require('../pm')
+const pm = require('../pm');const debug = require("debug");var log=debug('bn-api');
 
 const baseUrl = supertest(pm.environment.get('server'));
 
@@ -40,16 +40,16 @@ let access_code = {};
 describe('Guest - view event tickets with discount code', function () {
     before(async function () {
         response = await get(requestBody);
-        console.log(response.request.header);
-        console.log(response.request.url);
-        console.log(response.request._data);
-        console.log(response.request.method);
+        log(response.request.header);
+        log(response.request.url);
+        log(response.request._data);
+        log(response.request.method);
         responseBody = JSON.stringify(response.body);
-        //console.log(pm);
-        console.log(response.status);
+        //log(pm);
+        log(response.status);
 
         r = JSON.parse(responseBody);
-        console.log(JSON.stringify(r, null, 2));
+        log(JSON.stringify(r, null, 2));
         access_code = pm.environment.get("discount_redemption_code");
     });
 

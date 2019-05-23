@@ -5,7 +5,7 @@ WITH r AS (SELECT t.id
              AND a.ticket_type_id = $3
              AND coalesce($4, 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11') =
                  coalesce(t.hold_id, 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11') -- dummy guid
-           LIMIT $5 FOR UPDATE SKIP LOCKED)
+           LIMIT $5 FOR UPDATE OF t SKIP LOCKED)
 
 UPDATE ticket_instances
 

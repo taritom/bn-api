@@ -4,7 +4,7 @@ WITH cte AS (SELECT t.id
              WHERE t.order_item_id = $1
                AND t.status = ANY ($3)
                AND t.id = COALESCE($4, t.id)
-             LIMIT $2 FOR UPDATE SKIP LOCKED)
+             LIMIT $2 FOR UPDATE OF t SKIP LOCKED)
 UPDATE ticket_instances
 SET order_item_id  = NULL,
     reserved_until = NULL,

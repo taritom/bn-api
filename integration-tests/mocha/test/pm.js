@@ -5,11 +5,12 @@ const DEFAULTS = {
 };
 
 const pm = {};
+const debug=require('debug');var log = debug('bn-api');
 try {
     pm.environment = JSON.parse(fs.readFileSync("env.json"));
-    // console.log(pm);
+    // log(pm);
 } catch (err) {
-    console.log(err);
+    log(err);
     pm.environment = {};
 }
 

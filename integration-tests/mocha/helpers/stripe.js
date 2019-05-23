@@ -1,7 +1,7 @@
 const supertest = require('supertest');
 const pm = require('../test/pm');
 const expect = require('chai').expect;
-
+const debug = require("debug");var log=debug('bn-api');
 
 const baseUrl = supertest('https://api.stripe.com');
 const apiEndPoint = '/v1/tokens';
@@ -23,10 +23,11 @@ const getToken = async function () {
     const response = await post( requestBody);
     const responseBody = JSON.stringify(response.body);
     const json = JSON.parse(responseBody);
-    console.log(response.status);
-    console.log(responseBody);
+    log(response.status);
+    log(responseBody);
     expect(response.status).to.equal(200);
     pm.environment.set("last_credit_card_token", json.id);
+    return json.id;
 }
 
 module.exports = {

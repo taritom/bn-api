@@ -66,6 +66,26 @@ fn main_event_id() {
     assert_eq!(event.id, cart.main_event_id(connection).unwrap());
 }
 
+/// This test does the following:
+/// - Create an event with 100 tickets
+/// - Test case 1:
+///   - Creates a cart for 99 tickets
+///   - Updates the cart to cancelled
+///   - Tries to refresh the cart and expects a failure
+/// - Test case 2:
+///   - Updates the cart to draft with an expiry date in the past
+///   - Ticket instances are also updated with a reserved_until in the past
+///   - Refreshes the cart. Expect cart to be re-instated
+/// - Test case 3:
+///   - Expires the order and tickets
+///   - Buys 1 ticket with a second order
+///   - Pays for order 2
+///   - Refreshes the cart. Expect success
+/// - Test case 4:
+///   - Expires the order and tickets
+///   - Buys 1 ticket with a third order
+///   - Pays for order 3
+///   - Refreshes the cart, fails because there are not enough free tickets
 #[test]
 fn try_refresh_expired_cart() {
     let project = TestProject::new();
@@ -247,7 +267,7 @@ fn try_refresh_expired_cart() {
                 assert_eq!(errors["quantity"].len(), 1);
                 assert_eq!(
                     errors["quantity"][0].code,
-                    "Could not reserve the correct amount of tickets"
+                    "Could not reserve tickets, not enough tickets are available"
                 );
             }
             _ => panic!("Expected validation error"),

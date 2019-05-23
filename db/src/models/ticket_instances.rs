@@ -401,10 +401,29 @@ impl TicketInstance {
             .to_db_error(ErrorCode::UpdateError, "Could not reserve tickets")?;
 
         if tickets.len() as u32 != quantity {
-            return DatabaseError::validation_error(
-                "quantity",
-                "Could not reserve the correct amount of tickets",
-            );
+            if (tickets.len() as u32) < quantity {
+                jlog!(
+                    Debug,
+                    &format!(
+                        "Could not reserve {} tickets, only {} tickets were available",
+                        quantity,
+                        tickets.len()
+                    )
+                );
+
+                return DatabaseError::validation_error(
+                    "quantity",
+                    "Could not reserve tickets, not enough tickets are available",
+                );
+            } else {
+                jlog!(Error, "Reserved too many tickets", {"quantity_requested": quantity, "quantity_reserved": quantity, "tickets":&tickets});
+                // This is an unlikely scenario
+                return DatabaseError::business_process_error(&format!(
+                    "Reserved too many tickets, expected {} tickets, reserved {}",
+                    quantity,
+                    tickets.len()
+                ));
+            }
         }
 
         Ok(tickets)

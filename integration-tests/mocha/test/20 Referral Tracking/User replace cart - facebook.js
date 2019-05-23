@@ -3,7 +3,7 @@ const expect = require('chai').expect;
 const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
-const pm = require('../pm');
+const pm = require('../pm');const debug = require("debug");var log=debug('bn-api');;
 const user  = require("../../helpers/user");
 const events = require("../../helpers/events");
 const stripe = require("../../helpers/stripe");
@@ -42,7 +42,7 @@ const post = async function (request_body) {
 
 let json = {};
 
-describe('User - replace cart - referrer', function () {
+describe('User - replace cart - facebook', function () {
     before(async function () {
         this.timeout(10000);
         await user.registerAndLogin();
@@ -62,19 +62,19 @@ describe('User - replace cart - referrer', function () {
 		"set_default": true
 	},
 	"tracking_data": {
-	   "referrer": "http://nowhere.com" 
+	   "fbclid": "12123123" 
 	}
 }`;
         response = await post(requestBody);
 
-        console.log(response.request.header);
-        console.log(response.request.url);
-        console.log(response.request._data);
-        console.log(response.request.method);
+        log(response.request.header);
+        log(response.request.url);
+        log(response.request._data);
+        log(response.request.method);
         responseBody = JSON.stringify(response.body);
-        //console.log(pm);
-        console.log(response.status);
-        console.log(responseBody);
+        //log(pm);
+        log(response.status);
+        log(responseBody);
 
         json = JSON.parse(responseBody);
 

@@ -3,7 +3,7 @@ const expect = require('chai').expect;
 const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
-const pm = require('../../pm')
+const pm = require('../../pm');const debug=require('debug');var log = debug('bn-api');
 
 const baseUrl = supertest(pm.environment.get('server'));
 
@@ -43,14 +43,14 @@ describe('OrgAdmin - Update Org - edit event fee (TODO: Check this permission)',
     let r = {};
     before(async function () {
         response = await patch(requestBody);
-        console.log(response.request.header);
-        console.log(response.request.url);
-        console.log(response.request._data);
-        console.log(response.request.method);
+        log(response.request.header);
+        log(response.request.url);
+        log(response.request._data);
+        log(response.request.method);
         responseBody = JSON.stringify(response.body);
-        //console.log(pm);
-        console.log(response.status);
-        console.log(responseBody);
+        //log(pm);
+        log(response.status);
+        log(responseBody);
 
         r = JSON.parse(responseBody);
     });
