@@ -1101,7 +1101,7 @@ impl Event {
         let ticket_id: Option<Uuid> = None;
         let tickets = diesel::sql_query(q)
             .bind::<Nullable<dUuid>, _>(Some(self.id))
-            .bind::<Nullable<Text>, _>(query)
+            .bind::<Nullable<Text>, _>(query.map(|q| str::replace(&q, " ", "%")))
             .bind::<Nullable<Timestamp>, _>(changes_since)
             .bind::<Nullable<dUuid>, _>(ticket_id)
             .load::<RedeemableTicket>(conn)

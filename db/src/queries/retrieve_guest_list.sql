@@ -45,8 +45,8 @@ FROM ticket_instances ti
          LEFT JOIN venues v ON e.venue_id = v.id
          LEFT JOIN users redeemer ON ti.redeemed_by_user_id = redeemer.id
 WHERE ($1 IS NULL OR t2.event_id = $1)
-  AND ($2 IS NULL OR u.first_name ILIKE '%' || $2 || '%'
-    OR u.last_name ILIKE '%' || $2 || '%'
+  AND ($2 IS NULL
+    OR CONCAT(COALESCE(ti.first_name_override, u.first_name), ' ', COALESCE(ti.last_name_override, u.last_name)) ILIKE '%' || $2 || '%'
     OR u.email ILIKE '%' || $2 || '%'
     OR u.phone ILIKE '%' || $2 || '%')
   AND ($3 IS NULL OR ti.updated_at >= $3)
