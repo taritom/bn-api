@@ -3,7 +3,6 @@ SELECT event_id,
        hold_name,
        promo_redemption_code,
        ticket_type_id,
-       ticket_pricing_id,
        total_sold,
        comp_count,
        box_office_count,
@@ -21,7 +20,6 @@ FROM (
                 COALESCE(h.name, c.name)               AS hold_name,
                 c.redemption_code                      AS promo_redemption_code,
                 oi.ticket_type_id,
-                oi.ticket_pricing_id,
                 CAST(COALESCE(
                     SUM(oi.quantity - oi.refunded_quantity) FILTER (WHERE h.hold_type is null or h.hold_type != 'Comp'),
                     0) AS BIGINT)                      AS total_sold,
@@ -65,5 +63,5 @@ FROM (
            AND oi.item_type = 'Tickets'
            AND ($3 IS NULL OR orders.paid_at >= $3)
            AND ($4 IS NULL OR orders.paid_at <= $4)
-         GROUP BY oi.event_id, oi.ticket_type_id, oi.ticket_pricing_id, tt.name, tp.name, h.id, h.name, c.id
+         GROUP BY oi.event_id, oi.ticket_type_id, tt.name, tp.name, tp.price_in_cents, h.id, h.name, c.id
      ) AS report_data;

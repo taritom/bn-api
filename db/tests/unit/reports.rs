@@ -22,9 +22,8 @@ fn ticket_count_report() {
         .with_organization(&organization)
         .with_name("Event1".to_string())
         .with_tickets()
-        .with_ticket_pricing()
         .finish();
-    let ticket_type = event
+    let mut ticket_type = event
         .ticket_types(true, None, connection)
         .unwrap()
         .remove(0);
@@ -33,7 +32,6 @@ fn ticket_count_report() {
         .with_organization(&organization)
         .with_name("Event2".to_string())
         .with_tickets()
-        .with_ticket_pricing()
         .finish();
     let ticket_type2 = event2
         .ticket_types(true, None, connection)
@@ -43,7 +41,6 @@ fn ticket_count_report() {
         .create_event()
         .with_name("Event3".to_string())
         .with_tickets()
-        .with_ticket_pricing()
         .finish();
 
     let ticket_pricing = ticket_type
@@ -151,6 +148,7 @@ fn ticket_count_report() {
         .create_code()
         .with_event(&event)
         .for_ticket_type(&ticket_type)
+        .with_discount_in_cents(Some(50))
         .finish();
     project
         .create_order()
@@ -177,6 +175,69 @@ fn ticket_count_report() {
         .is_paid()
         .finish();
 
+    // New price point for ticket type but has same price so orders won't create a new row
+    let old_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
+    ticket_type = ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                ..Default::default()
+            },
+            None,
+            connection,
+        )
+        .unwrap();
+    let new_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
+    assert_ne!(old_pricing.id, new_pricing.id);
+    let order_dupe_price = project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    assert_eq!(
+        order_dupe_price
+            .items(connection)
+            .unwrap()
+            .iter()
+            .find(|i| i.ticket_type_id == Some(ticket_type.id))
+            .unwrap()
+            .ticket_pricing_id,
+        Some(new_pricing.id)
+    );
+
+    // New price point for ticket type with new price so orders will create a new row
+    let old_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
+    ticket_type = ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                price_in_cents: Some(200),
+                ..Default::default()
+            },
+            None,
+            connection,
+        )
+        .unwrap();
+    let new_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
+    assert_ne!(old_pricing.id, new_pricing.id);
+    let order_new_price = project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    assert_eq!(
+        order_new_price
+            .items(connection)
+            .unwrap()
+            .iter()
+            .find(|i| i.ticket_type_id == Some(ticket_type.id))
+            .unwrap()
+            .ticket_pricing_id,
+        Some(new_pricing.id)
+    );
+
     // Specific event
     let result = Report::ticket_count_report(Some(event.id), None, connection).unwrap();
 
@@ -190,12 +251,12 @@ fn ticket_count_report() {
         organization_name: Some(organization.name.clone()),
         allocation_count_including_nullified: 100,
         allocation_count: 100,
-        unallocated_count: 90,
+        unallocated_count: 88,
         reserved_count: 0,
         redeemed_count: 1,
-        purchased_count: 9,
+        purchased_count: 11,
         nullified_count: 0,
-        available_for_purchase_count: 75,
+        available_for_purchase_count: 73,
         total_refunded_count: 1,
         comp_count: 10,
         comp_available_count: 8,
@@ -211,7 +272,7 @@ fn ticket_count_report() {
         hold_nullified_count: 0,
     }];
     assert_eq!(expected_counts, result.counts);
-    assert_eq!(5, result.sales.len());
+    assert_eq!(6, result.sales.len());
 
     assert_eq!(
         result.sales.iter().find(|s| s.hold_id == Some(hold.id)),
@@ -219,26 +280,25 @@ fn ticket_count_report() {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
             ticket_type_id: Some(ticket_type.id),
-            ticket_pricing_id: Some(ticket_pricing.id),
             hold_id: Some(hold.id),
             ticket_name: Some(ticket_type.name.clone()),
             ticket_status: Some(ticket_type.status.to_string()),
             event_name: Some(event.name.clone()),
             hold_name: Some(hold.name.clone()),
             ticket_pricing_name: Some(ticket_pricing.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
+            ticket_pricing_price_in_cents: Some(100),
             promo_code_discounted_ticket_price: Some(-10),
             box_office_order_count: 1,
             online_order_count: 1,
-            box_office_sales_in_cents: 140,
-            online_sales_in_cents: 280,
-            box_office_face_sales_in_cents: 150,
-            online_face_sales_in_cents: 300,
+            box_office_sales_in_cents: 90,
+            online_sales_in_cents: 180,
+            box_office_face_sales_in_cents: 100,
+            online_face_sales_in_cents: 200,
             box_office_sale_count: 1,
             online_sale_count: 2,
-            total_online_fees_in_cents: 40,
-            company_online_fees_in_cents: 16,
-            client_online_fees_in_cents: 24,
+            total_online_fees_in_cents: 20,
+            company_online_fees_in_cents: 8,
+            client_online_fees_in_cents: 12,
             user_count: 2,
             ..Default::default()
         })
@@ -250,17 +310,16 @@ fn ticket_count_report() {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
             ticket_type_id: Some(ticket_type.id),
-            ticket_pricing_id: Some(ticket_pricing.id),
             hold_id: Some(comp.id),
             ticket_name: Some(ticket_type.name.clone()),
             ticket_status: Some(ticket_type.status.to_string()),
             event_name: Some(event.name.clone()),
             hold_name: Some(comp.name.clone()),
             ticket_pricing_name: Some(ticket_pricing.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
-            promo_code_discounted_ticket_price: Some(-150),
+            ticket_pricing_price_in_cents: Some(100),
+            promo_code_discounted_ticket_price: Some(-100),
             online_order_count: 1,
-            online_face_sales_in_cents: 300,
+            online_face_sales_in_cents: 200,
             comp_sale_count: 2,
             user_count: 1,
             ..Default::default()
@@ -276,7 +335,6 @@ fn ticket_count_report() {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
             ticket_type_id: Some(ticket_type.id),
-            ticket_pricing_id: Some(ticket_pricing.id),
             hold_id: Some(code.id),
             ticket_name: Some(ticket_type.name.clone()),
             ticket_status: Some(ticket_type.status.to_string()),
@@ -284,11 +342,11 @@ fn ticket_count_report() {
             hold_name: Some(code.name.clone()),
             promo_redemption_code: Some(code.redemption_code.clone()),
             ticket_pricing_name: Some(ticket_pricing.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
-            promo_code_discounted_ticket_price: Some(-100),
+            ticket_pricing_price_in_cents: Some(100),
+            promo_code_discounted_ticket_price: Some(-50),
             online_order_count: 1,
             online_sales_in_cents: 100,
-            online_face_sales_in_cents: 300,
+            online_face_sales_in_cents: 200,
             online_sale_count: 2,
             total_online_fees_in_cents: 20,
             company_online_fees_in_cents: 8,
@@ -301,29 +359,29 @@ fn ticket_count_report() {
     assert_eq!(
         result.sales.iter().find(|s| s.promo_redemption_code == None
             && s.hold_id == None
-            && s.ticket_type_id == Some(ticket_type.id)),
+            && s.ticket_type_id == Some(ticket_type.id)
+            && s.ticket_pricing_price_in_cents != Some(200)),
         Some(&TicketSalesRow {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
             ticket_type_id: Some(ticket_type.id),
-            ticket_pricing_id: Some(ticket_pricing.id),
             ticket_name: Some(ticket_type.name.clone()),
             ticket_status: Some(ticket_type.status.to_string()),
             event_name: Some(event.name.clone()),
             ticket_pricing_name: Some(ticket_pricing.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
+            ticket_pricing_price_in_cents: Some(100),
             box_office_order_count: 1,
-            online_order_count: 1,
-            box_office_sales_in_cents: 150,
+            online_order_count: 2,
+            box_office_sales_in_cents: 100,
             online_sales_in_cents: 300,
-            box_office_face_sales_in_cents: 150,
+            box_office_face_sales_in_cents: 100,
             online_face_sales_in_cents: 300,
             box_office_sale_count: 1,
             box_office_refunded_count: 1,
-            online_sale_count: 2,
-            total_online_fees_in_cents: 40,
-            company_online_fees_in_cents: 16,
-            client_online_fees_in_cents: 24,
+            online_sale_count: 3,
+            total_online_fees_in_cents: 60,
+            company_online_fees_in_cents: 24,
+            client_online_fees_in_cents: 36,
             user_count: 2,
             ..Default::default()
         })
@@ -332,30 +390,30 @@ fn ticket_count_report() {
     assert_eq!(
         result.sales.iter().find(|s| s.promo_redemption_code == None
             && s.hold_id == None
-            && s.ticket_type_id == Some(ticket_type.id)),
+            && s.ticket_type_id == Some(ticket_type.id)
+            && s.ticket_pricing_price_in_cents == Some(200)),
         Some(&TicketSalesRow {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
             ticket_type_id: Some(ticket_type.id),
-            ticket_pricing_id: Some(ticket_pricing.id),
             ticket_name: Some(ticket_type.name.clone()),
             ticket_status: Some(ticket_type.status.to_string()),
             event_name: Some(event.name.clone()),
             ticket_pricing_name: Some(ticket_pricing.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
-            box_office_order_count: 1,
+            ticket_pricing_price_in_cents: Some(200),
+            box_office_order_count: 0,
             online_order_count: 1,
-            box_office_sales_in_cents: 150,
-            online_sales_in_cents: 300,
-            box_office_face_sales_in_cents: 150,
-            online_face_sales_in_cents: 300,
-            box_office_sale_count: 1,
-            box_office_refunded_count: 1,
-            online_sale_count: 2,
-            total_online_fees_in_cents: 40,
-            company_online_fees_in_cents: 16,
-            client_online_fees_in_cents: 24,
-            user_count: 2,
+            box_office_sales_in_cents: 0,
+            online_sales_in_cents: 200,
+            box_office_face_sales_in_cents: 0,
+            online_face_sales_in_cents: 200,
+            box_office_sale_count: 0,
+            box_office_refunded_count: 0,
+            online_sale_count: 1,
+            total_online_fees_in_cents: 20,
+            company_online_fees_in_cents: 8,
+            client_online_fees_in_cents: 12,
+            user_count: 1,
             ..Default::default()
         })
     );
@@ -367,9 +425,9 @@ fn ticket_count_report() {
         Some(&TicketSalesRow {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
-            per_order_company_online_fees: 300,
-            per_order_client_online_fees: 450,
-            per_order_total_fees_in_cents: 750,
+            per_order_company_online_fees: 500,
+            per_order_client_online_fees: 750,
+            per_order_total_fees_in_cents: 1250,
             ..Default::default()
         })
     );
@@ -390,12 +448,12 @@ fn ticket_count_report() {
             organization_name: Some(organization.name.clone()),
             allocation_count_including_nullified: 100,
             allocation_count: 100,
-            unallocated_count: 90,
+            unallocated_count: 88,
             reserved_count: 0,
             redeemed_count: 1,
-            purchased_count: 9,
+            purchased_count: 11,
             nullified_count: 0,
-            available_for_purchase_count: 75,
+            available_for_purchase_count: 73,
             total_refunded_count: 1,
             comp_count: 10,
             comp_available_count: 8,
@@ -445,33 +503,32 @@ fn ticket_count_report() {
         })
     );
 
-    assert_eq!(7, result.sales.len());
+    assert_eq!(8, result.sales.len());
     assert_eq!(
         result.sales.iter().find(|s| s.hold_id == Some(hold.id)),
         Some(&TicketSalesRow {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
             ticket_type_id: Some(ticket_type.id),
-            ticket_pricing_id: Some(ticket_pricing.id),
             hold_id: Some(hold.id),
             ticket_name: Some(ticket_type.name.clone()),
             ticket_status: Some(ticket_type.status.to_string()),
             event_name: Some(event.name.clone()),
             hold_name: Some(hold.name),
             ticket_pricing_name: Some(ticket_pricing.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
+            ticket_pricing_price_in_cents: Some(100),
             promo_code_discounted_ticket_price: Some(-10),
             box_office_order_count: 1,
             online_order_count: 1,
-            box_office_sales_in_cents: 140,
-            online_sales_in_cents: 280,
-            box_office_face_sales_in_cents: 150,
-            online_face_sales_in_cents: 300,
+            box_office_sales_in_cents: 90,
+            online_sales_in_cents: 180,
+            box_office_face_sales_in_cents: 100,
+            online_face_sales_in_cents: 200,
             box_office_sale_count: 1,
             online_sale_count: 2,
-            total_online_fees_in_cents: 40,
-            company_online_fees_in_cents: 16,
-            client_online_fees_in_cents: 24,
+            total_online_fees_in_cents: 20,
+            company_online_fees_in_cents: 8,
+            client_online_fees_in_cents: 12,
             user_count: 2,
             ..Default::default()
         })
@@ -483,17 +540,16 @@ fn ticket_count_report() {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
             ticket_type_id: Some(ticket_type.id),
-            ticket_pricing_id: Some(ticket_pricing.id),
             hold_id: Some(comp.id),
             ticket_name: Some(ticket_type.name.clone()),
             ticket_status: Some(ticket_type.status.to_string()),
             event_name: Some(event.name.clone()),
             hold_name: Some(comp.name),
             ticket_pricing_name: Some(ticket_pricing.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
-            promo_code_discounted_ticket_price: Some(-150),
+            ticket_pricing_price_in_cents: Some(100),
+            promo_code_discounted_ticket_price: Some(-100),
             online_order_count: 1,
-            online_face_sales_in_cents: 300,
+            online_face_sales_in_cents: 200,
             comp_sale_count: 2,
             user_count: 1,
             ..Default::default()
@@ -509,7 +565,6 @@ fn ticket_count_report() {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
             ticket_type_id: Some(ticket_type.id),
-            ticket_pricing_id: Some(ticket_pricing.id),
             hold_id: Some(code.id),
             ticket_name: Some(ticket_type.name.clone()),
             ticket_status: Some(ticket_type.status.to_string()),
@@ -517,11 +572,11 @@ fn ticket_count_report() {
             hold_name: Some(code.name),
             promo_redemption_code: Some(code.redemption_code),
             ticket_pricing_name: Some(ticket_pricing.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
-            promo_code_discounted_ticket_price: Some(-100),
+            ticket_pricing_price_in_cents: Some(100),
+            promo_code_discounted_ticket_price: Some(-50),
             online_order_count: 1,
             online_sales_in_cents: 100,
-            online_face_sales_in_cents: 300,
+            online_face_sales_in_cents: 200,
             online_sale_count: 2,
             total_online_fees_in_cents: 20,
             company_online_fees_in_cents: 8,
@@ -534,30 +589,61 @@ fn ticket_count_report() {
     assert_eq!(
         result.sales.iter().find(|s| s.promo_redemption_code == None
             && s.hold_id == None
-            && s.ticket_type_id == Some(ticket_type.id)),
+            && s.ticket_type_id == Some(ticket_type.id)
+            && s.ticket_pricing_price_in_cents != Some(200)),
         Some(&TicketSalesRow {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
             ticket_type_id: Some(ticket_type.id),
-            ticket_pricing_id: Some(ticket_pricing.id),
             ticket_name: Some(ticket_type.name.clone()),
             ticket_status: Some(ticket_type.status.to_string()),
             event_name: Some(event.name.clone()),
             ticket_pricing_name: Some(ticket_pricing.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
+            ticket_pricing_price_in_cents: Some(100),
             box_office_order_count: 1,
-            online_order_count: 1,
-            box_office_sales_in_cents: 150,
+            online_order_count: 2,
+            box_office_sales_in_cents: 100,
             online_sales_in_cents: 300,
-            box_office_face_sales_in_cents: 150,
+            box_office_face_sales_in_cents: 100,
             online_face_sales_in_cents: 300,
             box_office_sale_count: 1,
             box_office_refunded_count: 1,
-            online_sale_count: 2,
-            total_online_fees_in_cents: 40,
-            company_online_fees_in_cents: 16,
-            client_online_fees_in_cents: 24,
+            online_sale_count: 3,
+            total_online_fees_in_cents: 60,
+            company_online_fees_in_cents: 24,
+            client_online_fees_in_cents: 36,
             user_count: 2,
+            ..Default::default()
+        })
+    );
+
+    assert_eq!(
+        result.sales.iter().find(|s| s.promo_redemption_code == None
+            && s.hold_id == None
+            && s.ticket_type_id == Some(ticket_type.id)
+            && s.ticket_pricing_price_in_cents == Some(200)),
+        Some(&TicketSalesRow {
+            organization_id: Some(event.organization_id),
+            event_id: Some(event.id),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_name: Some(ticket_type.name.clone()),
+            ticket_status: Some(ticket_type.status.to_string()),
+            event_name: Some(event.name.clone()),
+            ticket_pricing_name: Some(ticket_pricing.name.clone()),
+            ticket_pricing_price_in_cents: Some(200),
+            box_office_order_count: 0,
+            online_order_count: 1,
+            box_office_sales_in_cents: 0,
+            online_sales_in_cents: 200,
+            box_office_face_sales_in_cents: 0,
+            online_face_sales_in_cents: 200,
+            box_office_sale_count: 0,
+            box_office_refunded_count: 0,
+            online_sale_count: 1,
+            total_online_fees_in_cents: 20,
+            company_online_fees_in_cents: 8,
+            client_online_fees_in_cents: 12,
+            user_count: 1,
             ..Default::default()
         })
     );
@@ -571,16 +657,15 @@ fn ticket_count_report() {
             organization_id: Some(event2.organization_id),
             event_id: Some(event2.id),
             ticket_type_id: Some(ticket_type2.id),
-            ticket_pricing_id: Some(ticket_pricing2.id),
             ticket_name: Some(ticket_type2.name.clone()),
             ticket_status: Some(ticket_type2.status.to_string()),
             event_name: Some(event2.name.clone()),
             ticket_pricing_name: Some(ticket_pricing2.name.clone()),
-            ticket_pricing_price_in_cents: Some(150),
+            ticket_pricing_price_in_cents: Some(100),
             box_office_order_count: 0,
             online_order_count: 1,
-            online_sales_in_cents: 300,
-            online_face_sales_in_cents: 300,
+            online_sales_in_cents: 200,
+            online_face_sales_in_cents: 200,
             online_sale_count: 2,
             total_online_fees_in_cents: 40,
             company_online_fees_in_cents: 16,
@@ -598,9 +683,9 @@ fn ticket_count_report() {
         Some(&TicketSalesRow {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
-            per_order_company_online_fees: 300,
-            per_order_client_online_fees: 450,
-            per_order_total_fees_in_cents: 750,
+            per_order_company_online_fees: 500,
+            per_order_client_online_fees: 750,
+            per_order_total_fees_in_cents: 1250,
             ..Default::default()
         })
     );

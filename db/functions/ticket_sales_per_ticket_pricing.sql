@@ -14,7 +14,6 @@ CREATE OR REPLACE FUNCTION ticket_sales_per_ticket_pricing(start TIMESTAMP, "end
         organization_id                    UUID,
         event_id                           UUID,
         ticket_type_id                     UUID,
-        ticket_pricing_id                  UUID,
         hold_id                            UUID,
         ticket_name                        TEXT,
         ticket_status                      TEXT,
@@ -52,7 +51,6 @@ $body$
 SELECT e.organization_id                            AS organization_id,
        e.id                                         AS event_id,
        tt.id                                        AS ticket_type_id,
-       tp.id                                        AS ticket_pricing_id,
        COALESCE(gh.id, c.id) AS hold_id,
        tt.name                                      AS ticket_name,
        tt.status                                    AS ticket_status,
@@ -185,7 +183,7 @@ FROM order_items oi
 WHERE oi.ticket_type_id IS NOT NULL
   AND ($1 IS NULL OR o.paid_at >= $1)
   AND ($2 IS NULL OR o.paid_at <= $2)
-GROUP BY e.id, tt.id, tt.name, tt.status, tp.id, tp.name, tp.price_in_cents, gh.id, gh.name, gh.hold_type,
+GROUP BY e.id, tt.id, tt.name, tt.status, tp.name, tp.price_in_cents, gh.id, gh.name, gh.hold_type,
         gh.discount_in_cents, c.id, c.name, c.redemption_code, oi_promo_code_price.unit_price_in_cents;
 $body$
     LANGUAGE SQL;

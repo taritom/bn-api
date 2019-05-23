@@ -21,8 +21,6 @@ pub struct TicketSalesRow {
     #[sql_type = "Nullable<dUuid>"]
     pub ticket_type_id: Option<Uuid>,
     #[sql_type = "Nullable<dUuid>"]
-    pub ticket_pricing_id: Option<Uuid>,
-    #[sql_type = "Nullable<dUuid>"]
     pub hold_id: Option<Uuid>,
     #[sql_type = "Nullable<Text>"]
     pub ticket_name: Option<String>,
@@ -366,19 +364,14 @@ pub struct EventSummarySalesRow {
     pub total_gross_income_in_cents: i64,
     #[sql_type = "dUuid"]
     pub ticket_type_id: Uuid,
-    #[sql_type = "dUuid"]
-    pub ticket_pricing_id: Uuid,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Queryable, QueryableByName)]
 pub struct EventSummaryFeesRow {
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
-
     #[sql_type = "dUuid"]
     pub ticket_type_id: Uuid,
-    #[sql_type = "dUuid"]
-    pub ticket_pricing_id: Uuid,
     #[sql_type = "Text"]
     pub ticket_name: String,
     #[sql_type = "Text"]
@@ -405,7 +398,6 @@ pub struct EventSummaryFeesRow {
 pub struct EventSummaryOtherFees {
     #[sql_type = "dUuid"]
     pub event_id: Uuid,
-
     #[sql_type = "BigInt"]
     pub unit_price_in_cents: i64,
     #[sql_type = "BigInt"]
