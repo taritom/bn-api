@@ -1,10 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
-use chrono::prelude::*;
-use diesel;
-use diesel::sql_types;
-use diesel::RunQueryDsl;
 use uuid::Uuid;
 
 #[test]
@@ -30,15 +26,9 @@ fn create_commit() {
     .unwrap();
     assert_eq!(0, domain_events.len());
 
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     let transfer_ticket = TransferTicket::create(ticket.id, transfer.id)
         .commit(user.id, &None, connection)
         .unwrap();
@@ -70,7 +60,6 @@ fn create_commit_with_validation_error() {
     let ticket = TicketInstance::find_for_user(user.id, connection)
         .unwrap()
         .remove(0);
-    let transfer_expiry_date = NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11);
     let domain_events = DomainEvent::find(
         Tables::TicketInstances,
         Some(ticket.id),
@@ -80,7 +69,7 @@ fn create_commit_with_validation_error() {
     .unwrap();
     assert_eq!(0, domain_events.len());
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), transfer_expiry_date, None, None)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
         .commit(&None, connection)
         .unwrap();
     TransferTicket::create(ticket.id, transfer.id)
@@ -88,7 +77,7 @@ fn create_commit_with_validation_error() {
         .unwrap();
 
     // Active pending transfer already exists triggering validation errors
-    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), transfer_expiry_date, None, None)
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
         .commit(&None, connection)
         .unwrap();
     let result = TransferTicket::create(ticket.id, transfer2.id).commit(user.id, &None, connection);
@@ -124,27 +113,4 @@ fn create_commit_with_validation_error() {
     TransferTicket::create(ticket.id, transfer2.id)
         .commit(user.id, &None, connection)
         .unwrap();
-
-    let transfer3 = Transfer::create(user.id, Uuid::new_v4(), transfer_expiry_date, None, None)
-        .commit(&None, connection)
-        .unwrap();
-
-    // Pending but expired transfer does not cause an issue
-
-    assert!(TransferTicket::create(ticket.id, transfer3.id)
-        .commit(user.id, &None, connection)
-        .is_err());
-    let _q: Vec<TicketInstance> = diesel::sql_query(
-        r#"
-        UPDATE transfers
-        SET transfer_expiry_date = '2018-06-06 09:49:09.643207'
-        WHERE id = $1;
-        "#,
-    )
-    .bind::<sql_types::Uuid, _>(transfer2.id)
-    .get_results(connection)
-    .unwrap();
-    assert!(TransferTicket::create(ticket.id, transfer3.id)
-        .commit(user.id, &None, connection)
-        .is_ok());
 }

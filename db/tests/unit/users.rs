@@ -523,7 +523,6 @@ fn get_profile_for_organization() {
     let transfer_auth = TicketInstance::authorize_ticket_transfer(
         user.id,
         &vec![ticket.id],
-        3600,
         None,
         None,
         connection,
@@ -677,7 +676,6 @@ fn get_profile_for_organization() {
     let transfer_auth = TicketInstance::authorize_ticket_transfer(
         user2.id,
         &vec![ticket.id],
-        3600,
         None,
         None,
         connection,

@@ -2,7 +2,6 @@ use bigneon_db::dev::times;
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::schema::{order_items, orders, ticket_instances};
-use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
@@ -25,15 +24,9 @@ fn transfers() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
 
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();

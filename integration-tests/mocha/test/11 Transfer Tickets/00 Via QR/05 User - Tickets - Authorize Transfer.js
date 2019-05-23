@@ -37,8 +37,7 @@ const get = async function (request_body) {
 let requestBody = `{
 	"ticket_ids":[
 		"{{ticket1_id}}",
-		"{{ticket2_id}}"],
-		"validity_period_in_seconds":3600
+		"{{ticket2_id}}"]
 }`;
 
 
@@ -75,5 +74,3 @@ describe('User - Tickets - Authorize Transfer', function () {
 
 
 });
-
-            

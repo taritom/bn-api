@@ -92,15 +92,9 @@ fn find_for_user_for_display() {
             .pending_transfer,
         false
     );
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(found_tickets[0].1[0].id, user.id, &None, connection)
         .unwrap();
@@ -120,38 +114,11 @@ fn find_for_user_for_display() {
         true
     );
 
-    // Pending transfer expired
-    diesel::sql_query(
-        r#"
-        UPDATE transfers
-        SET transfer_expiry_date = '2018-06-06 09:49:09.643207'
-        WHERE id = $1;
-        "#,
-    )
-    .bind::<sql_types::Uuid, _>(transfer.id)
-    .execute(connection)
-    .unwrap();
-    let found_tickets =
-        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
-            .unwrap();
-    assert_eq!(found_tickets.len(), 1);
-    assert_eq!(found_tickets[0].0.id, event.id);
-    assert_eq!(found_tickets[0].1.len(), 2);
-    assert_eq!(found_tickets[0].1[0].pending_transfer, false);
-    assert_eq!(
-        TicketInstance::find_for_display(found_tickets[0].1[0].id, connection)
-            .unwrap()
-            .2
-            .pending_transfer,
-        false
-    );
-
     // Transfer is completed
     diesel::sql_query(
         r#"
         UPDATE transfers
-        SET transfer_expiry_date = '2055-06-06 09:49:09.643207',
-        status = 'Completed'
+        SET status = 'Completed'
         WHERE id = $1;
         "#,
     )
@@ -174,15 +141,9 @@ fn find_for_user_for_display() {
     );
 
     // Another pending transfer
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(found_tickets[0].1[0].id, user.id, &None, connection)
         .unwrap();
@@ -613,7 +574,7 @@ fn release() {
         .unwrap()
         .remove(0);
     assert_eq!(ticket.status, TicketInstanceStatus::Purchased);
-    TicketInstance::authorize_ticket_transfer(user.id, &[ticket.id], 3600, None, None, connection)
+    TicketInstance::authorize_ticket_transfer(user.id, &[ticket.id], None, None, connection)
         .unwrap();
     assert!(ticket
         .release(TicketInstanceStatus::Purchased, creator.id, connection)
@@ -682,7 +643,7 @@ fn release_for_cancelled_ticket_type() {
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     ticket_type.cancel(connection).unwrap();
 
-    TicketInstance::authorize_ticket_transfer(user.id, &[ticket.id], 3600, None, None, connection)
+    TicketInstance::authorize_ticket_transfer(user.id, &[ticket.id], None, None, connection)
         .unwrap();
     assert!(ticket
         .release(TicketInstanceStatus::Purchased, creator.id, connection)
@@ -771,15 +732,9 @@ fn was_transferred() {
 
     let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
-    let transfer_auth = TicketInstance::authorize_ticket_transfer(
-        user.id,
-        &[ticket.id],
-        3600,
-        None,
-        None,
-        connection,
-    )
-    .unwrap();
+    let transfer_auth =
+        TicketInstance::authorize_ticket_transfer(user.id, &[ticket.id], None, None, connection)
+            .unwrap();
     TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,
@@ -1506,7 +1461,7 @@ fn authorize_ticket_transfer() {
     ticket_ids.push(Uuid::new_v4());
 
     let transfer_auth2 =
-        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, 24, None, None, connection);
+        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, None, None, connection);
 
     assert!(transfer_auth2.is_err());
 
@@ -1515,7 +1470,7 @@ fn authorize_ticket_transfer() {
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
 
     let transfer_auth3 =
-        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, 24, None, None, connection)
+        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, None, None, connection)
             .unwrap();
 
     assert_eq!(transfer_auth3.sender_user_id, user.id);
@@ -1599,66 +1554,24 @@ fn receive_ticket_transfer() {
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
 
     let user2 = project.create_user().finish();
-    //try receive ones that are expired
-    let transfer_auth =
-        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, 10, None, None, connection)
-            .unwrap();
-    let transfer = &Transfer::find_by_transfer_key(transfer_auth.transfer_key, connection).unwrap();
-
-    let _q: Vec<TicketInstance> = diesel::sql_query(
-        r#"
-        UPDATE transfers
-        SET transfer_expiry_date = '2018-06-06 09:49:09.643207'
-        WHERE id = $1;
-        "#,
-    )
-    .bind::<sql_types::Uuid, _>(transfer.id)
-    .get_results(connection)
-    .unwrap();
-
-    let sender_wallet =
-        Wallet::find_default_for_user(transfer_auth.sender_user_id, connection).unwrap();
+    let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
 
-    let receive_auth2 = TicketInstance::receive_ticket_transfer(
-        transfer_auth,
-        &sender_wallet,
-        user2.id,
-        receiver_wallet.id,
-        connection,
-    );
-    assert_eq!(
-        receive_auth2,
-        DatabaseError::business_process_error("The transfer has expired.",)
-    );
-    let reloaded_ticket = TicketInstance::find(updated_ticket.id, connection).unwrap();
-    assert_eq!(
-        reloaded_ticket.first_name_override,
-        Some("Janus".to_string())
-    );
-    assert_eq!(reloaded_ticket.last_name_override, Some("Zeal".to_string()));
-
     //try receive the wrong number of tickets (too few)
-    let transfer_auth = TicketInstance::authorize_ticket_transfer(
-        user.id,
-        &ticket_ids,
-        3600,
-        None,
-        None,
-        connection,
-    )
-    .unwrap();
+    let transfer_auth =
+        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, None, None, connection)
+            .unwrap();
 
     let mut wrong_auth = transfer_auth.clone();
     wrong_auth.num_tickets = 4;
-    let receive_auth1 = TicketInstance::receive_ticket_transfer(
+    let receive_auth = TicketInstance::receive_ticket_transfer(
         wrong_auth,
         &sender_wallet,
         user2.id,
         receiver_wallet.id,
         connection,
     );
-    assert!(receive_auth1.is_err());
+    assert!(receive_auth.is_err());
     let reloaded_ticket = TicketInstance::find(updated_ticket.id, connection).unwrap();
     assert_eq!(
         reloaded_ticket.first_name_override,
@@ -1674,13 +1587,14 @@ fn receive_ticket_transfer() {
     assert!(user2.genres(connection).unwrap().is_empty());
 
     //legit receive tickets
-    let _receive_auth3 = TicketInstance::receive_ticket_transfer(
+    TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,
         user2.id,
         receiver_wallet.id,
         connection,
-    );
+    )
+    .unwrap();
 
     // Genres have moved to user2
     assert!(user.genres(connection).unwrap().is_empty());
@@ -1692,10 +1606,11 @@ fn receive_ticket_transfer() {
     //Look if one of the tickets does have the new wallet_id
     let receive_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
     let reloaded_ticket = TicketInstance::find(updated_ticket.id, connection).unwrap();
+    assert_eq!(reloaded_ticket.wallet_id, receive_wallet.id);
+
     // Transferred tickets have their name overrides cleared
     assert_eq!(reloaded_ticket.first_name_override, None);
     assert_eq!(reloaded_ticket.last_name_override, None);
-    assert_eq!(reloaded_ticket.wallet_id, receive_wallet.id);
 }
 
 #[test]

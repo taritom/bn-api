@@ -3,7 +3,7 @@ use diesel;
 use diesel::dsl::{exists, select, sql};
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use diesel::sql_types::{Array, BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{Array, BigInt, Nullable, Uuid as dUuid};
 use models::*;
 use schema::{order_transfers, orders, transfer_tickets, transfers};
 use serde_json::Value;
@@ -18,7 +18,6 @@ use validators::{self, *};
 #[table_name = "transfers"]
 pub struct NewTransfer {
     pub source_user_id: Uuid,
-    pub transfer_expiry_date: NaiveDateTime,
     pub transfer_key: Uuid,
     pub status: TransferStatus,
     pub transfer_message_type: Option<TransferMessageType>,
@@ -31,7 +30,6 @@ pub struct Transfer {
     pub id: Uuid,
     pub source_user_id: Uuid,
     pub destination_user_id: Option<Uuid>,
-    pub transfer_expiry_date: NaiveDateTime,
     pub transfer_key: Uuid,
     pub status: TransferStatus,
     pub created_at: NaiveDateTime,
@@ -49,32 +47,19 @@ pub struct TransferEditableAttributes {
     pub destination_user_id: Option<Uuid>,
 }
 
-#[derive(Clone, QueryableByName, Queryable, Deserialize, Serialize, PartialEq, Debug)]
+#[derive(Clone, Queryable, Deserialize, Serialize, PartialEq, Debug)]
 pub struct DisplayTransfer {
-    #[sql_type = "dUuid"]
     pub id: Uuid,
-    #[sql_type = "dUuid"]
     pub source_user_id: Uuid,
-    #[sql_type = "Nullable<dUuid>"]
     pub destination_user_id: Option<Uuid>,
-    #[sql_type = "dUuid"]
-    pub transfer_expiry_date: NaiveDateTime,
-    #[sql_type = "dUuid"]
     pub transfer_key: Uuid,
-    #[sql_type = "Text"]
     pub status: TransferStatus,
-    #[sql_type = "Timestamp"]
     pub created_at: NaiveDateTime,
-    #[sql_type = "Timestamp"]
     pub updated_at: NaiveDateTime,
-    #[sql_type = "Nullable<Text>"]
     pub transfer_message_type: Option<TransferMessageType>,
-    #[sql_type = "Nullable<Text>"]
     pub transfer_address: Option<String>,
-    #[sql_type = "Array<dUuid>"]
     pub ticket_ids: Vec<Uuid>,
     #[serde(skip_serializing)]
-    #[sql_type = "BigInt"]
     pub total: Option<i64>,
 }
 
@@ -96,10 +81,6 @@ impl Transfer {
             .filter(transfers::id.eq(id))
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find transfer")
-    }
-
-    pub fn is_expired(&self) -> bool {
-        self.transfer_expiry_date < Utc::now().naive_utc()
     }
 
     pub fn find_for_user_for_display(
@@ -149,7 +130,6 @@ impl Transfer {
                 transfers::id,
                 transfers::source_user_id,
                 transfers::destination_user_id,
-                transfers::transfer_expiry_date,
                 transfers::transfer_key,
                 transfers::status,
                 transfers::created_at,
@@ -180,7 +160,6 @@ impl Transfer {
             id: self.id,
             source_user_id: self.source_user_id,
             destination_user_id: self.destination_user_id,
-            transfer_expiry_date: self.transfer_expiry_date,
             transfer_key: self.transfer_key,
             status: self.status,
             created_at: self.created_at,
@@ -192,7 +171,7 @@ impl Transfer {
         })
     }
 
-    pub fn find_active_pending_by_ticket_instance_ids(
+    pub fn find_pending_by_ticket_instance_ids(
         ticket_instance_ids: &[Uuid],
         conn: &PgConnection,
     ) -> Result<Vec<Transfer>, DatabaseError> {
@@ -200,7 +179,6 @@ impl Transfer {
             .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
             .filter(transfer_tickets::ticket_instance_id.eq_any(ticket_instance_ids))
             .filter(transfers::status.eq(TransferStatus::Pending))
-            .filter(transfers::transfer_expiry_date.gt(Utc::now().naive_utc()))
             .select(transfers::all_columns)
             .distinct()
             .load(conn)
@@ -338,7 +316,6 @@ impl Transfer {
     pub fn create(
         source_user_id: Uuid,
         transfer_key: Uuid,
-        transfer_expiry_date: NaiveDateTime,
         transfer_message_type: Option<TransferMessageType>,
         transfer_address: Option<String>,
     ) -> NewTransfer {
@@ -347,7 +324,6 @@ impl Transfer {
             transfer_message_type,
             source_user_id,
             transfer_key,
-            transfer_expiry_date,
             status: TransferStatus::Pending,
         }
     }

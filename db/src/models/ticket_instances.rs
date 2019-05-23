@@ -167,16 +167,14 @@ impl TicketInstance {
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-            .left_join(transfers::table.on(
-                sql("transfers.id = (
+            .left_join(transfers::table.on(sql("transfers.id = (
                     SELECT tt.transfer_id
                     FROM transfer_tickets tt
                     JOIN transfers t
                     ON tt.transfer_id = t.id
                     WHERE tt.ticket_instance_id = ticket_instances.id
                     AND t.status = 'Pending'
-                )")
-            ))
+                )")))
             .filter(ticket_instances::id.eq(id))
             .select((
                 ticket_instances::id,
@@ -199,7 +197,7 @@ impl TicketInstance {
                 ticket_instances::redeem_key,
                 events::redeem_date,
                 events::event_start,
-                sql::<Bool>("transfers.id is not null and transfers.transfer_expiry_date >= now() AS pending_transfer"),
+                sql::<Bool>("transfers.id is not null AS pending_transfer"),
                 ticket_instances::first_name_override,
                 ticket_instances::last_name_override,
             ))
@@ -302,7 +300,7 @@ impl TicketInstance {
                 ticket_instances::redeem_key,
                 events::redeem_date,
                 events::event_start,
-                sql::<Bool>("transfers.id is not null and transfers.transfer_expiry_date >= now() AS pending_transfer"),
+                sql::<Bool>("transfers.id is not null AS pending_transfer"),
                 ticket_instances::first_name_override,
                 ticket_instances::last_name_override,
             ))
@@ -851,7 +849,6 @@ impl TicketInstance {
         let auth = TicketInstance::authorize_ticket_transfer(
             from_user_id,
             ticket_ids,
-            3600,
             Some(address),
             Some(sent_via),
             conn,
@@ -907,7 +904,6 @@ impl TicketInstance {
     pub fn authorize_ticket_transfer(
         user_id: Uuid,
         ticket_ids: &[Uuid],
-        validity_period_in_seconds: u32,
         address: Option<&str>,
         sent_via: Option<TransferMessageType>,
         conn: &PgConnection,
@@ -918,11 +914,9 @@ impl TicketInstance {
 
         //Generate transfer_key and store keys and set transfer_expiry date
         let transfer_key = Uuid::new_v4();
-        let transfer_expiry_date =
-            Utc::now().naive_utc() + Duration::seconds(validity_period_in_seconds as i64);
 
         let mut update_count = 0;
-        let transfers = Transfer::find_active_pending_by_ticket_instance_ids(ticket_ids, conn)?;
+        let transfers = Transfer::find_pending_by_ticket_instance_ids(ticket_ids, conn)?;
         for transfer in transfers {
             transfer.cancel(user_id, Some(transfer_key), conn)?;
         }
@@ -936,7 +930,6 @@ impl TicketInstance {
         let transfer = Transfer::create(
             user_id,
             transfer_key,
-            transfer_expiry_date,
             sent_via,
             address.map(|a| a.to_string()),
         )
@@ -1026,12 +1019,7 @@ impl TicketInstance {
         }
 
         let transfer = Transfer::find_by_transfer_key(transfer_authorization.transfer_key, conn)?;
-        if transfer.is_expired() {
-            return Err(DatabaseError::new(
-                ErrorCode::BusinessProcessError,
-                Some("The transfer has expired.".to_string()),
-            ));
-        } else if transfer.status == TransferStatus::Cancelled {
+        if transfer.status == TransferStatus::Cancelled {
             return Err(DatabaseError::new(
                 ErrorCode::BusinessProcessError,
                 Some("The transfer has been cancelled.".to_string()),

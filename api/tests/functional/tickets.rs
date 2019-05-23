@@ -10,8 +10,6 @@ use bigneon_api::controllers::tickets::{
 use bigneon_api::extractors::*;
 use bigneon_api::models::{OptionalPathParameters, PathParameters};
 use bigneon_db::prelude::*;
-use diesel::sql_types;
-use diesel::RunQueryDsl;
 use functional::base;
 use support;
 use support::database::TestDatabase;
@@ -552,7 +550,6 @@ fn ticket_transfer_authorization() {
     //Try transfer before paying for the tickets
     let mut ticket_transfer_request = TransferTicketRequest {
         ticket_ids: vec![tickets[0].id, tickets[1].id],
-        validity_period_in_seconds: 600,
     };
 
     let response = tickets::transfer_authorization((
@@ -615,7 +612,6 @@ fn send_to_existing_user() {
     let receiver = database.create_user().finish();
     let ticket_transfer_request = SendTicketsRequest {
         ticket_ids: tickets,
-        validity_period_in_seconds: Some(600),
         email_or_phone: receiver.email.unwrap(),
     };
 
@@ -692,7 +688,6 @@ fn receive_ticket_transfer() {
     let transfer_auth = TicketInstance::authorize_ticket_transfer(
         auth_user.id(),
         &vec![tickets[0].id, tickets[1].id],
-        3600,
         None,
         None,
         conn,
@@ -715,7 +710,7 @@ fn receive_ticket_transfer() {
 }
 
 #[test]
-fn receive_ticket_transfer_fails_expired_transfer() {
+fn receive_ticket_transfer_fails_cancelled_transfer() {
     let database = TestDatabase::new();
     let request = TestRequest::create();
     let user = database.create_user().finish();
@@ -760,28 +755,12 @@ fn receive_ticket_transfer_fails_expired_transfer() {
     .unwrap();
     let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
     let ticket_ids = vec![tickets[0].id, tickets[1].id];
-    let transfer_auth = TicketInstance::authorize_ticket_transfer(
-        auth_user.id(),
-        &ticket_ids,
-        3600,
-        None,
-        None,
-        conn,
-    )
-    .unwrap();
+    let transfer_auth =
+        TicketInstance::authorize_ticket_transfer(auth_user.id(), &ticket_ids, None, None, conn)
+            .unwrap();
 
     let transfer = &Transfer::find_by_transfer_key(transfer_auth.transfer_key, conn).unwrap();
-
-    let _q: Vec<TicketInstance> = diesel::sql_query(
-        r#"
-        UPDATE transfers
-        SET transfer_expiry_date = '2018-06-06 09:49:09.643207'
-        WHERE id = $1;
-        "#,
-    )
-    .bind::<sql_types::Uuid, _>(transfer.id)
-    .get_results(conn)
-    .unwrap();
+    transfer.cancel(user.id, None, conn).unwrap();
 
     //Try receive transfer
     let user2 = database.create_user().finish();
@@ -799,6 +778,6 @@ fn receive_ticket_transfer_fails_expired_transfer() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(
         body,
-        json!({"error": "The transfer has expired."}).to_string()
+        json!({"error": "The transfer has been cancelled."}).to_string()
     );
 }

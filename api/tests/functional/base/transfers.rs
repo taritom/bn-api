@@ -3,7 +3,6 @@ use bigneon_api::controllers::transfers::{self, *};
 use bigneon_api::errors::BigNeonError;
 use bigneon_api::models::*;
 use bigneon_db::prelude::*;
-use bigneon_db::utils::dates;
 use chrono::prelude::*;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -56,15 +55,9 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
     )
     .unwrap();
 
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
@@ -78,15 +71,9 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
             connection,
         )
         .unwrap();
-    let transfer2 = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer2
         .add_transfer_ticket(ticket2.id, user.id, &None, connection)
         .unwrap();
@@ -179,15 +166,9 @@ pub fn cancel(role: Roles, owns_order: bool, should_succeed: bool) {
     )
     .unwrap();
 
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();

@@ -574,7 +574,6 @@ table! {
         id -> Uuid,
         source_user_id -> Uuid,
         destination_user_id -> Nullable<Uuid>,
-        transfer_expiry_date -> Timestamp,
         transfer_key -> Uuid,
         status -> Varchar,
         created_at -> Timestamp,

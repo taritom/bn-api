@@ -46,7 +46,6 @@ impl TransferTicket {
             .inner_join(transfer_tickets::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
             .filter(transfer_tickets::ticket_instance_id.eq(ticket_instance_id))
             .filter(transfers::status.eq(TransferStatus::Pending))
-            .filter(transfers::transfer_expiry_date.ge(Utc::now().naive_utc()))
             .filter(transfers::id.ne(transfer_id.unwrap_or(Uuid::nil())))
             .select(count(transfers::id))
             .get_result(conn)

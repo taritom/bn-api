@@ -367,7 +367,6 @@ pub fn refund_for_non_refundable_tickets() {
     let transfer_auth = TicketInstance::authorize_ticket_transfer(
         user.id,
         &vec![ticket.id],
-        3600,
         None,
         None,
         connection,

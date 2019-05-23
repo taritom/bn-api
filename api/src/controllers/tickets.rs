@@ -201,9 +201,6 @@ pub fn send_via_email_or_phone(
             let authorization = TicketInstance::authorize_ticket_transfer(
                 auth_user.id(),
                 &send_tickets_request.ticket_ids,
-                send_tickets_request
-                    .validity_period_in_seconds
-                    .unwrap_or(604_800) as u32,
                 Some(&send_tickets_request.email_or_phone),
                 Some(TransferMessageType::Email),
                 connection,
@@ -223,9 +220,6 @@ pub fn send_via_email_or_phone(
         let authorization = TicketInstance::authorize_ticket_transfer(
             auth_user.id(),
             &send_tickets_request.ticket_ids,
-            send_tickets_request
-                .validity_period_in_seconds
-                .unwrap_or(604_800) as u32,
             Some(&send_tickets_request.email_or_phone),
             Some(TransferMessageType::Phone),
             connection,
@@ -253,7 +247,6 @@ pub fn send_via_email_or_phone(
 #[derive(Clone, Deserialize, Serialize)]
 pub struct SendTicketsRequest {
     pub ticket_ids: Vec<Uuid>,
-    pub validity_period_in_seconds: Option<i64>,
     pub email_or_phone: String,
 }
 
@@ -270,7 +263,6 @@ pub fn transfer_authorization(
     let transfer_authorization = TicketInstance::authorize_ticket_transfer(
         auth_user.id(),
         &transfer_tickets_request.ticket_ids,
-        transfer_tickets_request.validity_period_in_seconds as u32,
         None,
         None,
         connection,
@@ -351,5 +343,4 @@ fn transfer_tickets_on_blockchain(
 #[derive(Clone, Deserialize, Serialize)]
 pub struct TransferTicketRequest {
     pub ticket_ids: Vec<Uuid>,
-    pub validity_period_in_seconds: i64,
 }

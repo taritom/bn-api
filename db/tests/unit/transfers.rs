@@ -1,6 +1,5 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
-use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode;
 use chrono::prelude::*;
@@ -31,30 +30,18 @@ fn update_associated_orders() {
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let ticket2 = &TicketInstance::find_for_user(user2.id, connection).unwrap()[0];
 
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
     assert!(transfer.update_associated_orders(connection).is_ok());
     assert_eq!(vec![transfer], order.transfers(connection).unwrap());
 
-    let transfer2 = Transfer::create(
-        user2.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer2
         .add_transfer_ticket(ticket2.id, user2.id, &None, connection)
         .unwrap();
@@ -75,15 +62,9 @@ fn orders() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
 
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
@@ -109,28 +90,16 @@ fn transfer_tickets() {
     let ticket = &tickets[0];
     let ticket2 = &tickets[1];
 
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     let transfer_ticket = transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
 
-    let transfer2 = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     let transfer_ticket2 = transfer2
         .add_transfer_ticket(ticket2.id, user.id, &None, connection)
         .unwrap();
@@ -158,15 +127,9 @@ fn for_display() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
 
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
@@ -199,15 +162,9 @@ fn find_by_user_id() {
     let ticket = &tickets[0];
     let ticket2 = &TicketInstance::find_for_user(user2.id, connection).unwrap()[0];
 
-    let mut transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let mut transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
@@ -223,15 +180,9 @@ fn find_by_user_id() {
         .unwrap();
     let mut transfer = transfer.for_display(connection).unwrap();
 
-    let mut transfer2 = Transfer::create(
-        user2.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let mut transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer2
         .add_transfer_ticket(ticket2.id, user2.id, &None, connection)
         .unwrap();
@@ -467,15 +418,9 @@ fn find_by_user_id() {
 
     // Pagination
     let ticket3 = &tickets[1];
-    let transfer3 = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer3 = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer3
         .add_transfer_ticket(ticket3.id, user.id, &None, connection)
         .unwrap();
@@ -630,15 +575,9 @@ fn find() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     project.create_order().for_user(&user).is_paid().finish();
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
 
     assert_eq!(transfer, Transfer::find(transfer.id, connection).unwrap());
 }
@@ -651,15 +590,9 @@ fn find_by_transfer_key() {
     project.create_order().for_user(&user).is_paid().finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer_key = Uuid::new_v4();
-    let transfer = Transfer::create(
-        user.id,
-        transfer_key.clone(),
-        NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, transfer_key.clone(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
@@ -680,15 +613,9 @@ fn add_transfer_ticket() {
         .is_paid()
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(40).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     let transfer_ticket = transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
@@ -697,36 +624,7 @@ fn add_transfer_ticket() {
 }
 
 #[test]
-fn is_expired() {
-    let project = TestProject::new();
-    let connection = project.get_connection();
-    let user = project.create_user().finish();
-
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(-100).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
-    assert!(transfer.is_expired());
-
-    let transfer = Transfer::create(
-        user.id,
-        Uuid::new_v4(),
-        dates::now().add_seconds(100).finish(),
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
-    assert!(!transfer.is_expired());
-}
-
-#[test]
-fn find_active_pending_by_ticket_instance_ids() {
+fn find_pending_by_ticket_instance_ids() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
@@ -734,16 +632,14 @@ fn find_active_pending_by_ticket_instance_ids() {
     project
         .create_order()
         .for_user(&user)
-        .quantity(3)
+        .quantity(2)
         .is_paid()
         .finish();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = &tickets[0];
     let ticket2 = &tickets[1];
-    let ticket3 = &tickets[2];
-    let transfer_expiry_date = NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11);
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), transfer_expiry_date, None, None)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
         .commit(&None, connection)
         .unwrap();
     transfer
@@ -751,37 +647,16 @@ fn find_active_pending_by_ticket_instance_ids() {
         .unwrap();
 
     assert!(transfer.complete(user2.id, None, connection).is_ok());
-    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), transfer_expiry_date, None, None)
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
         .commit(&None, connection)
         .unwrap();
     transfer2
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
 
-    let transfer3 = Transfer::create(user.id, Uuid::new_v4(), transfer_expiry_date, None, None)
-        .commit(&None, connection)
-        .unwrap();
-    transfer3
-        .add_transfer_ticket(ticket2.id, user.id, &None, connection)
-        .unwrap();
-
-    // Transfer 3 is expired so will not returned
-    let _q: Vec<TicketInstance> = diesel::sql_query(
-        r#"
-        UPDATE transfers
-        SET transfer_expiry_date = '2018-06-06 09:49:09.643207'
-        WHERE id = $1;
-        "#,
-    )
-    .bind::<sql_types::Uuid, _>(transfer3.id)
-    .get_results(connection)
-    .unwrap();
-
-    let pending_transfers = Transfer::find_active_pending_by_ticket_instance_ids(
-        &[ticket.id, ticket2.id, ticket3.id],
-        connection,
-    )
-    .unwrap();
+    let pending_transfers =
+        Transfer::find_pending_by_ticket_instance_ids(&[ticket.id, ticket2.id], connection)
+            .unwrap();
     assert_eq!(pending_transfers.len(), 1);
     assert_eq!(pending_transfers[0].id, transfer2.id);
 }
@@ -801,8 +676,7 @@ fn cancel() {
         .unwrap()
         .remove(0);
     let transfer_key = Uuid::new_v4();
-    let transfer_expiry_date = NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11);
-    let transfer = Transfer::create(user.id, transfer_key, transfer_expiry_date, None, None)
+    let transfer = Transfer::create(user.id, transfer_key, None, None)
         .commit(&None, connection)
         .unwrap();
     transfer
@@ -873,8 +747,7 @@ fn complete() {
         .unwrap()
         .remove(0);
     let transfer_key = Uuid::new_v4();
-    let transfer_expiry_date = NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11);
-    let transfer = Transfer::create(user.id, transfer_key, transfer_expiry_date, None, None)
+    let transfer = Transfer::create(user.id, transfer_key, None, None)
         .commit(&None, connection)
         .unwrap();
     transfer
@@ -945,9 +818,8 @@ fn create_commit() {
         .unwrap()
         .remove(0);
     let transfer_key = Uuid::new_v4();
-    let transfer_expiry_date = NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11);
 
-    let transfer = Transfer::create(user.id, transfer_key, transfer_expiry_date, None, None)
+    let transfer = Transfer::create(user.id, transfer_key, None, None)
         .commit(&None, connection)
         .unwrap();
     transfer
@@ -956,10 +828,6 @@ fn create_commit() {
     assert_eq!(transfer.status, TransferStatus::Pending);
     assert_eq!(transfer.source_user_id, user.id);
     assert_eq!(transfer.transfer_key, transfer_key);
-    assert_eq!(
-        transfer.transfer_expiry_date.timestamp(),
-        transfer_expiry_date.timestamp()
-    );
 
     let domain_events = DomainEvent::find(
         Tables::Transfers,
@@ -986,7 +854,6 @@ fn update() {
         .unwrap()
         .remove(0);
     let transfer_key = Uuid::new_v4();
-    let transfer_expiry_date = NaiveDate::from_ymd(2050, 7, 8).and_hms(4, 10, 11);
     let domain_events = DomainEvent::find(
         Tables::TicketInstances,
         Some(ticket.id),
@@ -996,15 +863,9 @@ fn update() {
     .unwrap();
     assert_eq!(0, domain_events.len());
 
-    let transfer = Transfer::create(
-        user.id,
-        transfer_key.clone(),
-        transfer_expiry_date,
-        None,
-        None,
-    )
-    .commit(&None, connection)
-    .unwrap();
+    let transfer = Transfer::create(user.id, transfer_key.clone(), None, None)
+        .commit(&None, connection)
+        .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
