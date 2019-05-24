@@ -1371,7 +1371,7 @@ fn build_transaction_report_row(
         event_fee_gross_in_cents_total: event.company_fee_in_cents + event.client_fee_in_cents,
         fee_range_id: Some(fee_schedule_range.id),
         order_type: OrderTypes::Cart,
-        payment_method: Some(PaymentMethods::CreditCard),
+        payment_method: Some(PaymentMethods::CreditCard.to_string()),
         payment_provider: Some(PaymentProviders::Stripe.to_string()),
         transaction_date: order.paid_at.clone().unwrap(),
         redemption_code: None,

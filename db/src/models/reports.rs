@@ -217,7 +217,7 @@ pub struct TransactionReportRow {
     #[sql_type = "Text"]
     pub order_type: OrderTypes,
     #[sql_type = "Nullable<Text>"]
-    pub payment_method: Option<PaymentMethods>,
+    pub payment_method: Option<String>,
     #[sql_type = "Nullable<Text>"]
     pub payment_provider: Option<String>,
     #[sql_type = "Timestamp"]
@@ -412,7 +412,7 @@ pub struct EventSummaryOtherFees {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ReconciliationSummaryResult {
-    pub payment_method: PaymentMethods,
+    pub payment_method: String,
     pub payment_provider: String,
     pub quantity: i64,
     pub unit_price_in_cents: i64,
@@ -439,7 +439,7 @@ pub struct ReconciliationFeeRangeResult {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ReconciliationDetailResult {
-    pub payment_method: PaymentMethods,
+    pub payment_method: String,
     pub payment_provider: String,
     pub quantity: i64,
     pub unit_price_in_cents: i64,

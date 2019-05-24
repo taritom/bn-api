@@ -67,7 +67,8 @@ FROM orders o
                            ARRAY_TO_STRING(ARRAY_AGG(DISTINCT p.payment_method), ', ') AS payment_method,
                            ARRAY_TO_STRING(ARRAY_AGG(DISTINCT p.provider), ', ')       AS payment_provider
                     FROM payments p
-                    GROUP BY p.payment_method, p.order_id) AS p on o.id = p.order_id
+                    WHERE p.status IN ('Completed','Refunded')
+                    GROUP BY p.order_id) AS p on o.id = p.order_id
          LEFT JOIN holds h on oi.hold_id = h.id
          LEFT JOIN events e on oi.event_id = e.id
          LEFT JOIN users u on coalesce(o.on_behalf_of_user_id, o.user_id) = u.id
