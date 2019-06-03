@@ -122,8 +122,14 @@ impl User {
         conn: &PgConnection,
     ) -> Result<bool, BigNeonError> {
         let mut has_scope = false;
-        for organization in order.organizations(conn)? {
-            if self.check_scope_access(scope, Some(&organization), None, Some(conn), false)? {
+        for event in order.events(conn)? {
+            if self.check_scope_access(
+                scope,
+                Some(&event.organization(conn)?),
+                Some(event.id),
+                Some(conn),
+                false,
+            )? {
                 has_scope = true;
             }
         }

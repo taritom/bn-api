@@ -4,6 +4,7 @@ use bigneon_db::models::{User as DbUser, *};
 use chrono::prelude::*;
 use communications::{mailers, smsers};
 use db::Connection;
+use diesel::PgConnection;
 use errors::*;
 use helpers::application;
 use models::{OptionalPathParameters, PathParameters, WebPayload};
@@ -15,6 +16,22 @@ pub struct TransferFilters {
     source_or_destination: Option<String>,
     start_utc: Option<NaiveDateTime>,
     end_utc: Option<NaiveDateTime>,
+}
+
+pub fn show_by_transfer_key(
+    (connection, path, auth_user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let transfer = Transfer::find_by_transfer_key(path.id, connection)?;
+    check_transfer_access(
+        &transfer,
+        true,
+        Scopes::TransferRead,
+        Scopes::TransferReadOwn,
+        &auth_user,
+        connection,
+    )?;
+    Ok(HttpResponse::Ok().json(&transfer.for_display(connection)?))
 }
 
 pub fn index(
@@ -86,22 +103,14 @@ pub fn cancel(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let transfer = Transfer::find(path.id, connection)?;
-
-    if transfer.source_user_id != auth_user.id() {
-        let mut valid_for_cancelling = false;
-        let orders = transfer.orders(connection)?;
-
-        for order in orders {
-            valid_for_cancelling =
-                auth_user.has_scope_for_order(Scopes::TransferCancel, &order, connection)?;
-        }
-
-        if !valid_for_cancelling {
-            return application::forbidden("You do not have access to this transfer");
-        }
-    } else {
-        auth_user.requires_scope(Scopes::TransferCancelOwn)?;
-    }
+    check_transfer_access(
+        &transfer,
+        false,
+        Scopes::TransferCancel,
+        Scopes::TransferCancelOwn,
+        &auth_user,
+        connection,
+    )?;
 
     let updated_transfer = transfer.cancel(auth_user.id(), None, connection)?;
     let source_user = DbUser::find(transfer.source_user_id, connection)?;
@@ -145,4 +154,32 @@ pub fn cancel(
     }
 
     Ok(HttpResponse::Ok().json(&updated_transfer.for_display(connection)?))
+}
+
+fn check_transfer_access(
+    transfer: &Transfer,
+    allow_destination_user_access: bool,
+    scope: Scopes,
+    scope_own: Scopes,
+    user: &User,
+    connection: &PgConnection,
+) -> Result<(), BigNeonError> {
+    if transfer.source_user_id != user.id()
+        && (!allow_destination_user_access
+            || !(transfer.destination_user_id.is_none()
+                || transfer.destination_user_id == Some(user.id())))
+    {
+        let mut valid = false;
+        let orders = transfer.orders(connection)?;
+        for order in orders {
+            valid = user.has_scope_for_order(scope, &order, connection)?;
+        }
+
+        if !valid {
+            application::forbidden::<HttpResponse>("You do not have access to this transfer")?;
+        }
+    } else {
+        user.requires_scope(scope_own)?;
+    }
+    Ok(())
 }

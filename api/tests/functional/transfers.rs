@@ -90,6 +90,119 @@ mod index_tests {
 }
 
 #[cfg(test)]
+mod show_tests {
+    use super::*;
+    #[test]
+    fn show_org_member() {
+        base::transfers::show(Roles::OrgMember, false, true, true);
+    }
+    #[test]
+    fn show_admin() {
+        base::transfers::show(Roles::Admin, false, true, true);
+    }
+    #[test]
+    fn show_user() {
+        base::transfers::show(Roles::User, false, true, false);
+    }
+    #[test]
+    fn show_org_owner() {
+        base::transfers::show(Roles::OrgOwner, false, true, true);
+    }
+    #[test]
+    fn show_door_person() {
+        base::transfers::show(Roles::DoorPerson, false, true, false);
+    }
+    #[test]
+    fn show_promoter() {
+        base::transfers::show(Roles::Promoter, false, true, true);
+    }
+    #[test]
+    fn show_promoter_read_only() {
+        base::transfers::show(Roles::PromoterReadOnly, false, true, true);
+    }
+    #[test]
+    fn show_org_admin() {
+        base::transfers::show(Roles::OrgAdmin, false, true, true);
+    }
+    #[test]
+    fn show_box_office() {
+        base::transfers::show(Roles::OrgBoxOffice, false, true, false);
+    }
+    #[test]
+    fn show_unclaimed_org_member() {
+        base::transfers::show(Roles::OrgMember, false, false, true);
+    }
+    #[test]
+    fn show_unclaimed_admin() {
+        base::transfers::show(Roles::Admin, false, false, true);
+    }
+    #[test]
+    fn show_unclaimed_user() {
+        base::transfers::show(Roles::User, false, false, true);
+    }
+    #[test]
+    fn show_unclaimed_org_owner() {
+        base::transfers::show(Roles::OrgOwner, false, false, true);
+    }
+    #[test]
+    fn show_unclaimed_door_person() {
+        base::transfers::show(Roles::DoorPerson, false, false, true);
+    }
+    #[test]
+    fn show_unclaimed_promoter() {
+        base::transfers::show(Roles::Promoter, false, false, true);
+    }
+    #[test]
+    fn show_unclaimed_promoter_read_only() {
+        base::transfers::show(Roles::PromoterReadOnly, false, false, true);
+    }
+    #[test]
+    fn show_unclaimed_org_admin() {
+        base::transfers::show(Roles::OrgAdmin, false, false, true);
+    }
+    #[test]
+    fn show_unclaimed_box_office() {
+        base::transfers::show(Roles::OrgBoxOffice, false, false, true);
+    }
+    #[test]
+    fn show_owns_order_org_member() {
+        base::transfers::show(Roles::OrgMember, true, false, true);
+    }
+    #[test]
+    fn show_owns_order_admin() {
+        base::transfers::show(Roles::Admin, true, false, true);
+    }
+    #[test]
+    fn show_owns_order_user() {
+        base::transfers::show(Roles::User, true, false, true);
+    }
+    #[test]
+    fn show_owns_order_org_owner() {
+        base::transfers::show(Roles::OrgOwner, true, false, true);
+    }
+    #[test]
+    fn show_owns_order_door_person() {
+        base::transfers::show(Roles::DoorPerson, true, false, true);
+    }
+    #[test]
+    fn show_owns_order_promoter() {
+        base::transfers::show(Roles::Promoter, true, false, true);
+    }
+    #[test]
+    fn show_owns_order_promoter_read_only() {
+        base::transfers::show(Roles::PromoterReadOnly, true, false, true);
+    }
+    #[test]
+    fn show_owns_order_org_admin() {
+        base::transfers::show(Roles::OrgAdmin, true, false, true);
+    }
+    #[test]
+    fn show_owns_order_box_office() {
+        base::transfers::show(Roles::OrgBoxOffice, true, false, true);
+    }
+}
+
+#[cfg(test)]
 mod cancel_tests {
     use super::*;
     #[test]

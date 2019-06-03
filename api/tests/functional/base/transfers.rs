@@ -138,6 +138,81 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
     }
 }
 
+pub fn show(role: Roles, owns_order: bool, claimed: bool, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .with_organization(&organization)
+        .finish();
+    let order = database
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+
+    let ticket = TicketInstance::find(
+        TicketInstance::find_ids_for_order(order.id, connection)
+            .unwrap()
+            .pop()
+            .unwrap(),
+        connection,
+    )
+    .unwrap();
+
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
+    transfer
+        .add_transfer_ticket(ticket.id, user.id, &None, connection)
+        .unwrap();
+    transfer.update_associated_orders(connection).unwrap();
+
+    let auth_user = if owns_order {
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database)
+    } else {
+        support::create_auth_user(role, Some(&organization), &database)
+    };
+
+    if claimed {
+        let claimer = database.create_user().finish();
+        transfer.complete(claimer.id, None, connection).unwrap();
+    }
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = transfer.transfer_key;
+    let response: HttpResponse = transfers::show_by_transfer_key((
+        database.connection.clone().into(),
+        path,
+        auth_user.clone(),
+    ))
+    .into();
+
+    if should_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = support::unwrap_body_to_string(&response).unwrap();
+        let found_transfer: DisplayTransfer = serde_json::from_str(&body).unwrap();
+        assert_eq!(found_transfer.id, transfer.id);
+        assert_eq!(
+            found_transfer.status,
+            if claimed {
+                TransferStatus::Completed
+            } else {
+                TransferStatus::Pending
+            }
+        );
+    } else {
+        support::expects_forbidden(&response, Some("You do not have access to this transfer"));
+    }
+}
+
 pub fn cancel(role: Roles, owns_order: bool, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();

@@ -119,8 +119,10 @@ fn for_display() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
     project
         .create_order()
+        .for_event(&event)
         .for_user(&user)
         .quantity(1)
         .is_paid()
@@ -136,6 +138,7 @@ fn for_display() {
     let display_transfer = transfer.for_display(connection).unwrap();
     assert_eq!(display_transfer.id, transfer.id);
     assert_eq!(display_transfer.ticket_ids, vec![ticket.id]);
+    assert_eq!(display_transfer.event_ids, vec![event.id]);
 }
 
 #[test]

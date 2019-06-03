@@ -5,7 +5,10 @@ use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types::{Array, BigInt, Nullable, Uuid as dUuid};
 use models::*;
-use schema::{order_transfers, orders, transfer_tickets, transfers};
+use schema::{
+    assets, events, order_transfers, orders, ticket_instances, ticket_types, transfer_tickets,
+    transfers,
+};
 use serde_json::Value;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -59,6 +62,7 @@ pub struct DisplayTransfer {
     pub transfer_message_type: Option<TransferMessageType>,
     pub transfer_address: Option<String>,
     pub ticket_ids: Vec<Uuid>,
+    pub event_ids: Vec<Uuid>,
     #[serde(skip_serializing)]
     pub total: Option<i64>,
 }
@@ -122,7 +126,8 @@ impl Transfer {
             query = query.filter(transfers::created_at.le(end_time));
         }
 
-        let transfers: Vec<DisplayTransfer> = query.select(transfers::all_columns)
+        let transfers: Vec<DisplayTransfer> = query
+            .select(transfers::all_columns)
             .limit(limit as i64)
             .offset(limit as i64 * page as i64)
             .then_order_by(transfers::created_at.desc())
@@ -136,8 +141,25 @@ impl Transfer {
                 transfers::updated_at,
                 transfers::transfer_message_type,
                 transfers::transfer_address,
-                sql::<Array<dUuid>>("
-                    ARRAY(select ticket_instance_id FROM transfer_tickets WHERE transfer_tickets.transfer_id = transfers.id) as ticket_ids
+                sql::<Array<dUuid>>(
+                    "
+                    ARRAY(
+                        SELECT ticket_instance_id
+                        FROM transfer_tickets
+                        WHERE transfer_tickets.transfer_id = transfers.id
+                    ) as ticket_ids
+                ",
+                ),
+                sql::<Array<dUuid>>(
+                    "
+                    ARRAY(
+                        SELECT DISTINCT event_id
+                        FROM transfer_tickets tt
+                        JOIN ticket_instances ti ON tt.ticket_instance_id = ti.id
+                        JOIN assets a ON a.id = ti.asset_id
+                        JOIN ticket_types tt2 ON tt2.id = a.ticket_type_id
+                        WHERE tt.transfer_id = transfers.id
+                    ) as event_ids
                 ",
                 ),
                 sql::<Nullable<BigInt>>("count(*) over() as total"),
@@ -156,6 +178,8 @@ impl Transfer {
             .iter()
             .map(|tt| tt.ticket_instance_id)
             .collect();
+        let event_ids = self.events(conn)?.iter().map(|e| e.id).collect();
+
         Ok(DisplayTransfer {
             id: self.id,
             source_user_id: self.source_user_id,
@@ -167,6 +191,7 @@ impl Transfer {
             transfer_message_type: self.transfer_message_type,
             transfer_address: self.transfer_address.clone(),
             ticket_ids,
+            event_ids,
             total: None,
         })
     }
@@ -326,6 +351,22 @@ impl Transfer {
             transfer_key,
             status: TransferStatus::Pending,
         }
+    }
+
+    pub fn events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
+        transfer_tickets::table
+            .inner_join(
+                ticket_instances::table
+                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
+            )
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
+            .filter(transfer_tickets::transfer_id.eq(self.id))
+            .select(events::all_columns)
+            .distinct()
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load transfer events")
     }
 
     pub fn orders(&self, conn: &PgConnection) -> Result<Vec<Order>, DatabaseError> {
