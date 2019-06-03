@@ -305,6 +305,20 @@ fn guest_list() {
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
 
+    // Partial match last name, first name
+    let guest_list = event
+        .guest_list(Some("tes al".to_string()), &None, connection)
+        .unwrap();
+    assert_eq!(1, guest_list.len());
+    assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
+
+    // With commas that are ignored
+    let guest_list = event
+        .guest_list(Some("test, al".to_string()), &None, connection)
+        .unwrap();
+    assert_eq!(1, guest_list.len());
+    assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
+
     // Partial match first name, full last name
     let guest_list = event
         .guest_list(Some("Al Test".to_string()), &None, connection)
@@ -317,11 +331,6 @@ fn guest_list() {
         .unwrap();
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
-
-    let guest_list = event
-        .guest_list(Some("st Al".to_string()), &None, connection)
-        .unwrap();
-    assert!(guest_list.is_empty());
 
     // Update ticket for user.id to override name
     let ticket = TicketInstance::find_for_user(user.id, connection)

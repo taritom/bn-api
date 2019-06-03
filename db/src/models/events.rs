@@ -1096,12 +1096,17 @@ impl Event {
         changes_since: &Option<NaiveDateTime>,
         conn: &PgConnection,
     ) -> Result<Vec<GuestListItem>, DatabaseError> {
-        let q = include_str!("../queries/retrieve_guest_list.sql");
-
+        let query_sql = include_str!("../queries/retrieve_guest_list.sql");
+        let query = query.map(|q| {
+            str::replace(&str::replace(&q, " ", ""), ",", "")
+                .split("")
+                .collect::<Vec<&str>>()
+                .join("%")
+        });
         let ticket_id: Option<Uuid> = None;
-        let tickets = diesel::sql_query(q)
+        let tickets = diesel::sql_query(query_sql)
             .bind::<Nullable<dUuid>, _>(Some(self.id))
-            .bind::<Nullable<Text>, _>(query.map(|q| str::replace(&q, " ", "%")))
+            .bind::<Nullable<Text>, _>(query)
             .bind::<Nullable<Timestamp>, _>(changes_since)
             .bind::<Nullable<dUuid>, _>(ticket_id)
             .load::<RedeemableTicket>(conn)

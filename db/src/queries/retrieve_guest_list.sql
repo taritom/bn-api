@@ -47,6 +47,7 @@ FROM ticket_instances ti
 WHERE ($1 IS NULL OR t2.event_id = $1)
   AND ($2 IS NULL
     OR CONCAT(COALESCE(ti.first_name_override, u.first_name), ' ', COALESCE(ti.last_name_override, u.last_name)) ILIKE '%' || $2 || '%'
+    OR CONCAT(COALESCE(ti.last_name_override, u.last_name), ' ', COALESCE(ti.first_name_override, u.first_name)) ILIKE '%' || $2 || '%'
     OR u.email ILIKE '%' || $2 || '%'
     OR u.phone ILIKE '%' || $2 || '%')
   AND ($3 IS NULL OR ti.updated_at >= $3)
