@@ -122,7 +122,7 @@ pub fn cancel(
                     smsers::tickets::transfer_cancelled(
                         &state.config,
                         transfer_address.clone(),
-                        &auth_user.user,
+                        &source_user,
                         connection,
                     )?;
                 }
