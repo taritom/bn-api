@@ -329,6 +329,7 @@ pub fn index_search_with_filter() {
             ..Default::default()
         },
         event_type: EventTypes::Music,
+        event_end: event.event_end,
     }];
 
     let test_request = TestRequest::create_with_uri("/events?query=NewEvent1");
@@ -1828,6 +1829,7 @@ struct EventVenueEntry {
     tracking_keys: TrackingKeys,
     event_type: EventTypes,
     updated_at: NaiveDateTime,
+    event_end: Option<NaiveDateTime>,
 }
 
 fn event_venue_entry(
@@ -1871,5 +1873,6 @@ fn event_venue_entry(
             ..Default::default()
         },
         event_type: event.event_type,
+        event_end: event.event_end,
     }
 }

@@ -78,6 +78,7 @@ struct EventVenueEntry {
     tracking_keys: TrackingKeys,
     event_type: EventTypes,
     updated_at: NaiveDateTime,
+    event_end: Option<NaiveDateTime>,
 }
 
 impl From<SearchParameters> for Paging {
@@ -1233,6 +1234,7 @@ fn event_venues_from_events(
             localized_times,
             tracking_keys,
             event_type: event.event_type,
+            event_end: event.event_end,
         });
     }
     Ok(results)
