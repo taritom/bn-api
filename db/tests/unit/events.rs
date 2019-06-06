@@ -269,7 +269,7 @@ fn guest_list() {
     let user6 = project.create_user().finish();
 
     // 1 normal order, 2 orders made on behalf of users by box office user 2
-    project
+    let normal_order = project
         .create_order()
         .for_event(&event)
         .for_user(&user)
@@ -294,41 +294,49 @@ fn guest_list() {
         .finish();
 
     let guest_list = event
-        .guest_list(Some("Alex".to_string()), &None, connection)
-        .unwrap();
-    assert_eq!(1, guest_list.len());
-    assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
+        .guest_list(Some("Alex".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
+    let guest_list_length = guest_list.len().clone();
+    let first_ticket = guest_list.first().unwrap().ticket.clone();
+    assert_eq!(1, guest_list_length);
+    assert_eq!(first_ticket.user_id.clone(), Some(user.id));
 
     let guest_list = event
-        .guest_list(Some("Test".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("Test".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
 
     // Partial match last name, first name
     let guest_list = event
-        .guest_list(Some("tes al".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("tes al".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
 
     // With commas that are ignored
     let guest_list = event
-        .guest_list(Some("test, al".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("test, al".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
 
     // Partial match first name, full last name
     let guest_list = event
-        .guest_list(Some("Al Test".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("Al Test".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
 
     let guest_list = event
-        .guest_list(Some("ex T".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("ex T".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
 
@@ -349,39 +357,45 @@ fn guest_list() {
         .unwrap();
 
     let guest_list = event
-        .guest_list(Some("Alex".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("Alex".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert!(guest_list.is_empty());
 
     let guest_list = event
-        .guest_list(Some("Test".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("Test".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert!(guest_list.is_empty());
 
     let guest_list = event
-        .guest_list(Some("ex T".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("ex T".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert!(guest_list.is_empty());
 
     let guest_list = event
-        .guest_list(Some("First".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("First".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
 
     let guest_list = event
-        .guest_list(Some("Last".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("Last".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
 
     let guest_list = event
-        .guest_list(Some("st la".to_string()), &None, connection)
-        .unwrap();
+        .guest_list(Some("st la".to_string()), &None, None, connection)
+        .unwrap()
+        .0;
     assert_eq!(1, guest_list.len());
     assert_eq!(guest_list.first().unwrap().ticket.user_id, Some(user.id));
 
-    let guest_list = event.guest_list(None, &None, connection).unwrap();
+    let guest_list = event.guest_list(None, &None, None, connection).unwrap().0;
     assert_eq!(3, guest_list.len());
     let guest_ids = guest_list
         .iter()
@@ -419,7 +433,7 @@ fn guest_list() {
         .quantity(1)
         .is_paid()
         .finish();
-    let guest_list = event.guest_list(None, &None, connection).unwrap();
+    let guest_list = event.guest_list(None, &None, None, connection).unwrap().0;
     assert_eq!(4, guest_list.len());
     let guest_ids = guest_list
         .iter()
@@ -433,15 +447,17 @@ fn guest_list() {
     //Check the updated_at filter from 100 seconds ago
     let hundred_seconds_ago = Utc::now().naive_utc() + Duration::seconds(-100);
     let guest_list = event
-        .guest_list(None, &Some(hundred_seconds_ago), connection)
-        .unwrap();
+        .guest_list(None, &Some(hundred_seconds_ago), None, connection)
+        .unwrap()
+        .0;
     assert_eq!(4, guest_list.len());
 
     //Check the updated_at filter in 100 seconds time
     let hundred_seconds_later = Utc::now().naive_utc() + Duration::seconds(100);
     let guest_list = event
-        .guest_list(None, &Some(hundred_seconds_later), connection)
-        .unwrap();
+        .guest_list(None, &Some(hundred_seconds_later), None, connection)
+        .unwrap()
+        .0;
     assert_eq!(0, guest_list.len());
 
     // Transfer tickets for users 1 and 4 changing guest list to show the new users
@@ -461,7 +477,7 @@ fn guest_list() {
         )
         .unwrap();
     }
-    let guest_list = event.guest_list(None, &None, connection).unwrap();
+    let guest_list = event.guest_list(None, &None, None, connection).unwrap().0;
     assert_eq!(4, guest_list.len());
     let guest_ids = guest_list
         .iter()
@@ -480,6 +496,39 @@ fn guest_list() {
         .unwrap();
     assert_eq!(guest_list_user_record.ticket.first_name, user5.first_name);
     assert_eq!(guest_list_user_record.ticket.last_name, user5.last_name);
+
+    //Test the pagination
+    let paging = Paging::new(0, 3);
+    let guest_list = event
+        .guest_list(None, &None, Some(&paging), connection)
+        .unwrap();
+    assert_eq!(3, guest_list.0.len());
+    assert_eq!(4, guest_list.1);
+    let paging = Paging::new(1, 3);
+    let guest_list = event
+        .guest_list(None, &None, Some(&paging), connection)
+        .unwrap();
+    assert_eq!(4, guest_list.1);
+    assert_eq!(1, guest_list.0.len());
+
+    //Search by an order id
+    let order_id = normal_order.id.to_string();
+    let order_id = order_id[&order_id.len() - 8..].to_string();
+    let guest_list = event
+        .guest_list(Some(order_id.clone()), &None, None, connection)
+        .unwrap();
+    let guest_list_item = guest_list.0.first().unwrap();
+    assert_eq!(1, guest_list.1);
+    assert_eq!(normal_order.id, guest_list_item.ticket.order_id);
+    //Search by ticket_instance id
+    let ticket_id = first_ticket.id.to_string();
+    let ticket_id = ticket_id[&ticket_id.len() - 8..].to_string();
+    let guest_list = event
+        .guest_list(Some(ticket_id.clone()), &None, None, connection)
+        .unwrap();
+    let guest_list_item = guest_list.0.first().unwrap();
+    assert_eq!(1, guest_list.1);
+    assert_eq!(first_ticket.id, guest_list_item.ticket.id);
 }
 
 #[test]

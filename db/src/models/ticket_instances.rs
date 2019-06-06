@@ -844,21 +844,20 @@ impl TicketInstance {
         ticket_id: Uuid,
         conn: &PgConnection,
     ) -> Result<RedeemableTicket, DatabaseError> {
-        let q = include_str!("../queries/retrieve_guest_list.sql");
+        let tickets_and_counts =
+            Event::guest_list_tickets(None, Some(ticket_id), None, &None, None, conn)?;
 
-        let event_id: Option<Uuid> = None;
-        let updated_at: Option<NaiveDateTime> = None;
-        let search: Option<String> = None;
-
-        let ticket_data = diesel::sql_query(q)
-            .bind::<Nullable<dUuid>, _>(event_id)
-            .bind::<Nullable<Text>, _>(search)
-            .bind::<Nullable<Timestamp>, _>(updated_at)
-            .bind::<Nullable<dUuid>, _>(Some(ticket_id))
-            .get_result::<RedeemableTicket>(conn)
-            .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
-
-        Ok(ticket_data)
+        match tickets_and_counts.0.get(0) {
+            Some(ticket_data) => {
+                return Ok(ticket_data.clone());
+            }
+            None => {
+                return Err(DatabaseError::new(
+                    ErrorCode::QueryError,
+                    Some("Unable to load ticket".to_string()),
+                ));
+            }
+        }
     }
 
     pub fn direct_transfer(

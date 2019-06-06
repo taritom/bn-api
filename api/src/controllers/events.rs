@@ -812,8 +812,11 @@ pub fn update_artists(
 
 #[derive(Deserialize, Clone)]
 pub struct GuestListQueryParameters {
-    pub query: Option<String>,
     pub changes_since: Option<NaiveDateTime>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub query: Option<String>,
+    pub page: Option<u32>,
+    pub limit: Option<i32>,
 }
 
 impl From<GuestListQueryParameters> for Paging {
@@ -822,14 +825,26 @@ impl From<GuestListQueryParameters> for Paging {
         default_tags.insert("query".to_owned(), json!(s.query.clone()));
         default_tags.insert("changes_since".to_owned(), json!(s.changes_since.clone()));
 
-        Paging {
-            page: 0,
-            limit: 100,
-            sort: "".to_owned(),
-            dir: SortingDir::Asc,
-            total: 0,
+        //TODO Replace u32::MAX with our default of 100
+        let limit: u32 = match s.limit {
+            Some(limit) => {
+                if limit > 0 {
+                    limit as u32
+                } else {
+                    std::u32::MAX
+                }
+            }
+            None => std::u32::MAX,
+        };
+
+        PagingParameters {
+            page: s.page,
+            limit: Some(limit),
+            sort: None,
+            dir: None,
             tags: default_tags,
         }
+        .into()
     }
 }
 
@@ -853,16 +868,18 @@ pub fn guest_list(
 
     let query_string = query.clone().query;
     let changes_since = query.clone().changes_since;
-    let tickets = event.guest_list(query_string, &changes_since, conn)?;
+    let paging = query.clone().into();
+    let tickets_and_total = event.guest_list(query_string, &changes_since, Some(&paging), conn)?;
+    let (tickets, total) = tickets_and_total;
 
     #[derive(Serialize)]
-    struct R {
+    struct TicketRefundable {
         #[serde(flatten)]
         ticket: RedeemableTicket,
         refund_supported: bool,
     }
 
-    let mut tickets_refund: Vec<R> = Vec::new();
+    let mut tickets_refund: Vec<TicketRefundable> = Vec::new();
 
     for t in tickets {
         let mut refundable = t.providers.len() != 0;
@@ -872,13 +889,15 @@ pub fn guest_list(
             }
         }
 
-        tickets_refund.push(R {
+        tickets_refund.push(TicketRefundable {
             ticket: t.ticket.clone(),
             refund_supported: refundable,
         });
     }
 
-    let payload = Payload::new(tickets_refund, query.into_inner().into());
+    let mut payload = Payload::new(tickets_refund, query.into_inner().into());
+    payload.paging.total = total as u64;
+    payload.paging.limit = paging.limit;
     Ok(HttpResponse::Ok().json(payload))
 }
 

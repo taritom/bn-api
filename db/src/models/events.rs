@@ -1090,39 +1090,125 @@ impl Event {
         Ok(result)
     }
 
+    pub fn guest_list_tickets(
+        event_id: Option<Uuid>,
+        ticket_id: Option<Uuid>,
+        query_string: Option<String>,
+        changes_since: &Option<NaiveDateTime>,
+        paging: Option<&Paging>,
+        conn: &PgConnection,
+    ) -> Result<(Vec<RedeemableTicket>, i64), DatabaseError> {
+        use schema::*;
+        let paging = match paging {
+            Some(p) => p.clone(),
+            None => Paging {
+                page: 0,
+                limit: 99999999,
+                sort: "".to_string(),
+                dir: SortingDir::Asc,
+                total: 0,
+                tags: HashMap::new(),
+            },
+        };
+
+        let mut query = ticket_instances::table
+            .inner_join(assets::table.inner_join(ticket_types::table))
+            .inner_join(order_items::table.inner_join(orders::table))
+            .inner_join(
+                wallets::table
+                    .inner_join(users::table.on(wallets::user_id.eq(users::id.nullable())))
+                    .on(wallets::id.eq(ticket_instances::wallet_id)),
+            )
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
+            .left_join(venues::table.on(venues::id.nullable().eq(events::venue_id.nullable())))
+            .into_boxed();
+        if let Some(event_id) = event_id {
+            query = query.filter(ticket_types::event_id.nullable().eq(event_id))
+        }
+        if let Some(ticket_id) = ticket_id {
+            query = query.filter(ticket_instances::id.nullable().eq(ticket_id))
+        }
+        if let Some(query_string) = query_string {
+            let fuzzy_query_string: String = str::replace(&query_string, ",", "");
+            let fuzzy_query_string = fuzzy_query_string
+                .split_whitespace()
+                .map(|w| w.split("").collect::<Vec<&str>>().join("%"))
+                .collect::<Vec<String>>()
+                .join("%");
+            let id_query_string = format!("%{}", query_string.to_lowercase());
+
+            query = query
+                .filter(sql("users.email ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
+                .or_filter(sql("users.phone ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
+                .or_filter(sql("CONCAT(COALESCE(ticket_instances.first_name_override, users.first_name), ' ', COALESCE(ticket_instances.last_name_override, users.last_name)) ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
+                .or_filter(sql("CONCAT(COALESCE(ticket_instances.last_name_override, users.last_name), ' ', COALESCE(ticket_instances.first_name_override, users.first_name)) ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
+                .or_filter(sql("ticket_instances.id::TEXT LIKE ").bind::<Text, _>(id_query_string.clone()))
+                .or_filter(sql("order_items.order_id::TEXT LIKE ").bind::<Text, _>(id_query_string.clone()));
+        }
+
+        if let Some(changes_since) = changes_since {
+            query = query.filter(ticket_instances::updated_at.nullable().ge(changes_since))
+        }
+
+        let results = query.order_by(users::last_name.asc())
+            .then_order_by(ticket_instances::id)
+            .select((
+                sql::<dUuid>("ticket_instances.id AS id")
+                , sql::<Text>("ticket_types.name AS ticket_type")
+                , sql::<Nullable<dUuid>>("users.id AS user_id")
+                , sql::<dUuid>("order_items.order_id AS order_id")
+                , sql::<dUuid>("order_items.id AS order_item_id")
+                , sql::<BigInt>("cast(order_items.unit_price_in_cents + coalesce((SELECT SUM(unit_price_in_cents) FROM order_items WHERE parent_id = ticket_instances.order_item_id), 0) AS BIGINT) AS price_in_cents")
+                , sql::<Nullable<Text>>("COALESCE(ticket_instances.first_name_override, users.first_name) AS first_name")
+                , sql::<Nullable<Text>>("COALESCE(ticket_instances.last_name_override, users.last_name) AS last_name")
+                , sql::<Nullable<Text>>("users.email AS email")
+                , sql::<Nullable<Text>>("users.phone AS phone")
+                , sql::<Nullable<Text>>("CASE WHEN events.redeem_date IS NULL OR NOW() >= events.redeem_date OR NOW() >= events.event_start - INTERVAL '1 day 1 minute' THEN ticket_instances.redeem_key ELSE NULL END AS redeem_key")
+                , sql::<Nullable<Timestamp>>("events.redeem_date AS redeem_date")
+                , sql::<Text>("ticket_instances.status AS status")
+                , sql::<dUuid>("events.id AS event_id")
+                , sql::<Text>("events.name AS event_name")
+                , sql::<Nullable<Timestamp>>("events.door_time AS door_time")
+                , sql::<Nullable<Timestamp>>("events.event_start AS event_start")
+                , sql::<Nullable<dUuid>>("venues.id AS venue_id")
+                , sql::<Nullable<Text>>("venues.name AS venue_name")
+                , sql::<Timestamp>("ticket_instances.updated_at AS updated_at")
+                , sql::<Nullable<Text>>("CASE WHEN ticket_instances.redeemed_by_user_id IS NOT NULL THEN (SELECT CONCAT(u2.first_name, ' ', u2.last_name) FROM users u2 WHERE u2.id = ticket_instances.redeemed_by_user_id) ELSE NULL END  AS redeemed_by")
+                , sql::<Nullable<Timestamp>>("ticket_instances.redeemed_at AS redeemed_at")
+            ))
+            .paginate(paging.page as i64)
+            .per_page(paging.limit as i64)
+            .load_and_count_pages(conn);
+
+        DatabaseError::wrap(
+            ErrorCode::QueryError,
+            "Unable to load all redeemable tickets",
+            results,
+        )
+    }
+
     pub fn guest_list(
         &self,
         query: Option<String>,
         changes_since: &Option<NaiveDateTime>,
+        paging: Option<&Paging>,
         conn: &PgConnection,
-    ) -> Result<Vec<GuestListItem>, DatabaseError> {
-        let query_sql = include_str!("../queries/retrieve_guest_list.sql");
-        let query = query.map(|q| {
-            str::replace(&str::replace(&q, " ", ""), ",", "")
-                .split("")
-                .collect::<Vec<&str>>()
-                .join("%")
-        });
-        let ticket_id: Option<Uuid> = None;
-        let tickets = diesel::sql_query(query_sql)
-            .bind::<Nullable<dUuid>, _>(Some(self.id))
-            .bind::<Nullable<Text>, _>(query)
-            .bind::<Nullable<Timestamp>, _>(changes_since)
-            .bind::<Nullable<dUuid>, _>(ticket_id)
-            .load::<RedeemableTicket>(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load guest list")?;
+    ) -> Result<(Vec<GuestListItem>, i64), DatabaseError> {
+        let tickets_and_counts =
+            Event::guest_list_tickets(Some(self.id), None, query, changes_since, paging, conn)?;
+        let (tickets, total) = tickets_and_counts;
 
         let mut guests: Vec<GuestListItem> = Vec::new();
 
         #[derive(Debug, QueryableByName, Queryable)]
-        struct R {
+        struct OrderPaymentProviders {
             #[sql_type = "Uuid"]
             id: Uuid,
             #[sql_type = "Nullable<Text>"]
             provider: Option<String>,
         }
 
-        let results: Vec<R> = orders::table
+        let order_payment_providers: Vec<OrderPaymentProviders> = orders::table
             .left_join(payments::table.on(orders::id.eq(payments::order_id)))
             .filter(orders::id.eq_any(tickets.iter().map(|t| t.order_id).collect::<Vec<Uuid>>()))
             .select((orders::id, payments::provider.nullable()))
@@ -1131,9 +1217,9 @@ impl Event {
 
         for t in &tickets {
             let mut providers: Vec<String> = Vec::new();
-            for r in &results {
-                if r.id == t.order_id {
-                    if let Some(ref p) = r.provider {
+            for order_payment_provider in &order_payment_providers {
+                if order_payment_provider.id == t.order_id {
+                    if let Some(ref p) = order_payment_provider.provider {
                         providers.push(p.clone());
                     }
                 }
@@ -1144,7 +1230,7 @@ impl Event {
             })
         }
 
-        Ok(guests)
+        Ok((guests, total))
     }
 
     pub fn search(
@@ -1262,10 +1348,10 @@ impl Event {
             let genres = Genre::format_names(&genres);
             query = query.filter(
                 sql("(")
-                .bind::<Integer, _>(genres.len() as i32)
-                .sql(" = (select count(eg.genre_id) from event_genres eg join genres g on eg.genre_id = g.id where eg.event_id = events.id and g.name = ANY(")
-                .bind::<Array<Text>, _>(genres)
-                .sql(")))")
+                    .bind::<Integer, _>(genres.len() as i32)
+                    .sql(" = (select count(eg.genre_id) from event_genres eg join genres g on eg.genre_id = g.id where eg.event_id = events.id and g.name = ANY(")
+                    .bind::<Array<Text>, _>(genres)
+                    .sql(")))")
             );
         }
 
