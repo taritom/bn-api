@@ -1129,13 +1129,13 @@ impl Event {
             query = query.filter(ticket_instances::id.nullable().eq(ticket_id))
         }
         if let Some(query_string) = query_string {
-            let fuzzy_query_string: String = str::replace(&query_string, ",", "");
+            let fuzzy_query_string: String = str::replace(&query_string.trim(), ",", "");
             let fuzzy_query_string = fuzzy_query_string
                 .split_whitespace()
                 .map(|w| w.split("").collect::<Vec<&str>>().join("%"))
                 .collect::<Vec<String>>()
                 .join("%");
-            let id_query_string = format!("%{}", query_string.to_lowercase());
+            let id_query_string = format!("%{}%", query_string.to_lowercase());
 
             query = query
                 .filter(sql("users.email ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
