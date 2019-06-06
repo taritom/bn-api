@@ -138,6 +138,7 @@ pub fn index() {
         first_name_override: None,
         last_name_override: None,
         transfer_id: None,
+        transfer_key: None,
     };
     assert_eq!(vec![expected_ticket.clone()], found_data.data);
     // Test without specified event
@@ -168,6 +169,7 @@ pub fn index() {
         first_name_override: None,
         last_name_override: None,
         transfer_id: None,
+        transfer_key: None,
     };
     assert_eq!(
         vec![
@@ -302,6 +304,7 @@ pub fn show() {
         first_name_override: None,
         last_name_override: None,
         transfer_id: None,
+        transfer_key: None,
     };
 
     let expected_result = ShowTicketResponse {

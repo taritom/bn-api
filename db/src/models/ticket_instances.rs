@@ -201,6 +201,7 @@ impl TicketInstance {
                 ticket_instances::first_name_override,
                 ticket_instances::last_name_override,
                 transfers::id.nullable(),
+                transfers::transfer_key.nullable(),
             ))
             .first::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
@@ -305,6 +306,7 @@ impl TicketInstance {
                 ticket_instances::first_name_override,
                 ticket_instances::last_name_override,
                 transfers::id.nullable(),
+                transfers::transfer_key.nullable(),
             ))
             .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
@@ -1168,6 +1170,7 @@ pub struct DisplayTicket {
     pub first_name_override: Option<String>,
     pub last_name_override: Option<String>,
     pub transfer_id: Option<Uuid>,
+    pub transfer_key: Option<Uuid>,
 }
 
 #[derive(Queryable, QueryableByName)]
@@ -1204,6 +1207,8 @@ pub struct DisplayTicketIntermediary {
     pub last_name_override: Option<String>,
     #[sql_type = "Nullable<dUuid>"]
     pub transfer_id: Option<Uuid>,
+    #[sql_type = "Nullable<dUuid>"]
+    pub transfer_key: Option<Uuid>,
 }
 
 impl From<DisplayTicketIntermediary> for DisplayTicket {
@@ -1243,6 +1248,7 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
             last_name_override: ticket_intermediary.last_name_override,
             redeem_key,
             transfer_id: ticket_intermediary.transfer_id,
+            transfer_key: ticket_intermediary.transfer_key,
         }
     }
 }
