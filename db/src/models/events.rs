@@ -1195,6 +1195,7 @@ impl Event {
         paging: Option<&Paging>,
         conn: &PgConnection,
     ) -> Result<(Vec<GuestListItem>, i64), DatabaseError> {
+        use schema::{transfer_tickets, transfers};
         let tickets_and_counts =
             Event::guest_list_tickets(Some(self.id), None, query, changes_since, paging, conn)?;
         let (tickets, total) = tickets_and_counts;
@@ -1216,6 +1217,35 @@ impl Event {
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load payment providers")?;
 
+        let pending_transfers: Vec<PendingTransfer> = transfer_tickets::table
+            .inner_join(transfers::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
+            .filter(
+                transfers::status.eq(TransferStatus::Pending).and(
+                    transfer_tickets::ticket_instance_id
+                        .eq_any(tickets.iter().map(|t| t.id).collect::<Vec<Uuid>>()),
+                ),
+            )
+            .select((
+                transfer_tickets::ticket_instance_id.nullable(),
+                transfer_tickets::transfer_id.nullable(),
+                transfers::transfer_key.nullable(),
+                transfers::status.nullable(),
+                transfers::transfer_message_type,
+                transfers::transfer_address,
+            ))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load pending transfers")?;
+
+        let mut pending_transfers_by_ticket: HashMap<Uuid, PendingTransfer> = HashMap::new();
+        for pending_transfer in pending_transfers {
+            if pending_transfer.ticket_instance_id.is_some() {
+                pending_transfers_by_ticket.insert(
+                    pending_transfer.ticket_instance_id.unwrap(),
+                    pending_transfer,
+                );
+            }
+        }
+
         for t in &tickets {
             let mut providers: Vec<String> = Vec::new();
             for order_payment_provider in &order_payment_providers {
@@ -1225,9 +1255,11 @@ impl Event {
                     }
                 }
             }
+            let pending_transfer = pending_transfers_by_ticket.get(&t.id).map(|x| x.clone());
             guests.push(GuestListItem {
                 ticket: t.clone(),
                 providers,
+                pending_transfer,
             })
         }
 
@@ -1715,8 +1747,25 @@ pub struct DayStats {
     pub ticket_sales: i64,
 }
 
+#[derive(Debug, QueryableByName, Queryable, Serialize, Clone, Default)]
+pub struct PendingTransfer {
+    #[sql_type = "Nullable<dUuid>"]
+    pub ticket_instance_id: Option<Uuid>,
+    #[sql_type = "Nullable<dUuid>"]
+    pub transfer_id: Option<Uuid>,
+    #[sql_type = "Nullable<dUuid>"]
+    pub transfer_key: Option<Uuid>,
+    #[sql_type = "Nullable<Text>"]
+    pub transfer_status: Option<TransferStatus>,
+    #[sql_type = "Nullable<Text>"]
+    pub transfer_message_type: Option<TransferMessageType>,
+    #[sql_type = "Nullable<Text>"]
+    pub transfer_address: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct GuestListItem {
     pub ticket: RedeemableTicket,
     pub providers: Vec<String>,
+    pub pending_transfer: Option<PendingTransfer>,
 }

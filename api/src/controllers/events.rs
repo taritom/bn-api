@@ -877,6 +877,8 @@ pub fn guest_list(
     struct TicketRefundable {
         #[serde(flatten)]
         ticket: RedeemableTicket,
+        #[serde(flatten)]
+        pending_transfer: PendingTransfer,
         refund_supported: bool,
     }
 
@@ -892,6 +894,9 @@ pub fn guest_list(
 
         tickets_refund.push(TicketRefundable {
             ticket: t.ticket.clone(),
+            pending_transfer: t.pending_transfer.clone().unwrap_or(PendingTransfer {
+                ..Default::default()
+            }),
             refund_supported: refundable,
         });
     }
