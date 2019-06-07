@@ -1138,12 +1138,13 @@ impl Event {
             let id_query_string = format!("%{}%", query_string.to_lowercase());
 
             query = query
-                .filter(sql("users.email ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
-                .or_filter(sql("users.phone ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
-                .or_filter(sql("CONCAT(COALESCE(ticket_instances.first_name_override, users.first_name), ' ', COALESCE(ticket_instances.last_name_override, users.last_name)) ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
-                .or_filter(sql("CONCAT(COALESCE(ticket_instances.last_name_override, users.last_name), ' ', COALESCE(ticket_instances.first_name_override, users.first_name)) ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
-                .or_filter(sql("ticket_instances.id::TEXT LIKE ").bind::<Text, _>(id_query_string.clone()))
-                .or_filter(sql("order_items.order_id::TEXT LIKE ").bind::<Text, _>(id_query_string.clone()));
+
+                .filter(sql("users.email ILIKE ").bind::<Text, _>(fuzzy_query_string.clone())
+                    .or(sql("users.phone ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
+                    .or(sql("CONCAT(COALESCE(ticket_instances.first_name_override, users.first_name), ' ', COALESCE(ticket_instances.last_name_override, users.last_name)) ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
+                    .or(sql("CONCAT(COALESCE(ticket_instances.last_name_override, users.last_name), ' ', COALESCE(ticket_instances.first_name_override, users.first_name)) ILIKE ").bind::<Text, _>(fuzzy_query_string.clone()))
+                    .or(sql("ticket_instances.id::TEXT LIKE ").bind::<Text, _>(id_query_string.clone()))
+                    .or(sql("order_items.order_id::TEXT LIKE ").bind::<Text, _>(id_query_string.clone())));
         }
 
         if let Some(changes_since) = changes_since {
