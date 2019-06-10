@@ -598,10 +598,15 @@ pub fn dashboard(
         conn,
     )?;
     let summary = event.summary(conn)?;
-    let start_utc = query
-        .start_utc
-        .unwrap_or(Utc::now().naive_utc().date() - Duration::days(29));
-    let end_utc = query.end_utc.unwrap_or(Utc::now().naive_utc().date());
+    let end_utc = match query.end_utc {
+        Some(end_utc) => end_utc,
+        None => std::cmp::min(
+            Utc::now().naive_utc().date(),
+            event.event_end.unwrap_or(Utc::now().naive_utc()).date(),
+        ),
+    };
+
+    let start_utc = query.start_utc.unwrap_or(end_utc - Duration::days(29));
 
     let day_stats = event.get_sales_by_date_range(start_utc, end_utc, conn)?;
 

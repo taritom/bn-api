@@ -7,6 +7,7 @@ use bigneon_api::models::*;
 use bigneon_db::models::*;
 use bigneon_db::utils::dates;
 use chrono::prelude::*;
+use chrono::Duration;
 use diesel::PgConnection;
 use functional::base;
 use serde_json;
@@ -1611,10 +1612,13 @@ fn dashboard_with_default_range() {
         Some(&organization),
         &database,
     );
+    let event_start = Utc::now().naive_utc() - Duration::days(1);
+    let event_end = Utc::now().naive_utc() + Duration::hours(1);
     let event = database
         .create_event()
         .with_organization(&organization)
-        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_start(event_start)
+        .with_event_end(event_end)
         .with_tickets()
         .with_ticket_pricing()
         .finish();
@@ -1665,7 +1669,7 @@ fn dashboard_with_default_range() {
     assert_eq!(
         dashboard_result.day_stats[29],
         DayStats {
-            date: Utc::now().naive_utc().date(),
+            date: event.event_end.unwrap().date(),
             revenue_in_cents: 1500,
             ticket_sales: 10,
         }
