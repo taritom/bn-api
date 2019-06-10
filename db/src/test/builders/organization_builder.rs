@@ -15,6 +15,7 @@ pub struct OrganizationBuilder<'a> {
     client_fee_in_cents: Option<i64>,
     cc_fee_percent: Option<f32>,
     use_address: bool,
+    timezone: Option<String>,
 }
 
 impl<'a> OrganizationBuilder<'a> {
@@ -30,6 +31,7 @@ impl<'a> OrganizationBuilder<'a> {
             company_fee_in_cents: None,
             client_fee_in_cents: None,
             cc_fee_percent: None,
+            timezone: None,
         }
     }
 
@@ -95,6 +97,7 @@ impl<'a> OrganizationBuilder<'a> {
             company_event_fee_in_cents: self.company_fee_in_cents,
             client_event_fee_in_cents: self.client_fee_in_cents,
             cc_fee_percent: self.cc_fee_percent,
+            timezone: self.timezone,
             ..Default::default()
         };
 

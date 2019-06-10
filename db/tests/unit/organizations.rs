@@ -740,6 +740,7 @@ pub fn get_scopes_for_user() {
             "org:read-events",
             "redeem:ticket",
             "ticket:read",
+            "dashboard:read",
         ]
     );
 
@@ -759,6 +760,7 @@ pub fn get_scopes_for_user() {
             "redeem:ticket",
             "ticket:read",
             "event:view-guests",
+            "dashboard:read",
         ]
     );
 

@@ -980,7 +980,7 @@ mod dashboard_tests {
 
     #[test]
     fn dashboard_door_person() {
-        base::events::dashboard(Roles::DoorPerson, false);
+        base::events::dashboard(Roles::DoorPerson, true);
     }
 
     #[test]
@@ -1000,7 +1000,7 @@ mod dashboard_tests {
 
     #[test]
     fn dashboard_box_office() {
-        base::events::dashboard(Roles::OrgBoxOffice, false);
+        base::events::dashboard(Roles::OrgBoxOffice, true);
     }
 }
 

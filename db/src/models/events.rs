@@ -1029,18 +1029,21 @@ impl Event {
 
         //Gets the face value
         let query = r#"
-                SELECT CAST(o.paid_at as Date) as date,
-                cast(COALESCE(sum(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)), 0) AS bigint) as sales,
-                CAST( COALESCE(SUM(CASE WHEN oi.item_type = 'Tickets' THEN (oi.quantity - oi.refunded_quantity) ELSE 0 END), 0) as BigInt) as ticket_count
-                FROM order_items oi
-                INNER JOIN orders o ON oi.order_id = o.id
-                WHERE oi.event_id = $1
-                AND oi.item_type = 'Tickets'
-                AND o.status = 'Paid'
-                AND o.paid_at >= $2
-                AND o.paid_at <= $3
-                GROUP BY CAST(o.paid_at as Date)
-                ORDER BY CAST(o.paid_at as Date) desc
+            SELECT CAST(o.paid_at AT TIME ZONE 'utc' AT TIME ZONE COALESCE(v.timezone, o2.timezone, 'utc') AS DATE)                          AS date,
+                   CAST(COALESCE(SUM(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)), 0) AS BIGINT)                           AS sales,
+                   CAST(COALESCE(SUM(CASE WHEN oi.item_type = 'Tickets' THEN (oi.quantity - oi.refunded_quantity) ELSE 0 END), 0) AS BIGINT) AS ticket_count
+            FROM order_items oi
+                     INNER JOIN orders o ON oi.order_id = o.id
+                     INNER JOIN events e ON oi.event_id = e.id
+                     LEFT JOIN venues v ON e.venue_id = v.id
+                     INNER JOIN organizations o2 ON e.organization_id = o2.id
+            WHERE oi.event_id = $1
+              AND oi.item_type = 'Tickets'
+              AND o.status = 'Paid'
+              AND o.paid_at AT TIME ZONE 'utc' AT TIME ZONE COALESCE(v.timezone, o2.timezone, 'utc') >= $2
+              AND o.paid_at AT TIME ZONE 'utc' AT TIME ZONE COALESCE(v.timezone, o2.timezone, 'utc') <= $3
+            GROUP BY CAST(o.paid_at AT TIME ZONE 'utc' AT TIME ZONE COALESCE(v.timezone, o2.timezone, 'utc') AS DATE)
+            ORDER BY CAST(o.paid_at AT TIME ZONE 'utc' AT TIME ZONE COALESCE(v.timezone, o2.timezone, 'utc') AS DATE) DESC;
                 "#;
 
         #[derive(QueryableByName)]

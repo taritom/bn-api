@@ -215,6 +215,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::EventViewGuests,
                 Scopes::CodeRead,
                 Scopes::OrderRead,
+                Scopes::DashboardRead,
             ];
             roles
         }
