@@ -41,6 +41,8 @@ pub struct EventShowResult {
     pub tracking_keys: TrackingKeys,
     pub event_type: EventTypes,
     pub sales_start_date: Option<NaiveDateTime>,
+    pub url: String,
+    pub slug: String,
 }
 
 //This struct is used to just contain the id and name of the org

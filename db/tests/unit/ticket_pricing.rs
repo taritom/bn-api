@@ -491,12 +491,7 @@ fn find() {
 #[test]
 fn get_current_ticket_pricing() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
-
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -520,13 +515,7 @@ fn get_current_ticket_pricing() {
 #[test]
 fn get_current_ticket_capacity() {
     let project = TestProject::new();
-
-    let admin = project.create_user().finish();
-
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)

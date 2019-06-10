@@ -5,8 +5,6 @@ use uuid::Uuid;
 #[test]
 fn find() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let fee_schedule = FeeSchedule::create(
         Uuid::nil(),
         "default".to_string(),
@@ -23,7 +21,7 @@ fn find() {
             },
         ],
     )
-    .commit(creator.id, project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     let fee_schedule_range = fee_schedule

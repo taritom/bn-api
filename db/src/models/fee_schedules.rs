@@ -94,7 +94,7 @@ pub struct NewFeeSchedule {
 impl NewFeeSchedule {
     pub fn commit(
         self,
-        created_by_user_id: Uuid,
+        created_by_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<FeeSchedule, DatabaseError> {
         let previous_version = fee_schedules::table
@@ -150,7 +150,7 @@ impl NewFeeSchedule {
             "Fee schedule created".to_string(),
             Tables::FeeSchedules,
             Some(result.id),
-            Some(created_by_user_id),
+            created_by_user_id,
             None,
         )
         .commit(conn)?;

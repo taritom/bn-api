@@ -78,6 +78,8 @@ struct EventVenueEntry {
     tracking_keys: TrackingKeys,
     event_type: EventTypes,
     updated_at: NaiveDateTime,
+    slug: String,
+    url: String,
     event_end: Option<NaiveDateTime>,
 }
 
@@ -216,18 +218,28 @@ pub struct EventParameters {
     pub private_access_code: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct StringPathParameters {
+    pub id: String,
+}
+
 pub fn show(
     (state, connection, parameters, query, user): (
         State<AppState>,
         ReadonlyConnection,
-        Path<PathParameters>,
+        Path<StringPathParameters>,
         Query<EventParameters>,
         OptionalUser,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let user = user.into_inner();
-    let event = Event::find(parameters.id, connection)?;
+
+    let event = match parameters.id.parse() {
+        Ok(i) => Event::find(i, connection)?,
+        Err(_) => Event::find_by_slug(&parameters.id, connection)?,
+    };
+
     let organization = event.organization(connection)?;
     if event.private_access_code.is_some()
         && !(query.private_access_code.is_some()
@@ -277,12 +289,8 @@ pub fn show(
         }
     }
 
-    let ticket_types = TicketType::find_by_event_id(
-        parameters.id,
-        true,
-        query.redemption_code.clone(),
-        connection,
-    )?;
+    let ticket_types =
+        TicketType::find_by_event_id(event.id, true, query.redemption_code.clone(), connection)?;
     let mut display_ticket_types = Vec::new();
     let mut sales_start_date = Some(times::infinity());
     for ticket_type in ticket_types {
@@ -401,7 +409,9 @@ pub fn show(
         localized_times,
         tracking_keys,
         event_type: event.event_type,
-        sales_start_date: sales_start_date,
+        sales_start_date,
+        url: format!("{}/events/{}", &state.config.front_end_url, &event.slug),
+        slug: event.slug.clone(),
     };
 
     Ok(HttpResponse::Ok().json(&payload))
@@ -617,8 +627,11 @@ pub fn create(
     let organization = Organization::find(new_event.organization_id, connection)?;
     user.requires_scope_for_organization(Scopes::EventWrite, &organization, connection)?;
 
+    let new_event = new_event.into_inner();
+
     let event = new_event.commit(Some(user.id()), connection)?;
-    Ok(HttpResponse::Created().json(&event))
+
+    Ok(HttpResponse::Created().json(event))
 }
 
 #[derive(Deserialize, Debug, Default)]
@@ -652,7 +665,13 @@ pub fn update(
         connection,
     )?;
 
-    let updated_event = event.update(Some(user.id()), event_parameters.into_inner(), connection)?;
+    let event_parameters = event_parameters.into_inner();
+    // Not sure about this at this time, we don't want to have 404's on the old URL
+    //       if let Some(ref name) = event_parameters.name {
+    //        event_parameters.slug = Some(event_parameters.slug.unwrap_or(create_slug(name)));
+    //    }
+
+    let updated_event = event.update(Some(user.id()), event_parameters, connection)?;
     Ok(HttpResponse::Ok().json(&updated_event))
 }
 
@@ -1219,6 +1238,7 @@ fn event_venues_from_events(
             venue_id: event.venue_id,
             created_at: event.created_at,
             updated_at: event.updated_at,
+            slug: event.slug.clone(),
             event_start: event.event_start,
             door_time: event.door_time,
             status: event.status,
@@ -1228,8 +1248,8 @@ fn event_venues_from_events(
             top_line_info: event.top_line_info,
             age_limit: event.age_limit,
             cancelled_at: event.cancelled_at,
-            min_ticket_price: min_ticket_price,
-            max_ticket_price: max_ticket_price,
+            min_ticket_price,
+            max_ticket_price,
             is_external: event.is_external,
             external_url: event.external_url,
             user_is_interested: event_interest
@@ -1239,6 +1259,7 @@ fn event_venues_from_events(
             localized_times,
             tracking_keys,
             event_type: event.event_type,
+            url: format!("{}/events/{}", state.config.front_end_url, &event.slug),
             event_end: event.event_end,
         });
     }

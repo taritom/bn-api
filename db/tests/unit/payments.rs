@@ -5,12 +5,11 @@ use bigneon_db::models::*;
 fn log_refund() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let refund = project.create_refund().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -36,11 +35,10 @@ fn log_refund() {
 fn find_by_order() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -64,11 +62,10 @@ fn find_by_order() {
 fn find() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -91,11 +88,10 @@ fn find() {
 fn find_all_with_orders_paginated_by_provider() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -124,11 +120,10 @@ fn find_all_with_orders_paginated_by_provider() {
 fn add_ipn() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -160,11 +155,10 @@ fn add_ipn() {
 fn update_amount() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -191,11 +185,10 @@ fn update_amount() {
 fn mark_complete() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -222,11 +215,10 @@ fn mark_complete() {
 fn mark_pending_ipn() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -251,11 +243,10 @@ fn mark_pending_ipn() {
 fn mark_cancelled() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()

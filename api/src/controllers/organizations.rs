@@ -136,7 +136,7 @@ pub fn create(
             client_fee_in_cents: 0,
         }],
     )
-    .commit(user.id(), connection)?;
+    .commit(Some(user.id()), connection)?;
 
     let new_organization_with_fee_schedule = NewOrganization {
         name: new_organization.name.clone(),
@@ -164,7 +164,7 @@ pub fn create(
 
     let mut organization = new_organization_with_fee_schedule.commit(
         &state.config.api_keys_encryption_key,
-        user.id(),
+        Some(user.id()),
         connection,
     )?;
 
@@ -427,7 +427,7 @@ pub fn add_fee_schedule(
         name: json.name.clone(),
         ranges: json.into_inner().ranges,
     };
-    let fee_schedule = new_fee_schedule.commit(user.id(), connection)?;
+    let fee_schedule = new_fee_schedule.commit(Some(user.id()), connection)?;
     let fee_schedule_ranges = fee_schedule.ranges(connection)?;
 
     Organization::find(parameters.id, connection)?.add_fee_schedule(&fee_schedule, connection)?;

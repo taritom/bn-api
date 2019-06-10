@@ -100,7 +100,7 @@ impl NewOrganization {
     pub fn commit(
         self,
         encryption_key: &str,
-        current_user_id: Uuid,
+        current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
         let mut updated_organisation = self;
@@ -145,7 +145,7 @@ impl NewOrganization {
             "Organization created".to_string(),
             Tables::Organizations,
             Some(org.id),
-            Some(current_user_id),
+            current_user_id,
             Some(json!(updated_organisation)),
         )
         .commit(conn)?;

@@ -122,10 +122,7 @@ fn update_genres() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let artist = project.create_artist().finish();
     artist
         .set_genres(
@@ -245,11 +242,7 @@ fn update() {
 fn guest_list() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let venue = project.create_venue().finish();
     let event = project
         .create_event()
@@ -738,12 +731,7 @@ fn cancel() {
 fn get_sales_by_date_range() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -891,17 +879,16 @@ fn find_by_ids() {
 #[test]
 fn find_by_order_item_ids() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
     let connection = project.get_connection();
     let organization = project
         .create_organization()
         .with_name("Organization1".into())
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let organization2 = project
         .create_organization()
         .with_name("Organization2".into())
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -2186,10 +2173,7 @@ fn checked_in_users() {
 
     let connection = project.get_connection();
 
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)

@@ -180,6 +180,7 @@ table! {
         event_type -> Text,
         cover_image_url -> Nullable<Text>,
         private_access_code -> Nullable<Text>,
+        slug -> Varchar,
     }
 }
 

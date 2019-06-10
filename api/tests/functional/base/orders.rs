@@ -103,11 +103,10 @@ pub fn details(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let creator = database.create_user().finish();
     let organization = database
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&database.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = database
         .create_event()
@@ -234,11 +233,10 @@ pub fn details(role: Roles, should_succeed: bool) {
 pub fn refund(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let creator = database.create_user().finish();
     let organization = database
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&database.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = database
         .create_event()

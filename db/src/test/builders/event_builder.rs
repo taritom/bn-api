@@ -2,11 +2,11 @@ use chrono::prelude::*;
 use diesel::prelude::*;
 use models::TicketTypeVisibility;
 use prelude::*;
-use rand::prelude::*;
 use std::cmp;
 use test::builders::*;
 use test::times;
 use utils::dates::IntoDateBuilder;
+use utils::rand::random_alpha_string;
 use uuid::Uuid;
 
 pub struct EventBuilder<'a> {
@@ -30,9 +30,8 @@ pub struct EventBuilder<'a> {
 
 impl<'a> EventBuilder<'a> {
     pub fn new(connection: &PgConnection) -> EventBuilder {
-        let x: u32 = random();
         EventBuilder {
-            name: format!("Event {}", x).into(),
+            name: format!("Event {}", random_alpha_string(4)),
             status: EventStatus::Published,
             organization_id: None,
             venue_id: None,

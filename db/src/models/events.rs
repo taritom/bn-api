@@ -9,6 +9,7 @@ use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Bool, Date, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
 use log::Level;
 use models::*;
+use regex::Regex;
 use schema::{
     artists, event_artists, event_genres, events, genres, order_items, orders, organization_users,
     organizations, payments, ticket_types, venues,
@@ -20,8 +21,10 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use time::Duration;
+use unidecode::unidecode;
 use utils::errors::*;
 use utils::pagination::*;
+use utils::rand::random_alpha_string;
 use utils::text;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
@@ -63,6 +66,7 @@ pub struct Event {
     pub event_type: EventTypes,
     pub cover_image_url: Option<String>,
     pub private_access_code: Option<String>,
+    pub slug: String,
 }
 
 impl PartialOrd for Event {
@@ -134,6 +138,8 @@ pub struct NewEvent {
     pub event_type: EventTypes,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub private_access_code: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub slug: Option<String>,
 }
 
 impl NewEvent {
@@ -159,6 +165,19 @@ impl NewEvent {
             }
             None => (),
         }
+        if new_event.slug.is_none() {
+            let slug = create_slug(&new_event.name);
+            new_event.slug = Some(slug.clone());
+            loop {
+                let existing =
+                    Event::find_by_slug(new_event.slug.as_ref().unwrap(), conn).optional()?;
+                if existing.is_none() {
+                    break;
+                }
+                new_event.slug = Some(format!("{}-{}", &slug, random_alpha_string(5)));
+            }
+        }
+
         let result: Event = diesel::insert_into(events::table)
             .values((
                 &new_event,
@@ -190,6 +209,28 @@ impl NewEvent {
     pub fn default_is_external() -> bool {
         false
     }
+}
+
+fn create_slug(name: &str) -> String {
+    // Unwrap should be treated as a compile time error
+    let whitespace = Regex::new(r#"\s+"#).unwrap();
+    let only_characters = Regex::new(r#"[^a-zA-Z0-9]"#).unwrap();
+    let duplicate_dashes = Regex::new(r#"-+"#).unwrap();
+
+    let slug = unidecode(name);
+    let slug = only_characters.replace_all(&slug, " ");
+    let mut slug: String = duplicate_dashes
+        .replace_all(&whitespace.replace_all(&slug.trim(), "-"), "-")
+        .to_lowercase()
+        .chars()
+        .take(250)
+        .collect();
+
+    // If the slug is empty, generate a short random string
+    if slug.len() == 0 {
+        slug = random_alpha_string(5);
+    }
+    slug
 }
 
 #[derive(AsChangeset, Default, Deserialize, Validate, Serialize)]
@@ -238,6 +279,7 @@ pub struct EventEditableAttributes {
     pub private_access_code: Option<Option<String>>,
     pub sendgrid_list_id: Option<i64>,
     pub event_type: Option<EventTypes>,
+    pub slug: Option<String>,
 }
 
 #[derive(Debug, Default, PartialEq, Serialize)]
@@ -623,6 +665,14 @@ impl Event {
             .to_db_error(ErrorCode::QueryError, "Error loading events")
     }
 
+    pub fn find_by_slug(slug: &str, conn: &PgConnection) -> Result<Event, DatabaseError> {
+        events::table
+            .filter(events::slug.eq(slug))
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not find event by slug")
+            .expect_single()
+    }
+
     pub fn cancel(
         self,
         current_user_id: Option<Uuid>,
@@ -896,6 +946,8 @@ impl Event {
             override_status: Option<EventOverrideStatus>,
             #[sql_type = "Text"]
             event_type: EventTypes,
+            #[sql_type = "Text"]
+            slug: String,
         }
 
         let query_events = include_str!("../queries/find_all_events_for_organization.sql");
@@ -984,6 +1036,7 @@ impl Event {
                 override_status: r.override_status,
                 localized_times,
                 event_type: r.event_type,
+                slug: r.slug,
             };
 
             for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
@@ -1656,6 +1709,7 @@ impl Event {
             override_status: self.override_status,
             localized_times,
             event_type: self.event_type,
+            slug: self.slug,
         })
     }
 }
@@ -1681,6 +1735,7 @@ pub struct DisplayEvent {
     pub localized_times: EventLocalizedTimeStrings,
     pub event_type: EventTypes,
     pub genres: Vec<String>,
+    pub slug: String,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -1715,6 +1770,7 @@ pub struct EventSummaryResult {
     pub override_status: Option<EventOverrideStatus>,
     pub localized_times: EventLocalizedTimeStrings,
     pub event_type: EventTypes,
+    pub slug: String,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]

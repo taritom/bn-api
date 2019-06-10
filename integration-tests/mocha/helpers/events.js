@@ -3,9 +3,9 @@ const pm = require('../test/pm');
 const expect = require('chai').expect;
 
 
-const create = async function (saveVarName) {
+const create = async function (saveVarName, eventName) {
     let requestBody = `{
-    "name": "Event Helper",
+    "name": "${eventName || "Mocha tests"}",
     "organization_id": "{{last_org_id}}",
     "venue_id": "{{last_venue_id}}",
     "event_start": "2020-11-13T12:00:00",

@@ -244,8 +244,6 @@ fn update() {
 #[test]
 fn update_with_validation_errors() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
     let event = project.create_event().with_tickets().finish();
     let hold = project
@@ -317,10 +315,7 @@ fn update_with_validation_errors() {
     }
 
     // Create and assign comp to active cart
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)

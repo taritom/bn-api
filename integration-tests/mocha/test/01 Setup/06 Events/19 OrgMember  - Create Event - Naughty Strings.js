@@ -4,6 +4,7 @@ const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
 const pm = require('../../pm');const debug=require('debug');var log = debug('bn-api');
+const events = require("../../../helpers/events");
 
 const baseUrl = supertest(pm.environment.get('server'));
 
@@ -45,29 +46,29 @@ let requestBody = `{
 }`;
 
 
-describe('OrgMember  - Create Event', function () {
+describe('Org Member - Create event Naughty strings', function () {
     before(async function () {
-        response = await post(requestBody);
-        log(response.request.header);
-        log(response.request.url);
-        log(response.request._data);
-        log(response.request.method);
-        responseBody = JSON.stringify(response.body);
-        //log(pm);
-        log(response.status);
-        log(responseBody);
+
+        // taken from https://raw.githubusercontent.com/minimaxir/big-list-of-naughty-strings/master/blns.txt
+        //await events.create(null, ``);
+        await events.create("naughty_event_id", `­؀؁؂؃؄`);
+        await events.create("naughty_event_id", `Æneid`);
+        await events.create("naughty_event_id", `げんまい茶`);
+        await events.create("naughty_event_id", `ᔕᓇᓇ`);
+        await events.create("naughty_event_id", `ЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя`);
+
+        await events.create("naughty_event_id", `찦차를 타고 온 펲시맨과 쑛다리 똠방각하`);
+
+        await events.create("naughty_event_id", `❤️ 💔 💌 💕 💞 💓 💗 💖 💘 💝 💟 💜 💛 💚 💙`);
+        await events.create("naughty_event_id", `<script>alert(123)</script>`);
+        await events.create("naughty_event_id",`<img src=x onerror='alert(1)'>`);
+
+        await events.create("naughty_event_id",`1'; DROP TABLE users-- 1`);
     });
 
-    after(async function () {
-        // add after methods
-        let response =  JSON.parse(responseBody);
-        pm.environment.set("last_event_id",response.id);
-        pm.environment.set("last_event_slug",response.slug);
 
-    });
+    it("should succeed", function () {
 
-    it("should be 201", function () {
-        expect(response.status).to.equal(201);
     })
 
 

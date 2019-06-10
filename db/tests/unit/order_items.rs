@@ -7,12 +7,8 @@ use chrono::{Duration, NaiveDateTime, Utc};
 fn find_fee_item() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
 
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -85,13 +81,8 @@ fn order() {
 #[test]
 fn code() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -146,12 +137,8 @@ fn code() {
 #[test]
 fn confirm_code_valid() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -208,13 +195,8 @@ fn confirm_code_valid() {
 #[test]
 fn update_with_validation_errors() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -402,13 +384,8 @@ fn update_with_validation_errors() {
 #[test]
 fn calculate_quantity() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)

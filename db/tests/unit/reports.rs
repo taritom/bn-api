@@ -10,12 +10,10 @@ use diesel::prelude::*;
 fn ticket_count_report() {
     let project = TestProject::new();
     let connection = project.get_connection();
-
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -710,12 +708,10 @@ fn ticket_count_report() {
 fn transaction_detail_report() {
     let project = TestProject::new();
     let connection = project.get_connection();
-
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -739,10 +735,7 @@ fn transaction_detail_report() {
         .ticket_types(true, None, connection)
         .unwrap()
         .remove(0);
-    let organization2 = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization2 = project.create_organization().with_fees().finish();
     let event3 = project
         .create_event()
         .with_organization(&organization2)
@@ -1165,7 +1158,6 @@ fn box_office_sales_summary_report() {
         .create_user()
         .with_first_name("BoxOfficeUser2")
         .finish();
-    let creator = project.create_user().finish();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
@@ -1173,7 +1165,7 @@ fn box_office_sales_summary_report() {
         .create_organization()
         .with_member(&box_office_user, Roles::OrgBoxOffice)
         .with_member(&box_office_user2, Roles::OrgBoxOffice)
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -1405,7 +1397,7 @@ fn promo_code_report() {
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()

@@ -5,8 +5,6 @@ use uuid::Uuid;
 #[test]
 fn create() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
     let fee_schedule = FeeSchedule::create(
         Uuid::nil(),
@@ -17,7 +15,7 @@ fn create() {
             client_fee_in_cents: 0,
         }],
     )
-    .commit(creator.id, connection)
+    .commit(None, connection)
     .unwrap();
 
     let updated_fee_schedule = FeeSchedule::find(fee_schedule.id, connection).unwrap();
@@ -27,7 +25,7 @@ fn create() {
     organization.sendgrid_api_key = Some("A_Test_Key".to_string());
 
     let mut organization = organization
-        .commit(&"encryption_key".to_string(), creator.id, connection)
+        .commit(&"encryption_key".to_string(), None, connection)
         .unwrap();
     assert_eq!(organization.id.to_string().is_empty(), false);
 
@@ -107,17 +105,16 @@ fn find_by_ticket_type_ids() {
 #[test]
 fn find_by_order_item_ids() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
     let connection = project.get_connection();
     let organization = project
         .create_organization()
         .with_name("Organization1".into())
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let organization2 = project
         .create_organization()
         .with_name("Organization2".into())
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -194,14 +191,9 @@ fn find_by_order_item_ids() {
 #[test]
 fn has_fan() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -945,10 +937,9 @@ fn add_user() {
 #[test]
 fn add_fee_schedule() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
 
     let organization = project.create_organization().finish();
-    let fee_structure = project.create_fee_schedule().finish(creator.id);
+    let fee_structure = project.create_fee_schedule().finish(None);
 
     let updated_fee_schedule =
         FeeSchedule::find(fee_structure.id, project.get_connection()).unwrap();

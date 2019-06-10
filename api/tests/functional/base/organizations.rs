@@ -151,8 +151,6 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let name = "Organization Example";
-    let admin = database.create_user().finish();
-
     let auth_user = support::create_auth_user(role, None, &database);
 
     FeeSchedule::create(
@@ -164,7 +162,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
             company_fee_in_cents: 0,
         }],
     )
-    .commit(admin.id, database.connection.get())
+    .commit(None, database.connection.get())
     .unwrap();
 
     let json = Json(NewOrganizationRequest {
@@ -515,14 +513,12 @@ pub fn list_organization_members(role: Roles, should_succeed: bool) {
 
 pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let admin = database.create_user().finish();
     let user = database.create_user().finish();
-    let fee_schedule = database.create_fee_schedule().finish(admin.id);
+    let organization = database.create_organization().with_fees().finish();
+    let fee_schedule =
+        FeeSchedule::find(organization.fee_schedule_id, database.connection.get()).unwrap();
     let fee_schedule_ranges = fee_schedule.ranges(database.connection.get()).unwrap();
-    let organization = database
-        .create_organization()
-        .with_fee_schedule(&fee_schedule)
-        .finish();
+
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 

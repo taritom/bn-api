@@ -11,6 +11,7 @@ use diesel::PgConnection;
 use serde_json;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::env;
 use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
@@ -89,8 +90,8 @@ pub fn show_box_office_pricing(role: Roles, should_test_succeed: bool) {
 
     let test_request =
         TestRequest::create_with_uri(&format!("/events/{}?box_office_pricing=true", event.id));
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = event_id;
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    path.id = event_id.to_string();
 
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
@@ -430,13 +431,9 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
 
 pub fn dashboard(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
-    let admin = database.create_user().finish();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let organization = database
-        .create_organization()
-        .with_fee_schedule(&database.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = database.create_organization().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -837,6 +834,8 @@ pub fn expected_show_json(
         tracking_keys: TrackingKeys,
         event_type: EventTypes,
         pub sales_start_date: Option<NaiveDateTime>,
+        url: String,
+        slug: String,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -929,6 +928,12 @@ pub fn expected_show_json(
         },
         event_type: event.event_type,
         sales_start_date,
+        url: format!(
+            "{}/events/{}",
+            env::var("FRONT_END_URL").unwrap(),
+            &event.slug
+        ),
+        slug: event.slug.clone(),
     })
     .unwrap()
 }

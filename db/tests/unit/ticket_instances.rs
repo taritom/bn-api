@@ -16,13 +16,8 @@ use bigneon_db::utils::errors::ErrorCode::ValidationError;
 #[test]
 fn find_for_user_for_display() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -551,10 +546,7 @@ fn release() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -619,10 +611,7 @@ fn release_for_cancelled_ticket_type() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -669,11 +658,7 @@ fn release_for_cancelled_ticket_type() {
 fn set_wallet() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -704,11 +689,7 @@ fn set_wallet() {
 fn was_transferred() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -751,13 +732,8 @@ fn was_transferred() {
 #[test]
 fn find() {
     let project = TestProject::new();
-    let org_admin = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(org_admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -822,13 +798,8 @@ fn find() {
 #[test]
 fn find_show_no_token() {
     let project = TestProject::new();
-    let org_admin = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(org_admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -922,13 +893,8 @@ fn find_show_no_token() {
 #[test]
 fn find_for_user() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1094,14 +1060,8 @@ fn release_tickets_cancelled_ticket_type() {
 #[test]
 fn mark_as_purchased() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
-
     let connection = project.get_connection();
-
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1150,10 +1110,7 @@ fn redeem_ticket() {
 
     let connection = project.get_connection();
 
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1292,14 +1249,8 @@ fn owner() {
 #[test]
 fn show_redeemable_ticket() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
-
     let connection = project.get_connection();
-
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let venue = project.create_venue().finish();
     let event = project
         .create_event()
@@ -1414,13 +1365,8 @@ fn show_redeemable_ticket() {
 #[test]
 fn authorize_ticket_transfer() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1483,12 +1429,8 @@ fn authorize_ticket_transfer() {
 #[test]
 fn receive_ticket_transfer() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1620,12 +1562,8 @@ fn receive_ticket_transfer() {
 #[test]
 fn transfer_to_existing_user() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)

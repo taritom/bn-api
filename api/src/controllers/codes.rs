@@ -115,7 +115,7 @@ pub fn link(
     let linker = state.service_locator.create_deep_linker()?;
     let raw_url = format!(
         "{}/events/{}/tickets?code={}",
-        &state.config.front_end_url, event.id, &code.redemption_code
+        &state.config.front_end_url, event.slug, &code.redemption_code
     );
     let link = match linker.create_deep_link_with_alias(&raw_url, &code.redemption_code) {
         Ok(l) => l,

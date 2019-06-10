@@ -219,7 +219,7 @@ pub fn link(
     let raw_url = format!(
         "{}/events/{}/tickets?code={}",
         &state.config.front_end_url,
-        event.id,
+        event.slug,
         hold.redemption_code.as_ref().unwrap()
     );
     let link = match linker

@@ -12,6 +12,7 @@ use functional::base;
 use serde_json;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::env;
 use support;
 use support::database::TestDatabase;
 use support::test_request::{RequestBuilder, TestRequest};
@@ -329,6 +330,12 @@ pub fn index_search_with_filter() {
             ..Default::default()
         },
         event_type: EventTypes::Music,
+        slug: event.slug.clone(),
+        url: format!(
+            "{}/events/{}",
+            env::var("FRONT_END_URL").unwrap(),
+            event.slug
+        ),
         event_end: event.event_end,
     }];
 
@@ -387,7 +394,7 @@ fn show() {
 
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
         Roles::User,
         event,
@@ -399,7 +406,7 @@ fn show() {
         conn,
         1,
     );
-    path.id = event_id;
+    path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::show((
@@ -459,7 +466,7 @@ fn show_private() {
 
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
         Roles::User,
         event,
@@ -471,7 +478,7 @@ fn show_private() {
         conn,
         1,
     );
-    path.id = event_id;
+    path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::show((
@@ -489,7 +496,7 @@ fn show_private() {
     let _event_interest = EventInterest::create(private_event_id, org_user.id).commit(conn);
     let _event_interest = EventInterest::create(private_event_id, user.id).commit(conn);
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", private_event_id));
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
         Roles::OrgMember,
         private_event.clone(),
@@ -501,7 +508,7 @@ fn show_private() {
         conn,
         2,
     );
-    path.id = private_event_id;
+    path.id = private_event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::show((
@@ -517,8 +524,8 @@ fn show_private() {
     assert_eq!(body, event_expected_json);
 
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", private_event_id));
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = private_event_id;
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    path.id = private_event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = events::show((
         test_request.extract_state(),
@@ -535,8 +542,8 @@ fn show_private() {
         private_event_id,
         "access".to_string()
     ));
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
-    path.id = private_event_id;
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    path.id = private_event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = events::show((
         test_request.extract_state(),
@@ -593,7 +600,7 @@ fn show_with_cancelled_ticket_type() {
 
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
         Roles::User,
         event,
@@ -605,7 +612,7 @@ fn show_with_cancelled_ticket_type() {
         conn,
         1,
     );
-    path.id = event_id;
+    path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
 
     let response: HttpResponse = events::show((
@@ -658,7 +665,7 @@ fn show_with_access_restricted_ticket_type_and_no_code() {
 
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
         Roles::User,
         event,
@@ -670,7 +677,7 @@ fn show_with_access_restricted_ticket_type_and_no_code() {
         conn,
         1,
     );
-    path.id = event_id;
+    path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
     assert_eq!(query_parameters.redemption_code, None);
 
@@ -727,7 +734,7 @@ fn show_with_access_restricted_ticket_type_and_access_code() {
         "/events/{}?redemption_code={}",
         event.id, code.redemption_code
     ));
-    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
         Roles::User,
         event,
@@ -739,7 +746,7 @@ fn show_with_access_restricted_ticket_type_and_access_code() {
         conn,
         1,
     );
-    path.id = event_id;
+    path.id = event_id.to_string();
     let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
     assert_eq!(query_parameters.redemption_code, Some(code.redemption_code));
 
@@ -774,8 +781,8 @@ fn show_with_visibility_always_before_sale() {
 
     let request = RequestBuilder::new(&format!("/events/{}", event.id));
 
-    let mut path: Path<PathParameters> = request.path();
-    path.id = event.id;
+    let mut path: Path<StringPathParameters> = request.path();
+    path.id = event.id.to_string();
 
     let response: HttpResponse = events::show((
         request.state(),
@@ -812,8 +819,8 @@ fn show_with_visibility_always_before_sale_pricing() {
 
     let request = RequestBuilder::new(&format!("/events/{}", event.id));
 
-    let mut path: Path<PathParameters> = request.path();
-    path.id = event.id;
+    let mut path: Path<StringPathParameters> = request.path();
+    path.id = event.id.to_string();
 
     let response: HttpResponse = events::show((
         request.state(),
@@ -851,8 +858,8 @@ fn show_with_visibility_always_after_sale() {
 
     let request = RequestBuilder::new(&format!("/events/{}", event.id));
 
-    let mut path: Path<PathParameters> = request.path();
-    path.id = event.id;
+    let mut path: Path<StringPathParameters> = request.path();
+    path.id = event.id.to_string();
 
     let response: HttpResponse = events::show((
         request.state(),
@@ -887,8 +894,8 @@ fn show_with_hidden_ticket_type() {
 
     let request = RequestBuilder::new(&format!("/events/{}", event.id));
 
-    let mut path: Path<PathParameters> = request.path();
-    path.id = event.id;
+    let mut path: Path<StringPathParameters> = request.path();
+    path.id = event.id.to_string();
 
     let response: HttpResponse = events::show((
         request.state(),
@@ -1595,14 +1602,9 @@ fn update_promoter_fails_lacks_event_id() {
 #[test]
 fn dashboard_with_default_range() {
     let database = TestDatabase::new();
-
-    let admin = database.create_user().finish();
     let connection = database.connection.get();
     let org_admin = database.create_user().finish();
-    let organization = database
-        .create_organization()
-        .with_fee_schedule(&database.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = database.create_organization().with_fees().finish();
     let auth_user = support::create_auth_user_from_user(
         &org_admin,
         Roles::OrgOwner,
@@ -1829,6 +1831,8 @@ struct EventVenueEntry {
     tracking_keys: TrackingKeys,
     event_type: EventTypes,
     updated_at: NaiveDateTime,
+    slug: String,
+    url: String,
     event_end: Option<NaiveDateTime>,
 }
 
@@ -1861,8 +1865,8 @@ fn event_venue_entry(
         cancelled_at: event.cancelled_at,
         venue: Some(venue.clone()),
         artists: Some(artists.clone()),
-        min_ticket_price: min_ticket_price,
-        max_ticket_price: max_ticket_price,
+        min_ticket_price,
+        max_ticket_price,
         is_external: event.is_external.clone(),
         external_url: event.external_url.clone(),
         user_is_interested: user
@@ -1873,6 +1877,12 @@ fn event_venue_entry(
             ..Default::default()
         },
         event_type: event.event_type,
+        slug: event.slug.clone(),
+        url: format!(
+            "{}/events/{}",
+            env::var("FRONT_END_URL").unwrap(),
+            &event.slug
+        ),
         event_end: event.event_end,
     }
 }

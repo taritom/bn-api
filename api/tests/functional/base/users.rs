@@ -14,15 +14,10 @@ use uuid::Uuid;
 
 pub fn profile(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
-    let admin = database.create_user().finish();
-
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
-    let organization = database
-        .create_organization()
-        .with_fee_schedule(&database.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = database.create_organization().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -110,15 +105,10 @@ pub fn profile(role: Roles, should_test_true: bool) {
 
 pub fn history(role: Roles, should_test_true: bool) {
     let database = TestDatabase::new();
-
-    let admin = database.create_user().finish();
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
-    let organization = database
-        .create_organization()
-        .with_fee_schedule(&database.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = database.create_organization().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)

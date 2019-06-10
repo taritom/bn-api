@@ -7,11 +7,7 @@ fn from_ticket_type() {
     let database = TestDatabase::new();
 
     let admin = database.create_user().finish();
-    let fee_schedule = database.create_fee_schedule().finish(admin.id);
-    let organization = database
-        .create_organization()
-        .with_fee_schedule(&fee_schedule)
-        .finish();
+    let organization = database.create_organization().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -32,6 +28,7 @@ fn from_ticket_type() {
         .unwrap();
 
     let ticket_pricing = ticket_type.current_ticket_pricing(false, conn).unwrap();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, conn).unwrap();
     let fee_in_cents = fee_schedule
         .get_range(ticket_pricing.price_in_cents, conn)
         .unwrap()

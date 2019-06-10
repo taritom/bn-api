@@ -305,11 +305,10 @@ mod refund_tests {
 pub fn refund_for_non_refundable_tickets() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let creator = database.create_user().finish();
     let organization = database
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&database.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = database
         .create_event()
@@ -542,11 +541,10 @@ pub fn refund_hold_ticket() {
 pub fn refund_removes_event_fee_if_all_event_tickets_refunded() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let creator = database.create_user().finish();
     let organization = database
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&database.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = database
         .create_event()

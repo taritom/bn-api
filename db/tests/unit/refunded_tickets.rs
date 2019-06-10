@@ -5,11 +5,7 @@ use bigneon_db::prelude::*;
 fn find_and_find_by_ticket_instance_ids() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -40,11 +36,7 @@ fn find_and_find_by_ticket_instance_ids() {
 fn find_or_create_by_ticket_instance() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -107,11 +99,7 @@ fn find_or_create_by_ticket_instance() {
 fn mark_refunded() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)

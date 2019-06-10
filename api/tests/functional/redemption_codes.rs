@@ -121,12 +121,7 @@ fn show_comp() {
 fn show_code() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let admin = database.create_user().finish();
-    let fee_schedule = database.create_fee_schedule().finish(admin.id);
-    let organization = database
-        .create_organization()
-        .with_fee_schedule(&fee_schedule)
-        .finish();
+    let organization = database.create_organization().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)

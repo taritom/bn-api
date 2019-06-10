@@ -17,11 +17,7 @@ use bigneon_db::utils::errors::ErrorCode::ValidationError;
 fn update_genre_info() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let artist = project.create_artist().finish();
     let event = project
         .create_event()
@@ -73,11 +69,7 @@ fn update_genre_info() {
 fn genres() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let artist = project.create_artist().finish();
     let event = project
         .create_event()
@@ -200,15 +192,10 @@ fn find_external_login() {
 #[test]
 fn get_profile_for_organization() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
-
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
 
     let event = project
         .create_event()
@@ -736,14 +723,9 @@ fn get_profile_for_organization() {
 #[test]
 fn get_history_for_organization() {
     let project = TestProject::new();
-    let admin = project.create_user().finish();
-
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(admin.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)

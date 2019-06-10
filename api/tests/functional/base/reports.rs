@@ -23,7 +23,6 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
         .create_user()
         .with_first_name("BoxOfficeUser2")
         .finish();
-    let creator = database.create_user().finish();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let user3 = database.create_user().finish();
@@ -31,7 +30,7 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
         .create_organization()
         .with_member(&box_office_user, Roles::OrgBoxOffice)
         .with_member(&box_office_user2, Roles::OrgBoxOffice)
-        .with_fee_schedule(&database.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = database
         .create_event()
@@ -214,11 +213,10 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
 pub fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let creator = database.create_user().finish();
     let organization = database
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&database.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = database
         .create_event()

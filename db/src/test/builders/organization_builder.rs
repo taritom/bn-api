@@ -2,7 +2,7 @@ use diesel::prelude::*;
 use models::*;
 use rand::prelude::*;
 use std::collections::HashMap;
-use test::builders::user_builder::UserBuilder;
+use test::builders::fee_schedule_builder::FeeScheduleBuilder;
 use uuid::Uuid;
 
 pub struct OrganizationBuilder<'a> {
@@ -50,10 +50,15 @@ impl<'a> OrganizationBuilder<'a> {
         self
     }
 
-    pub fn with_fee_schedule(mut self, fee_schedule: &FeeSchedule) -> OrganizationBuilder<'a> {
-        self.fee_schedule = Some(fee_schedule.clone());
+    pub fn with_fees(mut self) -> OrganizationBuilder<'a> {
+        self.fee_schedule = Some(FeeScheduleBuilder::new(self.connection).finish(None));
         self
     }
+
+    //    pub fn with_fee_schedule(mut self, fee_schedule: &FeeSchedule) -> OrganizationBuilder<'a> {
+    //        self.fee_schedule = Some(fee_schedule.clone());
+    //        self
+    //    }
 
     pub fn with_event_fee(mut self) -> Self {
         self.event_fee_in_cents = Some(250);
@@ -68,12 +73,6 @@ impl<'a> OrganizationBuilder<'a> {
     }
 
     pub fn finish(mut self) -> Organization {
-        let members = self.members.clone();
-        let current_user_id = match members.iter().find(|(_, v)| *v.clone() == Roles::OrgOwner) {
-            Some((owner_id, _)) => owner_id.clone(),
-            None => UserBuilder::new(self.connection).finish().id,
-        };
-
         if self.fee_schedule.is_none() {
             let x: u32 = random();
             let fee_schedule = FeeSchedule::create(
@@ -85,12 +84,12 @@ impl<'a> OrganizationBuilder<'a> {
                     client_fee_in_cents: 30,
                 }],
             )
-            .commit(current_user_id, self.connection);
+            .commit(None, self.connection);
             self.fee_schedule = Some(fee_schedule.unwrap());
         }
 
         let mut organization = Organization::create(&self.name, self.fee_schedule.unwrap().id)
-            .commit("encryption_key", current_user_id, self.connection)
+            .commit("encryption_key", None, self.connection)
             .unwrap();
 
         let event_fee_update = OrganizationEditableAttributes {

@@ -513,12 +513,10 @@ fn order_number() {
 fn update_fees() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let fee_schedule = project.create_fee_schedule().finish(creator.id);
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&fee_schedule)
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -796,12 +794,10 @@ fn quantity_for_user_for_event() {
 fn items() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let fee_schedule = project.create_fee_schedule().finish(creator.id);
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&fee_schedule)
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -984,12 +980,7 @@ fn items_for_display() {
 fn find_item_by_type() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let fee_schedule = project.create_fee_schedule().finish(creator.id);
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&fee_schedule)
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1048,12 +1039,7 @@ fn find_item_by_type() {
 fn add_provider_payment() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let fee_schedule = project.create_fee_schedule().finish(creator.id);
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&fee_schedule)
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1127,12 +1113,7 @@ fn add_provider_payment() {
 fn add_credit_card_payment() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let fee_schedule = project.create_fee_schedule().finish(creator.id);
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&fee_schedule)
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1241,12 +1222,7 @@ fn order_items_in_invalid_state() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    let creator = project.create_user().finish();
-    let fee_schedule = project.create_fee_schedule().finish(creator.id);
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&fee_schedule)
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1484,12 +1460,7 @@ fn reset_to_draft() {
 fn total_paid() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let fee_schedule = project.create_fee_schedule().finish(creator.id);
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&fee_schedule)
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1645,12 +1616,7 @@ fn calculate_total() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    let creator = project.create_user().finish();
-    let fee_schedule = project.create_fee_schedule().finish(creator.id);
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&fee_schedule)
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1821,13 +1787,8 @@ fn set_external_payment_type() {
 #[test]
 fn update_quantities_check_limits() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -2222,13 +2183,8 @@ fn update_quantities_check_limits() {
 #[test]
 fn add_tickets() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -2300,13 +2256,8 @@ fn add_tickets() {
 #[test]
 fn add_tickets_below_min_fee() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -2395,13 +2346,12 @@ fn events() {
 fn purchase_metadata() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let fee_schedule = project.create_fee_schedule().finish(creator.id);
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&fee_schedule)
+        .with_fees()
         .finish();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
     let event = project
         .create_event()
         .with_name("EventName".into())
@@ -2670,11 +2620,10 @@ fn partially_visible_order() {
 fn details() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -2885,11 +2834,10 @@ fn details() {
 fn refund() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -3004,12 +2952,11 @@ fn refund() {
 #[test]
 fn organizations() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
     let connection = project.get_connection();
     let organization = project
         .create_organization()
         .with_name("Organization1".into())
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -3090,13 +3037,8 @@ fn payments() {
 #[test]
 fn add_tickets_with_increment() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -3181,11 +3123,7 @@ fn add_tickets_with_increment() {
 fn clear_cart() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -3219,11 +3157,10 @@ fn clear_cart() {
 fn replace_tickets_for_box_office() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let creator = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_event_fee()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .finish();
     let event = project
         .create_event()
@@ -3327,13 +3264,8 @@ fn replace_tickets_for_box_office() {
 #[test]
 fn replace_tickets() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -3405,13 +3337,8 @@ fn replace_tickets() {
 #[test]
 fn replace_tickets_with_code_pricing() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -3886,12 +3813,7 @@ fn destroy() {
 #[test]
 fn calculate_cart_total() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
-    let organization = project
-        .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
-        .finish();
+    let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -4756,12 +4678,10 @@ fn for_display_with_organization_id_and_event_id_filters() {
 #[test]
 fn adding_event_fees() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let connection = project.get_connection();
     let organization = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .with_event_fee()
         .finish();
     let event1 = project
@@ -4779,7 +4699,7 @@ fn adding_event_fees() {
         .finish();
     let organization3 = project
         .create_organization()
-        .with_fee_schedule(&project.create_fee_schedule().finish(creator.id))
+        .with_fees()
         .with_event_fee()
         .finish();
     let event3 = project

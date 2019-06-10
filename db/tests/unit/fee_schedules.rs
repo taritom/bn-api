@@ -5,8 +5,6 @@ use uuid::Uuid;
 #[test]
 fn fee_schedule_create() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let fee_schedule = FeeSchedule::create(
         Uuid::nil(),
         "default".to_string(),
@@ -23,7 +21,7 @@ fn fee_schedule_create() {
             },
         ],
     )
-    .commit(creator.id, project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     let ranges = fee_schedule.ranges(project.get_connection()).unwrap();
@@ -52,7 +50,7 @@ fn fee_schedule_create() {
             },
         ],
     )
-    .commit(creator.id, project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     assert_eq!(fee_schedule2.version, 1);
@@ -61,8 +59,6 @@ fn fee_schedule_create() {
 #[test]
 fn get_fee_schedule_range() {
     let project = TestProject::new();
-    let creator = project.create_user().finish();
-
     let fee_schedule = FeeSchedule::create(
         Uuid::nil(),
         "default".to_string(),
@@ -79,7 +75,7 @@ fn get_fee_schedule_range() {
             },
         ],
     )
-    .commit(creator.id, project.get_connection())
+    .commit(None, project.get_connection())
     .unwrap();
 
     let fee_schedule_range1 = fee_schedule
