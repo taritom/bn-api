@@ -128,7 +128,8 @@ impl TicketType {
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
-        self.validate_record(&attributes, conn)?;
+        let mut attributes = attributes;
+        self.validate_record(&mut attributes, conn)?;
         let result: TicketType = diesel::update(&self)
             .set((&attributes, ticket_types::updated_at.eq(dsl::now)))
             .get_result(conn)
@@ -256,27 +257,53 @@ impl TicketType {
 
     pub fn validate_record(
         &self,
-        attributes: &TicketTypeEditableAttributes,
+        attributes: &mut TicketTypeEditableAttributes,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        match attributes.start_date {
-            Some(start_date) => Ok(validators::append_validation_error(
-                Ok(()),
-                "start_date",
-                validators::start_date_valid(
-                    start_date.unwrap_or(self.start_date(conn)?),
-                    attributes.end_date.unwrap_or(self.end_date),
-                ),
-            )?),
-            None => Ok(validators::append_validation_error(
-                Ok(()),
-                "start_date",
-                validators::start_date_valid(
-                    self.start_date(conn)?,
-                    attributes.end_date.unwrap_or(self.end_date),
-                ),
-            )?),
+        let new_end_date = attributes.end_date.unwrap_or(self.end_date);
+        let new_parent_id = attributes.parent_id.unwrap_or(self.parent_id);
+
+        if attributes.start_date.is_some() || attributes.parent_id.is_some() {
+            let new_start_date = attributes.start_date.unwrap_or(self.start_date);
+
+            // If there is a parent id, start date must be null
+            if let Some(parent_id) = new_parent_id {
+                if new_start_date.is_some() {
+                    return Ok(validators::simple_error("start_date", "Start date cannot be specified if the ticket type is set to start after another ticket type")?);
+                }
+                // Otherwise the end date of the parent must be before the end date
+                else {
+                    return Ok(validators::append_validation_error(
+                        Ok(()),
+                        "start_date",
+                        validators::start_date_valid(
+                            TicketType::find(parent_id, conn)?.end_date,
+                            new_end_date,
+                        ),
+                    )?);
+                }
+            } else {
+                // otherwise if a start date is not provided, it starts immediately
+                if attributes.start_date == Some(None) {
+                    attributes.start_date = Some(Some(times::zero()));
+                }
+            }
         }
+
+        // if either the start or end date is set, we must validate for range
+        if attributes.end_date.is_some() || attributes.start_date.is_some() {
+            let new_start_date = attributes.start_date.unwrap_or(self.start_date);
+            return Ok(validators::append_validation_error(
+                Ok(()),
+                "start_date",
+                validators::start_date_valid(
+                    new_start_date.unwrap_or(self.start_date(conn)?),
+                    new_end_date,
+                ),
+            )?);
+        }
+
+        Ok(())
     }
 
     pub fn validate_ticket_pricing(&self, conn: &PgConnection) -> Result<(), DatabaseError> {

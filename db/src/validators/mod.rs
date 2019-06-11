@@ -37,3 +37,7 @@ pub fn create_validation_error(code: &'static str, message: &'static str) -> Val
     validation_error.message = Some(Cow::from(message));
     validation_error
 }
+
+pub fn simple_error(field: &'static str, message: &'static str) -> Result<(), ValidationErrors> {
+    append_validation_error(Ok(()), field, Err(create_validation_error(field, message)))
+}

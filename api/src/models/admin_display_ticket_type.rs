@@ -1,3 +1,4 @@
+use bigneon_db::dev::times;
 use bigneon_db::prelude::*;
 use chrono::NaiveDateTime;
 use diesel::PgConnection;
@@ -48,7 +49,13 @@ impl AdminDisplayTicketType {
             name: ticket_type.name.clone(),
             description: ticket_type.description.clone(),
             status: ticket_type.status,
-            start_date: ticket_type.start_date,
+            start_date: ticket_type.start_date.and_then(|sd| {
+                if sd <= times::zero() {
+                    None
+                } else {
+                    Some(sd)
+                }
+            }),
             parent_id: ticket_type.parent_id,
             end_date: ticket_type.end_date,
             ticket_pricing: ticket_pricing_list.clone(),

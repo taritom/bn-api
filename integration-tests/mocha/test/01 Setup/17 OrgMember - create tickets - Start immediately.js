@@ -4,19 +4,20 @@ const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
 const pm = require('../pm');const debug = require("debug");var log=debug('bn-api');
+const events = require('../../helpers/events');
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/events/{{last_event_id}}/ticket_types/{{default_ticket_type_id}}';
+const apiEndPoint = '/events/{{start_immediately_event_id}}/ticket_types';
 
 
 var response;
 var responseBody;
 
 
-const patch = async function (request_body) {
+const post = async function (request_body) {
     return baseUrl
-        .patch(pm.substitute(apiEndPoint))
+        .post(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
         .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
@@ -24,28 +25,21 @@ const patch = async function (request_body) {
         .send(pm.substitute(request_body));
 };
 
-const get = async function (request_body) {
-    return baseUrl
-        .get(pm.substitute(apiEndPoint))
-
-        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
-
-        .set('Accept', 'application/json')
-        .send();
-};
-
 let requestBody = `{
-	"start_date":"1999-02-01T02:22:00",
-	"end_date": "8999-01-10T02:22:00",
-	"visibility": "Always",
-	"price_in_cents": 3000,
-	"parent_id": null
+	"name":"General Admission_{{$timestamp}}",
+	"capacity": 1000,
+	"start_date":null,
+	"end_date": "9999-01-10T02:22:00",
+	"price_in_cents": 2500,
+	"limit_per_person": 50,
+	"visibility": "Always"
 }`;
 
 
-describe('OrgMember - update tickets - Default pricing', function () {
+describe('OrgMember - create tickets - start immediately', function () {
     before(async function () {
-        response = await patch(requestBody);
+        await events.create("start_immediately_event_id", "Sales start immediately");
+        response = await post(requestBody);
         log(response.request.header);
         log(response.request.url);
         log(response.request._data);
@@ -60,10 +54,14 @@ describe('OrgMember - update tickets - Default pricing', function () {
         // add after methods
 
 
+        pm.environment.set("immediate_ticket_type_id", JSON.parse(responseBody).id);
+
+        //pm.environment.set("ga_ticket_type_id", JSON.parse(responseBody).id);
+        //pm.environment.set("ticket_limit_above_max", 51);
     });
 
-    it("should be 200", function () {
-        expect(response.status).to.equal(200);
+    it("should be 201", function () {
+        expect(response.status).to.equal(201);
     })
 
 

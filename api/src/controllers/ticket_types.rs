@@ -1,5 +1,6 @@
 use actix_web::{HttpResponse, Path, Query, State};
 use auth::user::User;
+use bigneon_db::dev::times;
 use bigneon_db::models::*;
 use chrono::prelude::*;
 use db::Connection;
@@ -37,6 +38,7 @@ pub struct CreateTicketTypeRequest {
     pub start_date: Option<NaiveDateTime>,
     pub parent_id: Option<Uuid>,
     pub end_date: NaiveDateTime,
+    #[serde(default)]
     pub ticket_pricing: Vec<CreateTicketPricingRequest>,
     pub increment: Option<i32>,
     pub limit_per_person: i32,
@@ -60,7 +62,7 @@ pub struct UpdateTicketTypeRequest {
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub description: Option<Option<String>>,
     pub capacity: Option<u32>,
-    #[serde(default, deserialize_with = "double_option::deserialize")]
+    #[serde(deserialize_with = "double_option::deserialize")]
     pub start_date: Option<Option<NaiveDateTime>>,
     pub end_date: Option<NaiveDateTime>,
     pub ticket_pricing: Option<Vec<UpdateTicketPricingRequest>>,
@@ -69,7 +71,7 @@ pub struct UpdateTicketTypeRequest {
     pub price_in_cents: Option<i64>,
     #[serde(default)]
     pub visibility: Option<TicketTypeVisibility>,
-    #[serde(default, deserialize_with = "double_option::deserialize")]
+    #[serde(deserialize_with = "double_option::deserialize")]
     pub parent_id: Option<Option<Uuid>>,
 }
 
@@ -466,7 +468,13 @@ fn create_ticket_types(
             ticket_type_data.name.clone(),
             ticket_type_data.description.clone(),
             ticket_type_data.capacity,
-            ticket_type_data.start_date,
+            ticket_type_data
+                .start_date
+                .or(if ticket_type_data.parent_id.is_some() {
+                    None
+                } else {
+                    Some(times::zero())
+                }),
             ticket_type_data.end_date,
             Some(org_wallet.id),
             ticket_type_data.increment,

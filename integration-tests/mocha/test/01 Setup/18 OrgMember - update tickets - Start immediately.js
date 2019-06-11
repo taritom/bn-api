@@ -7,7 +7,7 @@ const pm = require('../pm');const debug = require("debug");var log=debug('bn-api
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/events/{{last_event_id}}/ticket_types/{{default_ticket_type_id}}';
+const apiEndPoint = '/events/{{start_immediately_event_id}}/ticket_types/{{immediate_ticket_type_id}}';
 
 
 var response;
@@ -34,17 +34,27 @@ const get = async function (request_body) {
         .send();
 };
 
-let requestBody = `{
-	"start_date":"1999-02-01T02:22:00",
+
+
+
+describe('OrgMember - update tickets - start immediately', function () {
+    before(async function () {
+        let requestBody = `{
+	"start_date":"2017-11-21T00:00:00",
 	"end_date": "8999-01-10T02:22:00",
 	"visibility": "Always",
 	"price_in_cents": 3000,
 	"parent_id": null
 }`;
-
-
-describe('OrgMember - update tickets - Default pricing', function () {
-    before(async function () {
+        response = await patch(requestBody);
+        expect(response.status).to.equal(200);
+        requestBody = `{
+	"start_date":null,
+	"end_date": "8999-01-10T02:22:00",
+	"visibility": "Always",
+	"price_in_cents": 3000,
+	"parent_id": null
+}`;
         response = await patch(requestBody);
         log(response.request.header);
         log(response.request.url);
