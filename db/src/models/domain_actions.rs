@@ -79,6 +79,26 @@ impl DomainAction {
         Ok(result)
     }
 
+    pub fn find_by_resource(
+        main_table: String,
+        main_table_id: Uuid,
+        domain_action_type: DomainActionTypes,
+        domain_action_status: DomainActionStatus,
+        conn: &PgConnection,
+    ) -> Result<Vec<DomainAction>, DatabaseError> {
+        let now = Utc::now().naive_utc();
+        domain_actions::table
+            .select(domain_actions::all_columns)
+            .filter(domain_actions::status.eq(domain_action_status))
+            .filter(domain_actions::domain_action_type.eq(domain_action_type))
+            .filter(domain_actions::main_table.eq(main_table))
+            .filter(domain_actions::main_table_id.eq(main_table_id))
+            .filter(domain_actions::expires_at.gt(now))
+            .filter(domain_actions::attempt_count.lt(domain_actions::max_attempt_count))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading domain actions")
+    }
+
     pub fn find_pending(
         domain_action_type: Option<DomainActionTypes>,
         conn: &PgConnection,
@@ -153,6 +173,16 @@ impl DomainAction {
             return Err(i);
         };
         return Ok(());
+    }
+
+    pub fn set_cancelled(&self, conn: &PgConnection) -> Result<DomainAction, DatabaseError> {
+        diesel::update(self)
+            .set((
+                domain_actions::status.eq(DomainActionStatus::Cancelled),
+                domain_actions::updated_at.eq(dsl::now),
+            ))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action")
     }
 
     pub fn set_done(&self, conn: &PgConnection) -> Result<DomainAction, DatabaseError> {

@@ -1,6 +1,6 @@
 use chrono::prelude::*;
 use diesel;
-use diesel::dsl::{exists, select, sql};
+use diesel::dsl::{count, exists, select, sql};
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use diesel::sql_types::{Array, BigInt, Nullable, Uuid as dUuid};
@@ -10,12 +10,17 @@ use schema::{
     transfers,
 };
 use serde_json::Value;
+use std::cmp::Ordering;
+use tari_client::*;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
+
+pub static TRANSFER_DRIP_NOTIFICATION_DAYS_PRIOR_TO_EVENT: &'static [i64] = &[7, 1, 0];
+pub const TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT: i64 = 3;
 
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "transfers"]
@@ -67,7 +72,191 @@ pub struct DisplayTransfer {
     pub total: Option<i64>,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProcessTransferDripPayload {
+    pub source_or_destination: SourceOrDestination,
+    pub event_id: Uuid,
+}
+
+impl PartialOrd for Transfer {
+    fn partial_cmp(&self, other: &Transfer) -> Option<Ordering> {
+        Some(self.id.cmp(&other.id))
+    }
+}
+
 impl Transfer {
+    pub fn drip_header(
+        &self,
+        event: &Event,
+        source_or_destination: SourceOrDestination,
+        include_links: bool,
+        conn: &PgConnection,
+    ) -> Result<String, DatabaseError> {
+        if self.transfer_address.is_none() {
+            return DatabaseError::business_process_error(
+                "Cannot build drip header for transfer missing destination address",
+            );
+        }
+
+        Ok(match event.days_until_event() {
+            Some(days_until_event) => match source_or_destination {
+                SourceOrDestination::Source => {
+                    let mut destination_address = self.transfer_address.clone().unwrap();
+                    if include_links
+                        && self.transfer_message_type == Some(TransferMessageType::Email)
+                    {
+                        destination_address = format!(
+                            "<a href='mailto:{}'>{}</a>",
+                            destination_address, destination_address
+                        );
+                    }
+                    match days_until_event {
+                            0 => {
+                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
+                                let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
+                                format!("Time to take action! The show is {} and those tickets you sent to {} still haven't been claimed. Give them a nudge!", time_of_day_text, destination_address)
+                            },
+                            1 => format!("Uh oh! The show is tomorrow and those tickets you sent to {} still haven't been claimed. Give them a nudge!", destination_address),
+                            _ => format!("Those tickets you sent to {} still haven't been claimed. Give them a nudge!", destination_address),
+                        }
+                }
+                SourceOrDestination::Destination => {
+                    let source_user = User::find(self.source_user_id, conn)?;
+                    let mut name = if let (Some(first_name), Some(last_name)) =
+                        (source_user.first_name, source_user.last_name)
+                    {
+                        vec![
+                            first_name.clone(),
+                            last_name
+                                .chars()
+                                .next()
+                                .map(|c| format!("{}.", c))
+                                .unwrap_or("".to_string()),
+                        ]
+                        .join(" ")
+                    } else {
+                        "another user".to_string()
+                    };
+
+                    if include_links && source_user.email.is_some() {
+                        name = format!(
+                            "<a href='mailto:{}'>{}</a>",
+                            source_user.email.unwrap(),
+                            name
+                        );
+                    }
+                    match days_until_event {
+                            0 => {
+                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
+                                let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
+                                format!("Time to take action! The event is {} and the tickets {} sent you are still waiting!", time_of_day_text, name)
+                            },
+                            1 => format!("Get your tickets! The event is TOMORROW and you still need to get the tickets that {} sent you!", name),
+                            7 => format!("The event is only one week away and you still need to get the tickets that {} sent you!", name),
+                            _ => format!("You still need to get the tickets that {} sent you!", name)
+                        }
+                }
+            },
+            None => "".to_string(),
+        })
+    }
+
+    pub fn log_drip_domain_event(
+        &self,
+        source_or_destination: SourceOrDestination,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let domain_event_type = match source_or_destination {
+            SourceOrDestination::Source => DomainEventTypes::TransferTicketDripSourceSent,
+            SourceOrDestination::Destination => DomainEventTypes::TransferTicketDripDestinationSent,
+        };
+
+        DomainEvent::create(
+            domain_event_type,
+            "Transfer drip sent".to_string(),
+            Tables::Transfers,
+            Some(self.id),
+            None,
+            None,
+        )
+        .commit(conn)?;
+
+        Ok(())
+    }
+
+    pub fn transfer_ticket_count(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
+        transfer_tickets::table
+            .filter(transfer_tickets::transfer_id.eq(self.id))
+            .select(count(transfer_tickets::id))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not check transfer ticket count",
+            )
+    }
+
+    pub fn signature(&self, conn: &PgConnection) -> Result<String, DatabaseError> {
+        let mut message: String = self.transfer_key.to_string();
+        message.push_str(self.source_user_id.to_string().as_str());
+        message.push_str(self.transfer_ticket_count(conn)?.to_string().as_str());
+        let secret_key = Wallet::find_default_for_user(self.source_user_id, conn)?.secret_key;
+        Ok(convert_bytes_to_hexstring(&cryptographic_signature(
+            &message,
+            &convert_hexstring_to_bytes(&secret_key),
+        )?))
+    }
+
+    pub fn create_drip_actions(
+        &self,
+        event: &Event,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        for source_or_destination in vec![
+            SourceOrDestination::Destination,
+            SourceOrDestination::Source,
+        ] {
+            DomainAction::create(
+                None,
+                DomainActionTypes::ProcessTransferDrip,
+                None,
+                json!(ProcessTransferDripPayload {
+                    event_id: event.id,
+                    source_or_destination,
+                }),
+                Some(Tables::Transfers.to_string()),
+                Some(self.id),
+            )
+            .commit(conn)?;
+        }
+        Ok(())
+    }
+
+    pub fn can_process_drips(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        Ok(self.status == TransferStatus::Pending
+            && self.events_have_not_ended(conn)?
+            && self.transfer_address.is_some())
+    }
+
+    pub fn events_have_not_ended(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        select(exists(
+            transfer_tickets::table
+                .inner_join(
+                    ticket_instances::table
+                        .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
+                )
+                .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+                .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
+                .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
+                .filter(transfer_tickets::transfer_id.eq(self.id))
+                .filter(events::event_end.gt(dsl::now.nullable())),
+        ))
+        .get_result(conn)
+        .to_db_error(
+            ErrorCode::QueryError,
+            "Could not confirm if transfer has active events",
+        )
+    }
+
     pub fn find_by_transfer_key(
         transfer_key: Uuid,
         conn: &PgConnection,
@@ -336,6 +525,15 @@ impl Transfer {
         conn: &PgConnection,
     ) -> Result<TransferTicket, DatabaseError> {
         TransferTicket::create(ticket_instance_id, self.id).commit(user_id, &additional_info, conn)
+    }
+
+    pub fn find_pending(conn: &PgConnection) -> Result<Vec<Transfer>, DatabaseError> {
+        transfers::table
+            .filter(transfers::status.eq(TransferStatus::Pending))
+            .select(transfers::all_columns)
+            .distinct()
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading transfers")
     }
 
     pub fn create(

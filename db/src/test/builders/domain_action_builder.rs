@@ -55,6 +55,11 @@ impl<'a> DomainActionBuilder<'a> {
         self
     }
 
+    pub fn with_domain_action_type(mut self, domain_action_type: DomainActionTypes) -> Self {
+        self.domain_action_type = Some(domain_action_type);
+        self
+    }
+
     pub fn with_main_table_id(mut self, main_table_id: Uuid) -> Self {
         self.main_table_id = Some(main_table_id);
         self

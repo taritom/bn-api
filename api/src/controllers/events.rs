@@ -8,7 +8,7 @@ use controllers::organizations::DisplayOrganizationUser;
 use db::Connection;
 use db::ReadonlyConnection;
 use diesel::PgConnection;
-use domain_events::executors::update_genres::UpdateGenresPayload;
+use domain_events::executors::UpdateGenresPayload;
 use errors::*;
 use extractors::*;
 use helpers::application;

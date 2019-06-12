@@ -1410,20 +1410,26 @@ fn authorize_ticket_transfer() {
     let mut ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
     ticket_ids.push(Uuid::new_v4());
 
-    let transfer_auth2 =
+    let transfer_auth =
         TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, None, None, connection);
-
-    assert!(transfer_auth2.is_err());
+    assert!(transfer_auth.is_err());
+    assert!(
+        DomainAction::find_pending(Some(DomainActionTypes::ProcessTransferDrip), connection)
+            .unwrap()
+            .is_empty()
+    );
 
     //Now try with tickets that the user does own
-
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
-
-    let transfer_auth3 =
+    let transfer_auth2 =
         TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, None, None, connection)
             .unwrap();
-
-    assert_eq!(transfer_auth3.sender_user_id, user.id);
+    assert_eq!(transfer_auth2.sender_user_id, user.id);
+    assert!(
+        DomainAction::find_pending(Some(DomainActionTypes::ProcessTransferDrip), connection)
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]

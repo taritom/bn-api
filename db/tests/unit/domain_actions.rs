@@ -82,6 +82,44 @@ fn find_stuck() {
 }
 
 #[test]
+fn find_by_resource() {
+    let project = TestProject::new();
+    let conn = project.get_connection();
+
+    let main_table = "Test".to_string();
+    let main_table_id = Uuid::new_v4();
+    let domain_action = project
+        .create_domain_action()
+        .with_main_table(main_table.clone())
+        .with_main_table_id(main_table_id)
+        .with_domain_action_type(DomainActionTypes::ProcessTransferDrip)
+        .with_status(DomainActionStatus::Pending)
+        .finish();
+
+    let pending_actions = DomainAction::find_by_resource(
+        main_table.clone(),
+        main_table_id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        conn,
+    )
+    .unwrap();
+    assert_eq!(1, pending_actions.len());
+    assert_eq!(domain_action.id, pending_actions[0].id);
+
+    domain_action.set_done(conn).unwrap();
+    let pending_actions = DomainAction::find_by_resource(
+        main_table,
+        main_table_id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        conn,
+    )
+    .unwrap();
+    assert_eq!(0, pending_actions.len());
+}
+
+#[test]
 fn find_pending() {
     let project = TestProject::new();
     let conn = project.get_connection();
@@ -158,6 +196,22 @@ fn set_busy() {
 
     let err = updated.set_busy(9999, conn).err().unwrap();
     assert_eq!(err.error_code, ErrorCode::ConcurrencyError);
+}
+
+#[test]
+fn set_cancelled() {
+    let project = TestProject::new();
+    let conn = project.get_connection();
+
+    let example = project
+        .create_domain_action()
+        .with_status(DomainActionStatus::Pending)
+        .finish();
+    example.set_cancelled(conn).unwrap();
+
+    let updated = DomainAction::find(example.id, conn).unwrap();
+
+    assert_eq!(DomainActionStatus::Cancelled, updated.status);
 }
 
 #[test]

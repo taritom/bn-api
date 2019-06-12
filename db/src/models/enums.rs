@@ -122,9 +122,11 @@ string_enum! { DomainEventTypes [
     UserUpdated,
     LostPassword,
     PurchaseCompleted,
-    TransferTicketStarted,
+    TransferTicketDripSourceSent,
+    TransferTicketDripDestinationSent,
     TransferTicketCancelled,
     TransferTicketCompleted,
+    TransferTicketStarted,
     TrackingDataUpdated,
     TicketInstanceAddedToHold,
     TicketInstanceNullified,
@@ -150,6 +152,7 @@ string_enum! { DomainActionTypes [
     MarketingContactsCreateEventList,
     MarketingContactsBulkEventFanListImport,
     PaymentProviderIPN,
+    ProcessTransferDrip,
     SendPurchaseCompletedCommunication,
     UpdateGenres
 ]}

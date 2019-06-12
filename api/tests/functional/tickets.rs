@@ -588,11 +588,9 @@ fn ticket_transfer_authorization() {
 
     let body = support::unwrap_body_to_string(&response).unwrap();
     let transfer_response: TransferAuthorization = serde_json::from_str(&body).unwrap();
-
     assert_eq!(transfer_response.sender_user_id, user.id);
 
     //Now lets try add a ticket that the user doesn't own.
-
     ticket_transfer_request.ticket_ids.push(Uuid::new_v4());
     let response = tickets::transfer_authorization((
         database.connection.clone().into(),
@@ -609,10 +607,9 @@ fn send_to_existing_user() {
     let conn = database.connection.get();
     let sender = database.create_user().finish();
     let auth_sender = support::create_auth_user_from_user(&sender, Roles::User, None, &database);
-    database.create_order().for_user(&sender).is_paid().finish();
+    let order = database.create_order().for_user(&sender).is_paid().finish();
     let tickets = TicketInstance::find_for_user(sender.id, conn).unwrap();
     let tickets: Vec<Uuid> = tickets.into_iter().map(|t| t.id).collect();
-
     let expected_tickets = tickets.clone();
 
     let receiver = database.create_user().finish();
@@ -622,7 +619,6 @@ fn send_to_existing_user() {
     };
 
     let request = TestRequest::create();
-
     let response = tickets::send_via_email_or_phone((
         database.connection.clone().into(),
         Json(ticket_transfer_request.clone()),
@@ -630,7 +626,6 @@ fn send_to_existing_user() {
         request.extract_state(),
     ))
     .unwrap();
-
     assert_eq!(response.status(), StatusCode::OK);
 
     let sender_tickets = TicketInstance::find_for_user(sender.id, conn).unwrap();
@@ -638,6 +633,55 @@ fn send_to_existing_user() {
     assert_eq!(sender_tickets, vec![]);
     assert_equiv!(
         receiver_tickets
+            .into_iter()
+            .map(|t| t.id)
+            .collect::<Vec<Uuid>>(),
+        expected_tickets
+    );
+
+    // No transfer drips should be created for this transfer as it's a direct transfer
+    let transfer = &order.transfers(conn).unwrap()[0];
+    assert_eq!(transfer.status, TransferStatus::Completed);
+    assert!(DomainAction::find_by_resource(
+        Tables::Transfers.to_string(),
+        transfer.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        conn,
+    )
+    .unwrap()
+    .is_empty());
+}
+
+#[test]
+fn send_to_new_user() {
+    let database = TestDatabase::new();
+    let conn = database.connection.get();
+    let sender = database.create_user().finish();
+    let auth_sender = support::create_auth_user_from_user(&sender, Roles::User, None, &database);
+    database.create_order().for_user(&sender).is_paid().finish();
+    let tickets = TicketInstance::find_for_user(sender.id, conn).unwrap();
+    let tickets: Vec<Uuid> = tickets.into_iter().map(|t| t.id).collect();
+    let expected_tickets = tickets.clone();
+
+    let ticket_transfer_request = SendTicketsRequest {
+        ticket_ids: tickets,
+        email_or_phone: "test@tari.com".to_string(),
+    };
+
+    let request = TestRequest::create();
+    let response = tickets::send_via_email_or_phone((
+        database.connection.clone().into(),
+        Json(ticket_transfer_request.clone()),
+        auth_sender.clone(),
+        request.extract_state(),
+    ))
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let sender_tickets = TicketInstance::find_for_user(sender.id, conn).unwrap();
+    assert_equiv!(
+        sender_tickets
             .into_iter()
             .map(|t| t.id)
             .collect::<Vec<Uuid>>(),

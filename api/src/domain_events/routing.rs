@@ -4,14 +4,7 @@ use config::Config;
 use db::Connection;
 use domain_events::errors::DomainActionError;
 use domain_events::executor_future::ExecutorFuture;
-use domain_events::executors::broadcast_push_notification::BroadcastPushNotificationExecutor;
-use domain_events::executors::marketing_contacts::{
-    BulkEventFanListImportExecutor, CreateEventListExecutor,
-};
-use domain_events::executors::process_payment_ipn::ProcessPaymentIPNExecutor;
-use domain_events::executors::send_communication::SendCommunicationExecutor;
-use domain_events::executors::send_order_complete::SendOrderCompleteExecutor;
-use domain_events::executors::update_genres::UpdateGenresExecutor;
+use domain_events::executors::*;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
@@ -70,6 +63,7 @@ impl DomainActionRouter {
                     Box::new(SendOrderCompleteExecutor::new(conf))
                 }
                 UpdateGenres => Box::new(UpdateGenresExecutor::new()),
+                ProcessTransferDrip => Box::new(ProcessTransferDripEventExecutor::new(conf)),
                 //
                 // DO NOT add
                 // _ =>
@@ -98,6 +92,9 @@ impl DomainActionRouter {
         .expect("Configuration error");
 
         self.add_executor(PaymentProviderIPN, find_executor(PaymentProviderIPN))
+            .expect("Configuration error");
+
+        self.add_executor(ProcessTransferDrip, find_executor(ProcessTransferDrip))
             .expect("Configuration error");
 
         self.add_executor(UpdateGenres, find_executor(UpdateGenres))

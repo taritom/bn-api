@@ -118,6 +118,243 @@ fn genres() {
 }
 
 #[test]
+fn pending_transfers() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
+    assert_eq!(event.pending_transfers(connection).unwrap().len(), 0);
+
+    transfer
+        .add_transfer_ticket(tickets[0].id, user.id, &None, connection)
+        .unwrap();
+    assert_equiv!(
+        event.pending_transfers(connection).unwrap(),
+        [transfer.clone()]
+    );
+
+    transfer2
+        .add_transfer_ticket(tickets[1].id, user.id, &None, connection)
+        .unwrap();
+    assert_equiv!(
+        event.pending_transfers(connection).unwrap(),
+        [transfer, transfer2]
+    );
+}
+
+#[test]
+fn create_next_transfer_drip_action() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_event_start(dates::now().add_days(7).finish())
+        .with_event_end(dates::now().add_days(14).finish())
+        .with_ticket_pricing()
+        .finish();
+
+    let next_drip_date = event.next_drip_date().unwrap();
+    event.create_next_transfer_drip_action(connection).unwrap();
+    let domain_action = &DomainAction::find_by_resource(
+        Tables::Events.to_string(),
+        event.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap()[0];
+    assert_eq!(domain_action.main_table_id, Some(event.id));
+    assert_eq!(domain_action.main_table, Some(Tables::Events.to_string()));
+
+    let payload: ProcessTransferDripPayload =
+        serde_json::from_value(domain_action.payload.clone()).unwrap();
+    assert_eq!(
+        payload,
+        ProcessTransferDripPayload {
+            event_id: event.id,
+            source_or_destination: SourceOrDestination::Destination
+        }
+    );
+    // Drip day is 1 days from the event start
+    let drip_in_days = event
+        .event_start
+        .unwrap()
+        .signed_duration_since(next_drip_date)
+        .num_days();
+    assert_eq!(drip_in_days, 1);
+    domain_action.set_done(connection).unwrap();
+
+    // Drip day is 3 hours from the event start as event is 1 day away
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(1).add_minutes(-1).finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    event.create_next_transfer_drip_action(connection).unwrap();
+    let next_drip_date = event.next_drip_date().unwrap();
+    let drip_in_hours = event
+        .event_start
+        .unwrap()
+        .signed_duration_since(next_drip_date)
+        .num_hours();
+    assert_eq!(drip_in_hours, 3);
+    domain_action.set_done(connection).unwrap();
+
+    // Hours before event (used for the 0 days remaining drip date) should return no future dates
+    let parameters = EventEditableAttributes {
+        event_start: Some(
+            dates::now()
+                .add_hours(TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT)
+                .finish(),
+        ),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    event.create_next_transfer_drip_action(connection).unwrap();
+    assert!(
+        DomainAction::find_pending(Some(DomainActionTypes::ProcessTransferDrip), connection)
+            .unwrap()
+            .is_empty()
+    );
+
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    event.create_next_transfer_drip_action(connection).unwrap();
+    assert!(
+        DomainAction::find_pending(Some(DomainActionTypes::ProcessTransferDrip), connection)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn days_until_event() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_event_start(dates::now().add_days(7).finish())
+        .with_event_end(dates::now().add_days(14).finish())
+        .with_ticket_pricing()
+        .finish();
+    assert_eq!(event.days_until_event(), Some(7));
+
+    // 1 day away with some wiggle room
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_hours(23).add_minutes(1).finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    assert_eq!(event.days_until_event(), Some(1));
+
+    // Event already started
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_minutes(-1).finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    assert_eq!(event.days_until_event(), None);
+}
+
+#[test]
+fn next_drip_date() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_event_start(dates::now().add_days(7).finish())
+        .with_event_end(dates::now().add_days(14).finish())
+        .with_ticket_pricing()
+        .finish();
+
+    // Event 7 days away, next drip day in -1 from event start
+    assert_eq!(
+        event.next_drip_date(),
+        Some(event.event_start.unwrap() + Duration::days(-1))
+    );
+
+    // Event is 3 days away next event in -1 from event start
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(3).finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    assert_eq!(
+        event.next_drip_date(),
+        Some(event.event_start.unwrap() + Duration::days(-1))
+    );
+
+    // Event is tomorrow, next drip day is tomorrow
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(1).finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    assert_eq!(
+        event.next_drip_date(),
+        Some(
+            event.event_start.unwrap()
+                - Duration::hours(TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT)
+        )
+    );
+
+    // Event is today, next drip day given there's wiggle room
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_hours(23).add_minutes(1).finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    assert_eq!(
+        event.next_drip_date(),
+        Some(
+            event.event_start.unwrap()
+                - Duration::hours(TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT)
+        )
+    );
+
+    // Event is today, no next drip day
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_hours(20).finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    assert!(event.next_drip_date().is_none());
+
+    // Event is now, no next drip
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    assert!(event.next_drip_date().is_none());
+
+    // Event has started no drip days
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    assert!(event.next_drip_date().is_none());
+}
+
+#[test]
 fn update_genres() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -236,6 +473,77 @@ fn update() {
         event.door_time,
         Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11))
     );
+}
+
+#[test]
+fn update_changing_event_start() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let venue = project.create_venue().finish();
+
+    let user = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
+    let old_event_start = dates::now().add_days(3).finish();
+    let new_event_start = dates::now().add_days(7).finish();
+    let event = project
+        .create_event()
+        .with_name("NewEvent".into())
+        .with_status(EventStatus::Draft)
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_event_start(old_event_start)
+        .with_event_end(dates::now().add_days(14).finish())
+        .finish();
+
+    let event = event.publish(None, connection).unwrap();
+    let domain_action = &DomainAction::find_by_resource(
+        Tables::Events.to_string(),
+        event.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap()[0];
+
+    // 2 days away as it's 1 day from the event start
+    let drip_in_days = domain_action
+        .scheduled_at
+        .date()
+        .signed_duration_since(Utc::now().naive_utc().date())
+        .num_days();
+    assert_eq!(drip_in_days, 2);
+
+    let parameters = EventEditableAttributes {
+        event_start: Some(new_event_start),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    assert_eq!(
+        event.event_start.unwrap().round_subsecs(4),
+        new_event_start.round_subsecs(4)
+    );
+    let found_actions = DomainAction::find_by_resource(
+        Tables::Events.to_string(),
+        event.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(found_actions.len(), 1);
+    let domain_action2 = &found_actions[0];
+    assert_ne!(domain_action.id, domain_action2.id);
+
+    // 6 days away as it's 1 day from the event start
+    let drip_in_days = domain_action2
+        .scheduled_at
+        .date()
+        .signed_duration_since(Utc::now().naive_utc().date())
+        .num_days();
+    assert_eq!(drip_in_days, 6);
 }
 
 #[test]
@@ -528,6 +836,7 @@ fn guest_list() {
 fn publish() {
     //create event
     let project = TestProject::new();
+    let connection = project.get_connection();
     let venue = project.create_venue().finish();
 
     let user = project.create_user().finish();
@@ -545,10 +854,61 @@ fn publish() {
 
     assert_eq!(event.status, EventStatus::Draft);
 
-    let event = event.publish(None, project.get_connection()).unwrap();
+    let event = event.publish(None, connection).unwrap();
 
     assert_eq!(event.status, EventStatus::Published);
     assert!(event.publish_date.is_some());
+
+    let domain_action = &DomainAction::find_by_resource(
+        Tables::Events.to_string(),
+        event.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap()[0];
+    let next_drip_date = event.next_drip_date().unwrap();
+    let drip_in_days = next_drip_date
+        .date()
+        .signed_duration_since(domain_action.scheduled_at.date())
+        .num_days();
+    assert_eq!(drip_in_days, 0);
+}
+
+#[test]
+fn clear_pending_drip_actions() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let venue = project.create_venue().finish();
+    let event = project
+        .create_event()
+        .with_venue(&venue)
+        .with_status(EventStatus::Draft)
+        .finish();
+
+    // Publishing creates domain action
+    let event = event.publish(None, connection).unwrap();
+    assert!(!DomainAction::find_by_resource(
+        Tables::Events.to_string(),
+        event.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap()
+    .is_empty());
+
+    // Method removes it
+    event.clear_pending_drip_actions(connection).unwrap();
+    assert!(DomainAction::find_by_resource(
+        Tables::Events.to_string(),
+        event.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap()
+    .is_empty());
 }
 
 #[test]
@@ -655,6 +1015,7 @@ fn publish_change_publish_date() {
 fn unpublish() {
     //create event
     let project = TestProject::new();
+    let connection = project.get_connection();
     let venue = project.create_venue().finish();
 
     let user = project.create_user().finish();
@@ -672,14 +1033,31 @@ fn unpublish() {
 
     assert_eq!(event.status, EventStatus::Draft);
 
-    let event = event.publish(None, project.get_connection()).unwrap();
-
+    let event = event.publish(None, connection).unwrap();
     assert_eq!(event.status, EventStatus::Published);
     assert!(event.publish_date.is_some());
+    assert!(!DomainAction::find_by_resource(
+        Tables::Events.to_string(),
+        event.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap()
+    .is_empty());
 
-    let event = event.unpublish(None, project.get_connection()).unwrap();
+    let event = event.unpublish(None, connection).unwrap();
     assert_eq!(event.status, EventStatus::Draft);
     assert!(event.publish_date.is_none());
+    assert!(DomainAction::find_by_resource(
+        Tables::Events.to_string(),
+        event.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap()
+    .is_empty());
 }
 
 #[test]

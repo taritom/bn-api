@@ -1,4 +1,4 @@
-use bigneon_db::models::User;
+use bigneon_db::models::*;
 use config::Config;
 use diesel::pg::PgConnection;
 use errors::*;
@@ -31,10 +31,46 @@ pub fn transfer_cancelled(
     .queue(conn)
 }
 
+pub fn transfer_drip_reminder(
+    phone: String,
+    transfer: &Transfer,
+    event: &Event,
+    config: &Config,
+    conn: &PgConnection,
+    deep_linker: &DeepLinker,
+) -> Result<(), BigNeonError> {
+    let receive_tickets_link = format!(
+        "{}/tickets/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
+        config.front_end_url.clone(),
+        transfer.source_user_id,
+        transfer.transfer_key,
+        transfer.transfer_tickets(conn)?.len(),
+        transfer.signature(conn)?
+    );
+
+    let shortened_link = deep_linker.create_deep_link(&receive_tickets_link)?;
+    let source = CommAddress::from(config.communication_default_source_phone.clone());
+    let destinations = CommAddress::from(phone);
+    let body = format!(
+        "{} Follow this link to receive them: {}",
+        transfer.drip_header(event, SourceOrDestination::Destination, false, conn)?,
+        shortened_link
+    );
+    Communication::new(
+        CommunicationType::Sms,
+        body,
+        None,
+        Some(source),
+        destinations,
+        None,
+        None,
+    )
+    .queue(conn)
+}
+
 pub fn send_tickets(
     config: &Config,
     phone: String,
-    sender_user_id: &str,
     num_tickets: u32,
     transfer_key: &str,
     signature: &str,
@@ -45,7 +81,7 @@ pub fn send_tickets(
     let receive_tickets_link = format!(
         "{}/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
         config.front_end_url.clone(),
-        sender_user_id,
+        from_user.id,
         transfer_key,
         num_tickets,
         signature

@@ -969,18 +969,11 @@ impl TicketInstance {
             ));
         }
         //Build Authorization message with signature
-        let mut message: String = transfer_key.to_string();
-        message.push_str(user_id.to_string().as_str());
-        message.push_str((ticket_ids.len() as u32).to_string().as_str());
-        let secret_key = Wallet::find_default_for_user(user_id, conn)?.secret_key;
         Ok(TransferAuthorization {
             transfer_key,
             sender_user_id: user_id,
             num_tickets: ticket_ids.len() as u32,
-            signature: convert_bytes_to_hexstring(&cryptographic_signature(
-                &message,
-                &convert_hexstring_to_bytes(&secret_key),
-            )?),
+            signature: transfer.signature(conn)?,
         })
     }
 

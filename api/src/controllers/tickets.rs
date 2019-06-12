@@ -227,7 +227,6 @@ pub fn send_via_email_or_phone(
         smsers::tickets::send_tickets(
             &state.config,
             send_tickets_request.email_or_phone.clone(),
-            &authorization.sender_user_id.to_string(),
             authorization.num_tickets,
             &authorization.transfer_key.to_string(),
             &authorization.signature,

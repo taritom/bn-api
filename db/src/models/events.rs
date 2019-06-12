@@ -11,8 +11,9 @@ use log::Level;
 use models::*;
 use regex::Regex;
 use schema::{
-    artists, event_artists, event_genres, events, genres, order_items, orders, organization_users,
-    organizations, payments, ticket_types, venues,
+    artists, assets, event_artists, event_genres, events, genres, order_items, orders,
+    organization_users, organizations, payments, ticket_instances, ticket_types, transfer_tickets,
+    transfers, venues,
 };
 use serde::Deserializer;
 use serde_json::Value;
@@ -405,6 +406,7 @@ impl Event {
             }
         }
 
+        let previous_start = self.event_start;
         let event_start = match event.event_start {
             Some(e) => Some(e.clone()),
             None => self.event_start,
@@ -435,6 +437,11 @@ impl Event {
                 .get_result(conn),
         )?;
 
+        if previous_start != result.event_start && self.status == EventStatus::Published {
+            result.clear_pending_drip_actions(conn)?;
+            result.create_next_transfer_drip_action(conn)?;
+        }
+
         DomainEvent::create(
             DomainEventTypes::EventUpdated,
             format!("Event '{}' was updated", &self.name),
@@ -445,6 +452,22 @@ impl Event {
         );
 
         Ok(result)
+    }
+
+    pub fn clear_pending_drip_actions(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let drip_domain_actions = DomainAction::find_by_resource(
+            Tables::Events.to_string(),
+            self.id,
+            DomainActionTypes::ProcessTransferDrip,
+            DomainActionStatus::Pending,
+            conn,
+        )?;
+
+        for drip_domain_action in drip_domain_actions {
+            drip_domain_action.set_cancelled(conn)?;
+        }
+
+        Ok(())
     }
 
     pub fn ticket_pricing_range_by_events(
@@ -526,6 +549,91 @@ impl Event {
         }
     }
 
+    pub fn pending_transfers(&self, conn: &PgConnection) -> Result<Vec<Transfer>, DatabaseError> {
+        transfers::table
+            .inner_join(transfer_tickets::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
+            .inner_join(
+                ticket_instances::table
+                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
+            )
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
+            .filter(ticket_types::event_id.eq(self.id))
+            .filter(transfers::status.eq(TransferStatus::Pending))
+            .select(transfers::all_columns)
+            .distinct()
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load event transfers")
+    }
+
+    pub fn create_next_transfer_drip_action(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if let Some(next_source_drip_day) = self.next_drip_date() {
+            let mut action = DomainAction::create(
+                None,
+                DomainActionTypes::ProcessTransferDrip,
+                None,
+                json!(ProcessTransferDripPayload {
+                    event_id: self.id,
+                    source_or_destination: SourceOrDestination::Destination,
+                }),
+                Some(Tables::Events.to_string()),
+                Some(self.id),
+            );
+            action.schedule_at(next_source_drip_day);
+            action.commit(conn)?;
+        }
+        Ok(())
+    }
+
+    pub fn days_until_event(&self) -> Option<i64> {
+        if let Some(event_start) = self.event_start {
+            let now = Utc::now().naive_utc();
+            if event_start < now {
+                return None;
+            }
+
+            let now = Utc::now().naive_utc();
+            let hours_until_event = event_start.signed_duration_since(now).num_hours();
+            // Full days away, with some wiggle room as these are triggered relative to the event_start
+            let mut days_until_event = hours_until_event / 24;
+            if hours_until_event % 24 == 23 {
+                days_until_event += 1;
+            }
+
+            return Some(days_until_event);
+        }
+
+        None
+    }
+
+    pub fn next_drip_date(&self) -> Option<NaiveDateTime> {
+        let now = Utc::now().naive_utc();
+        if let (Some(event_start), Some(days_until_event)) =
+            (self.event_start, self.days_until_event())
+        {
+            if event_start < now {
+                return None;
+            }
+            TRANSFER_DRIP_NOTIFICATION_DAYS_PRIOR_TO_EVENT
+                .iter()
+                .find(|days| &days_until_event > days)
+                .map(|days| {
+                    let duration = if *days == 0 {
+                        Duration::hours(-TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT)
+                    } else {
+                        Duration::days(-*days)
+                    };
+
+                    event_start.checked_add_signed(duration).unwrap()
+                })
+        } else {
+            None
+        }
+    }
+
     pub fn unpublish(
         &self,
         current_user_id: Option<Uuid>,
@@ -567,6 +675,7 @@ impl Event {
             None,
         )
         .commit(conn)?;
+        self.clear_pending_drip_actions(conn)?;
 
         Event::find(self.id, conn)
     }
@@ -619,6 +728,7 @@ impl Event {
                 .to_db_error(ErrorCode::UpdateError, "Could not publish record")?,
         };
 
+        self.create_next_transfer_drip_action(conn)?;
         DomainEvent::create(
             DomainEventTypes::EventPublished,
             format!("Event {} published", self.name),

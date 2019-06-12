@@ -30,6 +30,12 @@ impl DateBuilder {
         }
     }
 
+    pub fn add_minutes(self, minutes: i64) -> DateBuilder {
+        DateBuilder {
+            date: self.date + Duration::minutes(minutes),
+        }
+    }
+
     pub fn finish(self) -> NaiveDateTime {
         self.date
     }

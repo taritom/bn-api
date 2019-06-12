@@ -4,7 +4,7 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse};
 use bigneon_api::controllers;
 use bigneon_api::controllers::cart;
 use bigneon_api::controllers::cart::*;
-use bigneon_api::domain_events;
+use bigneon_api::domain_events::executors::ProcessPaymentIPNExecutor;
 use bigneon_api::extractors::*;
 use bigneon_api::models::*;
 use bigneon_db::models::*;
@@ -1393,9 +1393,7 @@ fn checkout_provider_globee() {
     let domain_action = domain_actions.remove(0);
     assert_eq!(domain_action.main_table_id, Some(order.id));
 
-    let processor = domain_events::executors::process_payment_ipn::ProcessPaymentIPNExecutor::new(
-        &request.config,
-    );
+    let processor = ProcessPaymentIPNExecutor::new(&request.config);
     processor
         .perform_job(&domain_action, &database.connection.clone())
         .unwrap();

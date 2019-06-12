@@ -2,7 +2,7 @@ use actix_web::{http::StatusCode, HttpResponse, Path, Query};
 use auth::user::User;
 use bigneon_db::models::*;
 use db::Connection;
-use domain_events::executors::update_genres::UpdateGenresPayload;
+use domain_events::executors::UpdateGenresPayload;
 use errors::*;
 use extractors::*;
 use helpers::application;
