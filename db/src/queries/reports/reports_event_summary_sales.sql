@@ -34,16 +34,15 @@ FROM (
                                   FILTER (WHERE orders.on_behalf_of_user_id IS NULL and
                                                 (h.hold_type is null or h.hold_type != 'Comp')),
                               0) AS BIGINT)            AS online_count,
-                CAST(AVG(tp.price_in_cents) AS BIGINT) AS price_in_cents, -- face price
+                CAST(AVG(oi.unit_price_in_cents + COALESCE(oi_promo_code.unit_price_in_cents, 0)
+                              ) AS BIGINT) AS price_in_cents, -- face price
                 CAST(COALESCE(SUM((oi.quantity - oi.refunded_quantity) * oi_fees.company_fee_in_cents),
                               0) AS BIGINT)            AS total_company_fee_in_cents,
                 CAST(COALESCE(SUM((oi.quantity - oi.refunded_quantity) * oi_fees.client_fee_in_cents),
                               0) AS BIGINT)            AS total_client_fee_in_cents,
-
-
                 CAST(COALESCE(SUM(((oi.quantity - oi.refunded_quantity) * oi.unit_price_in_cents)) + SUM(
                     ((COALESCE(oi_promo_code.quantity, 0) - COALESCE(oi_promo_code.refunded_quantity, 0)) *
-                     COALESCE(oi_promo_code.unit_price_in_cents))),
+                     COALESCE(oi_promo_code.unit_price_in_cents, 0))),
                               0) AS BIGINT)            AS total_net_income,
                 tp.name                                AS pricing_name,
                 tt.name                                AS ticket_name
@@ -63,5 +62,6 @@ FROM (
            AND oi.item_type = 'Tickets'
            AND ($3 IS NULL OR orders.paid_at >= $3)
            AND ($4 IS NULL OR orders.paid_at <= $4)
-         GROUP BY oi.event_id, oi.ticket_type_id, tt.name, tp.name, tp.price_in_cents, h.id, h.name, c.id
+         GROUP BY oi.event_id, oi.ticket_type_id, tt.name, tp.name, oi.unit_price_in_cents,
+                  oi_promo_code.unit_price_in_cents, h.id, h.name, c.id
      ) AS report_data;
