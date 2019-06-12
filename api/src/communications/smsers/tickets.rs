@@ -43,7 +43,7 @@ pub fn send_tickets(
     deep_linker: &DeepLinker,
 ) -> Result<(), BigNeonError> {
     let receive_tickets_link = format!(
-        "{}/tickets/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
+        "{}/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
         config.front_end_url.clone(),
         sender_user_id,
         transfer_key,
