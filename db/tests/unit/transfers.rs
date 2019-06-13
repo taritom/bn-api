@@ -13,6 +13,63 @@ use time::Duration;
 use uuid::Uuid;
 
 #[test]
+fn receive_url() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
+    transfer
+        .add_transfer_ticket(ticket.id, user.id, &None, connection)
+        .unwrap();
+
+    assert_eq!(transfer.receive_url("http://example.com".to_string(), connection).unwrap(),
+        format!("http://example.com/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets=1&signature={}", transfer.source_user_id, transfer.transfer_key, transfer.signature(connection).unwrap()).to_string()
+    );
+}
+
+#[test]
+fn into_authorization() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+        .commit(&None, connection)
+        .unwrap();
+    transfer
+        .add_transfer_ticket(ticket.id, user.id, &None, connection)
+        .unwrap();
+    assert_eq!(
+        TransferAuthorization {
+            transfer_key: transfer.transfer_key,
+            sender_user_id: transfer.source_user_id,
+            num_tickets: 1,
+            signature: transfer.signature(connection).unwrap(),
+        },
+        transfer.into_authorization(connection).unwrap()
+    );
+}
+
+#[test]
 fn log_drip_domain_event() {
     let project = TestProject::new();
     let connection = project.get_connection();

@@ -868,7 +868,7 @@ impl TicketInstance {
         to_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        let auth = TicketInstance::authorize_ticket_transfer(
+        let transfer = TicketInstance::create_transfer(
             from_user_id,
             ticket_ids,
             Some(address),
@@ -878,7 +878,7 @@ impl TicketInstance {
         let wallet = Wallet::find_default_for_user(from_user_id, conn)?;
         let receiver_wallet = Wallet::find_default_for_user(to_user_id, conn)?;
         TicketInstance::receive_ticket_transfer(
-            auth,
+            transfer.into_authorization(conn)?,
             &wallet,
             to_user_id,
             receiver_wallet.id,
@@ -923,13 +923,13 @@ impl TicketInstance {
         Ok((WalletId::new(wallet_id), ticket_ids_and_updated_at))
     }
 
-    pub fn authorize_ticket_transfer(
+    pub fn create_transfer(
         user_id: Uuid,
         ticket_ids: &[Uuid],
         address: Option<&str>,
         sent_via: Option<TransferMessageType>,
         conn: &PgConnection,
-    ) -> Result<TransferAuthorization, DatabaseError> {
+    ) -> Result<Transfer, DatabaseError> {
         //Confirm that tickets are purchased and owned by user
         let (wallet_id, ticket_ids_and_updated_at) =
             TicketInstance::verify_tickets_belong_to_user(user_id, ticket_ids, conn)?;
@@ -968,13 +968,7 @@ impl TicketInstance {
                 Some("Could not update ticket instances".to_string()),
             ));
         }
-        //Build Authorization message with signature
-        Ok(TransferAuthorization {
-            transfer_key,
-            sender_user_id: user_id,
-            num_tickets: ticket_ids.len() as u32,
-            signature: transfer.signature(conn)?,
-        })
+        Ok(transfer)
     }
 
     pub fn update(
@@ -1141,7 +1135,7 @@ impl TicketInstance {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TransferAuthorization {
     pub transfer_key: Uuid,
     pub sender_user_id: Uuid,

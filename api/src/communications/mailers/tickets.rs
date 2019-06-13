@@ -14,22 +14,11 @@ use uuid::Uuid;
 pub fn send_tickets(
     config: &Config,
     email: String,
-    sender_user_id: &str,
-    num_tickets: u32,
-    transfer_key: &str,
-    signature: &str,
+    transfer: &Transfer,
     from_user: &User,
     conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
-    let receive_tickets_link = format!(
-        "{}/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
-        config.front_end_url.clone(),
-        sender_user_id,
-        transfer_key,
-        num_tickets,
-        signature
-    );
-
+    let receive_tickets_link = transfer.receive_url(config.front_end_url.clone(), conn)?;
     let source = CommAddress::from(config.communication_default_source_email.clone());
     let destinations = CommAddress::from(email);
     let title = "{sender_name} has sent you some tickets".to_string();
@@ -57,6 +46,7 @@ pub fn transfer_drip_reminder(
     config: &Config,
     conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
+    let receive_tickets_link = transfer.receive_url(config.front_end_url.clone(), conn)?;
     let source = CommAddress::from(config.communication_default_source_email.clone());
     let destinations = CommAddress::from(email.clone());
     let title = "BigNeon: Ticket transfer reminder".to_string();
@@ -72,6 +62,7 @@ pub fn transfer_drip_reminder(
         "header".to_string(),
         transfer.drip_header(event, source_or_destination, true, conn)?,
     );
+    template_data.insert("transfer_accept_url".to_string(), receive_tickets_link);
     template_data.insert("transfer_cancel_url".to_string(), transfer_cancel_url);
     template_data.insert("transfer_id".to_string(), transfer.id.to_string());
     template_data.insert("destination_email".to_string(), email);

@@ -85,6 +85,34 @@ impl PartialOrd for Transfer {
 }
 
 impl Transfer {
+    pub fn receive_url(
+        &self,
+        front_end_url: String,
+        conn: &PgConnection,
+    ) -> Result<String, DatabaseError> {
+        Ok(format!(
+            "{}/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
+            front_end_url,
+            self.source_user_id,
+            self.transfer_key,
+            self.transfer_tickets(conn)?.len(),
+            self.signature(conn)?
+        )
+        .to_string())
+    }
+
+    pub fn into_authorization(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<TransferAuthorization, DatabaseError> {
+        Ok(TransferAuthorization {
+            transfer_key: self.transfer_key,
+            sender_user_id: self.source_user_id,
+            num_tickets: self.transfer_tickets(conn)?.len() as u32,
+            signature: self.signature(conn)?,
+        })
+    }
+
     pub fn drip_header(
         &self,
         event: &Event,

@@ -507,14 +507,11 @@ fn get_profile_for_organization() {
     // Transfer ticket to different user removing it from attendance information
     let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
-    let transfer_auth = TicketInstance::authorize_ticket_transfer(
-        user.id,
-        &vec![ticket.id],
-        None,
-        None,
-        connection,
-    )
-    .unwrap();
+    let transfer_auth: TransferAuthorization =
+        TicketInstance::create_transfer(user.id, &vec![ticket.id], None, None, connection)
+            .unwrap()
+            .into_authorization(connection)
+            .unwrap();
     TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,
@@ -660,14 +657,11 @@ fn get_profile_for_organization() {
 
     let sender_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
-    let transfer_auth = TicketInstance::authorize_ticket_transfer(
-        user2.id,
-        &vec![ticket.id],
-        None,
-        None,
-        connection,
-    )
-    .unwrap();
+    let transfer_auth: TransferAuthorization =
+        TicketInstance::create_transfer(user2.id, &vec![ticket.id], None, None, connection)
+            .unwrap()
+            .into_authorization(connection)
+            .unwrap();
     TicketInstance::receive_ticket_transfer(
         transfer_auth,
         &sender_wallet,

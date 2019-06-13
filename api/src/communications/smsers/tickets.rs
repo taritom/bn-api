@@ -39,15 +39,7 @@ pub fn transfer_drip_reminder(
     conn: &PgConnection,
     deep_linker: &DeepLinker,
 ) -> Result<(), BigNeonError> {
-    let receive_tickets_link = format!(
-        "{}/tickets/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
-        config.front_end_url.clone(),
-        transfer.source_user_id,
-        transfer.transfer_key,
-        transfer.transfer_tickets(conn)?.len(),
-        transfer.signature(conn)?
-    );
-
+    let receive_tickets_link = transfer.receive_url(config.front_end_url.clone(), conn)?;
     let shortened_link = deep_linker.create_deep_link(&receive_tickets_link)?;
     let source = CommAddress::from(config.communication_default_source_phone.clone());
     let destinations = CommAddress::from(phone);
@@ -71,22 +63,12 @@ pub fn transfer_drip_reminder(
 pub fn send_tickets(
     config: &Config,
     phone: String,
-    num_tickets: u32,
-    transfer_key: &str,
-    signature: &str,
+    transfer: &Transfer,
     from_user: &User,
     conn: &PgConnection,
     deep_linker: &DeepLinker,
 ) -> Result<(), BigNeonError> {
-    let receive_tickets_link = format!(
-        "{}/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
-        config.front_end_url.clone(),
-        from_user.id,
-        transfer_key,
-        num_tickets,
-        signature
-    );
-
+    let receive_tickets_link = transfer.receive_url(config.front_end_url.clone(), conn)?;
     let shortened_link = deep_linker.create_deep_link(&receive_tickets_link)?;
 
     let source = CommAddress::from(config.communication_default_source_phone.clone());

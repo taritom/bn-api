@@ -566,8 +566,7 @@ fn release() {
         .unwrap()
         .remove(0);
     assert_eq!(ticket.status, TicketInstanceStatus::Purchased);
-    TicketInstance::authorize_ticket_transfer(user.id, &[ticket.id], None, None, connection)
-        .unwrap();
+    TicketInstance::create_transfer(user.id, &[ticket.id], None, None, connection).unwrap();
     assert!(ticket
         .release(TicketInstanceStatus::Purchased, creator.id, connection)
         .is_ok());
@@ -632,8 +631,7 @@ fn release_for_cancelled_ticket_type() {
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     ticket_type.cancel(connection).unwrap();
 
-    TicketInstance::authorize_ticket_transfer(user.id, &[ticket.id], None, None, connection)
-        .unwrap();
+    TicketInstance::create_transfer(user.id, &[ticket.id], None, None, connection).unwrap();
     assert!(ticket
         .release(TicketInstanceStatus::Purchased, creator.id, connection)
         .is_ok());
@@ -713,11 +711,10 @@ fn was_transferred() {
 
     let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
-    let transfer_auth =
-        TicketInstance::authorize_ticket_transfer(user.id, &[ticket.id], None, None, connection)
-            .unwrap();
+    let transfer =
+        TicketInstance::create_transfer(user.id, &[ticket.id], None, None, connection).unwrap();
     TicketInstance::receive_ticket_transfer(
-        transfer_auth,
+        transfer.into_authorization(connection).unwrap(),
         &sender_wallet,
         user2.id,
         receiver_wallet.id,
@@ -1363,7 +1360,7 @@ fn show_redeemable_ticket() {
 }
 
 #[test]
-fn authorize_ticket_transfer() {
+fn create_transfer() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let organization = project.create_organization().with_fees().finish();
@@ -1410,9 +1407,8 @@ fn authorize_ticket_transfer() {
     let mut ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
     ticket_ids.push(Uuid::new_v4());
 
-    let transfer_auth =
-        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, None, None, connection);
-    assert!(transfer_auth.is_err());
+    let transfer = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, connection);
+    assert!(transfer.is_err());
     assert!(
         DomainAction::find_pending(Some(DomainActionTypes::ProcessTransferDrip), connection)
             .unwrap()
@@ -1421,10 +1417,9 @@ fn authorize_ticket_transfer() {
 
     //Now try with tickets that the user does own
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
-    let transfer_auth2 =
-        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, None, None, connection)
-            .unwrap();
-    assert_eq!(transfer_auth2.sender_user_id, user.id);
+    let transfer2 =
+        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, connection).unwrap();
+    assert_eq!(transfer2.source_user_id, user.id);
     assert!(
         DomainAction::find_pending(Some(DomainActionTypes::ProcessTransferDrip), connection)
             .unwrap()
@@ -1510,11 +1505,11 @@ fn receive_ticket_transfer() {
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
 
     //try receive the wrong number of tickets (too few)
-    let transfer_auth =
-        TicketInstance::authorize_ticket_transfer(user.id, &ticket_ids, None, None, connection)
-            .unwrap();
+    let transfer =
+        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, connection).unwrap();
 
-    let mut wrong_auth = transfer_auth.clone();
+    let mut wrong_auth: TransferAuthorization =
+        transfer.clone().into_authorization(connection).unwrap();
     wrong_auth.num_tickets = 4;
     let receive_auth = TicketInstance::receive_ticket_transfer(
         wrong_auth,
@@ -1540,7 +1535,7 @@ fn receive_ticket_transfer() {
 
     //legit receive tickets
     TicketInstance::receive_ticket_transfer(
-        transfer_auth,
+        transfer.into_authorization(connection).unwrap(),
         &sender_wallet,
         user2.id,
         receiver_wallet.id,

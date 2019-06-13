@@ -361,21 +361,12 @@ pub fn refund_for_non_refundable_tickets() {
     let ticket = &tickets[0];
 
     // Transfer the first ticket away
-    let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
-    let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
-    let transfer_auth = TicketInstance::authorize_ticket_transfer(
+    TicketInstance::direct_transfer(
         user.id,
         &vec![ticket.id],
-        None,
-        None,
-        connection,
-    )
-    .unwrap();
-    TicketInstance::receive_ticket_transfer(
-        transfer_auth,
-        &sender_wallet,
+        "example@tari.com",
+        TransferMessageType::Email,
         user2.id,
-        receiver_wallet.id,
         connection,
     )
     .unwrap();

@@ -735,13 +735,15 @@ fn receive_ticket_transfer() {
     .unwrap();
     let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
 
-    let transfer_auth = TicketInstance::authorize_ticket_transfer(
+    let transfer_auth: TransferAuthorization = TicketInstance::create_transfer(
         auth_user.id(),
         &vec![tickets[0].id, tickets[1].id],
         None,
         None,
         conn,
     )
+    .unwrap()
+    .into_authorization(conn)
     .unwrap();
 
     //Try receive transfer
@@ -805,11 +807,8 @@ fn receive_ticket_transfer_fails_cancelled_transfer() {
     .unwrap();
     let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
     let ticket_ids = vec![tickets[0].id, tickets[1].id];
-    let transfer_auth =
-        TicketInstance::authorize_ticket_transfer(auth_user.id(), &ticket_ids, None, None, conn)
-            .unwrap();
-
-    let transfer = &Transfer::find_by_transfer_key(transfer_auth.transfer_key, conn).unwrap();
+    let transfer =
+        TicketInstance::create_transfer(auth_user.id(), &ticket_ids, None, None, conn).unwrap();
     transfer.cancel(user.id, None, conn).unwrap();
 
     //Try receive transfer
@@ -818,7 +817,7 @@ fn receive_ticket_transfer_fails_cancelled_transfer() {
 
     let response: HttpResponse = tickets::receive_transfer((
         database.connection.clone().into(),
-        Json(transfer_auth.clone()),
+        Json(transfer.into_authorization(conn).unwrap()),
         auth_user2.clone(),
         request.extract_state(),
     ))

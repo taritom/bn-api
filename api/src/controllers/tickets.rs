@@ -198,7 +198,7 @@ pub fn send_via_email_or_phone(
 
             pushers::tickets_received(&user, &auth_user.user, connection)?;
         } else {
-            let authorization = TicketInstance::authorize_ticket_transfer(
+            let transfer = TicketInstance::create_transfer(
                 auth_user.id(),
                 &send_tickets_request.ticket_ids,
                 Some(&send_tickets_request.email_or_phone),
@@ -208,16 +208,13 @@ pub fn send_via_email_or_phone(
             mailers::tickets::send_tickets(
                 &state.config,
                 send_tickets_request.email_or_phone.clone(),
-                &authorization.sender_user_id.to_string(),
-                authorization.num_tickets,
-                &authorization.transfer_key.to_string(),
-                &authorization.signature,
+                &transfer,
                 &auth_user.user,
                 connection,
             )?;
         }
     } else if numbers_only.len() > 7 {
-        let authorization = TicketInstance::authorize_ticket_transfer(
+        let transfer = TicketInstance::create_transfer(
             auth_user.id(),
             &send_tickets_request.ticket_ids,
             Some(&send_tickets_request.email_or_phone),
@@ -227,9 +224,7 @@ pub fn send_via_email_or_phone(
         smsers::tickets::send_tickets(
             &state.config,
             send_tickets_request.email_or_phone.clone(),
-            authorization.num_tickets,
-            &authorization.transfer_key.to_string(),
-            &authorization.signature,
+            &transfer,
             &auth_user.user,
             connection,
             &*state.service_locator.create_deep_linker()?,
@@ -259,13 +254,14 @@ pub fn transfer_authorization(
     auth_user.requires_scope(Scopes::TicketTransfer)?;
     let connection = connection.get();
 
-    let transfer_authorization = TicketInstance::authorize_ticket_transfer(
+    let transfer_authorization: TransferAuthorization = TicketInstance::create_transfer(
         auth_user.id(),
         &transfer_tickets_request.ticket_ids,
         None,
         None,
         connection,
-    )?;
+    )?
+    .into_authorization(connection)?;
 
     Ok(HttpResponse::Ok().json(&transfer_authorization))
 }
