@@ -1361,7 +1361,6 @@ impl Event {
         paging: Option<&Paging>,
         conn: &PgConnection,
     ) -> Result<(Vec<GuestListItem>, i64), DatabaseError> {
-        use schema::{transfer_tickets, transfers};
         let tickets_and_counts =
             Event::guest_list_tickets(Some(self.id), None, query, changes_since, paging, conn)?;
         let (tickets, total) = tickets_and_counts;
