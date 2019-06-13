@@ -19,18 +19,11 @@ pub struct TransferFilters {
 }
 
 pub fn show_by_transfer_key(
-    (connection, path, auth_user): (Connection, Path<PathParameters>, User),
+    (connection, path): (Connection, Path<PathParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let transfer = Transfer::find_by_transfer_key(path.id, connection)?;
-    check_transfer_access(
-        &transfer,
-        true,
-        Scopes::TransferRead,
-        Scopes::TransferReadOwn,
-        &auth_user,
-        connection,
-    )?;
+    // if you have the transfer key, you can view the transfer
     Ok(HttpResponse::Ok().json(&transfer.for_display(connection)?))
 }
 
