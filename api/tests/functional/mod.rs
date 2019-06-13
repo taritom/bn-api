@@ -7,6 +7,7 @@ mod comps;
 mod events;
 mod genres;
 mod holds;
+mod notes;
 mod orders;
 mod organization_invites;
 mod organizations;

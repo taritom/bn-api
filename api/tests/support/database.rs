@@ -66,6 +66,10 @@ impl TestDatabase {
         HoldBuilder::new(self.connection.get())
     }
 
+    pub fn create_note(&self) -> NoteBuilder {
+        NoteBuilder::new(self.connection.get())
+    }
+
     pub fn create_order(&self) -> OrderBuilder {
         OrderBuilder::new(self.connection.get())
     }

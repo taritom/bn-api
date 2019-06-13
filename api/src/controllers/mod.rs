@@ -10,6 +10,7 @@ pub mod external;
 pub mod genres;
 pub mod holds;
 pub mod ipns;
+pub mod notes;
 pub mod orders;
 pub mod organization_invites;
 pub mod organizations;

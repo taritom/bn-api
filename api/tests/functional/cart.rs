@@ -902,7 +902,7 @@ fn checkout_external() {
             last_name: "Last".to_string(),
             email: Some("easdf@test.com".to_string()),
             phone: None,
-            note: None,
+            note: Some("Example note".to_string()),
         },
     });
 
@@ -912,7 +912,7 @@ fn checkout_external() {
     let response = cart::checkout((
         database.connection.clone().into(),
         input,
-        user,
+        user.clone(),
         request.extract_state(),
         RequestInfo { user_agent: None },
     ))
@@ -926,6 +926,13 @@ fn checkout_external() {
         order.external_payment_type,
         Some(ExternalPaymentType::Voucher)
     );
+
+    // Confirm note saved correctly
+    let note = &Note::find_for_table(Tables::Orders, order.id, true, 0, 1, connection)
+        .unwrap()
+        .data[0];
+    assert_eq!(user.id(), note.created_by);
+    assert_eq!("Example note".to_string(), note.note);
 }
 
 #[test]

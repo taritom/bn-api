@@ -41,6 +41,10 @@ fn unprocessable(message: &str) -> HttpResponse {
     status_code_and_message(StatusCode::UNPROCESSABLE_ENTITY, message)
 }
 
+fn not_found() -> HttpResponse {
+    status_code_and_message(StatusCode::NOT_FOUND, "Not found")
+}
+
 fn status_code_and_message(code: StatusCode, message: &str) -> HttpResponse {
     HttpResponse::new(code)
         .into_builder()
@@ -78,6 +82,12 @@ impl ConvertToWebError for BranchError {
     fn to_response(&self) -> HttpResponse {
         error!("Branch error: {}", self);
         internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for NotFoundError {
+    fn to_response(&self) -> HttpResponse {
+        not_found()
     }
 }
 

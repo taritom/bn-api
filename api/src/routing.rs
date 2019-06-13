@@ -173,8 +173,15 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(holds::show);
         r.method(Method::DELETE).with(holds::destroy);
     })
+    .resource("/notes/{id}", |r| {
+        r.method(Method::DELETE).with(notes::destroy);
+    })
     .resource("/orders", |r| {
         r.method(Method::GET).with(orders::index);
+    })
+    .resource("/{main_table}/{id}/notes", |r| {
+        r.method(Method::GET).with(notes::index);
+        r.method(Method::POST).with(notes::create);
     })
     .resource("/orders/{id}/details", |r| {
         r.method(Method::GET).with(orders::details);
@@ -190,7 +197,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/orders/{id}", |r| {
         r.method(Method::GET).with(orders::show);
-        r.method(Method::PATCH).with(orders::update);
     })
     .resource("/organizations/{id}/artists", |r| {
         r.method(Method::GET).with(artists::show_from_organizations);

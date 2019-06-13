@@ -31,7 +31,7 @@ use validators::*;
 pub const CART_EXPIRY_TIME_MINUTES: i64 = 15;
 const ORDER_NUMBER_LENGTH: usize = 8;
 
-#[derive(Associations, Debug, Deserialize, Identifiable, PartialEq, Queryable, Serialize)]
+#[derive(Associations, Clone, Debug, Deserialize, Identifiable, PartialEq, Queryable, Serialize)]
 #[belongs_to(User)]
 pub struct Order {
     pub id: Uuid,
@@ -41,7 +41,6 @@ pub struct Order {
     pub order_date: NaiveDateTime,
     pub expires_at: Option<NaiveDateTime>,
     pub version: i64,
-    pub note: Option<String>,
     pub on_behalf_of_user_id: Option<Uuid>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
@@ -59,13 +58,6 @@ pub struct Order {
     pub term: Option<String>,
     pub content: Option<String>,
     pub platform: Option<String>,
-}
-
-#[derive(AsChangeset, Deserialize, Serialize)]
-#[table_name = "orders"]
-pub struct UpdateOrderAttributes {
-    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
-    pub note: Option<Option<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -812,28 +804,6 @@ impl Order {
     pub fn parse_order_number(id: Uuid) -> String {
         let id_string = id.to_string();
         id_string[id_string.len() - ORDER_NUMBER_LENGTH..].to_string()
-    }
-
-    pub fn update(
-        self,
-        attrs: UpdateOrderAttributes,
-        current_user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Order, DatabaseError> {
-        DomainEvent::create(
-            DomainEventTypes::OrderUpdated,
-            "Order updated".into(),
-            Tables::Orders,
-            Some(self.id),
-            Some(current_user_id),
-            Some(json!(attrs)),
-        )
-        .commit(conn)?;
-
-        diesel::update(&self)
-            .set((attrs, orders::updated_at.eq(dsl::now)))
-            .get_result(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update order")
     }
 
     pub fn clear_cart(&mut self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -1705,7 +1675,6 @@ impl Order {
             total_in_cents: self.calculate_total(conn)?,
             seconds_until_expiry,
             user_id: self.user_id,
-            note: self.note.clone(),
             order_number: self.order_number(),
             paid_at: self.paid_at,
             checkout_url: if self
@@ -1758,6 +1727,15 @@ impl Order {
                 Some("Could not find item".to_string()),
             )),
         }
+    }
+
+    pub fn create_note(
+        &self,
+        note: String,
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Note, DatabaseError> {
+        Note::create(Tables::Orders, self.id, user_id, note).commit(conn)
     }
 
     pub fn set_external_payment_type(
@@ -2303,7 +2281,6 @@ pub struct DisplayOrder {
     pub limited_tickets_remaining: Vec<TicketsRemaining>,
     pub total_in_cents: i64,
     pub user_id: Uuid,
-    pub note: Option<String>,
     pub order_number: String,
     pub paid_at: Option<NaiveDateTime>,
     pub checkout_url: Option<String>,

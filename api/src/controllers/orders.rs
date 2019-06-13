@@ -379,27 +379,6 @@ fn is_authorized_to_refund(
     Ok(authorized_to_refund_items)
 }
 
-pub fn update(
-    (conn, path, json, user): (
-        Connection,
-        Path<PathParameters>,
-        Json<UpdateOrderAttributes>,
-        User,
-    ),
-) -> Result<HttpResponse, BigNeonError> {
-    user.requires_scope(Scopes::OrderReadOwn)?;
-    let conn = conn.get();
-
-    let order = Order::find(path.id, conn)?;
-    if order.user_id != user.id() {
-        return application::forbidden("You do not have access to this order");
-    }
-
-    let order = order.update(json.into_inner(), user.id(), conn)?;
-
-    Ok(HttpResponse::Ok().json(order.for_display(None, user.id(), conn)?))
-}
-
 pub fn tickets(
     (conn, path, user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {

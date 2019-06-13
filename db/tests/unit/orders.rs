@@ -35,6 +35,22 @@ fn transfers() {
 }
 
 #[test]
+fn create_note() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let order = project.create_order().is_paid().finish();
+    let note_text = "Note goes here".to_string();
+    let note = order
+        .create_note(note_text.clone(), user.id, connection)
+        .unwrap();
+    assert_eq!(note.note, note_text);
+    assert_eq!(note.created_by, user.id);
+    assert_eq!(note.main_id, order.id);
+    assert_eq!(note.main_table, Tables::Orders);
+}
+
+#[test]
 fn main_event_id() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -4781,42 +4797,4 @@ fn adding_event_fees() {
         }
     }
     assert_eq!(event_fees_count, 1);
-}
-
-#[test]
-pub fn update() {
-    let project = TestProject::new();
-    let connection = project.get_connection();
-    let user = project.create_user().finish();
-    let order = project.create_order().finish();
-
-    let attrs = UpdateOrderAttributes {
-        note: Some(Some("Client will pick up at 18h00".to_string())),
-    };
-
-    let domain_event_count = DomainEvent::find(
-        Tables::Orders,
-        Some(order.id),
-        Some(DomainEventTypes::OrderUpdated),
-        connection,
-    )
-    .unwrap()
-    .len();
-
-    let updated = order.update(attrs, user.id, &project.connection).unwrap();
-    assert_eq!(
-        updated.note,
-        Some("Client will pick up at 18h00".to_string())
-    );
-    let new_domain_event_count = DomainEvent::find(
-        Tables::Orders,
-        Some(updated.id),
-        Some(DomainEventTypes::OrderUpdated),
-        connection,
-    )
-    .unwrap()
-    .len();
-
-    // 1 order update event should be recorded from the update call
-    assert_eq!(domain_event_count + 1, new_domain_event_count);
 }

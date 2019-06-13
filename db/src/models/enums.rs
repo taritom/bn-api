@@ -108,6 +108,8 @@ string_enum! { DomainEventTypes [
     OrderStatusUpdated,
     OrderUpdated,
     OrganizationCreated,
+    NoteCreated,
+    NoteDeleted,
     PaymentCancelled,
     PaymentCreated,
     PaymentCompleted,
@@ -181,7 +183,7 @@ string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { SourceOrDestination [Destination,Source]}
 string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations,
-Payments, PaymentMethods, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
+Notes, Payments, PaymentMethods, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, OnSaleSoon, SaleEnded, Cancelled, Deleted] }

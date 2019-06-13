@@ -451,7 +451,7 @@ fn checkout_free(
 // user will not be calling this.
 fn checkout_external(
     conn: &Connection,
-    order: Order,
+    mut order: Order,
     external_payment_type: ExternalPaymentType,
     reference: Option<String>,
     first_name: String,
@@ -503,7 +503,9 @@ fn checkout_external(
         )?);
     }
 
-    let mut order = order.update(UpdateOrderAttributes { note: Some(note) }, user.id(), conn)?;
+    if let Some(note) = note {
+        order.create_note(note, user.id(), conn)?;
+    }
     order.set_behalf_of_user(guest.unwrap(), user.id(), conn)?;
     let total = order.calculate_total(conn)?;
 

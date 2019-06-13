@@ -89,6 +89,10 @@ impl TestProject {
         HoldBuilder::new(&self.connection)
     }
 
+    pub fn create_note(&self) -> NoteBuilder {
+        NoteBuilder::new(&self.connection)
+    }
+
     pub fn create_order(&self) -> OrderBuilder {
         OrderBuilder::new(&self.connection)
     }

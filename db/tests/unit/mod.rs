@@ -13,6 +13,7 @@ pub mod fee_schedule_ranges;
 pub mod fee_schedules;
 pub mod genres;
 pub mod holds;
+pub mod notes;
 pub mod order_items;
 pub mod orders;
 pub mod organization_invites;
