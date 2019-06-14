@@ -12,6 +12,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use time::Duration;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
+use utils::pagination::Paginate;
 use utils::passwords::PasswordHash;
 use utils::rand::random_alpha_string;
 use uuid::Uuid;
@@ -334,6 +335,88 @@ impl User {
         new_user.commit(current_user_id, conn)
     }
 
+    pub fn activity(
+        &self,
+        organization: &Organization,
+        page: u32,
+        limit: u32,
+        sort_direction: SortingDir,
+        past_or_upcoming: PastOrUpcoming,
+        conn: &PgConnection,
+    ) -> Result<Payload<ActivitySummary>, DatabaseError> {
+        use schema::*;
+
+        let (start_time, end_time) = Event::dates_by_past_or_upcoming(None, None, past_or_upcoming);
+        let (events, event_count): (Vec<Event>, i64) = ticket_instances::table
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .left_join(
+                transfer_tickets::table
+                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
+            )
+            .left_join(transfers::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
+            .left_join(
+                refunded_tickets::table
+                    .on(ticket_instances::id.eq(refunded_tickets::ticket_instance_id)),
+            )
+            .left_join(
+                order_items::table.on(ticket_instances::order_item_id
+                    .eq(order_items::id.nullable())
+                    .or(refunded_tickets::order_item_id.eq(order_items::id))),
+            )
+            .left_join(
+                orders::table.on(order_items::order_id
+                    .eq(orders::id)
+                    .and(orders::status.eq(OrderStatus::Paid))),
+            )
+            .left_join(refunds::table.on(refunds::order_id.eq(orders::id)))
+            .left_join(
+                notes::table.on(notes::main_id
+                    .eq(orders::id)
+                    .and(notes::main_table.eq(Tables::Orders))),
+            )
+            .filter(
+                wallets::user_id
+                    .eq(self.id)
+                    .or(transfers::cancelled_by_user_id.eq(self.id))
+                    .or(transfers::source_user_id.eq(self.id))
+                    .or(transfers::destination_user_id.eq(self.id))
+                    .or(ticket_instances::redeemed_by_user_id.eq(self.id))
+                    .or(orders::on_behalf_of_user_id.eq(Some(self.id)))
+                    .or(orders::user_id.eq(self.id))
+                    .or(refunds::user_id.eq(self.id))
+                    .or(notes::created_by.eq(self.id)),
+            )
+            .filter(events::event_end.ge(start_time))
+            .filter(events::event_end.le(end_time))
+            .filter(events::organization_id.eq(organization.id))
+            .select(events::all_columns)
+            .distinct()
+            .order_by(sql::<()>(&format!("events.event_start {}", sort_direction)))
+            .paginate(page as i64)
+            .per_page(limit as i64)
+            .load_and_count_pages(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load events for organization fan",
+            )?;
+
+        let mut result: Vec<ActivitySummary> = Vec::new();
+        for event in events {
+            let summary = event.activity_summary(self.id, conn)?;
+            if summary.activity_items.len() > 0 {
+                result.push(summary);
+            }
+        }
+
+        let mut payload = Payload::new(result, Paging::new(page, limit));
+        payload.paging.total = event_count as u64;
+        payload.paging.dir = sort_direction;
+        Ok(payload)
+    }
+
     pub fn get_history_for_organization(
         &self,
         organization: &Organization,
@@ -492,6 +575,18 @@ impl User {
             "Error loading user",
             users::table.find(id).first::<User>(conn),
         )
+    }
+
+    pub fn find_by_ids(
+        user_ids: &Vec<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Vec<User>, DatabaseError> {
+        users::table
+            .filter(users::id.eq_any(user_ids))
+            .select(users::all_columns)
+            .distinct()
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load users")
     }
 
     pub fn find_by_email(email: &str, conn: &PgConnection) -> Result<User, DatabaseError> {

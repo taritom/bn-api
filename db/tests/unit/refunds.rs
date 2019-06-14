@@ -6,12 +6,13 @@ fn create() {
     let project = TestProject::new();
     let order = project.create_order().finish();
     let user = project.create_user().finish();
-    let refund = Refund::create(order.id, user.id)
+    let refund = Refund::create(order.id, user.id, Some("Reasoning".to_string()))
         .commit(project.get_connection())
         .unwrap();
 
     assert_eq!(refund.order_id, order.id);
     assert_eq!(refund.user_id, user.id);
+    assert_eq!(refund.reason, Some("Reasoning".to_string()));
 }
 
 #[test]

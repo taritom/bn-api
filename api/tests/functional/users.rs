@@ -55,6 +55,47 @@ mod history_tests {
 }
 
 #[cfg(test)]
+mod activity_tests {
+    use super::*;
+    #[test]
+    fn activity_org_member() {
+        base::users::activity(Roles::OrgMember, true);
+    }
+    #[test]
+    fn activity_admin() {
+        base::users::activity(Roles::Admin, true);
+    }
+    #[test]
+    fn activity_user() {
+        base::users::activity(Roles::User, false);
+    }
+    #[test]
+    fn activity_org_owner() {
+        base::users::activity(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn activity_door_person() {
+        base::users::activity(Roles::DoorPerson, false);
+    }
+    #[test]
+    fn activity_promoter() {
+        base::users::activity(Roles::Promoter, false);
+    }
+    #[test]
+    fn activity_promoter_read_only() {
+        base::users::activity(Roles::PromoterReadOnly, false);
+    }
+    #[test]
+    fn activity_org_admin() {
+        base::users::activity(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn activity_box_office() {
+        base::users::activity(Roles::OrgBoxOffice, false);
+    }
+}
+
+#[cfg(test)]
 mod profile_tests {
     use super::*;
     #[test]

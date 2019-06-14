@@ -46,6 +46,12 @@ impl Responder for CurrentUser {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+///struct used to indicate paging information and search query information
+pub struct ActivityParameters {
+    past_or_upcoming: Option<String>,
+}
+
 #[derive(Deserialize, Clone)]
 pub struct InputPushNotificationTokens {
     pub token_source: String,
@@ -57,6 +63,46 @@ pub fn current_user(
 ) -> Result<CurrentUser, BigNeonError> {
     let connection = connection.get();
     current_user_from_user(&auth_user.user, connection)
+}
+
+pub fn activity(
+    (connection, path, query, activity_query, auth_user): (
+        Connection,
+        Path<OrganizationFanPathParameters>,
+        Query<PagingParameters>,
+        Query<ActivityParameters>,
+        AuthUser,
+    ),
+) -> Result<WebPayload<ActivitySummary>, BigNeonError> {
+    let connection = connection.get();
+    let organization = Organization::find(path.id, connection)?;
+    auth_user.requires_scope_for_organization(Scopes::OrgFans, &organization, &connection)?;
+    let user = User::find(path.user_id, connection)?;
+
+    let past_or_upcoming = match activity_query
+        .past_or_upcoming
+        .clone()
+        .unwrap_or("upcoming".to_string())
+        .as_str()
+    {
+        "past" => PastOrUpcoming::Past,
+        _ => PastOrUpcoming::Upcoming,
+    };
+
+    let mut payload = user.activity(
+        &organization,
+        query.page(),
+        query.limit(),
+        query.dir.unwrap_or(SortingDir::Desc),
+        past_or_upcoming,
+        connection,
+    )?;
+    payload.paging.tags.insert(
+        "past_or_upcoming".to_string(),
+        json!(activity_query.past_or_upcoming),
+    );
+
+    Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
 pub fn profile(

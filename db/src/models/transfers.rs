@@ -44,15 +44,15 @@ pub struct Transfer {
     pub updated_at: NaiveDateTime,
     pub transfer_message_type: Option<TransferMessageType>,
     pub transfer_address: Option<String>,
+    pub cancelled_by_user_id: Option<Uuid>,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
 #[table_name = "transfers"]
 pub struct TransferEditableAttributes {
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub status: Option<TransferStatus>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub destination_user_id: Option<Uuid>,
+    pub cancelled_by_user_id: Option<Uuid>,
 }
 
 #[derive(Clone, Queryable, Deserialize, Serialize, PartialEq, Debug)]
@@ -453,6 +453,7 @@ impl Transfer {
         let transfer = self.update(
             TransferEditableAttributes {
                 status: Some(TransferStatus::Cancelled),
+                cancelled_by_user_id: Some(user_id),
                 ..Default::default()
             },
             conn,

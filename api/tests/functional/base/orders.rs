@@ -1,7 +1,8 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path};
 use bigneon_api::controllers::orders::{self, *};
+use bigneon_api::errors::BigNeonError;
 use bigneon_api::extractors::Json;
-use bigneon_api::models::PathParameters;
+use bigneon_api::models::*;
 use bigneon_db::models::*;
 use serde_json;
 use std::collections::HashMap;
@@ -57,6 +58,82 @@ pub fn show_other_user_order(role: Roles, should_succeed: bool) {
         assert_eq!(found_order.id, order.id);
     } else {
         support::expects_forbidden(&response, None);
+    }
+}
+
+pub fn activity(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database.create_organization().with_fees().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let mut order = Order::find_or_create_cart(&user2, connection).unwrap();
+    order
+        .update_quantities(
+            user2.id,
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 10,
+                redemption_code: None,
+            }],
+            false,
+            false,
+            &*connection,
+        )
+        .unwrap();
+    assert_eq!(order.calculate_total(connection).unwrap(), 1700);
+    order
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            1700,
+            connection,
+        )
+        .unwrap();
+    assert_eq!(order.status, OrderStatus::Paid);
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = order.id;
+    let response: Result<WebPayload<ActivityItem>, BigNeonError> =
+        orders::activity((database.connection.clone().into(), path, auth_user.clone()));
+
+    if should_test_true {
+        let response = response.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let activity_payload = response.payload();
+        let data = &activity_payload.data;
+        assert_eq!(data.len(), 1);
+        if let ActivityItem::Purchase {
+            order_id,
+            order_number,
+            ticket_quantity,
+            purchased_by,
+            user,
+            ..
+        } = &data[0]
+        {
+            assert_eq!(order_id, &order.id);
+            assert_eq!(order_number, &Order::order_number(&order));
+            assert_eq!(ticket_quantity, &10);
+            let expected_user: UserActivityItem = user2.clone().into();
+            assert_eq!(purchased_by, &expected_user);
+            assert_eq!(user, &expected_user);
+        } else {
+            panic!("Expected purchase activity item");
+        }
+    } else {
+        support::expects_unauthorized(&response.unwrap_err().into_inner().to_response());
     }
 }
 
@@ -169,7 +246,7 @@ pub fn details(role: Roles, should_succeed: bool) {
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
     let (_refund, amount) = cart
-        .refund(&refund_items, auth_user.id(), connection)
+        .refund(&refund_items, auth_user.id(), None, connection)
         .unwrap();
     assert_eq!(amount, refund_amount);
 
@@ -300,6 +377,7 @@ pub fn refund(role: Roles, should_succeed: bool) {
     ];
     let json = Json(RefundAttributes {
         items: refund_items,
+        reason: None,
     });
 
     let test_request = TestRequest::create();

@@ -1,6 +1,5 @@
 use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
-use bigneon_api::controllers::users;
-use bigneon_api::controllers::users::InputPushNotificationTokens;
+use bigneon_api::controllers::users::{self, *};
 use bigneon_api::errors::*;
 use bigneon_api::extractors::*;
 use bigneon_api::models::*;
@@ -100,6 +99,93 @@ pub fn profile(role: Roles, should_test_true: bool) {
         );
     } else {
         support::expects_unauthorized(&response);
+    }
+}
+
+pub fn activity(role: Roles, should_test_true: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database.create_organization().with_fees().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let mut order = Order::find_or_create_cart(&user2, connection).unwrap();
+    order
+        .update_quantities(
+            user2.id,
+            &[UpdateOrderItem {
+                ticket_type_id: ticket_type.id,
+                quantity: 10,
+                redemption_code: None,
+            }],
+            false,
+            false,
+            &*connection,
+        )
+        .unwrap();
+    assert_eq!(order.calculate_total(connection).unwrap(), 1700);
+    order
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            1700,
+            connection,
+        )
+        .unwrap();
+    assert_eq!(order.status, OrderStatus::Paid);
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
+    let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    path.user_id = user2.id;
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let activity_parameters = Query::<ActivityParameters>::extract(&test_request.request).unwrap();
+    let response: Result<WebPayload<ActivitySummary>, BigNeonError> = users::activity((
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        activity_parameters,
+        auth_user.clone(),
+    ));
+
+    if should_test_true {
+        let response = response.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let activity_payload = response.payload();
+        let data = &activity_payload.data;
+        assert_eq!(data.len(), 1);
+
+        assert_eq!(data[0].event, event.for_display(connection).unwrap());
+        assert_eq!(data[0].activity_items.len(), 1);
+        if let ActivityItem::Purchase {
+            order_id,
+            order_number,
+            ticket_quantity,
+            purchased_by,
+            user,
+            ..
+        } = &data[0].activity_items[0]
+        {
+            assert_eq!(order_id, &order.id);
+            assert_eq!(order_number, &Order::order_number(&order));
+            assert_eq!(ticket_quantity, &10);
+            let expected_user: UserActivityItem = user2.clone().into();
+            assert_eq!(purchased_by, &expected_user);
+            assert_eq!(user, &expected_user);
+        } else {
+            panic!("Expected purchase activity item");
+        }
+    } else {
+        support::expects_unauthorized(&response.unwrap_err().into_inner().to_response());
     }
 }
 

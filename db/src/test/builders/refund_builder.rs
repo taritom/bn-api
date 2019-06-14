@@ -39,7 +39,7 @@ impl<'a> RefundBuilder<'a> {
             self.order_id = Some(order.id);
         }
 
-        Refund::create(self.order_id.unwrap(), self.user_id.unwrap())
+        Refund::create(self.order_id.unwrap(), self.user_id.unwrap(), None)
             .commit(self.connection)
             .unwrap()
     }

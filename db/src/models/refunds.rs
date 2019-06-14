@@ -13,11 +13,16 @@ pub struct Refund {
     pub user_id: Uuid,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub reason: Option<String>,
 }
 
 impl Refund {
-    pub fn create(order_id: Uuid, user_id: Uuid) -> NewRefund {
-        NewRefund { order_id, user_id }
+    pub fn create(order_id: Uuid, user_id: Uuid, reason: Option<String>) -> NewRefund {
+        NewRefund {
+            order_id,
+            user_id,
+            reason,
+        }
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<Refund, DatabaseError> {
@@ -40,6 +45,7 @@ impl Refund {
 pub struct NewRefund {
     pub order_id: Uuid,
     pub user_id: Uuid,
+    pub reason: Option<String>,
 }
 
 impl NewRefund {

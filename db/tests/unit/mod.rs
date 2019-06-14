@@ -1,3 +1,4 @@
+pub mod activities;
 pub mod artists;
 pub mod assets;
 pub mod broadcasts;

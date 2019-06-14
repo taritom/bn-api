@@ -9,6 +9,7 @@ use validator::Validate;
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
 use bigneon_db::schema::{orders, user_genres};
+use bigneon_db::utils::dates;
 use bigneon_db::utils::errors;
 use bigneon_db::utils::errors::ErrorCode;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
@@ -63,6 +64,223 @@ fn update_genre_info() {
         user.genres(connection).unwrap(),
         vec!["emo".to_string(), "hard-rock".to_string()]
     );
+}
+
+#[test]
+fn activity() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let organization2 = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&organization2)
+        .with_ticket_pricing()
+        .finish();
+    let hold = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Discount)
+        .with_quantity(10)
+        .with_ticket_type_id(event.ticket_types(true, None, connection).unwrap()[0].id)
+        .finish();
+    let code = project
+        .create_code()
+        .with_event(&event2)
+        .with_code_type(CodeTypes::Discount)
+        .for_ticket_type(&event2.ticket_types(true, None, connection).unwrap()[0])
+        .with_discount_in_cents(Some(10))
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .on_behalf_of_user(&user)
+        .for_user(&user3)
+        .quantity(2)
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event2)
+        .for_user(&user)
+        .quantity(3)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event2)
+        .for_user(&user)
+        .quantity(3)
+        .with_redemption_code(code.redemption_code.clone())
+        .is_paid()
+        .finish();
+
+    assert_eq!(
+        vec![ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event.id, user.id, connection).unwrap(),
+            event: event.for_display(connection).unwrap(),
+        }],
+        user.activity(
+            &organization,
+            0,
+            100,
+            SortingDir::Asc,
+            PastOrUpcoming::Upcoming,
+            connection
+        )
+        .unwrap()
+        .data
+    );
+    assert_eq!(
+        vec![ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event2.id, user.id, connection).unwrap(),
+            event: event2.for_display(connection).unwrap(),
+        }],
+        user.activity(
+            &organization2,
+            0,
+            100,
+            SortingDir::Asc,
+            PastOrUpcoming::Upcoming,
+            connection
+        )
+        .unwrap()
+        .data
+    );
+
+    assert!(user2
+        .activity(
+            &organization,
+            0,
+            100,
+            SortingDir::Asc,
+            PastOrUpcoming::Upcoming,
+            connection
+        )
+        .unwrap()
+        .data
+        .is_empty());
+    assert!(user2
+        .activity(
+            &organization2,
+            0,
+            100,
+            SortingDir::Asc,
+            PastOrUpcoming::Upcoming,
+            connection
+        )
+        .unwrap()
+        .data
+        .is_empty());
+
+    assert_eq!(
+        vec![ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, connection).unwrap(),
+            event: event.for_display(connection).unwrap(),
+        }],
+        user3
+            .activity(
+                &organization,
+                0,
+                100,
+                SortingDir::Asc,
+                PastOrUpcoming::Upcoming,
+                connection
+            )
+            .unwrap()
+            .data
+    );
+    assert!(user3
+        .activity(
+            &organization2,
+            0,
+            100,
+            SortingDir::Asc,
+            PastOrUpcoming::Upcoming,
+            connection
+        )
+        .unwrap()
+        .data
+        .is_empty());
+
+    // Event is now in the past
+    let event = event
+        .update(
+            None,
+            EventEditableAttributes {
+                event_start: Some(dates::now().add_days(-2).finish()),
+                event_end: Some(dates::now().add_days(-1).finish()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+
+    // Is not found via upcoming filter
+    assert!(user3
+        .activity(
+            &organization,
+            0,
+            100,
+            SortingDir::Asc,
+            PastOrUpcoming::Upcoming,
+            connection
+        )
+        .unwrap()
+        .data
+        .is_empty());
+
+    // Is found via past filter
+    assert_eq!(
+        vec![ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, connection).unwrap(),
+            event: event.for_display(connection).unwrap(),
+        }],
+        user3
+            .activity(
+                &organization,
+                0,
+                100,
+                SortingDir::Asc,
+                PastOrUpcoming::Past,
+                connection
+            )
+            .unwrap()
+            .data
+    );
+}
+
+#[test]
+fn find_by_ids() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let mut user_ids = vec![user.id, user2.id];
+    user_ids.sort();
+
+    let found_users = User::find_by_ids(&user_ids, connection).unwrap();
+    let mut found_user_ids: Vec<Uuid> = found_users.into_iter().map(|u| u.id).collect();
+    found_user_ids.sort();
+    assert_eq!(found_user_ids, user_ids);
 }
 
 #[test]

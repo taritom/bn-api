@@ -1431,6 +1431,27 @@ impl Event {
         Ok((guests, total))
     }
 
+    pub fn dates_by_past_or_upcoming(
+        start_time: Option<NaiveDateTime>,
+        end_time: Option<NaiveDateTime>,
+        past_or_upcoming: PastOrUpcoming,
+    ) -> (NaiveDateTime, NaiveDateTime) {
+        let now = Utc::now().naive_utc();
+        let beginning_of_time = NaiveDate::from_ymd(1900, 1, 1).and_hms(12, 0, 0);
+        let end_of_time = NaiveDate::from_ymd(3100, 1, 1).and_hms(12, 0, 0);
+        if past_or_upcoming == PastOrUpcoming::Upcoming {
+            (
+                NaiveDateTime::max(start_time.unwrap_or(now), now),
+                NaiveDateTime::min(end_time.unwrap_or(end_of_time), end_of_time),
+            )
+        } else {
+            (
+                NaiveDateTime::max(start_time.unwrap_or(beginning_of_time), beginning_of_time),
+                NaiveDateTime::min(end_time.unwrap_or(now), now),
+            )
+        }
+    }
+
     pub fn search(
         query_filter: Option<String>,
         region_id: Option<Uuid>,
@@ -1451,27 +1472,8 @@ impl Event {
             EventSearchSortField::Name => "name",
             EventSearchSortField::EventStart => "event_start",
         };
-
-        let mut start_time = start_time;
-        let mut end_time = end_time;
-        let beginning_of_time = NaiveDate::from_ymd(1900, 1, 1).and_hms(12, 0, 0);
-        let end_of_time = NaiveDate::from_ymd(3100, 1, 1).and_hms(12, 0, 0);
-
-        let now = Utc::now().naive_utc();
-
-        if past_or_upcoming == PastOrUpcoming::Upcoming {
-            start_time = Some(NaiveDateTime::max(start_time.unwrap_or(now), now));
-            end_time = Some(NaiveDateTime::min(
-                end_time.unwrap_or(end_of_time),
-                end_of_time,
-            ));
-        } else {
-            start_time = Some(NaiveDateTime::max(
-                start_time.unwrap_or(beginning_of_time),
-                beginning_of_time,
-            ));
-            end_time = Some(NaiveDateTime::min(end_time.unwrap_or(now), now));
-        }
+        let (start_time, end_time) =
+            Event::dates_by_past_or_upcoming(start_time, end_time, past_or_upcoming);
 
         let query_like = match query_filter {
             Some(n) => format!("%{}%", text::escape_control_chars(&n)),
@@ -1505,8 +1507,8 @@ impl Event {
                         .sql(")"))
                     .or(artists::id.is_not_null()),
             )
-            .filter(events::event_end.ge(start_time.unwrap()))
-            .filter(events::event_end.le(end_time.unwrap()))
+            .filter(events::event_end.ge(start_time))
+            .filter(events::event_end.le(end_time))
             .select(events::all_columns)
             .distinct()
             .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
@@ -1788,7 +1790,18 @@ impl Event {
         Ok((fans, total))
     }
 
-    pub fn for_display(self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {
+    pub fn activity_summary(
+        &self,
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<ActivitySummary, DatabaseError> {
+        Ok(ActivitySummary {
+            activity_items: ActivityItem::load_for_event(self.id, user_id, conn)?,
+            event: self.for_display(conn)?,
+        })
+    }
+
+    pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {
         let venue = self.venue(conn)?;
         let display_venue: Option<DisplayVenue> =
             venue.clone().and_then(|venue| Some(venue.into()));
@@ -1800,25 +1813,25 @@ impl Event {
             self.current_ticket_pricing_range(false, conn)?;
         Ok(DisplayEvent {
             id: self.id,
-            name: self.name,
+            name: self.name.clone(),
             event_start: self.event_start,
             door_time: self.door_time,
-            promo_image_url: self.promo_image_url,
-            cover_image_url: self.cover_image_url,
-            additional_info: self.additional_info,
-            top_line_info: self.top_line_info,
+            promo_image_url: self.promo_image_url.clone(),
+            cover_image_url: self.cover_image_url.clone(),
+            additional_info: self.additional_info.clone(),
+            top_line_info: self.top_line_info.clone(),
             artists,
             genres,
             venue: display_venue,
             max_ticket_price,
             min_ticket_price,
-            video_url: self.video_url,
+            video_url: self.video_url.clone(),
             is_external: self.is_external,
-            external_url: self.external_url,
+            external_url: self.external_url.clone(),
             override_status: self.override_status,
             localized_times,
             event_type: self.event_type,
-            slug: self.slug,
+            slug: self.slug.clone(),
         })
     }
 }

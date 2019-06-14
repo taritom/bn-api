@@ -1,3 +1,4 @@
+pub use self::activities::*;
 pub use self::artists::*;
 pub use self::assets::*;
 pub use self::broadcasts::*;
@@ -53,6 +54,7 @@ use serde_json::Value;
 
 pub mod concerns;
 
+mod activities;
 mod artists;
 mod assets;
 mod broadcasts;

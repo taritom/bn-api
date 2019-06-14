@@ -49,6 +49,47 @@ pub fn show() {
 }
 
 #[cfg(test)]
+mod activity_tests {
+    use super::*;
+    #[test]
+    fn activity_org_member() {
+        base::orders::activity(Roles::OrgMember, true);
+    }
+    #[test]
+    fn activity_admin() {
+        base::orders::activity(Roles::Admin, true);
+    }
+    #[test]
+    fn activity_user() {
+        base::orders::activity(Roles::User, false);
+    }
+    #[test]
+    fn activity_org_owner() {
+        base::orders::activity(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn activity_door_person() {
+        base::orders::activity(Roles::DoorPerson, true);
+    }
+    #[test]
+    fn activity_promoter() {
+        base::orders::activity(Roles::Promoter, true);
+    }
+    #[test]
+    fn activity_promoter_read_only() {
+        base::orders::activity(Roles::PromoterReadOnly, true);
+    }
+    #[test]
+    fn activity_org_admin() {
+        base::orders::activity(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn activity_box_office() {
+        base::orders::activity(Roles::OrgBoxOffice, true);
+    }
+}
+
+#[cfg(test)]
 mod show_other_user_order_tests {
     use super::*;
 
@@ -384,6 +425,7 @@ pub fn refund_for_non_refundable_tickets() {
     ];
     let json = Json(RefundAttributes {
         items: refund_items,
+        reason: None,
     });
 
     let test_request = TestRequest::create();
@@ -477,6 +519,7 @@ pub fn refund_hold_ticket() {
     }];
     let json = Json(RefundAttributes {
         items: refund_items,
+        reason: Some("Purchased by mistake".to_string()),
     });
 
     let test_request = TestRequest::create();
@@ -600,6 +643,7 @@ pub fn refund_removes_event_fee_if_all_event_tickets_refunded() {
     ];
     let json = Json(RefundAttributes {
         items: refund_items,
+        reason: None,
     });
 
     let test_request = TestRequest::create();

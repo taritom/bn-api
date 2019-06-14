@@ -51,6 +51,86 @@ fn create_note() {
 }
 
 #[test]
+fn activity() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let organization2 = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&organization2)
+        .with_ticket_pricing()
+        .finish();
+    let hold = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Discount)
+        .with_quantity(10)
+        .with_ticket_type_id(event.ticket_types(true, None, connection).unwrap()[0].id)
+        .finish();
+    let code = project
+        .create_code()
+        .with_event(&event2)
+        .with_code_type(CodeTypes::Discount)
+        .for_ticket_type(&event2.ticket_types(true, None, connection).unwrap()[0])
+        .with_discount_in_cents(Some(10))
+        .finish();
+    let order = project
+        .create_order()
+        .for_event(&event)
+        .on_behalf_of_user(&user)
+        .for_user(&user2)
+        .quantity(2)
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .is_paid()
+        .finish();
+    let order2 = project
+        .create_order()
+        .for_event(&event2)
+        .for_user(&user)
+        .quantity(3)
+        .is_paid()
+        .finish();
+    let order3 = project
+        .create_order()
+        .for_event(&event2)
+        .for_user(&user)
+        .quantity(3)
+        .with_redemption_code(code.redemption_code.clone())
+        .is_paid()
+        .finish();
+
+    assert_eq!(
+        ActivityItem::load_for_order(&order, connection).unwrap(),
+        order.activity(connection).unwrap().data
+    );
+    assert_eq!(
+        ActivityItem::load_for_order(&order2, connection).unwrap(),
+        order2.activity(connection).unwrap().data
+    );
+    assert_eq!(
+        ActivityItem::load_for_order(&order3, connection).unwrap(),
+        order3.activity(connection).unwrap().data
+    );
+}
+
+#[test]
 fn main_event_id() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -664,7 +744,9 @@ fn refund_can_refund_previously_refunded_and_repurchased_tickets() {
             ticket_instance_id: Some(tickets[0].id),
         }];
 
-        assert!(cart.refund(&refund_items, user.id, connection).is_ok());
+        assert!(cart
+            .refund(&refund_items, user.id, None, connection)
+            .is_ok());
         let ticket = TicketInstance::find(tickets[0].id, connection).unwrap();
         assert!(ticket.order_item_id.is_none());
         let order_item = OrderItem::find_in_order(cart.id, order_item.id, connection).unwrap();
@@ -774,7 +856,7 @@ fn quantity_for_user_for_event() {
         ticket_instance_id: Some(ticket.id),
     }];
     last_order
-        .refund(&refund_items, user.id, connection)
+        .refund(&refund_items, user.id, None, connection)
         .unwrap();
     let ticket_type_quantities =
         Order::quantity_for_user_for_event(user.id, event.id, connection).unwrap();
@@ -2703,7 +2785,9 @@ fn details() {
         ticket_instance_id: Some(ticket.id),
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
-    let (_refund, amount) = cart.refund(&refund_items, user.id, connection).unwrap();
+    let (_refund, amount) = cart
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
     assert_eq!(amount, refund_amount);
 
     let mut expected_order_details = vec![
@@ -2761,7 +2845,9 @@ fn details() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    assert!(cart.refund(&refund_items, user.id, connection).is_err());
+    assert!(cart
+        .refund(&refund_items, user.id, None, connection)
+        .is_err());
     let order_details = cart
         .details(&vec![organization.id], user2.id, connection)
         .unwrap();
@@ -2775,7 +2861,9 @@ fn details() {
     let refund_amount = order_item.unit_price_in_cents
         + fee_item.unit_price_in_cents
         + event_fee_item.unit_price_in_cents;
-    let (_refund, amount) = cart.refund(&refund_items, user.id, connection).unwrap();
+    let (_refund, amount) = cart
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
     assert_eq!(amount, refund_amount);
 
     let mut expected_order_details = vec![
@@ -2916,7 +3004,9 @@ fn refund() {
     let refund_amount = event_fee_item.unit_price_in_cents
         + order_item.unit_price_in_cents
         + fee_item.unit_price_in_cents;
-    let (refund, amount) = cart.refund(&refund_items, user.id, connection).unwrap();
+    let (refund, amount) = cart
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
     assert_eq!(amount, refund_amount);
     assert_eq!(refund.user_id, user.id);
     assert_eq!(refund.order_id, cart.id);

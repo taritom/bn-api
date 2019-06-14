@@ -453,6 +453,7 @@ table! {
         user_id -> Uuid,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        reason -> Nullable<Text>,
     }
 }
 
@@ -594,6 +595,7 @@ table! {
         updated_at -> Timestamp,
         transfer_message_type -> Nullable<Text>,
         transfer_address -> Nullable<Text>,
+        cancelled_by_user_id -> Nullable<Uuid>,
     }
 }
 

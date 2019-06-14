@@ -7,6 +7,101 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 #[test]
+fn activity_summary() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event2 = project.create_event().with_ticket_pricing().finish();
+    let hold = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Discount)
+        .with_quantity(10)
+        .with_ticket_type_id(event.ticket_types(true, None, connection).unwrap()[0].id)
+        .finish();
+    let code = project
+        .create_code()
+        .with_event(&event2)
+        .with_code_type(CodeTypes::Discount)
+        .for_ticket_type(&event2.ticket_types(true, None, connection).unwrap()[0])
+        .with_discount_in_cents(Some(10))
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .on_behalf_of_user(&user)
+        .for_user(&user3)
+        .quantity(2)
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event2)
+        .for_user(&user)
+        .quantity(3)
+        .with_redemption_code(code.redemption_code.clone())
+        .is_paid()
+        .finish();
+
+    assert_eq!(
+        event.activity_summary(user.id, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event.id, user.id, connection).unwrap(),
+            event: event.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event.activity_summary(user2.id, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event.id, user2.id, connection).unwrap(),
+            event: event.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event.activity_summary(user3.id, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, connection).unwrap(),
+            event: event.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event2.activity_summary(user.id, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event2.id, user.id, connection).unwrap(),
+            event: event2.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event2.activity_summary(user2.id, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event2.id, user2.id, connection).unwrap(),
+            event: event2.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event2.activity_summary(user3.id, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event2.id, user3.id, connection).unwrap(),
+            event: event2.for_display(connection).unwrap(),
+        }
+    );
+}
+
+#[test]
 fn genres() {
     let project = TestProject::new();
     let connection = project.get_connection();

@@ -163,6 +163,12 @@ impl Order {
         )
     }
 
+    pub fn activity(&self, conn: &PgConnection) -> Result<Payload<ActivityItem>, DatabaseError> {
+        let activity_items = ActivityItem::load_for_order(&self, conn)?;
+        let payload = Payload::from_data(activity_items, 0, std::u32::MAX);
+        Ok(payload)
+    }
+
     pub fn transfers(&self, conn: &PgConnection) -> Result<Vec<Transfer>, DatabaseError> {
         order_transfers::table
             .inner_join(transfers::table.on(transfers::id.eq(order_transfers::transfer_id)))
@@ -210,11 +216,12 @@ impl Order {
         &mut self,
         refund_data: &[RefundItemRequest],
         user_id: Uuid,
+        reason: Option<String>,
         conn: &PgConnection,
     ) -> Result<(Refund, i64), DatabaseError> {
         self.lock_version(conn)?;
         let mut total_to_be_refunded: i64 = 0;
-        let refund = Refund::create(self.id, user_id).commit(conn)?;
+        let refund = Refund::create(self.id, user_id, reason).commit(conn)?;
         let previous_item_refund_counts: HashMap<Uuid, i64> = self
             .items(conn)?
             .iter()

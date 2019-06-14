@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, Path, Query, State};
+use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::*;
@@ -11,7 +11,7 @@ use errors::BigNeonError;
 use extractors::*;
 use helpers::application;
 use log::Level::Debug;
-use models::PathParameters;
+use models::*;
 use server::AppState;
 use std::cmp;
 use std::collections::HashMap;
@@ -26,6 +26,18 @@ pub fn index(
     let orders = Order::find_for_user_for_display(user.id(), conn.get())?;
 
     Ok(HttpResponse::Ok().json(&Payload::new(orders, query_parameters.into_inner().into())))
+}
+
+pub fn activity(
+    (conn, path, user): (Connection, Path<PathParameters>, User),
+) -> Result<WebPayload<ActivityItem>, BigNeonError> {
+    let connection = conn.get();
+    let order = Order::find(path.id, connection)?;
+    user.requires_scope_for_order(Scopes::OrderRead, &order, connection)?;
+
+    let payload = order.activity(connection)?;
+
+    Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
 pub fn show(
@@ -99,6 +111,7 @@ pub fn details(
 #[derive(Deserialize, Serialize, Clone)]
 pub struct RefundAttributes {
     pub items: Vec<RefundItemRequest>,
+    pub reason: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -119,6 +132,7 @@ pub fn refund(
     let refund_attributes = json.into_inner();
     jlog!(Debug, "Request to refund received", {"order_id": path.id, "request": refund_attributes.clone()});
     let connection = conn.get();
+    let reason = refund_attributes.reason;
     let items = refund_attributes.items;
     let mut order = Order::find(path.id, connection)?;
 
@@ -142,7 +156,7 @@ pub fn refund(
         .collect::<Vec<Uuid>>();
 
     // Refund amount is fee inclusive if fee no longer applies to the order
-    let (refund, refund_due) = order.refund(&items, user.id(), connection)?;
+    let (refund, refund_due) = order.refund(&items, user.id(), reason, connection)?;
 
     // Transfer tickets back to the organization wallets
     let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();

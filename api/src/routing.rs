@@ -6,7 +6,11 @@ use server::AppState;
 pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     // Please try to keep in alphabetical order
 
-    app.resource("/admin/stuck_domain_actions", |r| {
+    app.resource("/{main_table}/{id}/notes", |r| {
+        r.method(Method::GET).with(notes::index);
+        r.method(Method::POST).with(notes::create);
+    })
+    .resource("/admin/stuck_domain_actions", |r| {
         r.method(Method::GET)
             .with(admin::admin_stuck_domain_actions);
     })
@@ -179,9 +183,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/orders", |r| {
         r.method(Method::GET).with(orders::index);
     })
-    .resource("/{main_table}/{id}/notes", |r| {
-        r.method(Method::GET).with(notes::index);
-        r.method(Method::POST).with(notes::create);
+    .resource("/orders/{id}/activity", |r| {
+        r.method(Method::GET).with(orders::activity);
     })
     .resource("/orders/{id}/details", |r| {
         r.method(Method::GET).with(orders::details);
@@ -204,6 +207,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/organizations/{id}/events", |r| {
         r.method(Method::GET).with(events::show_from_organizations);
+    })
+    .resource("/organizations/{id}/fans/{user_id}/activity", |r| {
+        r.method(Method::GET).with(users::activity);
     })
     .resource("/organizations/{id}/fans/{user_id}/history", |r| {
         r.method(Method::GET).with(users::history);
