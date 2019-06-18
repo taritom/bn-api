@@ -144,7 +144,7 @@ fn has_pending_action() {
     // Empty, no action
     let result = DomainAction::has_pending_action(
         DomainActionTypes::MarketingContactsBulkEventFanListImport,
-        Tables::Events.table_name(),
+        Tables::Events.to_string(),
         id,
         connection,
     )
@@ -157,7 +157,7 @@ fn has_pending_action() {
         DomainActionTypes::MarketingContactsBulkEventFanListImport,
         None,
         json!(Vec::<u8>::new()),
-        Some(Tables::Events.table_name()),
+        Some(Tables::Events.to_string()),
         Some(id),
     );
     domain_action.scheduled_at = Utc::now()
@@ -173,7 +173,7 @@ fn has_pending_action() {
 
     let result = DomainAction::has_pending_action(
         DomainActionTypes::MarketingContactsBulkEventFanListImport,
-        Tables::Events.table_name(),
+        Tables::Events.to_string(),
         id,
         connection,
     )

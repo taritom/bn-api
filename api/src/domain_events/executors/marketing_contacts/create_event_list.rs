@@ -112,7 +112,7 @@ impl CreateEventListExecutor {
         // DomainEvent should be triggered here: something like EventMarketingContactListCreated #DomainEvents
         if !DomainAction::has_pending_action(
             DomainActionTypes::MarketingContactsBulkEventFanListImport,
-            Tables::Events.table_name(),
+            Tables::Events.to_string(),
             payload.event_id,
             conn,
         )? {

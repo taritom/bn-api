@@ -35,7 +35,7 @@ impl CreateEventMarketingListAction {
             DomainActionTypes::MarketingContactsCreateEventList,
             None,
             json!(self.payload),
-            Some(Tables::Events.table_name()),
+            Some(Tables::Events.to_string()),
             Some(self.payload.event_id),
         );
         action.schedule_at(scheduled_at);
@@ -76,7 +76,7 @@ impl BulkEventFanListImportAction {
             DomainActionTypes::MarketingContactsBulkEventFanListImport,
             None,
             json!(self.payload),
-            Some(Tables::Events.table_name()),
+            Some(Tables::Events.to_string()),
             Some(self.payload.event_id),
         );
 
