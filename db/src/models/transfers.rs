@@ -150,21 +150,7 @@ impl Transfer {
                 }
                 SourceOrDestination::Destination => {
                     let source_user = User::find(self.source_user_id, conn)?;
-                    let mut name = if let (Some(first_name), Some(last_name)) =
-                        (source_user.first_name, source_user.last_name)
-                    {
-                        vec![
-                            first_name.clone(),
-                            last_name
-                                .chars()
-                                .next()
-                                .map(|c| format!("{}.", c))
-                                .unwrap_or("".to_string()),
-                        ]
-                        .join(" ")
-                    } else {
-                        "another user".to_string()
-                    };
+                    let mut name = Transfer::sender_name(&source_user);
 
                     if include_links && source_user.email.is_some() {
                         name = format!(
@@ -187,6 +173,24 @@ impl Transfer {
             },
             None => "".to_string(),
         })
+    }
+
+    pub fn sender_name(user: &User) -> String {
+        if let (Some(first_name), Some(last_name)) =
+            (user.first_name.clone(), user.last_name.clone())
+        {
+            vec![
+                first_name,
+                last_name
+                    .chars()
+                    .next()
+                    .map(|c| format!("{}.", c))
+                    .unwrap_or("".to_string()),
+            ]
+            .join(" ")
+        } else {
+            "another user".to_string()
+        }
     }
 
     pub fn log_drip_domain_event(

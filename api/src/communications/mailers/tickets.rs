@@ -50,7 +50,16 @@ pub fn transfer_drip_reminder(
     let source = CommAddress::from(config.communication_default_source_email.clone());
     let destinations = CommAddress::from(email.clone());
     let title = "BigNeon: Ticket transfer reminder".to_string();
-    let template_id = config.sendgrid_template_bn_transfer_tickets_drip.clone();
+    let user = User::find(transfer.source_user_id, conn)?;
+    let template_id = if source_or_destination == SourceOrDestination::Source {
+        config
+            .sendgrid_template_bn_transfer_tickets_drip_source
+            .clone()
+    } else {
+        config
+            .sendgrid_template_bn_transfer_tickets_drip_destination
+            .clone()
+    };
     let transfer_cancel_url = format!(
         "{}/my-events?event_id={}",
         config.front_end_url.clone(),
@@ -62,10 +71,14 @@ pub fn transfer_drip_reminder(
         "header".to_string(),
         transfer.drip_header(event, source_or_destination, true, conn)?,
     );
+    template_data.insert("sender_name".to_string(), Transfer::sender_name(&user));
+    template_data.insert(
+        "receiver_address".to_string(),
+        transfer.transfer_address.clone().unwrap_or("".to_string()),
+    );
     template_data.insert("transfer_accept_url".to_string(), receive_tickets_link);
     template_data.insert("transfer_cancel_url".to_string(), transfer_cancel_url);
     template_data.insert("transfer_id".to_string(), transfer.id.to_string());
-    template_data.insert("destination_email".to_string(), email);
     insert_event_template_data(&mut template_data, event, conn)?;
 
     Communication::new(

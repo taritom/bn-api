@@ -318,6 +318,31 @@ fn events_have_not_ended() {
 }
 
 #[test]
+fn sender_name() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project
+        .create_user()
+        .with_first_name("Bob")
+        .with_last_name("Miller")
+        .finish();
+    assert_eq!(Transfer::sender_name(&user), "Bob M.".to_string());
+
+    let user = user
+        .update(
+            UserEditableAttributes {
+                first_name: Some(None),
+                last_name: Some(None),
+                ..Default::default()
+            },
+            None,
+            connection,
+        )
+        .unwrap();
+    assert_eq!(Transfer::sender_name(&user), "another user".to_string());
+}
+
+#[test]
 fn drip_header() {
     let project = TestProject::new();
     let connection = project.get_connection();
