@@ -77,3 +77,9 @@ where
             .body(body))
     }
 }
+
+impl<T> From<Vec<T>> for WebPayload<T> {
+    fn from(vec: Vec<T>) -> Self {
+        WebPayload(StatusCode::OK, vec.into())
+    }
+}

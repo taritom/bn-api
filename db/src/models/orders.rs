@@ -5,8 +5,8 @@ use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
-use diesel::sql_types;
-use diesel::sql_types::{BigInt, Bool, Integer, Nullable, Text, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Bool, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::{sql_query, sql_types};
 use itertools::Itertools;
 use log::Level::{self, Debug};
 use models::*;
@@ -24,6 +24,7 @@ use time::Duration;
 use utils::dates::*;
 use utils::errors::*;
 use utils::iterators::intersect_set;
+use utils::regexes;
 use uuid::Uuid;
 use validator::*;
 use validators::*;
@@ -31,7 +32,18 @@ use validators::*;
 pub const CART_EXPIRY_TIME_MINUTES: i64 = 15;
 const ORDER_NUMBER_LENGTH: usize = 8;
 
-#[derive(Associations, Clone, Debug, Deserialize, Identifiable, PartialEq, Queryable, Serialize)]
+#[derive(
+    Associations,
+    Clone,
+    Debug,
+    Deserialize,
+    Identifiable,
+    PartialEq,
+    Queryable,
+    QueryableByName,
+    Serialize,
+)]
+#[table_name = "orders"]
 #[belongs_to(User)]
 pub struct Order {
     pub id: Uuid,
@@ -300,9 +312,9 @@ impl Order {
         if calculated_refunded_value != (total_to_be_refunded) {
             return DatabaseError::business_process_error(
                 &format!("Error processing refund, calculated refund does not match expected total, expected {}, calculated {}",
-                total_to_be_refunded,
-                calculated_refunded_value
-            ));
+                         total_to_be_refunded,
+                         calculated_refunded_value
+                ));
         }
 
         Ok((refund, total_to_be_refunded))
@@ -681,6 +693,207 @@ impl Order {
             .filter(orders::id.eq(id))
             .first(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find order")
+    }
+
+    pub fn search(
+        event_id: Option<Uuid>,
+        partial_order_no: Option<&str>,
+        email: Option<&str>,
+        name: Option<&str>,
+        ticket_type_id: Option<Uuid>,
+        partial_promo_code: Option<&str>,
+        box_office_sales: bool,
+        online_sales: bool,
+        web_sales: bool,
+        app_sales: bool,
+        current_user_id: Uuid,
+        paging: &PagingParameters,
+        conn: &PgConnection,
+    ) -> Result<(Vec<DisplayOrder>, i64), DatabaseError> {
+        let mut query = sql_query(
+            r#"
+        SELECT *, COUNT(*) OVER () as total FROM (
+        select distinct o.*
+        from orders o
+            inner join order_items oi on oi.order_id = o.id
+            inner join ticket_types tt on oi.ticket_type_id= tt.id
+            left join holds h on oi.hold_id = h.id
+            left join codes c on oi.code_id = c.id
+            inner join users u on o.user_id = u.id
+            left join users bu on o.on_behalf_of_user_id = bu.id
+        where o.status <> 'Draft'
+        "#,
+        )
+        .into_boxed();
+
+        let mut bind_no = 0;
+
+        if let Some(event_id) = event_id {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and tt.event_id = ${} ", bind_no))
+                .bind::<sql_types::Uuid, _>(event_id);
+        }
+
+        if let Some(partial_order_no) = partial_order_no {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and o.id::text ilike ${} ", bind_no))
+                .bind::<diesel::sql_types::Text, _>(format!("%{}%", partial_order_no));
+        }
+
+        if let Some(email) = email {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(
+                    " and coalesce(bu.email, u.email) ilike ${}",
+                    bind_no
+                ))
+                .bind::<sql_types::Text, _>(format!("%{}%", email));
+        }
+
+        if let Some(name) = name {
+            bind_no = bind_no + 2;
+            let name = format!("%{}%", regexes::whitespace().replace_all(name, "%"));
+            query = query.sql(format!(" and (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or  coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${}) ", bind_no - 1, bind_no)).bind::<sql_types::Text, _>(name.clone()).bind::<sql_types::Text, _>(name);
+            // TODO: Add order by edit distance
+        }
+
+        if let Some(ticket_type_id) = ticket_type_id {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and tt.id = ${} ", bind_no))
+                .bind::<sql_types::Uuid, _>(ticket_type_id);
+        }
+
+        if let Some(partial_promo_code) = partial_promo_code {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(
+                    " and coalesce(h.redemption_code, c.redemption_code) ilike ${} ",
+                    bind_no
+                ))
+                .bind::<sql_types::Text, _>(format!("%{}%", partial_promo_code));
+        }
+
+        if !box_office_sales {
+            query = query.sql(" and o.on_behalf_of_user_id is null ");
+        }
+        if !online_sales {
+            query = query.sql(" and o.on_behalf_of_user_id is not null ");
+        }
+
+        if !web_sales {
+            query = query.sql(" and o.platform != 'Web'");
+        }
+
+        if !app_sales {
+            query = query.sql(" and o.platform != 'App'");
+        }
+
+        query = query.sql(" order by order_date desc");
+
+        #[derive(QueryableByName)]
+        struct R {
+            #[sql_type = "dUuid"]
+            id: Uuid,
+            #[sql_type = "dUuid"]
+            user_id: Uuid,
+            #[sql_type = "Text"]
+            status: OrderStatus,
+            #[sql_type = "Text"]
+            order_type: OrderTypes,
+            #[sql_type = "Timestamp"]
+            order_date: NaiveDateTime,
+            #[sql_type = "Nullable<Timestamp>"]
+            expires_at: Option<NaiveDateTime>,
+            #[sql_type = "BigInt"]
+            version: i64,
+            #[sql_type = "Nullable<dUuid>"]
+            on_behalf_of_user_id: Option<Uuid>,
+            #[sql_type = "Timestamp"]
+            created_at: NaiveDateTime,
+            #[sql_type = "Timestamp"]
+            updated_at: NaiveDateTime,
+            #[sql_type = "Nullable<Timestamp>"]
+            paid_at: Option<NaiveDateTime>,
+            #[sql_type = "Bool"]
+            box_office_pricing: bool,
+            #[sql_type = "Nullable<Text>"]
+            checkout_url: Option<String>,
+            #[sql_type = "Nullable<Timestamp>"]
+            checkout_url_expires: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Text>"]
+            create_user_agent: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            purchase_user_agent: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            external_payment_type: Option<ExternalPaymentType>,
+            #[sql_type = "Nullable<Jsonb>"]
+            tracking_data: Option<serde_json::Value>,
+            #[sql_type = "Nullable<Text>"]
+            source: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            campaign: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            medium: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            term: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            content: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            platform: Option<String>,
+            #[sql_type = "BigInt"]
+            total: i64,
+        }
+
+        let limit = paging.limit.unwrap_or(100) as i64;
+        query = query
+            .sql(format!(
+                ") t LIMIT ${}  OFFSET ${}",
+                bind_no + 1,
+                bind_no + 2
+            ))
+            .bind::<sql_types::BigInt, _>(limit)
+            .bind::<sql_types::BigInt, _>(paging.page.unwrap_or(0) as i64 * limit);
+        let orders: Vec<R> = query
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
+
+        let mut r = (
+            Vec::<DisplayOrder>::new(),
+            orders.get(0).map(|s| s.total).unwrap_or(0),
+        );
+        for order in orders {
+            let o = Order {
+                id: order.id,
+                user_id: order.user_id,
+                status: order.status,
+                order_type: order.order_type,
+                order_date: order.order_date,
+                expires_at: order.expires_at,
+                version: order.version,
+                on_behalf_of_user_id: order.on_behalf_of_user_id,
+                created_at: order.created_at,
+                updated_at: order.updated_at,
+                paid_at: order.paid_at,
+                box_office_pricing: order.box_office_pricing,
+                checkout_url: order.checkout_url,
+                checkout_url_expires: order.checkout_url_expires,
+                create_user_agent: order.create_user_agent,
+                purchase_user_agent: order.purchase_user_agent,
+                external_payment_type: order.external_payment_type,
+                tracking_data: order.tracking_data,
+                source: order.source,
+                campaign: order.campaign,
+                medium: order.medium,
+                term: order.term,
+                content: order.content,
+                platform: order.platform,
+            };
+            r.0.push(o.for_display(None, current_user_id, conn)?);
+        }
+        Ok(r)
     }
 
     /// Sets the expiry time of an order. All tickets in the current order are also updated

@@ -26,7 +26,7 @@ use unidecode::unidecode;
 use utils::errors::*;
 use utils::pagination::*;
 use utils::rand::random_alpha_string;
-use utils::text;
+use utils::{regexes, text};
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 use validators;
@@ -214,14 +214,14 @@ impl NewEvent {
 
 fn create_slug(name: &str) -> String {
     // Unwrap should be treated as a compile time error
-    let whitespace = Regex::new(r#"\s+"#).unwrap();
+
     let only_characters = Regex::new(r#"[^a-zA-Z0-9]"#).unwrap();
     let duplicate_dashes = Regex::new(r#"-+"#).unwrap();
 
     let slug = unidecode(name);
     let slug = only_characters.replace_all(&slug, " ");
     let mut slug: String = duplicate_dashes
-        .replace_all(&whitespace.replace_all(&slug.trim(), "-"), "-")
+        .replace_all(&regexes::whitespace().replace_all(&slug.trim(), "-"), "-")
         .to_lowercase()
         .chars()
         .take(250)

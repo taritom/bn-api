@@ -98,6 +98,13 @@ impl<T> Payload<T> {
     }
 }
 
+impl<T> From<Vec<T>> for Payload<T> {
+    fn from(vec: Vec<T>) -> Self {
+        let len = vec.len() as u32;
+        Payload::from_data(vec, 0, len)
+    }
+}
+
 impl<T> ToETag for Payload<T>
 where
     T: ToETag,
@@ -126,7 +133,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 ///struct used to indicate paging information and search query information
 pub struct PagingParameters {
     pub page: Option<u32>,
@@ -153,5 +160,13 @@ impl PagingParameters {
         self.tags
             .get(tag)
             .map(|v| v.as_str().unwrap_or("").to_string())
+    }
+
+    pub fn get_tag_as_str(&self, tag: &'static str) -> Option<&str> {
+        self.tags.get(tag).map(|v| v.as_str().unwrap_or(""))
+    }
+
+    pub fn default() -> PagingParameters {
+        Default::default()
     }
 }

@@ -4888,3 +4888,353 @@ fn adding_event_fees() {
     }
     assert_eq!(event_fees_count, 1);
 }
+
+#[test]
+pub fn search_by_event_id() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let order2 = project.create_order().for_event(&event).is_paid().finish();
+
+    let actual = Order::search(
+        Some(event.id),
+        None,
+        None,
+        None,
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_partial_order_id() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let order2 = project.create_order().for_event(&event).is_paid().finish();
+
+    let actual = Order::search(
+        None,
+        Some(&order2.id.to_string()[4..8]),
+        None,
+        None,
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_email() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let order2 = project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+
+    let actual = Order::search(
+        None,
+        None,
+        Some(&user.email.unwrap()[2..6]),
+        None,
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &Default::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_email_on_behalf_of() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let order2 = project
+        .create_order()
+        .for_event(&event)
+        .on_behalf_of_user(&user)
+        .is_paid()
+        .finish();
+
+    let actual = Order::search(
+        None,
+        None,
+        Some(&user.email.unwrap()[2..6]),
+        None,
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_name() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().with_first_name("search").finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let order2 = project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+
+    let actual = Order::search(
+        None,
+        None,
+        None,
+        Some(&user.first_name.as_ref().unwrap().to_string()),
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_last_name_first() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project
+        .create_user()
+        .with_first_name("search")
+        .with_last_name("lasT")
+        .finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let order2 = project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+
+    let actual = Order::search(
+        None,
+        None,
+        None,
+        Some("last search"),
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_ticket_type() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let order2 = project.create_order().for_event(&event).is_paid().finish();
+
+    let actual = Order::search(
+        None,
+        None,
+        None,
+        None,
+        Some(event.ticket_types(false, None, connection).unwrap()[0].id),
+        None,
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_promo_code_hold() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+
+    let hold = project
+        .create_hold()
+        .with_ticket_type_id(event.ticket_types(false, None, connection).unwrap()[0].id)
+        .finish();
+    let order2 = project
+        .create_order()
+        .for_event(&event)
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .is_paid()
+        .finish();
+
+    let actual = Order::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(&hold.redemption_code.unwrap()[2..4]),
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_promo_code_code() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let ticket_type = &event.ticket_types(false, None, connection).unwrap()[0];
+    let code = project.create_code().for_ticket_type(ticket_type).finish();
+    let order2 = project
+        .create_order()
+        .for_tickets(ticket_type.id)
+        .with_redemption_code(code.redemption_code.clone())
+        .is_paid()
+        .finish();
+
+    let actual = Order::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(&code.redemption_code[2..4]),
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_all() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project
+        .create_user()
+        .with_first_name("search")
+        .with_last_name("last_name")
+        .finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let ticket_type_id = event.ticket_types(false, None, connection).unwrap()[0].id;
+    let hold = project
+        .create_hold()
+        .with_ticket_type_id(ticket_type_id)
+        .finish();
+    let order2 = project
+        .create_order()
+        .for_tickets(ticket_type_id)
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .for_user(&user)
+        .is_paid()
+        .finish();
+
+    let actual = Order::search(
+        Some(event.id),
+        Some(&order2.id.to_string()[4..8]),
+        Some(&user.email.unwrap()[2..6]),
+        Some(&format!(
+            "{} {}",
+            user.first_name.as_ref().unwrap_or(&"".to_string()),
+            user.last_name.as_ref().unwrap_or(&"".to_string())
+        )),
+        Some(ticket_type_id),
+        Some(&hold.redemption_code.unwrap()[2..4]),
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}

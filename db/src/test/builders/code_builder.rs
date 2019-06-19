@@ -101,13 +101,21 @@ impl<'a> CodeBuilder<'a> {
 
     pub fn finish(mut self) -> Code {
         if self.event_id.is_none() {
-            self.event_id = Some(
-                EventBuilder::new(self.connection)
-                    .with_ticket_pricing()
-                    .with_tickets()
-                    .finish()
-                    .id,
-            );
+            if self.ticket_type_ids.len() > 0 {
+                self.event_id = Some(
+                    TicketType::find(self.ticket_type_ids[0], self.connection)
+                        .unwrap()
+                        .event_id,
+                );
+            } else {
+                self.event_id = Some(
+                    EventBuilder::new(self.connection)
+                        .with_ticket_pricing()
+                        .with_tickets()
+                        .finish()
+                        .id,
+                );
+            }
         }
 
         let code = Code::create(

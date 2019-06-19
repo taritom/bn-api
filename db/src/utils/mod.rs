@@ -8,5 +8,6 @@ pub mod migration;
 pub mod pagination;
 pub mod passwords;
 pub mod rand;
+pub mod regexes;
 pub mod text;
 pub use self::math::*;

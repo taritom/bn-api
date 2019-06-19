@@ -17,6 +17,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/admin/ticket_count", |r| {
         r.method(Method::GET).with(admin::admin_ticket_count);
     })
+    .resource("/admin/orders", |r| {
+        r.method(Method::GET).with(admin::orders);
+    })
     .resource("/artists/search", |r| {
         r.method(Method::GET).with(artists::search);
     })
