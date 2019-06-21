@@ -1894,7 +1894,8 @@ impl Order {
             limited_tickets_remaining,
             total_in_cents: self.calculate_total(conn)?,
             seconds_until_expiry,
-            user_id: self.user_id,
+            user_id: self.on_behalf_of_user_id.unwrap_or(self.user_id),
+            user: User::find(self.user_id, conn)?.for_display()?,
             order_number: self.order_number(),
             paid_at: self.paid_at,
             checkout_url: if self
@@ -1908,6 +1909,8 @@ impl Order {
             },
             allowed_payment_methods,
             order_contains_other_tickets,
+            platform: self.platform.clone(),
+            is_box_office: self.on_behalf_of_user_id.is_some(),
         })
     }
 
@@ -2501,6 +2504,7 @@ pub struct DisplayOrder {
     pub limited_tickets_remaining: Vec<TicketsRemaining>,
     pub total_in_cents: i64,
     pub user_id: Uuid,
+    pub user: DisplayUser,
     pub order_number: String,
     pub paid_at: Option<NaiveDateTime>,
     pub checkout_url: Option<String>,
@@ -2508,6 +2512,8 @@ pub struct DisplayOrder {
     pub order_contains_other_tickets: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub valid_for_purchase: Option<bool>,
+    pub platform: Option<String>,
+    pub is_box_office: bool,
 }
 
 impl DisplayOrder {
