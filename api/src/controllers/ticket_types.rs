@@ -44,6 +44,27 @@ pub struct CreateTicketTypeRequest {
     pub limit_per_person: i32,
     pub price_in_cents: i64,
     pub visibility: TicketTypeVisibility,
+    #[serde(default)]
+    pub additional_fee_in_cents: i64,
+}
+
+impl Default for CreateTicketTypeRequest {
+    fn default() -> Self {
+        CreateTicketTypeRequest {
+            name: "".to_string(),
+            description: None,
+            capacity: 0,
+            start_date: None,
+            parent_id: None,
+            end_date: times::infinity(),
+            ticket_pricing: vec![],
+            increment: None,
+            limit_per_person: 0,
+            price_in_cents: 0,
+            visibility: TicketTypeVisibility::Always,
+            additional_fee_in_cents: 0,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -73,6 +94,8 @@ pub struct UpdateTicketTypeRequest {
     pub visibility: Option<TicketTypeVisibility>,
     #[serde(deserialize_with = "double_option::deserialize")]
     pub parent_id: Option<Option<Uuid>>,
+    #[serde(default)]
+    pub additional_fee_in_cents: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -313,6 +336,7 @@ pub fn update(
         price_in_cents: data.price_in_cents,
         visibility: data.visibility,
         parent_id: data.parent_id,
+        additional_fee_in_cents: data.additional_fee_in_cents,
     };
     let updated_ticket_type = ticket_type.update(update_parameters, Some(user.id()), connection)?;
 
@@ -463,7 +487,9 @@ fn create_ticket_types(
     let org_wallet = Wallet::find_default_for_organization(event.organization_id, connection)?;
 
     //Add new ticket types
-    for ref ticket_type_data in &data {
+    let mut results = Vec::<(&CreateTicketTypeRequest, TicketType)>::new();
+
+    for ticket_type_data in data.iter() {
         let ticket_type = event.add_ticket_type(
             ticket_type_data.name.clone(),
             ticket_type_data.description.clone(),
@@ -482,6 +508,7 @@ fn create_ticket_types(
             ticket_type_data.price_in_cents,
             ticket_type_data.visibility,
             ticket_type_data.parent_id,
+            ticket_type_data.additional_fee_in_cents,
             Some(user.id()),
             connection,
         )?;
@@ -500,24 +527,26 @@ fn create_ticket_types(
         }
 
         ticket_type.validate_ticket_pricing(connection)?;
+        results.push((ticket_type_data, ticket_type));
+    }
 
-        // TODO: move this to an async processor...
-
+    // Only create the blockchain assets after all of the ticket types have succeeded
+    for data in results {
         let tari_asset_id = state.config.tari_client.create_asset(
             &org_wallet.secret_key,
             &org_wallet.public_key,
             TariNewAsset {
-                name: format!("{}.{}", event.id, ticket_type_data.name),
-                total_supply: ticket_type_data.capacity as u64,
+                name: format!("{}.{}", event.id, data.0.name),
+                total_supply: data.0.capacity as u64,
                 authorised_signers: Vec::new(),
                 rule_flags: 0,
                 rule_metadata: "".to_string(),
-                expiry_date: ticket_type_data.end_date.timestamp(),
+                expiry_date: data.0.end_date.timestamp(),
             },
         )?;
-        let asset = Asset::find_by_ticket_type(ticket_type.id, connection)?;
+        let asset = Asset::find_by_ticket_type(data.1.id, connection)?;
         let _asset = asset.update_blockchain_id(tari_asset_id, connection)?;
-        created_ticket_types.push(DisplayCreatedTicket { id: ticket_type.id });
+        created_ticket_types.push(DisplayCreatedTicket { id: data.1.id });
     }
 
     Ok(created_ticket_types)

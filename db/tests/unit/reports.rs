@@ -1425,6 +1425,7 @@ fn promo_code_report() {
             2000,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             connection,
         )

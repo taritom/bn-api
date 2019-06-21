@@ -220,6 +220,7 @@ impl<'a> EventBuilder<'a> {
                         100,
                         TicketTypeVisibility::Always,
                         None,
+                        0,
                         None,
                         self.connection,
                     )

@@ -1637,6 +1637,7 @@ impl Event {
         price_in_cents: i64,
         visibility: TicketTypeVisibility,
         parent_id: Option<Uuid>,
+        additional_fee_in_cents: i64,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
@@ -1652,6 +1653,7 @@ impl Event {
             price_in_cents,
             visibility,
             parent_id,
+            additional_fee_in_cents,
         )
         .commit(current_user_id, conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;

@@ -232,6 +232,7 @@ pub fn update(role: Roles, should_succeed: bool) {
         cc_fee_percent: Some(5.5),
         globee_api_key: Some(Some("Itsasecret".to_string())),
         max_instances_per_ticket_type: None,
+        max_additional_fee_in_cents: None,
     });
 
     let response: HttpResponse = organizations::update((
@@ -286,6 +287,7 @@ pub fn update_with_max_tickets_per_ticket_type(role: Roles, should_succeed: bool
         cc_fee_percent: Some(5.5),
         globee_api_key: Some(Some("Itsasecret".to_string())),
         max_instances_per_ticket_type: Some(11000),
+        max_additional_fee_in_cents: None,
     });
 
     let response: HttpResponse = organizations::update((

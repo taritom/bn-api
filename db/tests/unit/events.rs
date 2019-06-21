@@ -2529,6 +2529,7 @@ fn add_ticket_type() {
             100,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             conn,
         )
@@ -2559,6 +2560,7 @@ fn ticket_types() {
             100,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             conn,
         )
@@ -2576,6 +2578,7 @@ fn ticket_types() {
             100,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             conn,
         )

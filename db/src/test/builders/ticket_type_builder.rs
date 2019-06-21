@@ -11,6 +11,7 @@ pub struct TicketTypeBuilder<'a> {
     sales_start: Option<NaiveDateTime>,
     sales_end: Option<NaiveDateTime>,
     visibility: TicketTypeVisibility,
+    additional_fees: i64,
 }
 
 impl<'a> TicketTypeBuilder<'a> {
@@ -23,6 +24,7 @@ impl<'a> TicketTypeBuilder<'a> {
             sales_start: None,
             sales_end: None,
             visibility: TicketTypeVisibility::Always,
+            additional_fees: 0,
         }
     }
 
@@ -55,6 +57,10 @@ impl<'a> TicketTypeBuilder<'a> {
         self
     }
 
+    pub fn with_additional_fees(mut self, amount: i64) -> Self {
+        self.additional_fees = amount;
+        self
+    }
     pub fn finish(mut self) -> Event {
         let connection = self.event.connection;
         let event = self.event.finish();
@@ -83,6 +89,7 @@ impl<'a> TicketTypeBuilder<'a> {
                 self.price_in_cents.unwrap_or(100),
                 self.visibility,
                 None,
+                self.additional_fees,
                 None,
                 connection,
             )

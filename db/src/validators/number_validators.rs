@@ -11,7 +11,61 @@ pub fn validate_greater_than<T: std::cmp::Ord + serde::Serialize>(
     use std::cmp::Ordering::*;
 
     match a.cmp(&b) {
+        Less | Equal => {
+            let mut validation_error = create_validation_error(code, msg);
+            validation_error.add_param(Cow::from(code), &a);
+            Err(validation_error)
+        }
+        _ => Ok(()),
+    }
+}
+
+pub fn validate_greater_than_or_equal<T: std::cmp::Ord + serde::Serialize>(
+    a: T,
+    b: T,
+    code: &'static str,
+    msg: &'static str,
+) -> Result<(), ValidationError> {
+    use std::cmp::Ordering::*;
+
+    match a.cmp(&b) {
         Less => {
+            let mut validation_error = create_validation_error(code, msg);
+            validation_error.add_param(Cow::from(code), &a);
+            Err(validation_error)
+        }
+        _ => Ok(()),
+    }
+}
+
+pub fn validate_less_than<T: std::cmp::Ord + serde::Serialize>(
+    a: T,
+    b: T,
+    code: &'static str,
+    msg: &'static str,
+) -> Result<(), ValidationError> {
+    use std::cmp::Ordering::*;
+
+    match a.cmp(&b) {
+        Greater | Equal => {
+            let mut validation_error = create_validation_error(code, msg);
+            validation_error.add_param(Cow::from(code), &a);
+            Err(validation_error)
+        }
+        _ => Ok(()),
+    }
+}
+
+pub fn validate_less_than_or_equal<T: std::cmp::Ord + serde::Serialize>(
+    a: T,
+    b: T,
+    code: &'static str,
+    msg: &'static str,
+) -> Result<(), ValidationError> {
+    use std::cmp::Ordering::*;
+
+    match a.cmp(&b) {
+        Greater => {
             let mut validation_error = create_validation_error(code, msg);
             validation_error.add_param(Cow::from(code), &a);
             Err(validation_error)

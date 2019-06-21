@@ -53,6 +53,7 @@ pub struct Organization {
     pub cc_fee_percent: f32,
     pub globee_api_key: Option<String>,
     pub max_instances_per_ticket_type: i64,
+    pub max_additional_fee_in_cents: i64,
 }
 
 #[derive(Serialize)]
@@ -184,7 +185,10 @@ pub struct OrganizationEditableAttributes {
     pub cc_fee_percent: Option<f32>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub globee_api_key: Option<Option<String>>,
+    #[serde(default)]
     pub max_instances_per_ticket_type: Option<i64>,
+    #[serde(default)]
+    pub max_additional_fee_in_cents: Option<i64>,
 }
 
 impl Organization {

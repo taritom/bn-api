@@ -21,6 +21,7 @@ pub struct AdminDisplayTicketType {
     pub price_in_cents: i64,
     pub visibility: TicketTypeVisibility,
     pub parent_id: Option<Uuid>,
+    pub additional_fee_in_cents: i64,
 }
 
 impl AdminDisplayTicketType {
@@ -65,6 +66,7 @@ impl AdminDisplayTicketType {
             limit_per_person: ticket_type.limit_per_person as u32,
             price_in_cents: ticket_type.price_in_cents,
             visibility: ticket_type.visibility,
+            additional_fee_in_cents: ticket_type.additional_fee_in_cents,
         };
 
         let current_ticket_pricing = ticket_type.current_ticket_pricing(false, conn).optional()?;

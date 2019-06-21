@@ -365,6 +365,7 @@ table! {
         cc_fee_percent -> Float4,
         globee_api_key -> Nullable<Text>,
         max_instances_per_ticket_type -> Int8,
+        max_additional_fee_in_cents -> Int8,
     }
 }
 
@@ -571,6 +572,7 @@ table! {
         parent_id -> Nullable<Uuid>,
         rank -> Int4,
         visibility -> Varchar,
+        additional_fee_in_cents -> Int8,
     }
 }
 

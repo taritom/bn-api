@@ -27,6 +27,7 @@ fn create() {
             100,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             conn,
         )
@@ -56,6 +57,7 @@ pub fn create_with_validation_errors() {
         100,
         TicketTypeVisibility::Always,
         None,
+        0,
         None,
         connection,
     );
@@ -402,6 +404,7 @@ fn create_large_amount() {
             100,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             conn,
         )
@@ -735,6 +738,7 @@ fn tiered_pricing_update() {
             100,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             conn,
         )
@@ -752,6 +756,7 @@ fn tiered_pricing_update() {
             100,
             TicketTypeVisibility::Always,
             Some(ticket_type_a.id),
+            0,
             None,
             conn,
         )
@@ -815,4 +820,42 @@ fn tiered_pricing_update() {
 
     // Price should have started again, because all of the tickets are sold
     assert!(pricing[0].start_date <= dates::now().finish());
+}
+
+#[test]
+#[should_panic]
+pub fn additional_fee_cannot_be_more_than_org_max() {
+    let project = TestProject::new();
+
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_max_additional_fee(1)
+        .finish();
+
+    project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type()
+        .with_additional_fees(2)
+        .finish();
+}
+
+#[test]
+#[should_panic]
+pub fn additional_fee_cannot_be_negative() {
+    let project = TestProject::new();
+
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_max_additional_fee(1)
+        .finish();
+
+    project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type()
+        .with_additional_fees(-1)
+        .finish();
 }

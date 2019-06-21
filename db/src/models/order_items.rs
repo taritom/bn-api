@@ -238,9 +238,11 @@ impl OrderItem {
             match fee_item {
                 Some(mut fee_item) => {
                     fee_item.quantity = self.quantity;
-                    fee_item.unit_price_in_cents = fee_schedule_range.fee_in_cents;
+                    fee_item.unit_price_in_cents =
+                        fee_schedule_range.fee_in_cents + ticket_type.additional_fee_in_cents;
                     fee_item.company_fee_in_cents = fee_schedule_range.company_fee_in_cents;
-                    fee_item.client_fee_in_cents = fee_schedule_range.client_fee_in_cents;
+                    fee_item.client_fee_in_cents = fee_schedule_range.client_fee_in_cents
+                        + ticket_type.additional_fee_in_cents;
                     fee_item.update(conn)
                 }
                 None => {
@@ -248,10 +250,12 @@ impl OrderItem {
                         order_id: self.order_id,
                         item_type: OrderItemTypes::PerUnitFees,
                         event_id: self.event_id,
-                        unit_price_in_cents: fee_schedule_range.fee_in_cents,
+                        unit_price_in_cents: fee_schedule_range.fee_in_cents
+                            + ticket_type.additional_fee_in_cents,
                         fee_schedule_range_id: Some(fee_schedule_range.id),
                         company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
-                        client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
+                        client_fee_in_cents: fee_schedule_range.client_fee_in_cents
+                            + ticket_type.additional_fee_in_cents,
                         quantity: self.quantity,
                         parent_id: Some(self.id),
                     }

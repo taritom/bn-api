@@ -290,6 +290,7 @@ fn from_ticket_type() {
             0,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             conn,
         )

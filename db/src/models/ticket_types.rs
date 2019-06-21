@@ -40,6 +40,7 @@ pub struct TicketType {
     pub parent_id: Option<Uuid>,
     pub rank: i32,
     pub visibility: TicketTypeVisibility,
+    pub additional_fee_in_cents: i64,
 }
 
 impl PartialOrd for TicketType {
@@ -63,6 +64,8 @@ pub struct TicketTypeEditableAttributes {
     pub visibility: Option<TicketTypeVisibility>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub parent_id: Option<Option<Uuid>>,
+    #[serde(default)]
+    pub additional_fee_in_cents: Option<i64>,
 }
 
 impl TicketType {
@@ -106,6 +109,7 @@ impl TicketType {
         price_in_cents: i64,
         visibility: TicketTypeVisibility,
         parent_id: Option<Uuid>,
+        additional_fee_in_cents: i64,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -119,6 +123,7 @@ impl TicketType {
             price_in_cents,
             visibility,
             parent_id,
+            additional_fee_in_cents,
         }
     }
 
@@ -654,6 +659,7 @@ pub struct NewTicketType {
     price_in_cents: i64,
     visibility: TicketTypeVisibility,
     parent_id: Option<Uuid>,
+    additional_fee_in_cents: i64,
 }
 
 impl NewTicketType {
@@ -714,6 +720,28 @@ impl NewTicketType {
             Ok(()),
             "start_date",
             validators::start_date_valid(self.start_date(conn)?, self.end_date),
+        );
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
+            "additional_fee_in_cents",
+            validators::validate_greater_than_or_equal(
+                self.additional_fee_in_cents,
+                0,
+                "additional_fee_in_cents_lt_0",
+                "Additional fee cannot be negative",
+            ),
+        );
+        let org = Organization::find_for_event(self.event_id, conn)?;
+
+        let validation_errors = validators::append_validation_error(
+            validation_errors,
+            "additional_fee_in_cents",
+            validators::validate_less_than_or_equal(
+                self.additional_fee_in_cents,
+                org.max_additional_fee_in_cents,
+                "additional_fee_in_cents_gt_max",
+                "Additional fee above the maximum allowed amount",
+            ),
         );
 
         Ok(validation_errors?)

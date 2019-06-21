@@ -2374,6 +2374,7 @@ fn add_tickets_below_min_fee() {
             0,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             connection,
         )
@@ -5237,4 +5238,42 @@ pub fn search_by_all() {
     .unwrap();
     assert_eq!(1, actual.1);
     assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn additional_fee() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_max_additional_fee(9999999)
+        .finish();
+
+    let ticket_types = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type()
+        .with_additional_fees(10000)
+        .finish()
+        .ticket_types(false, None, connection)
+        .unwrap();
+    let ticket_type = ticket_types.get(0).unwrap();
+    let order = project
+        .create_order()
+        .for_tickets(ticket_type.id)
+        .is_paid()
+        .finish();
+
+    println!("{}", json!(order.items(connection)));
+
+    let fees_item = order
+        .find_item_by_type(ticket_type.id, OrderItemTypes::Tickets, connection)
+        .unwrap()
+        .find_fee_item(connection)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(fees_item.unit_price_in_cents, 10050);
 }

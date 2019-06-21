@@ -256,6 +256,7 @@ pub fn create_with_validation_errors() {
         price_in_cents: 10000,
         visibility: TicketTypeVisibility::Always,
         parent_id: None,
+        ..Default::default()
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -320,6 +321,7 @@ pub fn create_with_validation_errors_on_ticket_pricing() {
         price_in_cents: 10000,
         visibility: TicketTypeVisibility::Always,
         parent_id: None,
+        ..Default::default()
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -393,6 +395,7 @@ pub fn create_with_overlapping_periods() {
         price_in_cents: 20000,
         visibility: TicketTypeVisibility::Always,
         parent_id: None,
+        ..Default::default()
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -480,6 +483,7 @@ pub fn create_with_out_of_bounds_ticket_capacity() {
         price_in_cents: 20000,
         visibility: TicketTypeVisibility::Always,
         parent_id: None,
+        ..Default::default()
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),

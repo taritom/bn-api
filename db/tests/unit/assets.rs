@@ -27,6 +27,7 @@ fn update_asset_blockchain_id() {
             100,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             conn,
         )
@@ -64,6 +65,7 @@ fn asset_find() {
             100,
             TicketTypeVisibility::Always,
             None,
+            0,
             None,
             conn,
         )

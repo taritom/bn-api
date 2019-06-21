@@ -57,6 +57,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         price_in_cents: 20000,
         visibility: TicketTypeVisibility::Always,
         parent_id: None,
+        additional_fee_in_cents: 0,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -122,6 +123,7 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
         price_in_cents: 20000,
         visibility: TicketTypeVisibility::Always,
         parent_id: None,
+        ..Default::default()
     });
     let mut ticket_pricing: Vec<CreateTicketPricingRequest> = Vec::new();
     ticket_pricing.push(CreateTicketPricingRequest {
@@ -143,6 +145,7 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
         price_in_cents: 10000,
         visibility: TicketTypeVisibility::Always,
         parent_id: None,
+        additional_fee_in_cents: 0,
     });
     let response: HttpResponse = ticket_types::create_multiple((
         database.connection.clone().into(),
@@ -252,6 +255,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         price_in_cents: Some(15000),
         visibility: Some(TicketTypeVisibility::WhenAvailable),
         parent_id: None,
+        ..Default::default()
     };
     let request_json = serde_json::to_string(&request_data).unwrap();
 
@@ -300,6 +304,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         price_in_cents: Some(updated_ticket_type.price_in_cents),
         visibility: Some(TicketTypeVisibility::WhenAvailable),
         parent_id: None,
+        ..Default::default()
     };
     let updated_json = serde_json::to_string(&updated_data).unwrap();
 
