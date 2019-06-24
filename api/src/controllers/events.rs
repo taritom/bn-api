@@ -1291,3 +1291,52 @@ fn event_venues_from_events(
     }
     Ok(results)
 }
+
+#[derive(Deserialize)]
+pub struct LinkQueryParameters {
+    source: Option<String>,
+    medium: Option<String>,
+    campaign: Option<String>,
+    term: Option<String>,
+    content: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct LinkResult {
+    pub link: String,
+}
+
+pub fn create_link(
+    (path, query, state, user, conn): (
+        Path<PathParameters>,
+        Query<LinkQueryParameters>,
+        State<AppState>,
+        AuthUser,
+        Connection,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    let event = Event::find(path.id, conn)?;
+
+    user.requires_scope_for_organization_event(
+        Scopes::EventWrite,
+        &event.organization(conn)?,
+        &event,
+        conn,
+    )?;
+
+    let query = query.into_inner();
+    let long_link = format!(
+        "{}/events/{}/tickets?utm_source={}&utm_medium={}&utm_campaign={}&utm_term={}&utm_content={}",
+        state.config.front_end_url,
+        path.id,
+        query.source.as_ref().unwrap_or(&"".to_string()),
+        query.medium.as_ref().unwrap_or(&"".to_string()),
+        query.campaign.as_ref().unwrap_or(&"".to_string()),
+        query.term.as_ref().unwrap_or(&"".to_string()),
+        query.content.as_ref().unwrap_or(&"".to_string())
+    );
+    let deep_linker = state.service_locator.create_deep_linker()?;
+    let short_link = deep_linker.create_deep_link(&long_link)?;
+    Ok(HttpResponse::Ok().json(LinkResult { link: short_link }))
+}

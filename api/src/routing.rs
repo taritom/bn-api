@@ -113,6 +113,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(broadcasts::create);
         r.method(Method::GET).with(broadcasts::index);
     })
+    .resource("/events/{id}/links", |r| {
+        r.method(Method::POST).with(events::create_link);
+    })
     .resource("/events/{id}/redeem/{ticket_instance_id}", |r| {
         r.method(Method::POST).with(events::redeem_ticket);
     })
