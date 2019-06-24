@@ -44,8 +44,8 @@ pub struct CreateTicketTypeRequest {
     pub limit_per_person: i32,
     pub price_in_cents: i64,
     pub visibility: TicketTypeVisibility,
-    #[serde(default)]
-    pub additional_fee_in_cents: i64,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub additional_fee_in_cents: Option<i64>,
 }
 
 impl Default for CreateTicketTypeRequest {
@@ -62,7 +62,7 @@ impl Default for CreateTicketTypeRequest {
             limit_per_person: 0,
             price_in_cents: 0,
             visibility: TicketTypeVisibility::Always,
-            additional_fee_in_cents: 0,
+            additional_fee_in_cents: None,
         }
     }
 }
@@ -508,7 +508,7 @@ fn create_ticket_types(
             ticket_type_data.price_in_cents,
             ticket_type_data.visibility,
             ticket_type_data.parent_id,
-            ticket_type_data.additional_fee_in_cents,
+            ticket_type_data.additional_fee_in_cents.unwrap_or(0),
             Some(user.id()),
             connection,
         )?;

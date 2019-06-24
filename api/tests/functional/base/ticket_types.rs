@@ -57,7 +57,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         price_in_cents: 20000,
         visibility: TicketTypeVisibility::Always,
         parent_id: None,
-        additional_fee_in_cents: 0,
+        additional_fee_in_cents: None,
     };
     let response: HttpResponse = ticket_types::create((
         database.connection.into(),
@@ -145,7 +145,7 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
         price_in_cents: 10000,
         visibility: TicketTypeVisibility::Always,
         parent_id: None,
-        additional_fee_in_cents: 0,
+        additional_fee_in_cents: None,
     });
     let response: HttpResponse = ticket_types::create_multiple((
         database.connection.clone().into(),
