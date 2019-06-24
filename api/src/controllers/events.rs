@@ -1309,7 +1309,7 @@ pub struct LinkResult {
 pub fn create_link(
     (path, query, state, user, conn): (
         Path<PathParameters>,
-        Query<LinkQueryParameters>,
+        Json<LinkQueryParameters>,
         State<AppState>,
         AuthUser,
         Connection,
