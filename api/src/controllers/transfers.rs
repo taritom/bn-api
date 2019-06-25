@@ -96,14 +96,7 @@ pub fn cancel(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let transfer = Transfer::find(path.id, connection)?;
-    check_transfer_access(
-        &transfer,
-        false,
-        Scopes::TransferCancel,
-        Scopes::TransferCancelOwn,
-        &auth_user,
-        connection,
-    )?;
+    check_transfer_cancel_access(&transfer, &auth_user, connection)?;
 
     let updated_transfer = transfer.cancel(auth_user.id(), None, connection)?;
     let source_user = DbUser::find(transfer.source_user_id, connection)?;
@@ -149,30 +142,30 @@ pub fn cancel(
     Ok(HttpResponse::Ok().json(&updated_transfer.for_display(connection)?))
 }
 
-fn check_transfer_access(
+fn check_transfer_cancel_access(
     transfer: &Transfer,
-    allow_destination_user_access: bool,
-    scope: Scopes,
-    scope_own: Scopes,
     user: &User,
     connection: &PgConnection,
 ) -> Result<(), BigNeonError> {
-    if transfer.source_user_id != user.id()
-        && (!allow_destination_user_access
-            || !(transfer.destination_user_id.is_none()
-                || transfer.destination_user_id == Some(user.id())))
-    {
-        let mut valid = false;
-        let orders = transfer.orders(connection)?;
-        for order in orders {
-            valid = user.has_scope_for_order(scope, &order, connection)?;
+    if transfer.source_user_id != user.id() {
+        let mut valid = true;
+        let events = transfer.events(connection)?;
+        for event in events {
+            let org = event.organization(connection)?;
+            valid = valid
+                && user.has_scope_for_organization_event(
+                    Scopes::TransferCancel,
+                    &org,
+                    event.id,
+                    connection,
+                )?;
         }
 
         if !valid {
             application::forbidden::<HttpResponse>("You do not have access to this transfer")?;
         }
     } else {
-        user.requires_scope(scope_own)?;
+        user.requires_scope(Scopes::TransferCancelOwn)?;
     }
     Ok(())
 }
