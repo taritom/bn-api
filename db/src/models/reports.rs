@@ -212,6 +212,14 @@ pub struct TransactionReportRow {
     pub event_fee_gross_in_cents: i64,
     #[sql_type = "BigInt"]
     pub event_fee_gross_in_cents_total: i64,
+    #[sql_type = "BigInt"]
+    pub credit_card_fee_company_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub credit_card_fee_client_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub credit_card_fee_gross_in_cents: i64,
+    #[sql_type = "BigInt"]
+    pub credit_card_fee_gross_in_cents_total: i64,
     #[sql_type = "Nullable<dUuid>"]
     pub fee_range_id: Option<Uuid>,
     #[sql_type = "Text"]
