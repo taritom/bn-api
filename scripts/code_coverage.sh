@@ -1,86 +1,96 @@
 #!/usr/bin/env bash
+# Exit script on any error
 set -e
 
+REQUIRED_DIRS=(api db scripts)
+BUILD_DIR="target/debug/"
+REPORT_DIR="report/"
+
 source_root_dir="bn-api"
-build_dir="target/debug/"
-report_dir="report/"
 
-echo "Check if in correct directory":
-path=$(pwd)
-primary_dir=$(basename $path)
-if [ "$primary_dir" == "scripts" ]; then
-    echo "    + Moving to correct directory.."
-    cd ..
-fi
 
-#Check if in bn-api folder before proceeding
-path=$(pwd)
-primary_dir=$(basename $path)
-if [ "$primary_dir" == "bn-api" ]; then
-    echo "    + Correct directory"
-else
-    echo "    + Error: Incorrect directory -> start code_coverage from script or bn_api folder!"
-    exit 1
-fi
 
-echo "Check if grcov installed:"
-if [ "$(command -v grcov)" ]
+echo "Checking the current execution path":
+BASE_PATH=$(pwd)
+for CHECK in ${REQUIRED_DIRS}
+do
+    if [[ ! -d "${BASE_PATH}/${CHECK}" ]]; then
+        echo "Could not find ${BASE_PATH}/${CHECK}, please start this script from the root project directory"
+        exit 1;
+    fi
+done
+
+echo -n "Check if grcov installed:"
+if [[ -z $(which grcov) ]]
 then
-    echo "    + Already installed"
-else
-    echo "    + Installing.."
+    echo " Installing ..."
     cargo install grcov
+else
+    echo " Installed"
 fi
 
-echo "Check if lcov installed:"
-if [ "$(command -v lcov)" ]
+echo -n "Check if lcov installed:"
+if [[ -z $(which lcov) ]]
 then
-    echo "    + Already installed"
-else
-    echo "    + Installing.."
-    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" < /dev/null 2> /dev/null
+    echo " Installing..."
+    if [[ -z $(which brew) ]];
+    then
+        echo "Please install Homebrew: "
+        echo ruby -e \"\$\(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install\)\"
+        exit 1
+    fi
     brew install lcov
+else
+    echo " Installed"
 fi
 
-echo "Clear Build and Report directories:"
-if [ -d "$build_dir" ]; then
-    rm -rf $build_dir
-    echo "    + Build directory removed"
+echo -n "Clear Build Directory:"
+if [[ -d ${BUILD_DIR} ]]; then
+    rm -rf ${BUILD_DIR}
+    echo " Removed"
 else
-    echo "    + Build directory already cleared"
+    echo " Directory Cleared"
 fi
-if [ -d "$report_dir" ]; then
-    rm -rf $report_dir
-    echo "    + Report directory removed"
+
+echo -n "Clear Report Directory:"
+if [[ -d ${REPORT_DIR} ]]; then
+    rm -rf ${REPORT_DIR}
+    echo " Removed"
 else
-    echo "    + Report directory already cleared"
+    echo " Directory Cleared"
 fi
+
 #Make clean directories for Build and Report
-mkdir $build_dir
-mkdir $report_dir
+mkdir -p ${BUILD_DIR}
+mkdir -p ${REPORT_DIR}
+
+
 
 echo "Build project.."
 export CARGO_INCREMENTAL=0
 export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
-cargo +nightly build --verbose $CARGO_OPTIONS
+cargo +nightly build --verbose ${CARGO_OPTIONS}
 
+# Undo exiting the script on non-zero result because a test may fail
+set +e
 echo "Perform project Tests.."
-cargo +nightly test --verbose $CARGO_OPTIONS
+cargo +nightly test --verbose ${CARGO_OPTIONS}
+set -e
 
 echo "Acquire all build and test files for coverage check.."
-ccov_filename="ccov.zip"
-ccov_path="$report_dir$ccov_filename"
-zip -0 $ccov_path `find $build_dir \( -name "bigneon_api*.gc*" \) -print`;
+CCOV_FILENAME="ccov.zip"
+CCOV_PATH="${REPORT_DIR}${CCOV_FILENAME}"
+zip -0 ${CCOV_PATH} `find ${BUILD_DIR} \( -name "bigneon_api*.gc*" \) -print`;
 
 echo "Perform grcov code coverage.."
-lcov_filename="lcov.info"
-lcov_path="$report_dir$lcov_filename"
-grcov $ccov_path -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "/*" > $lcov_path;
+LCOV_FILENAME="lcov.info"
+LCOV_PATH="${REPORT_DIR}${LCOV_FILENAME}"
+grcov "$CCOV_PATH" -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "/*" > "$LCOV_PATH";
 
 echo "Generate report from code coverage.."
-local_lcov_path="$report_dir$lcov_filename"
-genhtml -o $report_dir --show-details --highlight --legend $local_lcov_path
+LOCAL_LOCOV_PATH="${REPORT_DIR}${LCOV_FILENAME}"
+genhtml -o ${REPORT_DIR} --show-details --highlight --legend ${LOCAL_LOCOV_PATH}
 
 echo "Launch report in browser.."
-index_str="index.html"
-open "$report_dir$index_str"
+INDEX_FILE="index.html"
+open "${REPORT_DIR}${INDEX_FILE}"

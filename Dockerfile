@@ -49,6 +49,8 @@ RUN apt update && apt install \
 FROM base
 COPY --from=builder /bn-api/target/release/server /usr/bin/
 COPY --from=builder /bn-api/target/release/bndb_cli /usr/bin/
+COPY --from=builder /bn-api/target/release/api-cli /usr/bin/
+
 ADD reset-database.sh /usr/bin/
 
 CMD ["server"]

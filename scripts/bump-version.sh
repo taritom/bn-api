@@ -32,8 +32,8 @@ if [[ $1 == "--tag-commit" ]]; then
     eval $(ssh-agent -s)
     ssh-add <(echo "$GITHUB_SSH_KEY")
 
-    git config --global user.email "$GH_USER_EMAIL"
-    git config --global user.name "$GH_USER_NAME"
+    git config --global user.email "travis@travis-ci.org"
+    git config --global user.name "Travis CI"
 
     git checkout master
 

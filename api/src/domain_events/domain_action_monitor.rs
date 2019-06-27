@@ -147,7 +147,7 @@ impl DomainActionMonitor {
 
         if pending_actions.len() == 0 {
             jlog!(
-                Debug,
+                Trace,
                 "bigneon::domain_actions",
                 "Found no actions to process",
                 {}
