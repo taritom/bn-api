@@ -29,17 +29,20 @@ impl Middleware<AppState> for BigNeonLogger {
         let ip_address = req.connection_info().remote().map(|i| i.to_string());
         let uri = req.uri().to_string();
         let method = req.method().to_string();
-        jlog!(
-            Level::Info,
-            "bigneon_api::big_neon_logger",
-            format!("{} {} starting", method, uri).as_str(),
-            {
-                "user_id": user.ok().map(|u| u.0.map(|v| v.id())),
-                "ip_address": ip_address,
-                "uri": uri,
-                "method": method,
-                "api_version": env!("CARGO_PKG_VERSION")
-        });
+        if uri != "/status" {
+            jlog!(
+                Level::Info,
+                "bigneon_api::big_neon_logger",
+                format!("{} {} starting", method, uri).as_str(),
+                {
+                    "user_id": user.ok().map(|u| u.0.map(|v| v.id())),
+                    "ip_address": ip_address,
+                    "uri": uri,
+                    "method": method,
+                    "api_version": env!("CARGO_PKG_VERSION")
+            });
+        }
+
         Ok(Started::Done)
     }
 
@@ -67,9 +70,16 @@ impl Middleware<AppState> for BigNeonLogger {
                         "method": method,
                         "api_version": env!("CARGO_PKG_VERSION")
                 });
+
                 Finished::Done
             }
-            None => self.logger.finish(req, resp),
+            None => {
+                if req.uri().to_string() == "/status" {
+                    Finished::Done
+                } else {
+                    self.logger.finish(req, resp)
+                }
+            }
         }
     }
 }
