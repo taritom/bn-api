@@ -44,7 +44,7 @@ pub struct CreateTicketTypeRequest {
     pub limit_per_person: i32,
     pub price_in_cents: i64,
     pub visibility: TicketTypeVisibility,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
 }
 
