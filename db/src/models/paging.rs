@@ -169,4 +169,8 @@ impl PagingParameters {
     pub fn default() -> PagingParameters {
         Default::default()
     }
+
+    pub fn query(&self) -> Option<&str> {
+        self.get_tag_as_str("query")
+    }
 }

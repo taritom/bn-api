@@ -697,7 +697,9 @@ impl Order {
 
     pub fn search(
         event_id: Option<Uuid>,
+        general_query: Option<&str>,
         partial_order_no: Option<&str>,
+        partial_ticket_no: Option<&str>,
         email: Option<&str>,
         name: Option<&str>,
         ticket_type_id: Option<Uuid>,
@@ -717,6 +719,7 @@ impl Order {
         from orders o
             inner join order_items oi on oi.order_id = o.id
             inner join ticket_types tt on oi.ticket_type_id= tt.id
+            left join ticket_instances ti on oi.id = ti.order_item_id
             left join holds h on oi.hold_id = h.id
             left join codes c on oi.code_id = c.id
             inner join users u on o.user_id = u.id
@@ -735,11 +738,25 @@ impl Order {
                 .bind::<sql_types::Uuid, _>(event_id);
         }
 
+        if let Some(general_query) = general_query {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and (o.id::text ilike ${}  or ti.id::text ilike ${} or coalesce(bu.email, u.email) ilike ${} or (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${}) )", bind_no, bind_no, bind_no, bind_no, bind_no))
+                .bind::<diesel::sql_types::Text, _>(format!("%{}%", general_query));
+        }
+
         if let Some(partial_order_no) = partial_order_no {
             bind_no = bind_no + 1;
             query = query
                 .sql(format!(" and o.id::text ilike ${} ", bind_no))
                 .bind::<diesel::sql_types::Text, _>(format!("%{}%", partial_order_no));
+        }
+
+        if let Some(partial_ticket_no) = partial_ticket_no {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and ti.id::text ilike ${} ", bind_no))
+                .bind::<diesel::sql_types::Text, _>(format!("%{}%", partial_ticket_no));
         }
 
         if let Some(email) = email {

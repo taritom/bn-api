@@ -4889,7 +4889,36 @@ fn adding_event_fees() {
     }
     assert_eq!(event_fees_count, 1);
 }
+#[test]
+pub fn search_by_general_query() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let order2 = project.create_order().for_event(&event).is_paid().finish();
 
+    let actual = Order::search(
+        None,
+        Some(&order2.id.to_string()[4..8]),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
 #[test]
 pub fn search_by_event_id() {
     let project = TestProject::new();
@@ -4901,6 +4930,8 @@ pub fn search_by_event_id() {
 
     let actual = Order::search(
         Some(event.id),
+        None,
+        None,
         None,
         None,
         None,
@@ -4930,7 +4961,46 @@ pub fn search_by_partial_order_id() {
 
     let actual = Order::search(
         None,
+        None,
         Some(&order2.id.to_string()[4..8]),
+        None,
+        None,
+        None,
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_partial_ticket_id() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let event = project.create_event().with_tickets().finish();
+    let order2 = project.create_order().for_event(&event).is_paid().finish();
+
+    let ticket = &order2
+        .tickets(
+            event.ticket_types(false, None, connection).unwrap()[0].id,
+            connection,
+        )
+        .unwrap()[0];
+    let actual = Order::search(
+        None,
+        None,
+        None,
+        Some(&ticket.id.to_string()[4..8]),
         None,
         None,
         None,
@@ -4963,6 +5033,8 @@ pub fn search_by_email() {
         .finish();
 
     let actual = Order::search(
+        None,
+        None,
         None,
         None,
         Some(&user.email.unwrap()[2..6]),
@@ -4999,6 +5071,8 @@ pub fn search_by_email_on_behalf_of() {
     let actual = Order::search(
         None,
         None,
+        None,
+        None,
         Some(&user.email.unwrap()[2..6]),
         None,
         None,
@@ -5031,6 +5105,8 @@ pub fn search_by_name() {
         .finish();
 
     let actual = Order::search(
+        None,
+        None,
         None,
         None,
         None,
@@ -5072,6 +5148,8 @@ pub fn search_by_last_name_first() {
         None,
         None,
         None,
+        None,
+        None,
         Some("last search"),
         None,
         None,
@@ -5098,6 +5176,8 @@ pub fn search_by_ticket_type() {
     let order2 = project.create_order().for_event(&event).is_paid().finish();
 
     let actual = Order::search(
+        None,
+        None,
         None,
         None,
         None,
@@ -5142,6 +5222,8 @@ pub fn search_by_promo_code_hold() {
         None,
         None,
         None,
+        None,
+        None,
         Some(&hold.redemption_code.unwrap()[2..4]),
         true,
         true,
@@ -5173,6 +5255,8 @@ pub fn search_by_promo_code_code() {
         .finish();
 
     let actual = Order::search(
+        None,
+        None,
         None,
         None,
         None,
@@ -5215,10 +5299,13 @@ pub fn search_by_all() {
         .for_user(&user)
         .is_paid()
         .finish();
+    let ticket = &order2.tickets(ticket_type_id, connection).unwrap()[0];
 
     let actual = Order::search(
         Some(event.id),
         Some(&order2.id.to_string()[4..8]),
+        Some(&order2.id.to_string()[4..8]),
+        Some(&ticket.id.to_string()[4..8]),
         Some(&user.email.unwrap()[2..6]),
         Some(&format!(
             "{} {}",
