@@ -9,7 +9,7 @@ extern crate logging;
 extern crate serde_json;
 extern crate clap;
 
-use bigneon_api::config::{Config, Environment};
+use bigneon_api::config::Config;
 use bigneon_api::server::Server;
 use clap::*;
 use dotenv::dotenv;
@@ -19,9 +19,11 @@ fn main() {
     logging::setup_logger();
     info!("Loading environment");
     dotenv().ok();
-    jlog!(Info, "Environment loaded");
+    let environment =
+        Config::parse_environment().unwrap_or_else(|_| panic!("Environment is invalid."));
+    jlog!(Info, &format!("Environment loaded: {:?}", environment));
 
-    let config = Config::new(Environment::Development);
+    let config = Config::new(environment);
 
     let matches = App::new("Big Neon API Server")
         .author("Big Neon")

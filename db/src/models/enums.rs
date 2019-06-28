@@ -155,6 +155,7 @@ string_enum! { DomainActionTypes [
     MarketingContactsBulkEventFanListImport,
     PaymentProviderIPN,
     ProcessTransferDrip,
+    RegenerateDripActions,
     SendPurchaseCompletedCommunication,
     UpdateGenres
 ]}
@@ -162,6 +163,7 @@ string_enum! { BroadcastStatus [Pending, InProgress, Completed, Cancelled]}
 string_enum! { BroadcastChannel [PushNotification]}
 string_enum! { BroadcastType [LastCall]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
+string_enum! { Environment [Development, Production, Staging, Test]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { EventSearchSortField [ Name, EventStart]}
 string_enum! { EventOverrideStatus [PurchaseTickets,SoldOut,OnSaleSoon,TicketsAtTheDoor,Free,Rescheduled,Cancelled,OffSale,Ended]}

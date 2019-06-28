@@ -371,12 +371,24 @@ fn drip_header() {
 
     // Source drip header 7 days
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Source, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(!drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
     assert!(drip_header.contains("test@tari.com"));
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Destination, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(!drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
     assert!(drip_header.contains("Bob M."));
@@ -389,7 +401,13 @@ fn drip_header() {
     };
     let event = event.update(None, parameters, connection).unwrap();
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Source, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert_eq!(
         drip_header,
@@ -397,7 +415,13 @@ fn drip_header() {
             .to_string()
     );
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Destination, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert_eq!(
         drip_header,
@@ -411,13 +435,25 @@ fn drip_header() {
     };
     let event = event.update(None, parameters, connection).unwrap();
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Source, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(!drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
     assert!(drip_header.contains("test@tari.com"));
     assert!(drip_header.contains("tomorrow"));
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Destination, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(!drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
     assert!(drip_header.contains("Bob M."));
@@ -431,30 +467,37 @@ fn drip_header() {
         .and_hms(17, 0, 0)
         .with_timezone(&Utc)
         .naive_utc();
-    if event_start < now {
-        event_start = event_start + Duration::days(1);
+
+    // We give 1 hour leeway with the day counts in case the job is delayed a bit so add two hours and remove a day
+    if event.days_until_event() == Some(1) {
+        event_start = event_start + Duration::hours(2) - Duration::days(1);
     }
+
     let parameters = EventEditableAttributes {
         event_start: Some(event_start),
         ..Default::default()
     };
     let event = event.update(None, parameters, connection).unwrap();
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Source, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(!drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
     assert!(drip_header.contains("test@tari.com"));
-
-    let (is_pm, hour) = event
-        .get_all_localized_times(&Some(venue.clone()))
-        .event_start
-        .unwrap()
-        .hour12();
-    assert_eq!(is_pm, true);
-    assert_eq!(hour, 5);
     assert!(drip_header.contains("tonight"));
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Destination, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(!drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
     assert!(drip_header.contains("Bob M."));
@@ -466,22 +509,37 @@ fn drip_header() {
         .and_hms(14, 59, 59)
         .with_timezone(&Utc)
         .naive_utc();
-    if event_start < now {
-        event_start = event_start + Duration::days(1);
+
+    // We give 1 hour leeway with the day counts in case the job is delayed a bit so remove an hour
+    if event.days_until_event() == Some(1) {
+        event_start = event_start - Duration::hours(1);
     }
+
     let parameters = EventEditableAttributes {
         event_start: Some(event_start),
         ..Default::default()
     };
     let event = event.update(None, parameters, connection).unwrap();
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Source, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(!drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
     assert!(drip_header.contains("test@tari.com"));
     assert!(drip_header.contains("today"));
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Destination, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(!drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
     assert!(drip_header.contains("Bob M."));
@@ -489,11 +547,23 @@ fn drip_header() {
 
     // With links
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Source, true, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            true,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
     let drip_header = transfer
-        .drip_header(&event, SourceOrDestination::Destination, true, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            true,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
 
@@ -521,7 +591,13 @@ fn drip_header() {
     .commit(&None, connection)
     .unwrap();
     let drip_header = transfer2
-        .drip_header(&event, SourceOrDestination::Destination, true, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            true,
+            Environment::Test,
+            connection,
+        )
         .unwrap();
     assert!(drip_header.contains("<a href='mailto:bob2@miller.com'>another user</a>"));
 
@@ -530,7 +606,13 @@ fn drip_header() {
         .commit(&None, connection)
         .unwrap();
     assert!(transfer3
-        .drip_header(&event, SourceOrDestination::Source, false, connection)
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection
+        )
         .is_err());
 }
 

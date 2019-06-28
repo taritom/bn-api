@@ -6,7 +6,7 @@ use tokio::prelude::*;
 
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
-use config::{Config, Environment};
+use config::Config;
 use errors::*;
 use futures::future::Either;
 use log::Level::Info;

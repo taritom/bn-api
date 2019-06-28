@@ -1,13 +1,8 @@
+use bigneon_db::models::Environment;
+use bigneon_db::utils::errors::EnumParseError;
 use dotenv::dotenv;
 use std::env;
 use tari_client::{HttpTariClient, TariClient, TariTestClient};
-
-#[derive(Clone, PartialEq)]
-pub enum Environment {
-    Development,
-    Test,
-    Production,
-}
 
 #[derive(Clone)]
 pub struct Config {
@@ -74,6 +69,7 @@ const API_PORT: &str = "API_PORT";
 const DATABASE_URL: &str = "DATABASE_URL";
 const READONLY_DATABASE_URL: &str = "READONLY_DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
+const ENVIRONMENT: &str = "ENVIRONMENT";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
 const GLOBEE_API_KEY: &str = "GLOBEE_API_KEY";
@@ -135,6 +131,14 @@ const SSR_TRIGGER_HEADER: &str = "SSR_TRIGGER_HEADER";
 const SSR_TRIGGER_VALUE: &str = "SSR_TRIGGER_VALUE";
 
 impl Config {
+    pub fn parse_environment() -> Result<Environment, EnumParseError> {
+        if let Ok(environment_value) = env::var(&ENVIRONMENT) {
+            return environment_value.parse();
+        }
+        // Default to development if not provided
+        Ok(Environment::Development)
+    }
+
     pub fn new(environment: Environment) -> Self {
         dotenv().ok();
 

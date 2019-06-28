@@ -60,7 +60,7 @@ impl ProcessTransferDripEventExecutor {
                         }
                     }
                 }
-                event.create_next_transfer_drip_action(conn)?;
+                event.create_next_transfer_drip_action(self.config.environment, conn)?;
             }
             "Transfers" => {
                 let event = Event::find(payload.event_id, conn)?;

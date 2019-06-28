@@ -45,7 +45,13 @@ pub fn transfer_drip_reminder(
     let destinations = CommAddress::from(phone);
     let body = format!(
         "{} Follow this link to receive them: {}",
-        transfer.drip_header(event, SourceOrDestination::Destination, false, conn)?,
+        transfer.drip_header(
+            event,
+            SourceOrDestination::Destination,
+            false,
+            config.environment,
+            conn
+        )?,
         shortened_link
     );
     Communication::new(

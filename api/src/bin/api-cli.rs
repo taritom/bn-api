@@ -10,7 +10,7 @@ extern crate chrono;
 extern crate clap;
 extern crate uuid;
 
-use bigneon_api::config::{Config, Environment};
+use bigneon_api::config::Config;
 use bigneon_api::db::Database;
 use bigneon_api::utils::spotify;
 use bigneon_api::utils::ServiceLocator;
@@ -27,9 +27,12 @@ pub fn main() {
     logging::setup_logger();
     info!("Loading environment");
     dotenv().ok();
-    jlog!(Info, "Environment loaded");
 
-    let config = Config::new(Environment::Development);
+    let environment =
+        Config::parse_environment().unwrap_or_else(|_| panic!("Environment is invalid."));
+    jlog!(Info, &format!("Environment loaded {:?}", environment));
+
+    let config = Config::new(environment);
     let service_locator = ServiceLocator::new(&config);
     let database = Database::from_config(&config);
 
@@ -78,11 +81,8 @@ fn regenerate_transfer_drip_events(database: Database) {
         .expect("Expected to find events for organization");
         for event in events {
             event
-                .clear_pending_drip_actions(connection)
-                .expect("Expected clear event's drip actions");
-            event
-                .create_next_transfer_drip_action(connection)
-                .expect("Expected create new event drip action");
+                .regenerate_drip_actions(connection)
+                .expect("Expected to regenerate event's drip actions");
         }
     }
 }

@@ -69,7 +69,7 @@ pub fn transfer_drip_reminder(
     let mut template_data = TemplateData::new();
     template_data.insert(
         "header".to_string(),
-        transfer.drip_header(event, source_or_destination, true, conn)?,
+        transfer.drip_header(event, source_or_destination, true, config.environment, conn)?,
     );
     template_data.insert("sender_name".to_string(), Transfer::sender_name(&user));
     template_data.insert(

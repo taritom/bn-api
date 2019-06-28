@@ -1,8 +1,9 @@
 use actix_web::{test, FromRequest, HttpRequest, Path, Query, State};
-use bigneon_api::config::{Config, Environment};
+use bigneon_api::config::Config;
 use bigneon_api::db::Database;
 use bigneon_api::server::AppState;
 use bigneon_api::utils::spotify;
+use bigneon_db::models::Environment;
 use serde::de::DeserializeOwned;
 
 pub struct TestRequest {

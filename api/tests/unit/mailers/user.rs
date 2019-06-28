@@ -1,7 +1,8 @@
 use bigneon_api::communications::mailers;
-use bigneon_api::config::{Config, Environment};
+use bigneon_api::config::Config;
 use bigneon_api::utils::communication::CommAddress;
 use bigneon_db::models::concerns::users::password_resetable::PasswordResetable;
+use bigneon_db::models::Environment;
 use support::database::TestDatabase;
 
 #[test]

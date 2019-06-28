@@ -118,6 +118,7 @@ impl Transfer {
         event: &Event,
         source_or_destination: SourceOrDestination,
         include_links: bool,
+        environment: Environment,
         conn: &PgConnection,
     ) -> Result<String, DatabaseError> {
         if self.transfer_address.is_none() {
@@ -126,8 +127,13 @@ impl Transfer {
             );
         }
 
-        Ok(match event.days_until_event() {
-            Some(days_until_event) => match source_or_destination {
+        let units_until_event = if environment == Environment::Staging {
+            event.minutes_until_event()
+        } else {
+            event.days_until_event()
+        };
+        Ok(match units_until_event {
+            Some(units_until_event) => match source_or_destination {
                 SourceOrDestination::Source => {
                     let mut destination_address = self.transfer_address.clone().unwrap();
                     if include_links
@@ -138,7 +144,7 @@ impl Transfer {
                             destination_address, destination_address
                         );
                     }
-                    match days_until_event {
+                    match units_until_event {
                             0 => {
                                 let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
                                 let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
@@ -159,7 +165,7 @@ impl Transfer {
                             name
                         );
                     }
-                    match days_until_event {
+                    match units_until_event {
                             0 => {
                                 let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
                                 let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();

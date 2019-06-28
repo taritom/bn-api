@@ -1,4 +1,4 @@
-use bigneon_api::config::{Config, Environment};
+use bigneon_api::config::Config;
 use bigneon_api::db::Connection as DbConnection;
 use bigneon_db::dev::*;
 use bigneon_db::prelude::*;

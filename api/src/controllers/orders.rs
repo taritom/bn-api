@@ -3,7 +3,6 @@ use auth::user::User;
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::*;
 use communications::mailers;
-use config::Environment;
 use db::Connection;
 use diesel::pg::PgConnection;
 use diesel::Connection as DieselConnection;
