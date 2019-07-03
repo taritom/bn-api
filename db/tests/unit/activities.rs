@@ -96,7 +96,7 @@ fn load_for_event() {
     let ticket8 = &user_tickets[0];
 
     // Completed transfer
-    TicketInstance::direct_transfer(
+    let transfer = TicketInstance::direct_transfer(
         user.id,
         &vec![ticket.id],
         "nowhere",
@@ -105,14 +105,6 @@ fn load_for_event() {
         connection,
     )
     .unwrap();
-    let transfer_order = Order::find(
-        OrderItem::find(ticket.order_item_id.unwrap(), connection)
-            .unwrap()
-            .order_id,
-        connection,
-    )
-    .unwrap();
-    let transfer = transfer_order.transfers(connection).unwrap().pop().unwrap();
 
     // Pending transfer
     let transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None)
@@ -440,7 +432,7 @@ fn load_for_order() {
     let ticket3 = &user_tickets[0];
 
     // Completed transfer
-    TicketInstance::direct_transfer(
+    let transfer = TicketInstance::direct_transfer(
         user.id,
         &vec![ticket.id],
         "nowhere",
@@ -449,14 +441,6 @@ fn load_for_order() {
         connection,
     )
     .unwrap();
-    let transfer_order = Order::find(
-        OrderItem::find(ticket.order_item_id.unwrap(), connection)
-            .unwrap()
-            .order_id,
-        connection,
-    )
-    .unwrap();
-    let transfer = transfer_order.transfers(connection).unwrap().pop().unwrap();
 
     TicketInstance::redeem_ticket(
         ticket2.id,

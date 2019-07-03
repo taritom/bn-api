@@ -867,7 +867,7 @@ impl TicketInstance {
         sent_via: TransferMessageType,
         to_user_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    ) -> Result<Transfer, DatabaseError> {
         let transfer = TicketInstance::create_transfer(
             from_user_id,
             ticket_ids,
@@ -884,7 +884,17 @@ impl TicketInstance {
             receiver_wallet.id,
             conn,
         )?;
-        Ok(())
+
+        // Reload transfer, confirm completed
+        let transfer = Transfer::find(transfer.id, conn)?;
+        if transfer.status != TransferStatus::Completed {
+            return Err(DatabaseError::new(
+                ErrorCode::BusinessProcessError,
+                Some("Failed to complete transfer directly to user".to_string()),
+            ));
+        }
+
+        Ok(transfer)
     }
 
     fn verify_tickets_belong_to_user(

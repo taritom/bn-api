@@ -164,40 +164,39 @@ pub fn send_via_email_or_phone(
     let re = Regex::new(r"[^0-9\+]+").unwrap();
     let numbers_only = re.replace_all(&send_tickets_request.email_or_phone, "");
 
-    if send_tickets_request.email_or_phone.contains("@") {
-        let existing_user =
-            DbUser::find_by_email(&send_tickets_request.email_or_phone, connection).optional()?;
-        if let Some(user) = existing_user {
-            let ticket_instances =
-                TicketInstance::find_by_ids(&send_tickets_request.ticket_ids, connection)?;
+    if let Some(user) =
+        DbUser::find_by_email(&send_tickets_request.email_or_phone, connection).optional()?
+    {
+        let ticket_instances =
+            TicketInstance::find_by_ids(&send_tickets_request.ticket_ids, connection)?;
 
-            TicketInstance::direct_transfer(
-                auth_user.id(),
-                &send_tickets_request.ticket_ids,
-                &send_tickets_request.email_or_phone,
-                TransferMessageType::Email,
-                user.id,
+        TicketInstance::direct_transfer(
+            auth_user.id(),
+            &send_tickets_request.ticket_ids,
+            &send_tickets_request.email_or_phone,
+            TransferMessageType::Email,
+            user.id,
+            connection,
+        )?;
+
+        let receiver_wallet = user.default_wallet(connection)?;
+
+        // TODO change blockchain client to do transfers from multiple wallets at once
+        for (sender_wallet_id, tickets) in &ticket_instances.into_iter().group_by(|ti| ti.wallet_id)
+        {
+            let sender_wallet = Wallet::find(sender_wallet_id, connection)?;
+            transfer_tickets_on_blockchain(
+                &tickets.collect_vec(),
                 connection,
+                &*state.config.tari_client,
+                &sender_wallet,
+                &receiver_wallet,
             )?;
+        }
 
-            let receiver_wallet = user.default_wallet(connection)?;
-
-            // TODO change blockchain client to do transfers from multiple wallets at once
-            for (sender_wallet_id, tickets) in
-                &ticket_instances.into_iter().group_by(|ti| ti.wallet_id)
-            {
-                let sender_wallet = Wallet::find(sender_wallet_id, connection)?;
-                transfer_tickets_on_blockchain(
-                    &tickets.collect_vec(),
-                    connection,
-                    &*state.config.tari_client,
-                    &sender_wallet,
-                    &receiver_wallet,
-                )?;
-            }
-
-            pushers::tickets_received(&user, &auth_user.user, connection)?;
-        } else {
+        pushers::tickets_received(&user, &auth_user.user, connection)?;
+    } else {
+        let transfer = if send_tickets_request.email_or_phone.contains("@") {
             let transfer = TicketInstance::create_transfer(
                 auth_user.id(),
                 &send_tickets_request.ticket_ids,
@@ -212,27 +211,41 @@ pub fn send_via_email_or_phone(
                 &auth_user.user,
                 connection,
             )?;
+
+            transfer
+        } else if numbers_only.len() > 7 {
+            let transfer = TicketInstance::create_transfer(
+                auth_user.id(),
+                &send_tickets_request.ticket_ids,
+                Some(&send_tickets_request.email_or_phone),
+                Some(TransferMessageType::Phone),
+                connection,
+            )?;
+            smsers::tickets::send_tickets(
+                &state.config,
+                send_tickets_request.email_or_phone.clone(),
+                &transfer,
+                &auth_user.user,
+                connection,
+                &*state.service_locator.create_deep_linker()?,
+            )?;
+
+            transfer
+        } else {
+            return application::unprocessable(
+                "Invalid destination, please supply valid phone number or email address.",
+            );
+        };
+
+        for event in transfer.events(connection)? {
+            mailers::tickets::transfer_sent_receipt(
+                &auth_user.user,
+                &transfer,
+                &event,
+                &state.config,
+                connection,
+            )?;
         }
-    } else if numbers_only.len() > 7 {
-        let transfer = TicketInstance::create_transfer(
-            auth_user.id(),
-            &send_tickets_request.ticket_ids,
-            Some(&send_tickets_request.email_or_phone),
-            Some(TransferMessageType::Phone),
-            connection,
-        )?;
-        smsers::tickets::send_tickets(
-            &state.config,
-            send_tickets_request.email_or_phone.clone(),
-            &transfer,
-            &auth_user.user,
-            connection,
-            &*state.service_locator.create_deep_linker()?,
-        )?;
-    } else {
-        return application::unprocessable(
-            "Invalid destination, please supply valid phone number or email address.",
-        );
     }
 
     Ok(HttpResponse::Ok().finish())

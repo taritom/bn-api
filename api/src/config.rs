@@ -39,6 +39,7 @@ pub struct Config {
     pub sendgrid_template_bn_cancel_transfer_tickets: String,
     pub sendgrid_template_bn_cancel_transfer_tickets_receipt: String,
     pub sendgrid_template_bn_transfer_tickets: String,
+    pub sendgrid_template_bn_transfer_tickets_receipt: String,
     pub sendgrid_template_bn_transfer_tickets_drip_source: String,
     pub sendgrid_template_bn_transfer_tickets_drip_destination: String,
     pub sendgrid_template_bn_password_reset: String,
@@ -107,6 +108,8 @@ const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT: &str =
     "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT";
 const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS: &str =
     "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS";
+const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT: &str =
+    "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT";
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS";
 const SENDGRID_TEMPLATE_BN_PASSWORD_RESET: &str = "SENDGRID_TEMPLATE_BN_PASSWORD_RESET";
 const SENDGRID_TEMPLATE_BN_USER_INVITE: &str = "SENDGRID_TEMPLATE_BN_USER_INVITE";
@@ -243,6 +246,13 @@ impl Config {
             env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS).unwrap_or_else(|_| {
                 panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS)
             });
+        let sendgrid_template_bn_transfer_tickets_receipt =
+            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT).unwrap_or_else(|_| {
+                panic!(
+                    "{} must be defined.",
+                    SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT
+                )
+            });
         let sendgrid_template_bn_transfer_tickets_drip_destination = env::var(
             &SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION,
         )
@@ -366,6 +376,7 @@ impl Config {
             sendgrid_template_bn_cancel_transfer_tickets,
             sendgrid_template_bn_cancel_transfer_tickets_receipt,
             sendgrid_template_bn_transfer_tickets,
+            sendgrid_template_bn_transfer_tickets_receipt,
             sendgrid_template_bn_transfer_tickets_drip_destination,
             sendgrid_template_bn_transfer_tickets_drip_source,
             sendgrid_template_bn_password_reset,

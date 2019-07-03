@@ -93,6 +93,47 @@ pub fn transfer_drip_reminder(
     .queue(conn)
 }
 
+pub fn transfer_sent_receipt(
+    user: &User,
+    transfer: &Transfer,
+    event: &Event,
+    config: &Config,
+    conn: &PgConnection,
+) -> Result<(), BigNeonError> {
+    let source = CommAddress::from(config.communication_default_source_email.clone());
+    if let Some(email) = user.email.clone() {
+        let destinations = CommAddress::from(email);
+        let title = "BigNeon: Ticket transfer sent".to_string();
+        let template_id = config.sendgrid_template_bn_transfer_tickets_receipt.clone();
+        let transfer_cancel_url = format!(
+            "{}/my-events?event_id={}",
+            config.front_end_url.clone(),
+            event.id,
+        );
+        let mut template_data = TemplateData::new();
+        template_data.insert("sender_name".to_string(), Transfer::sender_name(&user));
+        template_data.insert(
+            "receiver_address".to_string(),
+            transfer.transfer_address.clone().unwrap_or("".to_string()),
+        );
+        template_data.insert("transfer_cancel_url".to_string(), transfer_cancel_url);
+        template_data.insert("transfer_id".to_string(), transfer.id.to_string());
+        insert_event_template_data(&mut template_data, event, conn)?;
+
+        Communication::new(
+            CommunicationType::EmailTemplate,
+            title,
+            None,
+            Some(source),
+            destinations,
+            Some(template_id),
+            Some(vec![template_data]),
+        )
+        .queue(conn)?;
+    }
+    Ok(())
+}
+
 pub fn transfer_cancelled_receipt(
     config: &Config,
     email: String,

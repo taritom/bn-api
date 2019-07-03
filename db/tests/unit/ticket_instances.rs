@@ -1589,7 +1589,7 @@ fn transfer_to_existing_user() {
     let original_purchaser = project.create_user().finish();
     let receiver = project.create_user().finish();
 
-    let order = project
+    let _order = project
         .create_order()
         .for_event(&event)
         .for_user(&original_purchaser)
@@ -1611,7 +1611,7 @@ fn transfer_to_existing_user() {
     );
     assert!(receiver.genres(connection).unwrap().is_empty());
 
-    TicketInstance::direct_transfer(
+    let transfer = TicketInstance::direct_transfer(
         original_purchaser.id,
         &ticket_ids,
         "nowhere",
@@ -1620,8 +1620,6 @@ fn transfer_to_existing_user() {
         connection,
     )
     .unwrap();
-
-    let transfer = order.transfers(connection).unwrap().pop().unwrap();
     let mut transfer_ticket_ticket_ids: Vec<Uuid> = transfer
         .transfer_tickets(connection)
         .unwrap()
