@@ -137,6 +137,10 @@ impl TestProject {
         EventArtistBuilder::new(&self.connection)
     }
 
+    pub fn create_event_interest(&self) -> EventInterestBuilder {
+        EventInterestBuilder::new(&self.connection)
+    }
+
     pub fn create_fee_schedule(&self) -> FeeScheduleBuilder {
         FeeScheduleBuilder::new(&self.connection)
     }

@@ -453,6 +453,7 @@ pub fn search_fans(
     let org = Organization::find(path.id, connection)?;
     user.requires_scope_for_organization(Scopes::OrgFans, &org, &connection)?;
     let payload = org.search_fans(
+        None,
         query.get_tag("query"),
         query.page(),
         query.limit(),

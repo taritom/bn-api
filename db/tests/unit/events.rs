@@ -2857,6 +2857,137 @@ fn get_all_localized_times() {
 }
 
 #[test]
+fn search_fans() {
+    let project = TestProject::new();
+    let organization = project.create_organization().finish();
+    let order_user = project.create_user().finish();
+    let order_user2 = project.create_user().finish();
+    let order_user3 = project.create_user().finish();
+    let order_user4 = project.create_user().finish();
+    let box_office_user = project.create_user().finish();
+    let interested_user = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    project
+        .create_event_interest()
+        .with_user(&order_user2)
+        .with_event(&event)
+        .finish();
+    project
+        .create_event_interest()
+        .with_user(&interested_user)
+        .with_event(&event)
+        .finish();
+    project
+        .create_order()
+        .for_user(&order_user)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_user(&order_user2)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_user(&box_office_user)
+        .on_behalf_of_user(&order_user2)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_user(&box_office_user)
+        .on_behalf_of_user(&order_user3)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_user(&order_user4)
+        .for_event(&event2)
+        .quantity(5)
+        .is_paid()
+        .finish();
+
+    let expected_results = event
+        .search_fans(
+            None,
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    let search_results = organization
+        .search_fans(
+            Some(event.id),
+            None,
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    assert_eq!(search_results, expected_results);
+    let mut expected_results = vec![
+        order_user.id,
+        order_user2.id,
+        order_user3.id,
+        interested_user.id,
+    ];
+    expected_results.sort();
+    let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
+    results.sort();
+    assert_eq!(results, expected_results);
+
+    let expected_results = event2
+        .search_fans(
+            None,
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    let search_results = organization
+        .search_fans(
+            Some(event2.id),
+            None,
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    assert_eq!(search_results, expected_results);
+    let expected_results = vec![order_user4.id];
+    let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
+    results.sort();
+    assert_eq!(results, expected_results);
+}
+
+#[test]
 fn checked_in_users() {
     let project = TestProject::new();
     let admin = project.create_user().finish();
@@ -2888,7 +3019,15 @@ fn checked_in_users() {
     let users = Event::checked_in_users(event.id, connection).unwrap();
     assert_eq!(users[0], user);
     let fans = event
-        .search_fans(None, Some(100), Some(0), None, None, connection)
-        .unwrap();
-    assert_eq!(user.id, fans.0[0].user_id);
+        .search_fans(
+            None,
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap()
+        .data;
+    assert_eq!(user.id, fans[0].user_id);
 }

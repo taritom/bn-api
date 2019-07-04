@@ -24,33 +24,17 @@ pub fn profile(role: Roles, should_test_true: bool) {
         .with_ticket_pricing()
         .finish();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
-    let mut cart = Order::find_or_create_cart(&user2, connection).unwrap();
-    cart.update_quantities(
-        user2.id,
-        &[UpdateOrderItem {
-            ticket_type_id: ticket_type.id,
-            quantity: 10,
-            redemption_code: None,
-        }],
-        false,
-        false,
-        &*connection,
-    )
-    .unwrap();
-    assert_eq!(cart.calculate_total(&*connection).unwrap(), 1700);
-    cart.add_external_payment(
-        Some("test".to_string()),
-        ExternalPaymentType::CreditCard,
-        user.id,
-        1700,
-        connection,
-    )
-    .unwrap();
-    assert_eq!(cart.status, OrderStatus::Paid);
+    let order = database
+        .create_order()
+        .for_user(&user2)
+        .for_event(&event)
+        .quantity(10)
+        .is_paid()
+        .finish();
     let auth_user =
         support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
-    let items = cart.items(&connection).unwrap();
+    let items = order.items(&connection).unwrap();
     let order_item = items
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type.id))
@@ -86,6 +70,7 @@ pub fn profile(role: Roles, should_test_true: bool) {
                 event_count: 1,
                 revenue_in_cents: 1700,
                 ticket_sales: 10,
+                tickets_owned: 10,
                 profile_pic_url: user2.profile_pic_url.clone(),
                 thumb_profile_pic_url: user2.thumb_profile_pic_url.clone(),
                 cover_photo_url: user2.cover_photo_url.clone(),

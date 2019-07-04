@@ -93,10 +93,18 @@ impl BulkEventFanListImportExecutor {
             }
         };
 
-        let (fans, total) = event.search_fans(None, None, None, None, None, conn)?;
+        let fan_payload = event.search_fans(
+            None,
+            0,
+            100,
+            FanSortField::UserCreated,
+            SortingDir::Desc,
+            conn,
+        )?;
 
-        if total > 0 {
-            let contacts = fans
+        if fan_payload.paging.total > 0 {
+            let contacts = fan_payload
+                .data
                 .into_iter()
                 .filter(|fan| fan.email.is_some())
                 .map(|fan| SGContact::new(fan.email.unwrap(), fan.first_name, fan.last_name))

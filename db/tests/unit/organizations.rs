@@ -978,8 +978,19 @@ fn add_fee_schedule() {
 fn search_fans() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let user = project.create_user().finish();
     let organization = project.create_organization().finish();
+    // Has a refunded order and later a second order and transferred ticket from order_user3
+    let order_user = project.create_user().finish();
+    // Has a normal order and a box office order on their behalf and has an event interest
+    let order_user2 = project.create_user().finish();
+    // Has a box office order on their behalf
+    let order_user3 = project.create_user().finish();
+    // Has only box office orders for it / not in the results as a fan
+    let box_office_user = project.create_user().finish();
+    // Has a transferred ticket which makes them a fan
+    let transfer_user = project.create_user().finish();
+    // Just event interested
+    let interested_user = project.create_user().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -987,38 +998,58 @@ fn search_fans() {
         .with_ticket_pricing()
         .finish();
     project
-        .create_order()
-        .for_event(&event)
-        .for_user(&user)
+        .create_event_interest()
+        .with_user(&order_user2)
+        .with_event(&event)
+        .finish();
+    project
+        .create_event_interest()
+        .with_user(&interested_user)
+        .with_event(&event)
         .finish();
 
-    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
-    cart.update_quantities(
-        user.id,
-        &[UpdateOrderItem {
-            ticket_type_id: ticket_type.id,
-            quantity: 5,
-            redemption_code: None,
-        }],
-        false,
-        false,
-        connection,
-    )
-    .unwrap();
-    let total = cart.calculate_total(connection).unwrap();
+    let mut order = project
+        .create_order()
+        .for_user(&order_user)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+    let order2 = project
+        .create_order()
+        .for_user(&order_user2)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+    let order3 = project
+        .create_order()
+        .for_user(&box_office_user)
+        .on_behalf_of_user(&order_user2)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+    let order4 = project
+        .create_order()
+        .for_user(&box_office_user)
+        .on_behalf_of_user(&order_user3)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
 
-    cart.add_external_payment(
-        Some("test".to_string()),
-        ExternalPaymentType::CreditCard,
-        user.id,
-        total,
-        connection,
-    )
-    .unwrap();
-
+    // Expected results after initial orders
+    let mut expected_results = vec![
+        order_user.id,
+        order_user2.id,
+        order_user3.id,
+        interested_user.id,
+    ];
+    expected_results.sort();
     let search_results = organization
         .search_fans(
+            None,
             None,
             0,
             100,
@@ -1027,9 +1058,382 @@ fn search_fans() {
             &project.connection,
         )
         .unwrap();
-    assert_eq!(search_results.data[0].user_id, user.id);
+    let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
+    results.sort();
+    assert_eq!(results, expected_results);
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == order_user.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: order_user.id,
+            first_name: order_user.first_name.clone(),
+            last_name: order_user.last_name.clone(),
+            email: order_user.email.clone(),
+            phone: order_user.phone.clone(),
+            thumb_profile_pic_url: order_user.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(1),
+            created_at: order_user.created_at,
+            first_order_time: Some(order.created_at),
+            last_order_time: Some(order.created_at),
+            revenue_in_cents: Some(order.calculate_total(connection).unwrap()),
+        }
+    );
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == order_user2.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: order_user2.id,
+            first_name: order_user2.first_name.clone(),
+            last_name: order_user2.last_name.clone(),
+            email: order_user2.email.clone(),
+            phone: order_user2.phone.clone(),
+            thumb_profile_pic_url: order_user2.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(2),
+            created_at: order_user2.created_at,
+            first_order_time: Some(order2.created_at),
+            last_order_time: Some(order3.created_at),
+            revenue_in_cents: Some(
+                order2.calculate_total(connection).unwrap()
+                    + order3.calculate_total(connection).unwrap()
+            ),
+        }
+    );
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == order_user3.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: order_user3.id,
+            first_name: order_user3.first_name.clone(),
+            last_name: order_user3.last_name.clone(),
+            email: order_user3.email.clone(),
+            phone: order_user3.phone.clone(),
+            thumb_profile_pic_url: order_user3.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(1),
+            created_at: order_user3.created_at,
+            first_order_time: Some(order4.created_at),
+            last_order_time: Some(order4.created_at),
+            revenue_in_cents: Some(order4.calculate_total(connection).unwrap()),
+        }
+    );
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == interested_user.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: interested_user.id,
+            first_name: interested_user.first_name.clone(),
+            last_name: interested_user.last_name.clone(),
+            email: interested_user.email.clone(),
+            phone: interested_user.phone.clone(),
+            thumb_profile_pic_url: interested_user.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(0),
+            created_at: interested_user.created_at,
+            first_order_time: None,
+            last_order_time: None,
+            revenue_in_cents: Some(0),
+        }
+    );
+
+    // Initial order is refunded -- it should still show the user but with new order details
+    let items = order.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::Tickets)
+        .unwrap();
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let refund_items: Vec<RefundItemRequest> = tickets
+        .iter()
+        .map(|t| RefundItemRequest {
+            order_item_id: order_item.id,
+            ticket_instance_id: Some(t.id),
+        })
+        .collect();
+    assert!(order
+        .refund(&refund_items, order_user.id, None, connection)
+        .is_ok());
+    let mut expected_results = vec![
+        order_user.id,
+        order_user2.id,
+        order_user3.id,
+        interested_user.id,
+    ];
+    expected_results.sort();
     let search_results = organization
         .search_fans(
+            None,
+            None,
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
+    results.sort();
+    assert_eq!(results, expected_results);
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == order_user.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: order_user.id,
+            first_name: order_user.first_name.clone(),
+            last_name: order_user.last_name.clone(),
+            email: order_user.email.clone(),
+            phone: order_user.phone.clone(),
+            thumb_profile_pic_url: order_user.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(1),
+            created_at: order_user.created_at,
+            first_order_time: Some(order.created_at),
+            last_order_time: Some(order.created_at),
+            revenue_in_cents: Some(0),
+        }
+    );
+
+    // Second order shows only non refunded price shows for user
+    let order5 = project
+        .create_order()
+        .for_user(&order_user)
+        .for_event(&event)
+        .quantity(5)
+        .is_paid()
+        .finish();
+    let mut expected_results = vec![
+        order_user.id,
+        order_user2.id,
+        order_user3.id,
+        interested_user.id,
+    ];
+    expected_results.sort();
+    let search_results = organization
+        .search_fans(
+            None,
+            None,
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
+    results.sort();
+    assert_eq!(results, expected_results);
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == order_user.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: order_user.id,
+            first_name: order_user.first_name.clone(),
+            last_name: order_user.last_name.clone(),
+            email: order_user.email.clone(),
+            phone: order_user.phone.clone(),
+            thumb_profile_pic_url: order_user.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(2),
+            created_at: order_user.created_at,
+            first_order_time: Some(order.created_at),
+            last_order_time: Some(order5.created_at),
+            revenue_in_cents: Some(order5.calculate_total(connection).unwrap()),
+        }
+    );
+
+    // User transfers some tickets, most to a new user, 1 to existing user with other purchases all 4 should now show
+    let mut ticket_ids: Vec<Uuid> = TicketInstance::find_for_user(order_user3.id, connection)
+        .unwrap()
+        .iter()
+        .map(|t| t.id)
+        .collect();
+    TicketInstance::direct_transfer(
+        order_user3.id,
+        &vec![ticket_ids.pop().unwrap()],
+        "nowhere",
+        TransferMessageType::Email,
+        order_user.id,
+        connection,
+    )
+    .unwrap();
+    TicketInstance::direct_transfer(
+        order_user3.id,
+        &ticket_ids,
+        "nowhere",
+        TransferMessageType::Email,
+        transfer_user.id,
+        connection,
+    )
+    .unwrap();
+    let mut expected_results = vec![
+        order_user.id,
+        order_user2.id,
+        order_user3.id,
+        transfer_user.id,
+        interested_user.id,
+    ];
+    expected_results.sort();
+    let search_results = organization
+        .search_fans(
+            None,
+            None,
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
+    results.sort();
+    assert_eq!(results, expected_results);
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == order_user.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: order_user.id,
+            first_name: order_user.first_name.clone(),
+            last_name: order_user.last_name.clone(),
+            email: order_user.email.clone(),
+            phone: order_user.phone.clone(),
+            thumb_profile_pic_url: order_user.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(2),
+            created_at: order_user.created_at,
+            first_order_time: Some(order.created_at),
+            last_order_time: Some(order5.created_at),
+            revenue_in_cents: Some(order5.calculate_total(connection).unwrap()),
+        }
+    );
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == order_user2.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: order_user2.id,
+            first_name: order_user2.first_name.clone(),
+            last_name: order_user2.last_name.clone(),
+            email: order_user2.email.clone(),
+            phone: order_user2.phone.clone(),
+            thumb_profile_pic_url: order_user2.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(2),
+            created_at: order_user2.created_at,
+            first_order_time: Some(order2.created_at),
+            last_order_time: Some(order3.created_at),
+            revenue_in_cents: Some(
+                order2.calculate_total(connection).unwrap()
+                    + order3.calculate_total(connection).unwrap()
+            ),
+        }
+    );
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == order_user3.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: order_user3.id,
+            first_name: order_user3.first_name.clone(),
+            last_name: order_user3.last_name.clone(),
+            email: order_user3.email.clone(),
+            phone: order_user3.phone.clone(),
+            thumb_profile_pic_url: order_user3.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(1),
+            created_at: order_user3.created_at,
+            first_order_time: Some(order4.created_at),
+            last_order_time: Some(order4.created_at),
+            revenue_in_cents: Some(order4.calculate_total(connection).unwrap()),
+        }
+    );
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == transfer_user.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: transfer_user.id,
+            first_name: transfer_user.first_name.clone(),
+            last_name: transfer_user.last_name.clone(),
+            email: transfer_user.email.clone(),
+            phone: transfer_user.phone.clone(),
+            thumb_profile_pic_url: transfer_user.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(0),
+            created_at: transfer_user.created_at,
+            first_order_time: None,
+            last_order_time: None,
+            revenue_in_cents: Some(0),
+        }
+    );
+    assert_eq!(
+        search_results
+            .data
+            .iter()
+            .find(|f| f.user_id == interested_user.id)
+            .unwrap(),
+        &DisplayFan {
+            user_id: interested_user.id,
+            first_name: interested_user.first_name.clone(),
+            last_name: interested_user.last_name.clone(),
+            email: interested_user.email.clone(),
+            phone: interested_user.phone.clone(),
+            thumb_profile_pic_url: interested_user.thumb_profile_pic_url.clone(),
+            organization_id: organization.id,
+            order_count: Some(0),
+            created_at: interested_user.created_at,
+            first_order_time: None,
+            last_order_time: None,
+            revenue_in_cents: Some(0),
+        }
+    );
+
+    // Filtering finding a given user
+    let search_results = organization
+        .search_fans(
+            None,
+            order_user.email.clone(),
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    assert_eq!(search_results.data.len(), 1);
+    assert_eq!(search_results.data[0].user_id, order_user.id);
+
+    // Filtering returning nothing
+    let search_results = organization
+        .search_fans(
+            None,
             Some("NOT A REAL NAME".to_string()),
             0,
             100,

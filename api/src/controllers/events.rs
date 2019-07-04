@@ -1076,32 +1076,18 @@ pub fn fans_index(
     let event = Event::find(path.id, connection)?;
     let org = event.organization(connection)?;
     user.requires_scope_for_organization_event(Scopes::OrgFans, &org, &event, &connection)?;
-
-    let no_result_is_ok = |e: DatabaseError| match e.error_code {
-        ErrorCode::NoResults => Ok((Vec::<DisplayFan>::new(), 0)),
-        _ => Err(e),
-    };
-
-    let dir = query.dir.or(Some(SortingDir::Desc));
-    let (fans, total) = event
-        .search_fans(
-            query.get_tag("query"),
-            Some(query.limit()),
-            Some(query.page() * query.limit()),
-            query
-                .sort
-                .as_ref()
-                .map(|s| s.parse().unwrap_or(FanSortField::LastOrder)),
-            dir,
-            connection,
-        )
-        .or_else(no_result_is_ok)?;
-
-    let mut paging = Paging::new(query.page(), query.limit());
-    paging.dir = dir.unwrap();
-    paging.total = total;
-    let payload = Payload::new(fans, paging);
-
+    let payload = event.search_fans(
+        query.get_tag("query"),
+        query.page(),
+        query.limit(),
+        query
+            .sort
+            .as_ref()
+            .map(|s| s.parse().unwrap_or(FanSortField::LastOrder))
+            .unwrap_or(FanSortField::UserCreated),
+        query.dir.unwrap_or(SortingDir::Desc),
+        connection,
+    )?;
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 

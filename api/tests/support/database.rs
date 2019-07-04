@@ -106,6 +106,10 @@ impl TestDatabase {
         EventArtistBuilder::new(self.connection.get())
     }
 
+    pub fn create_event_interest(&self) -> EventInterestBuilder {
+        EventInterestBuilder::new(self.connection.get())
+    }
+
     pub fn create_stage(&self) -> StageBuilder {
         StageBuilder::new(self.connection.get())
     }

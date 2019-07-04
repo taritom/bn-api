@@ -9,6 +9,7 @@ use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use models::*;
 use schema::{events, genres, organization_users, organizations, user_genres, users};
 use serde_json::Value;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use time::Duration;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
@@ -95,6 +96,7 @@ pub struct FanProfile {
     pub facebook_linked: bool,
     pub event_count: u32,
     pub revenue_in_cents: u32,
+    pub tickets_owned: u32,
     pub ticket_sales: u32,
     pub profile_pic_url: Option<String>,
     pub thumb_profile_pic_url: Option<String>,
@@ -111,6 +113,12 @@ pub struct AttendanceInformation {
     pub event_name: String,
     #[sql_type = "Nullable<Timestamp>"]
     pub event_start: Option<NaiveDateTime>,
+}
+
+impl PartialOrd for User {
+    fn partial_cmp(&self, other: &User) -> Option<Ordering> {
+        Some(self.id.cmp(&other.id))
+    }
 }
 
 impl NewUser {
@@ -430,7 +438,13 @@ impl User {
             .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
             .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
             .filter(orders::status.eq(OrderStatus::Paid))
-            .filter(orders::user_id.eq(self.id))
+            .filter(
+                orders::on_behalf_of_user_id.eq(Some(self.id))
+                .or(orders::on_behalf_of_user_id
+                    .is_null()
+                    .and(orders::user_id.eq(self.id))
+                )
+            )
             .filter(events::organization_id.eq(organization.id))
             .group_by((orders::id, orders::order_date, events::name))
             .select((
@@ -496,22 +510,73 @@ impl User {
         conn: &PgConnection,
     ) -> Result<FanProfile, DatabaseError> {
         use schema::*;
-        let query = order_items::table
-            .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
-            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-            .filter(orders::status.eq(OrderStatus::Paid))
+
+        let query = events::table
+            .left_join(event_interest::table.on(events::id.eq(event_interest::event_id)))
+            .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
+            .left_join(
+                orders::table.on(order_items::order_id
+                    .eq(orders::id)
+                    .and(orders::status.eq(OrderStatus::Paid))),
+            )
+            .left_join(
+                ticket_instances::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            )
+            .left_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .inner_join(
+                users::table.on(orders::on_behalf_of_user_id
+                    .eq(users::id.nullable())
+                    .or(users::id
+                        .eq(orders::user_id)
+                        .and(orders::on_behalf_of_user_id.is_null()))
+                    .or(wallets::user_id.eq(users::id.nullable()).and(
+                        ticket_instances::status.eq_any(vec![
+                            TicketInstanceStatus::Redeemed,
+                            TicketInstanceStatus::Purchased,
+                        ]),
+                    ))
+                    .or(event_interest::user_id.eq(users::id))),
+            )
             .filter(events::organization_id.eq(organization.id))
-            .filter(orders::user_id.eq(self.id))
+            .filter(users::id.eq(self.id))
+            .group_by((users::id, events::organization_id))
             .select((
                 sql::<BigInt>(
-                    "cast(COALESCE(sum(
-                    CASE WHEN order_items.item_type = 'Tickets'
-                    THEN (order_items.quantity-order_items.refunded_quantity)
-                    ELSE 0 END
-                    ), 0) as BigInt)",
+                    "CAST(COALESCE((
+                    SELECT SUM(oi.quantity - oi.refunded_quantity)
+                    FROM orders o
+                    JOIN order_items oi ON o.id = oi.order_id
+                    JOIN events e on oi.event_id = e.id
+                    WHERE COALESCE(o.on_behalf_of_user_id, o.user_id) = users.id
+                    AND e.organization_id = events.organization_id
+                    AND o.status = 'Paid'
+                    AND oi.item_type = 'Tickets'
+                ), 0) as BigInt)",
                 ),
                 sql::<BigInt>(
-                    "cast(COALESCE(sum(order_items.unit_price_in_cents * (order_items.quantity - order_items.refunded_quantity)), 0) as bigint)",
+                    "CAST(COALESCE((
+                    SELECT COUNT(ti.id)
+                    FROM ticket_instances ti
+                    JOIN wallets w ON w.id = ti.wallet_id
+                    JOIN assets a on ti.asset_id = a.id
+                    JOIN ticket_types tt on tt.id = a.ticket_type_id
+                    JOIN events e ON e.id = tt.event_id
+                    WHERE w.user_id = users.id
+                    AND e.organization_id = events.organization_id
+                    AND ti.status in ('Purchased', 'Redeemed')
+                ), 0) as BigInt)",
+                ),
+                sql::<BigInt>(
+                    "CAST(COALESCE((
+                    SELECT SUM(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity))
+                    FROM order_items oi
+                    JOIN orders o ON o.id = oi.order_id
+                    JOIN events e ON e.id = oi.event_id
+                    WHERE COALESCE(o.on_behalf_of_user_id, o.user_id) = users.id
+                    AND e.organization_id = events.organization_id
+                    AND o.status = 'Paid'
+                ), 0) as BigInt)",
                 ),
                 sql::<BigInt>("cast(COALESCE(count(distinct events.id), 0) as BigInt)"),
             ));
@@ -519,6 +584,7 @@ impl User {
         #[derive(Queryable)]
         struct R {
             ticket_sales: i64,
+            tickets_owned: i64,
             revenue_in_cents: i64,
             event_count: i64,
         }
@@ -535,6 +601,7 @@ impl User {
             event_count: result.event_count as u32,
             revenue_in_cents: result.revenue_in_cents as u32,
             ticket_sales: result.ticket_sales as u32,
+            tickets_owned: result.tickets_owned as u32,
             profile_pic_url: self.profile_pic_url.clone(),
             thumb_profile_pic_url: self.thumb_profile_pic_url.clone(),
             cover_photo_url: self.cover_photo_url.clone(),

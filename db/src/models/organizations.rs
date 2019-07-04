@@ -4,7 +4,7 @@ use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Text, Timestamp};
+use diesel::sql_types::{BigInt, Nullable, Text, Timestamp};
 use models::scopes;
 use models::*;
 use schema::{
@@ -14,6 +14,7 @@ use schema::{
 use std::collections::HashMap;
 use utils::encryption::*;
 use utils::errors::*;
+use utils::pagination::Paginate;
 use utils::text;
 use uuid::Uuid;
 
@@ -362,21 +363,16 @@ impl Organization {
     }
 
     pub fn has_fan(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {
-        use schema::*;
-
-        select(exists(
-            order_items::table
-                .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
-                .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-                .filter(orders::status.eq(OrderStatus::Paid))
-                .filter(events::organization_id.eq(self.id))
-                .filter(orders::user_id.eq(user.id)),
-        ))
-        .get_result(conn)
-        .to_db_error(
-            ErrorCode::QueryError,
-            "Could not check if organization has fan",
-        )
+        let results = self.search_fans(
+            None,
+            Some(user.id.to_string()),
+            0,
+            1,
+            FanSortField::Email,
+            SortingDir::Desc,
+            conn,
+        )?;
+        Ok(!results.data.is_empty())
     }
 
     pub fn get_scopes_for_user(
@@ -596,7 +592,8 @@ impl Organization {
 
     pub fn search_fans(
         &self,
-        query: Option<String>,
+        event_id: Option<Uuid>,
+        search_query: Option<String>,
         page: u32,
         limit: u32,
         sort_field: FanSortField,
@@ -605,40 +602,76 @@ impl Organization {
     ) -> Result<Payload<DisplayFan>, DatabaseError> {
         use schema::*;
 
-        let search_filter = query
-            .map(|s| text::escape_control_chars(&s))
-            .map(|s| format!("%{}%", s))
-            .unwrap_or("%".to_string());
-
         let sort_column = match sort_field {
             FanSortField::FirstName => "2",
             FanSortField::LastName => "3",
             FanSortField::Email => "4",
             FanSortField::Phone => "5",
-            FanSortField::Orders => "7",
-            FanSortField::FirstOrder => "8",
-            FanSortField::LastOrder => "9",
-            FanSortField::Revenue => "10",
+            FanSortField::OrganizationId => "7",
+            FanSortField::Orders => "8",
+            FanSortField::UserCreated => "9",
+            FanSortField::FirstOrder => "10",
+            FanSortField::LastOrder => "11",
+            FanSortField::Revenue => "12",
         };
 
-        let query = order_items::table
-            .inner_join(orders::table.on(order_items::order_id.eq(orders::id)))
-            .inner_join(users::table.on(users::id.eq(orders::user_id)))
-            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-            .filter(orders::status.eq(OrderStatus::Paid))
-            .filter(events::organization_id.eq(self.id))
-            .filter(
-                sql("(")
-                    .sql("users.first_name ilike ")
-                    .bind::<Text, _>(&search_filter)
-                    .sql(" OR users.last_name ilike ")
-                    .bind::<Text, _>(&search_filter)
-                    .sql(" OR users.email ilike ")
-                    .bind::<Text, _>(&search_filter)
-                    .sql(" OR users.phone ilike ")
-                    .bind::<Text, _>(&search_filter)
-                    .sql(")"),
+        let mut query = events::table
+            .left_join(event_interest::table.on(events::id.eq(event_interest::event_id)))
+            .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
+            .left_join(
+                orders::table.on(order_items::order_id
+                    .eq(orders::id)
+                    .and(orders::status.eq(OrderStatus::Paid))),
             )
+            .left_join(
+                ticket_instances::table
+                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
+            )
+            .left_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            // Include user records for the purchasing user
+            .inner_join(
+                users::table.on(orders::on_behalf_of_user_id
+                    .eq(users::id.nullable())
+                    .or(users::id
+                        .eq(orders::user_id)
+                        .and(orders::on_behalf_of_user_id.is_null()))
+                    .or(wallets::user_id.eq(users::id.nullable()).and(
+                        ticket_instances::status.eq_any(vec![
+                            TicketInstanceStatus::Redeemed,
+                            TicketInstanceStatus::Purchased,
+                        ]),
+                    ))
+                    .or(event_interest::user_id.eq(users::id))),
+            )
+            .filter(events::organization_id.eq(self.id))
+            .into_boxed();
+
+        // Parse UUID if passed into query to search for a specific user
+        if let Some(query_text) = search_query {
+            if let Ok(uuid) = Uuid::parse_str(&query_text) {
+                query = query.filter(users::id.eq(uuid));
+            } else {
+                let search_filter = format!("%{}%", text::escape_control_chars(&query_text));
+                query = query.filter(
+                    sql("(")
+                        .sql("users.first_name ilike ")
+                        .bind::<Text, _>(search_filter.clone())
+                        .sql(" OR users.last_name ilike ")
+                        .bind::<Text, _>(search_filter.clone())
+                        .sql(" OR users.email ilike ")
+                        .bind::<Text, _>(search_filter.clone())
+                        .sql(" OR users.phone ilike ")
+                        .bind::<Text, _>(search_filter.clone())
+                        .sql(")"),
+                )
+            }
+        }
+
+        if let Some(event_id) = event_id {
+            query = query.filter(events::id.eq(event_id));
+        }
+
+        let (fans, record_count): (Vec<DisplayFan>, i64) = query
             .group_by((
                 events::organization_id,
                 users::first_name,
@@ -648,75 +681,39 @@ impl Organization {
                 users::id,
             ))
             .select((
-                events::organization_id,
+                users::id,
                 users::first_name,
                 users::last_name,
                 users::email,
                 users::phone,
                 users::thumb_profile_pic_url,
-                users::id,
-                sql::<BigInt>("count(distinct orders.id)"),
+                events::organization_id,
+                sql::<Nullable<BigInt>>("COUNT(distinct orders.id) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
                 users::created_at,
-                sql::<Timestamp>("min(orders.order_date)"),
-                sql::<Timestamp>("max(orders.order_date)"),
-                sql::<BigInt>(
-                    "cast(sum(order_items.unit_price_in_cents * (order_items.quantity - order_items.refunded_quantity)) as bigint)",
-                ),
-                sql::<BigInt>("count(*) over()"),
+                sql::<Nullable<Timestamp>>("MIN(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
+                sql::<Nullable<Timestamp>>("MAX(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
+                sql::<Nullable<BigInt>>("COALESCE((
+                    SELECT CAST(SUM(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)) as BigInt)
+                    FROM order_items oi
+                    JOIN orders o ON o.id = oi.order_id
+                    JOIN events e ON e.id = oi.event_id
+                    WHERE COALESCE(o.on_behalf_of_user_id, o.user_id) = users.id
+                    AND e.organization_id = events.organization_id
+                    AND o.status = 'Paid'
+                ), 0)"),
             ))
-            .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)));
+            .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
+            .paginate(page as i64)
+            .per_page(limit as i64)
+            .load_and_count_pages(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load fans for organization",
+            )?;
 
-        let query = query.limit(limit as i64).offset((limit * page) as i64);
-
-        #[derive(Queryable)]
-        struct R {
-            organization_id: Uuid,
-            first_name: Option<String>,
-            last_name: Option<String>,
-            email: Option<String>,
-            phone: Option<String>,
-            thumb_profile_pic_url: Option<String>,
-            user_id: Uuid,
-            order_count: i64,
-            created_at: NaiveDateTime,
-            first_order_time: NaiveDateTime,
-            last_order_time: NaiveDateTime,
-            revenue_in_cents: i64,
-            total_rows: i64,
-        }
-
-        let results: Vec<R> = query.get_results(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not load fans for organization",
-        )?;
-
-        let paging = Paging::new(page, limit);
-        let mut total = results.len() as u64;
-        if !results.is_empty() {
-            total = results[0].total_rows as u64;
-        }
-
-        let fans = results
-            .into_iter()
-            .map(|r| DisplayFan {
-                user_id: r.user_id,
-                first_name: r.first_name,
-                last_name: r.last_name,
-                email: r.email,
-                phone: r.phone,
-                thumb_profile_pic_url: r.thumb_profile_pic_url,
-                organization_id: r.organization_id,
-                order_count: Some(r.order_count as u32),
-                created_at: r.created_at,
-                first_order_time: Some(r.first_order_time),
-                last_order_time: Some(r.last_order_time),
-                revenue_in_cents: Some(r.revenue_in_cents),
-            })
-            .collect();
-
-        let mut p = Payload::new(fans, paging);
-        p.paging.total = total;
-        Ok(p)
+        let mut payload = Payload::from_data(fans, page, limit);
+        payload.paging.total = record_count as u64;
+        Ok(payload)
     }
 
     pub fn decrypt(&mut self, encryption_key: &str) -> Result<(), DatabaseError> {
