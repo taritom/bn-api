@@ -1901,6 +1901,14 @@ impl Order {
                 .collect();
         let items = self.items_for_display(organization_ids, user_id, conn)?;
 
+        let mut payment: Option<Payment> = None;
+        if self.paid_at.is_some() {
+            payment = self
+                .payments(conn)?
+                .into_iter()
+                .find(|p| p.status == PaymentStatus::Completed);
+        }
+
         Ok(DisplayOrder {
             id: self.id,
             status: self.status.clone(),
@@ -1928,6 +1936,8 @@ impl Order {
             order_contains_other_tickets,
             platform: self.platform.clone(),
             is_box_office: self.on_behalf_of_user_id.is_some(),
+            payment_method: payment.as_ref().map(|p| p.payment_method),
+            payment_provider: payment.map(|p| p.provider),
         })
     }
 
@@ -2531,6 +2541,8 @@ pub struct DisplayOrder {
     pub valid_for_purchase: Option<bool>,
     pub platform: Option<String>,
     pub is_box_office: bool,
+    pub payment_method: Option<PaymentMethods>,
+    pub payment_provider: Option<PaymentProviders>,
 }
 
 impl DisplayOrder {
