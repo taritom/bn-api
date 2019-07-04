@@ -333,7 +333,6 @@ pub fn refund(
 
     // Reload order
     let order = Order::find(order.id, connection)?;
-    let display_order = order.for_display(None, user.id(), connection)?;
     let user = DbUser::find(
         order.on_behalf_of_user_id.unwrap_or(order.user_id),
         connection,
@@ -341,14 +340,7 @@ pub fn refund(
 
     // Communicate refund to user
     if let (Some(first_name), Some(email)) = (user.first_name, user.email) {
-        mailers::orders::refund_email(
-            &first_name,
-            email,
-            display_order,
-            amount_refunded,
-            &state.config,
-            connection,
-        )?;
+        mailers::orders::refund_email(&first_name, email, &refund, &state.config, connection)?;
     }
 
     Ok(HttpResponse::Ok().json(json!(RefundResponse {

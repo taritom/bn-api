@@ -71,6 +71,20 @@ pub struct TicketTypeEditableAttributes {
 impl TicketType {
     // Properties at the top
 
+    pub fn event(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
+        let res: Event = ticket_types::table
+            .inner_join(events::table)
+            .filter(ticket_types::id.eq(self.id))
+            .select(events::all_columns)
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not retrieve event for ticket type",
+            )
+            .expect_single()?;
+        Ok(res)
+    }
+
     pub fn fee_schedule(&self, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
         ticket_types::table
             .inner_join(

@@ -235,6 +235,14 @@ impl Tables {
     }
 }
 
+impl OrderItemTypes {
+    pub fn is_fee(self) -> bool {
+        self == OrderItemTypes::PerUnitFees
+            || self == OrderItemTypes::EventFees
+            || self == OrderItemTypes::CreditCardFees
+    }
+}
+
 #[test]
 fn get_event_limited_roles() {
     assert_eq!(

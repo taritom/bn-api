@@ -65,6 +65,30 @@ impl OrderItem {
             )
     }
 
+    pub fn description(&self, conn: &PgConnection) -> Result<String, DatabaseError> {
+        use models::OrderItemTypes::*;
+        let res = match self.item_type {
+            PerUnitFees => "Ticket Fees".to_string(),
+            EventFees => {
+                let ticket_type = self.ticket_type(conn)?;
+                match ticket_type {
+                    Some(t) => format!("Event Fees - {}", t.event(conn)?.name),
+                    None => "Event Fees".to_string(),
+                }
+            }
+            Discount => "Discount".to_string(),
+            CreditCardFees => "Credit Card Fees".to_string(),
+            _ => {
+                let ticket_type = self.ticket_type(conn)?;
+                match ticket_type {
+                    Some(t) => format!("{} - {}", t.event(conn)?.name, t.name),
+                    None => "Other".to_string(),
+                }
+            }
+        };
+        Ok(res)
+    }
+
     pub(crate) fn refund_one_unit(
         &mut self,
         refund_fees: bool,
