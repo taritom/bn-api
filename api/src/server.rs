@@ -65,11 +65,14 @@ impl Server {
 
         if process_http {
             info!("Listening on {}", bind_addr);
+
+            let conf = config.clone();
+
             //            let keep_alive = server::KeepAlive::Tcp(config.http_keep_alive);
-            server::new({
+            let mut server = server::new({
                 move || {
                     App::with_state(AppState::new(
-                        config.clone(),
+                        conf.clone(),
                         database.clone(),
                         database_ro.clone(),
                     ))
@@ -77,16 +80,16 @@ impl Server {
                     .middleware(DatabaseTransaction::new())
                     .middleware(AppVersionHeader::new())
                     .middleware(Metatags::new(
-                        config.ssr_trigger_header.clone(),
-                        config.ssr_trigger_value.clone(),
-                        config.front_end_url.clone(),
-                        config.app_name.clone(),
+                        conf.ssr_trigger_header.clone(),
+                        conf.ssr_trigger_value.clone(),
+                        conf.front_end_url.clone(),
+                        conf.app_name.clone(),
                     ))
                     .configure(|a| {
                         let mut cors_config = Cors::for_app(a);
-                        match config.allowed_origins.as_ref() {
+                        match conf.allowed_origins.as_ref() {
                             "*" => cors_config.send_wildcard(),
-                            _ => cors_config.allowed_origin(&config.allowed_origins),
+                            _ => cors_config.allowed_origin(&conf.allowed_origins),
                         };
                         cors_config
                             .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
@@ -107,8 +110,12 @@ impl Server {
             })
             //            .keep_alive(keep_alive)
             .bind(&bind_addr)
-            .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr))
-            .run();
+            .unwrap_or_else(|_| panic!("Can not bind to {}", bind_addr));
+
+            if let Some(workers) = config.actix.workers {
+                server = server.workers(workers);
+            }
+            server.run();
         } else {
             info!("Press enter to stop");
             let mut input = String::new();

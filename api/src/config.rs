@@ -6,6 +6,7 @@ use tari_client::{HttpTariClient, TariClient, TariTestClient};
 
 #[derive(Clone)]
 pub struct Config {
+    pub actix: Actix,
     pub allowed_origins: String,
     pub front_end_url: String,
     pub api_host: String,
@@ -58,11 +59,17 @@ pub struct Config {
 }
 
 #[derive(Clone)]
+pub struct Actix {
+    pub workers: Option<usize>,
+}
+
+#[derive(Clone)]
 pub struct ConnectionPoolConfig {
     pub min: u32,
     pub max: u32,
 }
 
+const ACTIX_WORKERS: &str = "ACTIX_WORKERS";
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
 const APP_NAME: &str = "APP_NAME";
 const API_HOST: &str = "API_HOST";
@@ -160,6 +167,12 @@ impl Config {
             _ => env::var(&READONLY_DATABASE_URL).unwrap_or_else(|_| database_url.clone()),
         };
 
+        let actix_workers: Option<usize> = env::var(&ACTIX_WORKERS)
+            .map(|r| {
+                r.parse()
+                    .expect(&format!("{} is not a valid usize", ACTIX_WORKERS))
+            })
+            .ok();
         let domain = env::var(&DOMAIN).unwrap_or_else(|_| "api.bigneon.com".to_string());
 
         let allowed_origins = env::var(&ALLOWED_ORIGINS).unwrap_or_else(|_| "*".to_string());
@@ -342,6 +355,9 @@ impl Config {
         let ssr_trigger_value = env::var(&SSR_TRIGGER_VALUE).unwrap_or("facebook".to_string());
 
         Config {
+            actix: Actix {
+                workers: actix_workers,
+            },
             allowed_origins,
             app_name,
             api_host,
