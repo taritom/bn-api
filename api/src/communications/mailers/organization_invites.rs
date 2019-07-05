@@ -36,6 +36,8 @@ pub fn invite_user_to_organization_email(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
+        Some(vec!["org_invites".to_string()]),
+        None,
     )
     .queue(conn)
 }

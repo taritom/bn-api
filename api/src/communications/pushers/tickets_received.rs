@@ -28,6 +28,8 @@ pub fn tickets_received(
             CommAddress::from_vec(tokens),
             None,
             None,
+            Some(vec!["transfers"]),
+            None,
         )
         .queue(conn)?;
     }

@@ -4,7 +4,7 @@ use communications::mailers::insert_event_template_data;
 use config::Config;
 use diesel::pg::PgConnection;
 use errors::*;
-use itertools::join;
+use itertools::{join, Itertools};
 use utils::communication::CommAddress;
 use utils::communication::Communication;
 use utils::communication::CommunicationType;
@@ -26,6 +26,18 @@ pub fn send_tickets(
     let mut template_data = TemplateData::new();
     template_data.insert("sender_name".to_string(), from_user.full_name());
     template_data.insert("receive_tickets_link".to_string(), receive_tickets_link);
+    let events = transfer.events(conn)?;
+    let event_ids = events.iter().map(|e| e.id.to_string()).join(",");
+    let days_until_event = events
+        .iter()
+        .map(|e| {
+            match e.event_start {
+                Some(s) => (Utc::now().naive_utc() - s).num_days(),
+                None => 0,
+            }
+            .to_string()
+        })
+        .join(",");
     Communication::new(
         CommunicationType::EmailTemplate,
         title,
@@ -33,9 +45,9 @@ pub fn send_tickets(
         Some(source),
         destinations,
         Some(template_id),
-        Some(vec![template_data]),
+        Some(vec![template_data]), Some(vec!["transfer", "transfer_receiver", "transfer_confirmation"]), Some(map!("event_id".to_string() => event_ids, "days_until_event".to_string() => days_until_event)),
     )
-    .queue(conn)
+        .queue(conn)
 }
 
 pub fn transfer_drip_reminder(
@@ -89,6 +101,8 @@ pub fn transfer_drip_reminder(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
+        Some(vec!["transfer", "transfer_receiver", "transfer_drip"]),
+        None,
     )
     .queue(conn)
 }
@@ -128,6 +142,8 @@ pub fn transfer_sent_receipt(
             destinations,
             Some(template_id),
             Some(vec![template_data]),
+            Some(vec!["transfer", "transfer_sender", "transfer_confirmation"]),
+            None,
         )
         .queue(conn)?;
     }
@@ -163,6 +179,12 @@ pub fn transfer_cancelled_receipt(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
+        Some(vec![
+            "transfer",
+            "transfer_receiver",
+            "transfer_cancellation",
+        ]),
+        None,
     )
     .queue(conn)
 }
@@ -187,6 +209,12 @@ pub fn transfer_cancelled(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
+        Some(vec![
+            "transfer",
+            "transfer_receiver",
+            "transfer_cancellation",
+        ]),
+        None,
     )
     .queue(conn)
 }

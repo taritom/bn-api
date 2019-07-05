@@ -15,6 +15,8 @@ pub fn send_email(
     dest_email_addresses: Vec<String>,
     title: String,
     body: Option<String>,
+    categories: Option<Vec<String>>,
+    unique_args: Option<HashMap<String, String>>,
 ) -> Result<(), BigNeonError> {
     let mut sg_message = SGMailMessage::new();
     sg_message.subject = Some(title);
@@ -31,7 +33,8 @@ pub fn send_email(
         msg_content.value = body.clone().unwrap();
     }
     sg_message.content.push(msg_content);
-
+    sg_message.unique_args = unique_args;
+    sg_message.category = categories;
     match sg_message.send(sg_api_key) {
         Ok(_body) => Ok(()),
         Err(err) => Err(ApplicationError::new(err.to_string()).into()),
@@ -44,6 +47,8 @@ pub fn send_email_async(
     dest_email_addresses: Vec<String>,
     title: String,
     body: Option<String>,
+    categories: Option<Vec<String>>,
+    unique_args: Option<HashMap<String, String>>,
 ) -> Box<Future<Item = (), Error = BigNeonError>> {
     let mut sg_message = SGMailMessage::new();
     sg_message.subject = Some(title);
@@ -60,6 +65,8 @@ pub fn send_email_async(
         msg_content.value = body;
     }
     sg_message.content.push(msg_content);
+    sg_message.unique_args = unique_args;
+    sg_message.category = categories;
 
     Box::new(sg_message.send_async(sg_api_key))
 }
@@ -70,6 +77,8 @@ pub fn send_email_template(
     dest_email_addresses: Vec<&str>,
     template_id: String,
     template_data: &[&TemplateData],
+    categories: Option<Vec<String>>,
+    unique_args: Option<HashMap<String, String>>,
 ) -> Result<(), BigNeonError> {
     if dest_email_addresses.len() != template_data.len() {
         return Err(ApplicationError::new(
@@ -92,6 +101,8 @@ pub fn send_email_template(
 
     let msg_content = SGContent::new();
     sg_message.content.push(msg_content);
+    sg_message.category = categories;
+    sg_message.unique_args = unique_args;
 
     match sg_message.send(&sg_api_key) {
         Ok(_body) => Ok(()),
@@ -105,6 +116,8 @@ pub fn send_email_template_async(
     dest_email_addresses: &[String],
     template_id: String,
     template_data: &[TemplateData],
+    categories: Option<Vec<String>>,
+    unique_args: Option<HashMap<String, String>>,
 ) -> Box<Future<Item = (), Error = BigNeonError>> {
     Box::new(if dest_email_addresses.len() != template_data.len() {
         Either::A(future::err(
@@ -129,6 +142,8 @@ pub fn send_email_template_async(
 
         let msg_content = SGContent::new();
         sg_message.content.push(msg_content);
+        sg_message.unique_args = unique_args;
+        sg_message.category = categories;
 
         Either::B(sg_message.send_async(&sg_api_key))
     })
@@ -220,6 +235,10 @@ pub struct SGMailMessage {
     pub personalizations: Vec<SGPersonalization>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unique_args: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<Vec<String>>,
 }
 
 impl SGMailMessage {
@@ -230,6 +249,8 @@ impl SGMailMessage {
             content: Vec::new(),
             personalizations: Vec::new(),
             template_id: None,
+            unique_args: None,
+            category: None,
         }
     }
 
@@ -268,5 +289,30 @@ impl SGMailMessage {
 
     fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn serialize_empty_mail_message() {
+        let test_msg = SGMailMessage::new();
+        let actual = json!(test_msg).to_string();
+        assert_eq!(
+            r#"{"content":[],"from":{"email":""},"personalizations":[]}"#,
+            actual
+        );
+    }
+
+    #[test]
+    pub fn serialize_mail_message() {
+        let mut test_msg = SGMailMessage::new();
+        let map = map! {"k_one".to_string()=> "v_one".to_string(), "k_two".to_string() => "v_two".to_string()};
+        test_msg.unique_args = Some(map);
+        test_msg.category = Some(vec!["cat1".to_string(), "cat2".to_string()]);
+        let actual = json!(test_msg).to_string();
+        assert_eq!(r#"{"category":["cat1","cat2"],"content":[],"from":{"email":""},"personalizations":[],"unique_args":{"k_one":"v_one","k_two":"v_two"}}"#, actual);
     }
 }

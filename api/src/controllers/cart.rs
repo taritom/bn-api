@@ -364,8 +364,8 @@ pub fn checkout(
                     Some(payment_method) => payment_method.name,
                     None => {
                         return application::unprocessable(
-                            "Could not complete this cart because user has no default payment method",
-                        );
+                                "Could not complete this cart because user has no default payment method",
+                            );
                     }
                 },
             };
@@ -601,11 +601,11 @@ fn checkout_payment_processor(
                     {
                         Some(payment_method) => {
                             let behavior = match client.behavior() {
-                        PaymentProcessorBehavior::AuthThenComplete(b) => b,
-                        _ =>  return application::unprocessable(
-                            "Could not complete this cart using saved payment methods is not supported for this payment processor",
-                        )
-                    };
+                                    PaymentProcessorBehavior::AuthThenComplete(b) => b,
+                                    _ => return application::unprocessable(
+                                        "Could not complete this cart using saved payment methods is not supported for this payment processor",
+                                    )
+                                };
                             let client_response = behavior.update_repeat_token(
                                 &payment_method.provider,
                                 token,
@@ -624,11 +624,11 @@ fn checkout_payment_processor(
                         }
                         None => {
                             let behavior = match client.behavior() {
-                        PaymentProcessorBehavior::AuthThenComplete(b) => b,
-                        _ =>  return application::unprocessable(
-                            "Could not complete this cart using saved payment methods is not supported for this payment processor",
-                        )
-                    };
+                                    PaymentProcessorBehavior::AuthThenComplete(b) => b,
+                                    _ => return application::unprocessable(
+                                        "Could not complete this cart using saved payment methods is not supported for this payment processor",
+                                    )
+                                };
                             let repeat_token =
                                 behavior.create_token_for_repeat_charges(token, "Big Neon")?;
                             let _payment_method = PaymentMethod::create(

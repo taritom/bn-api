@@ -24,6 +24,8 @@ pub fn user_registered(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
+        Some(vec!["user_registered", "account"]),
+        None,
     )
     .queue(conn)
 }
@@ -51,6 +53,8 @@ pub fn password_reset_email(config: &Config, user: &User) -> Communication {
         destinations,
         Some(template_id),
         Some(vec![template_data]),
+        Some(vec!["password_reset", "account"]),
+        None,
     )
 }
 
@@ -82,6 +86,8 @@ pub fn invite_user_email(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
+        Some(vec!["user_invite", "account"]),
+        None,
     )
     .queue(conn)
 }

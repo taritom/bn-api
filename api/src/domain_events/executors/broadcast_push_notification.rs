@@ -72,6 +72,8 @@ impl BroadcastPushNotificationExecutor {
                         CommAddress::from_vec(tokens),
                         None,
                         None,
+                        Some(vec!["broadcast"]),
+                        None,
                     ))?,
                     Some(Tables::Events.to_string()),
                     Some(action_data.event_id),

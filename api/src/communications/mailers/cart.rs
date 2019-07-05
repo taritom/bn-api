@@ -76,5 +76,7 @@ pub fn purchase_completed(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
+        Some(vec!["purchase".to_string()]),
+        None,
     ))
 }

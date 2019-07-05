@@ -88,6 +88,8 @@ pub fn refund_email(
         destinations,
         Some(template_id),
         Some(vec![template_data]),
+        Some(vec!["refund"]),
+        None,
     )
     .queue(conn)
 }

@@ -1,15 +1,14 @@
-use std::collections::HashMap;
-
-use diesel::PgConnection;
-use futures::Future;
-use tokio::prelude::*;
-
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
 use config::Config;
+use diesel::PgConnection;
 use errors::*;
 use futures::future::Either;
-use log::Level::Info;
+use futures::Future;
+use itertools::Itertools;
+use log::Level::Trace;
+use std::collections::HashMap;
+use tokio::prelude::*;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 
@@ -69,10 +68,12 @@ pub struct Communication {
     pub destinations: CommAddress,
     pub template_id: Option<String>,
     pub template_data: Option<Vec<TemplateData>>,
+    pub categories: Option<Vec<String>>,
+    pub extra_data: Option<HashMap<String, String>>,
 }
 
 impl Communication {
-    pub fn new(
+    pub fn new<S: Into<String>>(
         comm_type: CommunicationType,
         title: String,
         body: Option<String>,
@@ -80,6 +81,8 @@ impl Communication {
         destinations: CommAddress,
         template_id: Option<String>,
         template_data: Option<Vec<TemplateData>>,
+        categories: Option<Vec<S>>,
+        extra_data: Option<HashMap<String, String>>,
     ) -> Communication {
         Communication {
             comm_type,
@@ -89,6 +92,8 @@ impl Communication {
             destinations,
             template_id,
             template_data,
+            categories: categories.map(|c| c.into_iter().map(|c1| c1.into()).collect_vec()),
+            extra_data,
         }
     }
 
@@ -125,15 +130,8 @@ impl Communication {
             _ => {
                 let res = match config.block_external_comms {
                     true => {
-                        let destination_addresses = communication.destinations.get();
-                        jlog!(Info, "Blocked communication", {
-                            "comm_type": communication.comm_type,
-                            "title": communication.title,
-                            "body": communication.body,
-                            "source": communication.source,
-                            "destination_addresses": destination_addresses,
-                            "template_id": communication.template_id,
-                            "template_data": communication.template_data,
+                        jlog!(Trace, "Blocked communication", {
+                            "communication": communication
                         });
 
                         Either::A(future::ok(()))
@@ -148,6 +146,8 @@ impl Communication {
                                 destination_addresses,
                                 communication.title.clone(),
                                 communication.body.clone(),
+                                communication.categories.clone(),
+                                communication.extra_data.clone(),
                             ),
                             CommunicationType::EmailTemplate => {
                                 sendgrid::send_email_template_async(
@@ -156,6 +156,8 @@ impl Communication {
                                     &destination_addresses,
                                     communication.template_id.clone().unwrap(),
                                     communication.template_data.as_ref().unwrap(),
+                                    communication.categories.clone(),
+                                    communication.extra_data.clone(),
                                 )
                             }
                             CommunicationType::Sms => twilio::send_sms_async(

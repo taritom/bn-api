@@ -27,6 +27,8 @@ pub fn transfer_cancelled(
         destinations,
         None,
         None,
+        Some(vec!["transfers"]),
+        None,
     )
     .queue(conn)
 }
@@ -62,6 +64,8 @@ pub fn transfer_drip_reminder(
         destinations,
         None,
         None,
+        Some(vec!["transfers"]),
+        None,
     )
     .queue(conn)
 }
@@ -91,6 +95,8 @@ pub fn send_tickets(
         Some(source),
         destinations,
         None,
+        None,
+        Some(vec!["transfers"]),
         None,
     )
     .queue(conn)

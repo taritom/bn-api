@@ -22,6 +22,19 @@ macro_rules! assert_nequiv {
     }};
 }
 
+#[macro_export]
+macro_rules! map (
+        { $($key:expr => $value:expr),+ } => {
+            {
+                let mut m = ::std::collections::HashMap::new();
+                $(
+                m.insert($key, $value);
+                )+
+                m
+            }
+        };
+    );
+
 #[cfg(test)]
 mod test {
     use super::*;
