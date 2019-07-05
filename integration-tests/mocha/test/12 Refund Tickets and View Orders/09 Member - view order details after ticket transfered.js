@@ -7,7 +7,7 @@ const pm = require('../pm');const debug = require("debug");var log=debug('bn-api
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/orders/{{last_cart_id}}/details';
+const apiEndPoint = '/orders/{{refund_tickets_cart_id}}/details';
 
 
 var response;
@@ -37,7 +37,7 @@ const get = async function (request_body) {
 let requestBody = ``;
 let json = {};
 
-describe('Admin - view order details after ticket refunded', function () {
+describe('Member - view order details after ticket transferred', function () {
     before(async function () {
         response = await get(requestBody);
         log(response.request.header);
@@ -81,8 +81,8 @@ describe('Admin - view order details after ticket refunded', function () {
         expect(json.items[1].ticket_price_in_cents).to.equal(3000);
         expect(json.items[1].fees_price_in_cents).to.equal(10);
         expect(json.items[1].total_price_in_cents).to.equal(3010);
-        expect(json.items[1].status).to.equal('Purchased');
-        expect(json.items[1].refundable).to.equal(true);
+        expect(json.items[1].status).to.equal('In Transfer');
+        expect(json.items[1].refundable).to.equal(false);
     });
 
     it("event fees should be present", function () {

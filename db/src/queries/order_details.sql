@@ -1,70 +1,108 @@
-SELECT
-    ticket_instance_id,
-    order_item_id,
-    description,
-    ticket_price_in_cents,
-    fees_price_in_cents,
-    (ticket_price_in_cents + fees_price_in_cents) as total_price_in_cents,
-    status,
-    status IN ('Purchased', 'Redeemed') as refundable
+SELECT ticket_instance_id,
+       order_item_id,
+       description,
+       ticket_price_in_cents,
+       fees_price_in_cents,
+       (ticket_price_in_cents + fees_price_in_cents) AS total_price_in_cents,
+       status,
+       status IN ('Purchased', 'Redeemed')           AS refundable,
+       attendee_email,
+       attendee_id,
+       attendee_first_name,
+       attendee_last_name,
+       ticket_type_id,
+       ticket_type_name,
+       code,
+       code_type,
+       pending_transfer_id
 FROM (
-    SELECT
-        t.ticket_instance_id,
-        t.order_item_id as order_item_id,
-        CASE
-            WHEN oi.item_type = 'EventFees' THEN 'Event Fees - ' || e.name
-            ELSE e.name || ' - ' || tt.name
-        END AS description,
-        CASE
-            WHEN oi.quantity = oi.refunded_quantity or rt.ticket_refunded_at is not null THEN 0
-            WHEN oi.item_type = 'EventFees' THEN 0
-            ELSE oi.unit_price_in_cents
-        END as ticket_price_in_cents,
-        CASE
-            WHEN oi.quantity = oi.refunded_quantity or rt.fee_refunded_at is not null THEN 0
-            WHEN fi.unit_price_in_cents is null THEN oi.company_fee_in_cents + oi.client_fee_in_cents
-            ELSE fi.unit_price_in_cents
-        END as fees_price_in_cents,
-        CASE
-            WHEN oi.quantity = oi.refunded_quantity or rt.ticket_refunded_at is not null THEN 'Refunded'
-            WHEN w.user_id <> o.user_id THEN 'Transferred'
-            WHEN ti.status is null THEN 'Purchased'
-            ELSE ti.status
-        END as status
-    FROM
-       (
-        select distinct ticket_instance_id, order_item_id from (
-            select null as ticket_instance_id, oi.id as order_item_id from order_items oi where oi.order_id = $1 and oi.item_type = 'EventFees'
-            union select rt.ticket_instance_id, rt.order_item_id from refunded_tickets rt join order_items oi on rt.order_item_id = oi.id where oi.order_id = $1
-            union select ti.id as ticket_instance_id, ti.order_item_id from ticket_instances ti join order_items oi on ti.order_item_id = oi.id where oi.order_id = $1 and oi.item_type = 'Tickets'
-        ) t
-       ) t
-       INNER JOIN order_items oi ON t.order_item_id = oi.id
-       LEFT JOIN ticket_instances ti ON ti.id = t.ticket_instance_id
-       INNER JOIN events e ON oi.event_id = e.id
-       INNER JOIN organizations orgs ON e.organization_id = orgs.id
-       LEFT JOIN ticket_pricing tp ON oi.ticket_pricing_id = tp.id
-       INNER JOIN orders o on oi.order_id = o.id
-       LEFT JOIN users u on u.id = $3
-       LEFT JOIN organization_users ou ON orgs.id = ou.organization_id AND ou.user_id = u.id
-       LEFT JOIN ticket_types tt ON tp.ticket_type_id = tt.id
-       LEFT JOIN holds h ON oi.hold_id = h.id
-       LEFT JOIN wallets w on ti.wallet_id = w.id
-       LEFT JOIN refunded_tickets rt on rt.ticket_instance_id = ti.id
-       LEFT JOIN order_items fi on fi.parent_id = oi.id and fi.item_type = 'PerUnitFees'
-       WHERE e.organization_id = ANY($2)
-       AND o.status in ('Paid', 'PartiallyPaid')
-       AND (
-         o.user_id = $3
-         OR o.on_behalf_of_user_id = $3
-         OR 'Admin' = ANY(u.role)
-         OR (
-             (
-               NOT ('Promoter' = ANY(ou.role))
-               AND NOT ('PromoterReadOnly' = ANY(ou.role))
+         SELECT t.ticket_instance_id,
+                t.order_item_id                    AS order_item_id,
+                CASE
+                    WHEN oi.item_type = 'EventFees' THEN 'Event Fees - ' || e.name
+                    ELSE e.name || ' - ' || tt.name
+                    END                            AS description,
+                CASE
+                    WHEN oi.quantity = oi.refunded_quantity OR rt.ticket_refunded_at IS NOT NULL THEN 0
+                    WHEN oi.item_type = 'EventFees' THEN 0
+                    ELSE oi.unit_price_in_cents
+                    END                            AS ticket_price_in_cents,
+                CASE
+                    WHEN oi.quantity = oi.refunded_quantity OR rt.fee_refunded_at IS NOT NULL THEN 0
+                    WHEN fi.unit_price_in_cents IS NULL THEN oi.company_fee_in_cents + oi.client_fee_in_cents
+                    ELSE fi.unit_price_in_cents
+                    END                            AS fees_price_in_cents,
+                CASE
+                    WHEN oi.quantity = oi.refunded_quantity OR rt.ticket_refunded_at IS NOT NULL THEN 'Refunded'
+                    WHEN w.user_id <> o.user_id THEN 'Transferred'
+                    WHEN tfs.id IS NOT NULL THEN 'In Transfer'
+                    WHEN ti.status IS NULL THEN 'Purchased'
+                    ELSE ti.status
+                    END                            AS status,
+                wallet_owner.email                 AS attendee_email,
+                wallet_owner.id                    AS attendee_id,
+                wallet_owner.first_name            AS attendee_first_name,
+                wallet_owner.last_name             AS attendee_last_name,
+                tt.id                              AS ticket_type_id,
+                tt.name                            AS ticket_type_name,
+                coalesce(h.name, c.name)           AS code,
+                coalesce(h.hold_type, c.code_type) AS code_type,
+                tfs.id                             AS pending_transfer_id
+
+         FROM (
+                  SELECT DISTINCT ticket_instance_id, order_item_id
+                  FROM (
+                           SELECT NULL AS ticket_instance_id, oi.id AS order_item_id
+                           FROM order_items oi
+                           WHERE oi.order_id = $1
+                             AND oi.item_type = 'EventFees'
+                           UNION
+                           SELECT rt.ticket_instance_id, rt.order_item_id
+                           FROM refunded_tickets rt
+                                    JOIN order_items oi ON rt.order_item_id = oi.id
+                           WHERE oi.order_id = $1
+                           UNION
+                           SELECT ti.id AS ticket_instance_id, ti.order_item_id
+                           FROM ticket_instances ti
+                                    JOIN order_items oi ON ti.order_item_id = oi.id
+                           WHERE oi.order_id = $1
+                             AND oi.item_type = 'Tickets'
+                       ) t
+              ) t
+                  INNER JOIN order_items oi ON t.order_item_id = oi.id
+                  LEFT JOIN ticket_instances ti ON ti.id = t.ticket_instance_id
+                  INNER JOIN events e ON oi.event_id = e.id
+                  INNER JOIN organizations orgs ON e.organization_id = orgs.id
+                  LEFT JOIN ticket_pricing tp ON oi.ticket_pricing_id = tp.id
+                  INNER JOIN orders o ON oi.order_id = o.id
+                  LEFT JOIN users u ON u.id = $3
+                  LEFT JOIN organization_users ou ON orgs.id = ou.organization_id AND ou.user_id = u.id
+                  LEFT JOIN ticket_types tt ON tp.ticket_type_id = tt.id
+                  LEFT JOIN holds h ON oi.hold_id = h.id
+                  LEFT JOIN codes c ON oi.code_id = c.id
+                  LEFT JOIN wallets w ON ti.wallet_id = w.id
+                  LEFT JOIN users wallet_owner ON w.user_id = wallet_owner.id
+                  LEFT JOIN refunded_tickets rt ON rt.ticket_instance_id = ti.id
+                  LEFT JOIN order_items fi ON fi.parent_id = oi.id AND fi.item_type = 'PerUnitFees'
+                  LEFT JOIN (
+             SELECT tfs.id, tfst.ticket_instance_id
+             FROM transfer_tickets tfst
+                      INNER JOIN transfers tfs ON tfst.transfer_id = tfs.id
+             WHERE tfs.status = 'Pending'
+         ) tfs ON tfs.ticket_instance_id = t.ticket_instance_id
+         WHERE e.organization_id = ANY ($2)
+           AND o.status IN ('Paid', 'PartiallyPaid', 'Cancelled')
+           AND (
+                 o.user_id = $3
+                 OR o.on_behalf_of_user_id = $3
+                 OR 'Admin' = ANY (u.role)
+                 OR (
+                         (
+                                 NOT ('Promoter' = ANY (ou.role))
+                                 AND NOT ('PromoterReadOnly' = ANY (ou.role))
+                             )
+                         OR e.id = ANY (ou.event_ids)
+                     )
              )
-             OR e.id = ANY(ou.event_ids)
-         )
-       )
-    ORDER BY oi.event_id, oi.item_type DESC, t.ticket_instance_id
-) details
+         ORDER BY oi.event_id, oi.item_type DESC, t.ticket_instance_id
+     ) details

@@ -96,6 +96,24 @@ pub struct OrderDetailsLineItem {
     pub status: String,
     #[sql_type = "Bool"]
     pub refundable: bool,
+    #[sql_type = "Nullable<Text>"]
+    pub attendee_email: Option<String>,
+    #[sql_type = "Nullable<dUuid>"]
+    pub attendee_id: Option<Uuid>,
+    #[sql_type = "Nullable<Text>"]
+    pub attendee_first_name: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub attendee_last_name: Option<String>,
+    #[sql_type = "Nullable<dUuid>"]
+    pub ticket_type_id: Option<Uuid>,
+    #[sql_type = "Nullable<Text>"]
+    pub ticket_type_name: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub code: Option<String>,
+    #[sql_type = "Nullable<Text>"]
+    pub code_type: Option<String>,
+    #[sql_type = "Nullable<dUuid>"]
+    pub pending_transfer_id: Option<Uuid>,
 }
 
 #[derive(Debug)]

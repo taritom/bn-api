@@ -249,6 +249,8 @@ pub fn details(role: Roles, should_succeed: bool) {
         .refund(&refund_items, auth_user.id(), None, connection)
         .unwrap();
     assert_eq!(amount, refund_amount);
+    let ticket_type = ticket.ticket_type(connection).unwrap();
+    let ticket_type2 = ticket2.ticket_type(connection).unwrap();
 
     let mut expected_order_details = vec![
         OrderDetailsLineItem {
@@ -260,6 +262,15 @@ pub fn details(role: Roles, should_succeed: bool) {
             total_price_in_cents: order_item.unit_price_in_cents + fee_item.unit_price_in_cents,
             status: "Purchased".to_string(),
             refundable: true,
+            attendee_email: user.email.clone(),
+            attendee_id: Some(user.id),
+            attendee_first_name: user.first_name.clone(),
+            attendee_last_name: user.last_name.clone(),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_type_name: Some(ticket_type.name.clone()),
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
         },
         OrderDetailsLineItem {
             ticket_instance_id: Some(ticket.id),
@@ -270,6 +281,15 @@ pub fn details(role: Roles, should_succeed: bool) {
             total_price_in_cents: 0,
             status: "Refunded".to_string(),
             refundable: false,
+            attendee_email: user.email,
+            attendee_id: Some(user.id),
+            attendee_first_name: user.first_name,
+            attendee_last_name: user.last_name,
+            ticket_type_id: Some(ticket_type2.id),
+            ticket_type_name: Some(ticket_type2.name.clone()),
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
         },
     ];
 
@@ -287,6 +307,15 @@ pub fn details(role: Roles, should_succeed: bool) {
         total_price_in_cents: event_fee_item.unit_price_in_cents,
         status: "Purchased".to_string(),
         refundable: true,
+        attendee_email: None,
+        attendee_id: None,
+        attendee_first_name: None,
+        attendee_last_name: None,
+        ticket_type_id: None,
+        ticket_type_name: None,
+        code: None,
+        code_type: None,
+        pending_transfer_id: None,
     });
 
     let test_request = TestRequest::create();

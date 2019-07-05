@@ -3,12 +3,11 @@ const expect = require('chai').expect;
 const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
-const pm = require('../pm');const debug = require("debug");var log=debug('bn-api');;
-const user = require('../../helpers/user');
+const pm = require('../pm');const debug=require('debug');var log = debug('bn-api');
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/cart';
+const apiEndPoint = '/tickets/send';
 
 
 var response;
@@ -36,15 +35,14 @@ const get = async function (request_body) {
 };
 
 let requestBody = `{
-"items": [{
-"ticket_type_id": "{{last_ticket_type_id}}",
-"quantity":2
-}]}`;
-let json = {};
+	"ticket_ids":[
+		"{{ticket_instance_id2}}"],
+	"email_or_phone": "test@test.com"
+}`;
 
-describe('User - add to cart new order', function () {
+
+describe('User - Tickets - Authorize Transfer - Email', function () {
     before(async function () {
-        await user.registerAndLogin();
         response = await post(requestBody);
         log(response.request.header);
         log(response.request.url);
@@ -54,10 +52,6 @@ describe('User - add to cart new order', function () {
         //log(pm);
         log(response.status);
         log(responseBody);
-
-        json = JSON.parse(responseBody);
-
-        pm.environment.set("last_cart_id", json.id);
     });
 
     after(async function () {
@@ -68,28 +62,6 @@ describe('User - add to cart new order', function () {
 
     it("should be 200", function () {
         expect(response.status).to.equal(200);
-    })
-
-
-    it("tickets should be present", function () {
-        expect(json.items[0].item_type).to.equal("Tickets");
-        expect(json.items[0].unit_price_in_cents).to.equal(3000);
-    });
-
-    it("fees should be present", function () {
-        expect(json.items[1].item_type).to.equal("PerUnitFees");
-        expect(json.items[0].quantity).to.equal(2);
-        expect(json.items[1].unit_price_in_cents).to.equal(10);
-    });
-
-    it("fees should be present", function () {
-        expect(json.items[2].item_type).to.equal("EventFees");
-
-        expect(json.items[2].unit_price_in_cents).to.equal(100);
-    });
-
-    it("total should be correct", function () {
-        expect(json.total_in_cents).to.equal(6120);
     })
 
 

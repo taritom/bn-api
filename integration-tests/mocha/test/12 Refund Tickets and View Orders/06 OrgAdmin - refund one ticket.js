@@ -7,7 +7,7 @@ const pm = require('../pm');const debug = require("debug");var log=debug('bn-api
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/orders/{{last_cart_id}}/refund';
+const apiEndPoint = '/orders/{{refund_tickets_cart_id}}/refund';
 
 
 var response;
@@ -19,7 +19,7 @@ const patch = async function (request_body) {
         .patch(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
         .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
 
         .send(pm.substitute(request_body));
 };
@@ -28,7 +28,7 @@ const get = async function (request_body) {
     return baseUrl
         .get(pm.substitute(apiEndPoint))
 
-        .set('Authorization', pm.substitute('Bearer {{token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
 
         .set('Accept', 'application/json')
         .send();
@@ -37,12 +37,12 @@ const get = async function (request_body) {
 let requestBody = `{
 "items": [{
 "order_item_id": "{{order_item_id}}",
-"ticket_instance_id": "{{ticket_instance_id2}}"
+"ticket_instance_id": "{{ticket_instance_id}}"
 }]
 }`;
 
 
-describe('Admin - refund remaining ticket', function () {
+describe('OrgAdmin - refund one ticket', function () {
     before(async function () {
         response = await patch(requestBody);
         log(response.request.header);
@@ -69,7 +69,7 @@ describe('Admin - refund remaining ticket', function () {
     it("no tickets from other organizations", function () {
 
         let json = JSON.parse(responseBody);
-        expect(json.amount_refunded).to.equal(3110);
+        expect(json.amount_refunded).to.equal(3010);
     });
 
 

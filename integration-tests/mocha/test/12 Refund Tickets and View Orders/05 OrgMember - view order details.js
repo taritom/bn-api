@@ -7,28 +7,19 @@ const pm = require('../pm');const debug = require("debug");var log=debug('bn-api
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/orders/{{last_cart_id}}/details';
+const apiEndPoint = '/orders/{{refund_tickets_cart_id}}/details';
 
 
 var response;
 var responseBody;
 
 
-const post = async function (request_body) {
-    return baseUrl
-        .post(pm.substitute(apiEndPoint))
-        .set('Accept', 'application/json')
-        .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
 
-        .send(pm.substitute(request_body));
-};
-
-const get = async function (request_body) {
+const get = async function () {
     return baseUrl
         .get(pm.substitute(apiEndPoint))
 
-        .set('Authorization', pm.substitute('Bearer {{org_admin_token}}'))
+        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
 
         .set('Accept', 'application/json')
         .send();
@@ -37,7 +28,7 @@ const get = async function (request_body) {
 let requestBody = ``;
 let json = {};
 
-describe('OrgAdmin - view order details', function () {
+describe('OrgMember - view order details', function () {
     before(async function () {
         response = await get(requestBody);
         log(response.request.header);

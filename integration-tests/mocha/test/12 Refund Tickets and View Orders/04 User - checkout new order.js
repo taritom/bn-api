@@ -65,7 +65,7 @@ describe('User - checkout new order', function () {
         // add after methods
 
 
-        pm.environment.set("last_cart_id", JSON.parse(responseBody).id)
+        pm.environment.set("refund_tickets_cart_id", JSON.parse(responseBody).id)
 
     });
 
