@@ -1,0 +1,1 @@
+ALTER TABLE push_notification_tokens DROP CONSTRAINT unique_push_notification_token_per_source;

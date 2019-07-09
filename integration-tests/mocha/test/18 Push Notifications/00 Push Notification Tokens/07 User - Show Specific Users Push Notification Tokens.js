@@ -66,8 +66,7 @@ describe('User - Show Specific Users Push Notification Tokens', function () {
         let json = JSON.parse(responseBody);
         expect(json.length).to.equal(1);
         expect(json[0].token_source).to.equal("example_token_source");
-        expect(json[0].token_source).to.equal("example_token_source");
-        expect(json[0].token).to.equal("example_token");
+        expect(json[0].token).to.equal("example_token_2");
     });
 
 

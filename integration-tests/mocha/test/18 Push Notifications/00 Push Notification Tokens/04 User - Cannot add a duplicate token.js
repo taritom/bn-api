@@ -36,11 +36,11 @@ const get = async function (request_body) {
 
 let requestBody = `{
 	"token_source": "example_token_source",
-    "token": "example_token_2"
+    "token": "example_token"
 }`;
 
 
-describe('User - Add 1 more Push Notification Token', function () {
+describe('User - Cannot add a duplicate Push Notification Token', function () {
     before(async function () {
         response = await post(requestBody);
         log(response.request.header);
@@ -59,8 +59,8 @@ describe('User - Add 1 more Push Notification Token', function () {
 
     });
 
-    it("should be 200", function () {
-        expect(response.status).to.equal(200);
+    it("should be 409", function () {
+        expect(response.status).to.equal(409);
     })
 
 
