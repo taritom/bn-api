@@ -56,7 +56,8 @@ impl PushNotificationToken {
         push_notification_tokens::table
             .filter(push_notification_tokens::user_id.eq(user_id))
             .select(push_notification_tokens::all_columns)
-            .order_by(push_notification_tokens::id.asc())
+            .order_by(push_notification_tokens::token_source.asc())
+            .then_order_by(push_notification_tokens::token.asc())
             .load(conn)
             .to_db_error(
                 ErrorCode::QueryError,

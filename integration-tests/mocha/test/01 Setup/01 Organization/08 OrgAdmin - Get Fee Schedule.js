@@ -69,7 +69,7 @@ describe('OrgAdmin - Get Fee Schedule', function () {
     });
 
     it("should have correct min_price_in_cents", function () {
-        expect(r.ranges[0].min_price_in_cents).to.equal(0);
+        expect(r.ranges[0].min_price_in_cents).to.equal(1);
     });
 
     it("should have correct fee_in_cents", function () {

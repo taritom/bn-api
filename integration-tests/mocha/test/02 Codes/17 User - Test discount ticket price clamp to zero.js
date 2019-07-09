@@ -76,15 +76,15 @@ describe('User - Test discount ticket price clamp to zero', function () {
 
 
     it("tickets should be present", function () {
-        expect(json.items.length).to.equal(6);
+        expect(json.items.length).to.equal(4);
 
         // these are tested properly in later calls
 
     });
 
     it("Discount prices should be clamped at -3000", function () {
-        expect(json.items[4].unit_price_in_cents).to.equal(-3000);
-        expect(json.items[5].unit_price_in_cents).to.equal(-3000);
+        expect(json.items[2].unit_price_in_cents).to.equal(-3000);
+        expect(json.items[3].unit_price_in_cents).to.equal(-3000);
     })
 
 

@@ -64,8 +64,6 @@ describe('OrgAdmin - View Fan Page', function () {
     it("user should be present", function () {
 
         let json = JSON.parse(responseBody);
-        expect(json.first_name).to.equal("User");
-        expect(json.last_name).to.equal("Surname");
         expect(json.facebook_linked).to.equal(false);
         expect(json.event_count).to.equal(1);
         expect(json.thumb_profile_pic_url).to.equal(null);

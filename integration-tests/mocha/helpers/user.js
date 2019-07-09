@@ -9,8 +9,8 @@ const registerAndLogin = async function (saveVarName) {
     pm.environment.set("last_email", email);
     log(email);
     const response = await post('/users', `{
-	"first_name":"User",
-	"last_name":"Surname",
+	"first_name":"${makeid(8)}",
+	"last_name":"${makeid(8)}",
 	"email":"${email}",
 	"phone":"555",
 	"password": "itsasecret"
@@ -26,3 +26,13 @@ const registerAndLogin = async function (saveVarName) {
 module.exports = {
     registerAndLogin
 };
+
+function makeid(length) {
+    var result           = '';
+    var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    var charactersLength = characters.length;
+    for ( var i = 0; i < length; i++ ) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    return result;
+}

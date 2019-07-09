@@ -68,7 +68,6 @@ describe('User - Show Push Notification Tokens', function () {
     it("push notification tokens should be present", function () {
         expect(json.length).to.equal(2);
         expect(json[0].token_source).to.equal("example_token_source");
-        expect(json[0].token_source).to.equal("example_token_source");
         expect(json[0].token).to.equal("example_token");
     });
 
