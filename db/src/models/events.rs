@@ -166,6 +166,19 @@ impl NewEvent {
             }
             None => (),
         }
+
+        validators::append_validation_error(
+            Ok(()),
+            "event.event_end",
+            validators::n_date_valid(
+                new_event.event_start,
+                new_event.event_end,
+                "event_end_before_event_start",
+                "Event End must be after Event Start",
+                "event_start",
+                "event_end",
+            ),
+        )?;
         if new_event.slug.is_none() {
             let slug = create_slug(&new_event.name);
             new_event.slug = Some(slug.clone());
