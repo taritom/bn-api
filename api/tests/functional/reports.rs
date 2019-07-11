@@ -24,6 +24,7 @@ pub fn ticket_counts_report() {
     let conn = database.connection.get();
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
     let ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
+    //Add 10 box office tickets
     cart.update_quantities(
         user.id,
         &[UpdateOrderItem {
@@ -31,7 +32,7 @@ pub fn ticket_counts_report() {
             quantity: 10,
             redemption_code: None,
         }],
-        false,
+        true,
         false,
         conn,
     )
@@ -83,14 +84,15 @@ pub fn ticket_counts_report() {
     assert_eq!(report.sales[0].box_office_sale_count, 10);
     assert_eq!(report.sales[0].online_sale_count, 0);
     assert_eq!(report.sales[0].comp_sale_count, 0);
-    assert_eq!(report.sales[0].total_box_office_fees_in_cents, 500);
+    assert_eq!(report.sales[0].total_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].total_online_fees_in_cents, 0);
-    assert_eq!(report.sales[0].company_box_office_fees_in_cents, 200);
-    assert_eq!(report.sales[0].client_box_office_fees_in_cents, 300);
+    assert_eq!(report.sales[0].company_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[0].client_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].company_online_fees_in_cents, 0);
     assert_eq!(report.sales[0].client_online_fees_in_cents, 0);
 
     let mut cart = Order::find_or_create_cart(&user, conn).unwrap();
+    //Normal ticket sales
     let ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
     cart.update_quantities(
         user.id,
@@ -105,6 +107,7 @@ pub fn ticket_counts_report() {
     )
     .unwrap();
 
+    let total = cart.calculate_total(conn).unwrap();
     //----------Online
     cart.add_provider_payment(
         Some("Using Payment Provider".to_string()),
@@ -154,10 +157,10 @@ pub fn ticket_counts_report() {
     assert_eq!(report.sales[0].box_office_sale_count, 10);
     assert_eq!(report.sales[0].online_sale_count, 10);
     assert_eq!(report.sales[0].comp_sale_count, 0);
-    assert_eq!(report.sales[0].total_box_office_fees_in_cents, 500);
+    assert_eq!(report.sales[0].total_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].total_online_fees_in_cents, 500);
-    assert_eq!(report.sales[0].company_box_office_fees_in_cents, 200);
-    assert_eq!(report.sales[0].client_box_office_fees_in_cents, 300);
+    assert_eq!(report.sales[0].company_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[0].client_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].company_online_fees_in_cents, 200);
     assert_eq!(report.sales[0].client_online_fees_in_cents, 300);
 
@@ -235,10 +238,10 @@ pub fn ticket_counts_report() {
     assert_eq!(report.sales[0].box_office_sale_count, 10);
     assert_eq!(report.sales[0].online_sale_count, 10);
     assert_eq!(report.sales[0].comp_sale_count, 5);
-    assert_eq!(report.sales[0].total_box_office_fees_in_cents, 500);
+    assert_eq!(report.sales[0].total_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].total_online_fees_in_cents, 500);
-    assert_eq!(report.sales[0].company_box_office_fees_in_cents, 200);
-    assert_eq!(report.sales[0].client_box_office_fees_in_cents, 300);
+    assert_eq!(report.sales[0].company_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[0].client_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].company_online_fees_in_cents, 200);
     assert_eq!(report.sales[0].client_online_fees_in_cents, 300);
 
@@ -316,10 +319,10 @@ pub fn ticket_counts_report() {
     assert_eq!(report.sales[0].box_office_sale_count, 10);
     assert_eq!(report.sales[0].online_sale_count, 15);
     assert_eq!(report.sales[0].comp_sale_count, 5);
-    assert_eq!(report.sales[0].total_box_office_fees_in_cents, 500);
+    assert_eq!(report.sales[0].total_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].total_online_fees_in_cents, 750);
-    assert_eq!(report.sales[0].company_box_office_fees_in_cents, 200);
-    assert_eq!(report.sales[0].client_box_office_fees_in_cents, 300);
+    assert_eq!(report.sales[0].company_box_office_fees_in_cents, 0);
+    assert_eq!(report.sales[0].client_box_office_fees_in_cents, 0);
     assert_eq!(report.sales[0].company_online_fees_in_cents, 300);
     assert_eq!(report.sales[0].client_online_fees_in_cents, 450);
 

@@ -1475,7 +1475,7 @@ fn promo_code_report() {
                 redemption_code: None,
             },
         ],
-        false,
+        true,
         false,
         connection,
     )
@@ -1509,7 +1509,7 @@ fn promo_code_report() {
                 redemption_code: Some(code.redemption_code.clone()),
             },
         ],
-        false,
+        true,
         false,
         connection,
     )
@@ -1537,7 +1537,7 @@ fn promo_code_report() {
             quantity: 10,
             redemption_code: Some(code2.redemption_code.clone()),
         }],
-        false,
+        true,
         false,
         connection,
     )
