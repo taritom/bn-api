@@ -88,9 +88,13 @@ pub enum ActivityItem {
         redeemed_for: UserActivityItem,
         redeemed_by: UserActivityItem,
         occurred_at: NaiveDateTime,
+        order_id: Option<Uuid>,
+        order_number: Option<String>,
     },
     Refund {
         refund_id: Uuid,
+        order_id: Uuid,
+        order_number: String,
         refund_items: Vec<RefundActivityItem>,
         reason: Option<String>,
         total_in_cents: i64,
@@ -100,6 +104,7 @@ pub enum ActivityItem {
     Note {
         note_id: Uuid,
         order_id: Uuid,
+        order_number: String,
         created_by: UserActivityItem,
         note: String,
         occurred_at: NaiveDateTime,
@@ -609,6 +614,8 @@ impl ActivityItem {
             redeemed_by: Option<Uuid>,
             #[sql_type = "Nullable<Timestamp>"]
             occurred_at: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<dUuid>"]
+            order_id: Option<Uuid>,
         }
 
         let mut query = ticket_instances::table
@@ -638,6 +645,7 @@ impl ActivityItem {
                 wallets::user_id,
                 ticket_instances::redeemed_by_user_id,
                 ticket_instances::redeemed_at,
+                orders::id.nullable(),
             ))
             .distinct()
             .load(conn)
@@ -696,6 +704,10 @@ impl ActivityItem {
                     redeemed_for,
                     occurred_at,
                     redeemed_by,
+                    order_id: check_in_datum.order_id,
+                    order_number: check_in_datum
+                        .order_id
+                        .map(|id| Order::parse_order_number(id)),
                 });
             }
         }
@@ -723,6 +735,8 @@ impl ActivityItem {
         struct R {
             #[sql_type = "dUuid"]
             refund_id: Uuid,
+            #[sql_type = "dUuid"]
+            order_id: Uuid,
             #[sql_type = "BigInt"]
             total_in_cents: i64,
             #[sql_type = "Nullable<Text>"]
@@ -757,12 +771,14 @@ impl ActivityItem {
         let refund_data: Vec<R> = query
             .group_by((
                 refunds::id,
+                refunds::order_id,
                 refunds::reason,
                 refunds::user_id,
                 refunds::created_at,
             ))
             .select((
                 refunds::id,
+                refunds::order_id,
                 sql("CAST(sum(refund_items.amount) as BigInt)"),
                 refunds::reason,
                 refunds::user_id,
@@ -823,6 +839,8 @@ impl ActivityItem {
             activity_items.push(ActivityItem::Refund {
                 refund_id: refund_datum.refund_id,
                 reason: refund_datum.reason.clone(),
+                order_id: refund_datum.order_id,
+                order_number: Order::parse_order_number(refund_datum.order_id),
                 total_in_cents: refund_datum.total_in_cents,
                 occurred_at: refund_datum.occurred_at,
                 refund_items,
@@ -928,6 +946,7 @@ impl ActivityItem {
             activity_items.push(ActivityItem::Note {
                 note_id: note_datum.note_id,
                 order_id: note_datum.order_id,
+                order_number: Order::parse_order_number(note_datum.order_id),
                 note: note_datum.note.clone(),
                 occurred_at: note_datum.occurred_at,
                 created_by,
