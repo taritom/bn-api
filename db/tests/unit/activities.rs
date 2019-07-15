@@ -573,10 +573,12 @@ fn occurred_at() {
             ticket_ids: Vec::new(),
             destination_addresses: None,
             transfer_message_type: None,
-            initated_by: user.clone().into(),
+            initiated_by: user.clone().into(),
             accepted_by: Some(user.clone().into()),
             cancelled_by: Some(user.clone().into()),
             occurred_at: now,
+            order_id: None,
+            order_number: None,
         },
         ActivityItem::CheckIn {
             ticket_instance_id: Uuid::new_v4(),
@@ -737,7 +739,7 @@ fn verify_activity_item_data(
             ticket_ids,
             destination_addresses,
             transfer_message_type,
-            initated_by,
+            initiated_by,
             accepted_by,
             cancelled_by,
             ..
@@ -759,7 +761,7 @@ fn verify_activity_item_data(
                 User::find(found_transfer.source_user_id, connection)
                     .unwrap()
                     .into();
-            assert_eq!(expected_initated_by, initated_by);
+            assert_eq!(expected_initated_by, initiated_by);
 
             let expected_accepted_by: Option<UserActivityItem> = found_transfer
                 .destination_user_id

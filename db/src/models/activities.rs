@@ -78,10 +78,12 @@ pub enum ActivityItem {
         ticket_ids: Vec<Uuid>,
         destination_addresses: Option<String>,
         transfer_message_type: Option<TransferMessageType>,
-        initated_by: UserActivityItem,
+        initiated_by: UserActivityItem,
         accepted_by: Option<UserActivityItem>,
         cancelled_by: Option<UserActivityItem>,
         occurred_at: NaiveDateTime,
+        order_id: Option<Uuid>,
+        order_number: Option<String>,
     },
     CheckIn {
         ticket_instance_id: Uuid,
@@ -426,6 +428,8 @@ impl ActivityItem {
             accepted_by: Option<Uuid>,
             #[sql_type = "Nullable<dUuid>"]
             cancelled_by: Option<Uuid>,
+            #[sql_type = "Nullable<dUuid>"]
+            order_id: Option<Uuid>,
         }
 
         let mut query = transfers::table
@@ -479,6 +483,7 @@ impl ActivityItem {
                 transfers::source_user_id,
                 transfers::destination_user_id,
                 transfers::cancelled_by_user_id,
+                orders::id,
             ))
             .select((
                 transfers::id,
@@ -500,6 +505,7 @@ impl ActivityItem {
                 transfers::source_user_id,
                 transfers::destination_user_id,
                 transfers::cancelled_by_user_id,
+                orders::id.nullable(),
             ))
             .distinct()
             .load(conn)
@@ -578,10 +584,14 @@ impl ActivityItem {
                 ticket_ids: transfer_datum.ticket_ids.clone(),
                 destination_addresses: transfer_datum.destination_addresses.clone(),
                 transfer_message_type: transfer_datum.transfer_message_type,
-                initated_by,
+                initiated_by: initated_by,
                 accepted_by,
                 cancelled_by,
                 occurred_at: transfer_datum.occurred_at,
+                order_number: transfer_datum
+                    .order_id
+                    .map(|id| Order::parse_order_number(id)),
+                order_id: transfer_datum.order_id,
             });
         }
         Ok(activity_items)
