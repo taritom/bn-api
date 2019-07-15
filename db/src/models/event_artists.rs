@@ -102,6 +102,7 @@ impl EventArtist {
             .inner_join(artists::table)
             .filter(event_artists::event_id.eq(event_id))
             .select((event_artists::all_columns, artists::all_columns))
+            .order(event_artists::rank.asc())
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load artists for event")?;
 
@@ -116,6 +117,7 @@ impl EventArtist {
                 stage_id: x.0.stage_id,
             })
         }
+
         Ok(display_results)
     }
 
