@@ -43,6 +43,7 @@ pub struct EventShowResult {
     pub sales_start_date: Option<NaiveDateTime>,
     pub url: String,
     pub slug: String,
+    pub facebook_pixel_key: Option<String>,
 }
 
 //This struct is used to just contain the id and name of the org

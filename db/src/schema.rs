@@ -181,6 +181,7 @@ table! {
         cover_image_url -> Nullable<Text>,
         private_access_code -> Nullable<Text>,
         slug -> Varchar,
+        facebook_pixel_key -> Nullable<Text>,
     }
 }
 

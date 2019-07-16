@@ -836,6 +836,7 @@ pub fn expected_show_json(
         pub sales_start_date: Option<NaiveDateTime>,
         url: String,
         slug: String,
+        facebook_pixel_key: Option<String>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -934,6 +935,7 @@ pub fn expected_show_json(
             &event.slug
         ),
         slug: event.slug.clone(),
+        facebook_pixel_key: None,
     })
     .unwrap()
 }

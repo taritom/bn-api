@@ -1,0 +1,1 @@
+alter table events drop facebook_pixel_key;

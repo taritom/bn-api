@@ -68,6 +68,7 @@ pub struct Event {
     pub cover_image_url: Option<String>,
     pub private_access_code: Option<String>,
     pub slug: String,
+    pub facebook_pixel_key: Option<String>,
 }
 
 impl PartialOrd for Event {
@@ -141,6 +142,9 @@ pub struct NewEvent {
     pub private_access_code: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub slug: Option<String>,
+
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub facebook_pixel_key: Option<String>,
 }
 
 impl NewEvent {
@@ -294,6 +298,8 @@ pub struct EventEditableAttributes {
     pub sendgrid_list_id: Option<i64>,
     pub event_type: Option<EventTypes>,
     pub slug: Option<String>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub facebook_pixel_key: Option<Option<String>>,
 }
 
 #[derive(Debug, Default, PartialEq, Serialize)]

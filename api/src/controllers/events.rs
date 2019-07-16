@@ -357,7 +357,7 @@ pub fn show(
         return application::not_found();
     }
 
-    let tracking_keys = Organization::tracking_keys_for_ids(
+    let mut tracking_keys = Organization::tracking_keys_for_ids(
         vec![organization.id],
         &state.config.api_keys_encryption_key,
         connection,
@@ -367,6 +367,10 @@ pub fn show(
         ..Default::default()
     })
     .clone();
+
+    if let Some(ref pixel) = event.facebook_pixel_key {
+        tracking_keys.facebook_pixel_key = Some(pixel.to_string());
+    }
 
     let (min_ticket_price, max_ticket_price) = if event.publish_date.unwrap_or(times::infinity())
         < dates::now().finish()
@@ -433,6 +437,7 @@ pub fn show(
         sales_start_date,
         url: format!("{}/events/{}", &state.config.front_end_url, &event.slug),
         slug: event.slug.clone(),
+        facebook_pixel_key: event.facebook_pixel_key,
     };
 
     Ok(HttpResponse::Ok().json(&payload))
