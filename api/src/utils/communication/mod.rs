@@ -1,3 +1,7 @@
+pub use self::communication_type::*;
+
+mod communication_type;
+
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
 use config::Config;
@@ -9,12 +13,10 @@ use itertools::Itertools;
 use log::Level::Trace;
 use std::collections::HashMap;
 use tokio::prelude::*;
+use utils::expo;
+use utils::firebase;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
-
-mod communication_type;
-pub use self::communication_type::*;
-use utils::expo;
 
 pub type TemplateData = HashMap<String, String>;
 
@@ -167,10 +169,17 @@ impl Communication {
                                 destination_addresses,
                                 &communication.body.unwrap_or(communication.title),
                             ),
-                            CommunicationType::Push => expo::send_push_notification_async(
-                                &destination_addresses,
-                                &communication.body.unwrap_or(communication.title),
-                            ),
+                            CommunicationType::Push => match config.firebase {
+                                Some(ref f) => firebase::send_push_notification_async(
+                                    &f.api_key,
+                                    &destination_addresses,
+                                    &communication.body.unwrap_or(communication.title),
+                                ),
+                                None => expo::send_push_notification_async(
+                                    &destination_addresses,
+                                    &communication.body.unwrap_or(communication.title),
+                                ),
+                            },
                         };
                         Either::B(future)
                     }

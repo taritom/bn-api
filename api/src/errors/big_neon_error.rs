@@ -5,10 +5,12 @@ use branch_rs::BranchError;
 use diesel::result::Error as DieselError;
 use errors::AuthError;
 use errors::*;
+use fcm;
 use globee::GlobeeError;
 use jwt::errors::Error as JwtError;
 use lettre::smtp::error::Error as SmtpError;
 use lettre_email::error::Error as EmailBuilderError;
+use native_tls;
 use payments::PaymentProcessorError;
 use r2d2;
 use reqwest::header::ToStrError as ReqwestToStrError;
@@ -50,6 +52,9 @@ error_conversion!(TariError);
 error_conversion!(UuidParseError);
 error_conversion!(GlobeeError);
 error_conversion!(BranchError);
+// Firebase
+error_conversion!(native_tls::Error);
+error_conversion!(fcm::Error);
 
 impl fmt::Display for BigNeonError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

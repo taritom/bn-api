@@ -18,6 +18,7 @@ pub struct Config {
     pub environment: Environment,
     pub facebook_app_id: Option<String>,
     pub facebook_app_secret: Option<String>,
+    pub firebase: Option<Firebase>,
     pub globee_api_key: String,
     pub globee_base_url: String,
     pub validate_ipns: bool,
@@ -69,6 +70,11 @@ pub struct ConnectionPoolConfig {
     pub max: u32,
 }
 
+#[derive(Clone)]
+pub struct Firebase {
+    pub api_key: String,
+}
+
 const ACTIX_WORKERS: &str = "ACTIX_WORKERS";
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
 const APP_NAME: &str = "APP_NAME";
@@ -80,6 +86,7 @@ const DOMAIN: &str = "DOMAIN";
 const ENVIRONMENT: &str = "ENVIRONMENT";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
+const FIREBASE_API_KEY: &str = "FIREBASE_API_KEY";
 const GLOBEE_API_KEY: &str = "GLOBEE_API_KEY";
 const GLOBEE_BASE_URL: &str = "GLOBEE_BASE_URL";
 const VALIDATE_IPNS: &str = "VALIDATE_IPNS";
@@ -191,6 +198,10 @@ impl Config {
         let facebook_app_id = env::var(&FACEBOOK_APP_ID).ok();
 
         let facebook_app_secret = env::var(&FACEBOOK_APP_SECRET).ok();
+
+        let firebase = env::var(&FIREBASE_API_KEY)
+            .ok()
+            .map(|k| Firebase { api_key: k });
 
         let front_end_url =
             env::var(&FRONT_END_URL).unwrap_or_else(|_| panic!("Front end url must be defined"));
@@ -368,6 +379,7 @@ impl Config {
             environment,
             facebook_app_id,
             facebook_app_secret,
+            firebase,
             globee_api_key,
             globee_base_url,
             branch_io_base_url,

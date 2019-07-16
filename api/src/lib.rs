@@ -17,6 +17,7 @@ extern crate chrono;
 extern crate diesel;
 extern crate dotenv;
 extern crate expo_server_sdk as expo;
+extern crate fcm;
 extern crate futures;
 extern crate globee;
 extern crate itertools;
@@ -31,6 +32,7 @@ extern crate log;
 extern crate logging;
 #[macro_use]
 extern crate macros;
+extern crate native_tls;
 extern crate r2d2;
 extern crate regex;
 extern crate reqwest;

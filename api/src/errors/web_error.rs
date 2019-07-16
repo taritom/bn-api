@@ -4,10 +4,12 @@ use bigneon_db::utils::errors::*;
 use branch_rs::BranchError;
 use diesel::result::Error as DieselError;
 use errors::*;
+use fcm;
 use globee::GlobeeError;
 use jwt::errors::{Error as JwtError, ErrorKind as JwtErrorKind};
 use lettre::smtp::error::Error as SmtpError;
 use lettre_email::error::Error as EmailBuilderError;
+use native_tls;
 use payments::PaymentProcessorError;
 use r2d2;
 use reqwest::header::ToStrError as ReqwestToStrError;
@@ -85,6 +87,13 @@ impl ConvertToWebError for BranchError {
     }
 }
 
+impl ConvertToWebError for native_tls::Error {
+    fn to_response(&self) -> HttpResponse {
+        error!("TLS error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
 impl ConvertToWebError for NotFoundError {
     fn to_response(&self) -> HttpResponse {
         not_found()
@@ -122,6 +131,12 @@ impl ConvertToWebError for ReqwestError {
     }
 }
 
+impl ConvertToWebError for fcm::Error {
+    fn to_response(&self) -> HttpResponse {
+        error!("FCM error: {:?}", self);
+        internal_error("Internal error")
+    }
+}
 impl ConvertToWebError for ReqwestToStrError {
     fn to_response(&self) -> HttpResponse {
         error!("Reqwest error: {}", self);
