@@ -3,6 +3,7 @@ use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
+use itertools::Itertools;
 use models::*;
 use std::cmp::Reverse;
 use std::collections::HashMap;
@@ -36,18 +37,13 @@ pub struct EventActivityItem {
     pub order_id: Uuid,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Queryable, QueryableByName)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Queryable)]
 pub struct RefundActivityItem {
-    #[sql_type = "dUuid"]
     pub id: Uuid,
-    #[sql_type = "BigInt"]
     pub amount: i64,
-    #[sql_type = "BigInt"]
     pub quantity: i64,
-    #[sql_type = "Text"]
     pub item_type: OrderItemTypes,
-    #[sql_type = "Nullable<Text>"]
-    pub ticket_type_name: Option<String>,
+    pub description: String,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -76,6 +72,7 @@ pub enum ActivityItem {
         action: String,
         status: TransferStatus,
         ticket_ids: Vec<Uuid>,
+        ticket_numbers: Vec<String>,
         destination_addresses: Option<String>,
         transfer_message_type: Option<TransferMessageType>,
         initiated_by: UserActivityItem,
@@ -84,9 +81,11 @@ pub enum ActivityItem {
         occurred_at: NaiveDateTime,
         order_id: Option<Uuid>,
         order_number: Option<String>,
+        transfer_key: Uuid,
     },
     CheckIn {
         ticket_instance_id: Uuid,
+        ticket_number: String,
         redeemed_for: UserActivityItem,
         redeemed_by: UserActivityItem,
         occurred_at: NaiveDateTime,
@@ -430,6 +429,8 @@ impl ActivityItem {
             cancelled_by: Option<Uuid>,
             #[sql_type = "Nullable<dUuid>"]
             order_id: Option<Uuid>,
+            #[sql_type = "dUuid"]
+            transfer_key: Uuid,
         }
 
         let mut query = transfers::table
@@ -484,6 +485,7 @@ impl ActivityItem {
                 transfers::destination_user_id,
                 transfers::cancelled_by_user_id,
                 orders::id,
+                transfers::transfer_key,
             ))
             .select((
                 transfers::id,
@@ -506,6 +508,7 @@ impl ActivityItem {
                 transfers::destination_user_id,
                 transfers::cancelled_by_user_id,
                 orders::id.nullable(),
+                transfers::transfer_key,
             ))
             .distinct()
             .load(conn)
@@ -582,6 +585,11 @@ impl ActivityItem {
                 action: transfer_datum.action.clone(),
                 status: transfer_datum.status,
                 ticket_ids: transfer_datum.ticket_ids.clone(),
+                ticket_numbers: transfer_datum
+                    .ticket_ids
+                    .iter()
+                    .map(|id| TicketInstance::parse_ticket_number(*id))
+                    .collect_vec(),
                 destination_addresses: transfer_datum.destination_addresses.clone(),
                 transfer_message_type: transfer_datum.transfer_message_type,
                 initiated_by: initated_by,
@@ -592,6 +600,7 @@ impl ActivityItem {
                     .order_id
                     .map(|id| Order::parse_order_number(id)),
                 order_id: transfer_datum.order_id,
+                transfer_key: transfer_datum.transfer_key,
             });
         }
         Ok(activity_items)
@@ -711,6 +720,9 @@ impl ActivityItem {
 
                 activity_items.push(ActivityItem::CheckIn {
                     ticket_instance_id: check_in_datum.ticket_instance_id,
+                    ticket_number: TicketInstance::parse_ticket_number(
+                        check_in_datum.ticket_instance_id,
+                    ),
                     redeemed_for,
                     occurred_at,
                     redeemed_by,
@@ -814,27 +826,94 @@ impl ActivityItem {
         }
 
         let mut activity_items: Vec<ActivityItem> = Vec::new();
+
+        #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Queryable)]
+        pub struct RI {
+            pub id: Uuid,
+            pub amount: i64,
+            pub quantity: i64,
+            pub order_item_id: Uuid,
+            pub order_id: Uuid,
+            pub item_type: OrderItemTypes,
+            pub ticket_type_id: Option<Uuid>,
+            pub event_id: Option<Uuid>,
+            pub order_item_quantity: i64,
+            pub unit_price_in_cents: i64,
+            pub created_at: NaiveDateTime,
+            pub updated_at: NaiveDateTime,
+            pub ticket_pricing_id: Option<Uuid>,
+            pub fee_schedule_range_id: Option<Uuid>,
+            pub parent_id: Option<Uuid>,
+            pub hold_id: Option<Uuid>,
+            pub code_id: Option<Uuid>,
+            pub company_fee_in_cents: i64,
+            pub client_fee_in_cents: i64,
+            pub refunded_quantity: i64,
+        };
+
         for refund_datum in &refund_data {
-            let refund_items: Vec<RefundActivityItem> = refunds::table
+            let items: Vec<RI> = refunds::table
                 .inner_join(refund_items::table.on(refund_items::refund_id.eq(refunds::id)))
                 .inner_join(order_items::table.on(refund_items::order_item_id.eq(order_items::id)))
-                .left_join(
-                    ticket_types::table
-                        .on(order_items::ticket_type_id.eq(ticket_types::id.nullable())),
-                )
                 .filter(refunds::id.eq(refund_datum.refund_id))
                 .select((
                     refund_items::id,
                     refund_items::amount,
                     refund_items::quantity,
+                    order_items::id,
+                    order_items::order_id,
                     order_items::item_type,
-                    sql("ticket_types.name"),
+                    order_items::ticket_type_id,
+                    order_items::event_id,
+                    order_items::quantity,
+                    order_items::unit_price_in_cents,
+                    order_items::created_at,
+                    order_items::updated_at,
+                    order_items::ticket_pricing_id,
+                    order_items::fee_schedule_range_id,
+                    order_items::parent_id,
+                    order_items::hold_id,
+                    order_items::code_id,
+                    order_items::company_fee_in_cents,
+                    order_items::client_fee_in_cents,
+                    order_items::refunded_quantity,
                 ))
                 .load(conn)
                 .to_db_error(
                     ErrorCode::QueryError,
                     "Unable to load refund data for organization fan",
                 )?;
+
+            let mut refund_items = vec![];
+            for item in items {
+                let order_item = OrderItem {
+                    id: item.order_item_id,
+
+                    order_id: item.order_id,
+                    item_type: item.item_type,
+                    ticket_type_id: item.ticket_type_id,
+                    event_id: item.event_id,
+                    quantity: item.order_item_quantity,
+                    unit_price_in_cents: item.unit_price_in_cents,
+                    created_at: item.created_at,
+                    updated_at: item.updated_at,
+                    ticket_pricing_id: item.ticket_pricing_id,
+                    fee_schedule_range_id: item.fee_schedule_range_id,
+                    parent_id: item.parent_id,
+                    hold_id: item.hold_id,
+                    code_id: item.code_id,
+                    company_fee_in_cents: item.company_fee_in_cents,
+                    client_fee_in_cents: item.client_fee_in_cents,
+                    refunded_quantity: item.refunded_quantity,
+                };
+                refund_items.push(RefundActivityItem {
+                    id: item.id,
+                    amount: item.amount,
+                    quantity: item.quantity,
+                    item_type: order_item.item_type,
+                    description: order_item.description(conn)?,
+                });
+            }
 
             let refunded_by = user_map
                 .get(&refund_datum.refunded_by)

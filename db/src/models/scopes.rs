@@ -204,7 +204,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
     use models::Roles::*;
     let mut roles = match role {
         User => {
-            let mut roles = vec![
+            let roles = vec![
                 Scopes::EventInterest,
                 Scopes::OrderReadOwn,
                 Scopes::TicketTransfer,
@@ -215,7 +215,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         DoorPerson => {
-            let mut roles = vec![
+            let roles = vec![
                 Scopes::RedeemTicket,
                 Scopes::OrgReadEvents,
                 Scopes::HoldRead,
@@ -240,7 +240,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         PromoterReadOnly => {
-            let mut roles = vec![
+            let roles = vec![
                 Scopes::CodeRead,
                 Scopes::CompRead,
                 Scopes::DashboardRead,

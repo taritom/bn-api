@@ -1065,7 +1065,7 @@ impl Order {
         jlog!(Level::Debug, "Clearing cart");
         self.lock_version(conn)?;
 
-        for mut current_line in self.items(conn)? {
+        for current_line in self.items(conn)? {
             if current_line.item_type != OrderItemTypes::Tickets {
                 continue;
             }

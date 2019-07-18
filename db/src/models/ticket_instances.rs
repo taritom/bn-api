@@ -22,6 +22,8 @@ use utils::errors::*;
 use uuid::Uuid;
 use validators::*;
 
+const TICKET_NUMBER_LENGTH: usize = 8;
+
 #[derive(
     Clone, Debug, Identifiable, PartialEq, Deserialize, Serialize, Queryable, QueryableByName,
 )]
@@ -54,6 +56,11 @@ pub struct UpdateTicketInstanceAttributes {
 }
 
 impl TicketInstance {
+    pub fn parse_ticket_number(id: Uuid) -> String {
+        let id_string = id.to_string();
+        id_string[id_string.len() - TICKET_NUMBER_LENGTH..].to_string()
+    }
+
     pub fn organization(&self, conn: &PgConnection) -> Result<Organization, DatabaseError> {
         ticket_instances::table
             .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))

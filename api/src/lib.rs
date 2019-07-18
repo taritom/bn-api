@@ -8,10 +8,6 @@
 #![cfg_attr(not(debug_assertions), deny(unused_extern_crates))]
 extern crate actix_web;
 extern crate bigneon_db;
-//extern crate bigneon_http;
-//#[macro_use]
-//extern crate bigneon_caching_derive;
-//#[macro_use]
 extern crate branch_rs;
 extern crate chrono;
 extern crate diesel;
@@ -23,8 +19,6 @@ extern crate itertools;
 extern crate jsonwebtoken as jwt;
 #[macro_use]
 extern crate lazy_static;
-extern crate lettre;
-extern crate lettre_email;
 #[macro_use]
 extern crate log;
 #[macro_use]

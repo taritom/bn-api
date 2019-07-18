@@ -6,8 +6,6 @@ use diesel::result::Error as DieselError;
 use errors::*;
 use globee::GlobeeError;
 use jwt::errors::{Error as JwtError, ErrorKind as JwtErrorKind};
-use lettre::smtp::error::Error as SmtpError;
-use lettre_email::error::Error as EmailBuilderError;
 use payments::PaymentProcessorError;
 use r2d2;
 use reqwest::header::ToStrError as ReqwestToStrError;
@@ -108,13 +106,6 @@ impl ConvertToWebError for UuidParseError {
     }
 }
 
-impl ConvertToWebError for EmailBuilderError {
-    fn to_response(&self) -> HttpResponse {
-        error!("Email Builder error: {}", self);
-        internal_error("Internal error")
-    }
-}
-
 impl ConvertToWebError for ReqwestError {
     fn to_response(&self) -> HttpResponse {
         error!("Reqwest error: {}", self);
@@ -180,13 +171,6 @@ impl ConvertToWebError for ApplicationError {
             ApplicationErrorType::Unprocessable => unprocessable(&self.reason),
             ApplicationErrorType::ServerConfigError => internal_error(&self.reason),
         }
-    }
-}
-
-impl ConvertToWebError for SmtpError {
-    fn to_response(&self) -> HttpResponse {
-        error!("SMTP error: {}", self);
-        internal_error("Internal error")
     }
 }
 
