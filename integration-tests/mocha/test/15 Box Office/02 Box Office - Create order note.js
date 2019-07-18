@@ -7,7 +7,7 @@ const pm = require('../pm');const debug = require("debug");var log=debug('bn-api
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/orders/{{last_box_office_order_id}}/notes';
+const apiEndPoint = '/notes/orders/{{last_box_office_order_id}}';
 
 
 var response;

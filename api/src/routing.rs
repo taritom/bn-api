@@ -6,11 +6,7 @@ use server::AppState;
 pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     // Please try to keep in alphabetical order
 
-    app.resource("/{main_table}/{id}/notes", |r| {
-        r.method(Method::GET).with(notes::index);
-        r.method(Method::POST).with(notes::create);
-    })
-    .resource("/admin/stuck_domain_actions", |r| {
+    app.resource("/admin/stuck_domain_actions", |r| {
         r.method(Method::GET)
             .with(admin::admin_stuck_domain_actions);
     })
@@ -185,6 +181,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/notes/{id}", |r| {
         r.method(Method::DELETE).with(notes::destroy);
+    })
+    .resource("/notes/{main_table}/{id}", |r| {
+        r.method(Method::GET).with(notes::index);
+        r.method(Method::POST).with(notes::create);
     })
     .resource("/orders", |r| {
         r.method(Method::GET).with(orders::index);
