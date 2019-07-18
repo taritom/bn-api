@@ -1,5 +1,7 @@
 const fs = require('fs');
 const DEFAULTS = {
+    bulkOrderPaidQuantity: 10,
+    bulkOrderFreeQuantity: 100,
     server: "localhost:8088",
     stripePk: "pk_test_nJGSQo5LQ7i8h8OkEjYeCqVc"
 };
