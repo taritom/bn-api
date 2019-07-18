@@ -2,7 +2,7 @@ use actix_web::{http::StatusCode, HttpResponse, Path, Query, State};
 use auth::user::User;
 use bigneon_db::models::*;
 use chrono::NaiveDateTime;
-use db::Connection;
+use db::{Connection, ReadonlyConnection};
 use errors::*;
 use extractors::*;
 use helpers::application;
@@ -443,7 +443,7 @@ pub fn add_fee_schedule(
 
 pub fn search_fans(
     (connection, path, query, user): (
-        Connection,
+        ReadonlyConnection,
         Path<PathParameters>,
         Query<PagingParameters>,
         User,

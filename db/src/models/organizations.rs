@@ -4,7 +4,7 @@ use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Nullable, Text, Timestamp};
+use diesel::sql_types::{Array, BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use models::scopes;
 use models::*;
 use schema::{
@@ -671,6 +671,7 @@ impl Organization {
             query = query.filter(events::id.eq(event_id));
         }
 
+        //First fetch all of the fans
         let (fans, record_count): (Vec<DisplayFan>, i64) = query
             .group_by((
                 events::organization_id,
@@ -692,15 +693,7 @@ impl Organization {
                 users::created_at,
                 sql::<Nullable<Timestamp>>("MIN(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
                 sql::<Nullable<Timestamp>>("MAX(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
-                sql::<Nullable<BigInt>>("COALESCE((
-                    SELECT CAST(SUM(oi.unit_price_in_cents * (oi.quantity - oi.refunded_quantity)) as BigInt)
-                    FROM order_items oi
-                    JOIN orders o ON o.id = oi.order_id
-                    JOIN events e ON e.id = oi.event_id
-                    WHERE COALESCE(o.on_behalf_of_user_id, o.user_id) = users.id
-                    AND e.organization_id = events.organization_id
-                    AND o.status = 'Paid'
-                ), 0)"),
+                sql::<Nullable<BigInt>>("CAST (0 AS BIGINT)"),//The will be replaced
             ))
             .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
             .paginate(page as i64)
@@ -711,9 +704,61 @@ impl Organization {
                 "Could not load fans for organization",
             )?;
 
+        //Now extract all of the user_ids that were found
+        let user_ids: Vec<Uuid> = fans.iter().map(|x| x.user_id).collect();
+        let user_value_map: HashMap<Uuid, i64> =
+            self.user_revenue_totals(event_id, user_ids, conn)?;
+
+        //Map fans with their new values if they were found
+        let fans = fans
+            .into_iter()
+            .map(|x| {
+                let revenue_in_cents = user_value_map
+                    .get(&x.user_id)
+                    .and_then(|x| Some(x.clone()))
+                    .or(Some(0i64));
+                let fan = DisplayFan {
+                    revenue_in_cents,
+                    ..x
+                };
+                fan
+            })
+            .collect();
+
         let mut payload = Payload::from_data(fans, page, limit);
         payload.paging.total = record_count as u64;
         Ok(payload)
+    }
+
+    pub fn user_revenue_totals(
+        &self,
+        event_id: Option<Uuid>,
+        user_ids: Vec<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<HashMap<Uuid, i64>, DatabaseError> {
+        #[derive(Debug, Queryable, QueryableByName)]
+        struct R {
+            #[sql_type = "BigInt"]
+            revenue_in_cents: i64,
+            #[sql_type = "dUuid"]
+            user_id: Uuid,
+        }
+
+        let query_revenue = include_str!("../queries/total_revenue_per_user.sql");
+        let user_values: Vec<R> = diesel::sql_query(query_revenue)
+            .bind::<dUuid, _>(self.id)
+            .bind::<Nullable<dUuid>, _>(event_id)
+            .bind::<Text, _>(OrderStatus::Paid)
+            .bind::<Array<dUuid>, _>(user_ids)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load revenue per fan")?;
+
+        //Store the user_id:value in a hashmap for easy collection
+        let mut user_value_map: HashMap<Uuid, i64> = HashMap::new();
+        for i in user_values.iter() {
+            user_value_map.insert(i.user_id, i.revenue_in_cents);
+        }
+        Ok(user_value_map)
     }
 
     pub fn decrypt(&mut self, encryption_key: &str) -> Result<(), DatabaseError> {
