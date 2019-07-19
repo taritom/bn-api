@@ -87,7 +87,7 @@ pub fn update_cart(
         .collect();
 
     for order_item in &order_items {
-        if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
+        if !Dbticket_types::is_event_available_for_sale(&order_item.ticket_type_id, connection)? {
             return Ok(HttpResponse::BadRequest()
                 .json(json!({"error": "Event has not been published.".to_string()})));
         }
@@ -175,7 +175,7 @@ pub fn replace_cart(
         .collect();
 
     for order_item in &order_items {
-        if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
+        if !Dbticket_types::is_event_available_for_sale(&order_item.ticket_type_id, connection)? {
             return Ok(HttpResponse::BadRequest()
                 .json(json!({"error": "Event has not been published.".to_string()})));
         }

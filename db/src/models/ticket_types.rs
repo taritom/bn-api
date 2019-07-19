@@ -584,7 +584,7 @@ impl TicketType {
         )
     }
 
-    pub fn is_event_not_draft(
+    pub fn is_event_available_for_sale(
         ticket_type_id: &Uuid,
         conn: &PgConnection,
     ) -> Result<bool, DatabaseError> {
@@ -592,6 +592,8 @@ impl TicketType {
             .inner_join(events::table)
             .filter(ticket_types::id.eq(ticket_type_id))
             .filter(events::status.ne(EventStatus::Draft.to_string()))
+            .filter(events::cancelled_at.is_null())
+            .filter(ticket_types::status.ne(TicketTypeStatus::Cancelled.to_string()))
             .select(dsl::count(ticket_types::id))
             .first(conn)
             .to_db_error(
