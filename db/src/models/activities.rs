@@ -116,39 +116,52 @@ impl ActivityItem {
     pub fn load_for_event(
         event_id: Uuid,
         user_id: Uuid,
+        activity_type: Option<ActivityType>,
         conn: &PgConnection,
     ) -> Result<Vec<ActivityItem>, DatabaseError> {
         let mut activity_items: Vec<ActivityItem> = Vec::new();
-        activity_items.append(&mut ActivityItem::load_purchases(
-            None,
-            Some(event_id),
-            Some(user_id),
-            conn,
-        )?);
-        activity_items.append(&mut ActivityItem::load_transfers(
-            None,
-            Some(event_id),
-            Some(user_id),
-            conn,
-        )?);
-        activity_items.append(&mut ActivityItem::load_check_ins(
-            None,
-            Some(event_id),
-            Some(user_id),
-            conn,
-        )?);
-        activity_items.append(&mut ActivityItem::load_refunds(
-            None,
-            Some(event_id),
-            Some(user_id),
-            conn,
-        )?);
-        activity_items.append(&mut ActivityItem::load_notes(
-            None,
-            Some(event_id),
-            Some(user_id),
-            conn,
-        )?);
+        if activity_type.is_none() || activity_type == Some(ActivityType::Purchase) {
+            activity_items.append(&mut ActivityItem::load_purchases(
+                None,
+                Some(event_id),
+                Some(user_id),
+                conn,
+            )?);
+        }
+        if activity_type.is_none() || activity_type == Some(ActivityType::Transfer) {
+            activity_items.append(&mut ActivityItem::load_transfers(
+                None,
+                Some(event_id),
+                Some(user_id),
+                conn,
+            )?);
+        }
+
+        if activity_type.is_none() || activity_type == Some(ActivityType::CheckIn) {
+            activity_items.append(&mut ActivityItem::load_check_ins(
+                None,
+                Some(event_id),
+                Some(user_id),
+                conn,
+            )?);
+        }
+
+        if activity_type.is_none() || activity_type == Some(ActivityType::Refund) {
+            activity_items.append(&mut ActivityItem::load_refunds(
+                None,
+                Some(event_id),
+                Some(user_id),
+                conn,
+            )?);
+        }
+        if activity_type.is_none() || activity_type == Some(ActivityType::Note) {
+            activity_items.append(&mut ActivityItem::load_notes(
+                None,
+                Some(event_id),
+                Some(user_id),
+                conn,
+            )?);
+        }
         activity_items.sort_by_key(|activity| Reverse(activity.occurred_at()));
         Ok(activity_items)
     }

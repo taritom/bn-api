@@ -1770,10 +1770,11 @@ impl Event {
     pub fn activity_summary(
         &self,
         user_id: Uuid,
+        activity_type: Option<ActivityType>,
         conn: &PgConnection,
     ) -> Result<ActivitySummary, DatabaseError> {
         Ok(ActivitySummary {
-            activity_items: ActivityItem::load_for_event(self.id, user_id, conn)?,
+            activity_items: ActivityItem::load_for_event(self.id, user_id, activity_type, conn)?,
             event: self.for_display(conn)?,
         })
     }

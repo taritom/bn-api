@@ -81,6 +81,7 @@ macro_rules! string_enum {
     }
 }
 
+string_enum! { ActivityType [Purchase, Transfer, CheckIn,Refund, Note]}
 string_enum! { AssetStatus [Unsynced] }
 string_enum! { BroadcastAudience [ PeopleAtTheEvent ]}
 string_enum! { CartItemStatus [CodeExpired, HoldExpired, TicketNullified, TicketNotReserved, Valid] }

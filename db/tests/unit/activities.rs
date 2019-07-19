@@ -215,14 +215,21 @@ fn load_for_event() {
         )
         .unwrap();
 
-    let activity_items = ActivityItem::load_for_event(event.id, user.id, connection).unwrap();
-    let activity_items2 = ActivityItem::load_for_event(event.id, user2.id, connection).unwrap();
-    let activity_items3 = ActivityItem::load_for_event(event.id, user3.id, connection).unwrap();
-    let activity_items4 = ActivityItem::load_for_event(event.id, user4.id, connection).unwrap();
-    let activity_items5 = ActivityItem::load_for_event(event2.id, user.id, connection).unwrap();
-    let activity_items6 = ActivityItem::load_for_event(event2.id, user2.id, connection).unwrap();
-    let activity_items7 = ActivityItem::load_for_event(event2.id, user3.id, connection).unwrap();
-    let activity_items8 = ActivityItem::load_for_event(event2.id, user4.id, connection).unwrap();
+    let activity_items = ActivityItem::load_for_event(event.id, user.id, None, connection).unwrap();
+    let activity_items2 =
+        ActivityItem::load_for_event(event.id, user2.id, None, connection).unwrap();
+    let activity_items3 =
+        ActivityItem::load_for_event(event.id, user3.id, None, connection).unwrap();
+    let activity_items4 =
+        ActivityItem::load_for_event(event.id, user4.id, None, connection).unwrap();
+    let activity_items5 =
+        ActivityItem::load_for_event(event2.id, user.id, None, connection).unwrap();
+    let activity_items6 =
+        ActivityItem::load_for_event(event2.id, user2.id, None, connection).unwrap();
+    let activity_items7 =
+        ActivityItem::load_for_event(event2.id, user3.id, None, connection).unwrap();
+    let activity_items8 =
+        ActivityItem::load_for_event(event2.id, user4.id, None, connection).unwrap();
     assert_eq!(
         (
             activity_items.len(),

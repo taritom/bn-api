@@ -135,7 +135,8 @@ fn activity() {
 
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
+                .unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
         user.activity(
@@ -144,6 +145,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -151,7 +153,8 @@ fn activity() {
     );
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event2.id, user.id, None, connection)
+                .unwrap(),
             event: event2.for_display(connection).unwrap(),
         }],
         user.activity(
@@ -160,6 +163,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -173,6 +177,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -185,6 +190,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -193,7 +199,8 @@ fn activity() {
 
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user3.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection)
+                .unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
         user3
@@ -203,6 +210,7 @@ fn activity() {
                 100,
                 SortingDir::Asc,
                 PastOrUpcoming::Upcoming,
+                None,
                 connection
             )
             .unwrap()
@@ -215,6 +223,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -242,6 +251,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -251,7 +261,8 @@ fn activity() {
     // Is found via past filter
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user3.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection)
+                .unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
         user3
@@ -261,6 +272,7 @@ fn activity() {
                 100,
                 SortingDir::Asc,
                 PastOrUpcoming::Past,
+                None,
                 connection
             )
             .unwrap()

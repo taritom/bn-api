@@ -58,44 +58,50 @@ fn activity_summary() {
         .finish();
 
     assert_eq!(
-        event.activity_summary(user.id, connection).unwrap(),
+        event.activity_summary(user.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
+                .unwrap(),
             event: event.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
-        event.activity_summary(user2.id, connection).unwrap(),
+        event.activity_summary(user2.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user2.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user2.id, None, connection)
+                .unwrap(),
             event: event.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
-        event.activity_summary(user3.id, connection).unwrap(),
+        event.activity_summary(user3.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user3.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection)
+                .unwrap(),
             event: event.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
-        event2.activity_summary(user.id, connection).unwrap(),
+        event2.activity_summary(user.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event2.id, user.id, None, connection)
+                .unwrap(),
             event: event2.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
-        event2.activity_summary(user2.id, connection).unwrap(),
+        event2.activity_summary(user2.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user2.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event2.id, user2.id, None, connection)
+                .unwrap(),
             event: event2.for_display(connection).unwrap(),
         }
     );
     assert_eq!(
-        event2.activity_summary(user3.id, connection).unwrap(),
+        event2.activity_summary(user3.id, None, connection).unwrap(),
         ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user3.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event2.id, user3.id, None, connection)
+                .unwrap(),
             event: event2.for_display(connection).unwrap(),
         }
     );

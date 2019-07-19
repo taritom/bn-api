@@ -95,6 +95,10 @@ pub fn activity(
         query.limit(),
         query.dir.unwrap_or(SortingDir::Desc),
         past_or_upcoming,
+        match query.get_tag_as_str("type") {
+            Some(t) => Some(t.parse()?),
+            None => None,
+        },
         connection,
     )?;
     payload.paging.tags.insert(

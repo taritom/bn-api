@@ -350,6 +350,7 @@ impl User {
         limit: u32,
         sort_direction: SortingDir,
         past_or_upcoming: PastOrUpcoming,
+        activity_type: Option<ActivityType>,
         conn: &PgConnection,
     ) -> Result<Payload<ActivitySummary>, DatabaseError> {
         use schema::*;
@@ -413,7 +414,7 @@ impl User {
 
         let mut result: Vec<ActivitySummary> = Vec::new();
         for event in events {
-            let summary = event.activity_summary(self.id, conn)?;
+            let summary = event.activity_summary(self.id, activity_type, conn)?;
             if summary.activity_items.len() > 0 {
                 result.push(summary);
             }
