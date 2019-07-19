@@ -9,7 +9,6 @@ use errors::*;
 use helpers::application;
 use models::{OptionalPathParameters, PathParameters, WebPayload};
 use server::AppState;
-use uuid::Uuid;
 
 #[derive(Deserialize, Clone)]
 pub struct TransferFilters {
@@ -98,7 +97,7 @@ pub fn cancel(
     let transfer = Transfer::find(path.id, connection)?;
     check_transfer_cancel_access(&transfer, &auth_user, connection)?;
 
-    let updated_transfer = transfer.cancel(auth_user.id(), None, connection)?;
+    let transfer = transfer.cancel(auth_user.id(), None, connection)?;
     let source_user = DbUser::find(transfer.source_user_id, connection)?;
 
     if let Some(transfer_message_type) = transfer.transfer_message_type {
@@ -117,6 +116,7 @@ pub fn cancel(
                         &state.config,
                         transfer_address.clone(),
                         &source_user,
+                        &transfer,
                         connection,
                     )?;
                 }
@@ -129,17 +129,12 @@ pub fn cancel(
             &state.config,
             source_email,
             &source_user,
-            transfer.created_at,
-            &transfer
-                .transfer_tickets(connection)?
-                .iter()
-                .map(|tt| tt.ticket_instance_id)
-                .collect::<Vec<Uuid>>(),
+            &transfer,
             connection,
         )?;
     }
 
-    Ok(HttpResponse::Ok().json(&updated_transfer.for_display(connection)?))
+    Ok(HttpResponse::Ok().json(&transfer.for_display(connection)?))
 }
 
 fn check_transfer_cancel_access(
