@@ -1,5 +1,6 @@
 SELECT t2.event_id,
        t2.name,
+       t2.status,
        (SELECT min(tp.price_in_cents) FROM ticket_pricing tp WHERE tp.ticket_type_id = t2.id)                         AS min_price,
        (SELECT max(tp.price_in_cents) FROM ticket_pricing tp WHERE tp.ticket_type_id = t2.id)                         AS max_price,
        count(*)                                                                                                       AS total,

@@ -1212,7 +1212,11 @@ impl Event {
                 slug: r.slug,
             };
 
-            for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
+            for ticket_type in ticket_types.iter().filter(|tt| {
+                tt.event_id == event_id
+                    && !(tt.status == TicketTypeStatus::Cancelled
+                        && tt.sold_held.unwrap_or(0) + tt.sold_unreserved.unwrap_or(0) == 0)
+            }) {
                 let mut ticket_type = ticket_type.clone();
                 ticket_type.sales_total_in_cents =
                     Some(ticket_type.sales_total_in_cents.unwrap_or(0));
@@ -1879,6 +1883,8 @@ pub struct EventSummaryResultTicketType {
     pub(crate) event_id: Uuid,
     #[sql_type = "Text"]
     pub name: String,
+    #[sql_type = "Text"]
+    pub status: TicketTypeStatus,
     #[sql_type = "BigInt"]
     pub min_price: i64,
     #[sql_type = "BigInt"]
