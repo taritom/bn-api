@@ -42,7 +42,7 @@ pub fn show_from_organizations(
     //TODO implement proper paging on db
     let venues = match user.into_inner() {
         Some(u) => {
-            Venue::find_for_organization(Some(u.id()), organization_id.id, connection.get())?
+            Venue::find_for_organization(Some(&u.user), organization_id.id, connection.get())?
         }
         None => Venue::find_for_organization(None, organization_id.id, connection.get())?,
     };

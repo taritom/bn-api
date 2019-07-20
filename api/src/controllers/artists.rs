@@ -123,7 +123,7 @@ pub fn show_from_organizations(
     //TODO implement proper paging on db
     let artists = match user.into_inner() {
         Some(u) => {
-            Artist::find_for_organization(Some(u.id()), organization_id.id, connection.get())?
+            Artist::find_for_organization(Some(&u.user), organization_id.id, connection.get())?
         }
         None => Artist::find_for_organization(None, organization_id.id, connection.get())?,
     };
