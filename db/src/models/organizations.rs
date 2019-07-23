@@ -613,6 +613,8 @@ impl Organization {
             FanSortField::FirstOrder => "10",
             FanSortField::LastOrder => "11",
             FanSortField::Revenue => "12",
+            FanSortField::FirstInteracted => "13",
+            FanSortField::LastInteracted => "14",
         };
 
         let mut query = events::table
@@ -628,6 +630,12 @@ impl Organization {
                     .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
             )
             .left_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .left_join(refunds::table.on(refunds::order_id.eq(orders::id)))
+            .left_join(
+                transfer_tickets::table
+                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
+            )
+            .left_join(transfers::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
             // Include user records for the purchasing user
             .inner_join(
                 users::table.on(orders::on_behalf_of_user_id
@@ -641,7 +649,9 @@ impl Organization {
                             TicketInstanceStatus::Purchased,
                         ]),
                     ))
-                    .or(event_interest::user_id.eq(users::id))),
+                    .or(event_interest::user_id.eq(users::id))
+                    .or(transfers::source_user_id.eq(users::id))
+                    .or(transfers::destination_user_id.eq(users::id.nullable()))),
             )
             .filter(events::organization_id.eq(self.id))
             .into_boxed();
@@ -694,6 +704,19 @@ impl Organization {
                 sql::<Nullable<Timestamp>>("MIN(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
                 sql::<Nullable<Timestamp>>("MAX(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
                 sql::<Nullable<BigInt>>("CAST (0 AS BIGINT)"),//The will be replaced
+                sql::<Nullable<Timestamp>>("(SELECT MIN(dates) FROM unnest(ARRAY[
+                    MIN(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id),
+                    MIN(ticket_instances.redeemed_at) FILTER (WHERE wallets.user_id = users.id),
+                    MIN(transfers.created_at) FILTER (WHERE transfers.destination_user_id = users.id or transfers.source_user_id = users.id),
+                    MIN(event_interest.created_at) FILTER (WHERE event_interest.user_id = users.id)
+                ]) as dates)"),
+                sql::<Nullable<Timestamp>>("(SELECT MAX(dates) FROM unnest(ARRAY[
+                    MAX(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id),
+                    MAX(ticket_instances.redeemed_at) FILTER (WHERE wallets.user_id = users.id),
+                    MAX(transfers.updated_at) FILTER (WHERE transfers.destination_user_id = users.id or transfers.source_user_id = users.id),
+                    MAX(event_interest.created_at) FILTER (WHERE event_interest.user_id = users.id),
+                    MAX(refunds.created_at) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)
+                ]) as dates)"),
             ))
             .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
             .paginate(page as i64)
