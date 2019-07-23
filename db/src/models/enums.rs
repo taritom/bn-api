@@ -162,7 +162,7 @@ string_enum! { DomainActionTypes [
 ]}
 string_enum! { BroadcastStatus [Pending, InProgress, Completed, Cancelled]}
 string_enum! { BroadcastChannel [PushNotification]}
-string_enum! { BroadcastType [LastCall]}
+string_enum! { BroadcastType [Custom, LastCall]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
 string_enum! { Environment [Development, Production, Staging, Test]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}

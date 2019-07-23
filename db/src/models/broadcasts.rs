@@ -161,6 +161,18 @@ impl Broadcast {
 
 impl NewBroadcast {
     pub fn commit(&self, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {
+        if self.notification_type == BroadcastType::Custom
+            && self
+                .message
+                .clone()
+                .map_or_else(|| false, |x| x.trim().len() > 0)
+                == false
+        {
+            return DatabaseError::business_process_error(
+                "Message cannot be blank if broadcast type is custom",
+            );
+        }
+
         let result: Broadcast = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new push notification",

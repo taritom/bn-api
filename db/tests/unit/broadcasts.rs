@@ -44,6 +44,55 @@ fn new_broadcast_commit() {
 }
 
 #[test]
+fn new_custom_broadcast_commit() {
+    let project = TestProject::new();
+    let conn = project.get_connection();
+    let event = project.create_event().finish();
+
+    let broadcast_err = Broadcast::create(
+        event.id,
+        BroadcastType::Custom,
+        BroadcastChannel::PushNotification,
+        "Custom Name No Message".to_string(),
+        None,
+        None,
+        None,
+    )
+    .commit(conn);
+    assert!(broadcast_err.is_err());
+
+    let broadcast = Broadcast::create(
+        event.id,
+        BroadcastType::Custom,
+        BroadcastChannel::PushNotification,
+        "Custom Name".to_string(),
+        Some("Custom Message".to_string()),
+        None,
+        None,
+    );
+
+    assert_eq!(
+        BroadcastStatus::Pending,
+        broadcast.status,
+        "Invalid status for NewBroadcast"
+    );
+
+    let broadcast = broadcast.commit(conn).unwrap();
+    assert!(!broadcast.id.is_nil());
+    assert_eq!("Custom Name".to_string(), broadcast.name);
+
+    assert_eq!(broadcast.channel, BroadcastChannel::PushNotification);
+    assert_eq!(broadcast.message, Some("Custom Message".to_string()));
+
+    let domain_actions =
+        DomainAction::find_pending(Some(DomainActionTypes::BroadcastPushNotification), conn)
+            .unwrap();
+
+    assert_eq!(domain_actions.len(), 1, "DomainAction was not created");
+    assert_eq!(domain_actions[0].main_table_id.unwrap(), broadcast.id);
+}
+
+#[test]
 fn broadcast_find() {
     let project = TestProject::new();
     let conn = project.get_connection();
