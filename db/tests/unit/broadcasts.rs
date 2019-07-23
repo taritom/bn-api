@@ -145,6 +145,7 @@ fn broadcast_update() {
         notification_type: None,
         channel: None,
         name: Some("new name".to_string()),
+        message: None,
         send_at: Some(None),
         status: Some(BroadcastStatus::InProgress),
     };
@@ -171,6 +172,7 @@ fn broadcast_update_if_cancelled() {
         notification_type: None,
         channel: None,
         name: Some("new name".to_string()),
+        message: None,
         send_at: Some(None),
         status: Some(BroadcastStatus::InProgress),
     };
