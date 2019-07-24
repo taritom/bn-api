@@ -876,6 +876,12 @@ pub fn expected_show_json(
         .current_ticket_pricing_range(box_office_pricing, connection)
         .unwrap();
 
+    let fee_in_cents = event
+        .client_fee_in_cents
+        .unwrap_or(organization.client_event_fee_in_cents)
+        + event
+            .company_fee_in_cents
+            .unwrap_or(organization.company_event_fee_in_cents);
     serde_json::to_string(&R {
         id: event.id,
         private_access_code: if vec![
@@ -899,7 +905,7 @@ pub fn expected_show_json(
         door_time: event.door_time,
         event_end: event.event_end,
         cancelled_at: event.cancelled_at,
-        fee_in_cents: Some(event.fee_in_cents),
+        fee_in_cents: Some(fee_in_cents),
         status: event.status,
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url,

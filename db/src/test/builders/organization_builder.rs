@@ -106,7 +106,7 @@ impl<'a> OrganizationBuilder<'a> {
             ..Default::default()
         };
 
-        let _ = organization
+        organization = organization
             .update(
                 event_fee_update,
                 &"encryption_key".to_string(),

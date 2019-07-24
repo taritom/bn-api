@@ -1507,17 +1507,25 @@ impl Order {
                     quantity: 1,
                     parent_id: None,
                 };
-                if event.fee_in_cents > 0 {
+
+                // Credit card fees are set per organization
+                // Event can override organization client and company fees
+                let org = Organization::find(event.organization_id, conn)?;
+                let company_fee_in_cents = event
+                    .company_fee_in_cents
+                    .unwrap_or(org.company_event_fee_in_cents);
+                let client_fee_in_cents = event
+                    .client_fee_in_cents
+                    .unwrap_or(org.client_event_fee_in_cents);
+                if (company_fee_in_cents + client_fee_in_cents) > 0 {
                     //we dont want to create 0 fee order item
-                    new_event_fee.company_fee_in_cents = event.company_fee_in_cents;
-                    new_event_fee.client_fee_in_cents = event.client_fee_in_cents;
-                    new_event_fee.unit_price_in_cents =
-                        event.client_fee_in_cents + event.company_fee_in_cents;
+                    new_event_fee.company_fee_in_cents = company_fee_in_cents;
+                    new_event_fee.client_fee_in_cents = client_fee_in_cents;
+                    new_event_fee.unit_price_in_cents = client_fee_in_cents + company_fee_in_cents;
                     new_event_fee.commit(conn)?;
                     per_event_fees_included.insert(event_id, true);
                 }
-                // Credit card fees are set per organization
-                let org = Organization::find(event.organization_id, conn)?;
+
                 if org.cc_fee_percent > 0f32 {
                     let cc_fee = (self.calculate_total(conn)? as f32
                         * (org.cc_fee_percent / 100f32))

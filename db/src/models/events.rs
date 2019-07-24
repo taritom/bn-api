@@ -48,7 +48,6 @@ pub struct Event {
     pub status: EventStatus,
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
-    pub fee_in_cents: i64,
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<String>,
@@ -59,8 +58,8 @@ pub struct Event {
     pub is_external: bool,
     pub external_url: Option<String>,
     pub override_status: Option<EventOverrideStatus>,
-    pub client_fee_in_cents: i64,
-    pub company_fee_in_cents: i64,
+    pub client_fee_in_cents: Option<i64>,
+    pub company_fee_in_cents: Option<i64>,
     pub settlement_amount_in_cents: Option<i64>,
     pub event_end: Option<NaiveDateTime>,
     pub sendgrid_list_id: Option<i64>,
@@ -154,7 +153,6 @@ impl NewEvent {
         conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
         self.validate()?;
-        let organization = Organization::find(self.organization_id, conn)?;
         let mut new_event = self.clone();
 
         match new_event.event_start {
@@ -197,13 +195,7 @@ impl NewEvent {
         }
 
         let result: Event = diesel::insert_into(events::table)
-            .values((
-                &new_event,
-                events::fee_in_cents.eq(organization.client_event_fee_in_cents
-                    + organization.company_event_fee_in_cents),
-                events::client_fee_in_cents.eq(organization.client_event_fee_in_cents),
-                events::company_fee_in_cents.eq(organization.company_event_fee_in_cents),
-            ))
+            .values(&new_event)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new event")?;
 

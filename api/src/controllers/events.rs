@@ -392,6 +392,12 @@ pub fn show(
         false
     };
 
+    let fee_in_cents = event
+        .client_fee_in_cents
+        .unwrap_or(organization.client_event_fee_in_cents)
+        + event
+            .company_fee_in_cents
+            .unwrap_or(organization.company_event_fee_in_cents);
     let payload = &EventShowResult {
         id: event.id,
         private_access_code: if show_private_access_code {
@@ -407,7 +413,7 @@ pub fn show(
         door_time: event.door_time,
         event_end: event.event_end,
         cancelled_at: event.cancelled_at,
-        fee_in_cents: event.fee_in_cents,
+        fee_in_cents: fee_in_cents,
         status: event.status,
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url,

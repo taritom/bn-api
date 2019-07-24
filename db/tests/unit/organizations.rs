@@ -242,13 +242,13 @@ fn has_fan() {
 #[test]
 fn update() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let user = project.create_user().finish();
     //Edit Organization
     let mut edited_organization = project
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
-
     edited_organization.name = "Test Org".to_string();
     edited_organization.address = Some("Test Address".to_string());
     edited_organization.city = Some("Test Address".to_string());
@@ -267,18 +267,13 @@ fn update() {
     changed_attrs.postal_code = Some("0124".to_string());
     changed_attrs.phone = Some("+27123456789".to_string());
     changed_attrs.sendgrid_api_key = Some(Some("A_Test_Key".to_string()));
-    let mut updated_organization = Organization::update(
-        &edited_organization,
-        changed_attrs,
-        &"encryption_key".to_string(),
-        project.get_connection(),
-    )
-    .unwrap();
+    let mut updated_organization = edited_organization
+        .update(changed_attrs, &"encryption_key".to_string(), connection)
+        .unwrap();
 
     updated_organization
         .decrypt(&"encryption_key".to_string())
         .unwrap();
-
     assert_eq!(edited_organization, updated_organization);
 }
 
