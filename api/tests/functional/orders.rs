@@ -48,6 +48,119 @@ pub fn show() {
     assert_eq!(found_order.id, order.id);
 }
 
+#[test]
+pub fn show_for_box_office_purchased_user() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let box_office_user = database.create_user().finish();
+    let mut order = database
+        .create_order()
+        .for_user(&box_office_user)
+        .on_behalf_of_user(&user)
+        .finish();
+    let conn = database.connection.get();
+    let total = order.calculate_total(conn).unwrap();
+    order
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            total,
+            conn,
+        )
+        .unwrap();
+    assert_eq!(order.status, OrderStatus::Paid);
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = order.id;
+
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let response: HttpResponse =
+        orders::show((database.connection.clone(), path, auth_user)).into();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    let found_order: DisplayOrder = serde_json::from_str(&body).unwrap();
+    assert_eq!(found_order.id, order.id);
+}
+
+#[test]
+pub fn resend_confirmation_on_draft_order() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let user2 = database.create_user().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let order = database
+        .create_order()
+        .for_event(&event)
+        .for_user(&user2)
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    assert_eq!(order.status, OrderStatus::Draft);
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = order.id;
+
+    let response: HttpResponse = orders::resend_confirmation((
+        database.connection.clone(),
+        path,
+        auth_user,
+        test_request.extract_state(),
+    ))
+    .into();
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+}
+
+#[cfg(test)]
+mod resend_confirmation_tests {
+    use super::*;
+    #[test]
+    fn resend_confirmation_org_member() {
+        base::orders::resend_confirmation(Roles::OrgMember, true);
+    }
+    #[test]
+    fn resend_confirmation_admin() {
+        base::orders::resend_confirmation(Roles::Admin, true);
+    }
+    #[test]
+    fn resend_confirmation_user() {
+        base::orders::resend_confirmation(Roles::User, false);
+    }
+    #[test]
+    fn resend_confirmation_org_owner() {
+        base::orders::resend_confirmation(Roles::OrgOwner, true);
+    }
+    #[test]
+    fn resend_confirmation_door_person() {
+        base::orders::resend_confirmation(Roles::DoorPerson, true);
+    }
+    #[test]
+    fn resend_confirmation_promoter() {
+        base::orders::resend_confirmation(Roles::Promoter, true);
+    }
+    #[test]
+    fn resend_confirmation_promoter_read_only() {
+        base::orders::resend_confirmation(Roles::PromoterReadOnly, true);
+    }
+    #[test]
+    fn resend_confirmation_org_admin() {
+        base::orders::resend_confirmation(Roles::OrgAdmin, true);
+    }
+    #[test]
+    fn resend_confirmation_box_office() {
+        base::orders::resend_confirmation(Roles::OrgBoxOffice, true);
+    }
+}
+
 #[cfg(test)]
 mod activity_tests {
     use super::*;

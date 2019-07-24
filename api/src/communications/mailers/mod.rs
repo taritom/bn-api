@@ -4,7 +4,6 @@ use errors::BigNeonError;
 use url::form_urlencoded::byte_serialize;
 use utils::communication::TemplateData;
 
-pub mod cart;
 pub mod orders;
 pub mod organization_invites;
 pub mod tickets;

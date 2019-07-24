@@ -92,14 +92,19 @@ impl SendOrderCompleteExecutor {
                 }
         }
 
-        let display_order = order.for_display(None, order.user_id, conn)?;
-
         let user = User::find(order.on_behalf_of_user_id.unwrap_or(order.user_id), conn)?;
+        let display_order = order.for_display(None, user.id, conn)?;
 
         //Communicate purchase completed to user
         if let (Some(first_name), Some(email)) = (user.first_name, user.email) {
-            mailers::cart::purchase_completed(&first_name, email, display_order, &self.config)?
-                .queue(conn)?;
+            mailers::orders::confirmation_email(
+                &first_name,
+                email,
+                display_order,
+                &self.config,
+                conn,
+            )?
+            .queue(conn)?;
         }
         Ok(())
     }

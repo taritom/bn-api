@@ -198,6 +198,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/orders/{id}/refund", |r| {
         r.method(Method::PATCH).with(orders::refund);
     })
+    .resource("/orders/{id}/resend_confirmation", |r| {
+        r.method(Method::POST).with(orders::resend_confirmation);
+    })
     .resource("/orders/{id}/tickets", |r| {
         r.method(Method::GET).with(orders::tickets);
     })

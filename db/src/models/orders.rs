@@ -1837,7 +1837,11 @@ impl Order {
                 }
             }
 
-            let tickets_bought = Order::quantity_for_user_for_event(self.user_id, e.id, conn)?;
+            let tickets_bought = Order::quantity_for_user_for_event(
+                self.on_behalf_of_user_id.unwrap_or(self.user_id),
+                e.id,
+                conn,
+            )?;
             for (tt_id, num) in tickets_bought {
                 let limit = TicketType::find(tt_id, conn)?.limit_per_person;
                 if limit > 0 {

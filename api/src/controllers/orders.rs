@@ -40,15 +40,15 @@ pub fn activity(
 }
 
 pub fn show(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
+    (conn, path, auth_user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let order = Order::find(path.id, connection)?;
-
     let mut organization_ids = Vec::new();
-    if order.user_id != user.id() || order.status == OrderStatus::Draft {
+    let purchased_for_user_id = order.on_behalf_of_user_id.unwrap_or(order.user_id);
+    if purchased_for_user_id != auth_user.id() || order.status == OrderStatus::Draft {
         for organization in order.organizations(connection)? {
-            if user.has_scope_for_organization(Scopes::OrderRead, &organization, connection)? {
+            if auth_user.has_scope_for_organization(Scopes::OrderRead, &organization, connection)? {
                 organization_ids.push(organization.id);
             }
         }
@@ -56,20 +56,52 @@ pub fn show(
         if organization_ids.is_empty() {
             return application::forbidden("You do not have access to this order");
         }
-    } else if order.user_id == user.id() {
-        user.requires_scope(Scopes::OrderReadOwn)?;
+    } else if purchased_for_user_id == auth_user.id() {
+        auth_user.requires_scope(Scopes::OrderReadOwn)?;
     }
-
-    let organization_id_filter = if order.user_id != user.id() {
+    let organization_id_filter = if purchased_for_user_id != auth_user.id() {
         Some(organization_ids)
     } else {
         None
     };
     Ok(HttpResponse::Ok().json(json!(order.for_display(
         organization_id_filter,
-        user.id(),
+        auth_user.id(),
         connection
     )?)))
+}
+
+pub fn resend_confirmation(
+    (conn, path, auth_user, state): (Connection, Path<PathParameters>, User, State<AppState>),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = conn.get();
+    let order = Order::find(path.id, connection)?;
+
+    if order.status != OrderStatus::Paid {
+        return Err(application::internal_server_error::<HttpResponse>(
+            "Cannot resend confirmation for unpaid order",
+        )
+        .unwrap_err());
+    }
+    auth_user.requires_scope_for_order(Scopes::OrderResendConfirmation, &order, connection)?;
+
+    let user = DbUser::find(
+        order.on_behalf_of_user_id.unwrap_or(order.user_id),
+        connection,
+    )?;
+    let display_order = order.for_display(None, user.id, connection)?;
+    if let (Some(first_name), Some(email)) = (user.first_name, user.email) {
+        mailers::orders::confirmation_email(
+            &first_name,
+            email,
+            display_order,
+            &state.config,
+            connection,
+        )?
+        .queue(connection)?;
+    }
+
+    Ok(HttpResponse::Ok().json(json!({})))
 }
 
 #[derive(Deserialize, Serialize)]
