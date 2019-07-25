@@ -596,10 +596,12 @@ fn show_with_cancelled_ticket_type() {
     event.add_artist(None, artist1.id, conn).unwrap();
     event.add_artist(None, artist2.id, conn).unwrap();
 
-    let ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
-    let _cancelled_ticket_type = ticket_type.cancel(conn).unwrap();
+    let ticket_type = event.ticket_types(true, None, conn).unwrap().remove(0);
+    ticket_type.cancel(conn).unwrap();
 
-    let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
+    EventInterest::create(event.id, user.id)
+        .commit(conn)
+        .unwrap();
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", event.id));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(

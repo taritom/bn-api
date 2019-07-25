@@ -224,7 +224,7 @@ pub fn cancel(
     )?;
 
     let ticket_type = TicketType::find(path.ticket_type_id, connection)?;
-    ticket_type.cancel(connection)?;
+    let ticket_type = ticket_type.cancel(connection)?;
 
     // Reduce holds to quantity sold
     for hold in Hold::find_by_ticket_type(ticket_type.id, connection)?
@@ -241,11 +241,16 @@ pub fn cancel(
     nullify_tickets(
         state,
         organization,
-        ticket_type,
+        &ticket_type,
         valid_unsold_ticket_count,
         user.id(),
         connection,
     )?;
+
+    // if there are no sold tickets, delete the ticket type
+    if ticket_type.valid_sold_and_reserved_ticket_count(connection)? == 0 {
+        ticket_type.delete(connection)?;
+    }
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -317,7 +322,7 @@ pub fn update(
             nullify_tickets(
                 state,
                 organization,
-                ticket_type.clone(),
+                &ticket_type,
                 nullify_ticket_count,
                 user.id(),
                 connection,
@@ -423,7 +428,7 @@ pub fn update(
 fn nullify_tickets(
     state: State<AppState>,
     organization: Organization,
-    ticket_type: TicketType,
+    ticket_type: &TicketType,
     quantity: u32,
     user_id: Uuid,
     connection: &PgConnection,

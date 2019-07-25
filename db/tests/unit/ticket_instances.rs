@@ -628,7 +628,10 @@ fn release_for_cancelled_ticket_type() {
         .unwrap()
         .remove(0);
     assert_eq!(ticket.status, TicketInstanceStatus::Purchased);
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
     ticket_type.cancel(connection).unwrap();
 
     TicketInstance::create_transfer(user.id, &[ticket.id], None, None, connection).unwrap();
@@ -995,7 +998,10 @@ fn release_tickets_cancelled_ticket_type() {
     let event = project.create_event().with_ticket_pricing().finish();
     let user = project.create_user().finish();
     let mut order = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
     order
         .update_quantities(
             user.id,

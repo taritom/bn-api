@@ -347,15 +347,11 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
     let response: HttpResponse =
         ticket_types::cancel((database.connection.clone().into(), path, auth_user, state)).into();
 
-    let updated_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
+    let updated_ticket_types = event.ticket_types(true, None, conn).unwrap();
 
     if should_test_succeed {
-        assert_eq!(updated_ticket_type.status, TicketTypeStatus::Cancelled);
+        assert_eq!(updated_ticket_types.len(), 0);
         assert_eq!(response.status(), StatusCode::OK);
-
-        let valid_unsold_ticket_count =
-            created_ticket_type.valid_unsold_ticket_count(conn).unwrap();
-        assert_eq!(0, valid_unsold_ticket_count);
     } else {
         support::expects_unauthorized(&response);
     }

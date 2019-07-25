@@ -573,6 +573,7 @@ table! {
         rank -> Int4,
         visibility -> Varchar,
         additional_fee_in_cents -> Int8,
+        deleted_at -> Nullable<Timestamp>,
     }
 }
 

@@ -41,6 +41,7 @@ pub struct TicketType {
     pub rank: i32,
     pub visibility: TicketTypeVisibility,
     pub additional_fee_in_cents: i64,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 impl PartialOrd for TicketType {
@@ -207,17 +208,29 @@ impl TicketType {
         Ok(result)
     }
 
-    pub fn cancel(&self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
-        let result: TicketType = diesel::update(self)
+    pub fn cancel(self, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
+        let result: TicketType = diesel::update(&self)
             .set((
                 ticket_types::status.eq(TicketTypeStatus::Cancelled),
                 ticket_types::cancelled_at.eq(dsl::now.nullable()),
                 ticket_types::updated_at.eq(dsl::now),
             ))
             .get_result(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update ticket_types")?;
+            .to_db_error(ErrorCode::UpdateError, "Could not cancel ticket_type")?;
 
         Ok(result)
+    }
+
+    pub fn delete(self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        diesel::update(&self)
+            .set((
+                ticket_types::deleted_at.eq(dsl::now.nullable()),
+                ticket_types::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not delete ticket_type")?;
+
+        Ok(())
     }
 
     pub fn parent(&self, conn: &PgConnection) -> Result<Option<TicketType>, DatabaseError> {
@@ -456,6 +469,7 @@ impl TicketType {
                         WHERE c.code_type = 'Access' AND tt.event_id = $1 AND c.deleted_at IS NULL
                     ) ttc ON ttc.ticket_type_id = tt.id
                     WHERE tt.event_id = $1
+                    AND tt.deleted_at is null
                     AND (
                         ttc.redemption_code is null
                         OR (
@@ -494,7 +508,7 @@ impl TicketType {
             .first(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not load ticket pricing for ticket type",
+                "Could not load ticket count for ticket type",
             )?;
         Ok(valid_ticket_count as u32)
     }
@@ -508,7 +522,7 @@ impl TicketType {
             .first(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not load ticket pricing for ticket type",
+                "Could not load ticket count for ticket type",
             )?;
         Ok(valid_ticket_count as u32)
     }
@@ -525,7 +539,28 @@ impl TicketType {
             .first(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not load ticket pricing for ticket type",
+                "Could not load ticket count for ticket type",
+            )?;
+        Ok(valid_unsold_ticket_count as u32)
+    }
+
+    pub fn valid_sold_and_reserved_ticket_count(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<u32, DatabaseError> {
+        let valid_unsold_ticket_count: i64 = ticket_instances::table
+            .inner_join(assets::table)
+            .filter(assets::ticket_type_id.eq(self.id))
+            .filter(ticket_instances::status.eq_any(vec![
+                TicketInstanceStatus::Purchased,
+                TicketInstanceStatus::Reserved,
+                TicketInstanceStatus::Redeemed,
+            ]))
+            .select(dsl::count(ticket_instances::id))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load ticket count for ticket type",
             )?;
         Ok(valid_unsold_ticket_count as u32)
     }
@@ -547,7 +582,7 @@ impl TicketType {
 
         let valid_available_ticket_count: i64 = query.first(conn).to_db_error(
             ErrorCode::QueryError,
-            "Could not load ticket pricing for ticket type",
+            "Could not load ticket count for ticket type",
         )?;
         Ok(valid_available_ticket_count as u32)
     }
