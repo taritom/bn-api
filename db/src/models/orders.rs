@@ -1939,6 +1939,8 @@ impl Order {
                 .find(|p| p.status == PaymentStatus::Completed);
         }
 
+        let (total_in_cents, total_refunded_in_cents) =
+            self.calculate_total_and_refunded_total(conn)?;
         Ok(DisplayOrder {
             id: self.id,
             status: self.status.clone(),
@@ -1947,7 +1949,8 @@ impl Order {
             valid_for_purchase: DisplayOrder::valid_for_purchase(self.status, &items),
             items,
             limited_tickets_remaining,
-            total_in_cents: self.calculate_total(conn)?,
+            total_in_cents,
+            total_refunded_in_cents,
             seconds_until_expiry,
             user_id: self.on_behalf_of_user_id.unwrap_or(self.user_id),
             user: User::find(self.user_id, conn)?.for_display()?,
@@ -2459,14 +2462,23 @@ impl Order {
     }
 
     pub fn calculate_total(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
+        Ok(self.calculate_total_and_refunded_total(conn)?.0)
+    }
+
+    pub fn calculate_total_and_refunded_total(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<(i64, i64), DatabaseError> {
         let order_items = self.items(conn)?;
         let mut total = 0;
+        let mut refunded_total = 0;
 
         for item in &order_items {
-            total += item.unit_price_in_cents * (item.quantity - item.refunded_quantity);
+            total += item.unit_price_in_cents * item.quantity;
+            refunded_total += item.unit_price_in_cents * item.refunded_quantity;
         }
 
-        Ok(total)
+        Ok((total, refunded_total))
     }
 
     /// Updates the lock version in the database and forces a Concurrency error if
@@ -2560,6 +2572,7 @@ pub struct DisplayOrder {
     pub items: Vec<DisplayOrderItem>,
     pub limited_tickets_remaining: Vec<TicketsRemaining>,
     pub total_in_cents: i64,
+    pub total_refunded_in_cents: i64,
     pub user_id: Uuid,
     pub user: DisplayUser,
     pub order_number: String,

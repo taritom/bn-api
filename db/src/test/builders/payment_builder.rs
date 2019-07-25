@@ -59,12 +59,14 @@ impl<'a> PaymentBuilder<'a> {
             self.connection,
         )
         .unwrap();
-        let total = cart.calculate_total(self.connection).unwrap();
+        let total = cart
+            .calculate_total_and_refunded_total(self.connection)
+            .unwrap();
         cart.add_provider_payment(
             Some("Test".to_string()),
             PaymentProviders::External,
             Some(self.user.unwrap().id),
-            total,
+            total.0,
             self.status,
             Some("nonce".to_string()),
             json!(null),
