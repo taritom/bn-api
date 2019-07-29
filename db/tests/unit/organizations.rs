@@ -987,7 +987,12 @@ fn search_fans() {
     let connection = project.get_connection();
     let organization = project.create_organization().finish();
     // Has a refunded order and later a second order and transferred ticket from order_user3
-    let order_user = project.create_user().finish();
+    let order_user = project
+        .create_user()
+        .with_first_name("Daniel")
+        .with_last_name("Potter")
+        .with_phone("555-555-5556".to_string())
+        .finish();
     // Has a normal order and a box office order on their behalf and has an event interest
     let order_user2 = project.create_user().finish();
     // Has a box office order on their behalf
@@ -1632,11 +1637,94 @@ fn search_fans() {
         }
     );
 
-    // Filtering finding a given user
+    // Search by email
     let search_results = organization
         .search_fans(
             None,
             order_user.email.clone(),
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    assert_eq!(search_results.data.len(), 1);
+    assert_eq!(search_results.data[0].user_id, order_user.id);
+
+    // Search by first name
+    let search_results = organization
+        .search_fans(
+            None,
+            order_user.first_name.clone(),
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    assert_eq!(search_results.data.len(), 1);
+    assert_eq!(search_results.data[0].user_id, order_user.id);
+
+    // Search by last name
+    let search_results = organization
+        .search_fans(
+            None,
+            order_user.last_name.clone(),
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    assert_eq!(search_results.data.len(), 1);
+    assert_eq!(search_results.data[0].user_id, order_user.id);
+
+    // Search by last name, first name
+    let search_results = organization
+        .search_fans(
+            None,
+            Some(format!(
+                "{}, {}",
+                order_user.last_name.clone().unwrap(),
+                order_user.first_name.clone().unwrap()
+            )),
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    assert_eq!(search_results.data.len(), 1);
+    assert_eq!(search_results.data[0].user_id, order_user.id);
+
+    // Search by first name last name
+    let search_results = organization
+        .search_fans(
+            None,
+            Some(format!(
+                "{} {}",
+                order_user.first_name.clone().unwrap(),
+                order_user.last_name.clone().unwrap()
+            )),
+            0,
+            100,
+            FanSortField::FirstName,
+            SortingDir::Asc,
+            &project.connection,
+        )
+        .unwrap();
+    assert_eq!(search_results.data.len(), 1);
+    assert_eq!(search_results.data[0].user_id, order_user.id);
+
+    // Search by phone
+    let search_results = organization
+        .search_fans(
+            None,
+            order_user.phone.clone(),
             0,
             100,
             FanSortField::FirstName,

@@ -44,6 +44,11 @@ impl<'a> UserBuilder<'a> {
         self
     }
 
+    pub fn with_phone(mut self, phone: String) -> Self {
+        self.phone = phone;
+        self
+    }
+
     pub fn finish(&self) -> User {
         User::create(
             Some(self.first_name.to_string()),

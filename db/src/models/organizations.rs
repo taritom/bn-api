@@ -658,22 +658,29 @@ impl Organization {
 
         // Parse UUID if passed into query to search for a specific user
         if let Some(query_text) = search_query {
-            if let Ok(uuid) = Uuid::parse_str(&query_text) {
-                query = query.filter(users::id.eq(uuid));
-            } else {
-                let search_filter = format!("%{}%", text::escape_control_chars(&query_text));
-                query = query.filter(
-                    sql("(")
-                        .sql("users.first_name ilike ")
-                        .bind::<Text, _>(search_filter.clone())
-                        .sql(" OR users.last_name ilike ")
-                        .bind::<Text, _>(search_filter.clone())
-                        .sql(" OR users.email ilike ")
-                        .bind::<Text, _>(search_filter.clone())
-                        .sql(" OR users.phone ilike ")
-                        .bind::<Text, _>(search_filter.clone())
-                        .sql(")"),
-                )
+            if query_text.trim().len() > 0 {
+                if let Ok(uuid) = Uuid::parse_str(&query_text) {
+                    query = query.filter(users::id.eq(uuid));
+                } else {
+                    let query_string = text::escape_control_chars(&query_text);
+                    let fuzzy_query_string: String = str::replace(&query_string.trim(), ",", "");
+                    let fuzzy_query_string = fuzzy_query_string
+                        .split_whitespace()
+                        .map(|w| w.split("").collect::<Vec<&str>>().join("%"))
+                        .collect::<Vec<String>>()
+                        .join("%");
+
+                    query = query.filter(
+                        sql("users.email ILIKE ")
+                            .bind::<Text, _>(fuzzy_query_string.clone())
+                            .or(sql("users.phone ILIKE ")
+                                .bind::<Text, _>(fuzzy_query_string.clone()))
+                            .or(sql("CONCAT(users.first_name, ' ', users.last_name) ILIKE ")
+                                .bind::<Text, _>(fuzzy_query_string.clone()))
+                            .or(sql("CONCAT(users.last_name, ' ', users.first_name) ILIKE ")
+                                .bind::<Text, _>(fuzzy_query_string.clone())),
+                    );
+                }
             }
         }
 
