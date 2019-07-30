@@ -1922,6 +1922,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -1942,6 +1943,7 @@ fn search() {
         SortingDir::Asc,
         Some(organization_owner),
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -1962,6 +1964,7 @@ fn search() {
         SortingDir::Asc,
         Some(organization_user),
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -1982,6 +1985,7 @@ fn search() {
         SortingDir::Asc,
         Some(user),
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2002,6 +2006,7 @@ fn search() {
         SortingDir::Asc,
         Some(admin),
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2022,6 +2027,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2042,6 +2048,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2063,6 +2070,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2085,6 +2093,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2106,6 +2115,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2128,6 +2138,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2149,6 +2160,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2170,6 +2182,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2192,6 +2205,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2213,6 +2227,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2233,6 +2248,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2254,6 +2270,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2276,6 +2293,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2296,6 +2314,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2316,6 +2335,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2337,6 +2357,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2358,6 +2379,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2380,6 +2402,7 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
@@ -2401,11 +2424,121 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
         connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 0);
+}
+
+#[test]
+fn filter_events_by_event_type() {
+    //create event
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let region1 = project.create_region().finish();
+    let venue1 = project
+        .create_venue()
+        .with_name("Venue1".into())
+        .with_region(&region1)
+        .finish();
+
+    let artist1 = project.create_artist().with_name("Artist1".into()).finish();
+    let organization_owner = project.create_user().finish();
+    let organization_user = project.create_user().finish();
+    let _admin = project
+        .create_user()
+        .finish()
+        .add_role(Roles::Admin, connection)
+        .unwrap();
+    let organization = project
+        .create_organization()
+        .with_member(&organization_owner, Roles::OrgOwner)
+        .with_member(&organization_user, Roles::OrgMember)
+        .finish();
+    let event_music = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .with_name("MusicEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue1)
+        .with_event_start(NaiveDate::from_ymd(2030, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2030, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_type(EventTypes::Music)
+        .finish();
+
+    event_music
+        .add_artist(None, artist1.id, connection)
+        .unwrap();
+
+    //find more than one event
+    let event_art = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .with_name("ArtEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue1)
+        .with_event_start(NaiveDate::from_ymd(2030, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2030, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_type(EventTypes::Art)
+        .finish();
+
+    event_art.add_artist(None, artist1.id, connection).unwrap();
+
+    let paging: &Paging = &Paging {
+        page: 0,
+        limit: 10,
+        sort: "".to_string(),
+        dir: SortingDir::Asc,
+        total: 0,
+        tags: HashMap::new(),
+    };
+    // All events unauthorized user
+    let all_music_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Upcoming,
+        Some(EventTypes::Music),
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, all_music_events.1);
+    assert_eq!("MusicEvent".to_string(), all_music_events.0[0].name);
+
+    // All events organization owner
+    let all_art_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Upcoming,
+        Some(EventTypes::Art),
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, all_art_events.1);
+    assert_eq!("ArtEvent".to_string(), all_art_events.0[0].name);
 }
 
 #[test]

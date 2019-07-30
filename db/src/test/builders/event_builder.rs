@@ -26,6 +26,7 @@ pub struct EventBuilder<'a> {
     sales_start: Option<NaiveDateTime>,
     sales_end: Option<NaiveDateTime>,
     private_access_code: Option<String>,
+    event_type: Option<EventTypes>,
 }
 
 impl<'a> EventBuilder<'a> {
@@ -47,6 +48,7 @@ impl<'a> EventBuilder<'a> {
             private_access_code: None,
             sales_start: None,
             sales_end: None,
+            event_type: None,
         }
     }
 
@@ -67,6 +69,11 @@ impl<'a> EventBuilder<'a> {
 
     pub fn with_name(mut self, name: String) -> Self {
         self.name = name;
+        self
+    }
+
+    pub fn with_event_type(mut self, event_type: EventTypes) -> Self {
+        self.event_type = Some(event_type);
         self
     }
 
@@ -165,6 +172,10 @@ impl<'a> EventBuilder<'a> {
         };
         if self.private_access_code.is_some() {
             attributes.private_access_code = Some(self.private_access_code.clone());
+        }
+
+        if self.event_type.is_some() {
+            attributes.event_type = self.event_type.clone();
         }
 
         if self.is_external {

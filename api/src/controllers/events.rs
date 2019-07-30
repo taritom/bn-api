@@ -49,6 +49,8 @@ pub struct SearchParameters {
     dir: Option<SortingDir>,
     past_or_upcoming: Option<String>,
     updated_at: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    category: Option<EventTypes>,
 }
 
 #[derive(Serialize)]
@@ -195,6 +197,7 @@ pub fn index(
         query.dir.clone().unwrap_or(SortingDir::Asc),
         user.clone(),
         past_or_upcoming,
+        query.category.clone(),
         &paging,
         connection,
     )?;

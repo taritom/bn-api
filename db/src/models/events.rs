@@ -1524,6 +1524,7 @@ impl Event {
         sort_direction: SortingDir,
         user: Option<User>,
         past_or_upcoming: PastOrUpcoming,
+        event_type: Option<EventTypes>,
         paging: &Paging,
         conn: &PgConnection,
     ) -> Result<(Vec<Event>, i64), DatabaseError> {
@@ -1573,6 +1574,10 @@ impl Event {
             .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
             .then_order_by(events::name.asc())
             .into_boxed();
+
+        if let Some(event_type) = event_type {
+            query = query.filter(events::event_type.eq(event_type))
+        }
 
         match user {
             Some(user) => {
