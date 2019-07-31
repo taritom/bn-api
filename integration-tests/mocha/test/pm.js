@@ -2,15 +2,16 @@ const fs = require('fs');
 const DEFAULTS = {
     bulkOrderPaidQuantity: 10,
     bulkOrderFreeQuantity: 100,
-    server: "localhost:8088",
+    server: "http://localhost:8088",
     stripePk: "pk_test_nJGSQo5LQ7i8h8OkEjYeCqVc"
 };
 
 const pm = {};
-const debug=require('debug');var log = debug('bn-api');
+const debug = require('debug');
+var log = debug('bn-api');
 try {
     pm.environment = JSON.parse(fs.readFileSync("env.json"));
-    // log(pm);
+    //log(pm);
 } catch (err) {
     log(err);
     pm.environment = {};

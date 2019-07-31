@@ -199,7 +199,7 @@ impl Broadcast {
                         return Ok(Ok(()));
                     }
                 }
-                let mut validation_error = create_validation_error(
+                let validation_error = create_validation_error(
                     "custom_message_empty",
                     "Custom messages cannot be blank",
                 );

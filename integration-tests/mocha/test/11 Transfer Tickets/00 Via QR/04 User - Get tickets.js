@@ -3,7 +3,11 @@ const expect = require('chai').expect;
 const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
-const pm = require('../../pm');const debug=require('debug');var log = debug('bn-api');
+const pm = require('../../pm');
+const debug = require('debug');
+var log = debug('bn-api');
+const events = require('../../../helpers/events');
+const cart = require('../../../helpers/cart');
 
 const baseUrl = supertest(pm.environment.get('server'));
 
@@ -39,6 +43,9 @@ let requestBody = ``;
 
 describe('User - Get tickets', function () {
     before(async function () {
+        this.timeout(100000);
+        let event = await events.create("__get_tickets");
+        await cart.createPaid(event, 6);
         response = await get(requestBody);
         log(response.request.header);
         log(response.request.url);
@@ -50,19 +57,13 @@ describe('User - Get tickets', function () {
         log(responseBody);
     });
 
-    after(async function () {
-        // add after methods
 
-
+    it("should be 200", function () {
+        expect(response.status).to.equal(200);
         let json = JSON.parse(responseBody);
 
         pm.environment.set("ticket1_id", json.data[0][1][0].id);
         pm.environment.set("ticket2_id", json.data[0][1][1].id);
-
-    });
-
-    it("should be 200", function () {
-        expect(response.status).to.equal(200);
     })
 
 

@@ -32,7 +32,7 @@ const createPaid = async function (event, quantity) {
     return await user.registerAndLogin().then((token) => {
         user_token = token;
 
-        return replace(ticket_type.id, "__cart_id", 1, user_token);
+        return replace(ticket_type.id, "__cart_id", quantity || 1, user_token);
     }).then(() => {
         return stripe.getToken();
     }).then((stripe_token) => {

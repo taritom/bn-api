@@ -172,40 +172,65 @@ impl OrderItem {
 
         if let Some(code_id) = self.code_id {
             let code = Code::find(code_id, conn)?;
-            if code.code_type == CodeTypes::Discount {
-                let mut discount = 0;
-                if let Some(discount_percent) = code.discount_as_percentage {
-                    discount = cmp::min(
-                        ((self.unit_price_in_cents as f32) * (discount_percent as f32) / 100.0f32)
-                            as i64,
-                        self.unit_price_in_cents,
-                    );
-                } else if let Some(discount_in_cents) = code.discount_in_cents {
-                    discount = cmp::min(discount_in_cents, self.unit_price_in_cents);
-                }
-                if discount > 0 {
-                    if let Some(mut di) = discount_item {
-                        di.quantity = self.quantity;
-                        di.unit_price_in_cents = -discount;
-                        di.update(conn)?;
-                    } else {
-                        NewDiscountOrderItem {
-                            order_id: self.order_id,
-                            item_type: OrderItemTypes::Discount,
-                            event_id: self.event_id,
-                            quantity: self.quantity,
-                            unit_price_in_cents: -discount,
-                            company_fee_in_cents: 0,
-                            client_fee_in_cents: 0,
-                            parent_id: Some(self.id),
-                        }
-                        .commit(conn)?;
-                    }
+            let mut discount = 0;
+            if let Some(discount_percent) = code.discount_as_percentage {
+                discount = cmp::min(
+                    ((self.unit_price_in_cents as f32) * (discount_percent as f32) / 100.0f32)
+                        as i64,
+                    self.unit_price_in_cents,
+                );
+            } else if let Some(discount_in_cents) = code.discount_in_cents {
+                discount = cmp::min(discount_in_cents, self.unit_price_in_cents);
+            }
+            if discount > 0 {
+                if let Some(mut di) = discount_item {
+                    di.quantity = self.quantity;
+                    di.unit_price_in_cents = -discount;
+                    di.update(conn)?;
                 } else {
-                    if let Some(di) = discount_item {
-                        order.destroy_item(di.id, conn)?;
+                    NewDiscountOrderItem {
+                        order_id: self.order_id,
+                        item_type: OrderItemTypes::Discount,
+                        event_id: self.event_id,
+                        quantity: self.quantity,
+                        unit_price_in_cents: -discount,
+                        company_fee_in_cents: 0,
+                        client_fee_in_cents: 0,
+                        parent_id: Some(self.id),
                     }
+                    .commit(conn)?;
                 }
+            } else {
+                if let Some(di) = discount_item {
+                    order.destroy_item(di.id, conn)?;
+                }
+            }
+        } else if let Some(hold_id) = self.hold_id {
+            let h = Hold::find(hold_id, conn)?;
+
+            let hold_type = h.hold_type;
+            let discount = match hold_type {
+                HoldTypes::Discount => {
+                    cmp::min(h.discount_in_cents.unwrap_or(0), self.unit_price_in_cents)
+                }
+                HoldTypes::Comp => self.unit_price_in_cents,
+            };
+            if let Some(mut di) = discount_item {
+                di.quantity = self.quantity;
+                di.unit_price_in_cents = -discount;
+                di.update(conn)?;
+            } else {
+                NewDiscountOrderItem {
+                    order_id: self.order_id,
+                    item_type: OrderItemTypes::Discount,
+                    event_id: self.event_id,
+                    quantity: self.quantity,
+                    unit_price_in_cents: -discount,
+                    company_fee_in_cents: 0,
+                    client_fee_in_cents: 0,
+                    parent_id: Some(self.id),
+                }
+                .commit(conn)?;
             }
         } else if let Some(di) = discount_item {
             order.destroy_item(di.id, conn)?;

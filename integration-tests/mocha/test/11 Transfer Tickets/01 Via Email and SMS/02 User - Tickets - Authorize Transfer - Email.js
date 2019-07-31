@@ -4,11 +4,10 @@ const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
 const pm = require('../../pm');const debug=require('debug');var log = debug('bn-api');
-const stripe = require('../../../helpers/stripe');
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/cart/checkout';
+const apiEndPoint = '/tickets/send';
 
 
 var response;
@@ -36,20 +35,15 @@ const get = async function (request_body) {
 };
 
 let requestBody = `{
-	"amount": 18160,
-	"method": {
-		"type" : "Card",
-		"provider": "Stripe",
-		"token" : "{{last_credit_card_token}}",
-		"save_payment_method": false,
-		"set_default": false
-	}
+	"ticket_ids":[
+		"{{ticket1_id}}",
+		"{{ticket2_id}}"],
+	"email_or_phone": "test@test.com"
 }`;
 
 
-describe('User - checkout new order', function () {
+describe('User - Tickets - Authorize Transfer - Email', function () {
     before(async function () {
-        await stripe.getToken();
         response = await post(requestBody);
         log(response.request.header);
         log(response.request.url);
@@ -64,8 +58,6 @@ describe('User - checkout new order', function () {
     after(async function () {
         // add after methods
 
-
-        pm.environment.set("last_cart_id", JSON.parse(responseBody).id)
 
     });
 

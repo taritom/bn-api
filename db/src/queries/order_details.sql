@@ -14,7 +14,8 @@ SELECT ticket_instance_id,
        ticket_type_name,
        code,
        code_type,
-       pending_transfer_id
+       pending_transfer_id,
+       discount_price_in_cents
 FROM (
          SELECT t.ticket_instance_id,
                 t.order_item_id                    AS order_item_id,
@@ -23,12 +24,10 @@ FROM (
                     ELSE e.name || ' - ' || tt.name
                     END                            AS description,
                 CASE
-                    WHEN oi.quantity = oi.refunded_quantity OR rt.ticket_refunded_at IS NOT NULL THEN 0
                     WHEN oi.item_type = 'EventFees' THEN 0
                     ELSE oi.unit_price_in_cents
                     END                            AS ticket_price_in_cents,
                 CASE
-                    WHEN oi.quantity = oi.refunded_quantity OR rt.fee_refunded_at IS NOT NULL THEN 0
                     WHEN fi.unit_price_in_cents IS NULL THEN oi.company_fee_in_cents + oi.client_fee_in_cents
                     ELSE fi.unit_price_in_cents
                     END                            AS fees_price_in_cents,
@@ -45,9 +44,10 @@ FROM (
                 wallet_owner.last_name             AS attendee_last_name,
                 tt.id                              AS ticket_type_id,
                 tt.name                            AS ticket_type_name,
-                coalesce(h.name, c.name)           AS code,
+                coalesce(h.redemption_code, c.redemption_code)           AS code,
                 coalesce(h.hold_type, c.code_type) AS code_type,
-                tfs.id                             AS pending_transfer_id
+                tfs.id                             AS pending_transfer_id,
+                dis.unit_price_in_cents            AS discount_price_in_cents
 
          FROM (
                   SELECT DISTINCT ticket_instance_id, order_item_id
@@ -84,6 +84,7 @@ FROM (
                   LEFT JOIN users wallet_owner ON w.user_id = wallet_owner.id
                   LEFT JOIN refunded_tickets rt ON rt.ticket_instance_id = ti.id
                   LEFT JOIN order_items fi ON fi.parent_id = oi.id AND fi.item_type = 'PerUnitFees'
+                  LEFT JOIN order_items dis ON dis.parent_id = oi.id AND dis.item_type = 'Discount'
                   LEFT JOIN (
              SELECT tfs.id, tfst.ticket_instance_id
              FROM transfer_tickets tfst

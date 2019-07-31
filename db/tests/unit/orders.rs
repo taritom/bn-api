@@ -662,7 +662,7 @@ fn update_fees() {
     assert!(order_item.find_fee_item(connection).unwrap().is_none());
 
     // Trigger fee
-    cart.update_fees(connection).unwrap();
+    cart.update_fees_and_discounts(connection).unwrap();
     let items = cart.items(connection).unwrap();
     let event_fee_item = items
         .iter()
@@ -691,7 +691,7 @@ fn update_fees() {
     )
     .unwrap();
 
-    cart.update_fees(connection).unwrap();
+    cart.update_fees_and_discounts(connection).unwrap();
 }
 
 #[test]
@@ -2810,14 +2810,15 @@ fn details() {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
         OrderDetailsLineItem {
             ticket_instance_id: Some(ticket.id),
             order_item_id: order_item.id,
             description: format!("{} - {}", event.name, ticket_type.name),
-            ticket_price_in_cents: 0,
-            fees_price_in_cents: 0,
-            total_price_in_cents: 0,
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
             attendee_email: user.email.clone(),
@@ -2829,6 +2830,7 @@ fn details() {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
     ];
 
@@ -2846,7 +2848,6 @@ fn details() {
         total_price_in_cents: event_fee_item.unit_price_in_cents,
         status: "Purchased".to_string(),
         refundable: true,
-
         attendee_email: None,
         attendee_id: None,
         attendee_first_name: None,
@@ -2856,6 +2857,7 @@ fn details() {
         code: None,
         code_type: None,
         pending_transfer_id: None,
+        discount_price_in_cents: None,
     });
 
     let order_details = cart
@@ -2900,9 +2902,9 @@ fn details() {
             ticket_instance_id: Some(ticket2.id),
             order_item_id: order_item.id,
             description: format!("{} - {}", event.name, ticket_type.name),
-            ticket_price_in_cents: 0,
-            fees_price_in_cents: 0,
-            total_price_in_cents: 0,
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
             attendee_email: user.email.clone(),
@@ -2914,14 +2916,15 @@ fn details() {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
         OrderDetailsLineItem {
             ticket_instance_id: Some(ticket.id),
             order_item_id: order_item.id,
             description: format!("{} - {}", event.name, ticket_type.name),
-            ticket_price_in_cents: 0,
-            fees_price_in_cents: 0,
-            total_price_in_cents: 0,
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
             attendee_email: user.email.clone(),
@@ -2933,6 +2936,7 @@ fn details() {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
     ];
 
@@ -2946,8 +2950,8 @@ fn details() {
         order_item_id: event_fee_item.id,
         description: format!("Event Fees - {}", event.name),
         ticket_price_in_cents: 0,
-        fees_price_in_cents: 0,
-        total_price_in_cents: 0,
+        fees_price_in_cents: 250,
+        total_price_in_cents: 250,
         status: "Refunded".to_string(),
         refundable: false,
         attendee_email: None,
@@ -2959,6 +2963,7 @@ fn details() {
         code: None,
         code_type: None,
         pending_transfer_id: None,
+        discount_price_in_cents: None,
     });
 
     let order_details = cart
@@ -3541,7 +3546,7 @@ fn replace_tickets_with_code_pricing() {
     assert_eq!(order_item.calculate_quantity(connection), Ok(10));
     assert_eq!(
         order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents - discount_in_cents
+        ticket_pricing.price_in_cents
     );
 
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
@@ -3552,6 +3557,10 @@ fn replace_tickets_with_code_pricing() {
         fee_schedule_range.fee_in_cents
     );
     assert_eq!(fee_item.quantity, 10);
+
+    let discount_item = order_item.find_discount_item(connection).unwrap().unwrap();
+    assert_eq!(discount_item.unit_price_in_cents, -20);
+    assert_eq!(discount_item.quantity, 10);
 
     // Add some more
     cart.update_quantities(
@@ -3568,7 +3577,7 @@ fn replace_tickets_with_code_pricing() {
     .unwrap();
     let items = cart.items(connection).unwrap();
 
-    assert_eq!(items.len(), 2);
+    assert_eq!(items.len(), 3);
     let order_item = items
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type.id))

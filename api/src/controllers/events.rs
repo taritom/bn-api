@@ -674,19 +674,6 @@ pub fn create(
     Ok(HttpResponse::Created().json(event))
 }
 
-#[derive(Deserialize, Debug, Default)]
-pub struct UpdateArtistsRequest {
-    pub artist_id: Uuid,
-    pub set_time: Option<NaiveDateTime>,
-    pub importance: i32,
-    pub stage_id: Option<Uuid>,
-}
-
-#[derive(Deserialize, Debug, Default)]
-pub struct UpdateArtistsRequestList {
-    pub artists: Vec<UpdateArtistsRequest>,
-}
-
 pub fn update(
     (connection, parameters, event_parameters, user): (
         Connection,
@@ -817,6 +804,19 @@ pub fn add_artist(
     action.commit(connection)?;
 
     Ok(HttpResponse::Created().json(&event_artist))
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct UpdateArtistsRequest {
+    pub artist_id: Uuid,
+    pub set_time: Option<NaiveDateTime>,
+    pub importance: i32,
+    pub stage_id: Option<Uuid>,
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct UpdateArtistsRequestList {
+    pub artists: Vec<UpdateArtistsRequest>,
 }
 
 pub fn update_artists(

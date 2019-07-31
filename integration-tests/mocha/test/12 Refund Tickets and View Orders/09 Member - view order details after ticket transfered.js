@@ -72,9 +72,9 @@ describe('Member - view order details after ticket transferred', function () {
     });
 
     it("tickets should be present", function () {
-        expect(json.items[0].ticket_price_in_cents).to.equal(0);
-        expect(json.items[0].fees_price_in_cents).to.equal(0);
-        expect(json.items[0].total_price_in_cents).to.equal(0);
+        expect(json.items[0].ticket_price_in_cents).to.equal(3000);
+        expect(json.items[0].fees_price_in_cents).to.equal(10);
+        expect(json.items[0].total_price_in_cents).to.equal(3010);
         expect(json.items[0].status).to.equal('Refunded');
         expect(json.items[0].refundable).to.equal(false);
 

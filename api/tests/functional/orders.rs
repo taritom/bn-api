@@ -622,6 +622,7 @@ pub fn refund_hold_ticket() {
         .find(|i| i.ticket_type_id == Some(ticket_type.id))
         .unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let discount_item = order_item.find_discount_item(connection).unwrap().unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
 
@@ -650,7 +651,9 @@ pub fn refund_hold_ticket() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let refund_response: RefundResponse = serde_json::from_str(&body).unwrap();
-    let expected_refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
+    let expected_refund_amount = order_item.unit_price_in_cents
+        + fee_item.unit_price_in_cents
+        + discount_item.unit_price_in_cents;
     assert_eq!(refund_response.amount_refunded, expected_refund_amount);
 
     let mut expected_refund_breakdown = HashMap::new();

@@ -129,14 +129,14 @@ pub fn details(
         return application::unauthorized(Some(user), Some(details_data));
     }
 
-    Ok(HttpResponse::Ok().json(json!(DetailsResponse {
+    Ok(HttpResponse::Ok().json(DetailsResponse {
         items: order.details(&organization_ids, user.id(), connection)?,
         order_contains_other_tickets: order.partially_visible_order(
             &organization_ids,
             user.id(),
-            connection
-        )?
-    })))
+            connection,
+        )?,
+    }))
 }
 
 #[derive(Deserialize, Serialize, Clone)]

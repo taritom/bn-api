@@ -18,7 +18,6 @@ use schema::{
 use serde_json;
 use serde_json::Value;
 use std::borrow::Cow;
-use std::cmp;
 use std::collections::HashMap;
 use time::Duration;
 use utils::dates::*;
@@ -114,6 +113,8 @@ pub struct OrderDetailsLineItem {
     pub code_type: Option<String>,
     #[sql_type = "Nullable<dUuid>"]
     pub pending_transfer_id: Option<Uuid>,
+    #[sql_type = "Nullable<BigInt>"]
+    pub discount_price_in_cents: Option<i64>,
 }
 
 #[derive(Debug)]
@@ -1207,24 +1208,7 @@ impl Order {
 
                         // TODO: Move this to an external processer
                         if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
-                            let mut price_in_cents = ticket_pricing.price_in_cents;
-                            if let Some(h) = match_data.hold.as_ref() {
-                                let discount = h.discount_in_cents;
-                                let hold_type = h.hold_type;
-                                price_in_cents = match hold_type {
-                                    HoldTypes::Discount => {
-                                        cmp::max(0, price_in_cents - discount.unwrap_or(0))
-                                    }
-                                    HoldTypes::Comp => 0,
-                                };
-                            } else if let Some(c) = match_data.code.as_ref() {
-                                if c.code_type == CodeTypes::Access {
-                                    price_in_cents = cmp::max(
-                                        0,
-                                        price_in_cents - c.discount_in_cents.unwrap_or(0),
-                                    );
-                                }
-                            }
+                            let price_in_cents = ticket_pricing.price_in_cents;
 
                             let order_item = NewTicketsOrderItem {
                                 order_id: self.id,
@@ -1299,19 +1283,7 @@ impl Order {
             let ticket_type = TicketType::find(match_data.update_order_item.ticket_type_id, conn)?;
             check_ticket_limits.append(&mut Order::check_ticket_limits(&ticket_type, &match_data));
 
-            let mut price_in_cents = ticket_pricing.price_in_cents;
-            if let Some(h) = match_data.hold.as_ref() {
-                let discount = h.discount_in_cents;
-                let hold_type = h.hold_type;
-                price_in_cents = match hold_type {
-                    HoldTypes::Discount => cmp::max(0, price_in_cents - discount.unwrap_or(0)),
-                    HoldTypes::Comp => 0,
-                }
-            } else if let Some(c) = match_data.code.as_ref() {
-                if c.code_type == CodeTypes::Access {
-                    price_in_cents = cmp::max(0, price_in_cents - c.discount_in_cents.unwrap_or(0));
-                }
-            }
+            let price_in_cents = ticket_pricing.price_in_cents;
 
             // TODO: Move this to an external processer
             let order_item = NewTicketsOrderItem {
@@ -1379,7 +1351,7 @@ impl Order {
                 return Err(errors.into());
             }
         }
-        self.update_fees(conn)?;
+        self.update_fees_and_discounts(conn)?;
         self.validate_record(conn)?;
         // Beware there could be multiple orders that meet this condition
         for (ticket_type_id, remaining) in self.ticket_types(conn)? {
@@ -1432,7 +1404,7 @@ impl Order {
         )
     }
 
-    pub fn update_fees(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn update_fees_and_discounts(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let items = self.items(conn)?;
 
         for o in items {
