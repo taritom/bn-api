@@ -11,6 +11,7 @@ use schema::{
     assets, events, fee_schedules, order_items, organization_users, organizations, ticket_types,
     users, venues,
 };
+use std::cmp;
 use std::collections::HashMap;
 use utils::encryption::*;
 use utils::errors::*;
@@ -601,7 +602,6 @@ impl Organization {
         conn: &PgConnection,
     ) -> Result<Payload<DisplayFan>, DatabaseError> {
         use schema::*;
-
         let sort_column = match sort_field {
             FanSortField::FirstName => "2",
             FanSortField::LastName => "3",
@@ -653,6 +653,11 @@ impl Organization {
                     .or(transfers::source_user_id.eq(users::id))
                     .or(transfers::destination_user_id.eq(users::id.nullable()))),
             )
+            .left_join(
+                organization_interactions::table.on(organization_interactions::user_id
+                    .eq(users::id)
+                    .and(organization_interactions::organization_id.eq(events::organization_id))),
+            )
             .filter(events::organization_id.eq(self.id))
             .into_boxed();
 
@@ -697,6 +702,8 @@ impl Organization {
                 users::email,
                 users::phone,
                 users::id,
+                organization_interactions::first_interaction,
+                organization_interactions::last_interaction,
             ))
             .select((
                 users::id,
@@ -711,19 +718,8 @@ impl Organization {
                 sql::<Nullable<Timestamp>>("MIN(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
                 sql::<Nullable<Timestamp>>("MAX(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
                 sql::<Nullable<BigInt>>("CAST (0 AS BIGINT)"),//The will be replaced
-                sql::<Nullable<Timestamp>>("(SELECT MIN(dates) FROM unnest(ARRAY[
-                    MIN(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id),
-                    MIN(ticket_instances.redeemed_at) FILTER (WHERE wallets.user_id = users.id),
-                    MIN(transfers.created_at) FILTER (WHERE transfers.destination_user_id = users.id or transfers.source_user_id = users.id),
-                    MIN(event_interest.created_at) FILTER (WHERE event_interest.user_id = users.id)
-                ]) as dates)"),
-                sql::<Nullable<Timestamp>>("(SELECT MAX(dates) FROM unnest(ARRAY[
-                    MAX(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id),
-                    MAX(ticket_instances.redeemed_at) FILTER (WHERE wallets.user_id = users.id),
-                    MAX(transfers.updated_at) FILTER (WHERE transfers.destination_user_id = users.id or transfers.source_user_id = users.id),
-                    MAX(event_interest.created_at) FILTER (WHERE event_interest.user_id = users.id),
-                    MAX(refunds.created_at) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)
-                ]) as dates)"),
+                sql::<Nullable<Timestamp>>("organization_interactions.first_interaction"),
+                sql::<Nullable<Timestamp>>("organization_interactions.last_interaction"),
             ))
             .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
             .paginate(page as i64)
@@ -758,6 +754,253 @@ impl Organization {
         let mut payload = Payload::from_data(fans, page, limit);
         payload.paging.total = record_count as u64;
         Ok(payload)
+    }
+
+    pub fn log_interaction(
+        &self,
+        user_id: Uuid,
+        interaction_date: NaiveDateTime,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if let Some(interaction_data) = self.interaction_data(user_id, conn).optional()? {
+            interaction_data.update(
+                &OrganizationInteractionEditableAttributes {
+                    first_interaction: Some(cmp::min(
+                        interaction_data.first_interaction,
+                        interaction_date,
+                    )),
+                    last_interaction: Some(cmp::max(
+                        interaction_data.last_interaction,
+                        interaction_date,
+                    )),
+                    interaction_count: Some(interaction_data.interaction_count + 1),
+                },
+                conn,
+            )?;
+        } else {
+            OrganizationInteraction::create(
+                self.id,
+                user_id,
+                interaction_date,
+                interaction_date,
+                1,
+            )
+            .commit(conn)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn regenerate_interaction_data(
+        &self,
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        use schema::*;
+        #[derive(Debug, Queryable, QueryableByName)]
+        struct R {
+            #[sql_type = "Nullable<Timestamp>"]
+            first_interaction: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Timestamp>"]
+            last_interaction: Option<NaiveDateTime>,
+            #[sql_type = "BigInt"]
+            interaction_count: i64,
+        }
+
+        // Load order data
+        let order_data: R = orders::table
+            .inner_join(order_items::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
+            .filter(orders::status.eq(OrderStatus::Paid))
+            .filter(events::organization_id.eq(self.id))
+            .filter(
+                orders::on_behalf_of_user_id
+                    .eq(user_id)
+                    .or(orders::on_behalf_of_user_id
+                        .is_null()
+                        .and(orders::user_id.eq(user_id))),
+            )
+            .select((
+                sql::<Nullable<Timestamp>>("MIN(orders.order_date)"),
+                sql::<Nullable<Timestamp>>("MAX(orders.order_date)"),
+                sql::<BigInt>("COUNT(DISTINCT orders.id)"),
+            ))
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load fan order data")?;
+
+        let mut first_interaction = order_data.first_interaction;
+        let mut last_interaction = order_data.last_interaction;
+        let mut interaction_count = order_data.interaction_count;
+
+        // Load transfer data
+        let transfer_data: R = transfers::table
+            .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
+            .inner_join(
+                ticket_instances::table
+                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
+            )
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
+            .filter(events::organization_id.eq(self.id))
+            .filter(
+                transfers::destination_user_id
+                    .eq(user_id)
+                    .or(transfers::source_user_id.eq(user_id)),
+            )
+            .select((
+                sql::<Nullable<Timestamp>>("MIN(transfers.created_at)"),
+                sql::<Nullable<Timestamp>>("MAX(transfers.updated_at)"),
+                sql::<BigInt>(&format!("
+                    COUNT(DISTINCT transfers.id) FILTER(WHERE transfers.source_user_id = '{}') +
+                    COUNT(DISTINCT transfers.id) FILTER(WHERE transfers.status = 'Completed' or transfers.status = 'Cancelled')
+                ", user_id)),
+            ))
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load fan transfer data")?;
+        first_interaction = first_interaction.or(transfer_data.first_interaction);
+        if let (Some(old_first_interaction), Some(new_first_interaction)) =
+            (first_interaction, transfer_data.first_interaction)
+        {
+            first_interaction = Some(cmp::min(old_first_interaction, new_first_interaction));
+        }
+        last_interaction = last_interaction.or(transfer_data.last_interaction);
+        if let (Some(old_last_interaction), Some(new_last_interaction)) =
+            (last_interaction, transfer_data.last_interaction)
+        {
+            last_interaction = Some(cmp::max(old_last_interaction, new_last_interaction));
+        }
+        interaction_count += transfer_data.interaction_count;
+
+        // Load ticket data
+        let ticket_data: R = ticket_instances::table
+            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
+            .filter(events::organization_id.eq(self.id))
+            .filter(wallets::user_id.eq(user_id))
+            .filter(ticket_instances::redeemed_at.is_not_null())
+            .select((
+                sql::<Nullable<Timestamp>>("MIN(ticket_instances.redeemed_at)"),
+                sql::<Nullable<Timestamp>>("MAX(ticket_instances.redeemed_at)"),
+                sql::<BigInt>("COUNT(DISTINCT ticket_instances.id)"),
+            ))
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load fan ticket data")?;
+        first_interaction = first_interaction.or(ticket_data.first_interaction);
+        if let (Some(old_first_interaction), Some(new_first_interaction)) =
+            (first_interaction, ticket_data.first_interaction)
+        {
+            first_interaction = Some(cmp::min(old_first_interaction, new_first_interaction));
+        }
+        last_interaction = last_interaction.or(ticket_data.last_interaction);
+        if let (Some(old_last_interaction), Some(new_last_interaction)) =
+            (last_interaction, ticket_data.last_interaction)
+        {
+            last_interaction = Some(cmp::max(old_last_interaction, new_last_interaction));
+        }
+        interaction_count += ticket_data.interaction_count;
+
+        // Load event interest data
+        let event_interest_data: R = event_interest::table
+            .inner_join(events::table.on(events::id.eq(event_interest::event_id)))
+            .filter(events::organization_id.eq(self.id))
+            .filter(event_interest::user_id.eq(user_id))
+            .select((
+                sql::<Nullable<Timestamp>>("MIN(event_interest.created_at)"),
+                sql::<Nullable<Timestamp>>("MAX(event_interest.created_at)"),
+                sql::<BigInt>("COUNT(DISTINCT event_interest.id)"),
+            ))
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load fan event interest data",
+            )?;
+        first_interaction = first_interaction.or(event_interest_data.first_interaction);
+        if let (Some(old_first_interaction), Some(new_first_interaction)) =
+            (first_interaction, event_interest_data.first_interaction)
+        {
+            first_interaction = Some(cmp::min(old_first_interaction, new_first_interaction));
+        }
+        last_interaction = last_interaction.or(event_interest_data.last_interaction);
+        if let (Some(old_last_interaction), Some(new_last_interaction)) =
+            (last_interaction, event_interest_data.last_interaction)
+        {
+            last_interaction = Some(cmp::max(old_last_interaction, new_last_interaction));
+        }
+        interaction_count += event_interest_data.interaction_count;
+
+        // Load event interest data
+        let refund_data: R = refunds::table
+            .inner_join(orders::table.on(orders::id.eq(refunds::order_id)))
+            .inner_join(order_items::table.on(order_items::order_id.eq(orders::id)))
+            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
+            .filter(events::organization_id.eq(self.id))
+            .filter(
+                orders::on_behalf_of_user_id
+                    .eq(user_id)
+                    .or(orders::on_behalf_of_user_id
+                        .is_null()
+                        .and(orders::user_id.eq(user_id))),
+            )
+            .select((
+                sql::<Nullable<Timestamp>>("MIN(refunds.created_at)"),
+                sql::<Nullable<Timestamp>>("MAX(refunds.created_at)"),
+                sql::<BigInt>("COUNT(DISTINCT refunds.id)"),
+            ))
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load fan event interest data",
+            )?;
+        first_interaction = first_interaction.or(refund_data.first_interaction);
+        if let (Some(old_first_interaction), Some(new_first_interaction)) =
+            (first_interaction, refund_data.first_interaction)
+        {
+            first_interaction = Some(cmp::min(old_first_interaction, new_first_interaction));
+        }
+        last_interaction = last_interaction.or(refund_data.last_interaction);
+        if let (Some(old_last_interaction), Some(new_last_interaction)) =
+            (last_interaction, refund_data.last_interaction)
+        {
+            last_interaction = Some(cmp::max(old_last_interaction, new_last_interaction));
+        }
+        interaction_count += refund_data.interaction_count;
+
+        if let Some(interaction_data) = self.interaction_data(user_id, conn).optional()? {
+            interaction_data.update(
+                &OrganizationInteractionEditableAttributes {
+                    first_interaction: first_interaction,
+                    last_interaction: last_interaction,
+                    interaction_count: Some(interaction_count),
+                },
+                conn,
+            )?;
+        } else {
+            if let (Some(first_interaction), Some(last_interaction)) =
+                (first_interaction, last_interaction)
+            {
+                OrganizationInteraction::create(
+                    self.id,
+                    user_id,
+                    first_interaction,
+                    last_interaction,
+                    interaction_count,
+                )
+                .commit(conn)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn interaction_data(
+        &self,
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<OrganizationInteraction, DatabaseError> {
+        OrganizationInteraction::find_by_organization_user(self.id, user_id, conn)
     }
 
     pub fn user_revenue_totals(

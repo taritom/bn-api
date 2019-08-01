@@ -233,10 +233,10 @@ fn pending_transfers() {
         .finish();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     assert_eq!(event.pending_transfers(connection).unwrap().len(), 0);
 

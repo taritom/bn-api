@@ -25,7 +25,7 @@ fn transfers() {
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)

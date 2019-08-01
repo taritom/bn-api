@@ -6,8 +6,8 @@ use diesel::prelude::*;
 use diesel::sql_types::{Array, BigInt, Nullable, Uuid as dUuid};
 use models::*;
 use schema::{
-    assets, events, order_transfers, orders, ticket_instances, ticket_types, transfer_tickets,
-    transfers,
+    assets, events, order_transfers, orders, organizations, ticket_instances, ticket_types,
+    transfer_tickets, transfers,
 };
 use serde_json::Value;
 use std::cmp::Ordering;
@@ -590,6 +590,26 @@ impl Transfer {
         }
     }
 
+    pub fn organizations(&self, conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
+        transfer_tickets::table
+            .inner_join(
+                ticket_instances::table
+                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
+            )
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
+            .inner_join(organizations::table.on(events::organization_id.eq(organizations::id)))
+            .filter(transfer_tickets::transfer_id.eq(self.id))
+            .select(organizations::all_columns)
+            .distinct()
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load transfer organizations",
+            )
+    }
+
     pub fn events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
         transfer_tickets::table
             .inner_join(
@@ -659,31 +679,15 @@ impl Transfer {
 }
 
 impl NewTransfer {
-    pub fn commit(
-        &self,
-        additional_data: &Option<Value>,
-        conn: &PgConnection,
-    ) -> Result<Transfer, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<Transfer, DatabaseError> {
         self.validate_record(conn)?;
-        let result: Transfer = DatabaseError::wrap(
+        DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new transfer",
             diesel::insert_into(transfers::table)
                 .values(self)
                 .get_result(conn),
-        )?;
-
-        DomainEvent::create(
-            DomainEventTypes::TransferTicketStarted,
-            "Transfer ticket started".to_string(),
-            Tables::Transfers,
-            Some(result.id),
-            Some(self.source_user_id),
-            additional_data.clone(),
         )
-        .commit(conn)?;
-
-        Ok(result)
     }
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {

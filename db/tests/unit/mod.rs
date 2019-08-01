@@ -17,6 +17,7 @@ pub mod holds;
 pub mod notes;
 pub mod order_items;
 pub mod orders;
+pub mod organization_interactions;
 pub mod organization_invites;
 pub mod organization_users;
 pub mod organizations;

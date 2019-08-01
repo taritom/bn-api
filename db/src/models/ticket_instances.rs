@@ -818,7 +818,7 @@ impl TicketInstance {
 
         if ticket.status == TicketInstanceStatus::Purchased
             && ticket.redeem_key.is_some()
-            && ticket.redeem_key.unwrap() == redeem_key
+            && ticket.redeem_key.clone().unwrap() == redeem_key
         {
             diesel::update(ticket_instances::table.filter(ticket_instances::id.eq(ticket_id)))
                 .set((
@@ -972,12 +972,23 @@ impl TicketInstance {
             sent_via,
             address.map(|a| a.to_string()),
         )
-        .commit(&transfer_data, conn)?;
+        .commit(conn)?;
         for (t_id, _) in ticket_ids_and_updated_at {
             transfer.add_transfer_ticket(t_id, user_id, &transfer_data, conn)?;
             update_count += 1;
         }
         transfer.update_associated_orders(conn)?;
+
+        // Log transfer event after associating transfer tickets
+        DomainEvent::create(
+            DomainEventTypes::TransferTicketStarted,
+            "Transfer ticket started".to_string(),
+            Tables::Transfers,
+            Some(transfer.id),
+            Some(transfer.source_user_id),
+            transfer_data,
+        )
+        .commit(conn)?;
 
         if update_count != ticket_ids.len() {
             return Err(DatabaseError::new(

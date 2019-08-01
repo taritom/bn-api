@@ -325,6 +325,19 @@ table! {
 }
 
 table! {
+    organization_interactions (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        first_interaction -> Timestamp,
+        last_interaction -> Timestamp,
+        interaction_count -> Int8,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     organization_invites (id) {
         id -> Uuid,
         organization_id -> Uuid,
@@ -704,6 +717,8 @@ joinable!(order_items -> ticket_pricing (ticket_pricing_id));
 joinable!(order_items -> ticket_types (ticket_type_id));
 joinable!(order_transfers -> orders (order_id));
 joinable!(order_transfers -> transfers (transfer_id));
+joinable!(organization_interactions -> organizations (organization_id));
+joinable!(organization_interactions -> users (user_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
@@ -761,6 +776,7 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     order_transfers,
+    organization_interactions,
     organization_invites,
     organizations,
     organization_users,

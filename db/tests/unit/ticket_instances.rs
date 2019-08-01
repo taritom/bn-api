@@ -88,7 +88,7 @@ fn find_for_user_for_display() {
         false
     );
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(found_tickets[0].1[0].id, user.id, &None, connection)
@@ -137,7 +137,7 @@ fn find_for_user_for_display() {
 
     // Another pending transfer
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(found_tickets[0].1[0].id, user.id, &None, connection)
@@ -1431,6 +1431,15 @@ fn create_transfer() {
             .unwrap()
             .is_empty()
     );
+
+    let domain_events = DomainEvent::find(
+        Tables::Transfers,
+        Some(transfer2.id),
+        Some(DomainEventTypes::TransferTicketStarted),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
 }
 
 #[test]

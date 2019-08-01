@@ -11,7 +11,7 @@ use uuid::Uuid;
 #[derive(Identifiable, Queryable, Clone)]
 pub struct Wallet {
     pub id: Uuid,
-    user_id: Option<Uuid>,
+    pub user_id: Option<Uuid>,
     organization_id: Option<Uuid>,
     name: String,
     pub secret_key: String,

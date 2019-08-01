@@ -56,7 +56,7 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
     .unwrap();
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -72,7 +72,7 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
         )
         .unwrap();
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer2
         .add_transfer_ticket(ticket2.id, user.id, &None, connection)
@@ -167,7 +167,7 @@ pub fn cancel(role: Roles, owns_order: bool, should_succeed: bool) {
     .unwrap();
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)

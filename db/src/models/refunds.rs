@@ -1,8 +1,8 @@
 use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
-use models::RefundItem;
-use schema::*;
+use models::*;
+use schema::{refund_items, refunds};
 use utils::errors::*;
 use uuid::Uuid;
 
@@ -50,9 +50,22 @@ pub struct NewRefund {
 
 impl NewRefund {
     pub fn commit(self, conn: &PgConnection) -> Result<Refund, DatabaseError> {
-        diesel::insert_into(refunds::table)
+        let refund: Refund = diesel::insert_into(refunds::table)
             .values(&self)
             .get_result(conn)
-            .to_db_error(ErrorCode::InsertError, "Could not insert refund record")
+            .to_db_error(ErrorCode::InsertError, "Could not insert refund record")?;
+
+        let order = Order::find(refund.order_id, conn)?;
+        DomainEvent::create(
+            DomainEventTypes::OrderRefund,
+            "Order refund created".to_string(),
+            Tables::Orders,
+            Some(refund.order_id),
+            Some(order.on_behalf_of_user_id.unwrap_or(order.user_id)),
+            None,
+        )
+        .commit(conn)?;
+
+        Ok(refund)
     }
 }

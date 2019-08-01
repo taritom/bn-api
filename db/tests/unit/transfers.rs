@@ -27,7 +27,7 @@ fn receive_url() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -53,7 +53,7 @@ fn into_authorization() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -75,7 +75,7 @@ fn log_drip_domain_event() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     assert!(DomainEvent::find(
         Tables::Transfers,
@@ -160,7 +160,7 @@ fn transfer_ticket_count() {
         .finish();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     assert_eq!(transfer.transfer_ticket_count(connection).unwrap(), 0);
 
@@ -190,7 +190,7 @@ fn create_drip_actions() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -252,7 +252,7 @@ fn signature() {
         .finish();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     for ticket in tickets {
         transfer
@@ -300,7 +300,7 @@ fn events_have_not_ended() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -366,7 +366,7 @@ fn drip_header() {
         Some(TransferMessageType::Email),
         Some("test@tari.com".to_string()),
     )
-    .commit(&None, connection)
+    .commit(connection)
     .unwrap();
 
     // Source drip header 7 days
@@ -588,7 +588,7 @@ fn drip_header() {
         Some(TransferMessageType::Email),
         Some("test@tari.com".to_string()),
     )
-    .commit(&None, connection)
+    .commit(connection)
     .unwrap();
     let drip_header = transfer2
         .drip_header(
@@ -603,7 +603,7 @@ fn drip_header() {
 
     // Does not have drip address so cannot create header
     let transfer3 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     assert!(transfer3
         .drip_header(
@@ -638,7 +638,7 @@ fn can_process_drips() {
         Some(TransferMessageType::Email),
         Some("test@tari.com".to_string()),
     )
-    .commit(&None, connection)
+    .commit(connection)
     .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -647,7 +647,7 @@ fn can_process_drips() {
 
     // Transfer 2 cannot process drips as it lacks destination details
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer2
         .add_transfer_ticket(ticket2.id, user.id, &None, connection)
@@ -698,7 +698,7 @@ fn update_associated_orders() {
     let ticket2 = &TicketInstance::find_for_user(user2.id, connection).unwrap()[0];
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -707,7 +707,7 @@ fn update_associated_orders() {
     assert_eq!(vec![transfer], order.transfers(connection).unwrap());
 
     let transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer2
         .add_transfer_ticket(ticket2.id, user2.id, &None, connection)
@@ -730,7 +730,7 @@ fn orders() {
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -758,14 +758,14 @@ fn transfer_tickets() {
     let ticket2 = &tickets[1];
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     let transfer_ticket = transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
         .unwrap();
 
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     let transfer_ticket2 = transfer2
         .add_transfer_ticket(ticket2.id, user.id, &None, connection)
@@ -797,7 +797,7 @@ fn for_display() {
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -833,7 +833,7 @@ fn find_by_user_id() {
     let ticket2 = &TicketInstance::find_for_user(user2.id, connection).unwrap()[0];
 
     let mut transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -851,7 +851,7 @@ fn find_by_user_id() {
     let mut transfer = transfer.for_display(connection).unwrap();
 
     let mut transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer2
         .add_transfer_ticket(ticket2.id, user2.id, &None, connection)
@@ -1089,7 +1089,7 @@ fn find_by_user_id() {
     // Pagination
     let ticket3 = &tickets[1];
     let transfer3 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer3
         .add_transfer_ticket(ticket3.id, user.id, &None, connection)
@@ -1246,7 +1246,7 @@ fn find() {
     let user = project.create_user().finish();
     project.create_order().for_user(&user).is_paid().finish();
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
 
     assert_eq!(transfer, Transfer::find(transfer.id, connection).unwrap());
@@ -1261,7 +1261,7 @@ fn find_by_transfer_key() {
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key.clone(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -1284,7 +1284,7 @@ fn add_transfer_ticket() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     let transfer_ticket = transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -1309,7 +1309,7 @@ fn find_pending() {
     let ticket = &tickets[0];
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -1324,7 +1324,7 @@ fn find_pending() {
 
     // New transfer still pending
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer2
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -1352,7 +1352,7 @@ fn find_pending_by_ticket_instance_ids() {
     let ticket2 = &tickets[1];
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -1360,7 +1360,7 @@ fn find_pending_by_ticket_instance_ids() {
 
     assert!(transfer.complete(user2.id, None, connection).is_ok());
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer2
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -1389,7 +1389,7 @@ fn cancel() {
         .remove(0);
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key, None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -1460,7 +1460,7 @@ fn complete() {
         .remove(0);
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key, None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -1532,7 +1532,7 @@ fn create_commit() {
     let transfer_key = Uuid::new_v4();
 
     let transfer = Transfer::create(user.id, transfer_key, None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -1540,15 +1540,6 @@ fn create_commit() {
     assert_eq!(transfer.status, TransferStatus::Pending);
     assert_eq!(transfer.source_user_id, user.id);
     assert_eq!(transfer.transfer_key, transfer_key);
-
-    let domain_events = DomainEvent::find(
-        Tables::Transfers,
-        Some(transfer.id),
-        Some(DomainEventTypes::TransferTicketStarted),
-        connection,
-    )
-    .unwrap();
-    assert_eq!(1, domain_events.len());
 }
 
 #[test]
@@ -1576,7 +1567,7 @@ fn update() {
     assert_eq!(0, domain_events.len());
 
     let transfer = Transfer::create(user.id, transfer_key.clone(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)

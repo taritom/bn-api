@@ -252,6 +252,7 @@ impl Order {
     ) -> Result<(Refund, i64), DatabaseError> {
         self.lock_version(conn)?;
         let mut total_to_be_refunded: i64 = 0;
+
         let refund = Refund::create(self.id, user_id, reason).commit(conn)?;
         let previous_item_refund_counts: HashMap<Uuid, i64> = self
             .items(conn)?

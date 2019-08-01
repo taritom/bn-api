@@ -39,13 +39,25 @@ pub struct DisplayEventInterestedUser {
 
 impl NewEventInterest {
     pub fn commit(&self, conn: &PgConnection) -> Result<EventInterest, DatabaseError> {
-        DatabaseError::wrap(
+        let event_interest: EventInterest = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new event like",
             diesel::insert_into(event_interest::table)
                 .values(self)
                 .get_result(conn),
+        )?;
+
+        DomainEvent::create(
+            DomainEventTypes::EventInterestCreated,
+            "Event interest created".to_string(),
+            Tables::Events,
+            Some(event_interest.event_id),
+            Some(event_interest.user_id),
+            None,
         )
+        .commit(conn)?;
+
+        Ok(event_interest)
     }
 }
 

@@ -47,6 +47,10 @@ pub fn main() {
                 .about("Syncs spotify genres across artist records appending any missing genres"),
         )
         .subcommand(
+            SubCommand::with_name("regenerate-interaction-records")
+                .about("Regenerate interaction records for organization users"),
+        )
+        .subcommand(
             SubCommand::with_name("regenerate-transfer-drip-events")
                 .about("Removes all pending drip events, creates new ones for source and destination drips"),
         )
@@ -55,9 +59,49 @@ pub fn main() {
     match matches.subcommand() {
         ("sync-purchase-metadata", Some(_)) => sync_purchase_metadata(database, service_locator),
         ("sync-spotify-genres", Some(_)) => sync_spotify_genres(config, database),
+        ("regenerate-interaction-records", Some(_)) => regenerate_interaction_records(database),
         ("regenerate-transfer-drip-events", Some(_)) => regenerate_transfer_drip_events(database),
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
+        }
+    }
+}
+
+fn regenerate_interaction_records(database: Database) {
+    info!("Regenerating interaction records");
+    let connection = database
+        .get_connection()
+        .expect("Expected connection to establish");
+    let connection = connection.get();
+    let organizations = Organization::all(connection).expect("Expected to find organizations");
+
+    for organization in organizations {
+        let mut page = 0;
+        loop {
+            let search_fans = organization
+                .search_fans(
+                    None,
+                    None,
+                    page,
+                    40,
+                    FanSortField::Email,
+                    SortingDir::Desc,
+                    connection,
+                )
+                .expect("Expected to find organization fans");
+
+            if search_fans.data.len() == 0 {
+                break;
+            } else {
+                for fan in search_fans.data {
+                    organization
+                        .regenerate_interaction_data(fan.user_id, connection)
+                        .expect("Expected to regenerate interaction data");
+                }
+
+                thread::sleep(time::Duration::from_secs(2));
+            }
+            page += 1;
         }
     }
 }

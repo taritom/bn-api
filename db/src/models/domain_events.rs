@@ -3,8 +3,8 @@ use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
 use log::Level::Info;
-use models::enums::*;
-use schema::*;
+use models::*;
+use schema::domain_events;
 use serde_json;
 use std::cmp::Ordering;
 use utils::errors::*;
@@ -94,6 +94,69 @@ impl DomainEvent {
                 "Could not mark domain event as published",
             )
     }
+
+    pub fn post_processing(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        if let Some(main_id) = self.main_id {
+            match self.event_type {
+                DomainEventTypes::EventInterestCreated => {
+                    let event = Event::find(main_id, conn)?;
+                    let organization = event.organization(conn)?;
+
+                    if let Some(user_id) = self.user_id {
+                        organization.log_interaction(user_id, Utc::now().naive_utc(), conn)?;
+                    }
+                }
+                DomainEventTypes::OrderRefund | DomainEventTypes::OrderCompleted => {
+                    let order = Order::find(main_id, conn)?;
+                    for organization in order.organizations(conn)? {
+                        organization.log_interaction(
+                            order.on_behalf_of_user_id.unwrap_or(order.user_id),
+                            Utc::now().naive_utc(),
+                            conn,
+                        )?;
+                    }
+                }
+                DomainEventTypes::TicketInstanceRedeemed => {
+                    let ticket = TicketInstance::find(main_id, conn)?;
+                    let wallet = Wallet::find(ticket.wallet_id, conn)?;
+                    if let Some(user_id) = wallet.user_id {
+                        ticket.organization(conn)?.log_interaction(
+                            user_id,
+                            Utc::now().naive_utc(),
+                            conn,
+                        )?;
+                    }
+                }
+                DomainEventTypes::TransferTicketStarted
+                | DomainEventTypes::TransferTicketCancelled
+                | DomainEventTypes::TransferTicketCompleted => {
+                    // Both ticket instances and transfers have an event made but dupe is removed in 220
+                    // TODO: remove condition once bigneon 220 merges
+                    if self.main_table == Tables::Transfers {
+                        let transfer = Transfer::find(main_id, conn)?;
+                        for organization in transfer.organizations(conn)? {
+                            organization.log_interaction(
+                                transfer.source_user_id,
+                                Utc::now().naive_utc(),
+                                conn,
+                            )?;
+
+                            if let Some(destination_user_id) = transfer.destination_user_id {
+                                organization.log_interaction(
+                                    destination_user_id,
+                                    Utc::now().naive_utc(),
+                                    conn,
+                                )?;
+                            }
+                        }
+                    }
+                }
+                _ => (),
+            };
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Insertable, Clone)]
@@ -115,10 +178,15 @@ impl NewDomainEvent {
             .to_db_error(ErrorCode::InsertError, "Could not insert domain event")?;
 
         jlog!(Info, &format!("Domain Event: {} `{}` on {}:{}", self.event_type,
-            self.display_text, self.main_table, self.main_id.map(|i| i.to_string()).unwrap_or_default()),{"domain_event_id": result.id,
+            self.display_text, self.main_table, self.main_id.map(|i| i.to_string()).unwrap_or_default()),{
+                "domain_event_id": result.id,
+                "event_type": self.event_type.clone(),
+                "main_table": self.main_table.clone(),
+                "main_id": self.main_id,
+                "event_data": self.event_data
+        });
 
-
-            "event_type": self.event_type.clone(), "main_table": self.main_table.clone(), "main_id": self.main_id, "event_data": self.event_data });
+        result.post_processing(conn)?;
 
         Ok(result)
     }

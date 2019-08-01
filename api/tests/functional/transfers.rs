@@ -196,7 +196,7 @@ pub fn show_by_transfer_key() {
     .unwrap();
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -239,7 +239,7 @@ fn index() {
     let ticket2 = &TicketInstance::find_for_user(user2.id, connection).unwrap()[0];
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer
         .add_transfer_ticket(ticket.id, user.id, &None, connection)
@@ -255,7 +255,7 @@ fn index() {
         )
         .unwrap();
     let transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+        .commit(connection)
         .unwrap();
     transfer2
         .add_transfer_ticket(ticket2.id, user2.id, &None, connection)

@@ -1,9 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
-use bigneon_db::schema::*;
 use bigneon_db::utils::dates;
-use diesel;
-use diesel::prelude::*;
 use uuid::Uuid;
 
 #[test]
@@ -982,6 +979,170 @@ fn add_fee_schedule() {
 }
 
 #[test]
+fn regenerate_interaction_data() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let interaction_data = organization
+        .interaction_data(user.id, connection)
+        .optional()
+        .unwrap();
+    assert!(interaction_data.is_none());
+
+    organization
+        .regenerate_interaction_data(user.id, connection)
+        .unwrap();
+    let interaction_data = organization
+        .interaction_data(user.id, connection)
+        .optional()
+        .unwrap();
+    assert!(interaction_data.is_none());
+
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    // Order
+    let order = project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    let interaction_data = organization.interaction_data(user.id, connection).unwrap();
+    assert_eq!(interaction_data.interaction_count, 1);
+
+    // Event interest
+    project
+        .create_event_interest()
+        .with_user(&user)
+        .with_event(&event)
+        .finish();
+    let interaction_data = organization.interaction_data(user.id, connection).unwrap();
+    assert_eq!(interaction_data.interaction_count, 2);
+
+    // Refunds
+    let items = order.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::Tickets)
+        .unwrap();
+    let mut tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let ticket1 = tickets.remove(0);
+    let ticket2 = tickets.remove(0);
+    let ticket3 = tickets.remove(0);
+    let refund_items: Vec<RefundItemRequest> = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket1.id),
+    }];
+    order
+        .clone()
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).unwrap();
+    assert_eq!(interaction_data.interaction_count, 3);
+
+    // Transfers
+    TicketInstance::direct_transfer(
+        user.id,
+        &vec![ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).unwrap();
+    assert_eq!(interaction_data.interaction_count, 5);
+
+    TicketInstance::direct_transfer(
+        user2.id,
+        &vec![ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user.id,
+        connection,
+    )
+    .unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).unwrap();
+    assert_eq!(interaction_data.interaction_count, 6);
+
+    // Redeem
+    TicketInstance::redeem_ticket(
+        ticket3.id,
+        ticket3.redeem_key.clone().unwrap(),
+        user.id,
+        connection,
+    )
+    .unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).unwrap();
+    assert_eq!(interaction_data.interaction_count, 7);
+}
+
+#[test]
+fn log_interaction() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let user = project.create_user().finish();
+    let interaction_data = organization
+        .interaction_data(user.id, connection)
+        .optional()
+        .unwrap();
+    assert!(interaction_data.is_none());
+
+    let first_interaction = dates::now().add_minutes(-10).finish();
+    organization
+        .log_interaction(user.id, first_interaction, connection)
+        .unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).unwrap();
+    assert_eq!(
+        interaction_data.first_interaction.timestamp_subsec_millis(),
+        first_interaction.timestamp_subsec_millis()
+    );
+    assert_eq!(
+        interaction_data.last_interaction.timestamp_subsec_millis(),
+        first_interaction.timestamp_subsec_millis()
+    );
+    assert_eq!(interaction_data.interaction_count, 1);
+
+    let second_interaction = dates::now().add_minutes(-8).finish();
+    organization
+        .log_interaction(user.id, second_interaction, connection)
+        .unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).unwrap();
+    assert_eq!(
+        interaction_data.first_interaction.timestamp_subsec_millis(),
+        first_interaction.timestamp_subsec_millis()
+    );
+    assert_eq!(
+        interaction_data.last_interaction.timestamp_subsec_millis(),
+        second_interaction.timestamp_subsec_millis()
+    );
+    assert_eq!(interaction_data.interaction_count, 2);
+
+    let third_interaction = dates::now().add_minutes(-9).finish();
+    organization
+        .log_interaction(user.id, third_interaction, connection)
+        .unwrap();
+    let interaction_data = organization.interaction_data(user.id, connection).unwrap();
+    assert_eq!(
+        interaction_data.first_interaction.timestamp_subsec_millis(),
+        first_interaction.timestamp_subsec_millis()
+    );
+    assert_eq!(
+        interaction_data.last_interaction.timestamp_subsec_millis(),
+        second_interaction.timestamp_subsec_millis()
+    );
+    assert_eq!(interaction_data.interaction_count, 3);
+}
+
+#[test]
 fn search_fans() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -1011,38 +1172,23 @@ fn search_fans() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let event_interest = project
+    project
         .create_event_interest()
         .with_user(&order_user2)
         .with_event(&event)
         .finish();
-    let event_interest: EventInterest =
-        diesel::update(event_interest::table.filter(event_interest::id.eq(event_interest.id)))
-            .set((event_interest::created_at.eq(dates::now().add_hours(-12).finish()),))
-            .get_result(connection)
-            .unwrap();
-    let event_interest2 = project
+    project
         .create_event_interest()
         .with_user(&interested_user)
         .with_event(&event)
         .finish();
-    let event_interest2: EventInterest =
-        diesel::update(event_interest::table.filter(event_interest::id.eq(event_interest2.id)))
-            .set((event_interest::created_at.eq(dates::now().add_hours(-11).finish()),))
-            .get_result(connection)
-            .unwrap();
-
-    let order = project
+    let mut order = project
         .create_order()
         .for_user(&order_user)
         .for_event(&event)
         .quantity(5)
         .is_paid()
         .finish();
-    let mut order: Order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
-        .set((orders::order_date.eq(dates::now().add_hours(-10).finish()),))
-        .get_result(connection)
-        .unwrap();
     let order2 = project
         .create_order()
         .for_user(&order_user2)
@@ -1050,10 +1196,6 @@ fn search_fans() {
         .quantity(5)
         .is_paid()
         .finish();
-    let order2: Order = diesel::update(orders::table.filter(orders::id.eq(order2.id)))
-        .set((orders::order_date.eq(dates::now().add_hours(-9).finish()),))
-        .get_result(connection)
-        .unwrap();
     let order3 = project
         .create_order()
         .for_user(&box_office_user)
@@ -1062,10 +1204,6 @@ fn search_fans() {
         .quantity(5)
         .is_paid()
         .finish();
-    let order3: Order = diesel::update(orders::table.filter(orders::id.eq(order3.id)))
-        .set((orders::order_date.eq(dates::now().add_hours(-8).finish()),))
-        .get_result(connection)
-        .unwrap();
     let order4 = project
         .create_order()
         .for_user(&box_office_user)
@@ -1074,10 +1212,6 @@ fn search_fans() {
         .quantity(5)
         .is_paid()
         .finish();
-    let order4: Order = diesel::update(orders::table.filter(orders::id.eq(order4.id)))
-        .set((orders::order_date.eq(dates::now().add_hours(-7).finish()),))
-        .get_result(connection)
-        .unwrap();
 
     // Expected results after initial orders
     let mut expected_results = vec![
@@ -1086,6 +1220,24 @@ fn search_fans() {
         order_user3.id,
         interested_user.id,
     ];
+
+    let order_user_organization_data = organization
+        .interaction_data(order_user.id, connection)
+        .unwrap();
+    assert_eq!(order_user_organization_data.interaction_count, 1);
+    let order_user2_organization_data = organization
+        .interaction_data(order_user2.id, connection)
+        .unwrap();
+    assert_eq!(order_user2_organization_data.interaction_count, 3);
+    let order_user3_organization_data = organization
+        .interaction_data(order_user3.id, connection)
+        .unwrap();
+    assert_eq!(order_user3_organization_data.interaction_count, 1);
+    let interested_user_organization_data = organization
+        .interaction_data(interested_user.id, connection)
+        .unwrap();
+    assert_eq!(interested_user_organization_data.interaction_count, 1);
+
     expected_results.sort();
     let search_results = organization
         .search_fans(
@@ -1098,6 +1250,7 @@ fn search_fans() {
             &project.connection,
         )
         .unwrap();
+
     let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
     results.sort();
     assert_eq!(results, expected_results);
@@ -1120,8 +1273,8 @@ fn search_fans() {
             first_order_time: Some(order.order_date),
             last_order_time: Some(order.order_date),
             revenue_in_cents: Some(order.calculate_total(connection).unwrap()),
-            first_interaction_time: Some(order.order_date),
-            last_interaction_time: Some(order.order_date),
+            first_interaction_time: Some(order_user_organization_data.first_interaction),
+            last_interaction_time: Some(order_user_organization_data.last_interaction),
         }
     );
     assert_eq!(
@@ -1146,8 +1299,8 @@ fn search_fans() {
                 order2.calculate_total(connection).unwrap()
                     + order3.calculate_total(connection).unwrap()
             ),
-            first_interaction_time: Some(event_interest.created_at),
-            last_interaction_time: Some(order3.order_date),
+            first_interaction_time: Some(order_user2_organization_data.first_interaction),
+            last_interaction_time: Some(order_user2_organization_data.last_interaction),
         }
     );
     assert_eq!(
@@ -1169,8 +1322,8 @@ fn search_fans() {
             first_order_time: Some(order4.order_date),
             last_order_time: Some(order4.order_date),
             revenue_in_cents: Some(order4.calculate_total(connection).unwrap()),
-            first_interaction_time: Some(order4.order_date),
-            last_interaction_time: Some(order4.order_date),
+            first_interaction_time: Some(order_user3_organization_data.first_interaction),
+            last_interaction_time: Some(order_user3_organization_data.last_interaction),
         }
     );
     assert_eq!(
@@ -1192,8 +1345,8 @@ fn search_fans() {
             first_order_time: None,
             last_order_time: None,
             revenue_in_cents: Some(0),
-            first_interaction_time: Some(event_interest2.created_at),
-            last_interaction_time: Some(event_interest2.created_at),
+            first_interaction_time: Some(interested_user_organization_data.first_interaction),
+            last_interaction_time: Some(interested_user_organization_data.last_interaction),
         }
     );
 
@@ -1211,13 +1364,8 @@ fn search_fans() {
             ticket_instance_id: Some(t.id),
         })
         .collect();
-    let refund = order
+    order
         .refund(&refund_items, order_user.id, None, connection)
-        .unwrap()
-        .0;
-    let refund: Refund = diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
-        .set((refunds::created_at.eq(dates::now().add_hours(-6).finish()),))
-        .get_result(connection)
         .unwrap();
     let mut expected_results = vec![
         order_user.id,
@@ -1226,6 +1374,10 @@ fn search_fans() {
         interested_user.id,
     ];
     expected_results.sort();
+    let order_user_organization_data = organization
+        .interaction_data(order_user.id, connection)
+        .unwrap();
+    assert_eq!(order_user_organization_data.interaction_count, 2);
     let search_results = organization
         .search_fans(
             None,
@@ -1259,8 +1411,8 @@ fn search_fans() {
             first_order_time: Some(order.order_date),
             last_order_time: Some(order.order_date),
             revenue_in_cents: Some(0),
-            first_interaction_time: Some(order.order_date),
-            last_interaction_time: Some(refund.created_at),
+            first_interaction_time: Some(order_user_organization_data.first_interaction),
+            last_interaction_time: Some(order_user_organization_data.last_interaction),
         }
     );
 
@@ -1272,10 +1424,6 @@ fn search_fans() {
         .quantity(5)
         .is_paid()
         .finish();
-    let order5: Order = diesel::update(orders::table.filter(orders::id.eq(order5.id)))
-        .set((orders::order_date.eq(dates::now().add_hours(-5).finish()),))
-        .get_result(connection)
-        .unwrap();
     let mut expected_results = vec![
         order_user.id,
         order_user2.id,
@@ -1283,6 +1431,10 @@ fn search_fans() {
         interested_user.id,
     ];
     expected_results.sort();
+    let order_user_organization_data = organization
+        .interaction_data(order_user.id, connection)
+        .unwrap();
+    assert_eq!(order_user_organization_data.interaction_count, 3);
     let search_results = organization
         .search_fans(
             None,
@@ -1316,8 +1468,8 @@ fn search_fans() {
             first_order_time: Some(order.order_date),
             last_order_time: Some(order5.order_date),
             revenue_in_cents: Some(order5.calculate_total(connection).unwrap()),
-            first_interaction_time: Some(order.order_date),
-            last_interaction_time: Some(order5.order_date),
+            first_interaction_time: Some(order_user_organization_data.first_interaction),
+            last_interaction_time: Some(order_user_organization_data.last_interaction),
         }
     );
 
@@ -1327,7 +1479,7 @@ fn search_fans() {
         .iter()
         .map(|t| t.id)
         .collect();
-    let transfer = TicketInstance::direct_transfer(
+    TicketInstance::direct_transfer(
         order_user3.id,
         &vec![ticket_ids.pop().unwrap()],
         "nowhere",
@@ -1336,15 +1488,8 @@ fn search_fans() {
         connection,
     )
     .unwrap();
-    let transfer: Transfer = diesel::update(transfers::table.filter(transfers::id.eq(transfer.id)))
-        .set((
-            transfers::created_at.eq(dates::now().add_hours(-4).finish()),
-            transfers::updated_at.eq(dates::now().add_hours(-4).finish()),
-        ))
-        .get_result(connection)
-        .unwrap();
     // Intermediary transfer user transfers out their inventory
-    let intermediary_transfer = TicketInstance::direct_transfer(
+    TicketInstance::direct_transfer(
         order_user3.id,
         &ticket_ids,
         "nowhere",
@@ -1353,15 +1498,7 @@ fn search_fans() {
         connection,
     )
     .unwrap();
-    let intermediary_transfer: Transfer =
-        diesel::update(transfers::table.filter(transfers::id.eq(intermediary_transfer.id)))
-            .set((
-                transfers::created_at.eq(dates::now().add_hours(-3).finish()),
-                transfers::updated_at.eq(dates::now().add_hours(-3).finish()),
-            ))
-            .get_result(connection)
-            .unwrap();
-    let transfer2 = TicketInstance::direct_transfer(
+    TicketInstance::direct_transfer(
         previous_transfer_user.id,
         &ticket_ids,
         "nowhere",
@@ -1370,14 +1507,6 @@ fn search_fans() {
         connection,
     )
     .unwrap();
-    let transfer2: Transfer =
-        diesel::update(transfers::table.filter(transfers::id.eq(transfer2.id)))
-            .set((
-                transfers::created_at.eq(dates::now().add_hours(-2).finish()),
-                transfers::updated_at.eq(dates::now().add_hours(-2).finish()),
-            ))
-            .get_result(connection)
-            .unwrap();
     let mut expected_results = vec![
         order_user.id,
         order_user2.id,
@@ -1398,6 +1527,29 @@ fn search_fans() {
             &project.connection,
         )
         .unwrap();
+    let previous_transfer_user_organization_data = organization
+        .interaction_data(previous_transfer_user.id, connection)
+        .unwrap();
+    assert_eq!(
+        previous_transfer_user_organization_data.interaction_count,
+        3
+    );
+    let transfer_user_organization_data = organization
+        .interaction_data(transfer_user.id, connection)
+        .unwrap();
+    assert_eq!(transfer_user_organization_data.interaction_count, 1);
+    let order_user_organization_data = organization
+        .interaction_data(order_user.id, connection)
+        .unwrap();
+    assert_eq!(order_user_organization_data.interaction_count, 4);
+    let order_user2_organization_data = organization
+        .interaction_data(order_user2.id, connection)
+        .unwrap();
+    assert_eq!(order_user2_organization_data.interaction_count, 3);
+    let order_user3_organization_data = organization
+        .interaction_data(order_user3.id, connection)
+        .unwrap();
+    assert_eq!(order_user3_organization_data.interaction_count, 5);
     let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
     results.sort();
     assert_eq!(results, expected_results);
@@ -1420,8 +1572,8 @@ fn search_fans() {
             first_order_time: Some(order.order_date),
             last_order_time: Some(order5.order_date),
             revenue_in_cents: Some(order5.calculate_total(connection).unwrap()),
-            first_interaction_time: Some(order.order_date),
-            last_interaction_time: Some(transfer.updated_at),
+            first_interaction_time: Some(order_user_organization_data.first_interaction),
+            last_interaction_time: Some(order_user_organization_data.last_interaction),
         }
     );
     assert_eq!(
@@ -1446,8 +1598,8 @@ fn search_fans() {
                 order2.calculate_total(connection).unwrap()
                     + order3.calculate_total(connection).unwrap()
             ),
-            first_interaction_time: Some(event_interest.created_at),
-            last_interaction_time: Some(order3.order_date),
+            first_interaction_time: Some(order_user2_organization_data.first_interaction),
+            last_interaction_time: Some(order_user2_organization_data.last_interaction),
         }
     );
     assert_eq!(
@@ -1469,10 +1621,11 @@ fn search_fans() {
             first_order_time: Some(order4.order_date),
             last_order_time: Some(order4.order_date),
             revenue_in_cents: Some(order4.calculate_total(connection).unwrap()),
-            first_interaction_time: Some(order4.order_date),
-            last_interaction_time: Some(intermediary_transfer.updated_at),
+            first_interaction_time: Some(order_user3_organization_data.first_interaction),
+            last_interaction_time: Some(order_user3_organization_data.last_interaction),
         }
     );
+
     assert_eq!(
         search_results
             .data
@@ -1492,8 +1645,10 @@ fn search_fans() {
             first_order_time: None,
             last_order_time: None,
             revenue_in_cents: Some(0),
-            first_interaction_time: Some(intermediary_transfer.created_at),
-            last_interaction_time: Some(transfer2.updated_at),
+            first_interaction_time: Some(
+                previous_transfer_user_organization_data.first_interaction
+            ),
+            last_interaction_time: Some(previous_transfer_user_organization_data.last_interaction),
         }
     );
     assert_eq!(
@@ -1515,8 +1670,8 @@ fn search_fans() {
             first_order_time: None,
             last_order_time: None,
             revenue_in_cents: Some(0),
-            first_interaction_time: Some(transfer2.created_at),
-            last_interaction_time: Some(transfer2.updated_at),
+            first_interaction_time: Some(transfer_user_organization_data.first_interaction),
+            last_interaction_time: Some(transfer_user_organization_data.last_interaction),
         }
     );
     assert_eq!(
@@ -1538,8 +1693,8 @@ fn search_fans() {
             first_order_time: None,
             last_order_time: None,
             revenue_in_cents: Some(0),
-            first_interaction_time: Some(event_interest2.created_at),
-            last_interaction_time: Some(event_interest2.created_at),
+            first_interaction_time: Some(interested_user_organization_data.first_interaction),
+            last_interaction_time: Some(interested_user_organization_data.last_interaction),
         }
     );
 
@@ -1553,11 +1708,10 @@ fn search_fans() {
         connection,
     )
     .unwrap();
-    let ticket: TicketInstance =
-        diesel::update(ticket_instances::table.filter(ticket_instances::id.eq(ticket.id)))
-            .set((ticket_instances::redeemed_at.eq(dates::now().add_hours(-1).finish()),))
-            .get_result(connection)
-            .unwrap();
+    let order_user_organization_data = organization
+        .interaction_data(order_user.id, connection)
+        .unwrap();
+    assert_eq!(order_user_organization_data.interaction_count, 5);
     let search_results = organization
         .search_fans(
             None,
@@ -1588,17 +1742,11 @@ fn search_fans() {
             first_order_time: Some(order.order_date),
             last_order_time: Some(order5.order_date),
             revenue_in_cents: Some(order5.calculate_total(connection).unwrap()),
-            first_interaction_time: Some(order.order_date),
-            last_interaction_time: ticket.redeemed_at,
+            first_interaction_time: Some(order_user_organization_data.first_interaction),
+            last_interaction_time: Some(order_user_organization_data.last_interaction),
         }
     );
 
-    // Update event interest to be greater than orders (showing max is used)
-    let event_interest: EventInterest =
-        diesel::update(event_interest::table.filter(event_interest::id.eq(event_interest.id)))
-            .set((event_interest::created_at.eq(dates::now().finish()),))
-            .get_result(connection)
-            .unwrap();
     let search_results = organization
         .search_fans(
             None,
@@ -1632,8 +1780,8 @@ fn search_fans() {
                 order2.calculate_total(connection).unwrap()
                     + order3.calculate_total(connection).unwrap()
             ),
-            first_interaction_time: Some(order2.order_date),
-            last_interaction_time: Some(event_interest.created_at),
+            first_interaction_time: Some(order_user2_organization_data.first_interaction),
+            last_interaction_time: Some(order_user2_organization_data.last_interaction),
         }
     );
 
