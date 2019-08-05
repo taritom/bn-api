@@ -880,6 +880,7 @@ impl TicketInstance {
             ticket_ids,
             Some(address),
             Some(sent_via),
+            true,
             conn,
         )?;
         let wallet = Wallet::find_default_for_user(from_user_id, conn)?;
@@ -945,6 +946,7 @@ impl TicketInstance {
         ticket_ids: &[Uuid],
         address: Option<&str>,
         sent_via: Option<TransferMessageType>,
+        direct: bool,
         conn: &PgConnection,
     ) -> Result<Transfer, DatabaseError> {
         //Confirm that tickets are purchased and owned by user
@@ -971,10 +973,11 @@ impl TicketInstance {
             transfer_key,
             sent_via,
             address.map(|a| a.to_string()),
+            direct,
         )
         .commit(conn)?;
         for (t_id, _) in ticket_ids_and_updated_at {
-            transfer.add_transfer_ticket(t_id, user_id, &transfer_data, conn)?;
+            transfer.add_transfer_ticket(t_id, conn)?;
             update_count += 1;
         }
         transfer.update_associated_orders(conn)?;

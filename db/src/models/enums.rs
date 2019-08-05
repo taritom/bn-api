@@ -86,7 +86,8 @@ string_enum! { AssetStatus [Unsynced] }
 string_enum! { BroadcastAudience [ PeopleAtTheEvent ]}
 string_enum! { CartItemStatus [CodeExpired, HoldExpired, TicketNullified, TicketNotReserved, Valid] }
 string_enum! { CodeTypes [Access, Discount] }
-string_enum! { CommunicationChannelType [Email, Sms, Push]}
+string_enum! { CommunicationChannelType [Email, Sms, Push, Webhook]}
+string_enum! { CommunicationType [Email, EmailTemplate, Sms, Push, Webhook]}
 string_enum! { DomainEventTypes [
     CodeCreated,
     CodeDeleted,
@@ -133,6 +134,7 @@ string_enum! { DomainEventTypes [
     TransferTicketCompleted,
     TransferTicketStarted,
     TrackingDataUpdated,
+    TemporaryUserCreated,
     TicketInstanceAddedToHold,
     TicketInstanceNullified,
     TicketInstancePurchased,
@@ -157,8 +159,6 @@ string_enum! { DomainActionTypes [
     MarketingContactsCreateEventList,
     MarketingContactsBulkEventFanListImport,
     PaymentProviderIPN,
-    ProcessTransferDrip,
-    RegenerateDripActions,
     SendPurchaseCompletedCommunication,
     UpdateGenres
 ]}
@@ -188,7 +188,7 @@ string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { SourceOrDestination [Destination,Source]}
 string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations,
-Notes, Payments, PaymentMethods, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
+Notes, Payments, PaymentMethods, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, OnSaleSoon, SaleEnded, Cancelled, Deleted] }

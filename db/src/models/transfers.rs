@@ -3,7 +3,7 @@ use diesel;
 use diesel::dsl::{count, exists, select, sql};
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use diesel::sql_types::{Array, BigInt, Nullable, Uuid as dUuid};
+use diesel::sql_types::{Array, Uuid as dUuid};
 use models::*;
 use schema::{
     assets, events, order_transfers, orders, organizations, ticket_instances, ticket_types,
@@ -15,12 +15,10 @@ use tari_client::*;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
+use utils::pagination::Paginate;
 use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
-
-pub static TRANSFER_DRIP_NOTIFICATION_DAYS_PRIOR_TO_EVENT: &'static [i64] = &[7, 1, 0];
-pub const TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT: i64 = 3;
 
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "transfers"]
@@ -30,6 +28,7 @@ pub struct NewTransfer {
     pub status: TransferStatus,
     pub transfer_message_type: Option<TransferMessageType>,
     pub transfer_address: Option<String>,
+    pub direct: bool,
 }
 
 #[derive(Clone, Queryable, Identifiable, Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -45,6 +44,8 @@ pub struct Transfer {
     pub transfer_message_type: Option<TransferMessageType>,
     pub transfer_address: Option<String>,
     pub cancelled_by_user_id: Option<Uuid>,
+    pub direct: bool,
+    pub destination_temporary_user_id: Option<Uuid>,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -68,14 +69,7 @@ pub struct DisplayTransfer {
     pub transfer_address: Option<String>,
     pub ticket_ids: Vec<Uuid>,
     pub event_ids: Vec<Uuid>,
-    #[serde(skip_serializing)]
-    pub total: Option<i64>,
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct ProcessTransferDripPayload {
-    pub source_or_destination: SourceOrDestination,
-    pub event_id: Uuid,
+    pub direct: bool,
 }
 
 impl PartialOrd for Transfer {
@@ -85,6 +79,10 @@ impl PartialOrd for Transfer {
 }
 
 impl Transfer {
+    pub fn temporary_user_id(transfer_address: Option<String>) -> Option<Uuid> {
+        transfer_address.map(|a| Uuid::new_v3(&Uuid::nil(), &a))
+    }
+
     pub fn receive_url(
         &self,
         front_end_url: String,
@@ -113,74 +111,6 @@ impl Transfer {
         })
     }
 
-    pub fn drip_header(
-        &self,
-        event: &Event,
-        source_or_destination: SourceOrDestination,
-        include_links: bool,
-        environment: Environment,
-        conn: &PgConnection,
-    ) -> Result<String, DatabaseError> {
-        if self.transfer_address.is_none() {
-            return DatabaseError::business_process_error(
-                "Cannot build drip header for transfer missing destination address",
-            );
-        }
-
-        let units_until_event = if environment == Environment::Staging {
-            event.minutes_until_event()
-        } else {
-            event.days_until_event()
-        };
-        Ok(match units_until_event {
-            Some(units_until_event) => match source_or_destination {
-                SourceOrDestination::Source => {
-                    let mut destination_address = self.transfer_address.clone().unwrap();
-                    if include_links
-                        && self.transfer_message_type == Some(TransferMessageType::Email)
-                    {
-                        destination_address = format!(
-                            "<a href='mailto:{}'>{}</a>",
-                            destination_address, destination_address
-                        );
-                    }
-                    match units_until_event {
-                            0 => {
-                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
-                                let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
-                                format!("Time to take action! The show is {} and those tickets you sent to {} still haven't been claimed. Give them a nudge!", time_of_day_text, destination_address)
-                            },
-                            1 => format!("Uh oh! The show is tomorrow and those tickets you sent to {} still haven't been claimed. Give them a nudge!", destination_address),
-                            _ => format!("Those tickets you sent to {} still haven't been claimed. Give them a nudge!", destination_address),
-                        }
-                }
-                SourceOrDestination::Destination => {
-                    let source_user = User::find(self.source_user_id, conn)?;
-                    let mut name = Transfer::sender_name(&source_user);
-
-                    if include_links && source_user.email.is_some() {
-                        name = format!(
-                            "<a href='mailto:{}'>{}</a>",
-                            source_user.email.unwrap(),
-                            name
-                        );
-                    }
-                    match units_until_event {
-                            0 => {
-                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
-                                let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
-                                format!("Time to take action! The event is {} and the tickets {} sent you are still waiting!", time_of_day_text, name)
-                            },
-                            1 => format!("Get your tickets! The event is TOMORROW and you still need to get the tickets that {} sent you!", name),
-                            7 => format!("The event is only one week away and you still need to get the tickets that {} sent you!", name),
-                            _ => format!("You still need to get the tickets that {} sent you!", name)
-                        }
-                }
-            },
-            None => "".to_string(),
-        })
-    }
-
     pub fn sender_name(user: &User) -> String {
         if let (Some(first_name), Some(last_name)) =
             (user.first_name.clone(), user.last_name.clone())
@@ -197,29 +127,6 @@ impl Transfer {
         } else {
             "another user".to_string()
         }
-    }
-
-    pub fn log_drip_domain_event(
-        &self,
-        source_or_destination: SourceOrDestination,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
-        let domain_event_type = match source_or_destination {
-            SourceOrDestination::Source => DomainEventTypes::TransferTicketDripSourceSent,
-            SourceOrDestination::Destination => DomainEventTypes::TransferTicketDripDestinationSent,
-        };
-
-        DomainEvent::create(
-            domain_event_type,
-            "Transfer drip sent".to_string(),
-            Tables::Transfers,
-            Some(self.id),
-            None,
-            None,
-        )
-        .commit(conn)?;
-
-        Ok(())
     }
 
     pub fn transfer_ticket_count(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
@@ -242,37 +149,6 @@ impl Transfer {
             &message,
             &convert_hexstring_to_bytes(&secret_key),
         )?))
-    }
-
-    pub fn create_drip_actions(
-        &self,
-        event: &Event,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
-        for source_or_destination in vec![
-            SourceOrDestination::Destination,
-            SourceOrDestination::Source,
-        ] {
-            DomainAction::create(
-                None,
-                DomainActionTypes::ProcessTransferDrip,
-                None,
-                json!(ProcessTransferDripPayload {
-                    event_id: event.id,
-                    source_or_destination,
-                }),
-                Some(Tables::Transfers.to_string()),
-                Some(self.id),
-            )
-            .commit(conn)?;
-        }
-        Ok(())
-    }
-
-    pub fn can_process_drips(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
-        Ok(self.status == TransferStatus::Pending
-            && self.events_have_not_ended(conn)?
-            && self.transfer_address.is_some())
     }
 
     pub fn events_have_not_ended(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
@@ -353,10 +229,8 @@ impl Transfer {
             query = query.filter(transfers::created_at.le(end_time));
         }
 
-        let transfers: Vec<DisplayTransfer> = query
+        let (transfers, transfer_count): (Vec<DisplayTransfer>, i64) = query
             .select(transfers::all_columns)
-            .limit(limit as i64)
-            .offset(limit as i64 * page as i64)
             .then_order_by(transfers::created_at.desc())
             .select((
                 transfers::id,
@@ -389,14 +263,16 @@ impl Transfer {
                     ) as event_ids
                 ",
                 ),
-                sql::<Nullable<BigInt>>("count(*) over() as total"),
+                transfers::direct,
             ))
-            .load(conn)
+            .paginate(page as i64)
+            .per_page(limit as i64)
+            .load_and_count_pages(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load transfers")?;
 
-        let mut paging = Paging::new(page, limit);
-        paging.total = transfers.first().map(|t| t.total.unwrap_or(0)).unwrap_or(0) as u64;
-        Ok(Payload::new(transfers, paging))
+        let mut payload = Payload::new(transfers, Paging::new(page, limit));
+        payload.paging.total = transfer_count as u64;
+        Ok(payload)
     }
 
     pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayTransfer, DatabaseError> {
@@ -419,7 +295,7 @@ impl Transfer {
             transfer_address: self.transfer_address.clone(),
             ticket_ids,
             event_ids,
-            total: None,
+            direct: self.direct,
         })
     }
 
@@ -469,22 +345,15 @@ impl Transfer {
             conn,
         )?;
 
-        let mut domain_event_data = vec![(self.id, Tables::Transfers)];
-        for transfer_ticket in transfer.transfer_tickets(conn)? {
-            domain_event_data.push((transfer_ticket.ticket_instance_id, Tables::TicketInstances));
-        }
-
-        for (id, table) in domain_event_data {
-            DomainEvent::create(
-                DomainEventTypes::TransferTicketCancelled,
-                "Ticket transfer was cancelled".to_string(),
-                table,
-                Some(id),
-                Some(user_id),
-                Some(json!({"old_transfer_key": self.transfer_key, "new_transfer_key": &new_transfer_key })),
-            )
-            .commit(conn)?;
-        }
+        DomainEvent::create(
+            DomainEventTypes::TransferTicketCancelled,
+            "Ticket transfer was cancelled".to_string(),
+            Tables::Transfers,
+            Some(self.id),
+            Some(user_id),
+            Some(json!({"old_transfer_key": self.transfer_key, "new_transfer_key": &new_transfer_key })),
+        )
+        .commit(conn)?;
 
         Ok(transfer)
     }
@@ -511,22 +380,15 @@ impl Transfer {
             conn,
         )?;
 
-        let mut domain_event_data = vec![(self.id, Tables::Transfers)];
-        for transfer_ticket in transfer.transfer_tickets(conn)? {
-            domain_event_data.push((transfer_ticket.ticket_instance_id, Tables::TicketInstances));
-        }
-
-        for (id, table) in domain_event_data {
-            DomainEvent::create(
-                DomainEventTypes::TransferTicketCompleted,
-                "Transfer ticket completed".to_string(),
-                table,
-                Some(id),
-                None,
-                additional_data.clone(),
-            )
-            .commit(conn)?;
-        }
+        DomainEvent::create(
+            DomainEventTypes::TransferTicketCompleted,
+            "Transfer ticket completed".to_string(),
+            Tables::Transfers,
+            Some(self.id),
+            None,
+            additional_data.clone(),
+        )
+        .commit(conn)?;
 
         User::find(self.source_user_id, conn)?.update_genre_info(conn)?;
         User::find(destination_user_id, conn)?.update_genre_info(conn)?;
@@ -559,11 +421,9 @@ impl Transfer {
     pub fn add_transfer_ticket(
         &self,
         ticket_instance_id: Uuid,
-        user_id: Uuid,
-        additional_info: &Option<Value>,
         conn: &PgConnection,
     ) -> Result<TransferTicket, DatabaseError> {
-        TransferTicket::create(ticket_instance_id, self.id).commit(user_id, &additional_info, conn)
+        TransferTicket::create(ticket_instance_id, self.id).commit(conn)
     }
 
     pub fn find_pending(conn: &PgConnection) -> Result<Vec<Transfer>, DatabaseError> {
@@ -580,12 +440,14 @@ impl Transfer {
         transfer_key: Uuid,
         transfer_message_type: Option<TransferMessageType>,
         transfer_address: Option<String>,
+        direct: bool,
     ) -> NewTransfer {
         NewTransfer {
             transfer_address,
             transfer_message_type,
             source_user_id,
             transfer_key,
+            direct,
             status: TransferStatus::Pending,
         }
     }
@@ -681,13 +543,18 @@ impl Transfer {
 impl NewTransfer {
     pub fn commit(&self, conn: &PgConnection) -> Result<Transfer, DatabaseError> {
         self.validate_record(conn)?;
-        DatabaseError::wrap(
+        let transfer: Transfer = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new transfer",
             diesel::insert_into(transfers::table)
-                .values(self)
+                .values((
+                    self,
+                    transfers::destination_temporary_user_id
+                        .eq(Transfer::temporary_user_id(self.transfer_address.clone())),
+                ))
                 .get_result(conn),
-        )
+        )?;
+        Ok(transfer)
     }
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {

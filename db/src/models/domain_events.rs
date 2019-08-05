@@ -1,12 +1,12 @@
 use chrono::prelude::*;
 use diesel;
-use diesel::expression::dsl;
 use diesel::prelude::*;
 use log::Level::Info;
 use models::*;
 use schema::domain_events;
 use serde_json;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use utils::errors::*;
 use uuid::Uuid;
 
@@ -18,7 +18,6 @@ pub struct DomainEvent {
     pub event_data: Option<serde_json::Value>,
     pub main_table: Tables,
     pub main_id: Option<Uuid>,
-    pub published_at: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub user_id: Option<Uuid>,
@@ -31,6 +30,17 @@ impl PartialOrd for DomainEvent {
 }
 
 impl DomainEvent {
+    pub fn find_by_ids(
+        ids: Vec<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<Vec<DomainEvent>, DatabaseError> {
+        domain_events::table
+            .filter(domain_events::id.eq_any(ids))
+            .order_by(domain_events::created_at)
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading domain events")
+    }
+
     pub fn create(
         event_type: DomainEventTypes,
         display_text: String,
@@ -46,7 +56,260 @@ impl DomainEvent {
             main_table,
             main_id,
             user_id,
+            created_at: None,
         }
+    }
+
+    pub fn webhook_payloads(
+        &self,
+        front_end_url: &str,
+        conn: &PgConnection,
+    ) -> Result<Vec<HashMap<String, serde_json::Value>>, DatabaseError> {
+        let mut result: Vec<HashMap<String, serde_json::Value>> = Vec::new();
+        let main_id = self.main_id.ok_or_else(|| {
+            DatabaseError::new(
+                ErrorCode::BusinessProcessError,
+                Some("Domain event id not present for webhook".to_string()),
+            )
+        })?;
+
+        match self.event_type {
+            DomainEventTypes::UserCreated => {
+                let mut data: HashMap<String, serde_json::Value> = HashMap::new();
+                data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
+                let user = User::find(main_id, conn)?;
+                data.insert("webhook_event_type".to_string(), json!("user_created"));
+                data.insert("user_id".to_string(), json!(user.id));
+                data.insert("email".to_string(), json!(user.email));
+                data.insert("phone".to_string(), json!(user.phone));
+                data.insert("timezone".to_string(), json!(user.timezone(conn)?));
+                result.push(data);
+            }
+            DomainEventTypes::TemporaryUserCreated => {
+                let mut data: HashMap<String, serde_json::Value> = HashMap::new();
+                data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
+                let temporary_user = TemporaryUser::find(main_id, conn)?;
+                data.insert(
+                    "webhook_event_type".to_string(),
+                    json!("temporary_user_created"),
+                );
+                data.insert("user_id".to_string(), json!(temporary_user.id));
+                data.insert("email".to_string(), json!(temporary_user.email));
+                data.insert("phone".to_string(), json!(temporary_user.phone));
+                result.push(data);
+            }
+            DomainEventTypes::OrderCompleted => {
+                let mut data: HashMap<String, serde_json::Value> = HashMap::new();
+                let order = Order::find(main_id, conn)?;
+                if let Some(event) = order.events(conn)?.pop() {
+                    DomainEvent::webhook_payload_event_data(&event, &mut data, conn)?;
+                }
+                data.insert("webhook_event_type".to_string(), json!("purchase_ticket"));
+                data.insert(
+                    "user_id".to_string(),
+                    json!(order.on_behalf_of_user_id.unwrap_or(order.user_id)),
+                );
+                data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
+
+                result.push(data);
+            }
+            DomainEventTypes::TransferTicketStarted
+            | DomainEventTypes::TransferTicketCancelled
+            | DomainEventTypes::TransferTicketCompleted => {
+                // Sender is associated with their main account
+                // Receiver is associated with the v3 UUID of their destination address
+                // Receiver has a temp account made for them in the customer system on TransferTicketStarted
+                let mut data: HashMap<String, serde_json::Value> = HashMap::new();
+                let transfer = Transfer::find(main_id, conn)?;
+
+                data.insert("direct_transfer".to_string(), json!(transfer.direct));
+                data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
+                let mut events = transfer.events(conn)?;
+                // TODO: lock down transfers to have only one event
+                if let Some(event) = events.pop() {
+                    DomainEvent::webhook_payload_event_data(&event, &mut data, conn)?;
+                }
+                let mut recipient_data = data.clone();
+                let mut transferer_data = data;
+
+                DomainEvent::recipient_payload_data(
+                    &transfer,
+                    self.event_type,
+                    &mut recipient_data,
+                    front_end_url,
+                    conn,
+                )?;
+                result.push(recipient_data);
+
+                DomainEvent::transferer_payload_data(
+                    &transfer,
+                    self.event_type,
+                    &mut transferer_data,
+                    conn,
+                )?;
+                result.push(transferer_data);
+            }
+            _ => {
+                return Err(DatabaseError::new(
+                    ErrorCode::BusinessProcessError,
+                    Some("Domain event type not supported".to_string()),
+                ));
+            }
+        }
+
+        Ok(result)
+    }
+
+    fn transferer_payload_data(
+        transfer: &Transfer,
+        event_type: DomainEventTypes,
+        data: &mut HashMap<String, serde_json::Value>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        data.insert("user_id".to_string(), json!(transfer.source_user_id));
+        data.insert(
+            "recipient_id".to_string(),
+            json!(transfer
+                .destination_temporary_user_id
+                .or(transfer.destination_user_id)),
+        );
+        data.insert(
+            "number_of_tickets_transferred".to_string(),
+            json!(transfer.transfer_ticket_count(conn)?),
+        );
+
+        let recipient = if let Some(destination_user_id) = transfer.destination_user_id {
+            Some(User::find(destination_user_id, conn)?)
+        } else {
+            None
+        };
+        let mut email = recipient.clone().map(|r| r.email.clone()).unwrap_or(None);
+        if let Some(transfer_message_type) = transfer.transfer_message_type {
+            if transfer_message_type == TransferMessageType::Email {
+                email = email.or(transfer.transfer_address.clone());
+            }
+        }
+        let mut phone = recipient.clone().map(|r| r.phone.clone()).unwrap_or(None);
+        if let Some(transfer_message_type) = transfer.transfer_message_type {
+            if transfer_message_type == TransferMessageType::Phone {
+                phone = phone.or(transfer.transfer_address.clone());
+            }
+        }
+
+        data.insert(
+            "webhook_event_type".to_string(),
+            json!(match event_type {
+                DomainEventTypes::TransferTicketCancelled => {
+                    if transfer.cancelled_by_user_id == Some(transfer.source_user_id) {
+                        "cancel_pending_transfer"
+                    } else {
+                        "initiated_transfer_declined"
+                    }
+                }
+                DomainEventTypes::TransferTicketCompleted => "initiated_transfer_claimed",
+                DomainEventTypes::TransferTicketStarted => "initiate_pending_transfer",
+                _ => {
+                    return Err(DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some("Domain event type not supported".to_string()),
+                    ));
+                }
+            }),
+        );
+
+        data.insert(
+            "recipient_first_name".to_string(),
+            json!(recipient.map(|r| r.first_name)),
+        );
+        data.insert("recipient_email".to_string(), json!(email));
+        data.insert("recipient_phone".to_string(), json!(phone));
+
+        Ok(())
+    }
+
+    fn recipient_payload_data(
+        transfer: &Transfer,
+        event_type: DomainEventTypes,
+        data: &mut HashMap<String, serde_json::Value>,
+        front_end_url: &str,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let transferer = User::find(transfer.source_user_id, conn)?;
+        let receive_tickets_url = transfer.receive_url(front_end_url.to_string(), conn)?;
+        data.insert(
+            "user_id".to_string(),
+            json!(transfer
+                .destination_temporary_user_id
+                .or(transfer.destination_user_id)),
+        );
+        data.insert(
+            "receive_tickets_url".to_string(),
+            json!(receive_tickets_url),
+        );
+        data.insert(
+            "transferer_first_name".to_string(),
+            json!(transferer.first_name),
+        );
+
+        data.insert(
+            "webhook_event_type".to_string(),
+            json!(match event_type {
+                DomainEventTypes::TransferTicketCancelled => {
+                    if transfer.cancelled_by_user_id == Some(transfer.source_user_id) {
+                        "received_transfer_cancelled"
+                    } else {
+                        "decline_pending_transfer"
+                    }
+                }
+                DomainEventTypes::TransferTicketCompleted => "claim_pending_transfer",
+                DomainEventTypes::TransferTicketStarted => "receive_pending_transfer",
+                _ => {
+                    return Err(DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some("Domain event type not supported".to_string()),
+                    ));
+                }
+            }),
+        );
+
+        data.insert("transferer_email".to_string(), json!(transferer.email));
+        data.insert("transferer_phone".to_string(), json!(transferer.phone));
+
+        Ok(())
+    }
+
+    fn webhook_payload_event_data(
+        event: &Event,
+        data: &mut HashMap<String, serde_json::Value>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let organization = event.organization(conn)?;
+        data.insert("show_id".to_string(), json!(event.id));
+        data.insert("show_event_name".to_string(), json!(event.name.clone()));
+
+        data.insert(
+            "show_start".to_string(),
+            json!(event.event_start.map(|e| e.timestamp())),
+        );
+        if let Some(venue) = event.venue(conn)? {
+            data.insert("show_venue_address".to_string(), json!(venue.address));
+            data.insert("show_venue_city".to_string(), json!(venue.city));
+            data.insert("show_venue_state".to_string(), json!(venue.state));
+            data.insert("show_venue_country".to_string(), json!(venue.country));
+            data.insert(
+                "show_venue_postal_code".to_string(),
+                json!(venue.postal_code),
+            );
+            data.insert(
+                "show_venue_phone".to_string(),
+                json!(venue.phone.unwrap_or("".to_string())),
+            );
+            data.insert("show_venue_name".to_string(), json!(venue.name));
+            data.insert("show_timezone".to_string(), json!(venue.timezone));
+        }
+        data.insert("organization_id".to_string(), json!(organization.id));
+        data.insert("organization_name".to_string(), json!(organization.name));
+        Ok(())
     }
 
     pub fn find(
@@ -68,31 +331,6 @@ impl DomainEvent {
             .order_by(domain_events::created_at)
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load domain events")
-    }
-
-    pub fn find_unpublished(
-        limit: u32,
-        conn: &PgConnection,
-    ) -> Result<Vec<DomainEvent>, DatabaseError> {
-        domain_events::table
-            .filter(domain_events::published_at.is_null())
-            .order_by(domain_events::created_at)
-            .limit(limit as i64)
-            .get_results(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load unpublished domain events",
-            )
-    }
-
-    pub fn mark_as_published(self, conn: &PgConnection) -> Result<DomainEvent, DatabaseError> {
-        diesel::update(&self)
-            .set(domain_events::published_at.eq(dsl::now.nullable()))
-            .get_result(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not mark domain event as published",
-            )
     }
 
     pub fn post_processing(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -130,24 +368,31 @@ impl DomainEvent {
                 DomainEventTypes::TransferTicketStarted
                 | DomainEventTypes::TransferTicketCancelled
                 | DomainEventTypes::TransferTicketCompleted => {
-                    // Both ticket instances and transfers have an event made but dupe is removed in 220
-                    // TODO: remove condition once bigneon 220 merges
-                    if self.main_table == Tables::Transfers {
-                        let transfer = Transfer::find(main_id, conn)?;
-                        for organization in transfer.organizations(conn)? {
+                    let transfer = Transfer::find(main_id, conn)?;
+
+                    let mut temporary_user: Option<TemporaryUser> = None;
+                    if !transfer.direct {
+                        temporary_user =
+                            TemporaryUser::find_or_build_from_transfer(&transfer, conn)?;
+                    }
+
+                    for organization in transfer.organizations(conn)? {
+                        organization.log_interaction(
+                            transfer.source_user_id,
+                            Utc::now().naive_utc(),
+                            conn,
+                        )?;
+
+                        if let Some(destination_user_id) = transfer.destination_user_id {
+                            if let Some(temp_user) = temporary_user.clone() {
+                                temp_user.associate_user(destination_user_id, conn)?;
+                            }
+
                             organization.log_interaction(
-                                transfer.source_user_id,
+                                destination_user_id,
                                 Utc::now().naive_utc(),
                                 conn,
                             )?;
-
-                            if let Some(destination_user_id) = transfer.destination_user_id {
-                                organization.log_interaction(
-                                    destination_user_id,
-                                    Utc::now().naive_utc(),
-                                    conn,
-                                )?;
-                            }
                         }
                     }
                 }
@@ -168,6 +413,7 @@ pub struct NewDomainEvent {
     pub main_table: Tables,
     pub main_id: Option<Uuid>,
     pub user_id: Option<Uuid>,
+    pub created_at: Option<NaiveDateTime>,
 }
 
 impl NewDomainEvent {

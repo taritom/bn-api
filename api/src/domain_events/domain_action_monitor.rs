@@ -18,11 +18,6 @@ use tokio::prelude::*;
 use tokio::runtime::current_thread;
 use tokio::runtime::Runtime;
 use tokio::timer::Timeout;
-//
-//fn example_subscription(_: &DomainEvent) -> Option<NewDomainAction> {
-//    // Other subscriptions should conform to this signature
-//    None
-//}
 
 pub struct DomainActionMonitor {
     config: Config,
@@ -41,14 +36,7 @@ impl DomainActionMonitor {
         }
     }
 
-    //    fn get_publisher() -> DomainEventPublisher {
-    //        let mut publisher = DomainEventPublisher::new();
-    //        publisher.add_subscription(DomainEventTypes::PaymentCreated, example_subscription);
-    //        publisher
-    //    }
-
     pub fn run_til_empty(&self) -> Result<(), DomainActionError> {
-        //let publisher = DomainActionMonitor::get_publisher();
         let router = DomainActionMonitor::create_router(&self.config);
 
         loop {
@@ -80,54 +68,59 @@ impl DomainActionMonitor {
         Ok(())
     }
 
-    //    fn find_and_publish_events(database: &Database, publisher: &DomainEventPublisher) -> Result<usize, Domain> {
-    //
-    //        let connection = database.get_connection();
-    //
-    //        let pending_events = DomainEvent::find_unpublished(100, connection.get())?;
-    //
-    //        if pending_events.len() > 0 {
-    //            jlog!(
-    //                    Info,
-    //                    "bigneon::domain_actions",
-    //                    "Found events to process",
-    //                    { "count": pending_events.len() }
-    //                );
-    //
-    //            for event in pending_events {
-    //                publisher.publish(event, connection.get())?;
-    //            }
-    //        }
-    //        Ok(pending_events.len())
-    //
-    //    }
+    fn find_and_publish_events(
+        config: &Config,
+        database: &Database,
+    ) -> Result<usize, DomainActionError> {
+        let connection = database.get_connection()?;
+        let unpublished_domain_events_by_publisher =
+            DomainEventPublisher::find_with_unpublished_domain_events(10, connection.get())?;
 
-    //    #[allow(unreachable_code)]
-    //    pub fn publish_events_to_actions(
-    //        database: Database,
-    //        interval: u64,
-    //        rx: Receiver<()>,
-    //    ) -> Result<(), DomainActionError> {
-    //        let publisher = DomainActionMonitor::get_publisher();
-    //        loop {
-    //            if rx.try_recv().is_ok() {
-    //                jlog!(
-    //                    Info,
-    //                    "bigneon::domain_actions",
-    //                    "Stopping events processor",
-    //                    {}
-    //                );
-    //                break;
-    //            }
-    //            //Domain Monitor main loop
-    //            let num_published = DomainActionMonitor::find_and_publish_events(&database, &publisher)?;
-    //            if num_published == 0 {
-    //                thread::sleep(Duration::from_secs(interval));
-    //            }
-    //        }
-    //
-    //        Ok(())
-    //    }
+        let domain_events_to_publish = unpublished_domain_events_by_publisher
+            .iter()
+            .map(|(_, v)| v.len())
+            .sum();
+        if domain_events_to_publish > 0 {
+            jlog!(
+                Debug,
+                "bigneon::domain_actions",
+                "Found domain events to publish",
+                { "count": unpublished_domain_events_by_publisher.len() }
+            );
+            for (publisher, domain_events) in unpublished_domain_events_by_publisher {
+                for domain_event in domain_events {
+                    publisher.publish(domain_event, &config.front_end_url, connection.get())?;
+                }
+            }
+        }
+        Ok(domain_events_to_publish)
+    }
+
+    pub fn publish_events_to_actions(
+        config: Config,
+        database: Database,
+        interval: u64,
+        rx: Receiver<()>,
+    ) -> Result<(), DomainActionError> {
+        loop {
+            if rx.try_recv().is_ok() {
+                jlog!(
+                    Info,
+                    "bigneon::domain_actions",
+                    "Stopping events processor",
+                    {}
+                );
+                break;
+            }
+
+            // Domain Monitor main loop
+            DomainActionMonitor::find_and_publish_events(&config, &database)?;
+
+            // Sleep regardless if we found results to reduce rate of webhook processing
+            thread::sleep(Duration::from_secs(interval));
+        }
+        Ok(())
+    }
 
     fn create_router(conf: &Config) -> DomainActionRouter {
         let mut router = DomainActionRouter::new();
@@ -230,8 +223,6 @@ impl DomainActionMonitor {
 
         let mut runtime = Runtime::new()?;
 
-        //let connection = database.get_connection();
-
         loop {
             if rx.try_recv().is_ok() {
                 jlog!(
@@ -295,16 +286,16 @@ impl DomainActionMonitor {
             }),
         ));
 
-        //        let (tx, rx) = mpsc::channel::<()>();
-        //
-        //        let database = self.database.clone();
-        //
-        //        self.worker_threads.push((
-        //            tx,
-        //            thread::spawn(move || {
-        //                DomainActionMonitor::publish_events_to_actions(database, interval, rx)
-        //            }),
-        //        ));
+        let database = self.database.clone();
+        let config = self.config.clone();
+        let (tx, rx) = mpsc::channel::<()>();
+
+        self.worker_threads.push((
+            tx,
+            thread::spawn(move || {
+                DomainActionMonitor::publish_events_to_actions(config, database, interval, rx)
+            }),
+        ));
     }
 
     pub fn stop(&mut self) {

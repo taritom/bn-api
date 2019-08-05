@@ -17,32 +17,15 @@ fn create_commit() {
     let ticket = TicketInstance::find_for_user(user.id, connection)
         .unwrap()
         .remove(0);
-    let domain_events = DomainEvent::find(
-        Tables::TicketInstances,
-        Some(ticket.id),
-        Some(DomainEventTypes::TransferTicketStarted),
-        connection,
-    )
-    .unwrap();
-    assert_eq!(0, domain_events.len());
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
     let transfer_ticket = TransferTicket::create(ticket.id, transfer.id)
-        .commit(user.id, &None, connection)
+        .commit(connection)
         .unwrap();
     assert_eq!(transfer_ticket.ticket_instance_id, ticket.id);
     assert_eq!(transfer_ticket.transfer_id, transfer.id);
-
-    let domain_events = DomainEvent::find(
-        Tables::TicketInstances,
-        Some(ticket.id),
-        Some(DomainEventTypes::TransferTicketStarted),
-        connection,
-    )
-    .unwrap();
-    assert_eq!(1, domain_events.len());
 }
 
 #[test]
@@ -60,27 +43,19 @@ fn create_commit_with_validation_error() {
     let ticket = TicketInstance::find_for_user(user.id, connection)
         .unwrap()
         .remove(0);
-    let domain_events = DomainEvent::find(
-        Tables::TicketInstances,
-        Some(ticket.id),
-        Some(DomainEventTypes::TransferTicketStarted),
-        connection,
-    )
-    .unwrap();
-    assert_eq!(0, domain_events.len());
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
     TransferTicket::create(ticket.id, transfer.id)
-        .commit(user.id, &None, connection)
+        .commit(connection)
         .unwrap();
 
     // Active pending transfer already exists triggering validation errors
-    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    let result = TransferTicket::create(ticket.id, transfer2.id).commit(user.id, &None, connection);
+    let result = TransferTicket::create(ticket.id, transfer2.id).commit(connection);
     assert!(result.is_err());
     print!("{:?}", result);
     match result {
@@ -111,6 +86,6 @@ fn create_commit_with_validation_error() {
     // Original transfer is now complete so no issue
     assert!(transfer.complete(user2.id, None, connection).is_ok());
     TransferTicket::create(ticket.id, transfer2.id)
-        .commit(user.id, &None, connection)
+        .commit(connection)
         .unwrap();
 }

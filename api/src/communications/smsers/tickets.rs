@@ -2,9 +2,6 @@ use bigneon_db::models::*;
 use config::Config;
 use diesel::pg::PgConnection;
 use errors::*;
-use utils::communication::CommAddress;
-use utils::communication::Communication;
-use utils::communication::CommunicationType;
 use utils::deep_linker::DeepLinker;
 
 pub fn transfer_cancelled(
@@ -30,44 +27,9 @@ pub fn transfer_cancelled(
         Some(vec!["transfers"]),
         None,
     )
-    .queue(conn)
-}
+    .queue(conn)?;
 
-pub fn transfer_drip_reminder(
-    phone: String,
-    transfer: &Transfer,
-    event: &Event,
-    config: &Config,
-    conn: &PgConnection,
-    deep_linker: &DeepLinker,
-) -> Result<(), BigNeonError> {
-    let receive_tickets_link = transfer.receive_url(config.front_end_url.clone(), conn)?;
-    let shortened_link = deep_linker.create_deep_link(&receive_tickets_link)?;
-    let source = CommAddress::from(config.communication_default_source_phone.clone());
-    let destinations = CommAddress::from(phone);
-    let body = format!(
-        "{} Follow this link to receive them: {}",
-        transfer.drip_header(
-            event,
-            SourceOrDestination::Destination,
-            false,
-            config.environment,
-            conn
-        )?,
-        shortened_link
-    );
-    Communication::new(
-        CommunicationType::Sms,
-        body,
-        None,
-        Some(source),
-        destinations,
-        None,
-        None,
-        Some(vec!["transfers"]),
-        None,
-    )
-    .queue(conn)
+    Ok(())
 }
 
 pub fn send_tickets(
@@ -99,5 +61,7 @@ pub fn send_tickets(
         Some(vec!["transfers"]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }

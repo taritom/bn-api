@@ -1,3 +1,4 @@
+use bigneon_db::models::*;
 use errors::*;
 use futures::future::Either;
 use reqwest::async::Client as AsyncClient;
@@ -5,7 +6,6 @@ use reqwest::Client;
 use serde_json;
 use std::collections::HashMap;
 use tokio::prelude::*;
-use utils::communication::*;
 
 const SENDGRID_API_URL: &'static str = "https://api.sendgrid.com/v3/mail/send";
 

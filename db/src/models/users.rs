@@ -141,6 +141,41 @@ impl NewUser {
 }
 
 impl User {
+    pub fn timezone(&self, conn: &PgConnection) -> Result<Option<String>, DatabaseError> {
+        use schema::*;
+        venues::table
+            .inner_join(events::table.on(events::venue_id.eq(venues::id.nullable())))
+            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
+            .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .left_join(event_interest::table.on(event_interest::event_id.eq(events::id)))
+            .left_join(ticket_instances::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .left_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
+            .left_join(orders::table.on(orders::id.eq(order_items::order_id)))
+            .filter(
+                event_interest::user_id
+                    .eq(self.id)
+                    .or(wallets::user_id
+                        .eq(self.id)
+                        .and(ticket_instances::status.eq_any(vec![
+                            TicketInstanceStatus::Purchased,
+                            TicketInstanceStatus::Redeemed,
+                        ])))
+                    .or(orders::status.eq(OrderStatus::Paid).and(
+                        orders::on_behalf_of_user_id
+                            .eq(self.id)
+                            .or(orders::on_behalf_of_user_id
+                                .is_null()
+                                .and(orders::user_id.eq(self.id))),
+                    )),
+            )
+            .select(venues::timezone)
+            .order_by(events::event_start.desc())
+            .first::<String>(conn)
+            .optional()
+            .to_db_error(ErrorCode::QueryError, "Could not get timezone for user")
+    }
+
     pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
         genres::table
             .inner_join(user_genres::table.on(user_genres::genre_id.eq(genres::id)))

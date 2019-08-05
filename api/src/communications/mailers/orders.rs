@@ -1,10 +1,9 @@
-use bigneon_db::models::enums::OrderItemTypes;
+use bigneon_db::models::*;
 use bigneon_db::prelude::{DisplayOrder, OrderItem, Refund};
 use config::Config;
 use diesel::PgConnection;
 use errors::*;
 use itertools::Itertools;
-use utils::communication::*;
 
 pub fn confirmation_email(
     user_first_name: &String,
@@ -263,5 +262,7 @@ pub fn refund_email(
         Some(vec!["refund"]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }

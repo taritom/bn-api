@@ -87,11 +87,11 @@ fn find_for_user_for_display() {
             .pending_transfer,
         false
     );
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
     transfer
-        .add_transfer_ticket(found_tickets[0].1[0].id, user.id, &None, connection)
+        .add_transfer_ticket(found_tickets[0].1[0].id, connection)
         .unwrap();
 
     let found_tickets =
@@ -136,11 +136,11 @@ fn find_for_user_for_display() {
     );
 
     // Another pending transfer
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
     transfer
-        .add_transfer_ticket(found_tickets[0].1[0].id, user.id, &None, connection)
+        .add_transfer_ticket(found_tickets[0].1[0].id, connection)
         .unwrap();
 
     let found_tickets =
@@ -566,7 +566,7 @@ fn release() {
         .unwrap()
         .remove(0);
     assert_eq!(ticket.status, TicketInstanceStatus::Purchased);
-    TicketInstance::create_transfer(user.id, &[ticket.id], None, None, connection).unwrap();
+    TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
     assert!(ticket
         .release(TicketInstanceStatus::Purchased, creator.id, connection)
         .is_ok());
@@ -634,7 +634,7 @@ fn release_for_cancelled_ticket_type() {
         .remove(0);
     ticket_type.cancel(connection).unwrap();
 
-    TicketInstance::create_transfer(user.id, &[ticket.id], None, None, connection).unwrap();
+    TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
     assert!(ticket
         .release(TicketInstanceStatus::Purchased, creator.id, connection)
         .is_ok());
@@ -715,7 +715,8 @@ fn was_transferred() {
     let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
     let transfer =
-        TicketInstance::create_transfer(user.id, &[ticket.id], None, None, connection).unwrap();
+        TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection)
+            .unwrap();
     TicketInstance::receive_ticket_transfer(
         transfer.into_authorization(connection).unwrap(),
         &sender_wallet,
@@ -1413,24 +1414,17 @@ fn create_transfer() {
     let mut ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
     ticket_ids.push(Uuid::new_v4());
 
-    let transfer = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, connection);
+    let transfer =
+        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection);
     assert!(transfer.is_err());
-    assert!(
-        DomainAction::find_pending(Some(DomainActionTypes::ProcessTransferDrip), connection)
-            .unwrap()
-            .is_empty()
-    );
 
     //Now try with tickets that the user does own
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
     let transfer2 =
-        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, connection).unwrap();
+        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection)
+            .unwrap();
     assert_eq!(transfer2.source_user_id, user.id);
-    assert!(
-        DomainAction::find_pending(Some(DomainActionTypes::ProcessTransferDrip), connection)
-            .unwrap()
-            .is_empty()
-    );
+    assert!(!transfer2.direct);
 
     let domain_events = DomainEvent::find(
         Tables::Transfers,
@@ -1521,7 +1515,8 @@ fn receive_ticket_transfer() {
 
     //try receive the wrong number of tickets (too few)
     let transfer =
-        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, connection).unwrap();
+        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection)
+            .unwrap();
 
     let mut wrong_auth: TransferAuthorization =
         transfer.clone().into_authorization(connection).unwrap();
@@ -1635,6 +1630,7 @@ fn transfer_to_existing_user() {
         connection,
     )
     .unwrap();
+    assert!(transfer.direct);
     let mut transfer_ticket_ticket_ids: Vec<Uuid> = transfer
         .transfer_tickets(connection)
         .unwrap()

@@ -101,6 +101,27 @@ table! {
 }
 
 table! {
+    domain_event_published (domain_event_publisher_id, domain_event_id) {
+        domain_event_publisher_id -> Uuid,
+        domain_event_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    domain_event_publishers (id) {
+        id -> Uuid,
+        organization_id -> Nullable<Uuid>,
+        event_types -> Array<Text>,
+        webhook_url -> Text,
+        import_historic_events -> Bool,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     domain_events (id) {
         id -> Uuid,
         event_type -> Text,
@@ -108,7 +129,6 @@ table! {
         event_data -> Nullable<Json>,
         main_table -> Text,
         main_id -> Nullable<Uuid>,
-        published_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         user_id -> Nullable<Uuid>,
@@ -286,6 +306,16 @@ table! {
 }
 
 table! {
+    order_transfers (id) {
+        id -> Uuid,
+        order_id -> Uuid,
+        transfer_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     orders (id) {
         id -> Uuid,
         user_id -> Uuid,
@@ -311,16 +341,6 @@ table! {
         term -> Nullable<Text>,
         content -> Nullable<Text>,
         platform -> Nullable<Text>,
-    }
-}
-
-table! {
-    order_transfers (id) {
-        id -> Uuid,
-        order_id -> Uuid,
-        transfer_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -355,6 +375,18 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        role -> Array<Text>,
+        event_ids -> Array<Uuid>,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         name -> Text,
@@ -379,18 +411,6 @@ table! {
         globee_api_key -> Nullable<Text>,
         max_instances_per_ticket_type -> Int8,
         max_additional_fee_in_cents -> Int8,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-        role -> Array<Text>,
-        event_ids -> Array<Uuid>,
     }
 }
 
@@ -437,24 +457,24 @@ table! {
 }
 
 table! {
-    refunded_tickets (id) {
-        id -> Uuid,
-        order_item_id -> Uuid,
-        ticket_instance_id -> Uuid,
-        fee_refunded_at -> Nullable<Timestamp>,
-        ticket_refunded_at -> Nullable<Timestamp>,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     refund_items (id) {
         id -> Uuid,
         refund_id -> Uuid,
         order_item_id -> Uuid,
         quantity -> Int8,
         amount -> Int8,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    refunded_tickets (id) {
+        id -> Uuid,
+        order_item_id -> Uuid,
+        ticket_instance_id -> Uuid,
+        fee_refunded_at -> Nullable<Timestamp>,
+        ticket_refunded_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -481,21 +501,6 @@ table! {
 }
 
 table! {
-    settlements (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        start_time -> Timestamp,
-        end_time -> Timestamp,
-        status -> Text,
-        comment -> Nullable<Text>,
-        only_finished_events -> Bool,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     settlement_transactions (id) {
         id -> Uuid,
         settlement_id -> Uuid,
@@ -511,12 +516,46 @@ table! {
 }
 
 table! {
+    settlements (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        start_time -> Timestamp,
+        end_time -> Timestamp,
+        status -> Text,
+        comment -> Nullable<Text>,
+        only_finished_events -> Bool,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     stages (id) {
         id -> Uuid,
         venue_id -> Uuid,
         name -> Text,
         description -> Nullable<Text>,
         capacity -> Nullable<Int8>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    temporary_user_links (temporary_user_id, user_id) {
+        temporary_user_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    temporary_users (id) {
+        id -> Uuid,
+        email -> Nullable<Text>,
+        phone -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -591,6 +630,16 @@ table! {
 }
 
 table! {
+    transfer_tickets (id) {
+        id -> Uuid,
+        ticket_instance_id -> Uuid,
+        transfer_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     transfers (id) {
         id -> Uuid,
         source_user_id -> Uuid,
@@ -602,16 +651,8 @@ table! {
         transfer_message_type -> Nullable<Text>,
         transfer_address -> Nullable<Text>,
         cancelled_by_user_id -> Nullable<Uuid>,
-    }
-}
-
-table! {
-    transfer_tickets (id) {
-        id -> Uuid,
-        ticket_instance_id -> Uuid,
-        transfer_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
+        direct -> Bool,
+        destination_temporary_user_id -> Nullable<Uuid>,
     }
 }
 
@@ -694,6 +735,9 @@ joinable!(assets -> ticket_types (ticket_type_id));
 joinable!(broadcasts -> events (event_id));
 joinable!(codes -> events (event_id));
 joinable!(domain_actions -> domain_events (domain_event_id));
+joinable!(domain_event_published -> domain_event_publishers (domain_event_publisher_id));
+joinable!(domain_event_published -> domain_events (domain_event_id));
+joinable!(domain_event_publishers -> organizations (organization_id));
 joinable!(domain_events -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
@@ -738,6 +782,8 @@ joinable!(settlement_transactions -> events (event_id));
 joinable!(settlement_transactions -> settlements (settlement_id));
 joinable!(settlements -> organizations (organization_id));
 joinable!(settlements -> users (user_id));
+joinable!(temporary_user_links -> temporary_users (temporary_user_id));
+joinable!(temporary_user_links -> users (user_id));
 joinable!(ticket_instances -> assets (asset_id));
 joinable!(ticket_instances -> holds (hold_id));
 joinable!(ticket_instances -> order_items (order_item_id));
@@ -748,6 +794,7 @@ joinable!(ticket_type_codes -> ticket_types (ticket_type_id));
 joinable!(ticket_types -> events (event_id));
 joinable!(transfer_tickets -> ticket_instances (ticket_instance_id));
 joinable!(transfer_tickets -> transfers (transfer_id));
+joinable!(transfers -> temporary_users (destination_temporary_user_id));
 joinable!(user_genres -> genres (genre_id));
 joinable!(user_genres -> users (user_id));
 joinable!(venues -> organizations (organization_id));
@@ -762,6 +809,8 @@ allow_tables_to_appear_in_same_query!(
     broadcasts,
     codes,
     domain_actions,
+    domain_event_published,
+    domain_event_publishers,
     domain_events,
     event_artists,
     event_genres,
@@ -774,28 +823,30 @@ allow_tables_to_appear_in_same_query!(
     holds,
     notes,
     order_items,
-    orders,
     order_transfers,
+    orders,
     organization_interactions,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     payment_methods,
     payments,
     push_notification_tokens,
-    refunded_tickets,
     refund_items,
+    refunded_tickets,
     refunds,
     regions,
-    settlements,
     settlement_transactions,
+    settlements,
     stages,
+    temporary_user_links,
+    temporary_users,
     ticket_instances,
     ticket_pricing,
     ticket_type_codes,
     ticket_types,
-    transfers,
     transfer_tickets,
+    transfers,
     user_genres,
     users,
     venues,

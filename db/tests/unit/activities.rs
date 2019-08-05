@@ -108,11 +108,13 @@ fn load_for_event() {
 
     // Pending transfer
     let transfer2 =
-        TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, connection).unwrap();
+        TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, false, connection)
+            .unwrap();
 
     // Cancelled transfer
     let transfer3 =
-        TicketInstance::create_transfer(user2.id, &[ticket8.id], None, None, connection).unwrap();
+        TicketInstance::create_transfer(user2.id, &[ticket8.id], None, None, false, connection)
+            .unwrap();
     let transfer3 = transfer3.cancel(user4.id, None, connection).unwrap();
 
     TicketInstance::redeem_ticket(

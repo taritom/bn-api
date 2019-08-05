@@ -6,8 +6,8 @@ extern crate dotenv;
 extern crate log;
 #[macro_use]
 extern crate logging;
-extern crate chrono;
 extern crate clap;
+extern crate diesel;
 extern crate uuid;
 
 use bigneon_api::config::Config;
@@ -15,9 +15,9 @@ use bigneon_api::db::Database;
 use bigneon_api::utils::spotify;
 use bigneon_api::utils::ServiceLocator;
 use bigneon_db::prelude::*;
-use chrono::naive::MAX_DATE;
-use chrono::prelude::*;
+use bigneon_db::schema::transfers;
 use clap::*;
+use diesel::prelude::*;
 use dotenv::dotenv;
 use log::Level::*;
 use std::{thread, time};
@@ -51,8 +51,8 @@ pub fn main() {
                 .about("Regenerate interaction records for organization users"),
         )
         .subcommand(
-            SubCommand::with_name("regenerate-transfer-drip-events")
-                .about("Removes all pending drip events, creates new ones for source and destination drips"),
+            SubCommand::with_name("backpopulate-temporary-user-data")
+                .about("Backpopulate temporary user data"),
         )
         .get_matches();
 
@@ -60,9 +60,43 @@ pub fn main() {
         ("sync-purchase-metadata", Some(_)) => sync_purchase_metadata(database, service_locator),
         ("sync-spotify-genres", Some(_)) => sync_spotify_genres(config, database),
         ("regenerate-interaction-records", Some(_)) => regenerate_interaction_records(database),
-        ("regenerate-transfer-drip-events", Some(_)) => regenerate_transfer_drip_events(database),
+        ("backpopulate-temporary-user-data", Some(_)) => backpopulate_temporary_user_data(database),
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
+        }
+    }
+}
+
+fn backpopulate_temporary_user_data(database: Database) {
+    info!("Backpopulating temporary user data");
+    let connection = database
+        .get_connection()
+        .expect("Expected connection to establish");
+    let connection = connection.get();
+    let transfers: Vec<Transfer> = transfers::table
+        .filter(
+            transfers::transfer_address
+                .is_not_null()
+                .and(transfers::destination_temporary_user_id.is_null())
+                .and(transfers::direct.eq(false)),
+        )
+        .load(connection)
+        .expect("Expected to load transfers");
+    for transfer in transfers {
+        if let Some(temporary_user) =
+            TemporaryUser::find_or_build_from_transfer(&transfer, connection)
+                .expect("Expected to create temporary user")
+        {
+            if let Some(destination_user_id) = transfer.destination_user_id {
+                temporary_user
+                    .associate_user(destination_user_id, connection)
+                    .expect("Expected to associate temporary user with destination user");
+            }
+
+            diesel::update(transfers::table.filter(transfers::id.eq(transfer.id)))
+                .set(transfers::destination_temporary_user_id.eq(temporary_user.id))
+                .execute(connection)
+                .unwrap();
         }
     }
 }
@@ -102,31 +136,6 @@ fn regenerate_interaction_records(database: Database) {
                 thread::sleep(time::Duration::from_secs(2));
             }
             page += 1;
-        }
-    }
-}
-
-fn regenerate_transfer_drip_events(database: Database) {
-    info!("Regenerating transfer drip events");
-    let connection = database
-        .get_connection()
-        .expect("Expected connection to establish");
-    let connection = connection.get();
-    let organizations = Organization::all(connection).expect("Expected to find organizations");
-
-    for organization in organizations {
-        let events = Event::get_all_events_ending_between(
-            organization.id,
-            Utc::now().naive_utc(),
-            MAX_DATE.and_hms(0, 0, 0),
-            EventStatus::Published,
-            connection,
-        )
-        .expect("Expected to find events for organization");
-        for event in events {
-            event
-                .regenerate_drip_actions(connection)
-                .expect("Expected to regenerate event's drip actions");
         }
     }
 }

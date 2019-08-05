@@ -195,12 +195,10 @@ pub fn show_by_transfer_key() {
     )
     .unwrap();
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer
-        .add_transfer_ticket(ticket.id, user.id, &None, connection)
-        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
     transfer.update_associated_orders(connection).unwrap();
 
     let test_request = TestRequest::create();
@@ -238,12 +236,10 @@ fn index() {
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let ticket2 = &TicketInstance::find_for_user(user2.id, connection).unwrap()[0];
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer
-        .add_transfer_ticket(ticket.id, user.id, &None, connection)
-        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
     transfer.update_associated_orders(connection).unwrap();
     transfer
         .update(
@@ -254,11 +250,11 @@ fn index() {
             connection,
         )
         .unwrap();
-    let transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None)
+    let transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
     transfer2
-        .add_transfer_ticket(ticket2.id, user2.id, &None, connection)
+        .add_transfer_ticket(ticket2.id, connection)
         .unwrap();
     transfer2.update_associated_orders(connection).unwrap();
     transfer2

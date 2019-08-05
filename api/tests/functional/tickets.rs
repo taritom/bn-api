@@ -607,7 +607,7 @@ fn send_to_existing_user() {
     let conn = database.connection.get();
     let sender = database.create_user().finish();
     let auth_sender = support::create_auth_user_from_user(&sender, Roles::User, None, &database);
-    let order = database.create_order().for_user(&sender).is_paid().finish();
+    database.create_order().for_user(&sender).is_paid().finish();
     let tickets = TicketInstance::find_for_user(sender.id, conn).unwrap();
     let tickets: Vec<Uuid> = tickets.into_iter().map(|t| t.id).collect();
     let expected_tickets = tickets.clone();
@@ -638,19 +638,6 @@ fn send_to_existing_user() {
             .collect::<Vec<Uuid>>(),
         expected_tickets
     );
-
-    // No transfer drips should be created for this transfer as it's a direct transfer
-    let transfer = &order.transfers(conn).unwrap()[0];
-    assert_eq!(transfer.status, TransferStatus::Completed);
-    assert!(DomainAction::find_by_resource(
-        Tables::Transfers.to_string(),
-        transfer.id,
-        DomainActionTypes::ProcessTransferDrip,
-        DomainActionStatus::Pending,
-        conn,
-    )
-    .unwrap()
-    .is_empty());
 }
 
 #[test]
@@ -740,6 +727,7 @@ fn receive_ticket_transfer() {
         &vec![tickets[0].id, tickets[1].id],
         None,
         None,
+        false,
         conn,
     )
     .unwrap()
@@ -808,7 +796,8 @@ fn receive_ticket_transfer_fails_cancelled_transfer() {
     let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
     let ticket_ids = vec![tickets[0].id, tickets[1].id];
     let transfer =
-        TicketInstance::create_transfer(auth_user.id(), &ticket_ids, None, None, conn).unwrap();
+        TicketInstance::create_transfer(auth_user.id(), &ticket_ids, None, None, false, conn)
+            .unwrap();
     transfer.cancel(user.id, None, conn).unwrap();
 
     //Try receive transfer

@@ -24,12 +24,10 @@ fn transfers() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer
-        .add_transfer_ticket(ticket.id, user.id, &None, connection)
-        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
     assert!(transfer.update_associated_orders(connection).is_ok());
     assert_eq!(vec![transfer], order.transfers(connection).unwrap());
 }

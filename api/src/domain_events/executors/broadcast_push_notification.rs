@@ -6,7 +6,6 @@ use errors::*;
 use futures::future;
 use itertools::Itertools;
 use log::Level::Error;
-use utils::communication::*;
 
 pub struct BroadcastPushNotificationExecutor {}
 

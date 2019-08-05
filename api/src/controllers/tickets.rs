@@ -202,6 +202,7 @@ pub fn send_via_email_or_phone(
                 &send_tickets_request.ticket_ids,
                 Some(&send_tickets_request.email_or_phone),
                 Some(TransferMessageType::Email),
+                false,
                 connection,
             )?;
             mailers::tickets::send_tickets(
@@ -219,6 +220,7 @@ pub fn send_via_email_or_phone(
                 &send_tickets_request.ticket_ids,
                 Some(&send_tickets_request.email_or_phone),
                 Some(TransferMessageType::Phone),
+                false,
                 connection,
             )?;
             smsers::tickets::send_tickets(
@@ -272,6 +274,7 @@ pub fn transfer_authorization(
         &transfer_tickets_request.ticket_ids,
         None,
         None,
+        false,
         connection,
     )?
     .into_authorization(connection)?;

@@ -2,7 +2,6 @@ use bigneon_db::models::*;
 use diesel::PgConnection;
 use errors::BigNeonError;
 use url::form_urlencoded::byte_serialize;
-use utils::communication::TemplateData;
 
 pub mod orders;
 pub mod organization_invites;
