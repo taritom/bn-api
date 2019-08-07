@@ -76,6 +76,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::PUT).with(events::update);
         r.method(Method::DELETE).with(events::cancel);
     })
+    .resource("/events/{id}/delete", |r| {
+        r.method(Method::DELETE).with(events::delete);
+    })
     .resource("/events/{id}/artists", |r| {
         r.method(Method::POST).with(events::add_artist);
         r.method(Method::PUT).with(events::update_artists);

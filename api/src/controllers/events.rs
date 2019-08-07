@@ -264,6 +264,24 @@ pub fn show(
             }
         }
     };
+
+    let is_preview_allowed = match user {
+        Some(ref user) => user.has_scope_for_organization_event(
+            Scopes::EventWrite,
+            &organization,
+            event.id,
+            connection,
+        )?,
+        None => false,
+    };
+
+    if (!is_preview_allowed
+        && event.publish_date.unwrap_or(times::infinity()) > dates::now().finish())
+        || event.deleted_at.is_some()
+    {
+        return application::not_found();
+    }
+
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
     let venue = event.venue(connection)?;
     let localized_times = event.get_all_localized_time_strings(&venue);
@@ -296,68 +314,52 @@ pub fn show(
         TicketType::find_by_event_id(event.id, true, query.redemption_code.clone(), connection)?;
     let mut display_ticket_types = Vec::new();
     let mut sales_start_date = Some(times::infinity());
-    let is_preview_allowed = match user {
-        Some(ref user) => user.has_scope_for_organization_event(
-            Scopes::EventWrite,
-            &organization,
-            event.id,
-            connection,
-        )?,
-        None => false,
-    };
-
     let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
+    for ticket_type in ticket_types {
+        if ticket_type.status != TicketTypeStatus::Cancelled {
+            let display_ticket_type = UserDisplayTicketType::from_ticket_type(
+                &ticket_type,
+                &fee_schedule,
+                box_office_pricing,
+                query.redemption_code.clone(),
+                connection,
+            )?;
 
-    if event.publish_date.unwrap_or(times::infinity()) < dates::now().finish() || is_preview_allowed
-    {
-        for ticket_type in ticket_types {
-            if ticket_type.status != TicketTypeStatus::Cancelled {
-                let display_ticket_type = UserDisplayTicketType::from_ticket_type(
-                    &ticket_type,
-                    &fee_schedule,
-                    box_office_pricing,
-                    query.redemption_code.clone(),
-                    connection,
-                )?;
+            // Only show private ticket types via holds
+            if ticket_type.visibility == TicketTypeVisibility::Hidden
+                && display_ticket_type.redemption_code.is_none()
+            {
+                continue;
+            }
 
-                // Only show private ticket types via holds
-                if ticket_type.visibility == TicketTypeVisibility::Hidden
-                    && display_ticket_type.redemption_code.is_none()
-                {
-                    continue;
-                }
+            if sales_start_date.unwrap()
+                > ticket_type.start_date.clone().unwrap_or(times::infinity())
+            {
+                sales_start_date = ticket_type.start_date.clone();
+            }
 
-                if sales_start_date.unwrap()
-                    > ticket_type.start_date.clone().unwrap_or(times::infinity())
-                {
-                    sales_start_date = ticket_type.start_date.clone();
-                }
+            // If the ticket type is sold out, hide it if necessary
+            if display_ticket_type.status != TicketTypeStatus::Published
+                && ticket_type.visibility == TicketTypeVisibility::WhenAvailable
+            {
+                continue;
+            };
 
-                // If the ticket type is sold out, hide it if necessary
-                if display_ticket_type.status != TicketTypeStatus::Published
-                    && ticket_type.visibility == TicketTypeVisibility::WhenAvailable
-                {
-                    continue;
-                };
+            display_ticket_types.push(display_ticket_type);
+        }
+    }
 
-                display_ticket_types.push(display_ticket_type);
+    if let Some(ref u) = user {
+        let tickets_bought = Order::quantity_for_user_for_event(u.id(), event.id, connection)?;
+        for (tt_id, num) in tickets_bought {
+            let limit = TicketType::find(tt_id, connection)?.limit_per_person;
+            if limit > 0 {
+                limited_tickets_remaining.push(TicketsRemaining {
+                    ticket_type_id: tt_id,
+                    tickets_remaining: limit - num,
+                });
             }
         }
-
-        if let Some(ref u) = user {
-            let tickets_bought = Order::quantity_for_user_for_event(u.id(), event.id, connection)?;
-            for (tt_id, num) in tickets_bought {
-                let limit = TicketType::find(tt_id, connection)?.limit_per_person;
-                if limit > 0 {
-                    limited_tickets_remaining.push(TicketsRemaining {
-                        ticket_type_id: tt_id,
-                        tickets_remaining: limit - num,
-                    });
-                }
-            }
-        }
-    } else {
-        return application::not_found();
     }
 
     let mut tracking_keys = Organization::tracking_keys_for_ids(
@@ -589,6 +591,10 @@ pub fn show_from_organizations(
         conn,
     )?;
     for event in events.data.iter_mut() {
+        if !user.has_scope_for_organization_event(Scopes::EventDelete, &org, event.id, conn)? {
+            event.eligible_for_deletion = None;
+        }
+
         if !user.has_scope_for_organization_event(Scopes::DashboardRead, &org, event.id, conn)? {
             event.sales_total_in_cents = None;
             event.sold_held = None;
@@ -700,6 +706,23 @@ pub fn update(
 
     let updated_event = event.update(Some(user.id()), event_parameters, connection)?;
     Ok(HttpResponse::Ok().json(&updated_event))
+}
+
+pub fn delete(
+    (connection, parameters, user): (Connection, Path<PathParameters>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let event = Event::find(parameters.id, connection)?;
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization_event(
+        Scopes::EventDelete,
+        &organization,
+        &event,
+        connection,
+    )?;
+
+    event.delete(user.id(), connection)?;
+    Ok(HttpResponse::Ok().json({}))
 }
 
 pub fn cancel(

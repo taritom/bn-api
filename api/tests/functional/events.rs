@@ -50,6 +50,17 @@ pub fn index() {
         .with_event_end(NaiveDate::from_ymd(2022, 7, 9).and_hms(9, 10, 11))
         .as_private("access".to_string())
         .finish();
+    let user = database.create_user().finish();
+    // Deleted event
+    let event4 = database
+        .create_event()
+        .with_name("NewEvent4".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2022, 7, 9).and_hms(9, 10, 11))
+        .finish();
+    event4.delete(user.id, connection).unwrap();
 
     let expected_results = vec![
         event_venue_entry(&event, &venue, &vec![], None, &*connection),
@@ -117,6 +128,16 @@ pub fn index_for_user() {
         .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
         .with_event_end(NaiveDate::from_ymd(2022, 7, 9).and_hms(9, 10, 11))
         .finish();
+    // Deleted event
+    let event3 = database
+        .create_event()
+        .with_name("NewEvent3".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2022, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2022, 7, 9).and_hms(9, 10, 11))
+        .finish();
+    event3.delete(user.id, connection).unwrap();
 
     let expected_results = vec![
         event_venue_entry(&event, &venue, &vec![], Some(user.clone()), &*connection),
@@ -421,6 +442,125 @@ fn show() {
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body, event_expected_json);
+}
+
+#[test]
+fn show_future_published_no_preview() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("PublicEvent".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_ticket_pricing()
+        .with_publish_date(dates::now().add_hours(10).finish())
+        .finish();
+    let event_id = event.id;
+
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", event_id));
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    path.id = event_id.to_string();
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user.clone())),
+    ))
+    .into();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[test]
+fn show_future_published_with_preview() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let organization = database.create_organization().finish();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(
+        &user,
+        Roles::OrgMember,
+        Some(&organization),
+        &database,
+    );
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("PublicEvent".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_ticket_pricing()
+        .with_publish_date(dates::now().add_hours(10).finish())
+        .finish();
+    let event_id = event.id;
+    let event_expected_json = base::events::expected_show_json(
+        Roles::OrgMember,
+        event,
+        organization.clone(),
+        venue.clone(),
+        false,
+        None,
+        None,
+        connection,
+        1,
+    );
+
+    EventInterest::create(event_id, user.id)
+        .commit(connection)
+        .unwrap();
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", event_id));
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    path.id = event_id.to_string();
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user.clone())),
+    ))
+    .into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, event_expected_json);
+}
+
+#[test]
+fn show_deleted_event() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event = database
+        .create_event()
+        .with_name("PublicEvent".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .with_ticket_pricing()
+        .finish();
+    let event_id = event.id;
+    event.delete(user.id, connection).unwrap();
+
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", event_id));
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    path.id = event_id.to_string();
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user.clone())),
+    ))
+    .into();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[test]
@@ -1165,6 +1305,56 @@ mod cancel_tests {
 }
 
 #[cfg(test)]
+mod delete_tests {
+    use super::*;
+
+    #[test]
+    fn delete_org_member() {
+        base::events::delete(Roles::OrgMember, true);
+    }
+
+    #[test]
+    fn delete_admin() {
+        base::events::delete(Roles::Admin, true);
+    }
+
+    #[test]
+    fn delete_user() {
+        base::events::delete(Roles::User, false);
+    }
+
+    #[test]
+    fn delete_org_owner() {
+        base::events::delete(Roles::OrgOwner, true);
+    }
+
+    #[test]
+    fn delete_door_person() {
+        base::events::delete(Roles::DoorPerson, false);
+    }
+
+    #[test]
+    fn delete_promoter() {
+        base::events::delete(Roles::Promoter, true);
+    }
+
+    #[test]
+    fn delete_promoter_read_only() {
+        base::events::delete(Roles::PromoterReadOnly, false);
+    }
+
+    #[test]
+    fn delete_org_admin() {
+        base::events::delete(Roles::OrgAdmin, true);
+    }
+
+    #[test]
+    fn delete_box_office() {
+        base::events::delete(Roles::OrgBoxOffice, false);
+    }
+}
+
+#[cfg(test)]
 mod add_artist_tests {
     use super::*;
 
@@ -1562,6 +1752,47 @@ mod holds_tests {
     fn holds_box_office() {
         base::events::holds(Roles::OrgBoxOffice, true);
     }
+}
+
+#[test]
+pub fn delete_fails_has_ticket_in_cart() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let user2 = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
+
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let mut cart = Order::find_or_create_cart(&user2, connection).unwrap();
+    cart.update_quantities(
+        user2.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+
+    let response: HttpResponse =
+        events::delete((database.connection.clone().into(), path, auth_user)).into();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.error().is_some());
 }
 
 #[test]

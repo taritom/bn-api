@@ -7,6 +7,103 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 #[test]
+fn eligible_for_deletion() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project
+        .create_event()
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    assert!(event.eligible_for_deletion(connection).unwrap());
+
+    // In a cart so no longer eligible for deletion
+    let user = project.create_user().finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    assert!(!event.eligible_for_deletion(connection).unwrap());
+    cart.clear_cart(user.id, connection).unwrap();
+
+    // Cleared the cart which removed the last link to this event
+    assert!(event.eligible_for_deletion(connection).unwrap());
+}
+
+#[test]
+fn delete() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event_id = event.id;
+    let domain_events = DomainEvent::find(
+        Tables::Events,
+        Some(event_id),
+        Some(DomainEventTypes::EventDeleted),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+
+    assert!(event.delete(user.id, connection).is_ok());
+    let domain_events = DomainEvent::find(
+        Tables::Events,
+        Some(event_id),
+        Some(DomainEventTypes::EventDeleted),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+
+    let event = Event::find(event_id, connection).unwrap();
+    assert!(event.deleted_at.is_some());
+
+    // Already deleted
+    assert!(event.delete(user.id, connection).is_err());
+
+    // Can't delete as event has associated order
+    let event = project
+        .create_event()
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    assert!(event.delete(user.id, connection).is_err());
+}
+
+#[test]
 fn activity_summary() {
     let project = TestProject::new();
     let connection = project.get_connection();

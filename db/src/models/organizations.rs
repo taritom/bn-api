@@ -339,6 +339,7 @@ impl Organization {
 
     pub fn events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
         events::table
+            .filter(events::deleted_at.is_null())
             .filter(events::organization_id.eq(self.id))
             .order_by(events::created_at)
             .get_results(conn)
@@ -347,6 +348,7 @@ impl Organization {
 
     pub fn upcoming_events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
         events::table
+            .filter(events::deleted_at.is_null())
             .filter(events::organization_id.eq(self.id))
             .filter(events::status.eq(EventStatus::Published))
             .filter(events::event_start.ge(Utc::now().naive_utc()))
@@ -418,6 +420,7 @@ impl Organization {
     ) -> Result<Organization, DatabaseError> {
         events::table
             .inner_join(organizations::table)
+            .filter(events::deleted_at.is_null())
             .filter(events::id.eq(event_id))
             .select(organizations::all_columns)
             .first(conn)

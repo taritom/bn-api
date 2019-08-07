@@ -2,6 +2,7 @@ use chrono::prelude::*;
 use chrono::Utc;
 use chrono_tz::Tz;
 use diesel;
+use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
@@ -68,6 +69,7 @@ pub struct Event {
     pub private_access_code: Option<String>,
     pub slug: String,
     pub facebook_pixel_key: Option<String>,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 impl PartialOrd for Event {
@@ -309,6 +311,44 @@ pub struct EventLocalizedTimeStrings {
 }
 
 impl Event {
+    pub fn eligible_for_deletion(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        // An event is ineligible for deletion if it is present in any cart
+        Ok(self.deleted_at.is_none()
+            && !select(exists(
+                order_items::table.filter(order_items::event_id.eq(Some(self.id))),
+            ))
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not check event for deletion eligibility",
+            )?)
+    }
+
+    pub fn delete(self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
+        if !&self.eligible_for_deletion(conn)? {
+            return DatabaseError::business_process_error("Event is ineligible for deletion");
+        }
+
+        diesel::update(&self)
+            .set((
+                events::deleted_at.eq(dsl::now.nullable()),
+                events::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not delete event")?;
+
+        DomainEvent::create(
+            DomainEventTypes::EventDeleted,
+            "Event deleted".to_string(),
+            Tables::Events,
+            Some(self.id),
+            Some(user_id),
+            None,
+        )
+        .commit(conn)?;
+        Ok(())
+    }
+
     pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
         genres::table
             .inner_join(event_genres::table.on(event_genres::genre_id.eq(genres::id)))
@@ -688,6 +728,7 @@ impl Event {
 
     pub fn find_by_ids(ids: Vec<Uuid>, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
         events::table
+            .filter(events::deleted_at.is_null())
             .filter(events::id.eq_any(ids))
             .order_by(events::name)
             .get_results(conn)
@@ -696,6 +737,7 @@ impl Event {
 
     pub fn find_by_slug(slug: &str, conn: &PgConnection) -> Result<Event, DatabaseError> {
         events::table
+            .filter(events::deleted_at.is_null())
             .filter(events::slug.eq(slug))
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find event by slug")
@@ -733,6 +775,7 @@ impl Event {
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
         events::table
+            .filter(events::deleted_at.is_null())
             .filter(events::organization_id.eq(organization_id))
             .filter(events::event_end.ge(start))
             .filter(events::event_end.le(end))
@@ -841,6 +884,7 @@ impl Event {
             events::table
                 .filter(events::venue_id.eq(venue_id))
                 .filter(events::status.eq(EventStatus::Published))
+                .filter(events::deleted_at.is_null())
                 .filter(events::cancelled_at.is_null())
                 .filter(events::private_access_code.is_null())
                 .order_by(events::name)
@@ -866,7 +910,8 @@ impl Event {
             r#"
             SELECT CAST(count(*) as bigint) as total
             FROM events e
-            WHERE e.organization_id = $1
+            WHERE e.deleted_at is null
+            AND e.organization_id = $1
             AND CASE WHEN $2
                 THEN
                     COALESCE(e.event_start, '31 Dec 9999') >= now()
@@ -977,6 +1022,8 @@ impl Event {
             event_type: EventTypes,
             #[sql_type = "Text"]
             slug: String,
+            #[sql_type = "Bool"]
+            eligible_for_deletion: bool,
         }
 
         let query_events = include_str!("../queries/find_all_events_for_organization.sql");
@@ -1066,6 +1113,7 @@ impl Event {
                 localized_times,
                 event_type: r.event_type,
                 slug: r.slug,
+                eligible_for_deletion: Some(r.eligible_for_deletion),
             };
 
             for ticket_type in ticket_types.iter().filter(|tt| {
@@ -1433,6 +1481,7 @@ impl Event {
             )
             .filter(events::event_end.ge(start_time))
             .filter(events::event_end.le(end_time))
+            .filter(events::deleted_at.is_null())
             .select(events::all_columns)
             .distinct()
             .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
@@ -1736,6 +1785,8 @@ pub struct EventSummaryResult {
     pub localized_times: EventLocalizedTimeStrings,
     pub event_type: EventTypes,
     pub slug: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eligible_for_deletion: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]

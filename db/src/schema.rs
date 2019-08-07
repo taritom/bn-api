@@ -201,6 +201,7 @@ table! {
         private_access_code -> Nullable<Text>,
         slug -> Varchar,
         facebook_pixel_key -> Nullable<Text>,
+        deleted_at -> Nullable<Timestamp>,
     }
 }
 
@@ -794,7 +795,6 @@ joinable!(ticket_type_codes -> ticket_types (ticket_type_id));
 joinable!(ticket_types -> events (event_id));
 joinable!(transfer_tickets -> ticket_instances (ticket_instance_id));
 joinable!(transfer_tickets -> transfers (transfer_id));
-joinable!(transfers -> temporary_users (destination_temporary_user_id));
 joinable!(user_genres -> genres (genre_id));
 joinable!(user_genres -> users (user_id));
 joinable!(venues -> organizations (organization_id));

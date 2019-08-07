@@ -135,6 +135,7 @@ impl Artist {
         events::table
             .inner_join(event_artists::table.on(event_artists::event_id.eq(events::id)))
             .filter(event_artists::artist_id.eq(self.id))
+            .filter(events::deleted_at.is_null())
             .order_by(events::name)
             .select(events::all_columns)
             .load(conn)

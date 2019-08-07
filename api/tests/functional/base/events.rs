@@ -148,6 +148,35 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     }
 }
 
+pub fn delete(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+
+    let response: HttpResponse =
+        events::delete((database.connection.clone().into(), path, auth_user)).into();
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        let event = Event::find(event.id, connection).unwrap();
+        assert!(event.deleted_at.is_some());
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
 pub fn cancel(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
