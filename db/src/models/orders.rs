@@ -1914,6 +1914,13 @@ impl Order {
 
         let (total_in_cents, total_refunded_in_cents) =
             self.calculate_total_and_refunded_total(conn)?;
+
+        let mut on_behalf_of_user: Option<DisplayUser> = None;
+
+        if let Some(on_behalf_of_user_id) = self.on_behalf_of_user_id {
+            on_behalf_of_user = Some(User::find(on_behalf_of_user_id, conn)?.for_display()?);
+        }
+
         Ok(DisplayOrder {
             id: self.id,
             status: self.status.clone(),
@@ -1925,7 +1932,7 @@ impl Order {
             total_in_cents,
             total_refunded_in_cents,
             seconds_until_expiry,
-            user_id: self.on_behalf_of_user_id.unwrap_or(self.user_id),
+            user_id: self.user_id,
             user: User::find(self.user_id, conn)?.for_display()?,
             order_number: self.order_number(),
             paid_at: self.paid_at,
@@ -1944,6 +1951,8 @@ impl Order {
             is_box_office: self.on_behalf_of_user_id.is_some(),
             payment_method: payment.as_ref().map(|p| p.payment_method),
             payment_provider: payment.map(|p| p.provider),
+            on_behalf_of_user_id: self.on_behalf_of_user_id,
+            on_behalf_of_user,
         })
     }
 
@@ -2559,6 +2568,8 @@ pub struct DisplayOrder {
     pub is_box_office: bool,
     pub payment_method: Option<PaymentMethods>,
     pub payment_provider: Option<PaymentProviders>,
+    pub on_behalf_of_user: Option<DisplayUser>,
+    pub on_behalf_of_user_id: Option<Uuid>,
 }
 
 impl DisplayOrder {
