@@ -57,6 +57,7 @@ pub fn orders(
         query.get_tag_as_str("order_no"),
         query.get_tag_as_str("ticket_no"),
         query.get_tag_as_str("email"),
+        query.get_tag_as_str("phone"),
         query.get_tag_as_str("name"),
         ticket_type_id,
         query.get_tag_as_str("promo_code"),
@@ -64,6 +65,18 @@ pub fn orders(
         platform.is_none() || platform != Some("boxoffice".to_string()),
         platform.is_none() || platform != Some("app".to_string()),
         platform.is_none() || platform == Some("app".to_string()),
+        //        match query.get_tag_as_str("payment_method") {
+        //            Some(pm) => Some(pm.parse()?),
+        //            None => None,
+        //        },
+        match query.get_tag_as_str("start_date") {
+            Some(sd) => Some(sd.parse()?),
+            None => None,
+        },
+        match query.get_tag_as_str("end_date") {
+            Some(ed) => Some(ed.parse()?),
+            None => None,
+        },
         user.id(),
         &query,
         conn,

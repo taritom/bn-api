@@ -1,6 +1,6 @@
 const fs = require('fs');
 const DEFAULTS = {
-    bulkOrderPaidQuantity: 10,
+    bulkOrderPaidQuantity: 1, // CI server has limited requests it can send to stripe
     bulkOrderFreeQuantity: 100,
     server: "http://localhost:8088",
     stripePk: "pk_test_nJGSQo5LQ7i8h8OkEjYeCqVc"

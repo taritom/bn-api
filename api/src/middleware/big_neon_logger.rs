@@ -1,4 +1,5 @@
 use actix_web::error;
+use actix_web::http::StatusCode;
 use actix_web::middleware::Finished;
 use actix_web::middleware::Logger;
 use actix_web::middleware::Middleware;
@@ -53,7 +54,9 @@ impl Middleware<AppState> for BigNeonLogger {
                 let ip_address = req.connection_info().remote().map(|i| i.to_string());
                 let uri = req.uri().to_string();
                 let method = req.method().to_string();
-                let level = if resp.status().is_client_error() {
+                let level = if resp.status() == StatusCode::UNAUTHORIZED {
+                    Level::Info
+                } else if resp.status().is_client_error() {
                     Level::Warn
                 } else {
                     Level::Error

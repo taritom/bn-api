@@ -188,6 +188,12 @@ impl ConvertToWebError for TariError {
     }
 }
 
+impl ConvertToWebError for chrono::ParseError {
+    fn to_response(&self) -> HttpResponse {
+        status_code_and_message(StatusCode::BAD_REQUEST, "Invalid input")
+    }
+}
+
 impl ConvertToWebError for AuthError {
     fn to_response(&self) -> HttpResponse {
         warn!("AuthError error: {}", self.reason);

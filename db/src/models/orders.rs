@@ -721,6 +721,7 @@ impl Order {
         partial_order_no: Option<&str>,
         partial_ticket_no: Option<&str>,
         email: Option<&str>,
+        phone: Option<&str>,
         name: Option<&str>,
         ticket_type_id: Option<Uuid>,
         partial_promo_code: Option<&str>,
@@ -728,6 +729,8 @@ impl Order {
         online_sales: bool,
         web_sales: bool,
         app_sales: bool,
+        start_date: Option<NaiveDateTime>,
+        end_date: Option<NaiveDateTime>,
         current_user_id: Uuid,
         paging: &PagingParameters,
         conn: &PgConnection,
@@ -739,7 +742,10 @@ impl Order {
         from orders o
             inner join order_items oi on oi.order_id = o.id
             inner join ticket_types tt on oi.ticket_type_id= tt.id
-            left join ticket_instances ti on oi.id = ti.order_item_id
+            left join refunded_tickets rt on oi.id = rt.order_item_id
+            left join ticket_instances ti on (oi.id = ti.order_item_id or rt.ticket_instance_id = ti.id)
+            left join transfer_tickets trt on trt.ticket_instance_id = ti.id
+            left join transfers trns on trt.transfer_id = trns.id
             left join holds h on oi.hold_id = h.id
             left join codes c on oi.code_id = c.id
             inner join users u on o.user_id = u.id
@@ -761,7 +767,7 @@ impl Order {
         if let Some(general_query) = general_query {
             bind_no = bind_no + 1;
             query = query
-                .sql(format!(" and (o.id::text ilike ${}  or ti.id::text ilike ${} or coalesce(bu.email, u.email) ilike ${} or (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${}) )", bind_no, bind_no, bind_no, bind_no, bind_no))
+                .sql(format!(" and (o.id::text ilike ${}  or ti.id::text ilike ${} or coalesce(bu.email, u.email) ilike ${} or trns.transfer_address ilike ${} or coalesce(bu.phone, u.phone) ilike ${} or coalesce(h.redemption_code, c.redemption_code) ilike ${}  or (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${}) )", bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no))
                 .bind::<diesel::sql_types::Text, _>(format!("%{}%", general_query));
         }
 
@@ -783,10 +789,19 @@ impl Order {
             bind_no = bind_no + 1;
             query = query
                 .sql(format!(
-                    " and coalesce(bu.email, u.email) ilike ${}",
-                    bind_no
+                    " and (coalesce(bu.email, u.email) ilike ${} or trns.transfer_address ilike ${})",
+                    bind_no, bind_no
                 ))
                 .bind::<sql_types::Text, _>(format!("%{}%", email));
+        }
+        if let Some(phone) = phone {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(
+                    " and (coalesce(bu.phone, u.phone) ilike ${} or trns.transfer_address ilike ${})",
+                    bind_no, bind_no
+                ))
+                .bind::<sql_types::Text, _>(format!("%{}%", phone));
         }
 
         if let Some(name) = name {
@@ -811,6 +826,20 @@ impl Order {
                     bind_no
                 ))
                 .bind::<sql_types::Text, _>(format!("%{}%", partial_promo_code));
+        }
+
+        if let Some(date) = start_date {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and o.order_date >= ${} ", bind_no))
+                .bind::<sql_types::Timestamp, _>(date);
+        }
+
+        if let Some(date) = end_date {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and o.order_date <= ${} ", bind_no))
+                .bind::<sql_types::Timestamp, _>(date);
         }
 
         if !box_office_sales {
