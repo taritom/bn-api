@@ -4,6 +4,7 @@ use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode;
 use chrono::prelude::*;
+use chrono_tz::Tz;
 use diesel;
 use diesel::sql_types;
 use diesel::RunQueryDsl;
@@ -61,6 +62,477 @@ fn into_authorization() {
             signature: transfer.signature(connection).unwrap(),
         },
         transfer.into_authorization(connection).unwrap()
+    );
+}
+
+#[test]
+fn drip_header() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project
+        .create_user()
+        .with_email("bob@miller.com".to_string())
+        .with_first_name("Bob")
+        .with_last_name("Miller")
+        .finish();
+    let venue = project.create_venue().finish();
+    let event = project
+        .create_event()
+        .with_venue(&venue)
+        .with_event_start(dates::now().add_days(7).finish())
+        .with_event_end(dates::now().add_days(14).finish())
+        .with_ticket_pricing()
+        .finish();
+    let transfer = Transfer::create(
+        user.id,
+        Uuid::new_v4(),
+        Some(TransferMessageType::Email),
+        Some("test@tari.com".to_string()),
+        false,
+    )
+    .commit(connection)
+    .unwrap();
+
+    // Source drip header 7 days
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(!drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
+    assert!(drip_header.contains("test@tari.com"));
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(!drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
+    assert!(drip_header.contains("Bob M."));
+    assert!(drip_header.contains("one week"));
+
+    // Event is 2 days away (generic messaging)
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(2).finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        drip_header,
+        "Those tickets you sent to test@tari.com still haven't been claimed. Give them a nudge!"
+            .to_string()
+    );
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        drip_header,
+        "You still need to get the tickets that Bob M. sent you!".to_string()
+    );
+
+    // Event is 1 day away
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(1).finish()),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(!drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
+    assert!(drip_header.contains("test@tari.com"));
+    assert!(drip_header.contains("tomorrow"));
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(!drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
+    assert!(drip_header.contains("Bob M."));
+    assert!(drip_header.contains("TOMORROW"));
+
+    // Event is today at 5 PM localized time
+    let venue_timezone: Tz = venue.timezone.parse().unwrap();
+    let now = Utc::now().naive_utc();
+    let mut event_start = venue_timezone
+        .ymd(now.year(), now.month(), now.day())
+        .and_hms(17, 0, 0)
+        .with_timezone(&Utc)
+        .naive_utc();
+
+    // We give 1 hour leeway with the day counts in case the job is delayed a bit so add two hours and remove a day
+    if event.days_until_event() == Some(1) {
+        event_start = event_start + Duration::hours(2) - Duration::days(1);
+    }
+
+    let parameters = EventEditableAttributes {
+        event_start: Some(event_start),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(!drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
+    assert!(drip_header.contains("test@tari.com"));
+    assert!(drip_header.contains("tonight"));
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(!drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
+    assert!(drip_header.contains("Bob M."));
+    assert!(drip_header.contains("tonight"));
+
+    // Event is today at 4:59:59 PM localized time
+    let mut event_start = venue_timezone
+        .ymd(now.year(), now.month(), now.day())
+        .and_hms(14, 59, 59)
+        .with_timezone(&Utc)
+        .naive_utc();
+
+    // We give 1 hour leeway with the day counts in case the job is delayed a bit so remove an hour
+    if event.days_until_event() == Some(1) {
+        event_start = event_start - Duration::hours(1);
+    }
+
+    let parameters = EventEditableAttributes {
+        event_start: Some(event_start),
+        ..Default::default()
+    };
+    let event = event.update(None, parameters, connection).unwrap();
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(!drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
+    assert!(drip_header.contains("test@tari.com"));
+    assert!(drip_header.contains("today"));
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            false,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(!drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
+    assert!(drip_header.contains("Bob M."));
+    assert!(drip_header.contains("today"));
+
+    // With links
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            true,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
+    let drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            true,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(drip_header.contains("<a href='mailto:bob@miller.com'>Bob M.</a>"));
+
+    // Associated user does not have their name set so generic text is used
+    let user2 = project
+        .create_user()
+        .with_email("bob2@miller.com".to_string())
+        .finish()
+        .update(
+            UserEditableAttributes {
+                first_name: Some(None),
+                last_name: Some(None),
+                ..Default::default()
+            },
+            None,
+            connection,
+        )
+        .unwrap();
+    let transfer2 = Transfer::create(
+        user2.id,
+        Uuid::new_v4(),
+        Some(TransferMessageType::Email),
+        Some("test@tari.com".to_string()),
+        false,
+    )
+    .commit(connection)
+    .unwrap();
+    let drip_header = transfer2
+        .drip_header(
+            &event,
+            SourceOrDestination::Destination,
+            true,
+            Environment::Test,
+            connection,
+        )
+        .unwrap();
+    assert!(drip_header.contains("<a href='mailto:bob2@miller.com'>another user</a>"));
+
+    // Does not have drip address so cannot create header
+    let transfer3 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    assert!(transfer3
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Test,
+            connection
+        )
+        .is_err());
+}
+
+#[test]
+fn can_process_drips() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let ticket = &tickets[0];
+    let ticket2 = &tickets[1];
+    let transfer = Transfer::create(
+        user.id,
+        Uuid::new_v4(),
+        Some(TransferMessageType::Email),
+        Some("test@tari.com".to_string()),
+        false,
+    )
+    .commit(connection)
+    .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
+    assert!(transfer.can_process_drips(connection).unwrap());
+
+    // Transfer 2 cannot process drips as it lacks destination details
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    transfer2
+        .add_transfer_ticket(ticket2.id, connection)
+        .unwrap();
+    assert!(!transfer2.can_process_drips(connection).unwrap());
+
+    // Event has ended, do not process drip
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-2).finish()),
+        event_end: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    assert!(!transfer.can_process_drips(connection).unwrap());
+
+    // Transfer not pending, do not process drip
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-2).finish()),
+        event_end: Some(dates::now().add_days(1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    assert!(transfer.can_process_drips(connection).unwrap());
+
+    let transfer = transfer.complete(user.id, None, connection).unwrap();
+    assert!(!transfer.can_process_drips(connection).unwrap());
+}
+
+#[test]
+fn create_drip_actions() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
+
+    transfer.create_drip_actions(&event, connection).unwrap();
+    let domain_actions = &DomainAction::find_by_resource(
+        Tables::Transfers.to_string(),
+        transfer.id,
+        DomainActionTypes::ProcessTransferDrip,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+
+    for domain_action in domain_actions {
+        assert_eq!(domain_action.main_table_id, Some(transfer.id));
+        assert_eq!(
+            domain_action.main_table,
+            Some(Tables::Transfers.to_string())
+        );
+        let drip_in_days = Utc::now()
+            .naive_utc()
+            .signed_duration_since(domain_action.scheduled_at)
+            .num_days();
+        assert_eq!(drip_in_days, 0);
+    }
+
+    let mut payload_destinations: Vec<SourceOrDestination> = domain_actions
+        .iter()
+        .map(|da| {
+            let payload: ProcessTransferDripPayload =
+                serde_json::from_value(da.payload.clone()).unwrap();
+            payload.source_or_destination
+        })
+        .collect();
+    payload_destinations.sort();
+    assert_eq!(
+        payload_destinations,
+        vec![
+            SourceOrDestination::Destination,
+            SourceOrDestination::Source,
+        ],
+    );
+}
+
+#[test]
+fn log_drip_domain_event() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    assert!(DomainEvent::find(
+        Tables::Transfers,
+        Some(transfer.id),
+        Some(DomainEventTypes::TransferTicketDripSourceSent),
+        connection,
+    )
+    .unwrap()
+    .is_empty());
+    assert!(DomainEvent::find(
+        Tables::Transfers,
+        Some(transfer.id),
+        Some(DomainEventTypes::TransferTicketDripDestinationSent),
+        connection,
+    )
+    .unwrap()
+    .is_empty());
+
+    // With source drip event
+    transfer
+        .log_drip_domain_event(SourceOrDestination::Source, connection)
+        .unwrap();
+    assert_eq!(
+        DomainEvent::find(
+            Tables::Transfers,
+            Some(transfer.id),
+            Some(DomainEventTypes::TransferTicketDripSourceSent),
+            connection,
+        )
+        .unwrap()
+        .len(),
+        1
+    );
+    assert!(DomainEvent::find(
+        Tables::Transfers,
+        Some(transfer.id),
+        Some(DomainEventTypes::TransferTicketDripDestinationSent),
+        connection,
+    )
+    .unwrap()
+    .is_empty());
+
+    transfer
+        .log_drip_domain_event(SourceOrDestination::Destination, connection)
+        .unwrap();
+    assert_eq!(
+        DomainEvent::find(
+            Tables::Transfers,
+            Some(transfer.id),
+            Some(DomainEventTypes::TransferTicketDripSourceSent),
+            connection,
+        )
+        .unwrap()
+        .len(),
+        1
+    );
+    assert_eq!(
+        DomainEvent::find(
+            Tables::Transfers,
+            Some(transfer.id),
+            Some(DomainEventTypes::TransferTicketDripDestinationSent),
+            connection,
+        )
+        .unwrap()
+        .len(),
+        1
     );
 }
 

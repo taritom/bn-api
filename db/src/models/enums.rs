@@ -160,6 +160,8 @@ string_enum! { DomainActionTypes [
     MarketingContactsCreateEventList,
     MarketingContactsBulkEventFanListImport,
     PaymentProviderIPN,
+    ProcessTransferDrip,
+    RegenerateDripActions,
     SendPurchaseCompletedCommunication,
     UpdateGenres
 ]}

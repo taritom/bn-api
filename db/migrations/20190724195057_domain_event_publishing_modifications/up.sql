@@ -1,6 +1,3 @@
--- Remove unused domain actions with new setup
-delete from domain_actions where domain_action_type in ('ProcessTransferDrip', 'RegenerateDripActions');
-
 -- Remove ticket instance version of TransferTicketStarted as we're publishing that event type now
 -- and the base transfer it belongs to has the event as well so it's duplicative.
 delete from domain_events where main_table = 'TicketInstances' and event_type in ('TransferTicketStarted', 'TransferTicketCompleted', 'TransferTicketCancelled');

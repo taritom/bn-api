@@ -20,6 +20,9 @@ use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
 
+pub static TRANSFER_DRIP_NOTIFICATION_DAYS_PRIOR_TO_EVENT: &'static [i64] = &[7, 1, 0];
+pub const TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT: i64 = 3;
+
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "transfers"]
 pub struct NewTransfer {
@@ -72,6 +75,12 @@ pub struct DisplayTransfer {
     pub direct: bool,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProcessTransferDripPayload {
+    pub source_or_destination: SourceOrDestination,
+    pub event_id: Uuid,
+}
+
 impl PartialOrd for Transfer {
     fn partial_cmp(&self, other: &Transfer) -> Option<Ordering> {
         Some(self.id.cmp(&other.id))
@@ -81,6 +90,74 @@ impl PartialOrd for Transfer {
 impl Transfer {
     pub fn temporary_user_id(transfer_address: Option<String>) -> Option<Uuid> {
         transfer_address.map(|a| Uuid::new_v3(&Uuid::nil(), &a))
+    }
+
+    pub fn drip_header(
+        &self,
+        event: &Event,
+        source_or_destination: SourceOrDestination,
+        include_links: bool,
+        environment: Environment,
+        conn: &PgConnection,
+    ) -> Result<String, DatabaseError> {
+        if self.transfer_address.is_none() {
+            return DatabaseError::business_process_error(
+                "Cannot build drip header for transfer missing destination address",
+            );
+        }
+
+        let units_until_event = if environment == Environment::Staging {
+            event.minutes_until_event()
+        } else {
+            event.days_until_event()
+        };
+        Ok(match units_until_event {
+            Some(units_until_event) => match source_or_destination {
+                SourceOrDestination::Source => {
+                    let mut destination_address = self.transfer_address.clone().unwrap();
+                    if include_links
+                        && self.transfer_message_type == Some(TransferMessageType::Email)
+                    {
+                        destination_address = format!(
+                            "<a href='mailto:{}'>{}</a>",
+                            destination_address, destination_address
+                        );
+                    }
+                    match units_until_event {
+                            0 => {
+                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
+                                let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
+                                format!("Time to take action! The show is {} and those tickets you sent to {} still haven't been claimed. Give them a nudge!", time_of_day_text, destination_address)
+                            },
+                            1 => format!("Uh oh! The show is tomorrow and those tickets you sent to {} still haven't been claimed. Give them a nudge!", destination_address),
+                            _ => format!("Those tickets you sent to {} still haven't been claimed. Give them a nudge!", destination_address),
+                        }
+                }
+                SourceOrDestination::Destination => {
+                    let source_user = User::find(self.source_user_id, conn)?;
+                    let mut name = Transfer::sender_name(&source_user);
+
+                    if include_links && source_user.email.is_some() {
+                        name = format!(
+                            "<a href='mailto:{}'>{}</a>",
+                            source_user.email.unwrap(),
+                            name
+                        );
+                    }
+                    match units_until_event {
+                            0 => {
+                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
+                                let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
+                                format!("Time to take action! The event is {} and the tickets {} sent you are still waiting!", time_of_day_text, name)
+                            },
+                            1 => format!("Get your tickets! The event is TOMORROW and you still need to get the tickets that {} sent you!", name),
+                            7 => format!("The event is only one week away and you still need to get the tickets that {} sent you!", name),
+                            _ => format!("You still need to get the tickets that {} sent you!", name)
+                        }
+                }
+            },
+            None => "".to_string(),
+        })
     }
 
     pub fn receive_url(
@@ -129,6 +206,29 @@ impl Transfer {
         }
     }
 
+    pub fn log_drip_domain_event(
+        &self,
+        source_or_destination: SourceOrDestination,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let domain_event_type = match source_or_destination {
+            SourceOrDestination::Source => DomainEventTypes::TransferTicketDripSourceSent,
+            SourceOrDestination::Destination => DomainEventTypes::TransferTicketDripDestinationSent,
+        };
+
+        DomainEvent::create(
+            domain_event_type,
+            "Transfer drip sent".to_string(),
+            Tables::Transfers,
+            Some(self.id),
+            None,
+            None,
+        )
+        .commit(conn)?;
+
+        Ok(())
+    }
+
     pub fn transfer_ticket_count(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
         transfer_tickets::table
             .filter(transfer_tickets::transfer_id.eq(self.id))
@@ -149,6 +249,37 @@ impl Transfer {
             &message,
             &convert_hexstring_to_bytes(&secret_key),
         )?))
+    }
+
+    pub fn create_drip_actions(
+        &self,
+        event: &Event,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        for source_or_destination in vec![
+            SourceOrDestination::Destination,
+            SourceOrDestination::Source,
+        ] {
+            DomainAction::create(
+                None,
+                DomainActionTypes::ProcessTransferDrip,
+                None,
+                json!(ProcessTransferDripPayload {
+                    event_id: event.id,
+                    source_or_destination,
+                }),
+                Some(Tables::Transfers.to_string()),
+                Some(self.id),
+            )
+            .commit(conn)?;
+        }
+        Ok(())
+    }
+
+    pub fn can_process_drips(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        Ok(self.status == TransferStatus::Pending
+            && self.events_have_not_ended(conn)?
+            && self.transfer_address.is_some())
     }
 
     pub fn events_have_not_ended(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {

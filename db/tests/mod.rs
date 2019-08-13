@@ -10,6 +10,7 @@
 #![deny(unused_extern_crates)]
 extern crate bigneon_db;
 extern crate chrono;
+extern crate chrono_tz;
 extern crate diesel;
 extern crate rand;
 #[macro_use]

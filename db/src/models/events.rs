@@ -438,7 +438,7 @@ impl Event {
         conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
         attributes.validate()?;
-
+        let previous_start = self.event_start;
         let mut event = attributes;
 
         if event.private_access_code.is_some() {
@@ -487,6 +487,10 @@ impl Event {
                 .get_result(conn),
         )?;
 
+        if previous_start != result.event_start && self.status == EventStatus::Published {
+            result.regenerate_drip_actions(conn)?;
+        }
+
         DomainEvent::create(
             DomainEventTypes::EventUpdated,
             format!("Event '{}' was updated", &self.name),
@@ -497,6 +501,36 @@ impl Event {
         );
 
         Ok(result)
+    }
+
+    pub fn regenerate_drip_actions(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        DomainAction::create(
+            None,
+            DomainActionTypes::RegenerateDripActions,
+            None,
+            json!({}),
+            Some(Tables::Events.to_string()),
+            Some(self.id),
+        )
+        .commit(conn)?;
+
+        Ok(())
+    }
+
+    pub fn clear_pending_drip_actions(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let drip_domain_actions = DomainAction::find_by_resource(
+            Tables::Events.to_string(),
+            self.id,
+            DomainActionTypes::ProcessTransferDrip,
+            DomainActionStatus::Pending,
+            conn,
+        )?;
+
+        for drip_domain_action in drip_domain_actions {
+            drip_domain_action.set_cancelled(conn)?;
+        }
+
+        Ok(())
     }
 
     pub fn ticket_pricing_range_by_events(
@@ -595,6 +629,105 @@ impl Event {
             .to_db_error(ErrorCode::QueryError, "Could not load event transfers")
     }
 
+    pub fn create_next_transfer_drip_action(
+        &self,
+        environment: Environment,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if let Some(next_source_drip_day) = self.next_drip_date(environment) {
+            let mut action = DomainAction::create(
+                None,
+                DomainActionTypes::ProcessTransferDrip,
+                None,
+                json!(ProcessTransferDripPayload {
+                    event_id: self.id,
+                    source_or_destination: SourceOrDestination::Destination,
+                }),
+                Some(Tables::Events.to_string()),
+                Some(self.id),
+            );
+            action.schedule_at(next_source_drip_day);
+            action.commit(conn)?;
+        }
+        Ok(())
+    }
+
+    pub fn days_until_event(&self) -> Option<i64> {
+        if let Some(event_start) = self.event_start {
+            let now = Utc::now().naive_utc();
+            let hours_until_event = event_start.signed_duration_since(now).num_hours();
+            // Full days away, with some wiggle room as these are triggered relative to the event_start
+            let mut days_until_event = hours_until_event / 24;
+            if days_until_event >= 0 && hours_until_event % 24 == 23 {
+                days_until_event += 1;
+            }
+
+            return Some(days_until_event);
+        }
+
+        None
+    }
+
+    pub fn minutes_until_event(&self) -> Option<i64> {
+        if let Some(event_start) = self.event_start {
+            let now = Utc::now().naive_utc();
+            let seconds_until_event = event_start.signed_duration_since(now).num_seconds();
+            // Full minutes away, with some wiggle room as these are triggered relative to the event_start
+            let mut minutes_until_event = seconds_until_event / 60;
+            if minutes_until_event >= 0 && seconds_until_event % 60 >= 40 {
+                minutes_until_event += 1;
+            }
+
+            return Some(minutes_until_event);
+        }
+
+        None
+    }
+
+    pub fn next_drip_date(&self, environment: Environment) -> Option<NaiveDateTime> {
+        let now = Utc::now().naive_utc();
+        if let Some(event_start) = self.event_start {
+            if event_start < now {
+                return None;
+            }
+
+            match environment {
+                Environment::Staging => {
+                    if let Some(minutes_until_event) = self.minutes_until_event() {
+                        return TRANSFER_DRIP_NOTIFICATION_DAYS_PRIOR_TO_EVENT
+                            .iter()
+                            .find(|minutes| &minutes_until_event > minutes)
+                            .map(|minutes| {
+                                let duration = Duration::minutes(-*minutes);
+
+                                event_start.checked_add_signed(duration).unwrap()
+                            });
+                    }
+                }
+                _ => {
+                    if let Some(days_until_event) = self.days_until_event() {
+                        return TRANSFER_DRIP_NOTIFICATION_DAYS_PRIOR_TO_EVENT
+                            .iter()
+                            .find(|days| &days_until_event > days)
+                            .map(|days| {
+                                let duration = if *days == 0 {
+                                    Duration::hours(
+                                        -TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT,
+                                    )
+                                } else {
+                                    Duration::days(-*days)
+                                };
+
+                                event_start.checked_add_signed(duration).unwrap()
+                            });
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn unpublish(
         &self,
         current_user_id: Option<Uuid>,
@@ -636,6 +769,7 @@ impl Event {
             None,
         )
         .commit(conn)?;
+        self.clear_pending_drip_actions(conn)?;
 
         Event::find(self.id, conn)
     }
@@ -688,6 +822,7 @@ impl Event {
                 .to_db_error(ErrorCode::UpdateError, "Could not publish record")?,
         };
 
+        self.regenerate_drip_actions(conn)?;
         DomainEvent::create(
             DomainEventTypes::EventPublished,
             format!("Event {} published", self.name),

@@ -41,6 +41,8 @@ pub struct Config {
     pub sendgrid_template_bn_cancel_transfer_tickets_receipt: String,
     pub sendgrid_template_bn_transfer_tickets: String,
     pub sendgrid_template_bn_transfer_tickets_receipt: String,
+    pub sendgrid_template_bn_transfer_tickets_drip_source: String,
+    pub sendgrid_template_bn_transfer_tickets_drip_destination: String,
     pub sendgrid_template_bn_password_reset: String,
     pub sendgrid_template_bn_user_invite: String,
     pub spotify_auth_token: Option<String>,
@@ -105,6 +107,10 @@ const SENDGRID_TEMPLATE_BN_REFUND: &str = "SENDGRID_TEMPLATE_BN_REFUND";
 const SENDGRID_TEMPLATE_BN_USER_REGISTERED: &str = "SENDGRID_TEMPLATE_BN_USER_REGISTERED";
 const SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED: &str = "SENDGRID_TEMPLATE_BN_PURCHASE_COMPLETED";
 const SENDGRID_TEMPLATE_BN_ORG_INVITE: &str = "SENDGRID_TEMPLATE_BN_ORG_INVITE";
+const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE: &str =
+    "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE";
+const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION: &str =
+    "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION";
 const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT: &str =
     "SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS_RECEIPT";
 const SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS: &str =
@@ -260,6 +266,22 @@ impl Config {
                     SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT
                 )
             });
+        let sendgrid_template_bn_transfer_tickets_drip_destination = env::var(
+            &SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION,
+        )
+        .unwrap_or_else(|_| {
+            panic!(
+                "{} must be defined.",
+                SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_DESTINATION
+            )
+        });
+        let sendgrid_template_bn_transfer_tickets_drip_source =
+            env::var(&SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE).unwrap_or_else(|_| {
+                panic!(
+                    "{} must be defined.",
+                    SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_DRIP_SOURCE
+                )
+            });
         let sendgrid_template_bn_cancel_transfer_tickets =
             env::var(&SENDGRID_TEMPLATE_BN_CANCEL_TRANSFER_TICKETS).unwrap_or_else(|_| {
                 panic!(
@@ -371,6 +393,8 @@ impl Config {
             sendgrid_template_bn_cancel_transfer_tickets_receipt,
             sendgrid_template_bn_transfer_tickets,
             sendgrid_template_bn_transfer_tickets_receipt,
+            sendgrid_template_bn_transfer_tickets_drip_destination,
+            sendgrid_template_bn_transfer_tickets_drip_source,
             sendgrid_template_bn_password_reset,
             sendgrid_template_bn_user_invite,
             spotify_auth_token,

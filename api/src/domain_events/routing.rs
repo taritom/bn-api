@@ -59,10 +59,12 @@ impl DomainActionRouter {
                 }
                 MarketingContactsCreateEventList => Box::new(CreateEventListExecutor::new(conf)),
                 PaymentProviderIPN => Box::new(ProcessPaymentIPNExecutor::new(&conf)),
+                RegenerateDripActions => Box::new(RegenerateDripActionsExecutor::new(conf)),
                 SendPurchaseCompletedCommunication => {
                     Box::new(SendOrderCompleteExecutor::new(conf))
                 }
                 UpdateGenres => Box::new(UpdateGenresExecutor::new()),
+                ProcessTransferDrip => Box::new(ProcessTransferDripEventExecutor::new(conf)),
                 //
                 // DO NOT add
                 // _ =>
@@ -91,6 +93,12 @@ impl DomainActionRouter {
         .expect("Configuration error");
 
         self.add_executor(PaymentProviderIPN, find_executor(PaymentProviderIPN))
+            .expect("Configuration error");
+
+        self.add_executor(ProcessTransferDrip, find_executor(ProcessTransferDrip))
+            .expect("Configuration error");
+
+        self.add_executor(RegenerateDripActions, find_executor(RegenerateDripActions))
             .expect("Configuration error");
 
         self.add_executor(UpdateGenres, find_executor(UpdateGenres))
