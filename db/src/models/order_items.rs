@@ -1,9 +1,8 @@
 use chrono::prelude::*;
 use diesel;
 use diesel::dsl::{self, select};
-use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Nullable, Text, Uuid as dUuid};
+use diesel::sql_types::{Array, BigInt, Nullable, Text, Uuid as dUuid};
 use models::*;
 use schema::{codes, order_items, ticket_instances, ticket_types};
 use std::borrow::Cow;
@@ -500,7 +499,8 @@ impl OrderItem {
              WHEN c.id IS NOT NULL AND c.end_date < now() THEN 'CodeExpired'
              WHEN h.id IS NOT NULL AND h.end_at < now() THEN 'HoldExpired'
              ELSE 'Valid'
-           END AS cart_item_status
+           END AS cart_item_status,
+           e.id AS event_id
         FROM order_items oi
            JOIN orders o ON oi.order_id = o.id
            LEFT JOIN ticket_pricing tp ON tp.id = oi.ticket_pricing_id
@@ -714,4 +714,6 @@ pub struct DisplayOrderItem {
     #[serde(skip_deserializing)]
     #[sql_type = "Nullable<Text>"]
     pub cart_item_status: Option<CartItemStatus>,
+    #[sql_type = "dUuid"]
+    pub event_id: Uuid,
 }
