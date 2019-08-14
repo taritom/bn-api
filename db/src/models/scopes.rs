@@ -350,6 +350,11 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles.extend(get_scopes_for_role(OrgOwner));
             roles
         }
+        Super => {
+            let mut roles = vec![];
+            roles.extend(get_scopes_for_role(Admin));
+            roles
+        }
     };
     roles.sort();
     roles.dedup();
