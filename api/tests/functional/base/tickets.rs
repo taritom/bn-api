@@ -61,6 +61,7 @@ pub fn show_other_user_ticket(role: Roles, should_test_succeed: bool) {
             last_name_override: None,
             transfer_id: None,
             transfer_key: None,
+            transfer_address: None,
         };
 
         let expected_result = ShowTicketResponse {
@@ -133,6 +134,7 @@ pub fn update(role: Roles, owns_ticket: bool, should_test_succeed: bool) {
             last_name_override: Some("Last".to_string()),
             transfer_id: None,
             transfer_key: None,
+            transfer_address: None,
         };
 
         let expected_result = ShowTicketResponse {

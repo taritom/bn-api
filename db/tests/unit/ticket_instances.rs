@@ -788,6 +788,7 @@ fn find() {
         last_name_override: None,
         transfer_id: None,
         transfer_key: None,
+        transfer_address: None,
     };
     assert_eq!(
         (display_event, None, expected_ticket),
@@ -861,6 +862,7 @@ fn find_show_no_token() {
         last_name_override: None,
         transfer_id: None,
         transfer_key: None,
+        transfer_address: None,
     };
     let (found_event, found_user, found_ticket) =
         TicketInstance::find_for_display(ticket.id, connection).unwrap();
