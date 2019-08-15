@@ -31,6 +31,8 @@ pub struct CurrentUser {
     pub organization_roles: HashMap<Uuid, Vec<Roles>>,
     pub organization_scopes: HashMap<Uuid, Vec<Scopes>>,
     pub organization_event_ids: HashMap<Uuid, Vec<Uuid>>,
+    pub organization_readonly_event_ids: HashMap<Uuid, Vec<Uuid>>,
+    pub event_scopes: HashMap<Uuid, Vec<Scopes>>,
 }
 
 impl Responder for CurrentUser {
@@ -368,7 +370,15 @@ fn current_user_from_user(
     for (organization_id, roles) in &roles_by_organization {
         scopes_by_organization.insert(organization_id.clone(), scopes::get_scopes(roles.clone()));
     }
-    let events_by_organization = user.get_event_ids_by_organization(connection)?;
+    let (events_by_organization, readonly_events_by_organization) =
+        user.get_event_ids_by_organization(connection)?;
+    let mut event_scopes = HashMap::new();
+    for event_user in user.event_users(connection)? {
+        event_scopes.insert(
+            event_user.event_id,
+            scopes::get_scopes(vec![event_user.role]),
+        );
+    }
 
     Ok(CurrentUser {
         user: user.clone().for_display()?,
@@ -377,6 +387,8 @@ fn current_user_from_user(
         organization_roles: roles_by_organization,
         organization_scopes: scopes_by_organization,
         organization_event_ids: events_by_organization,
+        organization_readonly_event_ids: readonly_events_by_organization,
+        event_scopes,
     })
 }
 

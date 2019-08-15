@@ -509,6 +509,7 @@ impl OrderItem {
            LEFT JOIN organization_users ou ON ou.organization_id = e.organization_id and ou.user_id = $3
            LEFT JOIN ticket_types tt ON tp.ticket_type_id = tt.id
            LEFT JOIN holds h ON oi.hold_id = h.id
+           LEFT JOIN event_users ep ON u.id = ep.user_id and ep.event_id = e.id
            LEFT JOIN ticket_instances ti ON ti.id = (
                SELECT ti.id
                FROM ticket_instances ti
@@ -537,11 +538,8 @@ impl OrderItem {
             'Admin' = ANY(u.role)
             OR o.user_id = $3
             OR o.on_behalf_of_user_id = $3
-            OR (
-                NOT 'Promoter' = ANY(ou.role)
-                AND NOT 'PromoterReadOnly' = ANY(ou.role)
-            )
-            OR e.id = ANY(ou.event_ids)
+            OR (NOT 'Promoter' = ANY(ou.role))
+            OR ep.id is not null
         )
         ORDER BY oi.item_type DESC
         "#,

@@ -321,14 +321,9 @@ fn users() {
         .create_organization()
         .with_member(&user3, Roles::OrgOwner)
         .finish();
-    OrganizationUser::create(
-        organization2.id,
-        user2.id,
-        vec![Roles::OrgMember],
-        Vec::new(),
-    )
-    .commit(project.get_connection())
-    .unwrap();
+    OrganizationUser::create(organization2.id, user2.id, vec![Roles::OrgMember])
+        .commit(project.get_connection())
+        .unwrap();
 
     // Owner is included in the user results for organization2 but not organization2
     let user_results = organization.users(None, project.get_connection()).unwrap();
@@ -342,7 +337,7 @@ fn users() {
     );
 
     // Explicitly make the organization user an org user
-    OrganizationUser::create(organization.id, user.id, vec![Roles::OrgMember], Vec::new())
+    OrganizationUser::create(organization.id, user.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
         .unwrap();
     let user_results = organization.users(None, project.get_connection()).unwrap();
@@ -354,14 +349,9 @@ fn users() {
     assert_eq!(user3.id, user_results2[1].1.id);
 
     // Add a new user to the organization
-    OrganizationUser::create(
-        organization.id,
-        user2.id,
-        vec![Roles::OrgMember],
-        Vec::new(),
-    )
-    .commit(project.get_connection())
-    .unwrap();
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
+        .commit(project.get_connection())
+        .unwrap();
     let user_results = organization.users(None, project.get_connection()).unwrap();
     assert_eq!(user_results.len(), 2);
     assert_eq!(user.id, user_results[0].1.id);
@@ -500,22 +490,12 @@ fn remove_users() {
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
-    OrganizationUser::create(
-        organization.id,
-        user2.id,
-        vec![Roles::OrgMember],
-        Vec::new(),
-    )
-    .commit(project.get_connection())
-    .unwrap();
-    OrganizationUser::create(
-        organization.id,
-        user3.id,
-        vec![Roles::OrgMember],
-        Vec::new(),
-    )
-    .commit(project.get_connection())
-    .unwrap();
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
+        .commit(project.get_connection())
+        .unwrap();
+    OrganizationUser::create(organization.id, user3.id, vec![Roles::OrgMember])
+        .commit(project.get_connection())
+        .unwrap();
     let user2_id = user2.id;
 
     let mut user_results = organization.users(None, project.get_connection()).unwrap();
@@ -943,22 +923,42 @@ fn add_user() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
+
     let organization_user = organization
         .add_user(user2.id, vec![Roles::OrgMember], Vec::new(), connection)
         .unwrap();
-
     assert_eq!(organization_user.user_id, user2.id);
     assert_eq!(organization_user.organization_id, organization.id);
     assert_eq!(organization_user.id.to_string().is_empty(), false);
-    let user2 = User::find(user2.id, connection).unwrap();
     assert!(organization
         .get_roles_for_user(&user2, connection)
         .unwrap()
         .contains(&Roles::OrgMember));
+
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    organization
+        .add_user(
+            user3.id,
+            vec![Roles::PromoterReadOnly],
+            vec![event.id],
+            connection,
+        )
+        .unwrap();
+    assert!(organization
+        .get_roles_for_user(&user3, connection)
+        .unwrap()
+        .contains(&Roles::PromoterReadOnly));
+    assert!(EventUser::find_by_event_id_user_id(event.id, user3.id, connection).is_ok());
 }
 
 #[test]

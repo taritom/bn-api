@@ -1189,6 +1189,19 @@ fn find() {
 }
 
 #[test]
+fn event_users() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().finish();
+
+    let event_user = EventUser::create(user.id, event.id, Roles::PromoterReadOnly)
+        .commit(connection)
+        .unwrap();
+    assert_eq!(user.event_users(connection).unwrap(), vec![event_user]);
+}
+
+#[test]
 fn get_event_ids_by_organization() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -1196,7 +1209,7 @@ fn get_event_ids_by_organization() {
 
     // No results
     assert_eq!(
-        HashMap::new(),
+        (HashMap::new(), HashMap::new()),
         user.get_event_ids_by_organization(connection).unwrap()
     );
 
@@ -1227,32 +1240,45 @@ fn get_event_ids_by_organization() {
         .with_organization(&organization2)
         .finish();
 
-    OrganizationUser::create(
-        organization.id,
-        user.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        organization2.id,
-        user.id,
-        vec![Roles::Promoter],
-        vec![event2.id, event3.id],
-    )
-    .commit(connection)
-    .unwrap();
+    organization
+        .add_user(
+            user.id,
+            vec![Roles::PromoterReadOnly],
+            vec![event.id],
+            connection,
+        )
+        .unwrap();
+    organization2
+        .add_user(
+            user.id,
+            vec![Roles::Promoter],
+            vec![event2.id, event3.id],
+            connection,
+        )
+        .unwrap();
 
-    let mut expected_results = HashMap::new();
-    expected_results.insert(organization.id.clone(), vec![event.id]);
-    expected_results.insert(organization2.id.clone(), vec![event2.id, event3.id]);
-    expected_results.insert(organization3.id.clone(), Vec::new());
-
-    assert_eq!(
-        expected_results,
-        user.get_event_ids_by_organization(connection).unwrap()
-    );
+    let (events_by_organization, readonly_events_by_organization) =
+        user.get_event_ids_by_organization(connection).unwrap();
+    assert!(events_by_organization
+        .get(&organization.id)
+        .unwrap()
+        .is_empty());
+    assert!(readonly_events_by_organization
+        .get(&organization2.id)
+        .unwrap()
+        .is_empty());
+    let organization_results = readonly_events_by_organization
+        .get(&organization.id)
+        .unwrap();
+    assert_eq!(&vec![event.id], organization_results);
+    let mut organization2_results = events_by_organization
+        .get(&organization2.id)
+        .unwrap()
+        .clone();
+    organization2_results.sort();
+    let mut expected_organization2 = vec![event2.id, event3.id];
+    expected_organization2.sort();
+    assert_eq!(&expected_organization2, &organization2_results);
 
     // get_event_ids_for_organization
     assert_eq!(
@@ -1260,11 +1286,12 @@ fn get_event_ids_by_organization() {
         user.get_event_ids_for_organization(organization.id, connection)
             .unwrap()
     );
-    assert_eq!(
-        vec![event2.id, event3.id],
-        user.get_event_ids_for_organization(organization2.id, connection)
-            .unwrap()
-    );
+    let mut organization2_results = user
+        .get_event_ids_for_organization(organization2.id, connection)
+        .unwrap();
+    organization2_results.sort();
+    assert_eq!(&expected_organization2, &organization2_results);
+
     assert!(user
         .get_event_ids_for_organization(organization3.id, connection)
         .unwrap()

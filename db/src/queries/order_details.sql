@@ -77,6 +77,7 @@ FROM (
                   INNER JOIN orders o ON oi.order_id = o.id
                   LEFT JOIN users u ON u.id = $3
                   LEFT JOIN organization_users ou ON orgs.id = ou.organization_id AND ou.user_id = u.id
+                  LEFT JOIN event_users ep ON ep.event_id = e.id AND ep.user_id = u.id
                   LEFT JOIN ticket_types tt ON tp.ticket_type_id = tt.id
                   LEFT JOIN holds h ON oi.hold_id = h.id
                   LEFT JOIN codes c ON oi.code_id = c.id
@@ -98,11 +99,8 @@ FROM (
                  OR o.on_behalf_of_user_id = $3
                  OR 'Admin' = ANY (u.role)
                  OR (
-                         (
-                                 NOT ('Promoter' = ANY (ou.role))
-                                 AND NOT ('PromoterReadOnly' = ANY (ou.role))
-                             )
-                         OR e.id = ANY (ou.event_ids)
+                         NOT ('Promoter' = ANY (ou.role))
+                         OR ep.id IS NOT NULL
                      )
              )
          ORDER BY oi.event_id, oi.item_type DESC, t.ticket_instance_id

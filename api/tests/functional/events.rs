@@ -1809,8 +1809,9 @@ fn update_promoter_fails_lacks_event_id() {
         support::create_auth_user_from_user(&user, Roles::Promoter, Some(&organization), &database);
 
     // Remove event access
-    OrganizationUser::create(organization.id, user.id, vec![Roles::Promoter], vec![])
-        .commit(connection)
+    EventUser::find_by_event_id_user_id(event.id, user.id, connection)
+        .unwrap()
+        .destroy(connection)
         .unwrap();
 
     let new_name = "New Event Name";

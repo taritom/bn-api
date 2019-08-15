@@ -1190,27 +1190,15 @@ pub fn remove_user(
         connection,
     )?;
 
-    let mut external_user =
-        OrganizationUser::find_by_user_id(path.user_id, organization.id, connection)?;
-    if !external_user.event_ids.contains(&event.id) {
-        return Ok(HttpResponse::Ok().finish());
+    let event_user =
+        EventUser::find_by_event_id_user_id(event.id, path.user_id, connection).optional()?;
+    match event_user {
+        Some(event_user) => {
+            event_user.destroy(connection)?;
+            Ok(HttpResponse::Ok().json(&organization))
+        }
+        None => Ok(HttpResponse::Ok().finish()),
     }
-    external_user.event_ids = external_user
-        .event_ids
-        .into_iter()
-        .filter(|id| *id != event.id)
-        .collect();
-    organization.remove_user(path.user_id, connection)?;
-
-    if external_user.event_ids.len() != 0 {
-        organization.add_user(
-            external_user.user_id,
-            external_user.role,
-            external_user.event_ids,
-            connection,
-        )?;
-    };
-    Ok(HttpResponse::Ok().json(&organization))
 }
 
 fn event_venues_from_events(

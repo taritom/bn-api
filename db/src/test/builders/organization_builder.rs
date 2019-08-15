@@ -115,7 +115,7 @@ impl<'a> OrganizationBuilder<'a> {
             .unwrap();
 
         for (user_id, role) in self.members {
-            OrganizationUser::create(organization.id, user_id, vec![role], Vec::new())
+            OrganizationUser::create(organization.id, user_id, vec![role])
                 .commit(self.connection)
                 .unwrap();
         }

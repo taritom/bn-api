@@ -4,10 +4,11 @@ use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
+use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use models::*;
-use schema::{events, genres, organization_users, organizations, user_genres, users};
+use schema::{event_users, events, genres, organization_users, organizations, user_genres, users};
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -824,45 +825,58 @@ impl User {
         scopes::get_scopes(self.role.clone())
     }
 
+    pub fn event_users(&self, conn: &PgConnection) -> Result<Vec<EventUser>, DatabaseError> {
+        event_users::table
+            .filter(event_users::user_id.eq(self.id))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve event users")
+    }
+
     pub fn get_event_ids_for_organization(
         &self,
         organization_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<Uuid>, DatabaseError> {
-        organization_users::table
-            .filter(organization_users::user_id.eq(self.id))
-            .filter(organization_users::organization_id.eq(organization_id))
-            .select(organization_users::event_ids)
-            .first(conn)
+        event_users::table
+            .inner_join(events::table.on(events::id.eq(event_users::event_id)))
+            .filter(event_users::user_id.eq(self.id))
+            .filter(events::organization_id.eq(organization_id))
+            .select(event_users::event_id)
+            .load(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not retrieve organizations for user",
+                "Could not retrieve event ids for organization user",
             )
     }
 
     pub fn get_event_ids_by_organization(
         &self,
         conn: &PgConnection,
-    ) -> Result<HashMap<Uuid, Vec<Uuid>>, DatabaseError> {
+    ) -> Result<(HashMap<Uuid, Vec<Uuid>>, HashMap<Uuid, Vec<Uuid>>), DatabaseError> {
         let mut events_by_organization = HashMap::new();
+        let mut readonly_events_by_organization = HashMap::new();
 
-        let organization_event_mapping = organization_users::table
-            .filter(organization_users::user_id.eq(self.id))
+        let organization_event_mapping = event_users::table
+            .inner_join(events::table.on(event_users::event_id.eq(events::id)))
+            .filter(event_users::user_id.eq(self.id))
+            .group_by(events::organization_id)
             .select((
-                organization_users::organization_id,
-                organization_users::event_ids,
+                events::organization_id,
+                sql::<Array<dUuid>>("COALESCE(ARRAY_AGG(DISTINCT event_users.event_id) FILTER(WHERE event_users.role = 'Promoter'), '{}')"),
+                sql::<Array<dUuid>>("COALESCE(ARRAY_AGG(DISTINCT event_users.event_id) FILTER(WHERE event_users.role = 'PromoterReadOnly'), '{}')"),
             ))
-            .load::<(Uuid, Vec<Uuid>)>(conn)
+            .load::<(Uuid, Vec<Uuid>, Vec<Uuid>)>(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not retrieve organizations for user",
+                "Could not retrieve organization info for user",
             )?;
 
-        for (organization_id, event_ids) in organization_event_mapping {
+        for (organization_id, event_ids, readonly_event_ids) in organization_event_mapping {
             events_by_organization.insert(organization_id, event_ids);
+            readonly_events_by_organization.insert(organization_id, readonly_event_ids);
         }
 
-        Ok(events_by_organization)
+        Ok((events_by_organization, readonly_events_by_organization))
     }
 
     pub fn get_roles_by_organization(

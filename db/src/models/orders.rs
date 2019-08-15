@@ -12,8 +12,8 @@ use log::Level::{self, Debug};
 use models::*;
 use regex::RegexSet;
 use schema::{
-    events, order_items, order_transfers, orders, organization_users, organizations, payments,
-    transfers, users,
+    event_users, events, order_items, order_transfers, orders, organization_users, organizations,
+    payments, transfers, users,
 };
 use serde_json;
 use serde_json::Value;
@@ -435,19 +435,24 @@ impl Order {
                         .eq(organization_users::organization_id)
                         .and(organization_users::user_id.eq(user_id))),
                 )
+                .left_join(
+                    event_users::table.on(event_users::event_id
+                        .eq(events::id)
+                        .and(event_users::user_id.eq(organization_users::user_id))),
+                )
                 .filter(events::organization_id.ne_all(organization_ids).or(sql("(
-                        NOT events.id = ANY(organization_users.event_ids)
+                        event_users.id IS NULL
                         AND (
                             'Promoter' = ANY(organization_users.role)
                             OR 'PromoterReadOnly' = ANY(organization_users.role)
                         )
-                    )")))
+                        )")))
                 .filter(order_items::order_id.eq(self.id)),
         ))
         .get_result(conn)
         .to_db_error(
             ErrorCode::QueryError,
-            "Could not check if order items exist",
+            "Could not check if order is partially visible",
         )
     }
 
@@ -1869,11 +1874,16 @@ impl Order {
                 order_items::table
                     .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
                     .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
+                    .inner_join(users::table.on(users::id.eq(user_id)))
                     .left_join(
                         organization_users::table
                             .on(organization_users::organization_id.eq(events::organization_id)),
                     )
-                    .inner_join(users::table.on(users::id.eq(user_id)))
+                    .left_join(
+                        event_users::table.on(event_users::event_id
+                            .eq(events::id)
+                            .and(event_users::user_id.eq(users::id))),
+                    )
                     .filter(order_items::order_id.eq(self.id))
                     .filter(orders::user_id.ne(user_id))
                     .filter(organization_users::user_id.eq(user_id))
@@ -1883,10 +1893,10 @@ impl Order {
                         OR orders.on_behalf_of_user_id = users.id
                         OR organization_users.id is NULL
                         OR (
-                            NOT events.id = ANY(organization_users.event_ids)
+                            event_users.id IS NULL
                             AND (
-                                    'Promoter' = ANY(organization_users.role)
-                                    OR 'PromoterReadOnly' = ANY(organization_users.role)
+                                'Promoter' = ANY(organization_users.role)
+                                OR 'PromoterReadOnly' = ANY(organization_users.role)
                             )
                         )
                         OR NOT events.organization_id = ANY (")

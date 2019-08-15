@@ -2680,7 +2680,7 @@ fn partially_visible_order() {
     .unwrap();
 
     // With no events filter and no filter of organizations
-    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember], vec![])
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
         .commit(connection)
         .unwrap();
     assert!(!cart
@@ -2688,7 +2688,7 @@ fn partially_visible_order() {
         .unwrap());
 
     // With access and event filter
-    OrganizationUser::create(organization.id, user2.id, vec![Roles::Promoter], vec![])
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::Promoter])
         .commit(connection)
         .unwrap();
     assert!(cart
@@ -2696,14 +2696,10 @@ fn partially_visible_order() {
         .unwrap());
 
     // With access and event filter
-    OrganizationUser::create(
-        organization.id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
+    organization
+        .add_user(user2.id, vec![Roles::Promoter], vec![event.id], connection)
+        .unwrap();
+
     assert!(!cart
         .partially_visible_order(&vec![organization.id], user2.id, connection)
         .unwrap());
@@ -2730,7 +2726,7 @@ fn details() {
         .finish();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember], vec![])
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
         .commit(connection)
         .unwrap();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -2970,7 +2966,7 @@ fn details() {
     assert_eq!(expected_order_details, order_details);
 
     // With events filter
-    OrganizationUser::create(organization.id, user2.id, vec![Roles::Promoter], vec![])
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::Promoter])
         .commit(connection)
         .unwrap();
     let order_details = cart
@@ -2979,14 +2975,9 @@ fn details() {
     assert!(order_details.is_empty());
 
     // With access and event filter
-    OrganizationUser::create(
-        organization.id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
+    organization
+        .add_user(user2.id, vec![Roles::Promoter], vec![event.id], connection)
+        .unwrap();
     let order_details = cart
         .details(&vec![organization.id], user2.id, connection)
         .unwrap();
@@ -4710,27 +4701,19 @@ fn for_display_with_organization_id_and_event_id_filters() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
+    let organization = event.organization(connection).unwrap();
+    let organization2 = event2.organization(connection).unwrap();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
 
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
 
-    OrganizationUser::create(
-        event.organization_id,
-        user2.id,
-        vec![Roles::OrgMember],
-        vec![],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        event2.organization_id,
-        user2.id,
-        vec![Roles::OrgMember],
-        vec![],
-    )
-    .commit(connection)
-    .unwrap();
+    OrganizationUser::create(event.organization_id, user2.id, vec![Roles::OrgMember])
+        .commit(connection)
+        .unwrap();
+    OrganizationUser::create(event2.organization_id, user2.id, vec![Roles::OrgMember])
+        .commit(connection)
+        .unwrap();
 
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     cart.update_quantities(
@@ -4765,22 +4748,12 @@ fn for_display_with_organization_id_and_event_id_filters() {
     assert_eq!(order_item.ticket_type_id, Some(ticket_type.id));
 
     // Filtered by event_id
-    OrganizationUser::create(
-        event.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        event2.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![],
-    )
-    .commit(connection)
-    .unwrap();
+    organization
+        .add_user(user2.id, vec![Roles::Promoter], vec![event.id], connection)
+        .unwrap();
+    OrganizationUser::create(event2.organization_id, user2.id, vec![Roles::Promoter])
+        .commit(connection)
+        .unwrap();
     let display_order = cart
         .for_display(
             Some(vec![event.organization_id, event2.organization_id]),
@@ -4791,48 +4764,13 @@ fn for_display_with_organization_id_and_event_id_filters() {
     assert!(!display_order.order_contains_other_tickets);
     assert_eq!(display_order.items.len(), 2); // 1 tickets, 1 fees
 
-    OrganizationUser::create(
-        event.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        event2.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event2.id],
-    )
-    .commit(connection)
-    .unwrap();
-    let display_order = cart
-        .for_display(
-            Some(vec![event.organization_id, event2.organization_id]),
-            user2.id,
-            connection,
-        )
+    OrganizationUser::create(event.organization_id, user2.id, vec![Roles::Promoter])
+        .commit(connection)
         .unwrap();
-    assert!(display_order.order_contains_other_tickets);
-    assert_eq!(display_order.items.len(), 0);
 
-    OrganizationUser::create(
-        event.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        event2.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event2.id],
-    )
-    .commit(connection)
-    .unwrap();
+    organization2
+        .add_user(user2.id, vec![Roles::Promoter], vec![event2.id], connection)
+        .unwrap();
     let display_order = cart
         .for_display(
             Some(vec![event.organization_id, event2.organization_id]),

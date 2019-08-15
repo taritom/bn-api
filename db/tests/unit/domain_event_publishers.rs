@@ -90,7 +90,7 @@ fn find_with_unpublished_domain_events() {
     );
 
     // Disable importing of legacy events
-    let parameters = DomainEventEditableAttributes {
+    let parameters = DomainEventPublisherEditableAttributes {
         webhook_url: None,
         import_historic_events: Some(false),
     };
@@ -298,7 +298,7 @@ fn update() {
     .unwrap();
 
     let new_webhook_url = "http://localhost:7699/webhook".to_string();
-    let parameters = DomainEventEditableAttributes {
+    let parameters = DomainEventPublisherEditableAttributes {
         webhook_url: Some(new_webhook_url.clone()),
         import_historic_events: Some(false),
     };

@@ -34,7 +34,7 @@ pub struct DomainEventPublisher {
 
 #[derive(AsChangeset, Deserialize, Validate)]
 #[table_name = "domain_event_publishers"]
-pub struct DomainEventEditableAttributes {
+pub struct DomainEventPublisherEditableAttributes {
     #[validate(url(message = "Webhook URL is invalid"))]
     pub webhook_url: Option<String>,
     pub import_historic_events: Option<bool>,
@@ -233,13 +233,16 @@ impl DomainEventPublisher {
 
     pub fn update(
         &self,
-        attributes: &DomainEventEditableAttributes,
+        attributes: &DomainEventPublisherEditableAttributes,
         conn: &PgConnection,
     ) -> Result<DomainEventPublisher, DatabaseError> {
         diesel::update(self)
             .set((attributes, domain_event_publishers::updated_at.eq(dsl::now)))
             .get_result(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update Domain Action")
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not update domain event publisher",
+            )
     }
 }
 

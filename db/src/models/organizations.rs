@@ -8,8 +8,8 @@ use diesel::sql_types::{Array, BigInt, Nullable, Text, Timestamp, Uuid as dUuid}
 use models::scopes;
 use models::*;
 use schema::{
-    assets, events, fee_schedules, order_items, organization_users, organizations, ticket_types,
-    users, venues,
+    assets, event_users, events, fee_schedules, order_items, organization_users, organizations,
+    ticket_types, users, venues,
 };
 use std::cmp;
 use std::collections::HashMap;
@@ -299,17 +299,21 @@ impl Organization {
         event_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Vec<(OrganizationUser, User)>, DatabaseError> {
-        let query = organization_users::table
-            .inner_join(users::table)
-            .filter(organization_users::organization_id.eq(self.id))
+        let mut query = organization_users::table
+            .inner_join(users::table.on(users::id.eq(organization_users::user_id)))
+            .left_join(
+                event_users::table.on(event_users::user_id
+                    .eq(users::id)
+                    .and(event_users::event_id.nullable().eq(event_id))),
+            )
             .into_boxed();
 
-        let query = match event_id {
-            Some(id) => query.filter(organization_users::event_ids.contains(vec![id])),
-            None => query.filter(organization_users::event_ids.eq(Vec::<Uuid>::new())),
-        };
+        if event_id.is_some() {
+            query = query.filter(event_users::id.is_not_null());
+        }
 
         let users = query
+            .filter(organization_users::organization_id.eq(self.id))
             .select(organization_users::all_columns)
             .order_by(users::last_name.asc())
             .then_order_by(users::first_name.asc())
@@ -531,6 +535,15 @@ impl Organization {
     }
 
     pub fn remove_user(&self, user_id: Uuid, conn: &PgConnection) -> Result<usize, DatabaseError> {
+        let event_ids: Vec<Uuid> = self.events(conn)?.iter().map(|e| e.id).collect();
+        diesel::delete(
+            event_users::table
+                .filter(event_users::user_id.eq(user_id))
+                .filter(event_users::event_id.eq_any(event_ids)),
+        )
+        .execute(conn)
+        .to_db_error(ErrorCode::DeleteError, "Error removing event promoters")?;
+
         diesel::delete(
             organization_users::table
                 .filter(organization_users::user_id.eq(user_id))
@@ -547,7 +560,19 @@ impl Organization {
         event_ids: Vec<Uuid>,
         conn: &PgConnection,
     ) -> Result<OrganizationUser, DatabaseError> {
-        let org_user = OrganizationUser::create(self.id, user_id, role, event_ids).commit(conn)?;
+        let org_user = OrganizationUser::create(self.id, user_id, role.clone()).commit(conn)?;
+        if event_ids.len() > 0 {
+            if role.iter().position(|&r| r == Roles::Promoter).is_some() {
+                EventUser::update_or_create(user_id, &event_ids, Roles::Promoter, conn)?;
+            } else if role
+                .iter()
+                .position(|&r| r == Roles::PromoterReadOnly)
+                .is_some()
+            {
+                EventUser::update_or_create(user_id, &event_ids, Roles::PromoterReadOnly, conn)?;
+            }
+        }
+
         Ok(org_user)
     }
 

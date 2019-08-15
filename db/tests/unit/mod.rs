@@ -10,6 +10,7 @@ pub mod domain_event_publishers;
 pub mod domain_events;
 pub mod event_artists;
 pub mod event_interest;
+pub mod event_users;
 pub mod events;
 pub mod fee_schedule_ranges;
 pub mod fee_schedules;

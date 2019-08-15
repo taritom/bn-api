@@ -323,6 +323,7 @@ pub fn add_or_replace_user(
         req.event_ids.unwrap_or(Vec::new()),
         connection,
     )?;
+
     Ok(HttpResponse::Created().finish())
 }
 
