@@ -3,6 +3,7 @@ use auth::user::User;
 use bigneon_db::models::User as DbUser;
 use bigneon_db::models::*;
 use communications::mailers;
+use communications::smsers;
 use db::Connection;
 use diesel::pg::PgConnection;
 use diesel::Connection as DieselConnection;
@@ -447,4 +448,37 @@ pub fn tickets(
         }
     }
     Ok(HttpResponse::Ok().json(results))
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct SendBoxOfficeInstructionsRequest {
+    pub phone: String,
+}
+
+pub fn send_box_office_instructions(
+    (conn, path, data, user, state): (
+        Connection,
+        Path<PathParameters>,
+        Json<SendBoxOfficeInstructionsRequest>,
+        User,
+        State<AppState>,
+    ),
+) -> Result<HttpResponse, BigNeonError> {
+    let conn = conn.get();
+    let order = Order::find(path.id, conn)?;
+    for event in order.events(conn)? {
+        user.requires_scope_for_organization_event(
+            Scopes::BoxOfficeTicketRead,
+            &event.organization(conn)?,
+            &event,
+            conn,
+        )?;
+    }
+    smsers::box_office::checkin_instructions(
+        &state.config,
+        data.into_inner().phone,
+        path.id,
+        conn,
+    )?;
+    Ok(HttpResponse::Ok().json({}))
 }

@@ -204,6 +204,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/orders/{id}/resend_confirmation", |r| {
         r.method(Method::POST).with(orders::resend_confirmation);
     })
+    .resource("/orders/{id}/send_box_office_instructions", |r| {
+        r.method(Method::POST)
+            .with(orders::send_box_office_instructions);
+    })
     .resource("/orders/{id}/tickets", |r| {
         r.method(Method::GET).with(orders::tickets);
     })
