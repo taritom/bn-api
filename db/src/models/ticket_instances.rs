@@ -319,6 +319,7 @@ impl TicketInstance {
             ))
             .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
+            .then_order_by(events::id.asc())
             .load::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load user tickets")?;
 

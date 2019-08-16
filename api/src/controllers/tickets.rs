@@ -182,7 +182,11 @@ pub fn send_via_email_or_phone(
         let receiver_wallet = user.default_wallet(connection)?;
 
         // TODO change blockchain client to do transfers from multiple wallets at once
-        for (sender_wallet_id, tickets) in &ticket_instances.into_iter().group_by(|ti| ti.wallet_id)
+        for (sender_wallet_id, tickets) in &ticket_instances
+            .into_iter()
+            .sorted_by_key(|ti| ti.wallet_id)
+            .into_iter()
+            .group_by(|ti| ti.wallet_id)
         {
             let sender_wallet = Wallet::find(sender_wallet_id, connection)?;
             transfer_tickets_on_blockchain(

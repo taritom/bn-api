@@ -144,7 +144,8 @@ impl DomainEventPublisher {
                 domain_events::created_at,
             ))
             .distinct()
-            .order_by(domain_events::created_at)
+            .order_by(domain_event_publishers::id.asc())
+            .then_order_by(domain_events::created_at.asc())
             .limit(limit)
             .get_results(conn)
             .to_db_error(

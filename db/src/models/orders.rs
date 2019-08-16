@@ -1462,6 +1462,8 @@ impl Order {
             .items(conn)?
             .iter()
             .filter(|i| i.event_id.is_some())
+            .sorted_by_key(|i| (i.event_id, i.hold_id))
+            .into_iter()
             .group_by(|i| (i.event_id, i.hold_id))
             .into_iter()
         {

@@ -465,7 +465,13 @@ fn checkout_external(
     let conn = conn.get();
 
     // User must have external checkout permissions for all events in the cart.
-    for (event_id, _) in &order.items(conn)?.into_iter().group_by(|oi| oi.event_id) {
+    for (event_id, _) in &order
+        .items(conn)?
+        .into_iter()
+        .sorted_by_key(|oi| oi.event_id)
+        .into_iter()
+        .group_by(|oi| oi.event_id)
+    {
         if let Some(event_id) = event_id {
             let organization = Organization::find_for_event(event_id, conn)?;
             user.requires_scope_for_organization(
