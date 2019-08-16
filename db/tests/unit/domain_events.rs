@@ -1,6 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
-use chrono::Utc;
+use chrono::{NaiveDateTime, Utc};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -52,9 +52,14 @@ fn webhook_payloads() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let organization = project.create_organization().with_fees().finish();
+    let event_start =
+        NaiveDateTime::parse_from_str("2055-06-14 16:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
+    let venue = project.create_venue().finish();
     let event = project
         .create_event()
+        .with_venue(&venue)
         .with_organization(&organization)
+        .with_event_start(event_start)
         .with_ticket_pricing()
         .finish();
     let email = "transfer-user@tari.com".to_string();
@@ -131,6 +136,18 @@ fn webhook_payloads() {
         "test@tari.com".to_string()
     );
     assert_eq!(
+        fetch_from_payload::<String>(&transferer_payload, "show_start_date"),
+        "Monday, 14 June 2055".to_string()
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&transferer_payload, "show_start_time"),
+        "9:00 AM PDT".to_string()
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&transferer_payload, "show_doors_open_time"),
+        "8:00 AM PDT".to_string()
+    );
+    assert_eq!(
         fetch_from_payload::<Option<Uuid>>(&transferer_payload, "recipient_id"),
         transfer.destination_temporary_user_id
     );
@@ -173,6 +190,22 @@ fn webhook_payloads() {
     assert_eq!(
         fetch_from_payload::<Option<String>>(&recipient_payload, "transferer_phone"),
         Some(phone)
+    );
+    assert_eq!(
+        fetch_from_payload::<i64>(&recipient_payload, "number_of_tickets_transferred"),
+        1
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&recipient_payload, "show_start_date"),
+        "Monday, 14 June 2055".to_string()
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&recipient_payload, "show_start_time"),
+        "9:00 AM PDT".to_string()
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&recipient_payload, "show_doors_open_time"),
+        "8:00 AM PDT".to_string()
     );
 
     for transfer_payload in transfer_payloads {
@@ -237,6 +270,7 @@ fn webhook_payloads() {
         .finish();
     let event = project
         .create_event()
+        .with_event_start(event_start)
         .with_organization(&organization)
         .with_venue(&venue)
         .with_ticket_type_count(1)
@@ -278,6 +312,18 @@ fn webhook_payloads() {
     assert_eq!(
         fetch_from_payload::<i64>(&order_payload, "timestamp"),
         domain_event.created_at.timestamp()
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&order_payload, "show_start_date"),
+        "Monday, 14 June 2055".to_string()
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&order_payload, "show_start_time"),
+        "6:00 PM SAST".to_string()
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&order_payload, "show_doors_open_time"),
+        "5:00 PM SAST".to_string()
     );
 
     // Timezone now available via associated order

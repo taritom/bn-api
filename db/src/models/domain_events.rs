@@ -123,6 +123,11 @@ impl DomainEvent {
                 let transfer = Transfer::find(main_id, conn)?;
 
                 data.insert("direct_transfer".to_string(), json!(transfer.direct));
+                data.insert(
+                    "number_of_tickets_transferred".to_string(),
+                    json!(transfer.transfer_ticket_count(conn)?),
+                );
+
                 data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
                 let mut events = transfer.events(conn)?;
                 // TODO: lock down transfers to have only one event
@@ -172,10 +177,6 @@ impl DomainEvent {
             json!(transfer
                 .destination_temporary_user_id
                 .or(transfer.destination_user_id)),
-        );
-        data.insert(
-            "number_of_tickets_transferred".to_string(),
-            json!(transfer.transfer_ticket_count(conn)?),
         );
 
         let recipient = if let Some(destination_user_id) = transfer.destination_user_id {
@@ -284,6 +285,8 @@ impl DomainEvent {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         let organization = event.organization(conn)?;
+        let venue = event.venue(conn)?;
+        let localized_times = event.get_all_localized_times(&venue);
         data.insert("show_id".to_string(), json!(event.id));
         data.insert("show_event_name".to_string(), json!(event.name.clone()));
 
@@ -291,6 +294,28 @@ impl DomainEvent {
             "show_start".to_string(),
             json!(event.event_start.map(|e| e.timestamp())),
         );
+
+        if let Some(event_start) = localized_times.event_start {
+            data.insert(
+                "show_start_date".to_string(),
+                json!(format!(
+                    "{} {}",
+                    event_start.format("%A,"),
+                    event_start.format("%e %B %Y").to_string().trim()
+                )),
+            );
+            data.insert(
+                "show_start_time".to_string(),
+                json!(event_start.format("%l:%M %p %Z").to_string().trim()),
+            );
+        }
+
+        if let Some(door_time) = localized_times.door_time {
+            data.insert(
+                "show_doors_open_time".to_string(),
+                json!(door_time.format("%l:%M %p %Z").to_string().trim()),
+            );
+        }
         if let Some(venue) = event.venue(conn)? {
             data.insert("show_venue_address".to_string(), json!(venue.address));
             data.insert("show_venue_city".to_string(), json!(venue.city));
