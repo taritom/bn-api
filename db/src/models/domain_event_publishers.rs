@@ -18,6 +18,7 @@ pub static SUPPORTED_DOMAIN_EVENT_TYPES_FOR_PUBLISHING: &'static [DomainEventTyp
     DomainEventTypes::UserCreated,
     DomainEventTypes::OrderCompleted,
     DomainEventTypes::TemporaryUserCreated,
+    DomainEventTypes::PushNotificationTokenCreated,
 ];
 
 #[derive(Clone, Debug, Serialize, Eq, Hash, PartialEq, Identifiable, Queryable, QueryableByName)]
@@ -105,9 +106,15 @@ impl DomainEventPublisher {
                     .and(domain_events::main_table.eq(Tables::TemporaryUsers))),
             )
             .left_join(
+                push_notification_tokens::table.on(domain_events::main_table
+                    .eq(Tables::PushNotificationTokens)
+                    .and(domain_events::main_id.eq(push_notification_tokens::id.nullable()))),
+            )
+            .left_join(
                 users::table.on(domain_events::main_table.ne(Tables::TemporaryUsers).and(
                     users::id
                         .eq(transfers::source_user_id)
+                        .or(push_notification_tokens::user_id.eq(users::id))
                         .or(transfers::destination_user_id.eq(users::id.nullable()))
                         .or(domain_events::main_id
                             .eq(transfers::id.nullable())

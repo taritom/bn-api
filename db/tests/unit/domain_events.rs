@@ -380,6 +380,51 @@ fn webhook_payloads() {
         fetch_from_payload::<String>(&temporary_user_payload, "phone"),
         phone
     );
+
+    let push_token =
+        PushNotificationToken::create(user.id, "source".to_string(), "token".to_string())
+            .commit(user.id, connection)
+            .unwrap();
+    let push_token_domain_event = DomainEvent::create(
+        DomainEventTypes::PushNotificationTokenCreated,
+        "Nothing to see here".to_string(),
+        Tables::PushNotificationTokens,
+        Some(push_token.id),
+        None,
+        None,
+    )
+    .commit(connection)
+    .unwrap();
+
+    let mut push_token_payloads = push_token_domain_event
+        .webhook_payloads("http://localhost:5432", connection)
+        .unwrap();
+    assert_eq!(push_token_payloads.len(), 1);
+    let push_token_payload = push_token_payloads.remove(0);
+    assert_eq!(
+        fetch_from_payload::<String>(&push_token_payload, "webhook_event_type"),
+        "user_device_tokens_added".to_string()
+    );
+    assert_eq!(
+        fetch_from_payload::<Uuid>(&push_token_payload, "user_id"),
+        user.id
+    );
+    assert_eq!(
+        fetch_from_payload::<i64>(&push_token_payload, "timestamp"),
+        push_token_domain_event.created_at.timestamp()
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&push_token_payload, "token_source"),
+        push_token.token_source.clone()
+    );
+    assert_eq!(
+        fetch_from_payload::<String>(&push_token_payload, "token"),
+        push_token.token.clone()
+    );
+    assert_eq!(
+        fetch_from_payload::<i64>(&push_token_payload, "last_used"),
+        push_token_domain_event.created_at.timestamp()
+    );
 }
 
 #[test]

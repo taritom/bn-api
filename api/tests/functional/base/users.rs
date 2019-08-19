@@ -324,7 +324,7 @@ pub fn show_push_notification_tokens_for_user_id(role: Roles, should_test_true: 
         token_source: "example_token_source".to_string(),
         token: "example_token".to_string(),
     };
-    created_token.commit(&connection).unwrap();
+    created_token.commit(user.id, &connection).unwrap();
     //Retrieve push notification token
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -368,7 +368,7 @@ pub fn show_push_notification_tokens(role: Roles, should_test_true: bool) {
         token_source: "example_token_source".to_string(),
         token: "example_token".to_string(),
     };
-    created_token.commit(&connection).unwrap();
+    created_token.commit(user.id, &connection).unwrap();
     //Retrieve push notification tokens
     let response: HttpResponse = users::show_push_notification_tokens((
         database.connection.clone().into(),
@@ -446,7 +446,7 @@ pub fn remove_push_notification_token(role: Roles, should_test_true: bool) {
         token_source: "example_token_source".to_string(),
         token: "example_token".to_string(),
     }
-    .commit(&connection)
+    .commit(user.id, &connection)
     .unwrap();
     //check that it was created
     let stored_tokens = PushNotificationToken::find_by_user_id(user.id, connection).unwrap();

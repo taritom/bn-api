@@ -250,7 +250,7 @@ pub fn add_push_notification_token(
         add_push_notification_token_request.token_source.clone(),
         add_push_notification_token_request.token.clone(),
     )
-    .commit(connection)?;
+    .commit(auth_user.id(), connection)?;
 
     Ok(HttpResponse::Ok().finish())
 }

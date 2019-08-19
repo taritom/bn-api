@@ -98,6 +98,36 @@ impl DomainEvent {
                 data.insert("phone".to_string(), json!(temporary_user.phone));
                 result.push(data);
             }
+            DomainEventTypes::PushNotificationTokenCreated => {
+                // Guard against future publisher processing after deletion
+                if let Some(push_notification_token) =
+                    PushNotificationToken::find(main_id, conn).optional()?
+                {
+                    let mut data: HashMap<String, serde_json::Value> = HashMap::new();
+                    data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
+                    data.insert(
+                        "webhook_event_type".to_string(),
+                        json!("user_device_tokens_added"),
+                    );
+                    data.insert(
+                        "user_id".to_string(),
+                        json!(push_notification_token.user_id),
+                    );
+                    data.insert(
+                        "token_source".to_string(),
+                        json!(push_notification_token.token_source),
+                    );
+                    data.insert("token".to_string(), json!(push_notification_token.token));
+                    data.insert(
+                        "last_used".to_string(),
+                        json!(push_notification_token
+                            .last_notification_at
+                            .unwrap_or(push_notification_token.created_at)
+                            .timestamp()),
+                    );
+                    result.push(data);
+                }
+            }
             DomainEventTypes::OrderCompleted => {
                 let mut data: HashMap<String, serde_json::Value> = HashMap::new();
                 let order = Order::find(main_id, conn)?;
