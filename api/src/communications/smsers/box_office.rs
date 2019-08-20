@@ -13,7 +13,7 @@ pub fn checkin_instructions(
     let source = CommAddress::from(config.communication_default_source_phone.clone());
     let destinations = CommAddress::from(phone);
     let body = format!(
-        "Thank you for your purchase! Your order number is {}, Please head to the entry and let the door person know your first and last name so that they can check you in. Also be sure to check your inbox for a link to download the Big Neon app to access your tickets for quicker entry",
+        "Thank you for your purchase! Your order number is #{}. Please head to the entry and let the door person know your first and last name so that they can check you in.",
         Order::parse_order_number(order_id)
 
     );
