@@ -31,6 +31,7 @@ pub mod refunded_tickets;
 pub mod refunds;
 pub mod regions;
 pub mod reports;
+pub mod services;
 pub mod settlement_transactions;
 pub mod settlements;
 pub mod stages;

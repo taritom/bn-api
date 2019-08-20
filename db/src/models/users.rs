@@ -142,7 +142,18 @@ impl NewUser {
 }
 
 impl User {
+    pub fn country(&self, conn: &PgConnection) -> Result<Option<String>, DatabaseError> {
+        Ok(self.last_associated_venue(conn)?.map(|v| v.country))
+    }
+
     pub fn timezone(&self, conn: &PgConnection) -> Result<Option<String>, DatabaseError> {
+        Ok(self.last_associated_venue(conn)?.map(|v| v.timezone))
+    }
+
+    pub fn last_associated_venue(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Option<Venue>, DatabaseError> {
         use schema::*;
         venues::table
             .inner_join(events::table.on(events::venue_id.eq(venues::id.nullable())))
@@ -170,11 +181,11 @@ impl User {
                                 .and(orders::user_id.eq(self.id))),
                     )),
             )
-            .select(venues::timezone)
+            .select(venues::all_columns)
             .order_by(events::event_start.desc())
-            .first::<String>(conn)
+            .first::<Venue>(conn)
             .optional()
-            .to_db_error(ErrorCode::QueryError, "Could not get timezone for user")
+            .to_db_error(ErrorCode::QueryError, "Could not get venue for user")
     }
 
     pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {

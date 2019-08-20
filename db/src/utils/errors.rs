@@ -6,9 +6,11 @@ use diesel::result::QueryResult;
 use log::Level;
 use regex;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde_json::Error as SerdeError;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use std::io::Error as IoError;
 use tari_client::TariError;
 use validator::{ValidationError, ValidationErrors};
 use validators::create_validation_error;
@@ -263,11 +265,24 @@ impl From<EnumParseError> for DatabaseError {
     }
 }
 
+impl From<SerdeError> for DatabaseError {
+    fn from(e: SerdeError) -> Self {
+        DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
+    }
+}
+
 impl From<TariError> for DatabaseError {
     fn from(e: TariError) -> Self {
         DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
     }
 }
+
+impl From<IoError> for DatabaseError {
+    fn from(e: IoError) -> Self {
+        DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
+    }
+}
+
 impl From<regex::Error> for DatabaseError {
     fn from(e: regex::Error) -> Self {
         DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))

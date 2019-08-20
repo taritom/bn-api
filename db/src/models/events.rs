@@ -19,6 +19,7 @@ use schema::{
 use serde::Deserializer;
 use serde_json::Value;
 use serde_with::rust::double_option;
+use services::*;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -1582,10 +1583,71 @@ impl Event {
         let (start_time, end_time) =
             Event::dates_by_past_or_upcoming(start_time, end_time, past_or_upcoming);
 
-        let query_like = match query_filter {
-            Some(n) => format!("%{}%", text::escape_control_chars(&n)),
+        let query_like = match query_filter.clone() {
+            Some(n) => format!("%{}%", text::escape_control_chars(&n.trim())),
             None => "%".to_string(),
         };
+        let query_escaped = query_filter
+            .map(|q| text::escape_control_chars(&q))
+            .unwrap_or("%".to_string())
+            .split(|c| c == ' ')
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<&str>>()
+            .join(" ");
+
+        let mut country: Option<CountryDatum> = None;
+        let mut state: Option<StateDatum> = None;
+        let mut city: Option<String> = None;
+
+        let country_data = CountryLookup::new()?;
+        let mut query_fragments: Vec<String> = query_escaped
+            .split(|c| c == ',' || c == ' ')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        let query_fragment_size = query_fragments.len();
+        for i in 0..query_fragment_size {
+            let test_fragment =
+                query_fragments[(query_fragment_size - 1 - i)..query_fragment_size].join(" ");
+            if let Some(country_datum) = country_data.find(&test_fragment) {
+                query_fragments.drain((query_fragment_size - 1 - i)..);
+                country = Some(country_datum);
+                break;
+            }
+        }
+
+        let mut state_lookup_country = country.clone();
+        // If we have user attempt to set country code for state checking
+        // Does not set country value to avoid limiting result set
+        if state_lookup_country.is_none() {
+            if let Some(user) = &user {
+                if let Some(country) = user.country(conn)?.clone() {
+                    state_lookup_country = country_data.find(&country);
+                }
+            }
+        }
+
+        // Default to US for country state search
+        state_lookup_country = state_lookup_country.or_else(|| country_data.find("US"));
+
+        if let Some(lookup_country) = state_lookup_country {
+            let query_fragment_size = query_fragments.len();
+            for i in 0..query_fragment_size {
+                let test_fragment =
+                    query_fragments[(query_fragment_size - 1 - i)..query_fragment_size].join(" ");
+                if let Some(state_datum) = lookup_country.state(&test_fragment) {
+                    state = Some(state_datum);
+                    query_fragments.drain((query_fragment_size - 1 - i)..);
+                    if query_fragments.len() > 0 {
+                        city = Some(query_fragments.join(" "));
+                        query_fragments.drain(..);
+                    }
+                    break;
+                }
+            }
+        }
+
         let mut query = events::table
             .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
             .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
@@ -1607,9 +1669,40 @@ impl Event {
                     .ilike(query_like.clone())
                     .or(sql("(")
                         .bind(
-                            venues::id
-                                .is_not_null()
-                                .and(venues::name.ilike(query_like.clone())),
+                            venues::name
+                                .ilike(query_like.clone())
+                                .or(venues::city.ilike(query_escaped.clone()))
+                                .or(venues::state.ilike(query_escaped.clone()))
+                                .or(venues::country.ilike(query_escaped.clone()))
+                                .or(
+                                    sql("0 = ").bind::<BigInt, _>(query_fragments.len() as i64)
+                                    .and(
+                                        sql("CONCAT(venues.city, ' ', venues.state, ' ', venues.country) ILIKE ")
+                                            .bind::<Text, _>(format!("{} {} {}",
+                                                city.clone().unwrap_or("%".to_string()),
+                                                state.clone().map(|s| s.name).unwrap_or("%".to_string()),
+                                                country.clone().map(|c| c.name).unwrap_or("%".to_string())
+                                        ))
+                                        .or(sql("CONCAT(venues.city, ' ', venues.state, ' ', venues.country) ILIKE ")
+                                            .bind::<Text, _>(format!("{} {} {}",
+                                                city.clone().unwrap_or("%".to_string()),
+                                                state.clone().map(|s| s.code.unwrap_or("%".to_string())).unwrap_or("%".to_string()),
+                                                country.clone().map(|c| c.name).unwrap_or("%".to_string())
+                                        )))
+                                        .or(sql("CONCAT(venues.city, ' ', venues.state, ' ', venues.country) ILIKE ")
+                                            .bind::<Text, _>(format!("{} {} {}",
+                                                city.clone().unwrap_or("%".to_string()),
+                                                state.clone().map(|s| s.name).unwrap_or("%".to_string()),
+                                                country.clone().map(|c| c.code).unwrap_or("%".to_string())
+                                        )))
+                                        .or(sql("CONCAT(venues.city, ' ', venues.state, ' ', venues.country) ILIKE ")
+                                            .bind::<Text, _>(format!("{} {} {}",
+                                                city.clone().unwrap_or("%".to_string()),
+                                                state.clone().map(|s| s.code.unwrap_or("%".to_string())).unwrap_or("%".to_string()),
+                                                country.clone().map(|c| c.code).unwrap_or("%".to_string())
+                                        )))
+                                    )
+                                )
                         )
                         .sql(")"))
                     .or(artists::id.is_not_null()),

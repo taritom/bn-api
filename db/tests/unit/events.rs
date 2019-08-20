@@ -1880,16 +1880,37 @@ fn search() {
     let connection = project.get_connection();
     let region1 = project.create_region().finish();
     let region2 = project.create_region().finish();
+    let city = "Dangerville city".to_string();
+    let state = "Alaska".to_string();
     let venue1 = project
         .create_venue()
         .with_name("Venue1".into())
         .with_region(&region1)
         .finish();
+    let venue1 = venue1
+        .update(
+            VenueEditableAttributes {
+                city: Some(city.clone()),
+                state: Some(state.clone()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
     let venue2 = project
         .create_venue()
         .with_name("Venue2".into())
         .with_region(&region2)
         .finish();
+    let venue2 = venue2
+        .update(
+            VenueEditableAttributes {
+                country: Some("IE".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
     let artist1 = project.create_artist().with_name("Artist1".into()).finish();
     let artist2 = project.create_artist().with_name("Artist2".into()).finish();
     let organization_owner = project.create_user().finish();
@@ -1926,6 +1947,8 @@ fn search() {
         .with_name("NewEvent".into())
         .with_organization(&organization)
         .with_venue(&venue2)
+        .with_tickets()
+        .with_ticket_pricing()
         .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
         .finish();
@@ -2080,7 +2103,7 @@ fn search() {
         None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
-        Some(user),
+        Some(user.clone()),
         PastOrUpcoming::Past,
         None,
         paging,
@@ -2514,6 +2537,436 @@ fn search() {
         None,
         None,
         Some(vec!["Happy".to_string()]),
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 0);
+
+    // City search
+    let all_found_events = Event::search(
+        Some(city.clone()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // State search
+    let all_found_events = Event::search(
+        Some("alaskA".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // State abbreviation search
+    let all_found_events = Event::search(
+        Some("AK".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // city state search
+    let all_found_events = Event::search(
+        Some("dangerville city, alaskA".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // city state abbreviation search
+    let all_found_events = Event::search(
+        Some("dangerville city, aK".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // city state abbreviation search
+    let all_found_events = Event::search(
+        Some("dangerville city AK".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Update state to New Hampshire to confirm space splitting properly finds state for abbreviation swap
+    venue1
+        .update(
+            VenueEditableAttributes {
+                state: Some("NH".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    let all_found_events = Event::search(
+        Some("dangerville city NeW HampshiRe".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    let all_found_events = Event::search(
+        Some("dangerville city Nh".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Extra spaces
+    let all_found_events = Event::search(
+        Some("dangerville      city         Nh".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // City, State, Country code
+    let all_found_events = Event::search(
+        Some("Dangerville City NH US".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Invalid city, State, Country code
+    let all_found_events = Event::search(
+        Some("Dangerville Circle NH US".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 0);
+
+    // Name
+    let all_found_events = Event::search(
+        Some("Ireland".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[1], all_found_events.0[0]);
+    assert_eq!(all_events[2], all_found_events.0[1]);
+
+    // Country code
+    let all_found_events = Event::search(
+        Some("IE".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[1], all_found_events.0[0]);
+    assert_eq!(all_events[2], all_found_events.0[1]);
+
+    // New Hampshire does not work as IE Country code
+    let all_found_events = Event::search(
+        Some("New Hampshire, IE".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 0);
+
+    // New Hampshire does work alone as logic defaults to US if no country provided for search and none on file
+    let all_found_events = Event::search(
+        Some("New Hampshire".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        Some(user.clone()),
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+
+    // Order now tying user to IE (changes default)
+    project
+        .create_order()
+        .for_event(&all_events[1])
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let all_found_events = Event::search(
+        Some("New Hampshire".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        Some(user.clone()),
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 0);
+
+    // User uses US country code
+    let all_found_events = Event::search(
+        Some("New Hampshire, US".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        Some(user.clone()),
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Logged out behavior is still normal defaulting to US
+    let all_found_events = Event::search(
+        Some("New Hampshire".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Invalid state, Country code
+    let all_found_events = Event::search(
+        Some("NL IE".to_string()),
+        None,
+        None,
+        None,
+        None,
         None,
         None,
         None,

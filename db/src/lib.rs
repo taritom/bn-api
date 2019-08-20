@@ -52,6 +52,7 @@ extern crate validator;
 
 pub mod models;
 pub mod schema;
+pub mod services;
 pub mod utils;
 pub mod validators;
 
@@ -65,6 +66,7 @@ pub mod dev {
 
 pub mod prelude {
     pub use models::*;
+    pub use services::*;
     pub use utils::errors::*;
     pub use utils::*;
 }

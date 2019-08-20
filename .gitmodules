@@ -1,0 +1,3 @@
+[submodule "db/external/country-province-data"]
+	path = db/external/country-province-data
+	url = https://github.com/JohnBendfeldt/country-province-data

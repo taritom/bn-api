@@ -15,6 +15,61 @@ use bigneon_db::utils::errors::ErrorCode;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 
 #[test]
+fn country() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let country = "ZA".to_string();
+    let venue = project
+        .create_venue()
+        .with_country(country.clone())
+        .finish();
+    let event = project
+        .create_event()
+        .with_venue(&venue)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    // No link to a country
+    let user = project.create_user().finish();
+    assert!(user.country(connection).unwrap().is_none());
+
+    // With event interest
+    project
+        .create_event_interest()
+        .with_event(&event)
+        .with_user(&user)
+        .finish();
+    assert_eq!(user.country(connection).unwrap(), Some(country.clone()));
+
+    // With order
+    let user = project.create_user().finish();
+    let order = project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    assert_eq!(user.country(connection).unwrap(), Some(country.clone()));
+
+    // With transfer
+    let user2 = project.create_user().finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket = &order.tickets(ticket_type.id, connection).unwrap()[0];
+    TicketInstance::direct_transfer(
+        user.id,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(user2.country(connection).unwrap(), Some(country.clone()));
+}
+
+#[test]
 fn timezone() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -67,6 +122,70 @@ fn timezone() {
     )
     .unwrap();
     assert_eq!(user2.timezone(connection).unwrap(), Some(timezone.clone()));
+}
+
+#[test]
+fn last_associated_venue() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let timezone = "Africa/Johannesburg".to_string();
+    let venue = project
+        .create_venue()
+        .with_timezone(timezone.clone())
+        .finish();
+    let event = project
+        .create_event()
+        .with_venue(&venue)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    // No link to an event
+    let user = project.create_user().finish();
+    assert!(user.last_associated_venue(connection).unwrap().is_none());
+
+    // With event interest
+    project
+        .create_event_interest()
+        .with_event(&event)
+        .with_user(&user)
+        .finish();
+    assert_eq!(
+        user.last_associated_venue(connection).unwrap(),
+        Some(venue.clone())
+    );
+
+    // With order
+    let user = project.create_user().finish();
+    let order = project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    assert_eq!(
+        user.last_associated_venue(connection).unwrap(),
+        Some(venue.clone())
+    );
+
+    // With transfer
+    let user2 = project.create_user().finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket = &order.tickets(ticket_type.id, connection).unwrap()[0];
+    TicketInstance::direct_transfer(
+        user.id,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        user2.last_associated_venue(connection).unwrap(),
+        Some(venue.clone())
+    );
 }
 
 #[test]
