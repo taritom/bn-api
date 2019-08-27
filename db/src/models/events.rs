@@ -1574,6 +1574,7 @@ impl Event {
         past_or_upcoming: PastOrUpcoming,
         event_type: Option<EventTypes>,
         paging: &Paging,
+        country_service: &CountryLookup,
         conn: &PgConnection,
     ) -> Result<(Vec<Event>, i64), DatabaseError> {
         let sort_column = match sort_field {
@@ -1587,65 +1588,41 @@ impl Event {
             Some(n) => format!("%{}%", text::escape_control_chars(&n.trim())),
             None => "%".to_string(),
         };
-        let query_escaped = query_filter
-            .map(|q| text::escape_control_chars(&q))
-            .unwrap_or("%".to_string())
-            .split(|c| c == ' ')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<&str>>()
-            .join(" ");
+        let query_escaped = query_filter.map(|q| {
+            text::escape_control_chars(&q)
+                .split(|c| c == ' ')
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<&str>>()
+                .join(" ")
+        });
 
-        let mut country: Option<CountryDatum> = None;
-        let mut state: Option<StateDatum> = None;
-        let mut city: Option<String> = None;
-
-        let country_data = CountryLookup::new()?;
-        let mut query_fragments: Vec<String> = query_escaped
-            .split(|c| c == ',' || c == ' ')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-
-        let query_fragment_size = query_fragments.len();
-        for i in 0..query_fragment_size {
-            let test_fragment =
-                query_fragments[(query_fragment_size - 1 - i)..query_fragment_size].join(" ");
-            if let Some(country_datum) = country_data.find(&test_fragment) {
-                query_fragments.drain((query_fragment_size - 1 - i)..);
-                country = Some(country_datum);
-                break;
+        let mut venue_location_searches: Vec<(Option<String>, Option<StateDatum>, CountryDatum)> =
+            Vec::new();
+        if let Some(query_escaped) = query_escaped.clone() {
+            if let Ok(data) = country_service.parse_city_state_country(&query_escaped.clone()) {
+                for (city, state, country) in data {
+                    if let Some(country) = country {
+                        venue_location_searches.push((city, state, country));
+                    }
+                }
             }
-        }
-
-        let mut state_lookup_country = country.clone();
-        // If we have user attempt to set country code for state checking
-        // Does not set country value to avoid limiting result set
-        if state_lookup_country.is_none() {
+            let mut default_country: Option<CountryDatum> = None;
             if let Some(user) = &user {
                 if let Some(country) = user.country(conn)?.clone() {
-                    state_lookup_country = country_data.find(&country);
+                    default_country = country_service.find(&country);
                 }
             }
-        }
-
-        // Default to US for country state search
-        state_lookup_country = state_lookup_country.or_else(|| country_data.find("US"));
-
-        if let Some(lookup_country) = state_lookup_country {
-            let query_fragment_size = query_fragments.len();
-            for i in 0..query_fragment_size {
-                let test_fragment =
-                    query_fragments[(query_fragment_size - 1 - i)..query_fragment_size].join(" ");
-                if let Some(state_datum) = lookup_country.state(&test_fragment) {
-                    state = Some(state_datum);
-                    query_fragments.drain((query_fragment_size - 1 - i)..);
-                    if query_fragments.len() > 0 {
-                        city = Some(query_fragments.join(" "));
-                        query_fragments.drain(..);
+            // Default to US for country state search
+            default_country = default_country.or_else(|| country_service.find("US"));
+            if let Some(default_country) = default_country {
+                if let Ok(data) = default_country.parse_city_state(&query_escaped.clone()) {
+                    for (city, state) in data {
+                        venue_location_searches.push((city, state, default_country.clone()));
                     }
-                    break;
                 }
             }
+            venue_location_searches.sort();
+            venue_location_searches.dedup();
         }
 
         let mut query = events::table
@@ -1667,54 +1644,62 @@ impl Event {
             .filter(
                 events::name
                     .ilike(query_like.clone())
-                    .or(sql("(")
-                        .bind(
-                            venues::name
-                                .ilike(query_like.clone())
-                                .or(venues::city.ilike(query_escaped.clone()))
-                                .or(venues::state.ilike(query_escaped.clone()))
-                                .or(venues::country.ilike(query_escaped.clone()))
-                                .or(
-                                    sql("0 = ").bind::<BigInt, _>(query_fragments.len() as i64)
-                                    .and(
-                                        sql("CONCAT(venues.city, ' ', venues.state, ' ', venues.country) ILIKE ")
-                                            .bind::<Text, _>(format!("{} {} {}",
-                                                city.clone().unwrap_or("%".to_string()),
-                                                state.clone().map(|s| s.name).unwrap_or("%".to_string()),
-                                                country.clone().map(|c| c.name).unwrap_or("%".to_string())
-                                        ))
-                                        .or(sql("CONCAT(venues.city, ' ', venues.state, ' ', venues.country) ILIKE ")
-                                            .bind::<Text, _>(format!("{} {} {}",
-                                                city.clone().unwrap_or("%".to_string()),
-                                                state.clone().map(|s| s.code.unwrap_or("%".to_string())).unwrap_or("%".to_string()),
-                                                country.clone().map(|c| c.name).unwrap_or("%".to_string())
-                                        )))
-                                        .or(sql("CONCAT(venues.city, ' ', venues.state, ' ', venues.country) ILIKE ")
-                                            .bind::<Text, _>(format!("{} {} {}",
-                                                city.clone().unwrap_or("%".to_string()),
-                                                state.clone().map(|s| s.name).unwrap_or("%".to_string()),
-                                                country.clone().map(|c| c.code).unwrap_or("%".to_string())
-                                        )))
-                                        .or(sql("CONCAT(venues.city, ' ', venues.state, ' ', venues.country) ILIKE ")
-                                            .bind::<Text, _>(format!("{} {} {}",
-                                                city.clone().unwrap_or("%".to_string()),
-                                                state.clone().map(|s| s.code.unwrap_or("%".to_string())).unwrap_or("%".to_string()),
-                                                country.clone().map(|c| c.code).unwrap_or("%".to_string())
-                                        )))
-                                    )
-                                )
-                        )
-                        .sql(")"))
+                    .or(venues::name.ilike(query_like.clone()))
+                    .or(venues::city.ilike(query_escaped.clone().unwrap_or("%".to_string())))
+                    .or(venues::state.ilike(query_escaped.clone().unwrap_or("%".to_string())))
+                    .or(venues::country.ilike(query_escaped.clone().unwrap_or("%".to_string())))
                     .or(artists::id.is_not_null()),
             )
-            .filter(events::event_end.ge(start_time))
-            .filter(events::event_end.le(end_time))
-            .filter(events::deleted_at.is_null())
-            .select(events::all_columns)
-            .distinct()
-            .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
-            .then_order_by(events::name.asc())
             .into_boxed();
+
+        if venue_location_searches.len() > 0 {
+            for (city, state, country) in venue_location_searches {
+                query =
+                    query
+                        .or_filter(
+                            venues::city
+                                .ilike(city.clone().unwrap_or("%".to_string()))
+                                .and(venues::state.ilike(
+                                    state.clone().map(|s| s.name).unwrap_or("%".to_string()),
+                                ))
+                                .and(venues::country.ilike(country.clone().name)),
+                        )
+                        .or_filter(
+                            venues::city
+                                .ilike(city.clone().unwrap_or("%".to_string()))
+                                .and(
+                                    venues::state.ilike(
+                                        state
+                                            .clone()
+                                            .map(|s| s.code.unwrap_or("%".to_string()))
+                                            .unwrap_or("%".to_string()),
+                                    ),
+                                )
+                                .and(venues::country.ilike(country.clone().name)),
+                        )
+                        .or_filter(
+                            venues::city
+                                .ilike(city.clone().unwrap_or("%".to_string()))
+                                .and(
+                                    venues::state.ilike(
+                                        state
+                                            .clone()
+                                            .map(|s| s.code.unwrap_or("%".to_string()))
+                                            .unwrap_or("%".to_string()),
+                                    ),
+                                )
+                                .and(venues::country.ilike(country.clone().code)),
+                        )
+                        .or_filter(
+                            venues::city
+                                .ilike(city.clone().unwrap_or("%".to_string()))
+                                .and(venues::state.ilike(
+                                    state.clone().map(|s| s.name).unwrap_or("%".to_string()),
+                                ))
+                                .and(venues::country.ilike(country.clone().code)),
+                        );
+            }
+        }
 
         if let Some(event_type) = event_type {
             query = query.filter(events::event_type.eq(event_type))
@@ -1776,6 +1761,13 @@ impl Event {
         }
 
         let result = query
+            .filter(events::event_end.ge(start_time))
+            .filter(events::event_end.le(end_time))
+            .filter(events::deleted_at.is_null())
+            .select(events::all_columns)
+            .distinct()
+            .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
+            .then_order_by(events::name.asc())
             .paginate(paging.page as i64)
             .per_page(paging.limit as i64)
             .load_and_count_pages(conn);

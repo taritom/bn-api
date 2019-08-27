@@ -25,6 +25,99 @@ fn find() {
 }
 
 #[test]
+fn parse_city_state() {
+    let country_lookup = CountryLookup::new().unwrap();
+    let us_country = country_lookup.find("US").unwrap();
+    let jp_country = country_lookup.find("JP").unwrap();
+
+    assert!(us_country.parse_city_state("FAKE").is_err());
+
+    assert_eq!(
+        us_country.parse_city_state("MA"),
+        Ok(vec![(None, us_country.state("Massachusetts"))])
+    );
+
+    assert_eq!(
+        us_country.parse_city_state("MaSSaChuseTTs"),
+        Ok(vec![(None, us_country.state("Massachusetts"))])
+    );
+
+    assert_eq!(
+        jp_country.parse_city_state("Aomori"),
+        Ok(vec![(None, jp_country.state("JP-02"))])
+    );
+
+    assert_eq!(
+        jp_country.parse_city_state("Test Aomori"),
+        Ok(vec![(Some("Test".to_string()), jp_country.state("JP-02"))])
+    );
+}
+
+#[test]
+fn parse_city_state_country() {
+    let country_lookup = CountryLookup::new().unwrap();
+    let us_country = country_lookup.find("US").unwrap();
+    let jp_country = country_lookup.find("JP").unwrap();
+
+    assert!(country_lookup.parse_city_state_country("FAKE").is_err());
+
+    assert_eq!(
+        country_lookup.parse_city_state_country("US"),
+        Ok(vec![(None, None, Some(us_country.clone()))])
+    );
+
+    assert_eq!(
+        country_lookup.parse_city_state_country("MA US"),
+        Ok(vec![(
+            None,
+            us_country.state("Massachusetts"),
+            Some(us_country.clone())
+        )])
+    );
+
+    assert_eq!(
+        country_lookup.parse_city_state_country("MA"),
+        Ok(vec![(
+            None,
+            None,
+            Some(country_lookup.find("Morocco").unwrap())
+        )])
+    );
+
+    assert_eq!(
+        country_lookup.parse_city_state_country("MaSSaChuseTTs US"),
+        Ok(vec![(
+            None,
+            us_country.state("Massachusetts"),
+            Some(us_country.clone())
+        )])
+    );
+
+    assert_eq!(
+        country_lookup.parse_city_state_country("JapaN"),
+        Ok(vec![(None, None, Some(jp_country.clone()))])
+    );
+
+    assert_eq!(
+        country_lookup.parse_city_state_country("Aomori JapaN"),
+        Ok(vec![(
+            None,
+            jp_country.state("JP-02"),
+            Some(jp_country.clone())
+        )])
+    );
+
+    assert_eq!(
+        country_lookup.parse_city_state_country("Test Aomori JapaN"),
+        Ok(vec![(
+            Some("Test".to_string()),
+            jp_country.state("JP-02"),
+            Some(jp_country.clone())
+        )])
+    );
+}
+
+#[test]
 fn state() {
     let country_lookup = CountryLookup::new().unwrap();
     let country = country_lookup.find("US").unwrap();

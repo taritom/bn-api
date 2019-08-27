@@ -155,6 +155,13 @@ impl ConvertToWebError for EnumParseError {
     }
 }
 
+impl ConvertToWebError for ParseError {
+    fn to_response(&self) -> HttpResponse {
+        error!("Parse error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
 impl ConvertToWebError for StripeError {
     fn to_response(&self) -> HttpResponse {
         error!("Stripe error: {}", self);

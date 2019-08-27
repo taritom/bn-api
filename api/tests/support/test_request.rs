@@ -30,11 +30,14 @@ impl TestRequest {
             spotify::SINGLETON.set_auth_token(&config.spotify_auth_token.clone().unwrap());
         }
 
-        let test_request = test::TestRequest::with_state(AppState::new(
-            config.clone(),
-            Database::from_config(&config),
-            Database::readonly_from_config(&config),
-        ));
+        let test_request = test::TestRequest::with_state(
+            AppState::new(
+                config.clone(),
+                Database::from_config(&config),
+                Database::readonly_from_config(&config),
+            )
+            .expect("Failed to generate app state for testing"),
+        );
 
         // TODO: actix-web test requests do not allow router customization except
         // within crate. Forcing an ID here so the extractor can still build the

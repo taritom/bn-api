@@ -1,5 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
+use bigneon_db::services::CountryLookup;
 use bigneon_db::utils::dates;
 use chrono::prelude::*;
 use chrono::Duration;
@@ -1873,9 +1874,216 @@ fn find_all_events_for_organization() {
 }
 
 #[test]
+fn search_finds_events_in_both_matching_country_and_state() {
+    // Search for MA == Morocco (Country) and Massachusetts (US State) returns events for both
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let country_lookup = CountryLookup::new().unwrap();
+    let paging: &Paging = &Paging {
+        page: 0,
+        limit: 10,
+        sort: "".to_string(),
+        dir: SortingDir::Asc,
+        total: 0,
+        tags: HashMap::new(),
+    };
+    let venue = project.create_venue().finish();
+    let venue = venue
+        .update(
+            VenueEditableAttributes {
+                state: Some("MA".to_string()),
+                country: Some("US".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    let venue2 = project.create_venue().finish();
+    let venue2 = venue2
+        .update(
+            VenueEditableAttributes {
+                country: Some("MA".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    let event = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .with_venue(&venue2)
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .finish();
+
+    // Search by code
+    let all_found_events = Event::search(
+        Some("MA".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 2);
+
+    // Search by names
+    let all_found_events = Event::search(
+        Some("Massachusetts".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_found_events.0[0], event);
+    let all_found_events = Event::search(
+        Some("Morocco".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_found_events.0[0], event2);
+
+    // Update to use full names
+    venue
+        .update(
+            VenueEditableAttributes {
+                state: Some("Massachusetts".to_string()),
+                country: Some("United States".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    venue2
+        .update(
+            VenueEditableAttributes {
+                country: Some("Morocco".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+
+    // Search by country code
+    let all_found_events = Event::search(
+        Some("MA".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 2);
+
+    // Search by names
+    let all_found_events = Event::search(
+        Some("Massachusetts".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_found_events.0[0], event);
+    let all_found_events = Event::search(
+        Some("Morocco".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_found_events.0[0], event2);
+}
+
+#[test]
 fn search() {
     //create event
     let project = TestProject::new();
+    let country_lookup = CountryLookup::new().unwrap();
     let creator = project.create_user().finish();
     let connection = project.get_connection();
     let region1 = project.create_region().finish();
@@ -2044,6 +2252,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2065,6 +2274,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2086,6 +2296,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2107,6 +2318,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2128,6 +2340,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2149,6 +2362,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2170,6 +2384,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2192,6 +2407,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2215,6 +2431,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2237,6 +2454,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2260,6 +2478,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2282,6 +2501,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2304,6 +2524,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2327,6 +2548,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2349,6 +2571,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2370,6 +2593,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2392,6 +2616,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2415,6 +2640,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2436,6 +2662,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2457,6 +2684,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2479,6 +2707,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2501,6 +2730,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2524,6 +2754,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2546,6 +2777,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2567,6 +2799,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2589,6 +2822,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2611,6 +2845,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2633,6 +2868,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2655,6 +2891,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2677,6 +2914,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2708,6 +2946,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2729,6 +2968,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2751,6 +2991,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2773,6 +3014,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2795,6 +3037,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2816,6 +3059,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2839,6 +3083,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2862,6 +3107,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2883,6 +3129,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2911,6 +3158,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2932,6 +3180,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2954,6 +3203,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2976,6 +3226,7 @@ fn search() {
         PastOrUpcoming::Past,
         None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2987,6 +3238,7 @@ fn filter_events_by_event_type() {
     //create event
     let project = TestProject::new();
     let connection = project.get_connection();
+    let country_lookup = CountryLookup::new().unwrap();
     let region1 = project.create_region().finish();
     let venue1 = project
         .create_venue()
@@ -3062,6 +3314,7 @@ fn filter_events_by_event_type() {
         PastOrUpcoming::Upcoming,
         Some(EventTypes::Music),
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -3084,6 +3337,7 @@ fn filter_events_by_event_type() {
         PastOrUpcoming::Upcoming,
         Some(EventTypes::Art),
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();

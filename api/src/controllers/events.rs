@@ -199,6 +199,7 @@ pub fn index(
         past_or_upcoming,
         query.category.clone(),
         &paging,
+        state.service_locator.country_lookup_service(),
         connection,
     )?;
     let (events, count) = events_count;

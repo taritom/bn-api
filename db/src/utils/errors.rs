@@ -104,6 +104,26 @@ impl Error for EnumParseError {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct ParseError {
+    pub message: String,
+    pub input: String,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}\nInput: {}", self.message, self.input)?;
+
+        Ok(())
+    }
+}
+
+impl Error for ParseError {
+    fn description(&self) -> &str {
+        &self.message
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct DatabaseError {
     pub code: i32,
     pub message: String,
@@ -261,6 +281,12 @@ impl From<diesel::result::Error> for DatabaseError {
 
 impl From<EnumParseError> for DatabaseError {
     fn from(e: EnumParseError) -> Self {
+        DatabaseError::new(ErrorCode::ParseError, Some(e.to_string()))
+    }
+}
+
+impl From<ParseError> for DatabaseError {
+    fn from(e: ParseError) -> Self {
         DatabaseError::new(ErrorCode::ParseError, Some(e.to_string()))
     }
 }

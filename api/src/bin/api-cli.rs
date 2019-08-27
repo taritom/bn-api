@@ -33,7 +33,7 @@ pub fn main() {
     jlog!(Info, &format!("Environment loaded {:?}", environment));
 
     let config = Config::new(environment);
-    let service_locator = ServiceLocator::new(&config);
+    let service_locator = ServiceLocator::new(&config).expect("Expected service locator to load");
     let database = Database::from_config(&config);
 
     let matches = App::new("Big Neon API CLI")

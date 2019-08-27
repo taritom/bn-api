@@ -39,6 +39,7 @@ error_conversion!(DieselError);
 error_conversion!(EnumParseError);
 error_conversion!(JwtError);
 error_conversion!(NotFoundError);
+error_conversion!(ParseError);
 error_conversion!(PaymentProcessorError);
 error_conversion!(ReqwestError);
 error_conversion!(ReqwestToStrError);
