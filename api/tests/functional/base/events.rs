@@ -900,7 +900,7 @@ pub fn expected_show_json(
         }
     }
     let localized_times: EventLocalizedTimeStrings =
-        event.get_all_localized_time_strings(&Some(venue.clone()));
+        event.get_all_localized_time_strings(Some(&venue));
     let (min_ticket_price, max_ticket_price) = event
         .current_ticket_pricing_range(box_office_pricing, connection)
         .unwrap();

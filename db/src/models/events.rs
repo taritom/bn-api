@@ -862,6 +862,28 @@ impl Event {
         )
     }
 
+    pub fn find_incl_org_venue_fees(
+        id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(Event, Organization, Option<Venue>, FeeSchedule), DatabaseError> {
+        use schema::*;
+        let res: (Event, Organization, Option<Venue>, FeeSchedule) = events::table
+            .inner_join(organizations::table.inner_join(fee_schedules::table))
+            .left_join(venues::table)
+            .filter(events::id.eq(id))
+            .filter(events::deleted_at.is_null())
+            .select((
+                events::all_columns,
+                organizations::all_columns,
+                venues::all_columns.nullable(),
+                fee_schedules::all_columns,
+            ))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading event")
+            .expect_single()?;
+        Ok(res)
+    }
+
     pub fn find_by_ids(ids: Vec<Uuid>, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
         events::table
             .filter(events::deleted_at.is_null())
@@ -871,13 +893,26 @@ impl Event {
             .to_db_error(ErrorCode::QueryError, "Error loading events")
     }
 
-    pub fn find_by_slug(slug: &str, conn: &PgConnection) -> Result<Event, DatabaseError> {
-        events::table
+    pub fn find_by_slug(
+        slug: &str,
+        conn: &PgConnection,
+    ) -> Result<(Event, Organization, Option<Venue>, FeeSchedule), DatabaseError> {
+        use schema::*;
+        let res: (Event, Organization, Option<Venue>, FeeSchedule) = events::table
+            .inner_join(organizations::table.inner_join(fee_schedules::table))
+            .left_join(venues::table)
             .filter(events::deleted_at.is_null())
             .filter(events::slug.eq(slug))
-            .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not find event by slug")
-            .expect_single()
+            .select((
+                events::all_columns,
+                organizations::all_columns,
+                venues::all_columns.nullable(),
+                fee_schedules::all_columns,
+            ))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading event")
+            .expect_single()?;
+        Ok(res)
     }
 
     pub fn cancel(
@@ -949,7 +984,7 @@ impl Event {
      */
     pub fn get_all_localized_time_strings(
         &self,
-        venue: &Option<Venue>,
+        venue: Option<&Venue>,
     ) -> EventLocalizedTimeStrings {
         let event_localized_times: EventLocalizedTimes = self.get_all_localized_times(venue);
         EventLocalizedTimeStrings {
@@ -959,26 +994,26 @@ impl Event {
         }
     }
 
-    pub fn get_all_localized_times(&self, venue: &Option<Venue>) -> EventLocalizedTimes {
+    pub fn get_all_localized_times(&self, venue: Option<&Venue>) -> EventLocalizedTimes {
         let event_localized_times: EventLocalizedTimes = EventLocalizedTimes {
-            event_start: Event::localized_time_from_venue(&self.event_start, &venue),
-            event_end: Event::localized_time_from_venue(&self.event_end, &venue),
-            door_time: Event::localized_time_from_venue(&self.door_time, &venue),
+            event_start: Event::localized_time_from_venue(self.event_start, venue),
+            event_end: Event::localized_time_from_venue(self.event_end, venue),
+            door_time: Event::localized_time_from_venue(self.door_time, venue),
         };
 
         event_localized_times
     }
 
     pub fn localized_time_from_venue(
-        utc_datetime: &Option<NaiveDateTime>,
-        venue: &Option<Venue>,
+        utc_datetime: Option<NaiveDateTime>,
+        venue: Option<&Venue>,
     ) -> Option<chrono::DateTime<Tz>> {
-        Event::localized_time(utc_datetime, &venue.clone().map(|v| v.timezone))
+        Event::localized_time(utc_datetime, venue.map(|v| v.timezone.as_str()))
     }
 
     pub fn localized_time(
-        utc_datetime: &Option<NaiveDateTime>,
-        timezone_string: &Option<String>,
+        utc_datetime: Option<NaiveDateTime>,
+        timezone_string: Option<&str>,
     ) -> Option<chrono::DateTime<Tz>> {
         if utc_datetime.is_none() || timezone_string.is_none() {
             return None;
@@ -1209,19 +1244,18 @@ impl Event {
             };
 
             let event_id = r.id;
-            let timezone = &venue.clone().map(|v| v.timezone);
+            let timezone = venue.as_ref().map(|v| v.timezone.as_ref());
             let localized_times: EventLocalizedTimeStrings = EventLocalizedTimeStrings {
-                event_start: Event::localized_time(&r.event_start, timezone)
-                    .map(|s| s.to_rfc2822()),
-                event_end: Event::localized_time(&r.event_end, timezone).map(|s| s.to_rfc2822()),
-                door_time: Event::localized_time(&r.door_time, timezone).map(|s| s.to_rfc2822()),
+                event_start: Event::localized_time(r.event_start, timezone).map(|s| s.to_rfc2822()),
+                event_end: Event::localized_time(r.event_end, timezone).map(|s| s.to_rfc2822()),
+                door_time: Event::localized_time(r.door_time, timezone).map(|s| s.to_rfc2822()),
             };
 
             let mut result = EventSummaryResult {
                 id: r.id,
                 name: r.name,
                 organization_id: r.organization_id,
-                venue,
+                venue: venue.clone(),
                 created_at: r.created_at,
                 event_start: r.event_start,
                 door_time: r.door_time,
@@ -1920,7 +1954,7 @@ impl Event {
         let artists = self.artists(conn)?;
         let genres = self.genres(conn)?;
 
-        let localized_times = self.get_all_localized_time_strings(&venue);
+        let localized_times = self.get_all_localized_time_strings(venue.as_ref());
         let (min_ticket_price, max_ticket_price) =
             self.current_ticket_pricing_range(false, conn)?;
         Ok(DisplayEvent {

@@ -239,12 +239,11 @@ pub fn show(
     let connection = connection.get();
     let user = user.into_inner();
 
-    let event = match parameters.id.parse() {
-        Ok(i) => Event::find(i, connection)?,
+    let (event, organization, venue, fee_schedule) = match parameters.id.parse() {
+        Ok(i) => Event::find_incl_org_venue_fees(i, connection)?,
         Err(_) => Event::find_by_slug(&parameters.id, connection)?,
     };
 
-    let organization = event.organization(connection)?;
     if event.private_access_code.is_some()
         && !(query.private_access_code.is_some()
             && event.private_access_code.clone().unwrap()
@@ -283,9 +282,7 @@ pub fn show(
         return application::not_found();
     }
 
-    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
-    let venue = event.venue(connection)?;
-    let localized_times = event.get_all_localized_time_strings(&venue);
+    let localized_times = event.get_all_localized_time_strings(venue.as_ref());
     let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
     let total_interest = EventInterest::total_interest(event.id, connection)?;
     let user_interest = match user {
@@ -419,7 +416,7 @@ pub fn show(
         door_time: event.door_time,
         event_end: event.event_end,
         cancelled_at: event.cancelled_at,
-        fee_in_cents: fee_in_cents,
+        fee_in_cents,
         status: event.status,
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url,
@@ -1258,7 +1255,7 @@ fn event_venues_from_events(
             max_ticket_price = Some(*max);
         }
 
-        let localized_times = event.get_all_localized_time_strings(&venue);
+        let localized_times = event.get_all_localized_time_strings(venue.as_ref());
         let organization_id = event.organization_id;
         let tracking_keys = tracking_keys_for_orgs
             .get(&organization_id)

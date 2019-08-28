@@ -3751,20 +3751,19 @@ fn localized_time() {
     let utc_time =
         NaiveDateTime::parse_from_str("2019-01-01 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
     let localized_time =
-        Event::localized_time(&Some(utc_time), &Some("Africa/Johannesburg".to_string())).unwrap();
+        Event::localized_time(Some(utc_time), Some("Africa/Johannesburg")).unwrap();
     assert_eq!(
         localized_time.to_rfc2822(),
         "Tue,  1 Jan 2019 14:00:00 +0200"
     );
 
-    let invalid_localized_time =
-        Event::localized_time(&None, &Some("Africa/Johannesburg".to_string()));
+    let invalid_localized_time = Event::localized_time(None, Some("Africa/Johannesburg"));
     assert_eq!(invalid_localized_time, None);
 
-    let invalid_localized_time = Event::localized_time(&Some(utc_time), &None);
+    let invalid_localized_time = Event::localized_time(Some(utc_time), None);
     assert_eq!(invalid_localized_time, None);
 
-    let invalid_localized_time = Event::localized_time(&None, &None);
+    let invalid_localized_time = Event::localized_time(None, None);
     assert_eq!(invalid_localized_time, None);
 }
 
@@ -3784,7 +3783,7 @@ fn get_all_localized_times() {
         .with_venue(&venue)
         .finish();
 
-    let localized_times: EventLocalizedTimes = event.get_all_localized_times(&Some(venue));
+    let localized_times: EventLocalizedTimes = event.get_all_localized_times(Some(&venue));
     assert_eq!(
         localized_times.event_start.unwrap().to_rfc2822(),
         "Tue,  1 Jan 2019 14:00:00 +0200"

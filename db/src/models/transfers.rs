@@ -125,7 +125,7 @@ impl Transfer {
                     }
                     match units_until_event {
                             0 => {
-                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
+                                let (is_pm, hour) = event.get_all_localized_times(event.venue(conn)?.as_ref()).event_start.unwrap().hour12();
                                 let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
                                 format!("Time to take action! The show is {} and those tickets you sent to {} still haven't been claimed. Give them a nudge!", time_of_day_text, destination_address)
                             },
@@ -146,7 +146,7 @@ impl Transfer {
                     }
                     match units_until_event {
                             0 => {
-                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
+                                let (is_pm, hour) = event.get_all_localized_times(event.venue(conn)?.as_ref()).event_start.unwrap().hour12();
                                 let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
                                 format!("Time to take action! The event is {} and the tickets {} sent you are still waiting!", time_of_day_text, name)
                             },

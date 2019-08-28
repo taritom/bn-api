@@ -316,7 +316,7 @@ impl DomainEvent {
     ) -> Result<(), DatabaseError> {
         let organization = event.organization(conn)?;
         let venue = event.venue(conn)?;
-        let localized_times = event.get_all_localized_times(&venue);
+        let localized_times = event.get_all_localized_times(venue.as_ref());
         data.insert("show_id".to_string(), json!(event.id));
         data.insert("show_event_name".to_string(), json!(event.name.clone()));
 

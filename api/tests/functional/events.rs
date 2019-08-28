@@ -323,7 +323,7 @@ pub fn index_search_with_filter() {
         .with_event_end(NaiveDate::from_ymd(2022, 7, 9).and_hms(9, 10, 11))
         .finish();
 
-    let localized_times = event.get_all_localized_time_strings(&None);
+    let localized_times = event.get_all_localized_time_strings(None);
     let expected_events = vec![EventVenueEntry {
         id: event.id,
         name: event.name,
@@ -2081,7 +2081,7 @@ fn event_venue_entry(
     user: Option<User>,
     connection: &PgConnection,
 ) -> EventVenueEntry {
-    let localized_times = event.get_all_localized_time_strings(&Some(venue.clone()));
+    let localized_times = event.get_all_localized_time_strings(Some(venue));
     let (min_ticket_price, max_ticket_price) = event
         .current_ticket_pricing_range(false, connection)
         .unwrap();
