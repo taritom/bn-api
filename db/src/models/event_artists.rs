@@ -5,6 +5,7 @@ use models::domain_events::DomainEvent;
 use models::*;
 use schema::{artists, event_artists};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::errors::*;
@@ -94,31 +95,66 @@ impl EventArtist {
         }
     }
 
+    pub fn find_all_from_events(
+        event_ids: Vec<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<HashMap<Uuid, Vec<DisplayEventArtist>>, DatabaseError> {
+        let results: Vec<(EventArtist, Artist)> = event_artists::table
+            .inner_join(artists::table)
+            .filter(event_artists::event_id.eq_any(event_ids))
+            .select((event_artists::all_columns, artists::all_columns))
+            .order_by(event_artists::event_id)
+            .then_order_by(event_artists::rank.asc())
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load artists for events")?;
+
+        let mut display_results = HashMap::new();
+        for x in results {
+            display_results
+                .entry(x.0.event_id)
+                .or_insert(Vec::new())
+                .push(DisplayEventArtist {
+                    event_id: x.0.event_id,
+                    artist: x.1,
+                    rank: x.0.rank,
+                    set_time: x.0.set_time,
+                    importance: x.0.importance,
+                    stage_id: x.0.stage_id,
+                })
+        }
+
+        Ok(display_results)
+    }
+
     pub fn find_all_from_event(
         event_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<DisplayEventArtist>, DatabaseError> {
-        let results: Vec<(EventArtist, Artist)> = event_artists::table
-            .inner_join(artists::table)
-            .filter(event_artists::event_id.eq(event_id))
-            .select((event_artists::all_columns, artists::all_columns))
-            .order(event_artists::rank.asc())
-            .load(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load artists for event")?;
-
-        let mut display_results = Vec::new();
-        for x in results {
-            display_results.push(DisplayEventArtist {
-                event_id: x.0.event_id,
-                artist: x.1,
-                rank: x.0.rank,
-                set_time: x.0.set_time,
-                importance: x.0.importance,
-                stage_id: x.0.stage_id,
-            })
-        }
-
-        Ok(display_results)
+        let result = EventArtist::find_all_from_events(vec![event_id], conn)?
+            .remove(&event_id)
+            .map_or(Vec::new(), |x| x);
+        Ok(result)
+        //        let results: Vec<(EventArtist, Artist)> = event_artists::table
+        //            .inner_join(artists::table)
+        //            .filter(event_artists::event_id.eq(event_id))
+        //            .select((event_artists::all_columns, artists::all_columns))
+        //            .order(event_artists::rank.asc())
+        //            .load(conn)
+        //            .to_db_error(ErrorCode::QueryError, "Could not load artists for event")?;
+        //
+        //        let mut display_results = Vec::new();
+        //        for x in results {
+        //            display_results.push(DisplayEventArtist {
+        //                event_id: x.0.event_id,
+        //                artist: x.1,
+        //                rank: x.0.rank,
+        //                set_time: x.0.set_time,
+        //                importance: x.0.importance,
+        //                stage_id: x.0.stage_id,
+        //            })
+        //        }
+        //
+        //        Ok(display_results)
     }
 
     pub fn clear_all_from_event(event_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {

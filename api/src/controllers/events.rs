@@ -208,7 +208,6 @@ pub fn index(
         event_venues_from_events(events, user, &state, connection)?,
         query.into(),
     );
-
     payload.paging.total = count as u64;
     payload.paging.limit = paging.limit;
 
@@ -1230,6 +1229,9 @@ fn event_venues_from_events(
         map
     });
 
+    let event_ids = events.iter().map(|e| e.id).collect();
+    let mut artists_map = EventArtist::find_all_from_events(event_ids, connection)?;
+
     let mut organization_ids: Vec<Uuid> = events.iter().map(|e| e.organization_id).collect();
     organization_ids.sort();
     organization_ids.dedup();
@@ -1250,9 +1252,10 @@ fn event_venues_from_events(
     };
 
     let mut results: Vec<EventVenueEntry> = Vec::new();
+
     for event in events.into_iter() {
         let venue = event.venue_id.and_then(|v| Some(venue_map[&v].clone()));
-        let artists = EventArtist::find_all_from_event(event.id, connection)?;
+        let artists = artists_map.remove(&event.id).map_or(Vec::new(), |x| x);
         let mut min_ticket_price = None;
         let mut max_ticket_price = None;
         if let Some((min, max)) = event_ticket_range_mapping.get(&event.id) {
