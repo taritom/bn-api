@@ -4,6 +4,7 @@ use bigneon_db::utils::errors::*;
 use branch_rs::BranchError;
 use diesel::result::Error as DieselError;
 use errors::*;
+use facebook::prelude::FacebookError;
 use globee::GlobeeError;
 use jwt::errors::{Error as JwtError, ErrorKind as JwtErrorKind};
 use payments::PaymentProcessorError;
@@ -52,6 +53,12 @@ fn status_code_and_message(code: StatusCode, message: &str) -> HttpResponse {
 impl ConvertToWebError for Error {
     fn to_response(&self) -> HttpResponse {
         error!("General error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for FacebookError {
+    fn to_response(&self) -> HttpResponse {
         internal_error("Internal error")
     }
 }
@@ -176,6 +183,9 @@ impl ConvertToWebError for ApplicationError {
         match self.error_type {
             ApplicationErrorType::Internal => internal_error("Internal error"),
             ApplicationErrorType::Unprocessable => unprocessable(&self.reason),
+            ApplicationErrorType::BadRequest => {
+                status_code_and_message(StatusCode::BAD_REQUEST, &self.reason)
+            }
             ApplicationErrorType::ServerConfigError => internal_error(&self.reason),
         }
     }

@@ -7,7 +7,9 @@ use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Bool, Date, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{
+    BigInt, Bool, Date, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid,
+};
 use log::Level;
 use models::*;
 use regex::Regex;
@@ -34,9 +36,9 @@ use validator::{Validate, ValidationErrors};
 use validators;
 use validators::*;
 
-#[derive(Associations, Identifiable, Queryable, AsChangeset)]
+#[derive(Associations, Identifiable, Queryable)]
 #[belongs_to(Organization)]
-#[derive(Clone, QueryableByName, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 #[belongs_to(Venue)]
 #[table_name = "events"]
 pub struct Event {
@@ -71,6 +73,7 @@ pub struct Event {
     pub slug: String,
     pub facebook_pixel_key: Option<String>,
     pub deleted_at: Option<NaiveDateTime>,
+    pub extra_admin_data: Option<Value>,
 }
 
 impl PartialOrd for Event {
@@ -147,6 +150,7 @@ pub struct NewEvent {
 
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_pixel_key: Option<String>,
+    pub extra_admin_data: Option<Value>,
 }
 
 impl NewEvent {
@@ -938,6 +942,13 @@ impl Event {
         Ok(event)
     }
 
+    pub fn is_published(&self) -> bool {
+        match self.publish_date {
+            None => false,
+            Some(d) => d < Utc::now().naive_utc(),
+        }
+    }
+
     pub fn get_all_events_ending_between(
         organization_id: Uuid,
         start: NaiveDateTime,
@@ -1193,6 +1204,8 @@ impl Event {
             event_type: EventTypes,
             #[sql_type = "Text"]
             slug: String,
+            #[sql_type = "Nullable<Jsonb>"]
+            extra_admin_data: Option<Value>,
             #[sql_type = "Bool"]
             eligible_for_deletion: bool,
         }
@@ -1284,6 +1297,7 @@ impl Event {
                 event_type: r.event_type,
                 slug: r.slug,
                 eligible_for_deletion: Some(r.eligible_for_deletion),
+                extra_admin_data: r.extra_admin_data,
             };
 
             for ticket_type in ticket_types.iter().filter(|tt| {
@@ -2041,6 +2055,7 @@ pub struct EventSummaryResult {
     pub slug: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eligible_for_deletion: Option<bool>,
+    pub extra_admin_data: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]

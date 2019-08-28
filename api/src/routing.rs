@@ -148,8 +148,18 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{id}/users/{user_id}", |r| {
         r.method(Method::DELETE).with(events::remove_user);
     })
+    .resource("/external/facebook/pages", |r| {
+        r.method(Method::GET).with(external::facebook::pages)
+    })
+    .resource("/external/facebook/events", |r| {
+        r.method(Method::POST)
+            .with(external::facebook::create_event);
+    })
     .resource("/external/facebook/web_login", |r| {
         r.method(Method::POST).with(external::facebook::web_login)
+    })
+    .resource("/external/facebook/scopes", |r| {
+        r.method(Method::GET).with(external::facebook::scopes);
     })
     .resource("/genres", |r| {
         r.method(Method::GET).with(genres::index);

@@ -45,10 +45,7 @@ impl BroadcastPushNotificationExecutor {
                 BroadcastAudience::PeopleAtTheEvent,
                 "🗣LAST CALL! 🍻The bar is closing soon, grab something now before it's too late!",
             ),
-            BroadcastType::Custom => (
-                BroadcastAudience::PeopleAtTheEvent,
-                message.as_str()
-            )
+            BroadcastType::Custom => (BroadcastAudience::PeopleAtTheEvent, message.as_str()),
         };
 
         let audience = match audience_type {

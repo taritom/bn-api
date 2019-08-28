@@ -866,6 +866,7 @@ pub fn expected_show_json(
         url: String,
         slug: String,
         facebook_pixel_key: Option<String>,
+        extra_admin_data: Option<Value>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -971,6 +972,7 @@ pub fn expected_show_json(
         ),
         slug: event.slug.clone(),
         facebook_pixel_key: None,
+        extra_admin_data: None,
     })
     .unwrap()
 }

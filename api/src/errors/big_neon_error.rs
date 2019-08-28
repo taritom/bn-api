@@ -6,6 +6,7 @@ use chrono;
 use diesel::result::Error as DieselError;
 use errors::AuthError;
 use errors::*;
+use facebook::prelude::FacebookError;
 use globee::GlobeeError;
 use jwt::errors::Error as JwtError;
 use payments::PaymentProcessorError;
@@ -48,6 +49,7 @@ error_conversion!(TariError);
 error_conversion!(UuidParseError);
 error_conversion!(GlobeeError);
 error_conversion!(BranchError);
+error_conversion!(FacebookError);
 error_conversion!(chrono::ParseError);
 
 impl fmt::Display for BigNeonError {

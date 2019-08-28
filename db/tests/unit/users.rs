@@ -575,21 +575,27 @@ fn find_external_login() {
     // No external login for facebook, returns None
     assert_eq!(
         None,
-        user.find_external_login(FACEBOOK_SITE, connection).unwrap()
+        user.find_external_login(FACEBOOK_SITE, connection)
+            .optional()
+            .unwrap()
     );
 
     // With external login present
     let external_login = user
         .add_external_login(
+            None,
             "abc".to_string(),
             FACEBOOK_SITE.to_string(),
             "123".to_string(),
+            vec!["email".to_string()],
             connection,
         )
         .unwrap();
     assert_eq!(
         Some(external_login),
-        user.find_external_login(FACEBOOK_SITE, connection).unwrap()
+        user.find_external_login(FACEBOOK_SITE, connection)
+            .optional()
+            .unwrap()
     );
 }
 
@@ -673,9 +679,11 @@ fn get_profile_for_organization() {
 
     // Add facebook login
     user.add_external_login(
+        None,
         "abc".to_string(),
         FACEBOOK_SITE.to_string(),
         "123".to_string(),
+        vec!["email".to_string()],
         connection,
     )
     .unwrap();
@@ -1651,6 +1659,7 @@ fn create_from_external_login() {
         Some(email.to_string()),
         site.to_string(),
         access_token.to_string(),
+        vec!["email".to_string()],
         None,
         project.get_connection(),
     )

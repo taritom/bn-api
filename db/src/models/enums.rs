@@ -101,6 +101,8 @@ string_enum! { DomainEventTypes [
     EventPublished,
     EventUpdated,
     EventUnpublished,
+    ExternalLoginCreated,
+    ExternalLoginDeleted,
     FeeScheduleCreated,
     GenresUpdated,
     HoldCreated,
@@ -191,7 +193,7 @@ string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull]
 string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { SourceOrDestination [Destination,Source]}
-string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations,
+string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, ExternalLogins, FeeSchedules, Holds, Orders, Organizations,
 Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }

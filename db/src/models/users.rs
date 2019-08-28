@@ -13,6 +13,7 @@ use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use time::Duration;
+use utils::errors::Optional;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::pagination::Paginate;
 use utils::passwords::PasswordHash;
@@ -333,6 +334,7 @@ impl User {
         email: Option<String>,
         site: String,
         access_token: String,
+        scopes: Vec<String>,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
@@ -348,7 +350,14 @@ impl User {
             role: vec![Roles::User],
         };
         new_user.commit(current_user_id, conn).and_then(|user| {
-            user.add_external_login(external_user_id, site, access_token, conn)?;
+            user.add_external_login(
+                current_user_id,
+                external_user_id,
+                site,
+                access_token,
+                scopes,
+                conn,
+            )?;
             Ok(user)
         })
     }
@@ -645,7 +654,10 @@ impl User {
             first_name: self.first_name.clone(),
             last_name: self.last_name.clone(),
             email: self.email.clone(),
-            facebook_linked: self.find_external_login(FACEBOOK_SITE, conn)?.is_some(),
+            facebook_linked: self
+                .find_external_login(FACEBOOK_SITE, conn)
+                .optional()?
+                .is_some(),
             event_count: result.event_count as u32,
             revenue_in_cents: result.revenue_in_cents as u32,
             ticket_sales: result.ticket_sales as u32,
@@ -1034,18 +1046,38 @@ impl User {
         &self,
         site: &str,
         conn: &PgConnection,
-    ) -> Result<Option<ExternalLogin>, DatabaseError> {
+    ) -> Result<ExternalLogin, DatabaseError> {
         ExternalLogin::find_for_site(self.id, site, conn)
     }
 
     pub fn add_external_login(
         &self,
+        current_user_id: Option<Uuid>,
         external_user_id: String,
         site: String,
         access_token: String,
+        scopes: Vec<String>,
         conn: &PgConnection,
     ) -> Result<ExternalLogin, DatabaseError> {
-        ExternalLogin::create(external_user_id, site, self.id, access_token).commit(conn)
+        ExternalLogin::create(external_user_id, site, self.id, access_token, scopes)
+            .commit(current_user_id, conn)
+    }
+
+    pub fn add_or_replace_external_login(
+        &self,
+        current_user_id: Option<Uuid>,
+        external_user_id: String,
+        site: String,
+        access_token: String,
+        scopes: Vec<String>,
+        conn: &PgConnection,
+    ) -> Result<ExternalLogin, DatabaseError> {
+        let external_login = self.find_external_login(&site, conn).optional()?;
+        if let Some(login) = external_login {
+            login.delete(current_user_id, conn)?;
+        };
+        ExternalLogin::create(external_user_id, site, self.id, access_token, scopes)
+            .commit(current_user_id, conn)
     }
 
     pub fn wallets(&self, conn: &PgConnection) -> Result<Vec<Wallet>, DatabaseError> {
