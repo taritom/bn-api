@@ -4,7 +4,6 @@ use diesel::expression::dsl::count;
 use diesel::prelude::*;
 use models::*;
 use schema::{transfer_tickets, transfers};
-use serde_json::Value;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
@@ -66,32 +65,16 @@ impl TransferTicket {
 }
 
 impl NewTransferTicket {
-    pub fn commit(
-        &self,
-        user_id: Uuid,
-        additional_data: &Option<Value>,
-        conn: &PgConnection,
-    ) -> Result<TransferTicket, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<TransferTicket, DatabaseError> {
         self.validate_record(conn)?;
 
-        let result: TransferTicket = diesel::insert_into(transfer_tickets::table)
+        diesel::insert_into(transfer_tickets::table)
             .values(self)
             .get_result(conn)
             .to_db_error(
                 ErrorCode::InsertError,
                 "Could not create new transfer ticket",
-            )?;
-
-        DomainEvent::create(
-            DomainEventTypes::TransferTicketStarted,
-            "Transfer ticket started".to_string(),
-            Tables::TicketInstances,
-            Some(self.ticket_instance_id),
-            Some(user_id),
-            additional_data.clone(),
-        )
-        .commit(conn)?;
-        Ok(result)
+            )
     }
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {

@@ -26,6 +26,7 @@ SELECT e.id,
        e.override_status,
        e.event_type,
        e.slug,
+       e.extra_admin_data,
        (SELECT min(tp.start_date)
         FROM ticket_pricing tp
                  INNER JOIN ticket_types t2 ON tp.ticket_type_id = t2.id
@@ -52,10 +53,12 @@ SELECT e.id,
                  INNER JOIN orders o ON oi.order_id = o.id
         WHERE oi.event_id = e.id
           AND oi.item_type = 'Tickets'
-          AND o.status = 'Paid') AS sales_total_in_cents
+          AND o.status = 'Paid') AS sales_total_in_cents,
+      (SELECT NOT EXISTS(SELECT 1 from order_items oi WHERE oi.event_id = e.id LIMIT 1)) AS eligible_for_deletion
 FROM events e
        LEFT JOIN venues v ON e.venue_id = v.id
 WHERE e.organization_id = $1
+  AND e.deleted_at is null
   AND CASE
         WHEN $2 IS NULL THEN TRUE -- All events
         WHEN $2 THEN e.event_start >= now() OR e.event_end > now() -- upcoming

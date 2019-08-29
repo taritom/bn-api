@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use diesel::sql_types::{Array, Uuid as dUuid};
+use diesel::sql_types::{Array, Bool, Uuid as dUuid};
 use models::*;
 use schema::{
     artist_genres, artists, event_artists, events, genres, organization_users, organizations,
@@ -135,6 +135,7 @@ impl Artist {
         events::table
             .inner_join(event_artists::table.on(event_artists::event_id.eq(events::id)))
             .filter(event_artists::artist_id.eq(self.id))
+            .filter(events::deleted_at.is_null())
             .order_by(events::name)
             .select(events::all_columns)
             .load(conn)
@@ -236,7 +237,7 @@ impl Artist {
                     organization_users::user_id
                         .eq(u.id)
                         .or(artists::is_private.eq(false))
-                        .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
+                        .or(dsl::sql("TRUE = ").bind::<Bool, _>(u.is_admin())),
                 )
                 .filter(artists::name.ilike(query_like.clone()))
                 .order_by(artists::name)
@@ -286,7 +287,7 @@ impl Artist {
                     organization_users::user_id
                         .eq(u.id)
                         .or(artists::is_private.eq(false))
-                        .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
+                        .or(dsl::sql("TRUE = ").bind::<Bool, _>(u.is_admin())),
                 )
                 .order_by(artists::name)
                 .select(artists::all_columns)
@@ -327,16 +328,16 @@ impl Artist {
     }
 
     pub fn find_for_organization(
-        user_id: Option<Uuid>,
+        user: Option<&User>,
         organization_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<DisplayArtist>, DatabaseError> {
-        let artists: Vec<Artist> = match user_id {
+        let artists: Vec<Artist> = match user {
             Some(u) => artists::table
                 .left_join(
                     organization_users::table.on(artists::organization_id
                         .eq(organization_users::organization_id.nullable())
-                        .and(organization_users::user_id.eq(u))),
+                        .and(organization_users::user_id.eq(u.id))),
                 )
                 .left_join(
                     organizations::table
@@ -344,8 +345,9 @@ impl Artist {
                 )
                 .filter(
                     organization_users::user_id
-                        .eq(u)
-                        .or(artists::is_private.eq(false)),
+                        .eq(u.id)
+                        .or(artists::is_private.eq(false))
+                        .or(dsl::sql("TRUE = ").bind::<Bool, _>(u.is_admin())),
                 )
                 .filter(artists::organization_id.eq(organization_id))
                 .order_by(artists::name)

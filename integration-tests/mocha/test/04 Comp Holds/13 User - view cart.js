@@ -66,7 +66,8 @@ describe('User - view cart', function () {
     it("tickets should be present", function () {
         expect(json.items[0].item_type).to.equal("Tickets");
         expect(json.items[0].quantity).to.equal(30);
-        expect(json.items[0].unit_price_in_cents).to.equal(0);
+        expect(json.items[0].unit_price_in_cents).to.equal(3000);
+        expect(json.items[1].unit_price_in_cents).to.equal(-3000);
 
 
     });

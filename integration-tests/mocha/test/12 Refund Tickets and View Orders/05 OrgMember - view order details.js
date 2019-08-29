@@ -53,11 +53,6 @@ describe('OrgMember - view order details', function () {
         expect(response.status).to.equal(200);
     })
 
-
-    it("no tickets from other organizations", function () {
-        expect(json.order_contains_other_tickets).to.equal(false);
-    });
-
     it("correct number of order items", function () {
         expect(json.items.length).to.equal(3);
     });
@@ -89,5 +84,3 @@ describe('OrgMember - view order details', function () {
 
 
 });
-
-            

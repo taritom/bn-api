@@ -15,6 +15,180 @@ use bigneon_db::utils::errors::ErrorCode;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 
 #[test]
+fn country() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let country = "ZA".to_string();
+    let venue = project
+        .create_venue()
+        .with_country(country.clone())
+        .finish();
+    let event = project
+        .create_event()
+        .with_venue(&venue)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    // No link to a country
+    let user = project.create_user().finish();
+    assert!(user.country(connection).unwrap().is_none());
+
+    // With event interest
+    project
+        .create_event_interest()
+        .with_event(&event)
+        .with_user(&user)
+        .finish();
+    assert_eq!(user.country(connection).unwrap(), Some(country.clone()));
+
+    // With order
+    let user = project.create_user().finish();
+    let order = project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    assert_eq!(user.country(connection).unwrap(), Some(country.clone()));
+
+    // With transfer
+    let user2 = project.create_user().finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket = &order.tickets(ticket_type.id, connection).unwrap()[0];
+    TicketInstance::direct_transfer(
+        user.id,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(user2.country(connection).unwrap(), Some(country.clone()));
+}
+
+#[test]
+fn timezone() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let timezone = "Africa/Johannesburg".to_string();
+    let venue = project
+        .create_venue()
+        .with_timezone(timezone.clone())
+        .finish();
+    let event = project
+        .create_event()
+        .with_venue(&venue)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    // No link to a timezone
+    let user = project.create_user().finish();
+    assert!(user.timezone(connection).unwrap().is_none());
+
+    // With event interest
+    project
+        .create_event_interest()
+        .with_event(&event)
+        .with_user(&user)
+        .finish();
+    assert_eq!(user.timezone(connection).unwrap(), Some(timezone.clone()));
+
+    // With order
+    let user = project.create_user().finish();
+    let order = project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    assert_eq!(user.timezone(connection).unwrap(), Some(timezone.clone()));
+
+    // With transfer
+    let user2 = project.create_user().finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket = &order.tickets(ticket_type.id, connection).unwrap()[0];
+    TicketInstance::direct_transfer(
+        user.id,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(user2.timezone(connection).unwrap(), Some(timezone.clone()));
+}
+
+#[test]
+fn last_associated_venue() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let timezone = "Africa/Johannesburg".to_string();
+    let venue = project
+        .create_venue()
+        .with_timezone(timezone.clone())
+        .finish();
+    let event = project
+        .create_event()
+        .with_venue(&venue)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    // No link to an event
+    let user = project.create_user().finish();
+    assert!(user.last_associated_venue(connection).unwrap().is_none());
+
+    // With event interest
+    project
+        .create_event_interest()
+        .with_event(&event)
+        .with_user(&user)
+        .finish();
+    assert_eq!(
+        user.last_associated_venue(connection).unwrap(),
+        Some(venue.clone())
+    );
+
+    // With order
+    let user = project.create_user().finish();
+    let order = project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    assert_eq!(
+        user.last_associated_venue(connection).unwrap(),
+        Some(venue.clone())
+    );
+
+    // With transfer
+    let user2 = project.create_user().finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket = &order.tickets(ticket_type.id, connection).unwrap()[0];
+    TicketInstance::direct_transfer(
+        user.id,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        user2.last_associated_venue(connection).unwrap(),
+        Some(venue.clone())
+    );
+}
+
+#[test]
 fn update_genre_info() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -135,7 +309,8 @@ fn activity() {
 
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
+                .unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
         user.activity(
@@ -144,6 +319,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -151,7 +327,8 @@ fn activity() {
     );
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event2.id, user.id, None, connection)
+                .unwrap(),
             event: event2.for_display(connection).unwrap(),
         }],
         user.activity(
@@ -160,6 +337,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -173,6 +351,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -185,6 +364,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -193,7 +373,8 @@ fn activity() {
 
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user3.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection)
+                .unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
         user3
@@ -203,6 +384,7 @@ fn activity() {
                 100,
                 SortingDir::Asc,
                 PastOrUpcoming::Upcoming,
+                None,
                 connection
             )
             .unwrap()
@@ -215,6 +397,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -242,6 +425,7 @@ fn activity() {
             100,
             SortingDir::Asc,
             PastOrUpcoming::Upcoming,
+            None,
             connection
         )
         .unwrap()
@@ -251,7 +435,8 @@ fn activity() {
     // Is found via past filter
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user3.id, connection).unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection)
+                .unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
         user3
@@ -261,6 +446,7 @@ fn activity() {
                 100,
                 SortingDir::Asc,
                 PastOrUpcoming::Past,
+                None,
                 connection
             )
             .unwrap()
@@ -389,21 +575,27 @@ fn find_external_login() {
     // No external login for facebook, returns None
     assert_eq!(
         None,
-        user.find_external_login(FACEBOOK_SITE, connection).unwrap()
+        user.find_external_login(FACEBOOK_SITE, connection)
+            .optional()
+            .unwrap()
     );
 
     // With external login present
     let external_login = user
         .add_external_login(
+            None,
             "abc".to_string(),
             FACEBOOK_SITE.to_string(),
             "123".to_string(),
+            vec!["email".to_string()],
             connection,
         )
         .unwrap();
     assert_eq!(
         Some(external_login),
-        user.find_external_login(FACEBOOK_SITE, connection).unwrap()
+        user.find_external_login(FACEBOOK_SITE, connection)
+            .optional()
+            .unwrap()
     );
 }
 
@@ -487,9 +679,11 @@ fn get_profile_for_organization() {
 
     // Add facebook login
     user.add_external_login(
+        None,
         "abc".to_string(),
         FACEBOOK_SITE.to_string(),
         "123".to_string(),
+        vec!["email".to_string()],
         connection,
     )
     .unwrap();
@@ -1122,6 +1316,19 @@ fn find() {
 }
 
 #[test]
+fn event_users() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().finish();
+
+    let event_user = EventUser::create(user.id, event.id, Roles::PromoterReadOnly)
+        .commit(connection)
+        .unwrap();
+    assert_eq!(user.event_users(connection).unwrap(), vec![event_user]);
+}
+
+#[test]
 fn get_event_ids_by_organization() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -1129,7 +1336,7 @@ fn get_event_ids_by_organization() {
 
     // No results
     assert_eq!(
-        HashMap::new(),
+        (HashMap::new(), HashMap::new()),
         user.get_event_ids_by_organization(connection).unwrap()
     );
 
@@ -1160,32 +1367,45 @@ fn get_event_ids_by_organization() {
         .with_organization(&organization2)
         .finish();
 
-    OrganizationUser::create(
-        organization.id,
-        user.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        organization2.id,
-        user.id,
-        vec![Roles::Promoter],
-        vec![event2.id, event3.id],
-    )
-    .commit(connection)
-    .unwrap();
+    organization
+        .add_user(
+            user.id,
+            vec![Roles::PromoterReadOnly],
+            vec![event.id],
+            connection,
+        )
+        .unwrap();
+    organization2
+        .add_user(
+            user.id,
+            vec![Roles::Promoter],
+            vec![event2.id, event3.id],
+            connection,
+        )
+        .unwrap();
 
-    let mut expected_results = HashMap::new();
-    expected_results.insert(organization.id.clone(), vec![event.id]);
-    expected_results.insert(organization2.id.clone(), vec![event2.id, event3.id]);
-    expected_results.insert(organization3.id.clone(), Vec::new());
-
-    assert_eq!(
-        expected_results,
-        user.get_event_ids_by_organization(connection).unwrap()
-    );
+    let (events_by_organization, readonly_events_by_organization) =
+        user.get_event_ids_by_organization(connection).unwrap();
+    assert!(events_by_organization
+        .get(&organization.id)
+        .unwrap()
+        .is_empty());
+    assert!(readonly_events_by_organization
+        .get(&organization2.id)
+        .unwrap()
+        .is_empty());
+    let organization_results = readonly_events_by_organization
+        .get(&organization.id)
+        .unwrap();
+    assert_eq!(&vec![event.id], organization_results);
+    let mut organization2_results = events_by_organization
+        .get(&organization2.id)
+        .unwrap()
+        .clone();
+    organization2_results.sort();
+    let mut expected_organization2 = vec![event2.id, event3.id];
+    expected_organization2.sort();
+    assert_eq!(&expected_organization2, &organization2_results);
 
     // get_event_ids_for_organization
     assert_eq!(
@@ -1193,11 +1413,12 @@ fn get_event_ids_by_organization() {
         user.get_event_ids_for_organization(organization.id, connection)
             .unwrap()
     );
-    assert_eq!(
-        vec![event2.id, event3.id],
-        user.get_event_ids_for_organization(organization2.id, connection)
-            .unwrap()
-    );
+    let mut organization2_results = user
+        .get_event_ids_for_organization(organization2.id, connection)
+        .unwrap();
+    organization2_results.sort();
+    assert_eq!(&expected_organization2, &organization2_results);
+
     assert!(user
         .get_event_ids_for_organization(organization3.id, connection)
         .unwrap()
@@ -1438,6 +1659,7 @@ fn create_from_external_login() {
         Some(email.to_string()),
         site.to_string(),
         access_token.to_string(),
+        vec!["email".to_string()],
         None,
         project.get_connection(),
     )
@@ -1612,6 +1834,7 @@ fn get_scopes_by_organization() {
             Scopes::DashboardRead,
             Scopes::EventBroadcast,
             Scopes::EventCancel,
+            Scopes::EventDelete,
             Scopes::EventFinancialReports,
             Scopes::EventInterest,
             Scopes::EventReports,
@@ -1627,6 +1850,7 @@ fn get_scopes_by_organization() {
             Scopes::OrderRead,
             Scopes::OrderReadOwn,
             Scopes::OrderRefund,
+            Scopes::OrderResendConfirmation,
             Scopes::OrgAdminUsers,
             Scopes::OrgFans,
             Scopes::OrgRead,
@@ -1662,6 +1886,7 @@ fn get_scopes_by_organization() {
             Scopes::CompWrite,
             Scopes::DashboardRead,
             Scopes::EventCancel,
+            Scopes::EventDelete,
             Scopes::EventInterest,
             Scopes::EventScan,
             Scopes::EventViewGuests,
@@ -1673,6 +1898,7 @@ fn get_scopes_by_organization() {
             Scopes::OrderRead,
             Scopes::OrderReadOwn,
             Scopes::OrderRefund,
+            Scopes::OrderResendConfirmation,
             Scopes::OrgFans,
             Scopes::OrgRead,
             Scopes::OrgReadEvents,
@@ -1757,6 +1983,7 @@ fn get_global_scopes() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:delete",
             "event:financial-reports",
             "event:interest",
             "event:reports",
@@ -1772,6 +1999,7 @@ fn get_global_scopes() {
             "order:read",
             "order:read-own",
             "order:refund",
+            "order:resend-confirmation",
             "org:admin",
             "org:admin-users",
             "org:fans",

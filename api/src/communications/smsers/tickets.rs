@@ -2,9 +2,6 @@ use bigneon_db::models::*;
 use config::Config;
 use diesel::pg::PgConnection;
 use errors::*;
-use utils::communication::CommAddress;
-use utils::communication::Communication;
-use utils::communication::CommunicationType;
 use utils::deep_linker::DeepLinker;
 
 pub fn transfer_cancelled(
@@ -30,7 +27,9 @@ pub fn transfer_cancelled(
         Some(vec!["transfers"]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }
 
 pub fn transfer_drip_reminder(
@@ -67,7 +66,9 @@ pub fn transfer_drip_reminder(
         Some(vec!["transfers"]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }
 
 pub fn send_tickets(
@@ -99,5 +100,7 @@ pub fn send_tickets(
         Some(vec!["transfers"]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }

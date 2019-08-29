@@ -896,3 +896,42 @@ pub fn cancel_with_sold_tickets_and_hold() {
     let valid_ticket_count = created_ticket_type.valid_ticket_count(conn).unwrap();
     assert_eq!(15, valid_ticket_count);
 }
+
+#[test]
+pub fn cancel_with_no_sold_tickets_or_hold() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+
+    let conn = database.connection.get();
+    let created_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
+
+    let valid_unsold_ticket_count = created_ticket_type.valid_unsold_ticket_count(conn).unwrap();
+    // 100 before taking tickets out of available inventory
+    assert_eq!(100, valid_unsold_ticket_count);
+
+    //Construct update request
+    let test_request =
+        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let state = test_request.extract_state();
+    let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
+    path.event_id = event.id;
+    path.ticket_type_id = created_ticket_type.id;
+
+    //Send update request
+    let response: HttpResponse =
+        ticket_types::cancel((database.connection.clone().into(), path, auth_user, state)).into();
+
+    let updated_ticket_types = &event.ticket_types(true, None, conn).unwrap();
+
+    assert_eq!(updated_ticket_types.len(), 0);
+    assert_eq!(response.status(), StatusCode::OK);
+}

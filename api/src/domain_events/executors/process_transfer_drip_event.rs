@@ -93,7 +93,7 @@ impl ProcessTransferDripEventExecutor {
                                             &event,
                                             &self.config,
                                             conn,
-                                            &*ServiceLocator::new(&self.config)
+                                            &*ServiceLocator::new(&self.config)?
                                                 .create_deep_linker()?,
                                         )?;
                                     }

@@ -1,6 +1,6 @@
 [package]
 name = "bigneon_api"
-version = "1.0.185"
+version = "1.0.224"
 authors = ["CjS77"]
 license = "BSD-3"
 repository = "https://github.com/big-neon/bn-api/"
@@ -19,14 +19,13 @@ clap = "2.32"
 diesel="1.4.2"
 dotenv = "0.13"
 expo-server-sdk = "0.1.0"
+facebook = { path="../facebook"}
 failure ="0.1"
 fcm = {git = "https://github.com/mikethetike/fcm-rust", rev="b9852e23cd341732fc85ff76f3f7586f76e42f51"}
 futures = "0.1"
 globee={path="../globee"}
 itertools = "0.7"
 jsonwebtoken = "5"
-lettre = "0.8"
-lettre_email = "0.8"
 lazy_static = "1.2.0"
 log = { version = "0.4", features = ["max_level_debug"]}
 logging = {path="../logging"}

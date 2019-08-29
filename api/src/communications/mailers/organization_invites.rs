@@ -1,11 +1,7 @@
-use bigneon_db::models::{Organization, OrganizationInvite};
+use bigneon_db::models::*;
 use config::Config;
 use diesel::pg::PgConnection;
 use errors::*;
-use utils::communication::CommAddress;
-use utils::communication::Communication;
-use utils::communication::CommunicationType;
-use utils::communication::TemplateData;
 
 pub fn invite_user_to_organization_email(
     config: &Config,
@@ -39,5 +35,7 @@ pub fn invite_user_to_organization_email(
         Some(vec!["org_invites".to_string()]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }

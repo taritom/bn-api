@@ -81,11 +81,13 @@ macro_rules! string_enum {
     }
 }
 
+string_enum! { ActivityType [Purchase, Transfer, CheckIn,Refund, Note]}
 string_enum! { AssetStatus [Unsynced] }
 string_enum! { BroadcastAudience [ PeopleAtTheEvent ]}
 string_enum! { CartItemStatus [CodeExpired, HoldExpired, TicketNullified, TicketNotReserved, Valid] }
 string_enum! { CodeTypes [Access, Discount] }
-string_enum! { CommunicationChannelType [Email, Sms, Push]}
+string_enum! { CommunicationChannelType [Email, Sms, Push, Webhook]}
+string_enum! { CommunicationType [Email, EmailTemplate, Sms, Push, Webhook]}
 string_enum! { DomainEventTypes [
     CodeCreated,
     CodeDeleted,
@@ -94,9 +96,13 @@ string_enum! { DomainEventTypes [
     EventArtistAdded,
     EventCancelled,
     EventCreated,
+    EventDeleted,
+    EventInterestCreated,
     EventPublished,
     EventUpdated,
     EventUnpublished,
+    ExternalLoginCreated,
+    ExternalLoginDeleted,
     FeeScheduleCreated,
     GenresUpdated,
     HoldCreated,
@@ -105,6 +111,7 @@ string_enum! { DomainEventTypes [
     OrderBehalfOfUserChanged,
     OrderCompleted,
     OrderCreated,
+    OrderRefund,
     OrderStatusUpdated,
     OrderUpdated,
     OrganizationCreated,
@@ -124,12 +131,14 @@ string_enum! { DomainEventTypes [
     UserUpdated,
     LostPassword,
     PurchaseCompleted,
+    PushNotificationTokenCreated,
     TransferTicketDripSourceSent,
     TransferTicketDripDestinationSent,
     TransferTicketCancelled,
     TransferTicketCompleted,
     TransferTicketStarted,
     TrackingDataUpdated,
+    TemporaryUserCreated,
     TicketInstanceAddedToHold,
     TicketInstanceNullified,
     TicketInstancePurchased,
@@ -161,15 +170,15 @@ string_enum! { DomainActionTypes [
 ]}
 string_enum! { BroadcastStatus [Pending, InProgress, Completed, Cancelled]}
 string_enum! { BroadcastChannel [PushNotification]}
-string_enum! { BroadcastType [LastCall]}
+string_enum! { BroadcastType [Custom, LastCall]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
 string_enum! { Environment [Development, Production, Staging, Test]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { EventSearchSortField [ Name, EventStart]}
 string_enum! { EventOverrideStatus [PurchaseTickets,SoldOut,OnSaleSoon,TicketsAtTheDoor,Free,Rescheduled,Cancelled,OffSale,Ended]}
-string_enum! { EventTypes [ Music, Conference]}
+string_enum! { EventTypes [ Music, Conference, Art, Culinary, Comedy, Sports]}
 string_enum! { ExternalPaymentType [Cash, CreditCard, Voucher]}
-string_enum! { FanSortField [FirstName, LastName, Email, Phone, OrganizationId, UserCreated, Orders, FirstOrder, LastOrder, Revenue] }
+string_enum! { FanSortField [FirstName, LastName, Email, Phone, OrganizationId, UserCreated, Orders, FirstOrder, LastOrder, Revenue, FirstInteracted, LastInteracted] }
 string_enum! { HistoryType [Purchase]}
 string_enum! { HoldTypes [Discount, Comp] }
 string_enum! { OrderStatus [Cancelled, Draft, Paid, PendingPayment] }
@@ -179,13 +188,13 @@ string_enum! { PaymentMethods [CreditCard, External, Free, Provider] }
 string_enum! { PaymentProviders [External, Globee, Free, Stripe] }
 string_enum! { PaymentStatus [Authorized, Completed, Requested, Refunded, Unpaid, PendingConfirmation, Cancelled, Draft, Unknown, PendingIpn] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
-string_enum! { Roles [Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, Promoter, PromoterReadOnly, User] }
+string_enum! { Roles [Super, Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, Promoter, PromoterReadOnly, User] }
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { SourceOrDestination [Destination,Source]}
-string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, FeeSchedules, Holds, Orders, Organizations,
-Notes, Payments, PaymentMethods, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
+string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, ExternalLogins, FeeSchedules, Holds, Orders, Organizations,
+Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, OnSaleSoon, SaleEnded, Cancelled, Deleted] }

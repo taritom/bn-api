@@ -6,11 +6,7 @@ use server::AppState;
 pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     // Please try to keep in alphabetical order
 
-    app.resource("/{main_table}/{id}/notes", |r| {
-        r.method(Method::GET).with(notes::index);
-        r.method(Method::POST).with(notes::create);
-    })
-    .resource("/admin/stuck_domain_actions", |r| {
+    app.resource("/admin/stuck_domain_actions", |r| {
         r.method(Method::GET)
             .with(admin::admin_stuck_domain_actions);
     })
@@ -79,6 +75,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(events::show);
         r.method(Method::PUT).with(events::update);
         r.method(Method::DELETE).with(events::cancel);
+    })
+    .resource("/events/{id}/delete", |r| {
+        r.method(Method::DELETE).with(events::delete);
     })
     .resource("/events/{id}/artists", |r| {
         r.method(Method::POST).with(events::add_artist);
@@ -149,8 +148,18 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/events/{id}/users/{user_id}", |r| {
         r.method(Method::DELETE).with(events::remove_user);
     })
+    .resource("/external/facebook/pages", |r| {
+        r.method(Method::GET).with(external::facebook::pages)
+    })
+    .resource("/external/facebook/events", |r| {
+        r.method(Method::POST)
+            .with(external::facebook::create_event);
+    })
     .resource("/external/facebook/web_login", |r| {
         r.method(Method::POST).with(external::facebook::web_login)
+    })
+    .resource("/external/facebook/scopes", |r| {
+        r.method(Method::GET).with(external::facebook::scopes);
     })
     .resource("/genres", |r| {
         r.method(Method::GET).with(genres::index);
@@ -186,6 +195,10 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/notes/{id}", |r| {
         r.method(Method::DELETE).with(notes::destroy);
     })
+    .resource("/notes/{main_table}/{id}", |r| {
+        r.method(Method::GET).with(notes::index);
+        r.method(Method::POST).with(notes::create);
+    })
     .resource("/orders", |r| {
         r.method(Method::GET).with(orders::index);
     })
@@ -197,6 +210,13 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/orders/{id}/refund", |r| {
         r.method(Method::PATCH).with(orders::refund);
+    })
+    .resource("/orders/{id}/resend_confirmation", |r| {
+        r.method(Method::POST).with(orders::resend_confirmation);
+    })
+    .resource("/orders/{id}/send_box_office_instructions", |r| {
+        r.method(Method::POST)
+            .with(orders::send_box_office_instructions);
     })
     .resource("/orders/{id}/tickets", |r| {
         r.method(Method::GET).with(orders::tickets);

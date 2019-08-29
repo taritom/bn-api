@@ -4,14 +4,16 @@ use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
+use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use models::*;
-use schema::{events, genres, organization_users, organizations, user_genres, users};
+use schema::{event_users, events, genres, organization_users, organizations, user_genres, users};
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use time::Duration;
+use utils::errors::Optional;
 use utils::errors::{ConvertToDatabaseError, DatabaseError, ErrorCode};
 use utils::pagination::Paginate;
 use utils::passwords::PasswordHash;
@@ -141,6 +143,52 @@ impl NewUser {
 }
 
 impl User {
+    pub fn country(&self, conn: &PgConnection) -> Result<Option<String>, DatabaseError> {
+        Ok(self.last_associated_venue(conn)?.map(|v| v.country))
+    }
+
+    pub fn timezone(&self, conn: &PgConnection) -> Result<Option<String>, DatabaseError> {
+        Ok(self.last_associated_venue(conn)?.map(|v| v.timezone))
+    }
+
+    pub fn last_associated_venue(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Option<Venue>, DatabaseError> {
+        use schema::*;
+        venues::table
+            .inner_join(events::table.on(events::venue_id.eq(venues::id.nullable())))
+            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
+            .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .left_join(event_interest::table.on(event_interest::event_id.eq(events::id)))
+            .left_join(ticket_instances::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .left_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
+            .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
+            .left_join(orders::table.on(orders::id.eq(order_items::order_id)))
+            .filter(
+                event_interest::user_id
+                    .eq(self.id)
+                    .or(wallets::user_id
+                        .eq(self.id)
+                        .and(ticket_instances::status.eq_any(vec![
+                            TicketInstanceStatus::Purchased,
+                            TicketInstanceStatus::Redeemed,
+                        ])))
+                    .or(orders::status.eq(OrderStatus::Paid).and(
+                        orders::on_behalf_of_user_id
+                            .eq(self.id)
+                            .or(orders::on_behalf_of_user_id
+                                .is_null()
+                                .and(orders::user_id.eq(self.id))),
+                    )),
+            )
+            .select(venues::all_columns)
+            .order_by(events::event_start.desc())
+            .first::<Venue>(conn)
+            .optional()
+            .to_db_error(ErrorCode::QueryError, "Could not get venue for user")
+    }
+
     pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
         genres::table
             .inner_join(user_genres::table.on(user_genres::genre_id.eq(genres::id)))
@@ -286,6 +334,7 @@ impl User {
         email: Option<String>,
         site: String,
         access_token: String,
+        scopes: Vec<String>,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
@@ -301,7 +350,14 @@ impl User {
             role: vec![Roles::User],
         };
         new_user.commit(current_user_id, conn).and_then(|user| {
-            user.add_external_login(external_user_id, site, access_token, conn)?;
+            user.add_external_login(
+                current_user_id,
+                external_user_id,
+                site,
+                access_token,
+                scopes,
+                conn,
+            )?;
             Ok(user)
         })
     }
@@ -350,6 +406,7 @@ impl User {
         limit: u32,
         sort_direction: SortingDir,
         past_or_upcoming: PastOrUpcoming,
+        activity_type: Option<ActivityType>,
         conn: &PgConnection,
     ) -> Result<Payload<ActivitySummary>, DatabaseError> {
         use schema::*;
@@ -413,7 +470,7 @@ impl User {
 
         let mut result: Vec<ActivitySummary> = Vec::new();
         for event in events {
-            let summary = event.activity_summary(self.id, conn)?;
+            let summary = event.activity_summary(self.id, activity_type, conn)?;
             if summary.activity_items.len() > 0 {
                 result.push(summary);
             }
@@ -597,7 +654,10 @@ impl User {
             first_name: self.first_name.clone(),
             last_name: self.last_name.clone(),
             email: self.email.clone(),
-            facebook_linked: self.find_external_login(FACEBOOK_SITE, conn)?.is_some(),
+            facebook_linked: self
+                .find_external_login(FACEBOOK_SITE, conn)
+                .optional()?
+                .is_some(),
             event_count: result.event_count as u32,
             revenue_in_cents: result.revenue_in_cents as u32,
             ticket_sales: result.ticket_sales as u32,
@@ -788,45 +848,58 @@ impl User {
         scopes::get_scopes(self.role.clone())
     }
 
+    pub fn event_users(&self, conn: &PgConnection) -> Result<Vec<EventUser>, DatabaseError> {
+        event_users::table
+            .filter(event_users::user_id.eq(self.id))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve event users")
+    }
+
     pub fn get_event_ids_for_organization(
         &self,
         organization_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<Uuid>, DatabaseError> {
-        organization_users::table
-            .filter(organization_users::user_id.eq(self.id))
-            .filter(organization_users::organization_id.eq(organization_id))
-            .select(organization_users::event_ids)
-            .first(conn)
+        event_users::table
+            .inner_join(events::table.on(events::id.eq(event_users::event_id)))
+            .filter(event_users::user_id.eq(self.id))
+            .filter(events::organization_id.eq(organization_id))
+            .select(event_users::event_id)
+            .load(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not retrieve organizations for user",
+                "Could not retrieve event ids for organization user",
             )
     }
 
     pub fn get_event_ids_by_organization(
         &self,
         conn: &PgConnection,
-    ) -> Result<HashMap<Uuid, Vec<Uuid>>, DatabaseError> {
+    ) -> Result<(HashMap<Uuid, Vec<Uuid>>, HashMap<Uuid, Vec<Uuid>>), DatabaseError> {
         let mut events_by_organization = HashMap::new();
+        let mut readonly_events_by_organization = HashMap::new();
 
-        let organization_event_mapping = organization_users::table
-            .filter(organization_users::user_id.eq(self.id))
+        let organization_event_mapping = event_users::table
+            .inner_join(events::table.on(event_users::event_id.eq(events::id)))
+            .filter(event_users::user_id.eq(self.id))
+            .group_by(events::organization_id)
             .select((
-                organization_users::organization_id,
-                organization_users::event_ids,
+                events::organization_id,
+                sql::<Array<dUuid>>("COALESCE(ARRAY_AGG(DISTINCT event_users.event_id) FILTER(WHERE event_users.role = 'Promoter'), '{}')"),
+                sql::<Array<dUuid>>("COALESCE(ARRAY_AGG(DISTINCT event_users.event_id) FILTER(WHERE event_users.role = 'PromoterReadOnly'), '{}')"),
             ))
-            .load::<(Uuid, Vec<Uuid>)>(conn)
+            .load::<(Uuid, Vec<Uuid>, Vec<Uuid>)>(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not retrieve organizations for user",
+                "Could not retrieve organization info for user",
             )?;
 
-        for (organization_id, event_ids) in organization_event_mapping {
+        for (organization_id, event_ids, readonly_event_ids) in organization_event_mapping {
             events_by_organization.insert(organization_id, event_ids);
+            readonly_events_by_organization.insert(organization_id, readonly_event_ids);
         }
 
-        Ok(events_by_organization)
+        Ok((events_by_organization, readonly_events_by_organization))
     }
 
     pub fn get_roles_by_organization(
@@ -973,18 +1046,38 @@ impl User {
         &self,
         site: &str,
         conn: &PgConnection,
-    ) -> Result<Option<ExternalLogin>, DatabaseError> {
+    ) -> Result<ExternalLogin, DatabaseError> {
         ExternalLogin::find_for_site(self.id, site, conn)
     }
 
     pub fn add_external_login(
         &self,
+        current_user_id: Option<Uuid>,
         external_user_id: String,
         site: String,
         access_token: String,
+        scopes: Vec<String>,
         conn: &PgConnection,
     ) -> Result<ExternalLogin, DatabaseError> {
-        ExternalLogin::create(external_user_id, site, self.id, access_token).commit(conn)
+        ExternalLogin::create(external_user_id, site, self.id, access_token, scopes)
+            .commit(current_user_id, conn)
+    }
+
+    pub fn add_or_replace_external_login(
+        &self,
+        current_user_id: Option<Uuid>,
+        external_user_id: String,
+        site: String,
+        access_token: String,
+        scopes: Vec<String>,
+        conn: &PgConnection,
+    ) -> Result<ExternalLogin, DatabaseError> {
+        let external_login = self.find_external_login(&site, conn).optional()?;
+        if let Some(login) = external_login {
+            login.delete(current_user_id, conn)?;
+        };
+        ExternalLogin::create(external_user_id, site, self.id, access_token, scopes)
+            .commit(current_user_id, conn)
     }
 
     pub fn wallets(&self, conn: &PgConnection) -> Result<Vec<Wallet>, DatabaseError> {

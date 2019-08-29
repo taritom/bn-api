@@ -1,6 +1,7 @@
 use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
+use models::*;
 use schema::push_notification_tokens;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
@@ -18,15 +19,19 @@ pub struct NewPushNotificationToken {
 impl NewPushNotificationToken {
     pub fn commit(
         &self,
+        user_id: Uuid,
         connection: &PgConnection,
     ) -> Result<PushNotificationToken, DatabaseError> {
-        DatabaseError::wrap(
+        let push_notification_token: PushNotificationToken = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new push_notification_token",
             diesel::insert_into(push_notification_tokens::table)
                 .values(self)
                 .get_result(connection),
-        )
+        )?;
+        push_notification_token.log_domain_event(user_id, connection)?;
+
+        Ok(push_notification_token)
     }
 }
 
@@ -41,6 +46,36 @@ pub struct PushNotificationToken {
 }
 
 impl PushNotificationToken {
+    pub fn log_domain_event(
+        &self,
+        user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let mut domain_event = DomainEvent::create(
+            DomainEventTypes::PushNotificationTokenCreated,
+            "Push notification created".to_string(),
+            Tables::PushNotificationTokens,
+            Some(self.id),
+            Some(user_id),
+            None,
+        );
+        // Use created at date for push notification as domain event's created_at date
+        domain_event.created_at = Some(self.created_at);
+        domain_event.commit(conn)?;
+
+        Ok(())
+    }
+
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<PushNotificationToken, DatabaseError> {
+        push_notification_tokens::table
+            .find(id)
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Error loading push notification token",
+            )
+    }
+
     pub fn create(user_id: Uuid, token_source: String, token: String) -> NewPushNotificationToken {
         NewPushNotificationToken {
             user_id,

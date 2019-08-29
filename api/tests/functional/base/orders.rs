@@ -10,6 +10,57 @@ use support;
 use support::database::TestDatabase;
 use support::test_request::TestRequest;
 
+pub fn resend_confirmation(role: Roles, should_succeed: bool) {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let user2 = database.create_user().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let mut order = database
+        .create_order()
+        .for_event(&event)
+        .for_user(&user2)
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    let conn = database.connection.get();
+    let total = order.calculate_total(conn).unwrap();
+    order
+        .add_external_payment(
+            Some("test".to_string()),
+            ExternalPaymentType::CreditCard,
+            user.id,
+            total,
+            conn,
+        )
+        .unwrap();
+    assert_eq!(order.status, OrderStatus::Paid);
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = order.id;
+
+    let response: HttpResponse = orders::resend_confirmation((
+        database.connection.clone(),
+        path,
+        auth_user,
+        test_request.extract_state(),
+    ))
+    .into();
+
+    if should_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
 pub fn show_other_user_order(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
@@ -271,14 +322,15 @@ pub fn details(role: Roles, should_succeed: bool) {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
         OrderDetailsLineItem {
             ticket_instance_id: Some(ticket.id),
             order_item_id: order_item.id,
             description: format!("{} - {}", event.name, ticket_type.name),
-            ticket_price_in_cents: 0,
-            fees_price_in_cents: 0,
-            total_price_in_cents: 0,
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
             attendee_email: user.email,
@@ -290,6 +342,7 @@ pub fn details(role: Roles, should_succeed: bool) {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
     ];
 
@@ -316,6 +369,7 @@ pub fn details(role: Roles, should_succeed: bool) {
         code: None,
         code_type: None,
         pending_transfer_id: None,
+        discount_price_in_cents: None,
     });
 
     let test_request = TestRequest::create();

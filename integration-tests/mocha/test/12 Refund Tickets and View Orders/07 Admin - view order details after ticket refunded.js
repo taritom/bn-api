@@ -62,19 +62,14 @@ describe('Admin - view order details after ticket refunded', function () {
         expect(response.status).to.equal(200);
     })
 
-
-    it("no tickets from other organizations", function () {
-        expect(json.order_contains_other_tickets).to.equal(false);
-    });
-
     it("correct number of order items", function () {
         expect(json.items.length).to.equal(3);
     });
 
     it("tickets should be present", function () {
-        expect(json.items[0].ticket_price_in_cents).to.equal(0);
-        expect(json.items[0].fees_price_in_cents).to.equal(0);
-        expect(json.items[0].total_price_in_cents).to.equal(0);
+        expect(json.items[0].ticket_price_in_cents).to.equal(3000);
+        expect(json.items[0].fees_price_in_cents).to.equal(10);
+        expect(json.items[0].total_price_in_cents).to.equal(3010);
         expect(json.items[0].status).to.equal('Refunded');
         expect(json.items[0].refundable).to.equal(false);
 
@@ -95,5 +90,3 @@ describe('Admin - view order details after ticket refunded', function () {
 
 
 });
-
-            

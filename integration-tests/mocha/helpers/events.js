@@ -1,7 +1,7 @@
 const {post} = require("./requests");
 const pm = require('../test/pm');
 const expect = require('chai').expect;
-
+const orgMember = require("./orgMember");
 
 const create = async function (saveVarName, eventName) {
     let requestBody = `{
@@ -14,7 +14,9 @@ const create = async function (saveVarName, eventName) {
     "age_limit": "A custom age limit",
     "promo_image_url": "https://source.unsplash.com/random"
 }`;
-    let response = await post('/events', requestBody, '{{org_member_token}}');
+
+    await orgMember.login("__om_token");
+    let response = await post('/events', requestBody, '{{__om_token}}');
     const responseBody = JSON.stringify(response.body);
     const json = JSON.parse(responseBody);
     expect(response.status).to.equal(201);

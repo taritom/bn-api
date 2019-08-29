@@ -24,12 +24,10 @@ fn transfers() {
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
         .unwrap();
-    transfer
-        .add_transfer_ticket(ticket.id, user.id, &None, connection)
-        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
     assert!(transfer.update_associated_orders(connection).is_ok());
     assert_eq!(vec![transfer], order.transfers(connection).unwrap());
 }
@@ -662,7 +660,7 @@ fn update_fees() {
     assert!(order_item.find_fee_item(connection).unwrap().is_none());
 
     // Trigger fee
-    cart.update_fees(connection).unwrap();
+    cart.update_fees_and_discounts(connection).unwrap();
     let items = cart.items(connection).unwrap();
     let event_fee_item = items
         .iter()
@@ -691,7 +689,7 @@ fn update_fees() {
     )
     .unwrap();
 
-    cart.update_fees(connection).unwrap();
+    cart.update_fees_and_discounts(connection).unwrap();
 }
 
 #[test]
@@ -2682,7 +2680,7 @@ fn partially_visible_order() {
     .unwrap();
 
     // With no events filter and no filter of organizations
-    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember], vec![])
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
         .commit(connection)
         .unwrap();
     assert!(!cart
@@ -2690,7 +2688,7 @@ fn partially_visible_order() {
         .unwrap());
 
     // With access and event filter
-    OrganizationUser::create(organization.id, user2.id, vec![Roles::Promoter], vec![])
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::Promoter])
         .commit(connection)
         .unwrap();
     assert!(cart
@@ -2698,14 +2696,10 @@ fn partially_visible_order() {
         .unwrap());
 
     // With access and event filter
-    OrganizationUser::create(
-        organization.id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
+    organization
+        .add_user(user2.id, vec![Roles::Promoter], vec![event.id], connection)
+        .unwrap();
+
     assert!(!cart
         .partially_visible_order(&vec![organization.id], user2.id, connection)
         .unwrap());
@@ -2732,7 +2726,7 @@ fn details() {
         .finish();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember], vec![])
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
         .commit(connection)
         .unwrap();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -2810,14 +2804,15 @@ fn details() {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
         OrderDetailsLineItem {
             ticket_instance_id: Some(ticket.id),
             order_item_id: order_item.id,
             description: format!("{} - {}", event.name, ticket_type.name),
-            ticket_price_in_cents: 0,
-            fees_price_in_cents: 0,
-            total_price_in_cents: 0,
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
             attendee_email: user.email.clone(),
@@ -2829,6 +2824,7 @@ fn details() {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
     ];
 
@@ -2846,7 +2842,6 @@ fn details() {
         total_price_in_cents: event_fee_item.unit_price_in_cents,
         status: "Purchased".to_string(),
         refundable: true,
-
         attendee_email: None,
         attendee_id: None,
         attendee_first_name: None,
@@ -2856,6 +2851,7 @@ fn details() {
         code: None,
         code_type: None,
         pending_transfer_id: None,
+        discount_price_in_cents: None,
     });
 
     let order_details = cart
@@ -2900,9 +2896,9 @@ fn details() {
             ticket_instance_id: Some(ticket2.id),
             order_item_id: order_item.id,
             description: format!("{} - {}", event.name, ticket_type.name),
-            ticket_price_in_cents: 0,
-            fees_price_in_cents: 0,
-            total_price_in_cents: 0,
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
             attendee_email: user.email.clone(),
@@ -2914,14 +2910,15 @@ fn details() {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
         OrderDetailsLineItem {
             ticket_instance_id: Some(ticket.id),
             order_item_id: order_item.id,
             description: format!("{} - {}", event.name, ticket_type.name),
-            ticket_price_in_cents: 0,
-            fees_price_in_cents: 0,
-            total_price_in_cents: 0,
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
             attendee_email: user.email.clone(),
@@ -2933,6 +2930,7 @@ fn details() {
             code: None,
             code_type: None,
             pending_transfer_id: None,
+            discount_price_in_cents: None,
         },
     ];
 
@@ -2946,8 +2944,8 @@ fn details() {
         order_item_id: event_fee_item.id,
         description: format!("Event Fees - {}", event.name),
         ticket_price_in_cents: 0,
-        fees_price_in_cents: 0,
-        total_price_in_cents: 0,
+        fees_price_in_cents: 250,
+        total_price_in_cents: 250,
         status: "Refunded".to_string(),
         refundable: false,
         attendee_email: None,
@@ -2959,6 +2957,7 @@ fn details() {
         code: None,
         code_type: None,
         pending_transfer_id: None,
+        discount_price_in_cents: None,
     });
 
     let order_details = cart
@@ -2967,7 +2966,7 @@ fn details() {
     assert_eq!(expected_order_details, order_details);
 
     // With events filter
-    OrganizationUser::create(organization.id, user2.id, vec![Roles::Promoter], vec![])
+    OrganizationUser::create(organization.id, user2.id, vec![Roles::Promoter])
         .commit(connection)
         .unwrap();
     let order_details = cart
@@ -2976,14 +2975,9 @@ fn details() {
     assert!(order_details.is_empty());
 
     // With access and event filter
-    OrganizationUser::create(
-        organization.id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
+    organization
+        .add_user(user2.id, vec![Roles::Promoter], vec![event.id], connection)
+        .unwrap();
     let order_details = cart
         .details(&vec![organization.id], user2.id, connection)
         .unwrap();
@@ -3541,7 +3535,7 @@ fn replace_tickets_with_code_pricing() {
     assert_eq!(order_item.calculate_quantity(connection), Ok(10));
     assert_eq!(
         order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents - discount_in_cents
+        ticket_pricing.price_in_cents
     );
 
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
@@ -3552,6 +3546,10 @@ fn replace_tickets_with_code_pricing() {
         fee_schedule_range.fee_in_cents
     );
     assert_eq!(fee_item.quantity, 10);
+
+    let discount_item = order_item.find_discount_item(connection).unwrap().unwrap();
+    assert_eq!(discount_item.unit_price_in_cents, -20);
+    assert_eq!(discount_item.quantity, 10);
 
     // Add some more
     cart.update_quantities(
@@ -3568,7 +3566,7 @@ fn replace_tickets_with_code_pricing() {
     .unwrap();
     let items = cart.items(connection).unwrap();
 
-    assert_eq!(items.len(), 2);
+    assert_eq!(items.len(), 3);
     let order_item = items
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type.id))
@@ -4703,27 +4701,19 @@ fn for_display_with_organization_id_and_event_id_filters() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
+    let organization = event.organization(connection).unwrap();
+    let organization2 = event2.organization(connection).unwrap();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
 
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
 
-    OrganizationUser::create(
-        event.organization_id,
-        user2.id,
-        vec![Roles::OrgMember],
-        vec![],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        event2.organization_id,
-        user2.id,
-        vec![Roles::OrgMember],
-        vec![],
-    )
-    .commit(connection)
-    .unwrap();
+    OrganizationUser::create(event.organization_id, user2.id, vec![Roles::OrgMember])
+        .commit(connection)
+        .unwrap();
+    OrganizationUser::create(event2.organization_id, user2.id, vec![Roles::OrgMember])
+        .commit(connection)
+        .unwrap();
 
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     cart.update_quantities(
@@ -4758,22 +4748,12 @@ fn for_display_with_organization_id_and_event_id_filters() {
     assert_eq!(order_item.ticket_type_id, Some(ticket_type.id));
 
     // Filtered by event_id
-    OrganizationUser::create(
-        event.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        event2.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![],
-    )
-    .commit(connection)
-    .unwrap();
+    organization
+        .add_user(user2.id, vec![Roles::Promoter], vec![event.id], connection)
+        .unwrap();
+    OrganizationUser::create(event2.organization_id, user2.id, vec![Roles::Promoter])
+        .commit(connection)
+        .unwrap();
     let display_order = cart
         .for_display(
             Some(vec![event.organization_id, event2.organization_id]),
@@ -4784,48 +4764,13 @@ fn for_display_with_organization_id_and_event_id_filters() {
     assert!(!display_order.order_contains_other_tickets);
     assert_eq!(display_order.items.len(), 2); // 1 tickets, 1 fees
 
-    OrganizationUser::create(
-        event.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        event2.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event2.id],
-    )
-    .commit(connection)
-    .unwrap();
-    let display_order = cart
-        .for_display(
-            Some(vec![event.organization_id, event2.organization_id]),
-            user2.id,
-            connection,
-        )
+    OrganizationUser::create(event.organization_id, user2.id, vec![Roles::Promoter])
+        .commit(connection)
         .unwrap();
-    assert!(display_order.order_contains_other_tickets);
-    assert_eq!(display_order.items.len(), 0);
 
-    OrganizationUser::create(
-        event.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event.id],
-    )
-    .commit(connection)
-    .unwrap();
-    OrganizationUser::create(
-        event2.organization_id,
-        user2.id,
-        vec![Roles::Promoter],
-        vec![event2.id],
-    )
-    .commit(connection)
-    .unwrap();
+    organization2
+        .add_user(user2.id, vec![Roles::Promoter], vec![event2.id], connection)
+        .unwrap();
     let display_order = cart
         .for_display(
             Some(vec![event.organization_id, event2.organization_id]),
@@ -4962,10 +4907,13 @@ pub fn search_by_general_query() {
         None,
         None,
         None,
+        None,
         true,
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -4992,10 +4940,13 @@ pub fn search_by_event_id() {
         None,
         None,
         None,
+        None,
         true,
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -5023,10 +4974,13 @@ pub fn search_by_partial_order_id() {
         None,
         None,
         None,
+        None,
         true,
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -5060,10 +5014,13 @@ pub fn search_by_partial_ticket_id() {
         None,
         None,
         None,
+        None,
         true,
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -5096,10 +5053,13 @@ pub fn search_by_email() {
         None,
         None,
         None,
+        None,
         true,
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &Default::default(),
         connection,
@@ -5132,10 +5092,13 @@ pub fn search_by_email_on_behalf_of() {
         None,
         None,
         None,
+        None,
         true,
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -5165,6 +5128,7 @@ pub fn search_by_name() {
         None,
         None,
         None,
+        None,
         Some(&user.first_name.as_ref().unwrap().to_string()),
         None,
         None,
@@ -5172,6 +5136,8 @@ pub fn search_by_name() {
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -5205,6 +5171,7 @@ pub fn search_by_last_name_first() {
         None,
         None,
         None,
+        None,
         Some("last search"),
         None,
         None,
@@ -5212,6 +5179,8 @@ pub fn search_by_last_name_first() {
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -5237,12 +5206,15 @@ pub fn search_by_ticket_type() {
         None,
         None,
         None,
+        None,
         Some(event.ticket_types(false, None, connection).unwrap()[0].id),
         None,
         true,
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -5279,11 +5251,14 @@ pub fn search_by_promo_code_hold() {
         None,
         None,
         None,
+        None,
         Some(&hold.redemption_code.unwrap()[2..4]),
         true,
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -5317,11 +5292,14 @@ pub fn search_by_promo_code_code() {
         None,
         None,
         None,
+        None,
         Some(&code.redemption_code[2..4]),
         true,
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,
@@ -5362,6 +5340,7 @@ pub fn search_by_all() {
         Some(&order2.id.to_string()[4..8]),
         Some(&ticket.id.to_string()[4..8]),
         Some(&user.email.unwrap()[2..6]),
+        None,
         Some(&format!(
             "{} {}",
             user.first_name.as_ref().unwrap_or(&"".to_string()),
@@ -5373,6 +5352,8 @@ pub fn search_by_all() {
         true,
         true,
         true,
+        None,
+        None,
         user.id,
         &PagingParameters::default(),
         connection,

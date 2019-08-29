@@ -858,6 +858,7 @@ fn transaction_detail_report() {
     let expected_results = vec![
         build_transaction_report_row(
             3,
+            &organization,
             &user,
             &order,
             &event,
@@ -868,6 +869,7 @@ fn transaction_detail_report() {
         ),
         build_transaction_report_row(
             3,
+            &organization,
             &user2,
             &order2,
             &event,
@@ -878,6 +880,7 @@ fn transaction_detail_report() {
         ),
         build_transaction_report_row(
             3,
+            &organization,
             &user4,
             &order4,
             &event,
@@ -905,6 +908,7 @@ fn transaction_detail_report() {
     let expected_results = vec![
         build_transaction_report_row(
             4,
+            &organization,
             &user,
             &order,
             &event,
@@ -915,6 +919,7 @@ fn transaction_detail_report() {
         ),
         build_transaction_report_row(
             4,
+            &organization,
             &user2,
             &order2,
             &event,
@@ -925,6 +930,7 @@ fn transaction_detail_report() {
         ),
         build_transaction_report_row(
             4,
+            &organization,
             &user3,
             &order3,
             &event2,
@@ -935,6 +941,7 @@ fn transaction_detail_report() {
         ),
         build_transaction_report_row(
             4,
+            &organization,
             &user4,
             &order4,
             &event,
@@ -963,6 +970,7 @@ fn transaction_detail_report() {
     let expected_results = vec![
         build_transaction_report_row(
             3,
+            &organization,
             &user,
             &order,
             &event,
@@ -973,6 +981,7 @@ fn transaction_detail_report() {
         ),
         build_transaction_report_row(
             3,
+            &organization,
             &user2,
             &order2,
             &event,
@@ -983,6 +992,7 @@ fn transaction_detail_report() {
         ),
         build_transaction_report_row(
             3,
+            &organization,
             &user3,
             &order3,
             &event2,
@@ -1010,6 +1020,7 @@ fn transaction_detail_report() {
     .unwrap();
     let expected_results = vec![build_transaction_report_row(
         1,
+        &organization,
         &user,
         &order,
         &event,
@@ -1036,6 +1047,7 @@ fn transaction_detail_report() {
     .unwrap();
     let expected_results = vec![build_transaction_report_row(
         1,
+        &organization,
         &user2,
         &order2,
         &event,
@@ -1062,6 +1074,7 @@ fn transaction_detail_report() {
     .unwrap();
     let expected_results = vec![build_transaction_report_row(
         1,
+        &organization,
         &user3,
         &order3,
         &event2,
@@ -1087,6 +1100,7 @@ fn transaction_detail_report() {
     .unwrap();
     let expected_results = vec![build_transaction_report_row(
         4,
+        &organization,
         &user,
         &order,
         &event,
@@ -1115,6 +1129,7 @@ fn transaction_detail_report() {
     let expected_results = vec![
         build_transaction_report_row(
             3,
+            &organization,
             &user2,
             &order2,
             &event,
@@ -1125,6 +1140,7 @@ fn transaction_detail_report() {
         ),
         build_transaction_report_row(
             3,
+            &organization,
             &user3,
             &order3,
             &event2,
@@ -1135,6 +1151,7 @@ fn transaction_detail_report() {
         ),
         build_transaction_report_row(
             3,
+            &organization,
             &user4,
             &order4,
             &event,
@@ -1330,6 +1347,7 @@ fn box_office_sales_summary_report() {
 
 fn build_transaction_report_row(
     total: i64,
+    organization: &Organization,
     user: &User,
     order: &Order,
     event: &Event,
@@ -1350,8 +1368,8 @@ fn build_transaction_report_row(
             + fee_schedule_range.client_fee_in_cents
             + fee_schedule_range.company_fee_in_cents)
             * quantity
-            + event.company_fee_in_cents
-            + event.client_fee_in_cents,
+            + organization.company_event_fee_in_cents
+            + organization.client_event_fee_in_cents,
         company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
         client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
         gross_fee_in_cents: fee_schedule_range.company_fee_in_cents
@@ -1359,10 +1377,12 @@ fn build_transaction_report_row(
         gross_fee_in_cents_total: (fee_schedule_range.company_fee_in_cents
             + fee_schedule_range.client_fee_in_cents)
             * quantity,
-        event_fee_company_in_cents: event.company_fee_in_cents,
-        event_fee_client_in_cents: event.client_fee_in_cents,
-        event_fee_gross_in_cents: event.company_fee_in_cents + event.client_fee_in_cents,
-        event_fee_gross_in_cents_total: event.company_fee_in_cents + event.client_fee_in_cents,
+        event_fee_company_in_cents: organization.company_event_fee_in_cents,
+        event_fee_client_in_cents: organization.client_event_fee_in_cents,
+        event_fee_gross_in_cents: organization.company_event_fee_in_cents
+            + organization.client_event_fee_in_cents,
+        event_fee_gross_in_cents_total: organization.company_event_fee_in_cents
+            + organization.client_event_fee_in_cents,
         credit_card_fee_company_in_cents: 0,
         credit_card_fee_client_in_cents: 0,
         credit_card_fee_gross_in_cents: 0,

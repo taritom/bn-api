@@ -101,6 +101,27 @@ table! {
 }
 
 table! {
+    domain_event_published (domain_event_publisher_id, domain_event_id) {
+        domain_event_publisher_id -> Uuid,
+        domain_event_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    domain_event_publishers (id) {
+        id -> Uuid,
+        organization_id -> Nullable<Uuid>,
+        event_types -> Array<Text>,
+        webhook_url -> Text,
+        import_historic_events -> Bool,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     domain_events (id) {
         id -> Uuid,
         event_type -> Text,
@@ -108,7 +129,6 @@ table! {
         event_data -> Nullable<Json>,
         main_table -> Text,
         main_id -> Nullable<Uuid>,
-        published_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         user_id -> Nullable<Uuid>,
@@ -161,7 +181,6 @@ table! {
         status -> Text,
         publish_date -> Nullable<Timestamp>,
         redeem_date -> Nullable<Timestamp>,
-        fee_in_cents -> Int8,
         promo_image_url -> Nullable<Text>,
         additional_info -> Nullable<Text>,
         age_limit -> Nullable<Varchar>,
@@ -172,8 +191,8 @@ table! {
         is_external -> Bool,
         external_url -> Nullable<Text>,
         override_status -> Nullable<Text>,
-        client_fee_in_cents -> Int8,
-        company_fee_in_cents -> Int8,
+        client_fee_in_cents -> Nullable<Int8>,
+        company_fee_in_cents -> Nullable<Int8>,
         settlement_amount_in_cents -> Nullable<Int8>,
         event_end -> Nullable<Timestamp>,
         sendgrid_list_id -> Nullable<Int8>,
@@ -182,6 +201,19 @@ table! {
         private_access_code -> Nullable<Text>,
         slug -> Varchar,
         facebook_pixel_key -> Nullable<Text>,
+        deleted_at -> Nullable<Timestamp>,
+        extra_admin_data -> Nullable<Jsonb>,
+    }
+}
+
+table! {
+    event_users (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        event_id -> Uuid,
+        role -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -194,6 +226,7 @@ table! {
         access_token -> Text,
         external_user_id -> Text,
         updated_at -> Timestamp,
+        scopes -> Array<Text>,
     }
 }
 
@@ -326,6 +359,19 @@ table! {
 }
 
 table! {
+    organization_interactions (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        first_interaction -> Timestamp,
+        last_interaction -> Timestamp,
+        interaction_count -> Int8,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     organization_invites (id) {
         id -> Uuid,
         organization_id -> Uuid,
@@ -378,7 +424,6 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         role -> Array<Text>,
-        event_ids -> Array<Uuid>,
     }
 }
 
@@ -511,6 +556,25 @@ table! {
 }
 
 table! {
+    temporary_user_links (temporary_user_id, user_id) {
+        temporary_user_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    temporary_users (id) {
+        id -> Uuid,
+        email -> Nullable<Text>,
+        phone -> Nullable<Text>,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     ticket_instances (id) {
         id -> Uuid,
         asset_id -> Uuid,
@@ -574,6 +638,7 @@ table! {
         rank -> Int4,
         visibility -> Varchar,
         additional_fee_in_cents -> Int8,
+        deleted_at -> Nullable<Timestamp>,
     }
 }
 
@@ -589,6 +654,8 @@ table! {
         transfer_message_type -> Nullable<Text>,
         transfer_address -> Nullable<Text>,
         cancelled_by_user_id -> Nullable<Uuid>,
+        direct -> Bool,
+        destination_temporary_user_id -> Nullable<Uuid>,
     }
 }
 
@@ -681,6 +748,9 @@ joinable!(assets -> ticket_types (ticket_type_id));
 joinable!(broadcasts -> events (event_id));
 joinable!(codes -> events (event_id));
 joinable!(domain_actions -> domain_events (domain_event_id));
+joinable!(domain_event_published -> domain_event_publishers (domain_event_publisher_id));
+joinable!(domain_event_published -> domain_events (domain_event_id));
+joinable!(domain_event_publishers -> organizations (organization_id));
 joinable!(domain_events -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));
@@ -689,6 +759,8 @@ joinable!(event_genres -> events (event_id));
 joinable!(event_genres -> genres (genre_id));
 joinable!(event_interest -> events (event_id));
 joinable!(event_interest -> users (user_id));
+joinable!(event_users -> events (event_id));
+joinable!(event_users -> users (user_id));
 joinable!(events -> organizations (organization_id));
 joinable!(events -> venues (venue_id));
 joinable!(external_logins -> users (user_id));
@@ -704,6 +776,8 @@ joinable!(order_items -> ticket_pricing (ticket_pricing_id));
 joinable!(order_items -> ticket_types (ticket_type_id));
 joinable!(order_transfers -> orders (order_id));
 joinable!(order_transfers -> transfers (transfer_id));
+joinable!(organization_interactions -> organizations (organization_id));
+joinable!(organization_interactions -> users (user_id));
 joinable!(organization_invites -> organizations (organization_id));
 joinable!(organization_users -> organizations (organization_id));
 joinable!(organization_users -> users (user_id));
@@ -723,6 +797,8 @@ joinable!(settlement_transactions -> events (event_id));
 joinable!(settlement_transactions -> settlements (settlement_id));
 joinable!(settlements -> organizations (organization_id));
 joinable!(settlements -> users (user_id));
+joinable!(temporary_user_links -> temporary_users (temporary_user_id));
+joinable!(temporary_user_links -> users (user_id));
 joinable!(ticket_instances -> assets (asset_id));
 joinable!(ticket_instances -> holds (hold_id));
 joinable!(ticket_instances -> order_items (order_item_id));
@@ -747,11 +823,14 @@ allow_tables_to_appear_in_same_query!(
     broadcasts,
     codes,
     domain_actions,
+    domain_event_published,
+    domain_event_publishers,
     domain_events,
     event_artists,
     event_genres,
     event_interest,
     events,
+    event_users,
     external_logins,
     fee_schedule_ranges,
     fee_schedules,
@@ -761,6 +840,7 @@ allow_tables_to_appear_in_same_query!(
     order_items,
     orders,
     order_transfers,
+    organization_interactions,
     organization_invites,
     organizations,
     organization_users,
@@ -774,6 +854,8 @@ allow_tables_to_appear_in_same_query!(
     settlements,
     settlement_transactions,
     stages,
+    temporary_user_links,
+    temporary_users,
     ticket_instances,
     ticket_pricing,
     ticket_type_codes,

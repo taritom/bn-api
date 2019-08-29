@@ -45,7 +45,7 @@ let json = {};
 describe('Bulk create orders', function () {
     before(async function () {
         this.timeout(100000);
-        let quantity = 30;
+        let quantity = pm.environment.get('bulkOrderPaidQuantity');
         let event = await events.create();
         let ticket_type = await events.createTickets(event, "ticket_type_id", quantity);
 

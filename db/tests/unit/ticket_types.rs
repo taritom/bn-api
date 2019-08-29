@@ -654,7 +654,10 @@ fn cancel() {
     let db = TestProject::new();
     let connection = db.get_connection();
     let event = db.create_event().with_tickets().finish();
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
 
     let cancelled_ticket_type = ticket_type.cancel(connection).unwrap();
 

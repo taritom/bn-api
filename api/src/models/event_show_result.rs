@@ -1,6 +1,7 @@
 use bigneon_db::prelude::*;
 use chrono::NaiveDateTime;
 use models::UserDisplayTicketType;
+use serde_json::Value;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -44,6 +45,7 @@ pub struct EventShowResult {
     pub url: String,
     pub slug: String,
     pub facebook_pixel_key: Option<String>,
+    pub extra_admin_data: Option<Value>,
 }
 
 //This struct is used to just contain the id and name of the org

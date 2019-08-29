@@ -2,9 +2,7 @@ use bigneon_db::models::*;
 use diesel::PgConnection;
 use errors::BigNeonError;
 use url::form_urlencoded::byte_serialize;
-use utils::communication::TemplateData;
 
-pub mod cart;
 pub mod orders;
 pub mod organization_invites;
 pub mod tickets;
@@ -17,7 +15,7 @@ pub fn insert_event_template_data(
 ) -> Result<(), BigNeonError> {
     let organization = event.organization(conn)?;
     let venue = event.venue(conn)?;
-    let localized_times = event.get_all_localized_times(&venue);
+    let localized_times = event.get_all_localized_times(venue.as_ref());
     let mut artists: Vec<DisplayEventArtist> = event.artists(conn)?;
     artists.sort_by_key(|a| a.rank);
     template_data.insert("event_id".to_string(), event.id.to_string());

@@ -547,6 +547,15 @@ fn find_for_organization() {
     let owner = project.create_user().finish();
     let member = project.create_user().finish();
     let user = project.create_user().finish();
+    let admin = project
+        .create_user()
+        .finish()
+        .add_role(Roles::Admin, connection)
+        .unwrap();
+    let _public_artist = project
+        .create_artist()
+        .with_name("Artist0".to_string())
+        .finish();
     let organization = project
         .create_organization()
         .with_member(&owner, Roles::OrgOwner)
@@ -582,7 +591,7 @@ fn find_for_organization() {
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
-    let artist4 = project
+    let _artist4 = project
         .create_artist()
         .with_name("Artist4".to_string())
         .with_organization(&organization2)
@@ -592,28 +601,28 @@ fn find_for_organization() {
 
     let user = project.create_user().finish();
 
-    let mut all_artists = vec![artist1, artist2];
+    let public_organization_artists = vec![artist1.clone(), artist2.clone()];
+    let organization_artists = vec![artist1, artist2, artist3];
 
+    // Logged out / guest user
     let found_artists = Artist::find_for_organization(None, organization.id, connection).unwrap();
-    assert_eq!(found_artists, all_artists);
-
-    let found_artists = Artist::find_for_organization(None, organization.id, connection).unwrap();
-    assert_eq!(found_artists, all_artists);
-    assert!(!found_artists.contains(&artist3));
-    assert!(!found_artists.contains(&artist4));
+    assert_eq!(found_artists, public_organization_artists);
 
     // Private artist is not shown for users
     let found_artists =
-        Artist::find_for_organization(Some(user.id), organization.id, connection).unwrap();
-    assert_eq!(found_artists, all_artists);
+        Artist::find_for_organization(Some(&user), organization.id, connection).unwrap();
+    assert_eq!(found_artists, public_organization_artists);
 
-    // Private artist is shown for owners and members
-    all_artists.push(artist3);
+    // Private artist is shown for admins, owners, and members
     let found_artists =
-        Artist::find_for_organization(Some(owner.id), organization.id, connection).unwrap();
-    assert_eq!(found_artists, all_artists);
+        Artist::find_for_organization(Some(&owner), organization.id, connection).unwrap();
+    assert_eq!(found_artists, organization_artists);
 
     let found_artists =
-        Artist::find_for_organization(Some(member.id), organization.id, connection).unwrap();
-    assert_eq!(found_artists, all_artists);
+        Artist::find_for_organization(Some(&member), organization.id, connection).unwrap();
+    assert_eq!(found_artists, organization_artists);
+
+    let found_artists =
+        Artist::find_for_organization(Some(&admin), organization.id, connection).unwrap();
+    assert_eq!(found_artists, organization_artists);
 }

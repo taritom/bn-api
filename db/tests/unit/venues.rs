@@ -165,9 +165,19 @@ fn all() {
 #[test]
 fn find_for_organization() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let owner = project.create_user().finish();
     let member = project.create_user().finish();
     let user = project.create_user().finish();
+    let admin = project
+        .create_user()
+        .finish()
+        .add_role(Roles::Admin, connection)
+        .unwrap();
+    let _public_venue = project
+        .create_venue()
+        .with_name("Venue0".to_string())
+        .finish();
     let organization = project
         .create_organization()
         .with_member(&owner, Roles::OrgOwner)
@@ -197,7 +207,7 @@ fn find_for_organization() {
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
-    let venue4 = project
+    let _venue4 = project
         .create_venue()
         .with_name("Venue4".to_string())
         .with_organization(&organization2)
@@ -205,35 +215,35 @@ fn find_for_organization() {
 
     let user = project.create_user().finish();
 
-    let mut all_venues = vec![venue1, venue2];
+    let public_organization_venues = vec![venue1.clone(), venue2.clone()];
+    let organization_venues = vec![venue1, venue2, venue3];
 
+    // Guest user / not logged in
     let found_venues =
         Venue::find_for_organization(None, organization.id, project.get_connection()).unwrap();
-    assert_eq!(found_venues, all_venues);
-
-    let found_venues =
-        Venue::find_for_organization(None, organization.id, project.get_connection()).unwrap();
-    assert_eq!(found_venues, all_venues);
-    assert!(!found_venues.contains(&venue3));
-    assert!(!found_venues.contains(&venue4));
+    assert_eq!(found_venues, public_organization_venues);
 
     // Private venue is not shown for users
     let found_venues =
-        Venue::find_for_organization(Some(user.id), organization.id, project.get_connection())
+        Venue::find_for_organization(Some(&user), organization.id, project.get_connection())
             .unwrap();
-    assert_eq!(found_venues, all_venues);
+    assert_eq!(found_venues, public_organization_venues);
 
-    // Private venue is shown for owners and members
-    all_venues.push(venue3);
+    // Private venue is shown for admins, owners, and members
     let found_venues =
-        Venue::find_for_organization(Some(owner.id), organization.id, project.get_connection())
+        Venue::find_for_organization(Some(&owner), organization.id, project.get_connection())
             .unwrap();
-    assert_eq!(found_venues, all_venues);
+    assert_eq!(found_venues, organization_venues);
 
     let found_venues =
-        Venue::find_for_organization(Some(member.id), organization.id, project.get_connection())
+        Venue::find_for_organization(Some(&member), organization.id, project.get_connection())
             .unwrap();
-    assert_eq!(found_venues, all_venues);
+    assert_eq!(found_venues, organization_venues);
+
+    let found_venues =
+        Venue::find_for_organization(Some(&admin), organization.id, project.get_connection())
+            .unwrap();
+    assert_eq!(found_venues, organization_venues);
 }
 
 #[test]

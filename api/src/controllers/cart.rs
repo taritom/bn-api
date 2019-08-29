@@ -87,7 +87,7 @@ pub fn update_cart(
         .collect();
 
     for order_item in &order_items {
-        if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
+        if !Dbticket_types::is_event_available_for_sale(&order_item.ticket_type_id, connection)? {
             return Ok(HttpResponse::BadRequest()
                 .json(json!({"error": "Event has not been published.".to_string()})));
         }
@@ -175,7 +175,7 @@ pub fn replace_cart(
         .collect();
 
     for order_item in &order_items {
-        if !Dbticket_types::is_event_not_draft(&order_item.ticket_type_id, connection)? {
+        if !Dbticket_types::is_event_available_for_sale(&order_item.ticket_type_id, connection)? {
             return Ok(HttpResponse::BadRequest()
                 .json(json!({"error": "Event has not been published.".to_string()})));
         }
@@ -465,7 +465,13 @@ fn checkout_external(
     let conn = conn.get();
 
     // User must have external checkout permissions for all events in the cart.
-    for (event_id, _) in &order.items(conn)?.into_iter().group_by(|oi| oi.event_id) {
+    for (event_id, _) in &order
+        .items(conn)?
+        .into_iter()
+        .sorted_by_key(|oi| oi.event_id)
+        .into_iter()
+        .group_by(|oi| oi.event_id)
+    {
         if let Some(event_id) = event_id {
             let organization = Organization::find_for_event(event_id, conn)?;
             user.requires_scope_for_organization(

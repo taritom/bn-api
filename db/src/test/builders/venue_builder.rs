@@ -8,6 +8,7 @@ pub struct VenueBuilder<'a> {
     organization_id: Option<Uuid>,
     is_private: bool,
     timezone: String,
+    country: String,
     connection: &'a PgConnection,
 }
 
@@ -20,11 +21,17 @@ impl<'a> VenueBuilder<'a> {
             is_private: false,
             organization_id: None,
             timezone: "America/Los_Angeles".into(),
+            country: "US".into(),
         }
     }
 
     pub fn with_name(mut self, name: String) -> Self {
         self.name = name;
+        self
+    }
+
+    pub fn with_country(mut self, country: String) -> Self {
+        self.country = country;
         self
     }
 
@@ -49,14 +56,15 @@ impl<'a> VenueBuilder<'a> {
     }
 
     pub fn finish(self) -> Venue {
-        let venue = Venue::create(
+        let mut venue = Venue::create(
             &self.name,
             self.region_id,
             self.organization_id,
             self.timezone,
-        )
-        .commit(self.connection)
-        .unwrap();
+        );
+        venue.country = self.country;
+
+        let venue = venue.commit(self.connection).unwrap();
         venue.set_privacy(self.is_private, self.connection).unwrap()
     }
 }

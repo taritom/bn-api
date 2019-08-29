@@ -1,9 +1,8 @@
 use chrono::prelude::*;
 use diesel;
 use diesel::dsl::{self, select};
-use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Nullable, Text, Uuid as dUuid};
+use diesel::sql_types::{Array, BigInt, Nullable, Text, Uuid as dUuid};
 use models::*;
 use schema::{codes, order_items, ticket_instances, ticket_types};
 use std::borrow::Cow;
@@ -172,40 +171,65 @@ impl OrderItem {
 
         if let Some(code_id) = self.code_id {
             let code = Code::find(code_id, conn)?;
-            if code.code_type == CodeTypes::Discount {
-                let mut discount = 0;
-                if let Some(discount_percent) = code.discount_as_percentage {
-                    discount = cmp::min(
-                        ((self.unit_price_in_cents as f32) * (discount_percent as f32) / 100.0f32)
-                            as i64,
-                        self.unit_price_in_cents,
-                    );
-                } else if let Some(discount_in_cents) = code.discount_in_cents {
-                    discount = cmp::min(discount_in_cents, self.unit_price_in_cents);
-                }
-                if discount > 0 {
-                    if let Some(mut di) = discount_item {
-                        di.quantity = self.quantity;
-                        di.unit_price_in_cents = -discount;
-                        di.update(conn)?;
-                    } else {
-                        NewDiscountOrderItem {
-                            order_id: self.order_id,
-                            item_type: OrderItemTypes::Discount,
-                            event_id: self.event_id,
-                            quantity: self.quantity,
-                            unit_price_in_cents: -discount,
-                            company_fee_in_cents: 0,
-                            client_fee_in_cents: 0,
-                            parent_id: Some(self.id),
-                        }
-                        .commit(conn)?;
-                    }
+            let mut discount = 0;
+            if let Some(discount_percent) = code.discount_as_percentage {
+                discount = cmp::min(
+                    ((self.unit_price_in_cents as f32) * (discount_percent as f32) / 100.0f32)
+                        as i64,
+                    self.unit_price_in_cents,
+                );
+            } else if let Some(discount_in_cents) = code.discount_in_cents {
+                discount = cmp::min(discount_in_cents, self.unit_price_in_cents);
+            }
+            if discount > 0 {
+                if let Some(mut di) = discount_item {
+                    di.quantity = self.quantity;
+                    di.unit_price_in_cents = -discount;
+                    di.update(conn)?;
                 } else {
-                    if let Some(di) = discount_item {
-                        order.destroy_item(di.id, conn)?;
+                    NewDiscountOrderItem {
+                        order_id: self.order_id,
+                        item_type: OrderItemTypes::Discount,
+                        event_id: self.event_id,
+                        quantity: self.quantity,
+                        unit_price_in_cents: -discount,
+                        company_fee_in_cents: 0,
+                        client_fee_in_cents: 0,
+                        parent_id: Some(self.id),
                     }
+                    .commit(conn)?;
                 }
+            } else {
+                if let Some(di) = discount_item {
+                    order.destroy_item(di.id, conn)?;
+                }
+            }
+        } else if let Some(hold_id) = self.hold_id {
+            let h = Hold::find(hold_id, conn)?;
+
+            let hold_type = h.hold_type;
+            let discount = match hold_type {
+                HoldTypes::Discount => {
+                    cmp::min(h.discount_in_cents.unwrap_or(0), self.unit_price_in_cents)
+                }
+                HoldTypes::Comp => self.unit_price_in_cents,
+            };
+            if let Some(mut di) = discount_item {
+                di.quantity = self.quantity;
+                di.unit_price_in_cents = -discount;
+                di.update(conn)?;
+            } else {
+                NewDiscountOrderItem {
+                    order_id: self.order_id,
+                    item_type: OrderItemTypes::Discount,
+                    event_id: self.event_id,
+                    quantity: self.quantity,
+                    unit_price_in_cents: -discount,
+                    company_fee_in_cents: 0,
+                    client_fee_in_cents: 0,
+                    parent_id: Some(self.id),
+                }
+                .commit(conn)?;
             }
         } else if let Some(di) = discount_item {
             order.destroy_item(di.id, conn)?;
@@ -475,7 +499,8 @@ impl OrderItem {
              WHEN c.id IS NOT NULL AND c.end_date < now() THEN 'CodeExpired'
              WHEN h.id IS NOT NULL AND h.end_at < now() THEN 'HoldExpired'
              ELSE 'Valid'
-           END AS cart_item_status
+           END AS cart_item_status,
+           e.id AS event_id
         FROM order_items oi
            JOIN orders o ON oi.order_id = o.id
            LEFT JOIN ticket_pricing tp ON tp.id = oi.ticket_pricing_id
@@ -484,6 +509,7 @@ impl OrderItem {
            LEFT JOIN organization_users ou ON ou.organization_id = e.organization_id and ou.user_id = $3
            LEFT JOIN ticket_types tt ON tp.ticket_type_id = tt.id
            LEFT JOIN holds h ON oi.hold_id = h.id
+           LEFT JOIN event_users ep ON u.id = ep.user_id and ep.event_id = e.id
            LEFT JOIN ticket_instances ti ON ti.id = (
                SELECT ti.id
                FROM ticket_instances ti
@@ -512,11 +538,8 @@ impl OrderItem {
             'Admin' = ANY(u.role)
             OR o.user_id = $3
             OR o.on_behalf_of_user_id = $3
-            OR (
-                NOT 'Promoter' = ANY(ou.role)
-                AND NOT 'PromoterReadOnly' = ANY(ou.role)
-            )
-            OR e.id = ANY(ou.event_ids)
+            OR (NOT 'Promoter' = ANY(ou.role))
+            OR ep.id is not null
         )
         ORDER BY oi.item_type DESC
         "#,
@@ -689,4 +712,6 @@ pub struct DisplayOrderItem {
     #[serde(skip_deserializing)]
     #[sql_type = "Nullable<Text>"]
     pub cart_item_status: Option<CartItemStatus>,
+    #[sql_type = "dUuid"]
+    pub event_id: Uuid,
 }

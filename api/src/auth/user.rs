@@ -1,7 +1,8 @@
 use actix_web::{HttpRequest, Result};
 use bigneon_db::models::User as DbUser;
-use bigneon_db::models::{Event, Order, Organization, Roles, Scopes};
+use bigneon_db::models::{scopes, Event, EventUser, Order, Organization, Roles, Scopes};
 use bigneon_db::prelude::errors::EnumParseError;
+use bigneon_db::prelude::Optional;
 use diesel::PgConnection;
 use errors::*;
 use extractors::OptionalUser;
@@ -66,29 +67,29 @@ impl User {
             logging_data.insert("organization_scopes", json!(organization_scopes));
             logging_data.insert("organization_id", json!(organization.id));
 
-            if organization_scopes.contains(&scope) {
-                // User is an event limited access user so their organization event ids must include this event
-                if event_id.is_some() {
-                    // If the user's roles include an event limited role
-                    let user_roles = organization.get_roles_for_user(&self.user, connection)?;
-                    if Roles::get_event_limited_roles()
-                        .iter()
-                        .find(|r| user_roles.contains(&r))
-                        .is_some()
-                    {
-                        if self
-                            .user
-                            .get_event_ids_for_organization(organization.id, connection)?
-                            .contains(&event_id.unwrap())
-                        {
+            if let Some(event_id) = event_id {
+                // If the user's roles include an event limited role
+                let user_roles = organization.get_roles_for_user(&self.user, connection)?;
+                if Roles::get_event_limited_roles()
+                    .iter()
+                    .find(|r| user_roles.contains(&r))
+                    .is_some()
+                {
+                    let event_user =
+                        EventUser::find_by_event_id_user_id(event_id, self.id(), connection)
+                            .optional()?;
+                    if let Some(event_user) = event_user {
+                        let scopes = scopes::get_scopes(vec![event_user.role]);
+
+                        if scopes.contains(&scope) {
                             return Ok(true);
                         }
-                    } else {
-                        return Ok(true);
                     }
-                } else {
+                } else if organization_scopes.contains(&scope) {
                     return Ok(true);
                 }
+            } else if organization_scopes.contains(&scope) {
+                return Ok(true);
             }
         }
 

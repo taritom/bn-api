@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use diesel;
 use diesel::expression::dsl;
 use diesel::prelude::*;
+use diesel::sql_types::Bool;
 use models::users::User;
 use models::*;
 use schema::{organization_users, organizations, venues};
@@ -188,7 +189,7 @@ impl Venue {
                     organization_users::user_id
                         .eq(u.id)
                         .or(venues::is_private.eq(false))
-                        .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(u.is_admin())),
+                        .or(dsl::sql("TRUE = ").bind::<Bool, _>(u.is_admin())),
                 )
                 .order_by(venues::name)
                 .select(venues::all_columns)
@@ -204,16 +205,16 @@ impl Venue {
     }
 
     pub fn find_for_organization(
-        user_id: Option<Uuid>,
+        user: Option<&User>,
         organization_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<Venue>, DatabaseError> {
-        let query = match user_id {
+        let query = match user {
             Some(u) => venues::table
                 .left_join(
                     organization_users::table.on(venues::organization_id
                         .eq(organization_users::organization_id.nullable())
-                        .and(organization_users::user_id.eq(u))),
+                        .and(organization_users::user_id.eq(u.id))),
                 )
                 .left_join(
                     organizations::table
@@ -221,8 +222,9 @@ impl Venue {
                 )
                 .filter(
                     organization_users::user_id
-                        .eq(u)
-                        .or(venues::is_private.eq(false)),
+                        .eq(u.id)
+                        .or(venues::is_private.eq(false))
+                        .or(dsl::sql("TRUE = ").bind::<Bool, _>(u.is_admin())),
                 )
                 .filter(venues::organization_id.eq(organization_id))
                 .order_by(venues::name)

@@ -15,4 +15,6 @@ pub struct DisplayFan {
     pub first_order_time: Option<NaiveDateTime>,
     pub last_order_time: Option<NaiveDateTime>,
     pub revenue_in_cents: Option<i64>,
+    pub first_interaction_time: Option<NaiveDateTime>,
+    pub last_interaction_time: Option<NaiveDateTime>,
 }

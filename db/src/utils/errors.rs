@@ -6,9 +6,11 @@ use diesel::result::QueryResult;
 use log::Level;
 use regex;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde_json::Error as SerdeError;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use std::io::Error as IoError;
 use tari_client::TariError;
 use validator::{ValidationError, ValidationErrors};
 use validators::create_validation_error;
@@ -96,6 +98,26 @@ impl fmt::Display for EnumParseError {
 }
 
 impl Error for EnumParseError {
+    fn description(&self) -> &str {
+        &self.message
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ParseError {
+    pub message: String,
+    pub input: String,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}\nInput: {}", self.message, self.input)?;
+
+        Ok(())
+    }
+}
+
+impl Error for ParseError {
     fn description(&self) -> &str {
         &self.message
     }
@@ -263,11 +285,30 @@ impl From<EnumParseError> for DatabaseError {
     }
 }
 
+impl From<ParseError> for DatabaseError {
+    fn from(e: ParseError) -> Self {
+        DatabaseError::new(ErrorCode::ParseError, Some(e.to_string()))
+    }
+}
+
+impl From<SerdeError> for DatabaseError {
+    fn from(e: SerdeError) -> Self {
+        DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
+    }
+}
+
 impl From<TariError> for DatabaseError {
     fn from(e: TariError) -> Self {
         DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
     }
 }
+
+impl From<IoError> for DatabaseError {
+    fn from(e: IoError) -> Self {
+        DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))
+    }
+}
+
 impl From<regex::Error> for DatabaseError {
     fn from(e: regex::Error) -> Self {
         DatabaseError::new(ErrorCode::InternalError, Some(e.to_string()))

@@ -1,7 +1,7 @@
 use actix_web::http;
 use actix_web::middleware::cors::Cors;
 use actix_web::{server, App};
-
+use bigneon_db::utils::errors::DatabaseError;
 use config::Config;
 use db::*;
 use domain_events::DomainActionMonitor;
@@ -22,13 +22,17 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: Config, database: Database, database_ro: Database) -> AppState {
-        AppState {
+    pub fn new(
+        config: Config,
+        database: Database,
+        database_ro: Database,
+    ) -> Result<AppState, DatabaseError> {
+        Ok(AppState {
             database,
             database_ro,
-            service_locator: ServiceLocator::new(&config),
+            service_locator: ServiceLocator::new(&config)?,
             config,
-        }
+        })
     }
 }
 pub struct Server {
@@ -71,11 +75,10 @@ impl Server {
             //            let keep_alive = server::KeepAlive::Tcp(config.http_keep_alive);
             let mut server = server::new({
                 move || {
-                    App::with_state(AppState::new(
-                        conf.clone(),
-                        database.clone(),
-                        database_ro.clone(),
-                    ))
+                    App::with_state(
+                        AppState::new(conf.clone(), database.clone(), database_ro.clone())
+                            .expect("Expected to generate app state"),
+                    )
                     .middleware(BigNeonLogger::new(LOGGER_FORMAT))
                     .middleware(DatabaseTransaction::new())
                     .middleware(AppVersionHeader::new())

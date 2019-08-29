@@ -55,12 +55,10 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
     )
     .unwrap();
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
         .unwrap();
-    transfer
-        .add_transfer_ticket(ticket.id, user.id, &None, connection)
-        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
     transfer.update_associated_orders(connection).unwrap();
     transfer
         .update(
@@ -71,11 +69,11 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
             connection,
         )
         .unwrap();
-    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
         .unwrap();
     transfer2
-        .add_transfer_ticket(ticket2.id, user.id, &None, connection)
+        .add_transfer_ticket(ticket2.id, connection)
         .unwrap();
     transfer2.update_associated_orders(connection).unwrap();
 
@@ -166,12 +164,10 @@ pub fn cancel(role: Roles, owns_order: bool, should_succeed: bool) {
     )
     .unwrap();
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
         .unwrap();
-    transfer
-        .add_transfer_ticket(ticket.id, user.id, &None, connection)
-        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
     transfer.update_associated_orders(connection).unwrap();
 
     let auth_user = if owns_order {

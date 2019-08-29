@@ -2,11 +2,14 @@ use chrono::prelude::*;
 use chrono::Utc;
 use chrono_tz::Tz;
 use diesel;
+use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Bool, Date, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{
+    BigInt, Bool, Date, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid,
+};
 use log::Level;
 use models::*;
 use regex::Regex;
@@ -18,6 +21,7 @@ use schema::{
 use serde::Deserializer;
 use serde_json::Value;
 use serde_with::rust::double_option;
+use services::*;
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -32,9 +36,9 @@ use validator::{Validate, ValidationErrors};
 use validators;
 use validators::*;
 
-#[derive(Associations, Identifiable, Queryable, AsChangeset)]
+#[derive(Associations, Identifiable, Queryable)]
 #[belongs_to(Organization)]
-#[derive(Clone, QueryableByName, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 #[belongs_to(Venue)]
 #[table_name = "events"]
 pub struct Event {
@@ -48,7 +52,6 @@ pub struct Event {
     pub status: EventStatus,
     pub publish_date: Option<NaiveDateTime>,
     pub redeem_date: Option<NaiveDateTime>,
-    pub fee_in_cents: i64,
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub age_limit: Option<String>,
@@ -59,8 +62,8 @@ pub struct Event {
     pub is_external: bool,
     pub external_url: Option<String>,
     pub override_status: Option<EventOverrideStatus>,
-    pub client_fee_in_cents: i64,
-    pub company_fee_in_cents: i64,
+    pub client_fee_in_cents: Option<i64>,
+    pub company_fee_in_cents: Option<i64>,
     pub settlement_amount_in_cents: Option<i64>,
     pub event_end: Option<NaiveDateTime>,
     pub sendgrid_list_id: Option<i64>,
@@ -69,6 +72,8 @@ pub struct Event {
     pub private_access_code: Option<String>,
     pub slug: String,
     pub facebook_pixel_key: Option<String>,
+    pub deleted_at: Option<NaiveDateTime>,
+    pub extra_admin_data: Option<Value>,
 }
 
 impl PartialOrd for Event {
@@ -145,6 +150,7 @@ pub struct NewEvent {
 
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_pixel_key: Option<String>,
+    pub extra_admin_data: Option<Value>,
 }
 
 impl NewEvent {
@@ -154,7 +160,6 @@ impl NewEvent {
         conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
         self.validate()?;
-        let organization = Organization::find(self.organization_id, conn)?;
         let mut new_event = self.clone();
 
         match new_event.event_start {
@@ -197,13 +202,7 @@ impl NewEvent {
         }
 
         let result: Event = diesel::insert_into(events::table)
-            .values((
-                &new_event,
-                events::fee_in_cents.eq(organization.client_event_fee_in_cents
-                    + organization.company_event_fee_in_cents),
-                events::client_fee_in_cents.eq(organization.client_event_fee_in_cents),
-                events::company_fee_in_cents.eq(organization.company_event_fee_in_cents),
-            ))
+            .values(&new_event)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new event")?;
 
@@ -317,6 +316,44 @@ pub struct EventLocalizedTimeStrings {
 }
 
 impl Event {
+    pub fn eligible_for_deletion(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        // An event is ineligible for deletion if it is present in any cart
+        Ok(self.deleted_at.is_none()
+            && !select(exists(
+                order_items::table.filter(order_items::event_id.eq(Some(self.id))),
+            ))
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not check event for deletion eligibility",
+            )?)
+    }
+
+    pub fn delete(self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
+        if !&self.eligible_for_deletion(conn)? {
+            return DatabaseError::business_process_error("Event is ineligible for deletion");
+        }
+
+        diesel::update(&self)
+            .set((
+                events::deleted_at.eq(dsl::now.nullable()),
+                events::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not delete event")?;
+
+        DomainEvent::create(
+            DomainEventTypes::EventDeleted,
+            "Event deleted".to_string(),
+            Tables::Events,
+            Some(self.id),
+            Some(user_id),
+            None,
+        )
+        .commit(conn)?;
+        Ok(())
+    }
+
     pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
         genres::table
             .inner_join(event_genres::table.on(event_genres::genre_id.eq(genres::id)))
@@ -406,7 +443,7 @@ impl Event {
         conn: &PgConnection,
     ) -> Result<Event, DatabaseError> {
         attributes.validate()?;
-
+        let previous_start = self.event_start;
         let mut event = attributes;
 
         if event.private_access_code.is_some() {
@@ -425,7 +462,6 @@ impl Event {
             }
         }
 
-        let previous_start = self.event_start;
         let event_start = match event.event_start {
             Some(e) => Some(e.clone()),
             None => self.event_start,
@@ -830,20 +866,57 @@ impl Event {
         )
     }
 
+    pub fn find_incl_org_venue_fees(
+        id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<(Event, Organization, Option<Venue>, FeeSchedule), DatabaseError> {
+        use schema::*;
+        let res: (Event, Organization, Option<Venue>, FeeSchedule) = events::table
+            .inner_join(organizations::table.inner_join(fee_schedules::table))
+            .left_join(venues::table)
+            .filter(events::id.eq(id))
+            .filter(events::deleted_at.is_null())
+            .select((
+                events::all_columns,
+                organizations::all_columns,
+                venues::all_columns.nullable(),
+                fee_schedules::all_columns,
+            ))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading event")
+            .expect_single()?;
+        Ok(res)
+    }
+
     pub fn find_by_ids(ids: Vec<Uuid>, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
         events::table
+            .filter(events::deleted_at.is_null())
             .filter(events::id.eq_any(ids))
             .order_by(events::name)
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading events")
     }
 
-    pub fn find_by_slug(slug: &str, conn: &PgConnection) -> Result<Event, DatabaseError> {
-        events::table
+    pub fn find_by_slug(
+        slug: &str,
+        conn: &PgConnection,
+    ) -> Result<(Event, Organization, Option<Venue>, FeeSchedule), DatabaseError> {
+        use schema::*;
+        let res: (Event, Organization, Option<Venue>, FeeSchedule) = events::table
+            .inner_join(organizations::table.inner_join(fee_schedules::table))
+            .left_join(venues::table)
+            .filter(events::deleted_at.is_null())
             .filter(events::slug.eq(slug))
-            .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not find event by slug")
-            .expect_single()
+            .select((
+                events::all_columns,
+                organizations::all_columns,
+                venues::all_columns.nullable(),
+                fee_schedules::all_columns,
+            ))
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading event")
+            .expect_single()?;
+        Ok(res)
     }
 
     pub fn cancel(
@@ -869,6 +942,13 @@ impl Event {
         Ok(event)
     }
 
+    pub fn is_published(&self) -> bool {
+        match self.publish_date {
+            None => false,
+            Some(d) => d < Utc::now().naive_utc(),
+        }
+    }
+
     pub fn get_all_events_ending_between(
         organization_id: Uuid,
         start: NaiveDateTime,
@@ -877,6 +957,7 @@ impl Event {
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
         events::table
+            .filter(events::deleted_at.is_null())
             .filter(events::organization_id.eq(organization_id))
             .filter(events::event_end.ge(start))
             .filter(events::event_end.le(end))
@@ -914,7 +995,7 @@ impl Event {
      */
     pub fn get_all_localized_time_strings(
         &self,
-        venue: &Option<Venue>,
+        venue: Option<&Venue>,
     ) -> EventLocalizedTimeStrings {
         let event_localized_times: EventLocalizedTimes = self.get_all_localized_times(venue);
         EventLocalizedTimeStrings {
@@ -924,26 +1005,26 @@ impl Event {
         }
     }
 
-    pub fn get_all_localized_times(&self, venue: &Option<Venue>) -> EventLocalizedTimes {
+    pub fn get_all_localized_times(&self, venue: Option<&Venue>) -> EventLocalizedTimes {
         let event_localized_times: EventLocalizedTimes = EventLocalizedTimes {
-            event_start: Event::localized_time_from_venue(&self.event_start, &venue),
-            event_end: Event::localized_time_from_venue(&self.event_end, &venue),
-            door_time: Event::localized_time_from_venue(&self.door_time, &venue),
+            event_start: Event::localized_time_from_venue(self.event_start, venue),
+            event_end: Event::localized_time_from_venue(self.event_end, venue),
+            door_time: Event::localized_time_from_venue(self.door_time, venue),
         };
 
         event_localized_times
     }
 
     pub fn localized_time_from_venue(
-        utc_datetime: &Option<NaiveDateTime>,
-        venue: &Option<Venue>,
+        utc_datetime: Option<NaiveDateTime>,
+        venue: Option<&Venue>,
     ) -> Option<chrono::DateTime<Tz>> {
-        Event::localized_time(utc_datetime, &venue.clone().map(|v| v.timezone))
+        Event::localized_time(utc_datetime, venue.map(|v| v.timezone.as_str()))
     }
 
     pub fn localized_time(
-        utc_datetime: &Option<NaiveDateTime>,
-        timezone_string: &Option<String>,
+        utc_datetime: Option<NaiveDateTime>,
+        timezone_string: Option<&str>,
     ) -> Option<chrono::DateTime<Tz>> {
         if utc_datetime.is_none() || timezone_string.is_none() {
             return None;
@@ -985,6 +1066,7 @@ impl Event {
             events::table
                 .filter(events::venue_id.eq(venue_id))
                 .filter(events::status.eq(EventStatus::Published))
+                .filter(events::deleted_at.is_null())
                 .filter(events::cancelled_at.is_null())
                 .filter(events::private_access_code.is_null())
                 .order_by(events::name)
@@ -1010,7 +1092,8 @@ impl Event {
             r#"
             SELECT CAST(count(*) as bigint) as total
             FROM events e
-            WHERE e.organization_id = $1
+            WHERE e.deleted_at is null
+            AND e.organization_id = $1
             AND CASE WHEN $2
                 THEN
                     COALESCE(e.event_start, '31 Dec 9999') >= now()
@@ -1121,6 +1204,10 @@ impl Event {
             event_type: EventTypes,
             #[sql_type = "Text"]
             slug: String,
+            #[sql_type = "Nullable<Jsonb>"]
+            extra_admin_data: Option<Value>,
+            #[sql_type = "Bool"]
+            eligible_for_deletion: bool,
         }
 
         let query_events = include_str!("../queries/find_all_events_for_organization.sql");
@@ -1170,19 +1257,18 @@ impl Event {
             };
 
             let event_id = r.id;
-            let timezone = &venue.clone().map(|v| v.timezone);
+            let timezone = venue.as_ref().map(|v| v.timezone.as_ref());
             let localized_times: EventLocalizedTimeStrings = EventLocalizedTimeStrings {
-                event_start: Event::localized_time(&r.event_start, timezone)
-                    .map(|s| s.to_rfc2822()),
-                event_end: Event::localized_time(&r.event_end, timezone).map(|s| s.to_rfc2822()),
-                door_time: Event::localized_time(&r.door_time, timezone).map(|s| s.to_rfc2822()),
+                event_start: Event::localized_time(r.event_start, timezone).map(|s| s.to_rfc2822()),
+                event_end: Event::localized_time(r.event_end, timezone).map(|s| s.to_rfc2822()),
+                door_time: Event::localized_time(r.door_time, timezone).map(|s| s.to_rfc2822()),
             };
 
             let mut result = EventSummaryResult {
                 id: r.id,
                 name: r.name,
                 organization_id: r.organization_id,
-                venue,
+                venue: venue.clone(),
                 created_at: r.created_at,
                 event_start: r.event_start,
                 door_time: r.door_time,
@@ -1210,9 +1296,15 @@ impl Event {
                 localized_times,
                 event_type: r.event_type,
                 slug: r.slug,
+                eligible_for_deletion: Some(r.eligible_for_deletion),
+                extra_admin_data: r.extra_admin_data,
             };
 
-            for ticket_type in ticket_types.iter().filter(|tt| tt.event_id == event_id) {
+            for ticket_type in ticket_types.iter().filter(|tt| {
+                tt.event_id == event_id
+                    && !(tt.status == TicketTypeStatus::Cancelled
+                        && tt.sold_held.unwrap_or(0) + tt.sold_unreserved.unwrap_or(0) == 0)
+            }) {
                 let mut ticket_type = ticket_type.clone();
                 ticket_type.sales_total_in_cents =
                     Some(ticket_type.sales_total_in_cents.unwrap_or(0));
@@ -1528,7 +1620,9 @@ impl Event {
         sort_direction: SortingDir,
         user: Option<User>,
         past_or_upcoming: PastOrUpcoming,
+        event_type: Option<EventTypes>,
         paging: &Paging,
+        country_service: &CountryLookup,
         conn: &PgConnection,
     ) -> Result<(Vec<Event>, i64), DatabaseError> {
         let sort_column = match sort_field {
@@ -1538,10 +1632,47 @@ impl Event {
         let (start_time, end_time) =
             Event::dates_by_past_or_upcoming(start_time, end_time, past_or_upcoming);
 
-        let query_like = match query_filter {
-            Some(n) => format!("%{}%", text::escape_control_chars(&n)),
+        let query_like = match query_filter.clone() {
+            Some(n) => format!("%{}%", text::escape_control_chars(&n.trim())),
             None => "%".to_string(),
         };
+        let query_escaped = query_filter.map(|q| {
+            text::escape_control_chars(&q)
+                .split(|c| c == ' ')
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<&str>>()
+                .join(" ")
+        });
+
+        let mut venue_location_searches: Vec<(Option<String>, Option<StateDatum>, CountryDatum)> =
+            Vec::new();
+        if let Some(query_escaped) = query_escaped.clone() {
+            if let Ok(data) = country_service.parse_city_state_country(&query_escaped.clone()) {
+                for (city, state, country) in data {
+                    if let Some(country) = country {
+                        venue_location_searches.push((city, state, country));
+                    }
+                }
+            }
+            let mut default_country: Option<CountryDatum> = None;
+            if let Some(user) = &user {
+                if let Some(country) = user.country(conn)?.clone() {
+                    default_country = country_service.find(&country);
+                }
+            }
+            // Default to US for country state search
+            default_country = default_country.or_else(|| country_service.find("US"));
+            if let Some(default_country) = default_country {
+                if let Ok(data) = default_country.parse_city_state(&query_escaped.clone()) {
+                    for (city, state) in data {
+                        venue_location_searches.push((city, state, default_country.clone()));
+                    }
+                }
+            }
+            venue_location_searches.sort();
+            venue_location_searches.dedup();
+        }
+
         let mut query = events::table
             .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
             .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
@@ -1561,22 +1692,66 @@ impl Event {
             .filter(
                 events::name
                     .ilike(query_like.clone())
-                    .or(sql("(")
-                        .bind(
-                            venues::id
-                                .is_not_null()
-                                .and(venues::name.ilike(query_like.clone())),
-                        )
-                        .sql(")"))
+                    .or(venues::name.ilike(query_like.clone()))
+                    .or(venues::city.ilike(query_escaped.clone().unwrap_or("%".to_string())))
+                    .or(venues::state.ilike(query_escaped.clone().unwrap_or("%".to_string())))
+                    .or(venues::country.ilike(query_escaped.clone().unwrap_or("%".to_string())))
                     .or(artists::id.is_not_null()),
             )
-            .filter(events::event_end.ge(start_time))
-            .filter(events::event_end.le(end_time))
-            .select(events::all_columns)
-            .distinct()
-            .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
-            .then_order_by(events::name.asc())
             .into_boxed();
+
+        if venue_location_searches.len() > 0 {
+            for (city, state, country) in venue_location_searches {
+                query =
+                    query
+                        .or_filter(
+                            venues::city
+                                .ilike(city.clone().unwrap_or("%".to_string()))
+                                .and(venues::state.ilike(
+                                    state.clone().map(|s| s.name).unwrap_or("%".to_string()),
+                                ))
+                                .and(venues::country.ilike(country.clone().name)),
+                        )
+                        .or_filter(
+                            venues::city
+                                .ilike(city.clone().unwrap_or("%".to_string()))
+                                .and(
+                                    venues::state.ilike(
+                                        state
+                                            .clone()
+                                            .map(|s| s.code.unwrap_or("%".to_string()))
+                                            .unwrap_or("%".to_string()),
+                                    ),
+                                )
+                                .and(venues::country.ilike(country.clone().name)),
+                        )
+                        .or_filter(
+                            venues::city
+                                .ilike(city.clone().unwrap_or("%".to_string()))
+                                .and(
+                                    venues::state.ilike(
+                                        state
+                                            .clone()
+                                            .map(|s| s.code.unwrap_or("%".to_string()))
+                                            .unwrap_or("%".to_string()),
+                                    ),
+                                )
+                                .and(venues::country.ilike(country.clone().code)),
+                        )
+                        .or_filter(
+                            venues::city
+                                .ilike(city.clone().unwrap_or("%".to_string()))
+                                .and(venues::state.ilike(
+                                    state.clone().map(|s| s.name).unwrap_or("%".to_string()),
+                                ))
+                                .and(venues::country.ilike(country.clone().code)),
+                        );
+            }
+        }
+
+        if let Some(event_type) = event_type {
+            query = query.filter(events::event_type.eq(event_type))
+        }
 
         match user {
             Some(user) => {
@@ -1634,6 +1809,13 @@ impl Event {
         }
 
         let result = query
+            .filter(events::event_end.ge(start_time))
+            .filter(events::event_end.le(end_time))
+            .filter(events::deleted_at.is_null())
+            .select(events::all_columns)
+            .distinct()
+            .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
+            .then_order_by(events::name.asc())
             .paginate(paging.page as i64)
             .per_page(paging.limit as i64)
             .load_and_count_pages(conn);
@@ -1770,10 +1952,11 @@ impl Event {
     pub fn activity_summary(
         &self,
         user_id: Uuid,
+        activity_type: Option<ActivityType>,
         conn: &PgConnection,
     ) -> Result<ActivitySummary, DatabaseError> {
         Ok(ActivitySummary {
-            activity_items: ActivityItem::load_for_event(self.id, user_id, conn)?,
+            activity_items: ActivityItem::load_for_event(self.id, user_id, activity_type, conn)?,
             event: self.for_display(conn)?,
         })
     }
@@ -1785,7 +1968,7 @@ impl Event {
         let artists = self.artists(conn)?;
         let genres = self.genres(conn)?;
 
-        let localized_times = self.get_all_localized_time_strings(&venue);
+        let localized_times = self.get_all_localized_time_strings(venue.as_ref());
         let (min_ticket_price, max_ticket_price) =
             self.current_ticket_pricing_range(false, conn)?;
         Ok(DisplayEvent {
@@ -1870,6 +2053,9 @@ pub struct EventSummaryResult {
     pub localized_times: EventLocalizedTimeStrings,
     pub event_type: EventTypes,
     pub slug: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eligible_for_deletion: Option<bool>,
+    pub extra_admin_data: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]
@@ -1878,6 +2064,8 @@ pub struct EventSummaryResultTicketType {
     pub(crate) event_id: Uuid,
     #[sql_type = "Text"]
     pub name: String,
+    #[sql_type = "Text"]
+    pub status: TicketTypeStatus,
     #[sql_type = "BigInt"]
     pub min_price: i64,
     #[sql_type = "BigInt"]

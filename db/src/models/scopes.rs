@@ -17,6 +17,7 @@ pub enum Scopes {
     DashboardRead,
     EventBroadcast,
     EventCancel,
+    EventDelete,
     EventFinancialReports,
     EventInterest,
     EventReports,
@@ -32,6 +33,7 @@ pub enum Scopes {
     OrderRead,
     OrderReadOwn,
     OrderRefund,
+    OrderResendConfirmation,
     OrgAdmin,
     OrgAdminUsers,
     OrgFans,
@@ -80,6 +82,7 @@ impl fmt::Display for Scopes {
             Scopes::DashboardRead => "dashboard:read",
             Scopes::EventBroadcast => "event:broadcast",
             Scopes::EventCancel => "event:cancel",
+            Scopes::EventDelete => "event:delete",
             Scopes::EventWrite => "event:write",
             Scopes::EventFinancialReports => "event:financial-reports",
             Scopes::EventInterest => "event:interest",
@@ -95,6 +98,7 @@ impl fmt::Display for Scopes {
             Scopes::OrderMakeExternalPayment => "order:make-external-payment",
             Scopes::OrderReadOwn => "order:read-own",
             Scopes::OrderRefund => "order:refund",
+            Scopes::OrderResendConfirmation => "order:resend-confirmation",
             Scopes::OrgAdmin => "org:admin",
             Scopes::OrgRead => "org:read",
             Scopes::OrgReadEvents => "org:read-events",
@@ -139,6 +143,7 @@ impl FromStr for Scopes {
             "dashboard:read" => Scopes::DashboardRead,
             "event:broadcast" => Scopes::EventBroadcast,
             "event:cancel" => Scopes::EventCancel,
+            "event:delete" => Scopes::EventDelete,
             "event:write" => Scopes::EventWrite,
             "event:financial-reports" => Scopes::EventFinancialReports,
             "event:interest" => Scopes::EventInterest,
@@ -154,6 +159,7 @@ impl FromStr for Scopes {
             "order:make-external-payment" => Scopes::OrderMakeExternalPayment,
             "order:read-own" => Scopes::OrderReadOwn,
             "order:refund" => Scopes::OrderRefund,
+            "order:resend-confirmation" => Scopes::OrderResendConfirmation,
             "org:admin" => Scopes::OrgAdmin,
             "org:read" => Scopes::OrgRead,
             "org:read-events" => Scopes::OrgReadEvents,
@@ -204,7 +210,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
     use models::Roles::*;
     let mut roles = match role {
         User => {
-            let mut roles = vec![
+            let roles = vec![
                 Scopes::EventInterest,
                 Scopes::OrderReadOwn,
                 Scopes::TicketTransfer,
@@ -215,7 +221,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         DoorPerson => {
-            let mut roles = vec![
+            let roles = vec![
                 Scopes::RedeemTicket,
                 Scopes::OrgReadEvents,
                 Scopes::HoldRead,
@@ -226,6 +232,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::EventViewGuests,
                 Scopes::CodeRead,
                 Scopes::OrderRead,
+                Scopes::OrderResendConfirmation,
                 Scopes::DashboardRead,
             ];
             roles
@@ -240,7 +247,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles
         }
         PromoterReadOnly => {
-            let mut roles = vec![
+            let roles = vec![
                 Scopes::CodeRead,
                 Scopes::CompRead,
                 Scopes::DashboardRead,
@@ -249,6 +256,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::HoldRead,
                 Scopes::NoteRead,
                 Scopes::OrderRead,
+                Scopes::OrderResendConfirmation,
                 Scopes::OrgReadEvents,
                 Scopes::TicketRead,
                 Scopes::TicketTypeRead,
@@ -263,6 +271,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 // Scopes::EventFinancialReports,
                 // Scopes::EventReports,
                 // To be updated later
+                Scopes::EventDelete,
                 Scopes::EventWrite,
                 Scopes::NoteWrite,
                 Scopes::TicketTypeRead,
@@ -285,6 +294,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::CompWrite,
                 Scopes::DashboardRead,
                 Scopes::EventCancel,
+                Scopes::EventDelete,
                 Scopes::EventScan,
                 Scopes::EventViewGuests,
                 Scopes::EventWrite,
@@ -294,6 +304,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::NoteWrite,
                 Scopes::OrderRead,
                 Scopes::OrderRefund,
+                Scopes::OrderResendConfirmation,
                 Scopes::OrgRead,
                 Scopes::OrgReadEvents,
                 Scopes::OrgFans,
@@ -339,6 +350,11 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             roles.extend(get_scopes_for_role(OrgOwner));
             roles
         }
+        Super => {
+            let mut roles = vec![];
+            roles.extend(get_scopes_for_role(Admin));
+            roles
+        }
     };
     roles.sort();
     roles.dedup();
@@ -361,6 +377,7 @@ fn get_scopes_for_role_test() {
             Scopes::DashboardRead,
             Scopes::EventBroadcast,
             Scopes::EventCancel,
+            Scopes::EventDelete,
             Scopes::EventFinancialReports,
             Scopes::EventInterest,
             Scopes::EventReports,
@@ -376,6 +393,7 @@ fn get_scopes_for_role_test() {
             Scopes::OrderRead,
             Scopes::OrderReadOwn,
             Scopes::OrderRefund,
+            Scopes::OrderResendConfirmation,
             Scopes::OrgAdminUsers,
             Scopes::OrgFans,
             Scopes::OrgRead,
@@ -426,6 +444,7 @@ fn get_scopes_test() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:delete",
             "event:financial-reports",
             "event:interest",
             "event:reports",
@@ -441,6 +460,7 @@ fn get_scopes_test() {
             "order:read",
             "order:read-own",
             "order:refund",
+            "order:resend-confirmation",
             "org:admin-users",
             "org:fans",
             "org:read",
@@ -482,6 +502,7 @@ fn get_scopes_test() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:delete",
             "event:financial-reports",
             "event:interest",
             "event:reports",
@@ -497,6 +518,7 @@ fn get_scopes_test() {
             "order:read",
             "order:read-own",
             "order:refund",
+            "order:resend-confirmation",
             "org:admin",
             "org:admin-users",
             "org:fans",
@@ -541,6 +563,7 @@ fn get_scopes_test() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:delete",
             "event:financial-reports",
             "event:interest",
             "event:reports",
@@ -556,6 +579,7 @@ fn get_scopes_test() {
             "order:read",
             "order:read-own",
             "order:refund",
+            "order:resend-confirmation",
             "org:admin",
             "org:admin-users",
             "org:fans",

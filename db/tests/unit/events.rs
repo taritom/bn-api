@@ -1,5 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
+use bigneon_db::services::CountryLookup;
 use bigneon_db::utils::dates;
 use chrono::prelude::*;
 use chrono::Duration;
@@ -7,248 +8,38 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 #[test]
-fn activity_summary() {
+fn eligible_for_deletion() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let user = project.create_user().finish();
-    let user2 = project.create_user().finish();
-    let user3 = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
     let event = project
         .create_event()
-        .with_organization(&organization)
         .with_ticket_type_count(1)
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let event2 = project.create_event().with_ticket_pricing().finish();
-    let hold = project
-        .create_hold()
-        .with_hold_type(HoldTypes::Discount)
-        .with_quantity(10)
-        .with_ticket_type_id(event.ticket_types(true, None, connection).unwrap()[0].id)
-        .finish();
-    let code = project
-        .create_code()
-        .with_event(&event2)
-        .with_code_type(CodeTypes::Discount)
-        .for_ticket_type(&event2.ticket_types(true, None, connection).unwrap()[0])
-        .with_discount_in_cents(Some(10))
-        .finish();
-    project
-        .create_order()
-        .for_event(&event)
-        .on_behalf_of_user(&user)
-        .for_user(&user3)
-        .quantity(2)
-        .with_redemption_code(hold.redemption_code.clone().unwrap())
-        .is_paid()
-        .finish();
-    project
-        .create_order()
-        .for_event(&event2)
-        .for_user(&user)
-        .quantity(3)
-        .with_redemption_code(code.redemption_code.clone())
-        .is_paid()
-        .finish();
+    assert!(event.eligible_for_deletion(connection).unwrap());
 
-    assert_eq!(
-        event.activity_summary(user.id, connection).unwrap(),
-        ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user.id, connection).unwrap(),
-            event: event.for_display(connection).unwrap(),
-        }
-    );
-    assert_eq!(
-        event.activity_summary(user2.id, connection).unwrap(),
-        ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user2.id, connection).unwrap(),
-            event: event.for_display(connection).unwrap(),
-        }
-    );
-    assert_eq!(
-        event.activity_summary(user3.id, connection).unwrap(),
-        ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user3.id, connection).unwrap(),
-            event: event.for_display(connection).unwrap(),
-        }
-    );
-    assert_eq!(
-        event2.activity_summary(user.id, connection).unwrap(),
-        ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user.id, connection).unwrap(),
-            event: event2.for_display(connection).unwrap(),
-        }
-    );
-    assert_eq!(
-        event2.activity_summary(user2.id, connection).unwrap(),
-        ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user2.id, connection).unwrap(),
-            event: event2.for_display(connection).unwrap(),
-        }
-    );
-    assert_eq!(
-        event2.activity_summary(user3.id, connection).unwrap(),
-        ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user3.id, connection).unwrap(),
-            event: event2.for_display(connection).unwrap(),
-        }
-    );
-}
-
-#[test]
-fn genres() {
-    let project = TestProject::new();
-    let connection = project.get_connection();
-    let creator = project.create_user().finish();
-    let artist = project
-        .create_artist()
-        .with_name("Artist 1".to_string())
-        .finish();
-    let artist2 = project
-        .create_artist()
-        .with_name("Artist 2".to_string())
-        .finish();
-
-    let event = project.create_event().finish();
-    let event2 = project.create_event().finish();
-    project
-        .create_event_artist()
-        .with_event(&event)
-        .with_artist(&artist)
-        .finish();
-    project
-        .create_event_artist()
-        .with_event(&event)
-        .with_artist(&artist2)
-        .finish();
-    project
-        .create_event_artist()
-        .with_event(&event2)
-        .with_artist(&artist2)
-        .finish();
-
-    // No genres set
-    assert!(event.update_genres(Some(creator.id), connection).is_ok());
-    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
-
-    assert!(artist.genres(connection).unwrap().is_empty());
-    assert!(artist2.genres(connection).unwrap().is_empty());
-    assert!(event.genres(connection).unwrap().is_empty());
-    assert!(event2.genres(connection).unwrap().is_empty());
-
-    artist
-        .set_genres(
-            &vec![
-                "emo".to_string(),
-                "test".to_string(),
-                "Hard Rock".to_string(),
-            ],
-            None,
-            connection,
-        )
-        .unwrap();
-    assert!(event.update_genres(Some(creator.id), connection).is_ok());
-    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
-
-    assert_eq!(
-        artist.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert!(artist2.genres(connection).unwrap().is_empty());
-    assert_eq!(
-        event.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert!(event2.genres(connection).unwrap().is_empty());
-
-    artist2
-        .set_genres(
-            &vec!["emo".to_string(), "happy".to_string()],
-            None,
-            connection,
-        )
-        .unwrap();
-    assert!(event.update_genres(Some(creator.id), connection).is_ok());
-    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
-
-    assert_eq!(
-        artist.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert_eq!(
-        artist2.genres(connection).unwrap(),
-        vec!["emo".to_string(), "happy".to_string()]
-    );
-    assert_eq!(
-        event.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "happy".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
-    );
-    assert_eq!(
-        event2.genres(connection).unwrap(),
-        vec!["emo".to_string(), "happy".to_string()]
-    );
-}
-
-#[test]
-fn pending_transfers() {
-    let project = TestProject::new();
-    let connection = project.get_connection();
+    // In a cart so no longer eligible for deletion
     let user = project.create_user().finish();
-    let event = project.create_event().with_ticket_pricing().finish();
-    project
-        .create_order()
-        .for_user(&user)
-        .for_event(&event)
-        .quantity(2)
-        .is_paid()
-        .finish();
-    let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
-        .unwrap();
-    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
-        .unwrap();
-    assert_eq!(event.pending_transfers(connection).unwrap().len(), 0);
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    assert!(!event.eligible_for_deletion(connection).unwrap());
+    cart.clear_cart(user.id, connection).unwrap();
 
-    transfer
-        .add_transfer_ticket(tickets[0].id, user.id, &None, connection)
-        .unwrap();
-    assert_equiv!(
-        event.pending_transfers(connection).unwrap(),
-        [transfer.clone()]
-    );
-
-    transfer2
-        .add_transfer_ticket(tickets[1].id, user.id, &None, connection)
-        .unwrap();
-    assert_equiv!(
-        event.pending_transfers(connection).unwrap(),
-        [transfer, transfer2]
-    );
+    // Cleared the cart which removed the last link to this event
+    assert!(event.eligible_for_deletion(connection).unwrap());
 }
 
 #[test]
@@ -670,6 +461,319 @@ fn next_drip_date_staging() {
     };
     event.update(None, parameters, connection).unwrap();
     assert!(event.next_drip_date(Environment::Staging).is_none());
+}
+
+#[test]
+fn delete() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event_id = event.id;
+    let domain_events = DomainEvent::find(
+        Tables::Events,
+        Some(event_id),
+        Some(DomainEventTypes::EventDeleted),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+
+    assert!(event.delete(user.id, connection).is_ok());
+    let domain_events = DomainEvent::find(
+        Tables::Events,
+        Some(event_id),
+        Some(DomainEventTypes::EventDeleted),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+
+    let event = Event::find(event_id, connection).unwrap();
+    assert!(event.deleted_at.is_some());
+
+    // Already deleted
+    assert!(event.delete(user.id, connection).is_err());
+
+    // Can't delete as event has associated order
+    let event = project
+        .create_event()
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 1,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    assert!(event.delete(user.id, connection).is_err());
+}
+
+#[test]
+fn activity_summary() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let event2 = project.create_event().with_ticket_pricing().finish();
+    let hold = project
+        .create_hold()
+        .with_hold_type(HoldTypes::Discount)
+        .with_quantity(10)
+        .with_ticket_type_id(event.ticket_types(true, None, connection).unwrap()[0].id)
+        .finish();
+    let code = project
+        .create_code()
+        .with_event(&event2)
+        .with_code_type(CodeTypes::Discount)
+        .for_ticket_type(&event2.ticket_types(true, None, connection).unwrap()[0])
+        .with_discount_in_cents(Some(10))
+        .finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .on_behalf_of_user(&user)
+        .for_user(&user3)
+        .quantity(2)
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .is_paid()
+        .finish();
+    project
+        .create_order()
+        .for_event(&event2)
+        .for_user(&user)
+        .quantity(3)
+        .with_redemption_code(code.redemption_code.clone())
+        .is_paid()
+        .finish();
+
+    assert_eq!(
+        event.activity_summary(user.id, None, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
+                .unwrap(),
+            event: event.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event.activity_summary(user2.id, None, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event.id, user2.id, None, connection)
+                .unwrap(),
+            event: event.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event.activity_summary(user3.id, None, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection)
+                .unwrap(),
+            event: event.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event2.activity_summary(user.id, None, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event2.id, user.id, None, connection)
+                .unwrap(),
+            event: event2.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event2.activity_summary(user2.id, None, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event2.id, user2.id, None, connection)
+                .unwrap(),
+            event: event2.for_display(connection).unwrap(),
+        }
+    );
+    assert_eq!(
+        event2.activity_summary(user3.id, None, connection).unwrap(),
+        ActivitySummary {
+            activity_items: ActivityItem::load_for_event(event2.id, user3.id, None, connection)
+                .unwrap(),
+            event: event2.for_display(connection).unwrap(),
+        }
+    );
+}
+
+#[test]
+fn genres() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let creator = project.create_user().finish();
+    let artist = project
+        .create_artist()
+        .with_name("Artist 1".to_string())
+        .finish();
+    let artist2 = project
+        .create_artist()
+        .with_name("Artist 2".to_string())
+        .finish();
+
+    let event = project.create_event().finish();
+    let event2 = project.create_event().finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist)
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event)
+        .with_artist(&artist2)
+        .finish();
+    project
+        .create_event_artist()
+        .with_event(&event2)
+        .with_artist(&artist2)
+        .finish();
+
+    // No genres set
+    assert!(event.update_genres(Some(creator.id), connection).is_ok());
+    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
+
+    assert!(artist.genres(connection).unwrap().is_empty());
+    assert!(artist2.genres(connection).unwrap().is_empty());
+    assert!(event.genres(connection).unwrap().is_empty());
+    assert!(event2.genres(connection).unwrap().is_empty());
+
+    artist
+        .set_genres(
+            &vec![
+                "emo".to_string(),
+                "test".to_string(),
+                "Hard Rock".to_string(),
+            ],
+            None,
+            connection,
+        )
+        .unwrap();
+    assert!(event.update_genres(Some(creator.id), connection).is_ok());
+    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
+
+    assert_eq!(
+        artist.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert!(artist2.genres(connection).unwrap().is_empty());
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert!(event2.genres(connection).unwrap().is_empty());
+
+    artist2
+        .set_genres(
+            &vec!["emo".to_string(), "happy".to_string()],
+            None,
+            connection,
+        )
+        .unwrap();
+    assert!(event.update_genres(Some(creator.id), connection).is_ok());
+    assert!(event2.update_genres(Some(creator.id), connection).is_ok());
+
+    assert_eq!(
+        artist.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(
+        artist2.genres(connection).unwrap(),
+        vec!["emo".to_string(), "happy".to_string()]
+    );
+    assert_eq!(
+        event.genres(connection).unwrap(),
+        vec![
+            "emo".to_string(),
+            "happy".to_string(),
+            "hard-rock".to_string(),
+            "test".to_string()
+        ]
+    );
+    assert_eq!(
+        event2.genres(connection).unwrap(),
+        vec!["emo".to_string(), "happy".to_string()]
+    );
+}
+
+#[test]
+fn pending_transfers() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    assert_eq!(event.pending_transfers(connection).unwrap().len(), 0);
+
+    transfer
+        .add_transfer_ticket(tickets[0].id, connection)
+        .unwrap();
+    assert_equiv!(
+        event.pending_transfers(connection).unwrap(),
+        [transfer.clone()]
+    );
+
+    transfer2
+        .add_transfer_ticket(tickets[1].id, connection)
+        .unwrap();
+    assert_equiv!(
+        event.pending_transfers(connection).unwrap(),
+        [transfer, transfer2]
+    );
 }
 
 #[test]
@@ -1770,23 +1874,251 @@ fn find_all_events_for_organization() {
 }
 
 #[test]
+fn search_finds_events_in_both_matching_country_and_state() {
+    // Search for MA == Morocco (Country) and Massachusetts (US State) returns events for both
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let country_lookup = CountryLookup::new().unwrap();
+    let paging: &Paging = &Paging {
+        page: 0,
+        limit: 10,
+        sort: "".to_string(),
+        dir: SortingDir::Asc,
+        total: 0,
+        tags: HashMap::new(),
+    };
+    let venue = project.create_venue().finish();
+    let venue = venue
+        .update(
+            VenueEditableAttributes {
+                state: Some("MA".to_string()),
+                country: Some("US".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    let venue2 = project.create_venue().finish();
+    let venue2 = venue2
+        .update(
+            VenueEditableAttributes {
+                country: Some("MA".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    let event = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .with_venue(&venue)
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .with_venue(&venue2)
+        .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .finish();
+
+    // Search by code
+    let all_found_events = Event::search(
+        Some("MA".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 2);
+
+    // Search by names
+    let all_found_events = Event::search(
+        Some("Massachusetts".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_found_events.0[0], event);
+    let all_found_events = Event::search(
+        Some("Morocco".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_found_events.0[0], event2);
+
+    // Update to use full names
+    venue
+        .update(
+            VenueEditableAttributes {
+                state: Some("Massachusetts".to_string()),
+                country: Some("United States".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    venue2
+        .update(
+            VenueEditableAttributes {
+                country: Some("Morocco".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+
+    // Search by country code
+    let all_found_events = Event::search(
+        Some("MA".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 2);
+
+    // Search by names
+    let all_found_events = Event::search(
+        Some("Massachusetts".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_found_events.0[0], event);
+    let all_found_events = Event::search(
+        Some("Morocco".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_found_events.0[0], event2);
+}
+
+#[test]
 fn search() {
     //create event
     let project = TestProject::new();
+    let country_lookup = CountryLookup::new().unwrap();
     let creator = project.create_user().finish();
     let connection = project.get_connection();
     let region1 = project.create_region().finish();
     let region2 = project.create_region().finish();
+    let city = "Dangerville city".to_string();
+    let state = "Alaska".to_string();
     let venue1 = project
         .create_venue()
         .with_name("Venue1".into())
         .with_region(&region1)
         .finish();
+    let venue1 = venue1
+        .update(
+            VenueEditableAttributes {
+                city: Some(city.clone()),
+                state: Some(state.clone()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
     let venue2 = project
         .create_venue()
         .with_name("Venue2".into())
         .with_region(&region2)
         .finish();
+    let venue2 = venue2
+        .update(
+            VenueEditableAttributes {
+                country: Some("IE".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
     let artist1 = project.create_artist().with_name("Artist1".into()).finish();
     let artist2 = project.create_artist().with_name("Artist2".into()).finish();
     let organization_owner = project.create_user().finish();
@@ -1823,6 +2155,8 @@ fn search() {
         .with_name("NewEvent".into())
         .with_organization(&organization)
         .with_venue(&venue2)
+        .with_tickets()
+        .with_ticket_pricing()
         .with_event_start(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11))
         .with_event_end(NaiveDate::from_ymd(2017, 7, 9).and_hms(9, 10, 11))
         .finish();
@@ -1916,7 +2250,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -1936,7 +2272,9 @@ fn search() {
         SortingDir::Asc,
         Some(organization_owner),
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -1956,7 +2294,9 @@ fn search() {
         SortingDir::Asc,
         Some(organization_user),
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -1974,9 +2314,11 @@ fn search() {
         None,
         EventSearchSortField::EventStart,
         SortingDir::Asc,
-        Some(user),
+        Some(user.clone()),
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -1996,7 +2338,9 @@ fn search() {
         SortingDir::Asc,
         Some(admin),
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2016,7 +2360,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2036,7 +2382,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2057,7 +2405,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2079,7 +2429,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2100,7 +2452,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2122,7 +2476,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2143,7 +2499,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2164,7 +2522,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2186,7 +2546,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2207,7 +2569,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2227,7 +2591,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2248,7 +2614,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2270,7 +2638,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2290,7 +2660,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2310,7 +2682,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2331,7 +2705,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2352,7 +2728,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2374,7 +2752,9 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
@@ -2395,11 +2775,574 @@ fn search() {
         SortingDir::Asc,
         None,
         PastOrUpcoming::Past,
+        None,
         paging,
+        &country_lookup,
         connection,
     )
     .unwrap();
     assert_eq!(all_found_events.0.len(), 0);
+
+    // City search
+    let all_found_events = Event::search(
+        Some(city.clone()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // State search
+    let all_found_events = Event::search(
+        Some("alaskA".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // State abbreviation search
+    let all_found_events = Event::search(
+        Some("AK".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // city state search
+    let all_found_events = Event::search(
+        Some("dangerville city, alaskA".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // city state abbreviation search
+    let all_found_events = Event::search(
+        Some("dangerville city, aK".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // city state abbreviation search
+    let all_found_events = Event::search(
+        Some("dangerville city AK".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Update state to New Hampshire to confirm space splitting properly finds state for abbreviation swap
+    venue1
+        .update(
+            VenueEditableAttributes {
+                state: Some("NH".to_string()),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+    let all_found_events = Event::search(
+        Some("dangerville city NeW HampshiRe".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    let all_found_events = Event::search(
+        Some("dangerville city Nh".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Extra spaces
+    let all_found_events = Event::search(
+        Some("dangerville      city         Nh".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // City, State, Country code
+    let all_found_events = Event::search(
+        Some("Dangerville City NH US".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Invalid city, State, Country code
+    let all_found_events = Event::search(
+        Some("Dangerville Circle NH US".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 0);
+
+    // Name
+    let all_found_events = Event::search(
+        Some("Ireland".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[1], all_found_events.0[0]);
+    assert_eq!(all_events[2], all_found_events.0[1]);
+
+    // Country code
+    let all_found_events = Event::search(
+        Some("IE".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 2);
+    assert_eq!(all_events[1], all_found_events.0[0]);
+    assert_eq!(all_events[2], all_found_events.0[1]);
+
+    // New Hampshire does not work as IE Country code
+    let all_found_events = Event::search(
+        Some("New Hampshire, IE".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 0);
+
+    // New Hampshire does work alone as logic defaults to US if no country provided for search and none on file
+    let all_found_events = Event::search(
+        Some("New Hampshire".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        Some(user.clone()),
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+
+    // Order now tying user to IE (changes default)
+    project
+        .create_order()
+        .for_event(&all_events[1])
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let all_found_events = Event::search(
+        Some("New Hampshire".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        Some(user.clone()),
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 0);
+
+    // User uses US country code
+    let all_found_events = Event::search(
+        Some("New Hampshire, US".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        Some(user.clone()),
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Logged out behavior is still normal defaulting to US
+    let all_found_events = Event::search(
+        Some("New Hampshire".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 1);
+    assert_eq!(all_events[0], all_found_events.0[0]);
+
+    // Invalid state, Country code
+    let all_found_events = Event::search(
+        Some("NL IE".to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Past,
+        None,
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(all_found_events.0.len(), 0);
+}
+
+#[test]
+fn filter_events_by_event_type() {
+    //create event
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let country_lookup = CountryLookup::new().unwrap();
+    let region1 = project.create_region().finish();
+    let venue1 = project
+        .create_venue()
+        .with_name("Venue1".into())
+        .with_region(&region1)
+        .finish();
+
+    let artist1 = project.create_artist().with_name("Artist1".into()).finish();
+    let organization_owner = project.create_user().finish();
+    let organization_user = project.create_user().finish();
+    let _admin = project
+        .create_user()
+        .finish()
+        .add_role(Roles::Admin, connection)
+        .unwrap();
+    let organization = project
+        .create_organization()
+        .with_member(&organization_owner, Roles::OrgOwner)
+        .with_member(&organization_user, Roles::OrgMember)
+        .finish();
+    let event_music = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .with_name("MusicEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue1)
+        .with_event_start(NaiveDate::from_ymd(2030, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2030, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_type(EventTypes::Music)
+        .finish();
+
+    event_music
+        .add_artist(None, artist1.id, connection)
+        .unwrap();
+
+    //find more than one event
+    let event_art = project
+        .create_event()
+        .with_status(EventStatus::Published)
+        .with_name("ArtEvent".into())
+        .with_organization(&organization)
+        .with_venue(&venue1)
+        .with_event_start(NaiveDate::from_ymd(2030, 7, 8).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2030, 7, 9).and_hms(9, 10, 11))
+        .with_publish_date(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
+        .with_event_type(EventTypes::Art)
+        .finish();
+
+    event_art.add_artist(None, artist1.id, connection).unwrap();
+
+    let paging: &Paging = &Paging {
+        page: 0,
+        limit: 10,
+        sort: "".to_string(),
+        dir: SortingDir::Asc,
+        total: 0,
+        tags: HashMap::new(),
+    };
+    // All events unauthorized user
+    let all_music_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Upcoming,
+        Some(EventTypes::Music),
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, all_music_events.1);
+    assert_eq!("MusicEvent".to_string(), all_music_events.0[0].name);
+
+    // All events organization owner
+    let all_art_events = Event::search(
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        EventSearchSortField::EventStart,
+        SortingDir::Asc,
+        None,
+        PastOrUpcoming::Upcoming,
+        Some(EventTypes::Art),
+        paging,
+        &country_lookup,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, all_art_events.1);
+    assert_eq!("ArtEvent".to_string(), all_art_events.0[0].name);
 }
 
 #[test]
@@ -2808,20 +3751,19 @@ fn localized_time() {
     let utc_time =
         NaiveDateTime::parse_from_str("2019-01-01 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap();
     let localized_time =
-        Event::localized_time(&Some(utc_time), &Some("Africa/Johannesburg".to_string())).unwrap();
+        Event::localized_time(Some(utc_time), Some("Africa/Johannesburg")).unwrap();
     assert_eq!(
         localized_time.to_rfc2822(),
         "Tue,  1 Jan 2019 14:00:00 +0200"
     );
 
-    let invalid_localized_time =
-        Event::localized_time(&None, &Some("Africa/Johannesburg".to_string()));
+    let invalid_localized_time = Event::localized_time(None, Some("Africa/Johannesburg"));
     assert_eq!(invalid_localized_time, None);
 
-    let invalid_localized_time = Event::localized_time(&Some(utc_time), &None);
+    let invalid_localized_time = Event::localized_time(Some(utc_time), None);
     assert_eq!(invalid_localized_time, None);
 
-    let invalid_localized_time = Event::localized_time(&None, &None);
+    let invalid_localized_time = Event::localized_time(None, None);
     assert_eq!(invalid_localized_time, None);
 }
 
@@ -2841,7 +3783,7 @@ fn get_all_localized_times() {
         .with_venue(&venue)
         .finish();
 
-    let localized_times: EventLocalizedTimes = event.get_all_localized_times(&Some(venue));
+    let localized_times: EventLocalizedTimes = event.get_all_localized_times(Some(&venue));
     assert_eq!(
         localized_times.event_start.unwrap().to_rfc2822(),
         "Tue,  1 Jan 2019 14:00:00 +0200"

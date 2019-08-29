@@ -1,10 +1,7 @@
-use bigneon_db::models::User;
+use bigneon_db::models::*;
 use diesel::pg::PgConnection;
 use errors::*;
 use itertools::Itertools;
-use utils::communication::CommAddress;
-use utils::communication::Communication;
-use utils::communication::CommunicationType;
 
 pub fn tickets_received(
     to_user: &User,

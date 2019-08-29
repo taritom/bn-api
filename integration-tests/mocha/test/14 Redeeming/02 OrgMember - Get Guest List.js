@@ -64,7 +64,7 @@ describe('OrgMember - Get Guest List', function () {
     it("guests should be present", function () {
 
         let json = JSON.parse(responseBody)
-        expect(json.data.length).to.be.greaterThan(10);
+        expect(json.data.length).to.be.greaterThan(6);
         pm.environment.set("last_ticket_instance_id", json.data[0].id);
         pm.environment.set("last_ticket_instance_redeem_key", json.data[0].redeem_key);
     });

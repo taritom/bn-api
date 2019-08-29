@@ -20,7 +20,6 @@ extern crate uuid;
 extern crate validator;
 #[macro_use]
 extern crate macros;
-extern crate itertools;
 extern crate tari_client;
 
 mod unit;

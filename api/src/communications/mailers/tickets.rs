@@ -4,12 +4,7 @@ use communications::mailers::insert_event_template_data;
 use config::Config;
 use diesel::pg::PgConnection;
 use errors::*;
-use itertools::{join, Itertools};
-use utils::communication::CommAddress;
-use utils::communication::Communication;
-use utils::communication::CommunicationType;
-use utils::communication::TemplateData;
-use uuid::Uuid;
+use itertools::Itertools;
 
 pub fn send_tickets(
     config: &Config,
@@ -47,7 +42,9 @@ pub fn send_tickets(
         Some(template_id),
         Some(vec![template_data]), Some(vec!["transfer", "transfer_receiver", "transfer_confirmation"]), Some(map!("event_id".to_string() => event_ids, "days_until_event".to_string() => days_until_event)),
     )
-        .queue(conn)
+        .queue(conn)?;
+
+    Ok(())
 }
 
 pub fn transfer_drip_reminder(
@@ -104,7 +101,9 @@ pub fn transfer_drip_reminder(
         Some(vec!["transfer", "transfer_receiver", "transfer_drip"]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }
 
 pub fn transfer_sent_receipt(
@@ -154,8 +153,7 @@ pub fn transfer_cancelled_receipt(
     config: &Config,
     email: String,
     from_user: &User,
-    transfer_start_date: NaiveDateTime,
-    ticket_ids: &[Uuid],
+    transfer: &Transfer,
     conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
     let source = CommAddress::from(config.communication_default_source_email.clone());
@@ -165,12 +163,12 @@ pub fn transfer_cancelled_receipt(
         .sendgrid_template_bn_cancel_transfer_tickets_receipt
         .clone();
     let mut template_data = TemplateData::new();
-    template_data.insert("sender_name".to_string(), from_user.full_name());
+    template_data.insert("sender_name".to_string(), Transfer::sender_name(&from_user));
     template_data.insert(
-        "transfer_start_date".to_string(),
-        transfer_start_date.to_string(),
+        "receiver_address".to_string(),
+        transfer.transfer_address.clone().unwrap_or("".to_string()),
     );
-    template_data.insert("ticket_ids".to_string(), join(ticket_ids, ", "));
+    template_data.insert("transfer_id".to_string(), transfer.id.to_string());
     Communication::new(
         CommunicationType::EmailTemplate,
         title,
@@ -186,13 +184,16 @@ pub fn transfer_cancelled_receipt(
         ]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }
 
 pub fn transfer_cancelled(
     config: &Config,
     email: String,
     from_user: &User,
+    transfer: &Transfer,
     conn: &PgConnection,
 ) -> Result<(), BigNeonError> {
     let source = CommAddress::from(config.communication_default_source_email.clone());
@@ -200,7 +201,12 @@ pub fn transfer_cancelled(
     let title = "{sender_name} has cancelled their transfer of tickets".to_string();
     let template_id = config.sendgrid_template_bn_cancel_transfer_tickets.clone();
     let mut template_data = TemplateData::new();
-    template_data.insert("sender_name".to_string(), from_user.full_name());
+    template_data.insert("sender_name".to_string(), Transfer::sender_name(&from_user));
+    template_data.insert(
+        "receiver_address".to_string(),
+        transfer.transfer_address.clone().unwrap_or("".to_string()),
+    );
+    template_data.insert("transfer_id".to_string(), transfer.id.to_string());
     Communication::new(
         CommunicationType::EmailTemplate,
         title,
@@ -216,5 +222,7 @@ pub fn transfer_cancelled(
         ]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }

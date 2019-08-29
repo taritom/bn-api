@@ -5,6 +5,7 @@ use branch_rs::BranchError;
 use diesel::result::Error as DieselError;
 use errors::*;
 use fcm;
+use facebook::prelude::FacebookError;
 use globee::GlobeeError;
 use jwt::errors::{Error as JwtError, ErrorKind as JwtErrorKind};
 use lettre::smtp::error::Error as SmtpError;
@@ -56,6 +57,12 @@ fn status_code_and_message(code: StatusCode, message: &str) -> HttpResponse {
 impl ConvertToWebError for Error {
     fn to_response(&self) -> HttpResponse {
         error!("General error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
+impl ConvertToWebError for FacebookError {
+    fn to_response(&self) -> HttpResponse {
         internal_error("Internal error")
     }
 }
@@ -117,13 +124,6 @@ impl ConvertToWebError for UuidParseError {
     }
 }
 
-impl ConvertToWebError for EmailBuilderError {
-    fn to_response(&self) -> HttpResponse {
-        error!("Email Builder error: {}", self);
-        internal_error("Internal error")
-    }
-}
-
 impl ConvertToWebError for ReqwestError {
     fn to_response(&self) -> HttpResponse {
         error!("Reqwest error: {}", self);
@@ -179,6 +179,13 @@ impl ConvertToWebError for EnumParseError {
     }
 }
 
+impl ConvertToWebError for ParseError {
+    fn to_response(&self) -> HttpResponse {
+        error!("Parse error: {}", self);
+        internal_error("Internal error")
+    }
+}
+
 impl ConvertToWebError for StripeError {
     fn to_response(&self) -> HttpResponse {
         error!("Stripe error: {}", self);
@@ -193,15 +200,11 @@ impl ConvertToWebError for ApplicationError {
         match self.error_type {
             ApplicationErrorType::Internal => internal_error("Internal error"),
             ApplicationErrorType::Unprocessable => unprocessable(&self.reason),
+            ApplicationErrorType::BadRequest => {
+                status_code_and_message(StatusCode::BAD_REQUEST, &self.reason)
+            }
             ApplicationErrorType::ServerConfigError => internal_error(&self.reason),
         }
-    }
-}
-
-impl ConvertToWebError for SmtpError {
-    fn to_response(&self) -> HttpResponse {
-        error!("SMTP error: {}", self);
-        internal_error("Internal error")
     }
 }
 
@@ -216,6 +219,12 @@ impl ConvertToWebError for TariError {
     fn to_response(&self) -> HttpResponse {
         error!("Tari error: {}", self);
         internal_error("There was an error during the ticket transfer process")
+    }
+}
+
+impl ConvertToWebError for chrono::ParseError {
+    fn to_response(&self) -> HttpResponse {
+        status_code_and_message(StatusCode::BAD_REQUEST, "Invalid input")
     }
 }
 

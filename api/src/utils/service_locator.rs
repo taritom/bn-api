@@ -1,4 +1,6 @@
 use bigneon_db::prelude::*;
+use bigneon_db::services::CountryLookup;
+use bigneon_db::utils::errors::DatabaseError;
 use config::Config;
 use errors::*;
 use payments::globee::GlobeePaymentProcessor;
@@ -14,18 +16,31 @@ pub struct ServiceLocator {
     branch_io_base_url: String,
     branch_io_branch_key: String,
     api_keys_encryption_key: String,
+    country_lookup_service: CountryLookup,
 }
 
 impl ServiceLocator {
-    pub fn new(config: &Config) -> ServiceLocator {
-        ServiceLocator {
+    pub fn new(config: &Config) -> Result<ServiceLocator, DatabaseError> {
+        let country_lookup_service = if config.environment == Environment::Test {
+            CountryLookup {
+                country_data: Vec::new(),
+            }
+        } else {
+            CountryLookup::new()?
+        };
+        Ok(ServiceLocator {
             stripe_secret_key: config.stripe_secret_key.clone(),
             globee_api_key: config.globee_api_key.clone(),
             globee_base_url: config.globee_base_url.clone(),
             branch_io_base_url: config.branch_io_base_url.clone(),
             branch_io_branch_key: config.branch_io_branch_key.clone(),
             api_keys_encryption_key: config.api_keys_encryption_key.clone(),
-        }
+            country_lookup_service,
+        })
+    }
+
+    pub fn country_lookup_service(&self) -> &CountryLookup {
+        &self.country_lookup_service
     }
 
     pub fn create_payment_processor(

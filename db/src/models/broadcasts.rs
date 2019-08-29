@@ -8,6 +8,8 @@ use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
+use validator::*;
+use validators::{self, *};
 
 #[derive(Default, Insertable, Serialize, Deserialize, PartialEq, Debug)]
 #[table_name = "broadcasts"]
@@ -47,6 +49,8 @@ pub struct BroadcastEditableAttributes {
     pub channel: Option<BroadcastChannel>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub name: Option<String>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub message: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub send_at: Option<Option<NaiveDateTime>>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
@@ -122,6 +126,7 @@ impl Broadcast {
             notification_type: None,
             channel: None,
             name: None,
+            message: None,
             send_at: None,
             status: Some(BroadcastStatus::Cancelled),
         };
@@ -139,13 +144,16 @@ impl Broadcast {
                 ErrorCode::UpdateError,
                 Some("This broadcast has been cancelled, it cannot be modified.".to_string()),
             )),
-            _ => DatabaseError::wrap(
-                ErrorCode::UpdateError,
-                "Could not update broadcast",
-                diesel::update(self)
-                    .set((attributes, broadcasts::updated_at.eq(dsl::now)))
-                    .get_result(connection),
-            ),
+            _ => {
+                self.validate_record(&attributes, connection)?;
+                DatabaseError::wrap(
+                    ErrorCode::UpdateError,
+                    "Could not update broadcast",
+                    diesel::update(self)
+                        .set((attributes, broadcasts::updated_at.eq(dsl::now)))
+                        .get_result(connection),
+                )
+            }
         }
     }
 
@@ -157,10 +165,53 @@ impl Broadcast {
 
         self.update(attributes, connection)
     }
+
+    pub fn validate_record(
+        &self,
+        attributes: &BroadcastEditableAttributes,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let validation_errors = validators::append_validation_error(
+            Ok(()),
+            "message",
+            Broadcast::custom_type_has_message(
+                attributes
+                    .notification_type
+                    .clone()
+                    .unwrap_or(self.notification_type.clone()),
+                attributes.message.clone().unwrap_or(self.message.clone()),
+                conn,
+            )?,
+        );
+        Ok(validation_errors?)
+    }
+
+    fn custom_type_has_message(
+        notification_type: BroadcastType,
+        message: Option<String>,
+        _connection: &PgConnection,
+    ) -> Result<Result<(), ValidationError>, DatabaseError> {
+        match notification_type {
+            BroadcastType::LastCall => return Ok(Ok(())),
+            BroadcastType::Custom => {
+                if let Some(message) = message {
+                    if !message.is_empty() {
+                        return Ok(Ok(()));
+                    }
+                }
+                let validation_error = create_validation_error(
+                    "custom_message_empty",
+                    "Custom messages cannot be blank",
+                );
+                return Ok(Err(validation_error));
+            }
+        }
+    }
 }
 
 impl NewBroadcast {
     pub fn commit(&self, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {
+        self.validate_record(connection)?;
         let result: Broadcast = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new push notification",
@@ -186,6 +237,19 @@ impl NewBroadcast {
         action.commit(connection)?;
 
         Ok(result)
+    }
+
+    pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let validation_errors = validators::append_validation_error(
+            Ok(()),
+            "message",
+            Broadcast::custom_type_has_message(
+                self.notification_type.clone(),
+                self.message.clone(),
+                conn,
+            )?,
+        );
+        Ok(validation_errors?)
     }
 }
 

@@ -1,8 +1,7 @@
-use bigneon_db::models::User;
+use bigneon_db::models::*;
 use config::Config;
 use diesel::PgConnection;
 use errors::*;
-use utils::communication::*;
 
 pub fn user_registered(
     user_first_name: String,
@@ -27,7 +26,9 @@ pub fn user_registered(
         Some(vec!["user_registered", "account"]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }
 
 pub fn password_reset_email(config: &Config, user: &User) -> Communication {
@@ -89,5 +90,7 @@ pub fn invite_user_email(
         Some(vec!["user_invite", "account"]),
         None,
     )
-    .queue(conn)
+    .queue(conn)?;
+
+    Ok(())
 }

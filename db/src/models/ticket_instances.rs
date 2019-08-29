@@ -22,6 +22,8 @@ use utils::errors::*;
 use uuid::Uuid;
 use validators::*;
 
+const TICKET_NUMBER_LENGTH: usize = 8;
+
 #[derive(
     Clone, Debug, Identifiable, PartialEq, Deserialize, Serialize, Queryable, QueryableByName,
 )]
@@ -36,8 +38,8 @@ pub struct TicketInstance {
     pub reserved_until: Option<NaiveDateTime>,
     pub redeem_key: Option<String>,
     pub status: TicketInstanceStatus,
-    created_at: NaiveDateTime,
-    updated_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
     pub redeemed_by_user_id: Option<Uuid>,
     pub redeemed_at: Option<NaiveDateTime>,
     pub first_name_override: Option<String>,
@@ -54,6 +56,11 @@ pub struct UpdateTicketInstanceAttributes {
 }
 
 impl TicketInstance {
+    pub fn parse_ticket_number(id: Uuid) -> String {
+        let id_string = id.to_string();
+        id_string[id_string.len() - TICKET_NUMBER_LENGTH..].to_string()
+    }
+
     pub fn organization(&self, conn: &PgConnection) -> Result<Organization, DatabaseError> {
         ticket_instances::table
             .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
@@ -202,6 +209,7 @@ impl TicketInstance {
                 ticket_instances::last_name_override,
                 transfers::id.nullable(),
                 transfers::transfer_key.nullable(),
+                transfers::transfer_address.nullable(),
             ))
             .first::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load ticket")?;
@@ -307,9 +315,11 @@ impl TicketInstance {
                 ticket_instances::last_name_override,
                 transfers::id.nullable(),
                 transfers::transfer_key.nullable(),
+                transfers::transfer_address.nullable(),
             ))
             .order_by(events::event_start.asc())
             .then_order_by(events::name.asc())
+            .then_order_by(events::id.asc())
             .load::<DisplayTicketIntermediary>(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load user tickets")?;
 
@@ -811,7 +821,7 @@ impl TicketInstance {
 
         if ticket.status == TicketInstanceStatus::Purchased
             && ticket.redeem_key.is_some()
-            && ticket.redeem_key.unwrap() == redeem_key
+            && ticket.redeem_key.clone().unwrap() == redeem_key
         {
             diesel::update(ticket_instances::table.filter(ticket_instances::id.eq(ticket_id)))
                 .set((
@@ -873,6 +883,7 @@ impl TicketInstance {
             ticket_ids,
             Some(address),
             Some(sent_via),
+            true,
             conn,
         )?;
         let wallet = Wallet::find_default_for_user(from_user_id, conn)?;
@@ -938,6 +949,7 @@ impl TicketInstance {
         ticket_ids: &[Uuid],
         address: Option<&str>,
         sent_via: Option<TransferMessageType>,
+        direct: bool,
         conn: &PgConnection,
     ) -> Result<Transfer, DatabaseError> {
         //Confirm that tickets are purchased and owned by user
@@ -964,13 +976,25 @@ impl TicketInstance {
             transfer_key,
             sent_via,
             address.map(|a| a.to_string()),
+            direct,
         )
-        .commit(&transfer_data, conn)?;
+        .commit(conn)?;
         for (t_id, _) in ticket_ids_and_updated_at {
-            transfer.add_transfer_ticket(t_id, user_id, &transfer_data, conn)?;
+            transfer.add_transfer_ticket(t_id, conn)?;
             update_count += 1;
         }
         transfer.update_associated_orders(conn)?;
+
+        // Log transfer event after associating transfer tickets
+        DomainEvent::create(
+            DomainEventTypes::TransferTicketStarted,
+            "Transfer ticket started".to_string(),
+            Tables::Transfers,
+            Some(transfer.id),
+            Some(transfer.source_user_id),
+            transfer_data,
+        )
+        .commit(conn)?;
 
         if update_count != ticket_ids.len() {
             return Err(DatabaseError::new(
@@ -1167,6 +1191,7 @@ pub struct DisplayTicket {
     pub last_name_override: Option<String>,
     pub transfer_id: Option<Uuid>,
     pub transfer_key: Option<Uuid>,
+    pub transfer_address: Option<String>,
 }
 
 #[derive(Queryable, QueryableByName)]
@@ -1205,6 +1230,8 @@ pub struct DisplayTicketIntermediary {
     pub transfer_id: Option<Uuid>,
     #[sql_type = "Nullable<dUuid>"]
     pub transfer_key: Option<Uuid>,
+    #[sql_type = "Nullable<Text>"]
+    pub transfer_address: Option<String>,
 }
 
 impl From<DisplayTicketIntermediary> for DisplayTicket {
@@ -1245,6 +1272,7 @@ impl From<DisplayTicketIntermediary> for DisplayTicket {
             redeem_key,
             transfer_id: ticket_intermediary.transfer_id,
             transfer_key: ticket_intermediary.transfer_key,
+            transfer_address: ticket_intermediary.transfer_address,
         }
     }
 }

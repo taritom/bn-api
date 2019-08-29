@@ -17,8 +17,35 @@ fn create_and_find_by_user_id() {
         token_source: "example_token2_source".to_string(),
         token: "example_token2".to_string(),
     };
-    pnt1_request.commit(connection).unwrap();
-    pnt2_request.commit(connection).unwrap();
+
+    let pnt1 = pnt1_request.commit(user.id, connection).unwrap();
+    let pnt2 = pnt2_request.commit(user.id, connection).unwrap();
+
+    // Domain events created for push notifications
+    assert_eq!(
+        DomainEvent::find(
+            Tables::PushNotificationTokens,
+            Some(pnt1.id),
+            Some(DomainEventTypes::PushNotificationTokenCreated),
+            connection,
+        )
+        .unwrap()
+        .len(),
+        1
+    );
+
+    assert_eq!(
+        DomainEvent::find(
+            Tables::PushNotificationTokens,
+            Some(pnt2.id),
+            Some(DomainEventTypes::PushNotificationTokenCreated),
+            connection,
+        )
+        .unwrap()
+        .len(),
+        1
+    );
+
     //Check stored push notification tokens
     let push_notification_tokens =
         PushNotificationToken::find_by_user_id(user.id, connection).unwrap();
@@ -44,6 +71,58 @@ fn create_and_find_by_user_id() {
 }
 
 #[test]
+fn find() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let push_token =
+        PushNotificationToken::create(user.id, "source".to_string(), "token".to_string())
+            .commit(user.id, connection)
+            .unwrap();
+
+    assert_eq!(
+        push_token,
+        PushNotificationToken::find(push_token.id, connection).unwrap()
+    );
+}
+
+#[test]
+fn log_domain_event() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let push_token =
+        PushNotificationToken::create(user.id, "source".to_string(), "token".to_string())
+            .commit(user.id, connection)
+            .unwrap();
+
+    assert_eq!(
+        DomainEvent::find(
+            Tables::PushNotificationTokens,
+            Some(push_token.id),
+            Some(DomainEventTypes::PushNotificationTokenCreated),
+            connection,
+        )
+        .unwrap()
+        .len(),
+        1
+    );
+
+    push_token.log_domain_event(user.id, connection).unwrap();
+    assert_eq!(
+        DomainEvent::find(
+            Tables::PushNotificationTokens,
+            Some(push_token.id),
+            Some(DomainEventTypes::PushNotificationTokenCreated),
+            connection,
+        )
+        .unwrap()
+        .len(),
+        2
+    );
+}
+
+#[test]
 fn remove_push_notification_token() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -59,8 +138,8 @@ fn remove_push_notification_token() {
         token_source: "example_token2_source".to_string(),
         token: "example_token2".to_string(),
     };
-    pnt1_request.commit(connection).unwrap();
-    pnt2_request.commit(connection).unwrap();
+    pnt1_request.commit(user.id, connection).unwrap();
+    pnt2_request.commit(user.id, connection).unwrap();
     let stored_push_notification_tokens =
         PushNotificationToken::find_by_user_id(user.id, connection).unwrap();
     //Remove first created token

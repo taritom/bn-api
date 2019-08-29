@@ -107,20 +107,14 @@ fn load_for_event() {
     .unwrap();
 
     // Pending transfer
-    let transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
-        .unwrap();
-    transfer2
-        .add_transfer_ticket(ticket5.id, user2.id, &None, connection)
-        .unwrap();
+    let transfer2 =
+        TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, false, connection)
+            .unwrap();
 
     // Cancelled transfer
-    let transfer3 = Transfer::create(user2.id, Uuid::new_v4(), None, None)
-        .commit(&None, connection)
-        .unwrap();
-    transfer3
-        .add_transfer_ticket(ticket8.id, user2.id, &None, connection)
-        .unwrap();
+    let transfer3 =
+        TicketInstance::create_transfer(user2.id, &[ticket8.id], None, None, false, connection)
+            .unwrap();
     let transfer3 = transfer3.cancel(user4.id, None, connection).unwrap();
 
     TicketInstance::redeem_ticket(
@@ -215,14 +209,21 @@ fn load_for_event() {
         )
         .unwrap();
 
-    let activity_items = ActivityItem::load_for_event(event.id, user.id, connection).unwrap();
-    let activity_items2 = ActivityItem::load_for_event(event.id, user2.id, connection).unwrap();
-    let activity_items3 = ActivityItem::load_for_event(event.id, user3.id, connection).unwrap();
-    let activity_items4 = ActivityItem::load_for_event(event.id, user4.id, connection).unwrap();
-    let activity_items5 = ActivityItem::load_for_event(event2.id, user.id, connection).unwrap();
-    let activity_items6 = ActivityItem::load_for_event(event2.id, user2.id, connection).unwrap();
-    let activity_items7 = ActivityItem::load_for_event(event2.id, user3.id, connection).unwrap();
-    let activity_items8 = ActivityItem::load_for_event(event2.id, user4.id, connection).unwrap();
+    let activity_items = ActivityItem::load_for_event(event.id, user.id, None, connection).unwrap();
+    let activity_items2 =
+        ActivityItem::load_for_event(event.id, user2.id, None, connection).unwrap();
+    let activity_items3 =
+        ActivityItem::load_for_event(event.id, user3.id, None, connection).unwrap();
+    let activity_items4 =
+        ActivityItem::load_for_event(event.id, user4.id, None, connection).unwrap();
+    let activity_items5 =
+        ActivityItem::load_for_event(event2.id, user.id, None, connection).unwrap();
+    let activity_items6 =
+        ActivityItem::load_for_event(event2.id, user2.id, None, connection).unwrap();
+    let activity_items7 =
+        ActivityItem::load_for_event(event2.id, user3.id, None, connection).unwrap();
+    let activity_items8 =
+        ActivityItem::load_for_event(event2.id, user4.id, None, connection).unwrap();
     assert_eq!(
         (
             activity_items.len(),
@@ -571,6 +572,7 @@ fn occurred_at() {
             action: "Completed".to_string(),
             status: TransferStatus::Completed,
             ticket_ids: Vec::new(),
+            ticket_numbers: vec![],
             destination_addresses: None,
             transfer_message_type: None,
             initiated_by: user.clone().into(),
@@ -579,9 +581,11 @@ fn occurred_at() {
             occurred_at: now,
             order_id: None,
             order_number: None,
+            transfer_key: Uuid::new_v4(),
         },
         ActivityItem::CheckIn {
             ticket_instance_id: Uuid::new_v4(),
+            ticket_number: "".to_string(),
             redeemed_for: user.clone().into(),
             redeemed_by: user.clone().into(),
             occurred_at: now,

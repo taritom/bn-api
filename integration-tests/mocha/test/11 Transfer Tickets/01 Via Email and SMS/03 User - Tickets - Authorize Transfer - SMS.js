@@ -3,12 +3,11 @@ const expect = require('chai').expect;
 const mocha = require('mocha');
 const tv4 = require('tv4');
 const fs = require('fs');
-const pm = require('../pm');const debug = require("debug");var log=debug('bn-api');;
-const user =require('../../helpers/user');
+const pm = require('../../pm');const debug=require('debug');var log = debug('bn-api');
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/cart';
+const apiEndPoint = '/tickets/send';
 
 
 var response;
@@ -36,17 +35,15 @@ const get = async function (request_body) {
 };
 
 let requestBody = `{
-"items": [{
-"ticket_type_id": "{{last_ticket_type_id}}",
-"redemption_code": "{{last_redemption_code}}",
-"quantity":30
-}]}`;
+	"ticket_ids":[
+		"{{ticket3_id}}",
+		"{{ticket4_id}}"],
+	"email_or_phone": "27725084284"
+}`;
 
-let json = {};
 
-describe('User - add to cart - redemption code Copy', function () {
+describe('User - Tickets - Authorize Transfer - SMS', function () {
     before(async function () {
-        await user.registerAndLogin();
         response = await post(requestBody);
         log(response.request.header);
         log(response.request.url);
@@ -56,10 +53,6 @@ describe('User - add to cart - redemption code Copy', function () {
         //log(pm);
         log(response.status);
         log(responseBody);
-
-        json = JSON.parse(responseBody);
-
-        pm.environment.set("last_cart_id", json.cart_id);
     });
 
     after(async function () {
@@ -70,25 +63,6 @@ describe('User - add to cart - redemption code Copy', function () {
 
     it("should be 200", function () {
         expect(response.status).to.equal(200);
-    })
-
-
-    it("tickets should be present", function () {
-        expect(json.items[0].item_type).to.equal("Tickets");
-        expect(json.items[0].quantity).to.equal(30);
-        expect(json.items[0].unit_price_in_cents).to.equal(0);
-
-        expect(json.items[0].redemption_code).to.equal(pm.environment.get("last_redemption_code"));
-
-    });
-
-    it("should have no per item or event fees", function () {
-        expect(json.items.length).to.equal(1);
-
-    });
-
-    it("total should be correct", function () {
-        expect(json.total_in_cents).to.equal(0);
     })
 
 

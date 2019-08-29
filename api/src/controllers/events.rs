@@ -49,6 +49,8 @@ pub struct SearchParameters {
     dir: Option<SortingDir>,
     past_or_upcoming: Option<String>,
     updated_at: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    category: Option<EventTypes>,
 }
 
 #[derive(Serialize)]
@@ -195,7 +197,9 @@ pub fn index(
         query.dir.clone().unwrap_or(SortingDir::Asc),
         user.clone(),
         past_or_upcoming,
+        query.category.clone(),
         &paging,
+        state.service_locator.country_lookup_service(),
         connection,
     )?;
     let (events, count) = events_count;
@@ -204,7 +208,6 @@ pub fn index(
         event_venues_from_events(events, user, &state, connection)?,
         query.into(),
     );
-
     payload.paging.total = count as u64;
     payload.paging.limit = paging.limit;
 
@@ -235,12 +238,11 @@ pub fn show(
     let connection = connection.get();
     let user = user.into_inner();
 
-    let event = match parameters.id.parse() {
-        Ok(i) => Event::find(i, connection)?,
+    let (event, organization, venue, fee_schedule) = match parameters.id.parse() {
+        Ok(i) => Event::find_incl_org_venue_fees(i, connection)?,
         Err(_) => Event::find_by_slug(&parameters.id, connection)?,
     };
 
-    let organization = event.organization(connection)?;
     if event.private_access_code.is_some()
         && !(query.private_access_code.is_some()
             && event.private_access_code.clone().unwrap()
@@ -261,9 +263,24 @@ pub fn show(
             }
         }
     };
-    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection)?;
-    let venue = event.venue(connection)?;
-    let localized_times = event.get_all_localized_time_strings(&venue);
+
+    let is_user_admin = match user {
+        Some(ref user) => user.has_scope_for_organization_event(
+            Scopes::EventWrite,
+            &organization,
+            event.id,
+            connection,
+        )?,
+        None => false,
+    };
+
+    if (!is_user_admin && event.publish_date.unwrap_or(times::infinity()) > dates::now().finish())
+        || event.deleted_at.is_some()
+    {
+        return application::not_found();
+    }
+
+    let localized_times = event.get_all_localized_time_strings(venue.as_ref());
     let event_artists = EventArtist::find_all_from_event(event.id, connection)?;
     let total_interest = EventInterest::total_interest(event.id, connection)?;
     let user_interest = match user {
@@ -293,68 +310,52 @@ pub fn show(
         TicketType::find_by_event_id(event.id, true, query.redemption_code.clone(), connection)?;
     let mut display_ticket_types = Vec::new();
     let mut sales_start_date = Some(times::infinity());
-    let is_preview_allowed = match user {
-        Some(ref user) => user.has_scope_for_organization_event(
-            Scopes::EventWrite,
-            &organization,
-            event.id,
-            connection,
-        )?,
-        None => false,
-    };
-
     let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
+    for ticket_type in ticket_types {
+        if ticket_type.status != TicketTypeStatus::Cancelled {
+            let display_ticket_type = UserDisplayTicketType::from_ticket_type(
+                &ticket_type,
+                &fee_schedule,
+                box_office_pricing,
+                query.redemption_code.clone(),
+                connection,
+            )?;
 
-    if event.publish_date.unwrap_or(times::infinity()) < dates::now().finish() || is_preview_allowed
-    {
-        for ticket_type in ticket_types {
-            if ticket_type.status != TicketTypeStatus::Cancelled {
-                let display_ticket_type = UserDisplayTicketType::from_ticket_type(
-                    &ticket_type,
-                    &fee_schedule,
-                    box_office_pricing,
-                    query.redemption_code.clone(),
-                    connection,
-                )?;
+            // Only show private ticket types via holds
+            if ticket_type.visibility == TicketTypeVisibility::Hidden
+                && display_ticket_type.redemption_code.is_none()
+            {
+                continue;
+            }
 
-                // Only show private ticket types via holds
-                if ticket_type.visibility == TicketTypeVisibility::Hidden
-                    && display_ticket_type.redemption_code.is_none()
-                {
-                    continue;
-                }
+            if sales_start_date.unwrap()
+                > ticket_type.start_date.clone().unwrap_or(times::infinity())
+            {
+                sales_start_date = ticket_type.start_date.clone();
+            }
 
-                if sales_start_date.unwrap()
-                    > ticket_type.start_date.clone().unwrap_or(times::infinity())
-                {
-                    sales_start_date = ticket_type.start_date.clone();
-                }
+            // If the ticket type is sold out, hide it if necessary
+            if display_ticket_type.status != TicketTypeStatus::Published
+                && ticket_type.visibility == TicketTypeVisibility::WhenAvailable
+            {
+                continue;
+            };
 
-                // If the ticket type is sold out, hide it if necessary
-                if display_ticket_type.status != TicketTypeStatus::Published
-                    && ticket_type.visibility == TicketTypeVisibility::WhenAvailable
-                {
-                    continue;
-                };
+            display_ticket_types.push(display_ticket_type);
+        }
+    }
 
-                display_ticket_types.push(display_ticket_type);
+    if let Some(ref u) = user {
+        let tickets_bought = Order::quantity_for_user_for_event(u.id(), event.id, connection)?;
+        for (tt_id, num) in tickets_bought {
+            let limit = TicketType::find(tt_id, connection)?.limit_per_person;
+            if limit > 0 {
+                limited_tickets_remaining.push(TicketsRemaining {
+                    ticket_type_id: tt_id,
+                    tickets_remaining: limit - num,
+                });
             }
         }
-
-        if let Some(ref u) = user {
-            let tickets_bought = Order::quantity_for_user_for_event(u.id(), event.id, connection)?;
-            for (tt_id, num) in tickets_bought {
-                let limit = TicketType::find(tt_id, connection)?.limit_per_person;
-                if limit > 0 {
-                    limited_tickets_remaining.push(TicketsRemaining {
-                        ticket_type_id: tt_id,
-                        tickets_remaining: limit - num,
-                    });
-                }
-            }
-        }
-    } else {
-        return application::not_found();
     }
 
     let mut tracking_keys = Organization::tracking_keys_for_ids(
@@ -372,14 +373,13 @@ pub fn show(
         tracking_keys.facebook_pixel_key = Some(pixel.to_string());
     }
 
-    let (min_ticket_price, max_ticket_price) = if event.publish_date.unwrap_or(times::infinity())
-        < dates::now().finish()
-        || is_preview_allowed
-    {
-        event.current_ticket_pricing_range(box_office_pricing, connection)?
-    } else {
-        (None, None)
-    };
+    let (min_ticket_price, max_ticket_price) =
+        if event.publish_date.unwrap_or(times::infinity()) < dates::now().finish() || is_user_admin
+        {
+            event.current_ticket_pricing_range(box_office_pricing, connection)?
+        } else {
+            (None, None)
+        };
     // Show private access code to any admin with write access
     let show_private_access_code = if let Some(user) = user {
         user.has_scope_for_organization_event(
@@ -392,6 +392,12 @@ pub fn show(
         false
     };
 
+    let fee_in_cents = event
+        .client_fee_in_cents
+        .unwrap_or(organization.client_event_fee_in_cents)
+        + event
+            .company_fee_in_cents
+            .unwrap_or(organization.company_event_fee_in_cents);
     let payload = &EventShowResult {
         id: event.id,
         private_access_code: if show_private_access_code {
@@ -407,7 +413,7 @@ pub fn show(
         door_time: event.door_time,
         event_end: event.event_end,
         cancelled_at: event.cancelled_at,
-        fee_in_cents: event.fee_in_cents,
+        fee_in_cents,
         status: event.status,
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url,
@@ -438,6 +444,13 @@ pub fn show(
         url: format!("{}/events/{}", &state.config.front_end_url, &event.slug),
         slug: event.slug.clone(),
         facebook_pixel_key: event.facebook_pixel_key,
+        extra_admin_data: event.extra_admin_data.and_then(|data| {
+            if is_user_admin {
+                Some(data)
+            } else {
+                None
+            }
+        }),
     };
 
     Ok(HttpResponse::Ok().json(&payload))
@@ -580,6 +593,10 @@ pub fn show_from_organizations(
         conn,
     )?;
     for event in events.data.iter_mut() {
+        if !user.has_scope_for_organization_event(Scopes::EventDelete, &org, event.id, conn)? {
+            event.eligible_for_deletion = None;
+        }
+
         if !user.has_scope_for_organization_event(Scopes::DashboardRead, &org, event.id, conn)? {
             event.sales_total_in_cents = None;
             event.sold_held = None;
@@ -665,19 +682,6 @@ pub fn create(
     Ok(HttpResponse::Created().json(event))
 }
 
-#[derive(Deserialize, Debug, Default)]
-pub struct UpdateArtistsRequest {
-    pub artist_id: Uuid,
-    pub set_time: Option<NaiveDateTime>,
-    pub importance: i32,
-    pub stage_id: Option<Uuid>,
-}
-
-#[derive(Deserialize, Debug, Default)]
-pub struct UpdateArtistsRequestList {
-    pub artists: Vec<UpdateArtistsRequest>,
-}
-
 pub fn update(
     (connection, parameters, event_parameters, user): (
         Connection,
@@ -704,6 +708,23 @@ pub fn update(
 
     let updated_event = event.update(Some(user.id()), event_parameters, connection)?;
     Ok(HttpResponse::Ok().json(&updated_event))
+}
+
+pub fn delete(
+    (connection, parameters, user): (Connection, Path<PathParameters>, AuthUser),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = connection.get();
+    let event = Event::find(parameters.id, connection)?;
+    let organization = event.organization(connection)?;
+    user.requires_scope_for_organization_event(
+        Scopes::EventDelete,
+        &organization,
+        &event,
+        connection,
+    )?;
+
+    event.delete(user.id(), connection)?;
+    Ok(HttpResponse::Ok().json({}))
 }
 
 pub fn cancel(
@@ -808,6 +829,19 @@ pub fn add_artist(
     action.commit(connection)?;
 
     Ok(HttpResponse::Created().json(&event_artist))
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct UpdateArtistsRequest {
+    pub artist_id: Uuid,
+    pub set_time: Option<NaiveDateTime>,
+    pub importance: i32,
+    pub stage_id: Option<Uuid>,
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct UpdateArtistsRequestList {
+    pub artists: Vec<UpdateArtistsRequest>,
 }
 
 pub fn update_artists(
@@ -1158,27 +1192,15 @@ pub fn remove_user(
         connection,
     )?;
 
-    let mut external_user =
-        OrganizationUser::find_by_user_id(path.user_id, organization.id, connection)?;
-    if !external_user.event_ids.contains(&event.id) {
-        return Ok(HttpResponse::Ok().finish());
+    let event_user =
+        EventUser::find_by_event_id_user_id(event.id, path.user_id, connection).optional()?;
+    match event_user {
+        Some(event_user) => {
+            event_user.destroy(connection)?;
+            Ok(HttpResponse::Ok().json(&organization))
+        }
+        None => Ok(HttpResponse::Ok().finish()),
     }
-    external_user.event_ids = external_user
-        .event_ids
-        .into_iter()
-        .filter(|id| *id != event.id)
-        .collect();
-    organization.remove_user(path.user_id, connection)?;
-
-    if external_user.event_ids.len() != 0 {
-        organization.add_user(
-            external_user.user_id,
-            external_user.role,
-            external_user.event_ids,
-            connection,
-        )?;
-    };
-    Ok(HttpResponse::Ok().json(&organization))
 }
 
 fn event_venues_from_events(
@@ -1207,6 +1229,9 @@ fn event_venues_from_events(
         map
     });
 
+    let event_ids = events.iter().map(|e| e.id).collect();
+    let mut artists_map = EventArtist::find_all_from_events(event_ids, connection)?;
+
     let mut organization_ids: Vec<Uuid> = events.iter().map(|e| e.organization_id).collect();
     organization_ids.sort();
     organization_ids.dedup();
@@ -1227,9 +1252,10 @@ fn event_venues_from_events(
     };
 
     let mut results: Vec<EventVenueEntry> = Vec::new();
+
     for event in events.into_iter() {
         let venue = event.venue_id.and_then(|v| Some(venue_map[&v].clone()));
-        let artists = EventArtist::find_all_from_event(event.id, connection)?;
+        let artists = artists_map.remove(&event.id).map_or(Vec::new(), |x| x);
         let mut min_ticket_price = None;
         let mut max_ticket_price = None;
         if let Some((min, max)) = event_ticket_range_mapping.get(&event.id) {
@@ -1237,7 +1263,7 @@ fn event_venues_from_events(
             max_ticket_price = Some(*max);
         }
 
-        let localized_times = event.get_all_localized_time_strings(&venue);
+        let localized_times = event.get_all_localized_time_strings(venue.as_ref());
         let organization_id = event.organization_id;
         let tracking_keys = tracking_keys_for_orgs
             .get(&organization_id)

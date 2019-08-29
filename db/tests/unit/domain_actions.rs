@@ -92,14 +92,14 @@ fn find_by_resource() {
         .create_domain_action()
         .with_main_table(main_table.clone())
         .with_main_table_id(main_table_id)
-        .with_domain_action_type(DomainActionTypes::ProcessTransferDrip)
+        .with_domain_action_type(DomainActionTypes::UpdateGenres)
         .with_status(DomainActionStatus::Pending)
         .finish();
 
     let pending_actions = DomainAction::find_by_resource(
         main_table.clone(),
         main_table_id,
-        DomainActionTypes::ProcessTransferDrip,
+        DomainActionTypes::UpdateGenres,
         DomainActionStatus::Pending,
         conn,
     )
@@ -111,7 +111,7 @@ fn find_by_resource() {
     let pending_actions = DomainAction::find_by_resource(
         main_table,
         main_table_id,
-        DomainActionTypes::ProcessTransferDrip,
+        DomainActionTypes::UpdateGenres,
         DomainActionStatus::Pending,
         conn,
     )

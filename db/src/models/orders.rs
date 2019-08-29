@@ -12,13 +12,12 @@ use log::Level::{self, Debug};
 use models::*;
 use regex::RegexSet;
 use schema::{
-    events, order_items, order_transfers, orders, organization_users, organizations, payments,
-    transfers, users,
+    event_users, events, order_items, order_transfers, orders, organization_users, organizations,
+    payments, transfers, users,
 };
 use serde_json;
 use serde_json::Value;
 use std::borrow::Cow;
-use std::cmp;
 use std::collections::HashMap;
 use time::Duration;
 use utils::dates::*;
@@ -114,6 +113,8 @@ pub struct OrderDetailsLineItem {
     pub code_type: Option<String>,
     #[sql_type = "Nullable<dUuid>"]
     pub pending_transfer_id: Option<Uuid>,
+    #[sql_type = "Nullable<BigInt>"]
+    pub discount_price_in_cents: Option<i64>,
 }
 
 #[derive(Debug)]
@@ -251,6 +252,7 @@ impl Order {
     ) -> Result<(Refund, i64), DatabaseError> {
         self.lock_version(conn)?;
         let mut total_to_be_refunded: i64 = 0;
+
         let refund = Refund::create(self.id, user_id, reason).commit(conn)?;
         let previous_item_refund_counts: HashMap<Uuid, i64> = self
             .items(conn)?
@@ -433,19 +435,24 @@ impl Order {
                         .eq(organization_users::organization_id)
                         .and(organization_users::user_id.eq(user_id))),
                 )
+                .left_join(
+                    event_users::table.on(event_users::event_id
+                        .eq(events::id)
+                        .and(event_users::user_id.eq(organization_users::user_id))),
+                )
                 .filter(events::organization_id.ne_all(organization_ids).or(sql("(
-                        NOT events.id = ANY(organization_users.event_ids)
+                        event_users.id IS NULL
                         AND (
                             'Promoter' = ANY(organization_users.role)
                             OR 'PromoterReadOnly' = ANY(organization_users.role)
                         )
-                    )")))
+                        )")))
                 .filter(order_items::order_id.eq(self.id)),
         ))
         .get_result(conn)
         .to_db_error(
             ErrorCode::QueryError,
-            "Could not check if order items exist",
+            "Could not check if order is partially visible",
         )
     }
 
@@ -719,6 +726,7 @@ impl Order {
         partial_order_no: Option<&str>,
         partial_ticket_no: Option<&str>,
         email: Option<&str>,
+        phone: Option<&str>,
         name: Option<&str>,
         ticket_type_id: Option<Uuid>,
         partial_promo_code: Option<&str>,
@@ -726,6 +734,8 @@ impl Order {
         online_sales: bool,
         web_sales: bool,
         app_sales: bool,
+        start_date: Option<NaiveDateTime>,
+        end_date: Option<NaiveDateTime>,
         current_user_id: Uuid,
         paging: &PagingParameters,
         conn: &PgConnection,
@@ -737,7 +747,10 @@ impl Order {
         from orders o
             inner join order_items oi on oi.order_id = o.id
             inner join ticket_types tt on oi.ticket_type_id= tt.id
-            left join ticket_instances ti on oi.id = ti.order_item_id
+            left join refunded_tickets rt on oi.id = rt.order_item_id
+            left join ticket_instances ti on (oi.id = ti.order_item_id or rt.ticket_instance_id = ti.id)
+            left join transfer_tickets trt on trt.ticket_instance_id = ti.id
+            left join transfers trns on trt.transfer_id = trns.id
             left join holds h on oi.hold_id = h.id
             left join codes c on oi.code_id = c.id
             inner join users u on o.user_id = u.id
@@ -759,7 +772,7 @@ impl Order {
         if let Some(general_query) = general_query {
             bind_no = bind_no + 1;
             query = query
-                .sql(format!(" and (o.id::text ilike ${}  or ti.id::text ilike ${} or coalesce(bu.email, u.email) ilike ${} or (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${}) )", bind_no, bind_no, bind_no, bind_no, bind_no))
+                .sql(format!(" and (o.id::text ilike ${}  or ti.id::text ilike ${} or coalesce(bu.email, u.email) ilike ${} or trns.transfer_address ilike ${} or coalesce(bu.phone, u.phone) ilike ${} or coalesce(h.redemption_code, c.redemption_code) ilike ${}  or (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${}) )", bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no))
                 .bind::<diesel::sql_types::Text, _>(format!("%{}%", general_query));
         }
 
@@ -781,10 +794,19 @@ impl Order {
             bind_no = bind_no + 1;
             query = query
                 .sql(format!(
-                    " and coalesce(bu.email, u.email) ilike ${}",
-                    bind_no
+                    " and (coalesce(bu.email, u.email) ilike ${} or trns.transfer_address ilike ${})",
+                    bind_no, bind_no
                 ))
                 .bind::<sql_types::Text, _>(format!("%{}%", email));
+        }
+        if let Some(phone) = phone {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(
+                    " and (coalesce(bu.phone, u.phone) ilike ${} or trns.transfer_address ilike ${})",
+                    bind_no, bind_no
+                ))
+                .bind::<sql_types::Text, _>(format!("%{}%", phone));
         }
 
         if let Some(name) = name {
@@ -809,6 +831,20 @@ impl Order {
                     bind_no
                 ))
                 .bind::<sql_types::Text, _>(format!("%{}%", partial_promo_code));
+        }
+
+        if let Some(date) = start_date {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and o.order_date >= ${} ", bind_no))
+                .bind::<sql_types::Timestamp, _>(date);
+        }
+
+        if let Some(date) = end_date {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and o.order_date <= ${} ", bind_no))
+                .bind::<sql_types::Timestamp, _>(date);
         }
 
         if !box_office_sales {
@@ -1065,7 +1101,7 @@ impl Order {
         jlog!(Level::Debug, "Clearing cart");
         self.lock_version(conn)?;
 
-        for mut current_line in self.items(conn)? {
+        for current_line in self.items(conn)? {
             if current_line.item_type != OrderItemTypes::Tickets {
                 continue;
             }
@@ -1207,24 +1243,7 @@ impl Order {
 
                         // TODO: Move this to an external processer
                         if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
-                            let mut price_in_cents = ticket_pricing.price_in_cents;
-                            if let Some(h) = match_data.hold.as_ref() {
-                                let discount = h.discount_in_cents;
-                                let hold_type = h.hold_type;
-                                price_in_cents = match hold_type {
-                                    HoldTypes::Discount => {
-                                        cmp::max(0, price_in_cents - discount.unwrap_or(0))
-                                    }
-                                    HoldTypes::Comp => 0,
-                                };
-                            } else if let Some(c) = match_data.code.as_ref() {
-                                if c.code_type == CodeTypes::Access {
-                                    price_in_cents = cmp::max(
-                                        0,
-                                        price_in_cents - c.discount_in_cents.unwrap_or(0),
-                                    );
-                                }
-                            }
+                            let price_in_cents = ticket_pricing.price_in_cents;
 
                             let order_item = NewTicketsOrderItem {
                                 order_id: self.id,
@@ -1299,19 +1318,7 @@ impl Order {
             let ticket_type = TicketType::find(match_data.update_order_item.ticket_type_id, conn)?;
             check_ticket_limits.append(&mut Order::check_ticket_limits(&ticket_type, &match_data));
 
-            let mut price_in_cents = ticket_pricing.price_in_cents;
-            if let Some(h) = match_data.hold.as_ref() {
-                let discount = h.discount_in_cents;
-                let hold_type = h.hold_type;
-                price_in_cents = match hold_type {
-                    HoldTypes::Discount => cmp::max(0, price_in_cents - discount.unwrap_or(0)),
-                    HoldTypes::Comp => 0,
-                }
-            } else if let Some(c) = match_data.code.as_ref() {
-                if c.code_type == CodeTypes::Access {
-                    price_in_cents = cmp::max(0, price_in_cents - c.discount_in_cents.unwrap_or(0));
-                }
-            }
+            let price_in_cents = ticket_pricing.price_in_cents;
 
             // TODO: Move this to an external processer
             let order_item = NewTicketsOrderItem {
@@ -1379,7 +1386,7 @@ impl Order {
                 return Err(errors.into());
             }
         }
-        self.update_fees(conn)?;
+        self.update_fees_and_discounts(conn)?;
         self.validate_record(conn)?;
         // Beware there could be multiple orders that meet this condition
         for (ticket_type_id, remaining) in self.ticket_types(conn)? {
@@ -1432,7 +1439,7 @@ impl Order {
         )
     }
 
-    pub fn update_fees(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn update_fees_and_discounts(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let items = self.items(conn)?;
 
         for o in items {
@@ -1455,6 +1462,8 @@ impl Order {
             .items(conn)?
             .iter()
             .filter(|i| i.event_id.is_some())
+            .sorted_by_key(|i| (i.event_id, i.hold_id))
+            .into_iter()
             .group_by(|i| (i.event_id, i.hold_id))
             .into_iter()
         {
@@ -1507,17 +1516,25 @@ impl Order {
                     quantity: 1,
                     parent_id: None,
                 };
-                if event.fee_in_cents > 0 {
+
+                // Credit card fees are set per organization
+                // Event can override organization client and company fees
+                let org = Organization::find(event.organization_id, conn)?;
+                let company_fee_in_cents = event
+                    .company_fee_in_cents
+                    .unwrap_or(org.company_event_fee_in_cents);
+                let client_fee_in_cents = event
+                    .client_fee_in_cents
+                    .unwrap_or(org.client_event_fee_in_cents);
+                if (company_fee_in_cents + client_fee_in_cents) > 0 {
                     //we dont want to create 0 fee order item
-                    new_event_fee.company_fee_in_cents = event.company_fee_in_cents;
-                    new_event_fee.client_fee_in_cents = event.client_fee_in_cents;
-                    new_event_fee.unit_price_in_cents =
-                        event.client_fee_in_cents + event.company_fee_in_cents;
+                    new_event_fee.company_fee_in_cents = company_fee_in_cents;
+                    new_event_fee.client_fee_in_cents = client_fee_in_cents;
+                    new_event_fee.unit_price_in_cents = client_fee_in_cents + company_fee_in_cents;
                     new_event_fee.commit(conn)?;
                     per_event_fees_included.insert(event_id, true);
                 }
-                // Credit card fees are set per organization
-                let org = Organization::find(event.organization_id, conn)?;
+
                 if org.cc_fee_percent > 0f32 {
                     let cc_fee = (self.calculate_total(conn)? as f32
                         * (org.cc_fee_percent / 100f32))
@@ -1837,7 +1854,11 @@ impl Order {
                 }
             }
 
-            let tickets_bought = Order::quantity_for_user_for_event(self.user_id, e.id, conn)?;
+            let tickets_bought = Order::quantity_for_user_for_event(
+                self.on_behalf_of_user_id.unwrap_or(self.user_id),
+                e.id,
+                conn,
+            )?;
             for (tt_id, num) in tickets_bought {
                 let limit = TicketType::find(tt_id, conn)?.limit_per_person;
                 if limit > 0 {
@@ -1855,11 +1876,16 @@ impl Order {
                 order_items::table
                     .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
                     .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
+                    .inner_join(users::table.on(users::id.eq(user_id)))
                     .left_join(
                         organization_users::table
                             .on(organization_users::organization_id.eq(events::organization_id)),
                     )
-                    .inner_join(users::table.on(users::id.eq(user_id)))
+                    .left_join(
+                        event_users::table.on(event_users::event_id
+                            .eq(events::id)
+                            .and(event_users::user_id.eq(users::id))),
+                    )
                     .filter(order_items::order_id.eq(self.id))
                     .filter(orders::user_id.ne(user_id))
                     .filter(organization_users::user_id.eq(user_id))
@@ -1869,10 +1895,10 @@ impl Order {
                         OR orders.on_behalf_of_user_id = users.id
                         OR organization_users.id is NULL
                         OR (
-                            NOT events.id = ANY(organization_users.event_ids)
+                            event_users.id IS NULL
                             AND (
-                                    'Promoter' = ANY(organization_users.role)
-                                    OR 'PromoterReadOnly' = ANY(organization_users.role)
+                                'Promoter' = ANY(organization_users.role)
+                                OR 'PromoterReadOnly' = ANY(organization_users.role)
                             )
                         )
                         OR NOT events.organization_id = ANY (")
@@ -1927,6 +1953,15 @@ impl Order {
                 .find(|p| p.status == PaymentStatus::Completed);
         }
 
+        let (total_in_cents, total_refunded_in_cents) =
+            self.calculate_total_and_refunded_total(conn)?;
+
+        let mut on_behalf_of_user: Option<DisplayUser> = None;
+
+        if let Some(on_behalf_of_user_id) = self.on_behalf_of_user_id {
+            on_behalf_of_user = Some(User::find(on_behalf_of_user_id, conn)?.for_display()?);
+        }
+
         Ok(DisplayOrder {
             id: self.id,
             status: self.status.clone(),
@@ -1935,9 +1970,10 @@ impl Order {
             valid_for_purchase: DisplayOrder::valid_for_purchase(self.status, &items),
             items,
             limited_tickets_remaining,
-            total_in_cents: self.calculate_total(conn)?,
+            total_in_cents,
+            total_refunded_in_cents,
             seconds_until_expiry,
-            user_id: self.on_behalf_of_user_id.unwrap_or(self.user_id),
+            user_id: self.user_id,
             user: User::find(self.user_id, conn)?.for_display()?,
             order_number: self.order_number(),
             paid_at: self.paid_at,
@@ -1956,6 +1992,8 @@ impl Order {
             is_box_office: self.on_behalf_of_user_id.is_some(),
             payment_method: payment.as_ref().map(|p| p.payment_method),
             payment_provider: payment.map(|p| p.provider),
+            on_behalf_of_user_id: self.on_behalf_of_user_id,
+            on_behalf_of_user,
         })
     }
 
@@ -2447,14 +2485,23 @@ impl Order {
     }
 
     pub fn calculate_total(&self, conn: &PgConnection) -> Result<i64, DatabaseError> {
+        Ok(self.calculate_total_and_refunded_total(conn)?.0)
+    }
+
+    pub fn calculate_total_and_refunded_total(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<(i64, i64), DatabaseError> {
         let order_items = self.items(conn)?;
         let mut total = 0;
+        let mut refunded_total = 0;
 
         for item in &order_items {
-            total += item.unit_price_in_cents * (item.quantity - item.refunded_quantity);
+            total += item.unit_price_in_cents * item.quantity;
+            refunded_total += item.unit_price_in_cents * item.refunded_quantity;
         }
 
-        Ok(total)
+        Ok((total, refunded_total))
     }
 
     /// Updates the lock version in the database and forces a Concurrency error if
@@ -2548,6 +2595,7 @@ pub struct DisplayOrder {
     pub items: Vec<DisplayOrderItem>,
     pub limited_tickets_remaining: Vec<TicketsRemaining>,
     pub total_in_cents: i64,
+    pub total_refunded_in_cents: i64,
     pub user_id: Uuid,
     pub user: DisplayUser,
     pub order_number: String,
@@ -2561,6 +2609,8 @@ pub struct DisplayOrder {
     pub is_box_office: bool,
     pub payment_method: Option<PaymentMethods>,
     pub payment_provider: Option<PaymentProviders>,
+    pub on_behalf_of_user: Option<DisplayUser>,
+    pub on_behalf_of_user_id: Option<Uuid>,
 }
 
 impl DisplayOrder {

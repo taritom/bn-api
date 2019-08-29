@@ -1,5 +1,6 @@
 SELECT t2.event_id,
        t2.name,
+       t2.status,
        (SELECT min(tp.price_in_cents) FROM ticket_pricing tp WHERE tp.ticket_type_id = t2.id)                         AS min_price,
        (SELECT max(tp.price_in_cents) FROM ticket_pricing tp WHERE tp.ticket_type_id = t2.id)                         AS max_price,
        count(*)                                                                                                       AS total,
@@ -29,4 +30,5 @@ WHERE e.organization_id = $1
         ELSE e.event_end <= now() END -- past
   AND ($3 IS NULL or e.id = ANY($3))
   AND ti.status <> 'Nullified'
+  AND e.deleted_at is null
 GROUP BY t2.name, t2.id, t2.event_id;

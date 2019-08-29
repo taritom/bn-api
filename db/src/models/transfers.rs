@@ -3,11 +3,11 @@ use diesel;
 use diesel::dsl::{count, exists, select, sql};
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use diesel::sql_types::{Array, BigInt, Nullable, Uuid as dUuid};
+use diesel::sql_types::{Array, Uuid as dUuid};
 use models::*;
 use schema::{
-    assets, events, order_transfers, orders, ticket_instances, ticket_types, transfer_tickets,
-    transfers,
+    assets, events, order_transfers, orders, organizations, ticket_instances, ticket_types,
+    transfer_tickets, transfers,
 };
 use serde_json::Value;
 use std::cmp::Ordering;
@@ -15,6 +15,7 @@ use tari_client::*;
 use utils::errors::ConvertToDatabaseError;
 use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
+use utils::pagination::Paginate;
 use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
@@ -30,6 +31,7 @@ pub struct NewTransfer {
     pub status: TransferStatus,
     pub transfer_message_type: Option<TransferMessageType>,
     pub transfer_address: Option<String>,
+    pub direct: bool,
 }
 
 #[derive(Clone, Queryable, Identifiable, Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -45,6 +47,8 @@ pub struct Transfer {
     pub transfer_message_type: Option<TransferMessageType>,
     pub transfer_address: Option<String>,
     pub cancelled_by_user_id: Option<Uuid>,
+    pub direct: bool,
+    pub destination_temporary_user_id: Option<Uuid>,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -68,8 +72,7 @@ pub struct DisplayTransfer {
     pub transfer_address: Option<String>,
     pub ticket_ids: Vec<Uuid>,
     pub event_ids: Vec<Uuid>,
-    #[serde(skip_serializing)]
-    pub total: Option<i64>,
+    pub direct: bool,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -85,32 +88,8 @@ impl PartialOrd for Transfer {
 }
 
 impl Transfer {
-    pub fn receive_url(
-        &self,
-        front_end_url: String,
-        conn: &PgConnection,
-    ) -> Result<String, DatabaseError> {
-        Ok(format!(
-            "{}/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
-            front_end_url,
-            self.source_user_id,
-            self.transfer_key,
-            self.transfer_tickets(conn)?.len(),
-            self.signature(conn)?
-        )
-        .to_string())
-    }
-
-    pub fn into_authorization(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<TransferAuthorization, DatabaseError> {
-        Ok(TransferAuthorization {
-            transfer_key: self.transfer_key,
-            sender_user_id: self.source_user_id,
-            num_tickets: self.transfer_tickets(conn)?.len() as u32,
-            signature: self.signature(conn)?,
-        })
+    pub fn temporary_user_id(transfer_address: Option<String>) -> Option<Uuid> {
+        transfer_address.map(|a| Uuid::new_v3(&Uuid::nil(), &a))
     }
 
     pub fn drip_header(
@@ -146,7 +125,7 @@ impl Transfer {
                     }
                     match units_until_event {
                             0 => {
-                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
+                                let (is_pm, hour) = event.get_all_localized_times(event.venue(conn)?.as_ref()).event_start.unwrap().hour12();
                                 let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
                                 format!("Time to take action! The show is {} and those tickets you sent to {} still haven't been claimed. Give them a nudge!", time_of_day_text, destination_address)
                             },
@@ -167,7 +146,7 @@ impl Transfer {
                     }
                     match units_until_event {
                             0 => {
-                                let (is_pm, hour) = event.get_all_localized_times(&event.venue(conn)?).event_start.unwrap().hour12();
+                                let (is_pm, hour) = event.get_all_localized_times(event.venue(conn)?.as_ref()).event_start.unwrap().hour12();
                                 let time_of_day_text = (if !is_pm || hour < 5 { "today" } else { "tonight" }).to_string();
                                 format!("Time to take action! The event is {} and the tickets {} sent you are still waiting!", time_of_day_text, name)
                             },
@@ -178,6 +157,34 @@ impl Transfer {
                 }
             },
             None => "".to_string(),
+        })
+    }
+
+    pub fn receive_url(
+        &self,
+        front_end_url: String,
+        conn: &PgConnection,
+    ) -> Result<String, DatabaseError> {
+        Ok(format!(
+            "{}/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
+            front_end_url,
+            self.source_user_id,
+            self.transfer_key,
+            self.transfer_tickets(conn)?.len(),
+            self.signature(conn)?
+        )
+        .to_string())
+    }
+
+    pub fn into_authorization(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<TransferAuthorization, DatabaseError> {
+        Ok(TransferAuthorization {
+            transfer_key: self.transfer_key,
+            sender_user_id: self.source_user_id,
+            num_tickets: self.transfer_tickets(conn)?.len() as u32,
+            signature: self.signature(conn)?,
         })
     }
 
@@ -353,10 +360,8 @@ impl Transfer {
             query = query.filter(transfers::created_at.le(end_time));
         }
 
-        let transfers: Vec<DisplayTransfer> = query
+        let (transfers, transfer_count): (Vec<DisplayTransfer>, i64) = query
             .select(transfers::all_columns)
-            .limit(limit as i64)
-            .offset(limit as i64 * page as i64)
             .then_order_by(transfers::created_at.desc())
             .select((
                 transfers::id,
@@ -389,14 +394,16 @@ impl Transfer {
                     ) as event_ids
                 ",
                 ),
-                sql::<Nullable<BigInt>>("count(*) over() as total"),
+                transfers::direct,
             ))
-            .load(conn)
+            .paginate(page as i64)
+            .per_page(limit as i64)
+            .load_and_count_pages(conn)
             .to_db_error(ErrorCode::QueryError, "Unable to load transfers")?;
 
-        let mut paging = Paging::new(page, limit);
-        paging.total = transfers.first().map(|t| t.total.unwrap_or(0)).unwrap_or(0) as u64;
-        Ok(Payload::new(transfers, paging))
+        let mut payload = Payload::new(transfers, Paging::new(page, limit));
+        payload.paging.total = transfer_count as u64;
+        Ok(payload)
     }
 
     pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayTransfer, DatabaseError> {
@@ -419,7 +426,7 @@ impl Transfer {
             transfer_address: self.transfer_address.clone(),
             ticket_ids,
             event_ids,
-            total: None,
+            direct: self.direct,
         })
     }
 
@@ -469,22 +476,15 @@ impl Transfer {
             conn,
         )?;
 
-        let mut domain_event_data = vec![(self.id, Tables::Transfers)];
-        for transfer_ticket in transfer.transfer_tickets(conn)? {
-            domain_event_data.push((transfer_ticket.ticket_instance_id, Tables::TicketInstances));
-        }
-
-        for (id, table) in domain_event_data {
-            DomainEvent::create(
-                DomainEventTypes::TransferTicketCancelled,
-                "Ticket transfer was cancelled".to_string(),
-                table,
-                Some(id),
-                Some(user_id),
-                Some(json!({"old_transfer_key": self.transfer_key, "new_transfer_key": &new_transfer_key })),
-            )
-            .commit(conn)?;
-        }
+        DomainEvent::create(
+            DomainEventTypes::TransferTicketCancelled,
+            "Ticket transfer was cancelled".to_string(),
+            Tables::Transfers,
+            Some(self.id),
+            Some(user_id),
+            Some(json!({"old_transfer_key": self.transfer_key, "new_transfer_key": &new_transfer_key })),
+        )
+        .commit(conn)?;
 
         Ok(transfer)
     }
@@ -511,22 +511,15 @@ impl Transfer {
             conn,
         )?;
 
-        let mut domain_event_data = vec![(self.id, Tables::Transfers)];
-        for transfer_ticket in transfer.transfer_tickets(conn)? {
-            domain_event_data.push((transfer_ticket.ticket_instance_id, Tables::TicketInstances));
-        }
-
-        for (id, table) in domain_event_data {
-            DomainEvent::create(
-                DomainEventTypes::TransferTicketCompleted,
-                "Transfer ticket completed".to_string(),
-                table,
-                Some(id),
-                None,
-                additional_data.clone(),
-            )
-            .commit(conn)?;
-        }
+        DomainEvent::create(
+            DomainEventTypes::TransferTicketCompleted,
+            "Transfer ticket completed".to_string(),
+            Tables::Transfers,
+            Some(self.id),
+            None,
+            additional_data.clone(),
+        )
+        .commit(conn)?;
 
         User::find(self.source_user_id, conn)?.update_genre_info(conn)?;
         User::find(destination_user_id, conn)?.update_genre_info(conn)?;
@@ -559,11 +552,9 @@ impl Transfer {
     pub fn add_transfer_ticket(
         &self,
         ticket_instance_id: Uuid,
-        user_id: Uuid,
-        additional_info: &Option<Value>,
         conn: &PgConnection,
     ) -> Result<TransferTicket, DatabaseError> {
-        TransferTicket::create(ticket_instance_id, self.id).commit(user_id, &additional_info, conn)
+        TransferTicket::create(ticket_instance_id, self.id).commit(conn)
     }
 
     pub fn find_pending(conn: &PgConnection) -> Result<Vec<Transfer>, DatabaseError> {
@@ -580,14 +571,36 @@ impl Transfer {
         transfer_key: Uuid,
         transfer_message_type: Option<TransferMessageType>,
         transfer_address: Option<String>,
+        direct: bool,
     ) -> NewTransfer {
         NewTransfer {
             transfer_address,
             transfer_message_type,
             source_user_id,
             transfer_key,
+            direct,
             status: TransferStatus::Pending,
         }
+    }
+
+    pub fn organizations(&self, conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
+        transfer_tickets::table
+            .inner_join(
+                ticket_instances::table
+                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
+            )
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
+            .inner_join(organizations::table.on(events::organization_id.eq(organizations::id)))
+            .filter(transfer_tickets::transfer_id.eq(self.id))
+            .select(organizations::all_columns)
+            .distinct()
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load transfer organizations",
+            )
     }
 
     pub fn events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
@@ -659,31 +672,20 @@ impl Transfer {
 }
 
 impl NewTransfer {
-    pub fn commit(
-        &self,
-        additional_data: &Option<Value>,
-        conn: &PgConnection,
-    ) -> Result<Transfer, DatabaseError> {
+    pub fn commit(&self, conn: &PgConnection) -> Result<Transfer, DatabaseError> {
         self.validate_record(conn)?;
-        let result: Transfer = DatabaseError::wrap(
+        let transfer: Transfer = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new transfer",
             diesel::insert_into(transfers::table)
-                .values(self)
+                .values((
+                    self,
+                    transfers::destination_temporary_user_id
+                        .eq(Transfer::temporary_user_id(self.transfer_address.clone())),
+                ))
                 .get_result(conn),
         )?;
-
-        DomainEvent::create(
-            DomainEventTypes::TransferTicketStarted,
-            "Transfer ticket started".to_string(),
-            Tables::Transfers,
-            Some(result.id),
-            Some(self.source_user_id),
-            additional_data.clone(),
-        )
-        .commit(conn)?;
-
-        Ok(result)
+        Ok(transfer)
     }
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {

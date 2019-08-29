@@ -1,4 +1,4 @@
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct FacebookWebLoginToken {
     #[serde(rename = "accessToken")]
     pub access_token: String,
@@ -6,4 +6,9 @@ pub struct FacebookWebLoginToken {
     pub expires_in: u64,
     #[serde(rename = "signedRequest")]
     pub signed_request: String,
+    // This is not a Facebook field, but rather tells the API whether
+    // to link this token to the current user. The casing is done to match
+    // the other fields
+    #[serde(rename = "linkToUserId")]
+    pub link_to_user_id: bool,
 }

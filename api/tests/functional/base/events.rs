@@ -148,6 +148,35 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     }
 }
 
+pub fn delete(role: Roles, should_test_succeed: bool) {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_organization(&organization)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = event.id;
+
+    let response: HttpResponse =
+        events::delete((database.connection.clone().into(), path, auth_user)).into();
+    if should_test_succeed {
+        assert_eq!(response.status(), StatusCode::OK);
+        let event = Event::find(event.id, connection).unwrap();
+        assert!(event.deleted_at.is_some());
+    } else {
+        support::expects_unauthorized(&response);
+    }
+}
+
 pub fn cancel(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
@@ -837,6 +866,7 @@ pub fn expected_show_json(
         url: String,
         slug: String,
         facebook_pixel_key: Option<String>,
+        extra_admin_data: Option<Value>,
     }
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
@@ -871,11 +901,17 @@ pub fn expected_show_json(
         }
     }
     let localized_times: EventLocalizedTimeStrings =
-        event.get_all_localized_time_strings(&Some(venue.clone()));
+        event.get_all_localized_time_strings(Some(&venue));
     let (min_ticket_price, max_ticket_price) = event
         .current_ticket_pricing_range(box_office_pricing, connection)
         .unwrap();
 
+    let fee_in_cents = event
+        .client_fee_in_cents
+        .unwrap_or(organization.client_event_fee_in_cents)
+        + event
+            .company_fee_in_cents
+            .unwrap_or(organization.company_event_fee_in_cents);
     serde_json::to_string(&R {
         id: event.id,
         private_access_code: if vec![
@@ -899,7 +935,7 @@ pub fn expected_show_json(
         door_time: event.door_time,
         event_end: event.event_end,
         cancelled_at: event.cancelled_at,
-        fee_in_cents: Some(event.fee_in_cents),
+        fee_in_cents: Some(fee_in_cents),
         status: event.status,
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url,
@@ -936,6 +972,7 @@ pub fn expected_show_json(
         ),
         slug: event.slug.clone(),
         facebook_pixel_key: None,
+        extra_admin_data: None,
     })
     .unwrap()
 }
