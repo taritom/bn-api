@@ -3,7 +3,7 @@ use config::Config;
 use db::Connection;
 use domain_events::executor_future::ExecutorFuture;
 use domain_events::routing::DomainActionExecutor;
-use utils::communication;
+use utils::communication::Communication;
 
 pub struct SendCommunicationExecutor {
     config: Config,
@@ -17,7 +17,7 @@ impl SendCommunicationExecutor {
 
 impl DomainActionExecutor for SendCommunicationExecutor {
     fn execute(&self, action: DomainAction, conn: Connection) -> ExecutorFuture {
-        let future = communication::send_async(&action, &self.config);
+        let future = Communication::send_async(&action, &self.config);
         ExecutorFuture::new(action, conn, Box::new(future))
     }
 }

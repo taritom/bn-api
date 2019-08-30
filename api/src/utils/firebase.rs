@@ -1,6 +1,5 @@
 use errors::*;
 use fcm::{Client, MessageBuilder};
-use log::Level::Debug;
 use tokio::prelude::*;
 use tokio::runtime::current_thread;
 
@@ -35,7 +34,7 @@ pub fn send_push_notification(
         let mut msg = MessageBuilder::new(&api_key, token);
         msg.data(&data)?;
         let msg = msg.finalize();
-        let result = current_thread::block_on_all(client.send(msg))?;
+        current_thread::block_on_all(client.send(msg))?;
         //            .map_err(|e| ApplicationError::new(format!("{:?}", e)))?;
     }
     Ok(())
