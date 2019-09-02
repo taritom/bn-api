@@ -9,6 +9,10 @@ pub struct FacebookWebLoginToken {
     // This is not a Facebook field, but rather tells the API whether
     // to link this token to the current user. The casing is done to match
     // the other fields
-    #[serde(rename = "linkToUserId")]
+    #[serde(rename = "linkToUserId", default = "default_as_false")]
     pub link_to_user_id: bool,
+}
+
+fn default_as_false() -> bool {
+    false
 }
