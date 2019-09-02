@@ -110,7 +110,7 @@ impl UserDisplayTicketType {
         }
 
         if ticket_type.status == TicketTypeStatus::Published {
-            if result.available == 0 {
+            if result.available == 0 || result.available < result.increment as u32 {
                 result.status = TicketTypeStatus::SoldOut;
             } else {
                 if result.ticket_pricing.is_none() {
