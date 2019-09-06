@@ -28,7 +28,7 @@ You'll want to have a local version of Big Neon for development and testing. Thi
 1. Install Rust using [rustup], which allows you to easily switch between Rust
    versions. Big Neon API aims to support Rust stable.
 
-2. Big Neon is a microservices-oriented architecture. There is a build script in the [big-neon repo](https://github.com/big-neon/bigneon)
+2. Big Neon is a MVC Web API style architecture. There is a build script in the [big-neon repo](https://github.com/big-neon/bigneon)
    that helps you set up your local testing environment by pulling the various components as Docker images and setting
    them up a local network for you. See the [README](https://github.com/big-neon/bigneon/blob/master/README.md) for that 
    repo for more details.

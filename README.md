@@ -7,8 +7,8 @@ This is the Big Neon API repository, part of the Big Neon ticketing system.
 
 # Overall project architecture
 
-Big Neon is a multi-tiered micro-services architecture for selling and managing tickets. The software system is made up 
-of multiple components. As such, the code is split across multiple repositories. To get an overall picture of how 
+Big Neon is a multi-tiered MVC Web API architecture for selling and managing tickets. The software system is made up 
+of multiple components. To get an overall picture of how 
 everything fits together have a look at the [docs repository]( https://github.com/big-neon/docs.git)
 
 # Building this project from source
@@ -25,7 +25,7 @@ To download and build this project,
         
 # Configuring the local development environment
 
-This code inter-operates with code in several other repositories. To simplify the management of your local environment,
+To simplify the management of your local environment,
 we've created the [Big Neon repository](https://github.com/big-neon/bigneon) that uses [Docker](https://docker.org) to
 set up and configure your local development environment.
 
