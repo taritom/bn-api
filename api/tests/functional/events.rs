@@ -477,6 +477,106 @@ fn show_future_published_no_preview() {
 }
 
 #[test]
+fn show_from_slug() {
+    let database = TestDatabase::new();
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
+    let conn = database.connection.get();
+    let organization = database.create_organization().finish();
+    let venue = database.create_venue().finish();
+    let event1 = database
+        .create_event()
+        .with_name("NewEvent1".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    let _event_interest = EventInterest::create(event1.id, user.id).commit(conn);
+    let slug1 = "newevent1";
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", slug1));
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    let event_expected_json = base::events::expected_show_json(
+        Roles::User,
+        event1.clone(),
+        organization.clone(),
+        venue.clone(),
+        false,
+        None,
+        None,
+        conn,
+        1,
+    );
+    path.id = slug1.to_string();
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user.clone())),
+    ))
+    .into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, event_expected_json);
+
+    //Now delete the event
+    event1.delete(user.id, conn).unwrap();
+    let slug1 = "newevent1";
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", slug1));
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    path.id = slug1.to_string();
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user.clone())),
+    ))
+    .into();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    //Now try recreate the event with the same name, the slug should change
+    let event2 = database
+        .create_event()
+        .with_name("NewEvent1".to_string())
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    let _event_interest = EventInterest::create(event2.id, user.id).commit(conn);
+    let slug2 = event2.clone().slug;
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}", slug2));
+    let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
+    let event_expected_json = base::events::expected_show_json(
+        Roles::User,
+        event2.clone(),
+        organization.clone(),
+        venue.clone(),
+        false,
+        None,
+        None,
+        conn,
+        1,
+    );
+    path.id = slug2.to_string();
+    let query_parameters = Query::<EventParameters>::extract(&test_request.request).unwrap();
+
+    let response: HttpResponse = events::show((
+        test_request.extract_state(),
+        database.connection.clone().into(),
+        path,
+        query_parameters,
+        OptionalUser(Some(auth_user.clone())),
+    ))
+    .into();
+    let body = support::unwrap_body_to_string(&response).unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body, event_expected_json);
+}
+
+#[test]
 fn show_future_published_with_preview() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
