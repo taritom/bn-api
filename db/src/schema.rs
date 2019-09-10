@@ -28,7 +28,7 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         other_image_urls -> Nullable<Array<Text>>,
-        genres_id -> Nullable<Uuid>,
+        main_genre_id -> Nullable<Uuid>,
     }
 }
 
@@ -748,7 +748,7 @@ table! {
 
 joinable!(artist_genres -> artists (artist_id));
 joinable!(artist_genres -> genres (genre_id));
-joinable!(artists -> genres (genres_id));
+joinable!(artists -> genres (main_genre_id));
 joinable!(artists -> organizations (organization_id));
 joinable!(assets -> ticket_types (ticket_type_id));
 joinable!(broadcasts -> events (event_id));
