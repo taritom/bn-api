@@ -31,6 +31,8 @@ pub struct DomainEventPublisher {
     pub import_historic_events: bool,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub last_domain_event_seq: Option<i64>,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 #[derive(AsChangeset, Deserialize, Validate)]
@@ -42,6 +44,17 @@ pub struct DomainEventPublisherEditableAttributes {
 }
 
 impl DomainEventPublisher {
+    pub fn find_all(conn: &PgConnection) -> Result<Vec<DomainEventPublisher>, DatabaseError> {
+        domain_event_publishers::table
+            .filter(domain_event_publishers::deleted_at.is_null())
+            .order_by(domain_event_publishers::last_domain_event_seq.asc())
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load Domain Event Publisher",
+            )
+    }
+
     pub fn find_with_unpublished_domain_events(
         limit: i64,
         conn: &PgConnection,
@@ -181,7 +194,7 @@ impl DomainEventPublisher {
 
     pub fn publish(
         &self,
-        domain_event: DomainEvent,
+        domain_event: &DomainEvent,
         front_end_url: &String,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
@@ -191,6 +204,7 @@ impl DomainEventPublisher {
                 domain_event_published::domain_event_publisher_id.eq(self.id),
                 domain_event_published::domain_event_id.eq(domain_event.id),
             ))
+            .on_conflict_do_nothing()
             .execute(conn)
             .to_db_error(
                 ErrorCode::InsertError,
@@ -212,6 +226,44 @@ impl DomainEventPublisher {
             .queue(conn)?;
         }
 
+        Ok(())
+    }
+    pub fn update_last_domain_event_seq(
+        &mut self,
+        last_domain_event_seq: i64,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        use diesel::dsl;
+        use schema::*;
+        let res: Option<DomainEventPublisher> =
+            diesel::update(
+                domain_event_publishers::table
+                    .filter(domain_event_publishers::last_domain_event_seq.is_null().or(
+                        domain_event_publishers::last_domain_event_seq.lt(last_domain_event_seq),
+                    ))
+                    .filter(domain_event_publishers::id.eq(self.id)),
+            )
+            .set((
+                domain_event_publishers::last_domain_event_seq.eq(last_domain_event_seq),
+                domain_event_publishers::updated_at.eq(dsl::now),
+            ))
+            .get_result(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not update domain event publisher",
+            )
+            .optional()?;
+
+        let r = match res {
+            Some(r) => Ok(r),
+            None =>
+            // A later event has already been published....
+            {
+                DomainEventPublisher::find(self.id, conn)
+            }
+        }?;
+
+        self.last_domain_event_seq = r.last_domain_event_seq;
         Ok(())
     }
 

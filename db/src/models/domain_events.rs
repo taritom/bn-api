@@ -21,6 +21,8 @@ pub struct DomainEvent {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub user_id: Option<Uuid>,
+    pub seq: i64,
+    pub organization_id: Option<Uuid>,
 }
 
 impl PartialOrd for DomainEvent {
@@ -58,6 +60,24 @@ impl DomainEvent {
             user_id,
             created_at: None,
         }
+    }
+
+    pub fn find_after_seq(
+        after_seq: i64,
+        limit: u32,
+        conn: &PgConnection,
+    ) -> Result<Vec<DomainEvent>, DatabaseError> {
+        domain_events::table
+            .filter(domain_events::seq.gt(after_seq))
+            .for_update()
+            .skip_locked()
+            .order_by(domain_events::seq.asc())
+            .limit(limit as i64)
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load domain events after seq",
+            )
     }
 
     pub fn webhook_payloads(

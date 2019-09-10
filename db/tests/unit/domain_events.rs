@@ -462,6 +462,8 @@ fn partial_ord() {
         created_at: Utc::now().naive_utc(),
         updated_at: Utc::now().naive_utc(),
         user_id: None,
+        organization_id: None,
+        seq: 0,
     };
 
     let high_id = "e2cf68a4-76bb-49e1-993c-2576a4fc1220";

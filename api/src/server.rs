@@ -43,6 +43,7 @@ impl Server {
     pub fn start(
         config: Config,
         process_actions: bool,
+        process_events: bool,
         process_http: bool,
         process_actions_til_empty: bool,
     ) {
@@ -59,7 +60,7 @@ impl Server {
         }
 
         if process_actions {
-            domain_action_monitor.start()
+            domain_action_monitor.start(process_actions, process_events)
         }
 
         if config.spotify_auth_token.is_some() {

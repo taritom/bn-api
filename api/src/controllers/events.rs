@@ -240,7 +240,7 @@ pub fn show(
 
     let (event, organization, venue, fee_schedule) = match parameters.id.parse() {
         Ok(i) => Event::find_incl_org_venue_fees(i, connection)?,
-        Err(_) => Event::find_by_slug(&parameters.id, connection)?,
+        Err(_) => Event::find_by_slug(&parameters.id, false, connection)?,
     };
 
     if event.private_access_code.is_some()

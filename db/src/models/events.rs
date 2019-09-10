@@ -193,7 +193,7 @@ impl NewEvent {
             new_event.slug = Some(slug.clone());
             loop {
                 let existing =
-                    Event::find_by_slug(new_event.slug.as_ref().unwrap(), conn).optional()?;
+                    Event::find_by_slug(new_event.slug.as_ref().unwrap(), true, conn).optional()?;
                 if existing.is_none() {
                     break;
                 }
@@ -899,13 +899,14 @@ impl Event {
 
     pub fn find_by_slug(
         slug: &str,
+        include_deleted: bool,
         conn: &PgConnection,
     ) -> Result<(Event, Organization, Option<Venue>, FeeSchedule), DatabaseError> {
         use schema::*;
-        let res: (Event, Organization, Option<Venue>, FeeSchedule) = events::table
+
+        let mut query = events::table
             .inner_join(organizations::table.inner_join(fee_schedules::table))
             .left_join(venues::table)
-            .filter(events::deleted_at.is_null())
             .filter(events::slug.eq(slug))
             .select((
                 events::all_columns,
@@ -913,6 +914,14 @@ impl Event {
                 venues::all_columns.nullable(),
                 fee_schedules::all_columns,
             ))
+            .into_boxed();
+
+        //Also check the deleted events on create because there is a unique index on the slug field
+        if !include_deleted {
+            query = query.filter(events::deleted_at.is_null());
+        }
+
+        let res: (Event, Organization, Option<Venue>, FeeSchedule) = query
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading event")
             .expect_single()?;
