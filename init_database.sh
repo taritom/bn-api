@@ -6,9 +6,13 @@ DB_DIR=$BN_DIR/db
 API_DIR=$BN_DIR/api
 
 # Create .env files for the db and api projects
-cp $DB_DIR/.env.sample $DB_DIR/.env
-cp $API_DIR/.env.sample $API_DIR/.env
+if [ ! -f $DB_DIR/.env ]; then # if file does not exist
+  cp $DB_DIR/.env.sample $DB_DIR/.env
+fi
 
+if [ ! -f $API_DIR/.env ]; then # if file does not exist
+  cp $API_DIR/.env.sample $API_DIR/.env
+fi
 cd $DB_DIR
 
 # start Postgres using Docker, data is stored in db/pg_data
