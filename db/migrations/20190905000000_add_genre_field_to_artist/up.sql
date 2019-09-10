@@ -1,2 +1,2 @@
 alter table artists
-    add genres_id UUID NULL REFERENCES genres(id);
+    add main_genre_id UUID NULL REFERENCES genres(id);

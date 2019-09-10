@@ -46,5 +46,3 @@ set +o allexport
 # Creates the main database
 cargo run create -c $TEST_DATABASE_ADMIN_URL -f -e superuser@test.com -p password -m 8883
 cargo run create -c $DATABASE_ADMIN_URL -f -e superuser@test.com -p password -m 8883
-
-# cd ../
