@@ -31,8 +31,14 @@ fn main() {
         .about("HTTP REST API server and event and scheduled tasks processor")
         .arg(
             Arg::with_name("process-actions")
-                .help("Fetches and processes events and actions from the database")
+                .help("Fetches and processes actions from the database")
                 .short("t")
+                .default_value("true"),
+        )
+        .arg(
+            Arg::with_name("process-events")
+                .help("Fetches and processes events from the database")
+                .short("e")
                 .default_value("true"),
         )
         .arg(
@@ -57,6 +63,11 @@ fn main() {
             .unwrap_or("true")
             .parse()
             .expect("Unknown value for `process-actions`. Use `true` or `false`"),
+        matches
+            .value_of("process-events")
+            .unwrap_or("false")
+            .parse()
+            .expect("Unknown value for `process-events`. Use `true` or `false`"),
         matches
             .value_of("process-http")
             .unwrap_or("true")

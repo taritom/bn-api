@@ -154,7 +154,7 @@ fn find_with_unpublished_domain_events() {
 
     // Publish event only for global publisher
     global_domain_event_publisher
-        .publish(order_domain_event.clone(), &"".to_string(), connection)
+        .publish(&order_domain_event, &"".to_string(), connection)
         .unwrap();
     let publisher_data =
         DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
@@ -184,7 +184,7 @@ fn find_with_unpublished_domain_events() {
 
     // Publish for other publisher
     organization_domain_event_publisher
-        .publish(order_domain_event.clone(), &"".to_string(), connection)
+        .publish(&order_domain_event, &"".to_string(), connection)
         .unwrap();
     let publisher_data =
         DomainEventPublisher::find_with_unpublished_domain_events(100, connection).unwrap();
@@ -231,11 +231,8 @@ fn publish() {
     assert_eq!(publisher_data.len(), 1);
     let domain_event = &publisher_data.get(&domain_event_publisher).unwrap()[0];
     domain_event_publisher
-        .publish(domain_event.clone(), &"".to_string(), connection)
+        .publish(&domain_event, &"".to_string(), connection)
         .unwrap();
-    assert!(domain_event_publisher
-        .publish(domain_event.clone(), &"".to_string(), connection)
-        .is_err());
 }
 
 #[test]

@@ -118,6 +118,8 @@ table! {
         import_historic_events -> Bool,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        last_domain_event_seq -> Nullable<Int8>,
+        deleted_at -> Nullable<Timestamp>,
     }
 }
 
@@ -132,6 +134,8 @@ table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         user_id -> Nullable<Uuid>,
+        seq -> Int8,
+        organization_id -> Nullable<Uuid>,
     }
 }
 
@@ -751,6 +755,7 @@ joinable!(domain_actions -> domain_events (domain_event_id));
 joinable!(domain_event_published -> domain_event_publishers (domain_event_publisher_id));
 joinable!(domain_event_published -> domain_events (domain_event_id));
 joinable!(domain_event_publishers -> organizations (organization_id));
+joinable!(domain_events -> organizations (organization_id));
 joinable!(domain_events -> users (user_id));
 joinable!(event_artists -> artists (artist_id));
 joinable!(event_artists -> events (event_id));

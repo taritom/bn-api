@@ -73,27 +73,41 @@ impl DomainActionMonitor {
         database: &Database,
     ) -> Result<usize, DomainActionError> {
         let connection = database.get_connection()?;
-        let unpublished_domain_events_by_publisher =
-            DomainEventPublisher::find_with_unpublished_domain_events(10, connection.get())?;
+        let connection = connection.get();
 
-        let domain_events_to_publish = unpublished_domain_events_by_publisher
-            .iter()
-            .map(|(_, v)| v.len())
-            .sum();
-        if domain_events_to_publish > 0 {
-            jlog!(
-                Debug,
-                "bigneon::domain_actions",
-                "Found domain events to publish",
-                { "count": unpublished_domain_events_by_publisher.len() }
-            );
-            for (publisher, domain_events) in unpublished_domain_events_by_publisher {
-                for domain_event in domain_events {
-                    publisher.publish(domain_event, &config.front_end_url, connection.get())?;
+        let mut domain_event_publishers = DomainEventPublisher::find_all(connection)?;
+
+        if domain_event_publishers.len() == 0 {
+            return Ok(0);
+        };
+        let mut events_published = 0;
+        let domain_events = DomainEvent::find_after_seq(
+            domain_event_publishers[0]
+                .last_domain_event_seq
+                .unwrap_or(-1),
+            100,
+            connection,
+        )?;
+        jlog!(Info, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
+        for event in domain_events {
+            // Process
+            for publisher in domain_event_publishers
+                .iter_mut()
+                .filter(|p| p.last_domain_event_seq.unwrap_or(-1) < event.seq)
+            {
+                if publisher.event_types.contains(&event.event_type)
+                    && (publisher.organization_id.is_none()
+                        || publisher.organization_id == event.organization_id)
+                {
+                    publisher.publish(&event, &config.front_end_url, connection)?;
                 }
+
+                publisher.update_last_domain_event_seq(event.seq, connection)?;
             }
+            events_published += 1;
         }
-        Ok(domain_events_to_publish)
+
+        Ok(events_published)
     }
 
     pub fn publish_events_to_actions(
@@ -114,10 +128,15 @@ impl DomainActionMonitor {
             }
 
             // Domain Monitor main loop
-            DomainActionMonitor::find_and_publish_events(&config, &database)?;
-
-            // Sleep regardless if we found results to reduce rate of webhook processing
-            thread::sleep(Duration::from_secs(interval));
+            if DomainActionMonitor::find_and_publish_events(&config, &database)? == 0 {
+                jlog!(
+                    Info,
+                    "bigneon::domain_events",
+                    "No events founds, sleeping",
+                    {}
+                );
+                thread::sleep(Duration::from_secs(interval));
+            }
         }
         Ok(())
     }
@@ -258,44 +277,52 @@ impl DomainActionMonitor {
         Ok(())
     }
 
-    pub fn start(&mut self) {
-        jlog!(
-            Info,
-            "bigneon::domain_actions",
-            "Domain action monitor starting",
-            {}
-        );
-        let config = self.config.clone();
-        let database = self.database.clone();
-        let interval = self.interval;
+    pub fn start(&mut self, run_actions: bool, run_events: bool) {
+        if run_actions {
+            jlog!(
+                Info,
+                "bigneon::domain_actions",
+                "Domain action monitor starting",
+                {}
+            );
+            let config = self.config.clone();
+            let database = self.database.clone();
+            let interval = self.interval;
 
-        let (tx, rx) = mpsc::channel::<()>();
+            // Use this channel to tell the server to shut down
+            let (tx, rx) = mpsc::channel::<()>();
 
-        self.worker_threads.push((
-            tx,
-            thread::spawn(move || {
-                match DomainActionMonitor::run_actions(config, database, interval, rx) {
-                    Ok(_) => (),
-                    Err(e) => jlog!(
-                        Error,
-                        "bigneon::domain_actions",
-                        "Domain action monitor failed", {"error": e.description()}
-                    ),
-                };
-                Ok(())
-            }),
-        ));
+            // Create a worker thread to run domain actions
+            self.worker_threads.push((
+                tx,
+                thread::spawn(move || {
+                    match DomainActionMonitor::run_actions(config, database, interval, rx) {
+                        Ok(_) => (),
+                        Err(e) => jlog!(
+                            Error,
+                            "bigneon::domain_actions",
+                            "Domain action monitor failed", {"error": e.description()}
+                        ),
+                    };
+                    Ok(())
+                }),
+            ));
+        }
+        if run_events {
+            let database = self.database.clone();
+            let interval = self.interval;
 
-        let database = self.database.clone();
-        let config = self.config.clone();
-        let (tx, rx) = mpsc::channel::<()>();
+            let config = self.config.clone();
+            let (tx, rx) = mpsc::channel::<()>();
 
-        self.worker_threads.push((
-            tx,
-            thread::spawn(move || {
-                DomainActionMonitor::publish_events_to_actions(config, database, interval, rx)
-            }),
-        ));
+            // Create a worker thread to publish events to subscribers
+            self.worker_threads.push((
+                tx,
+                thread::spawn(move || {
+                    DomainActionMonitor::publish_events_to_actions(config, database, interval, rx)
+                }),
+            ));
+        }
     }
 
     pub fn stop(&mut self) {
