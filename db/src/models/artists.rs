@@ -35,6 +35,7 @@ pub struct Artist {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub other_image_urls: Option<Vec<String>>,
+    pub main_genre_id: Option<Uuid>,
 }
 
 #[derive(Insertable, Default, Deserialize, Validate)]
