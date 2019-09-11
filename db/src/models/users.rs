@@ -156,31 +156,43 @@ impl User {
         conn: &PgConnection,
     ) -> Result<Option<Venue>, DatabaseError> {
         use schema::*;
-        venues::table
-            .inner_join(events::table.on(events::venue_id.eq(venues::id.nullable())))
+        events::table
             .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
             .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .left_join(event_interest::table.on(event_interest::event_id.eq(events::id)))
             .left_join(ticket_instances::table.on(ticket_instances::asset_id.eq(assets::id)))
-            .left_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
-            .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
-            .left_join(orders::table.on(orders::id.eq(order_items::order_id)))
-            .filter(
-                event_interest::user_id
-                    .eq(self.id)
-                    .or(wallets::user_id
+            .left_join(
+                wallets::table.on(ticket_instances::wallet_id.eq(wallets::id).and(
+                    wallets::user_id
                         .eq(self.id)
                         .and(ticket_instances::status.eq_any(vec![
                             TicketInstanceStatus::Purchased,
                             TicketInstanceStatus::Redeemed,
-                        ])))
-                    .or(orders::status.eq(OrderStatus::Paid).and(
+                        ])),
+                )),
+            )
+            .left_join(
+                event_interest::table.on(event_interest::event_id
+                    .eq(events::id)
+                    .and(event_interest::user_id.eq(self.id))),
+            )
+            .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
+            .left_join(
+                orders::table.on(orders::id.eq(order_items::order_id).and(
+                    orders::status.eq(OrderStatus::Paid).and(
                         orders::on_behalf_of_user_id
                             .eq(self.id)
                             .or(orders::on_behalf_of_user_id
                                 .is_null()
                                 .and(orders::user_id.eq(self.id))),
-                    )),
+                    ),
+                )),
+            )
+            .inner_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
+            .filter(
+                event_interest::id
+                    .is_not_null()
+                    .or(wallets::id.is_not_null())
+                    .or(orders::id.is_not_null()),
             )
             .select(venues::all_columns)
             .order_by(events::event_start.desc())
