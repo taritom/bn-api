@@ -3135,35 +3135,6 @@ fn search() {
     .unwrap();
     assert_eq!(all_found_events.0.len(), 1);
 
-    // Order now tying user to IE (changes default)
-    project
-        .create_order()
-        .for_event(&all_events[1])
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
-    let all_found_events = Event::search(
-        Some("New Hampshire".to_string()),
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        EventSearchSortField::EventStart,
-        SortingDir::Asc,
-        Some(user.clone()),
-        PastOrUpcoming::Past,
-        None,
-        paging,
-        &country_lookup,
-        connection,
-    )
-    .unwrap();
-    assert_eq!(all_found_events.0.len(), 0);
-
     // User uses US country code
     let all_found_events = Event::search(
         Some("New Hampshire, US".to_string()),

@@ -1664,11 +1664,6 @@ impl Event {
                 }
             }
             let mut default_country: Option<CountryDatum> = None;
-            if let Some(user) = &user {
-                if let Some(country) = user.country(conn)?.clone() {
-                    default_country = country_service.find(&country);
-                }
-            }
             // Default to US for country state search
             default_country = default_country.or_else(|| country_service.find("US"));
             if let Some(default_country) = default_country {
