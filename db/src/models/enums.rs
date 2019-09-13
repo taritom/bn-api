@@ -176,7 +176,7 @@ string_enum! { Environment [Development, Production, Staging, Test]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { EventSearchSortField [ Name, EventStart]}
 string_enum! { EventOverrideStatus [PurchaseTickets,SoldOut,OnSaleSoon,TicketsAtTheDoor,Free,Rescheduled,Cancelled,OffSale,Ended]}
-string_enum! { EventTypes [ Music, Conference, Art, Culinary, Comedy, Sports]}
+string_enum! { EventTypes [ Music, Conference, Art, Culinary, Comedy, Sports, Tech, Other]}
 string_enum! { ExternalPaymentType [Cash, CreditCard, Voucher]}
 string_enum! { FanSortField [FirstName, LastName, Email, Phone, OrganizationId, UserCreated, Orders, FirstOrder, LastOrder, Revenue, FirstInteracted, LastInteracted] }
 string_enum! { HistoryType [Purchase]}
