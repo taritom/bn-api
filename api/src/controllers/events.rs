@@ -274,8 +274,10 @@ pub fn show(
         None => false,
     };
 
+    let event_ended = event.event_end.unwrap_or(times::infinity()) < dates::now().finish();
     if (!is_user_admin && event.publish_date.unwrap_or(times::infinity()) > dates::now().finish())
         || event.deleted_at.is_some()
+        || event_ended
     {
         return application::not_found();
     }

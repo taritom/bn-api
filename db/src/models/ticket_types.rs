@@ -629,6 +629,11 @@ impl TicketType {
             .filter(events::status.ne(EventStatus::Draft.to_string()))
             .filter(events::cancelled_at.is_null())
             .filter(events::deleted_at.is_null())
+            .filter(
+                events::event_end
+                    .is_null()
+                    .or(events::event_end.ge(dsl::now.nullable())),
+            )
             .filter(ticket_types::status.ne(TicketTypeStatus::Cancelled.to_string()))
             .select(dsl::count(ticket_types::id))
             .first(conn)
