@@ -1,6 +1,7 @@
 pub use self::broadcast_push_notification::*;
 pub use self::marketing_contacts::*;
 pub use self::process_payment_ipn::*;
+pub use self::process_settlement_report::*;
 pub use self::process_transfer_drip_event::*;
 pub use self::regenerate_drip_actions::*;
 pub use self::send_communication::*;
@@ -10,6 +11,7 @@ pub use self::update_genres::*;
 mod broadcast_push_notification;
 pub mod marketing_contacts;
 mod process_payment_ipn;
+mod process_settlement_report;
 mod process_transfer_drip_event;
 mod regenerate_drip_actions;
 mod send_communication;

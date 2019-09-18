@@ -15,6 +15,7 @@ pub struct HoldBuilder<'a> {
     quantity: u32,
     max_per_user: Option<u32>,
     parent_hold_id: Option<Uuid>,
+    discount_in_cents: Option<u32>,
     connection: &'a PgConnection,
 }
 
@@ -32,6 +33,7 @@ impl<'a> HoldBuilder<'a> {
             end_at: None,
             max_per_user: None,
             parent_hold_id: None,
+            discount_in_cents: None,
         }
     }
 
@@ -47,6 +49,11 @@ impl<'a> HoldBuilder<'a> {
 
     pub fn with_quantity(mut self, quantity: u32) -> Self {
         self.quantity = quantity;
+        self
+    }
+
+    pub fn with_discount_in_cents(mut self, discount_in_cents: u32) -> Self {
+        self.discount_in_cents = Some(discount_in_cents);
         self
     }
 
@@ -109,7 +116,7 @@ impl<'a> HoldBuilder<'a> {
             self.event_id.unwrap(),
             Some(self.redemption_code),
             if self.hold_type == HoldTypes::Discount {
-                Some(10)
+                Some(self.discount_in_cents.unwrap_or(10))
             } else {
                 None
             },

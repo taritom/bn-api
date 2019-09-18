@@ -60,6 +60,7 @@ pub struct NewOrganizationRequest {
     pub globee_api_key: Option<String>,
     pub cc_fee_percent: Option<f32>,
     pub max_instances_per_ticket_type: Option<i64>,
+    pub settlement_type: Option<SettlementTypes>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -160,6 +161,7 @@ pub fn create(
             Some(x) => x,
             None => state.config.max_instances_per_ticket_type,
         }),
+        settlement_type: new_organization.settlement_type,
     };
 
     let mut organization = new_organization_with_fee_schedule.commit(
@@ -188,7 +190,9 @@ pub fn update(
     let mut organization = Organization::find(parameters.id, conn)?;
     let organization_update = organization_parameters.into_inner();
 
-    if organization_update.max_instances_per_ticket_type.is_some() {
+    if organization_update.max_instances_per_ticket_type.is_some()
+        || organization_update.settlement_type.is_some()
+    {
         user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, conn)?;
     } else {
         user.requires_scope_for_organization(Scopes::OrgWrite, &organization, conn)?;

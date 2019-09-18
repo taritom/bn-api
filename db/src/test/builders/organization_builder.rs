@@ -17,6 +17,7 @@ pub struct OrganizationBuilder<'a> {
     use_address: bool,
     additional_fee: i64,
     timezone: Option<String>,
+    settlement_type: Option<SettlementTypes>,
 }
 
 impl<'a> OrganizationBuilder<'a> {
@@ -34,6 +35,7 @@ impl<'a> OrganizationBuilder<'a> {
             cc_fee_percent: None,
             additional_fee: 0,
             timezone: None,
+            settlement_type: None,
         }
     }
 
@@ -44,6 +46,16 @@ impl<'a> OrganizationBuilder<'a> {
 
     pub fn with_address(mut self) -> OrganizationBuilder<'a> {
         self.use_address = true;
+        self
+    }
+
+    pub fn with_timezone(mut self, timezone: String) -> Self {
+        self.timezone = Some(timezone);
+        self
+    }
+
+    pub fn with_settlement_type(mut self, settlement_type: SettlementTypes) -> Self {
+        self.settlement_type = Some(settlement_type);
         self
     }
 
@@ -93,7 +105,9 @@ impl<'a> OrganizationBuilder<'a> {
             self.fee_schedule = Some(fee_schedule.unwrap());
         }
 
-        let mut organization = Organization::create(&self.name, self.fee_schedule.unwrap().id)
+        let mut organization = Organization::create(&self.name, self.fee_schedule.unwrap().id);
+        organization.settlement_type = self.settlement_type;
+        let mut organization = organization
             .commit("encryption_key", None, self.connection)
             .unwrap();
 

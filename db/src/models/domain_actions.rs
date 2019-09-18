@@ -17,7 +17,7 @@ pub struct DomainAction {
     pub domain_action_type: DomainActionTypes,
     pub communication_channel_type: Option<CommunicationChannelType>,
     pub payload: serde_json::Value,
-    pub main_table: Option<String>,
+    pub main_table: Option<Tables>,
     pub main_table_id: Option<Uuid>,
     pub scheduled_at: NaiveDateTime,
     pub expires_at: NaiveDateTime,
@@ -46,7 +46,7 @@ impl DomainAction {
         domain_action_type: DomainActionTypes,
         communication_channel_type: Option<CommunicationChannelType>,
         payload: serde_json::Value,
-        main_table: Option<String>,
+        main_table: Option<Tables>,
         main_table_id: Option<Uuid>,
     ) -> NewDomainAction {
         NewDomainAction {
@@ -80,7 +80,7 @@ impl DomainAction {
     }
 
     pub fn find_by_resource(
-        main_table: String,
+        main_table: Tables,
         main_table_id: Uuid,
         domain_action_type: DomainActionTypes,
         domain_action_status: DomainActionStatus,
@@ -130,7 +130,7 @@ impl DomainAction {
     /// otherwise false.
     pub fn has_pending_action(
         action_type: DomainActionTypes,
-        main_table: String,
+        main_table: Tables,
         main_table_id: Uuid,
         conn: &PgConnection,
     ) -> Result<bool, DatabaseError> {
@@ -266,7 +266,7 @@ pub struct NewDomainAction {
     pub domain_action_type: DomainActionTypes,
     pub communication_channel_type: Option<CommunicationChannelType>,
     pub payload: serde_json::Value,
-    pub main_table: Option<String>,
+    pub main_table: Option<Tables>,
     pub main_table_id: Option<Uuid>,
     pub scheduled_at: NaiveDateTime,
     pub expires_at: NaiveDateTime,

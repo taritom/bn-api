@@ -8,7 +8,7 @@ pub struct DomainActionBuilder<'a> {
     domain_action_type: Option<DomainActionTypes>,
     communication_channel_type: Option<CommunicationChannelType>,
     payload: Option<serde_json::Value>,
-    main_table: Option<String>,
+    main_table: Option<Tables>,
     main_table_id: Option<Uuid>,
     scheduled_at: Option<NaiveDateTime>,
     expires_at: Option<NaiveDateTime>,
@@ -50,7 +50,7 @@ impl<'a> DomainActionBuilder<'a> {
         self
     }
 
-    pub fn with_main_table(mut self, main_table: String) -> Self {
+    pub fn with_main_table(mut self, main_table: Tables) -> Self {
         self.main_table = Some(main_table);
         self
     }

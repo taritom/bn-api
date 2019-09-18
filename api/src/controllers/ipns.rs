@@ -26,7 +26,7 @@ pub fn globee(
         DomainActionTypes::PaymentProviderIPN,
         None,
         json!(data),
-        Some(Tables::Orders.to_string()),
+        Some(Tables::Orders),
         order_id,
     );
     action.expires_at = action.scheduled_at.into_builder().add_days(30).finish();

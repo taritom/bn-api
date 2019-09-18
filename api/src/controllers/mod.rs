@@ -20,6 +20,7 @@ pub mod payments;
 pub mod redemption_codes;
 pub mod regions;
 pub mod reports;
+pub mod settlement_adjustments;
 pub mod settlements;
 pub mod stages;
 pub mod status;

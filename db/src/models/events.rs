@@ -316,6 +316,28 @@ pub struct EventLocalizedTimeStrings {
 }
 
 impl Event {
+    pub fn get_all_events_with_sales_between(
+        organization_id: Uuid,
+        start: NaiveDateTime,
+        end: NaiveDateTime,
+        conn: &PgConnection,
+    ) -> Result<Vec<Event>, DatabaseError> {
+        events::table
+            .inner_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
+            .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
+            .filter(events::deleted_at.is_null())
+            .filter(events::organization_id.eq(organization_id))
+            .filter(events::status.eq(EventStatus::Published))
+            .filter(events::is_external.eq(false))
+            .filter(orders::paid_at.ge(start))
+            .filter(orders::paid_at.le(end))
+            .order_by(events::event_end.asc())
+            .select(events::all_columns)
+            .distinct()
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve events")
+    }
+
     pub fn eligible_for_deletion(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
         // An event is ineligible for deletion if it is present in any cart
         Ok(self.deleted_at.is_none()
@@ -514,7 +536,7 @@ impl Event {
             DomainActionTypes::RegenerateDripActions,
             None,
             json!({}),
-            Some(Tables::Events.to_string()),
+            Some(Tables::Events),
             Some(self.id),
         )
         .commit(conn)?;
@@ -524,7 +546,7 @@ impl Event {
 
     pub fn clear_pending_drip_actions(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
         let drip_domain_actions = DomainAction::find_by_resource(
-            Tables::Events.to_string(),
+            Tables::Events,
             self.id,
             DomainActionTypes::ProcessTransferDrip,
             DomainActionStatus::Pending,
@@ -648,7 +670,7 @@ impl Event {
                     event_id: self.id,
                     source_or_destination: SourceOrDestination::Destination,
                 }),
-                Some(Tables::Events.to_string()),
+                Some(Tables::Events),
                 Some(self.id),
             );
             action.schedule_at(next_source_drip_day);

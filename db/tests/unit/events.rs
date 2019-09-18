@@ -8,6 +8,178 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 #[test]
+fn get_all_events_with_sales_between() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let organization2 = project.create_organization().finish();
+    let organization_event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_organization(&organization)
+        .finish();
+    let organization_event2 = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_organization(&organization)
+        .finish();
+    let _no_orders_event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_organization(&organization)
+        .finish();
+    let other_organization_event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_organization(&organization2)
+        .finish();
+
+    for event in vec![
+        &organization_event,
+        &organization_event2,
+        &other_organization_event,
+    ] {
+        project
+            .create_order()
+            .for_event(&event)
+            .quantity(1)
+            .is_paid()
+            .finish();
+    }
+
+    // Organization events with sales
+    let found_events = Event::get_all_events_with_sales_between(
+        organization.id,
+        dates::now().add_days(-5).finish(),
+        dates::now().add_days(5).finish(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        found_events,
+        vec![organization_event.clone(), organization_event2.clone()]
+    );
+
+    // Other organization
+    let found_events = Event::get_all_events_with_sales_between(
+        organization2.id,
+        dates::now().add_days(-5).finish(),
+        dates::now().add_days(5).finish(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(found_events, vec![other_organization_event.clone()]);
+
+    // Outside of window for sale
+    let found_events = Event::get_all_events_with_sales_between(
+        organization.id,
+        dates::now().add_days(-5).finish(),
+        dates::now().add_days(-4).finish(),
+        connection,
+    )
+    .unwrap();
+    assert!(found_events.is_empty());
+}
+
+#[test]
+fn get_all_events_ending_between() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let user = project.create_user().finish();
+    let published_event = project
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+    let _other_organization_published_event = project.create_event().finish();
+    let draft_event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_status(EventStatus::Draft)
+        .finish();
+    let deleted_event = project
+        .create_event()
+        .with_organization(&organization)
+        .finish();
+    deleted_event.delete(user.id, connection).unwrap();
+    let published_event_ending_before_window = project
+        .create_event()
+        .with_organization(&organization)
+        .with_event_start(dates::now().add_days(-15).finish())
+        .with_event_end(dates::now().add_days(-14).finish())
+        .finish();
+    let published_event_ending_after_window = project
+        .create_event()
+        .with_organization(&organization)
+        .with_event_start(dates::now().add_days(-10).finish())
+        .with_event_end(dates::now().add_days(14).finish())
+        .finish();
+    let _published_external_event = project
+        .create_event()
+        .external()
+        .with_organization(&organization)
+        .external()
+        .finish();
+
+    // Get published events in window
+    let found_events = Event::get_all_events_ending_between(
+        organization.id,
+        dates::now().add_days(-5).finish(),
+        dates::now().add_days(5).finish(),
+        EventStatus::Published,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(found_events, vec![published_event.clone()]);
+
+    // Increasing the window to include later event
+    let found_events = Event::get_all_events_ending_between(
+        organization.id,
+        dates::now().add_days(-5).finish(),
+        dates::now().add_days(15).finish(),
+        EventStatus::Published,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        found_events,
+        vec![
+            published_event.clone(),
+            published_event_ending_after_window.clone()
+        ]
+    );
+
+    // Increasing the window to include all published event
+    let found_events = Event::get_all_events_ending_between(
+        organization.id,
+        dates::now().add_days(-15).finish(),
+        dates::now().add_days(15).finish(),
+        EventStatus::Published,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        found_events,
+        vec![
+            published_event_ending_before_window.clone(),
+            published_event.clone(),
+            published_event_ending_after_window.clone()
+        ]
+    );
+
+    // Looking at draft status
+    let found_events = Event::get_all_events_ending_between(
+        organization.id,
+        dates::now().add_days(-15).finish(),
+        dates::now().add_days(15).finish(),
+        EventStatus::Draft,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(found_events, vec![draft_event.clone()]);
+}
+
+#[test]
 fn eligible_for_deletion() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -58,7 +230,7 @@ fn create_next_transfer_drip_action() {
         .create_next_transfer_drip_action(Environment::Test, connection)
         .unwrap();
     let domain_action = &DomainAction::find_by_resource(
-        Tables::Events.to_string(),
+        Tables::Events,
         event.id,
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
@@ -66,7 +238,7 @@ fn create_next_transfer_drip_action() {
     )
     .unwrap()[0];
     assert_eq!(domain_action.main_table_id, Some(event.id));
-    assert_eq!(domain_action.main_table, Some(Tables::Events.to_string()));
+    assert_eq!(domain_action.main_table, Some(Tables::Events));
 
     let payload: ProcessTransferDripPayload =
         serde_json::from_value(domain_action.payload.clone()).unwrap();
@@ -154,7 +326,7 @@ fn create_next_transfer_drip_action_staging() {
         .create_next_transfer_drip_action(Environment::Staging, connection)
         .unwrap();
     let domain_action = &DomainAction::find_by_resource(
-        Tables::Events.to_string(),
+        Tables::Events,
         event.id,
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
@@ -162,7 +334,7 @@ fn create_next_transfer_drip_action_staging() {
     )
     .unwrap()[0];
     assert_eq!(domain_action.main_table_id, Some(event.id));
-    assert_eq!(domain_action.main_table, Some(Tables::Events.to_string()));
+    assert_eq!(domain_action.main_table, Some(Tables::Events));
 
     let payload: ProcessTransferDripPayload =
         serde_json::from_value(domain_action.payload.clone()).unwrap();
@@ -239,7 +411,7 @@ fn regenerate_drip_actions() {
         .with_event_start(dates::now().add_days(14).finish())
         .finish();
     assert!(DomainAction::find_by_resource(
-        Tables::Events.to_string(),
+        Tables::Events,
         event.id,
         DomainActionTypes::RegenerateDripActions,
         DomainActionStatus::Pending,
@@ -250,7 +422,7 @@ fn regenerate_drip_actions() {
 
     event.regenerate_drip_actions(connection).unwrap();
     assert!(!DomainAction::find_by_resource(
-        Tables::Events.to_string(),
+        Tables::Events,
         event.id,
         DomainActionTypes::RegenerateDripActions,
         DomainActionStatus::Pending,
@@ -922,7 +1094,7 @@ fn update_changing_event_start() {
 
     let event = event.publish(None, connection).unwrap();
     let domain_action = &DomainAction::find_by_resource(
-        Tables::Events.to_string(),
+        Tables::Events,
         event.id,
         DomainActionTypes::RegenerateDripActions,
         DomainActionStatus::Pending,
@@ -944,7 +1116,7 @@ fn update_changing_event_start() {
     // New domain action is added as a result of the start time changes
     assert_eq!(
         DomainAction::find_by_resource(
-            Tables::Events.to_string(),
+            Tables::Events,
             event.id,
             DomainActionTypes::RegenerateDripActions,
             DomainActionStatus::Pending,
@@ -1271,7 +1443,7 @@ fn publish() {
 
     assert_eq!(
         DomainAction::find_by_resource(
-            Tables::Events.to_string(),
+            Tables::Events,
             event.id,
             DomainActionTypes::RegenerateDripActions,
             DomainActionStatus::Pending,
@@ -1299,7 +1471,7 @@ fn clear_pending_drip_actions() {
         .create_next_transfer_drip_action(Environment::Test, connection)
         .unwrap();
     assert!(!DomainAction::find_by_resource(
-        Tables::Events.to_string(),
+        Tables::Events,
         event.id,
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
@@ -1311,7 +1483,7 @@ fn clear_pending_drip_actions() {
     // Method removes it
     event.clear_pending_drip_actions(connection).unwrap();
     assert!(DomainAction::find_by_resource(
-        Tables::Events.to_string(),
+        Tables::Events,
         event.id,
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
@@ -1450,7 +1622,7 @@ fn unpublish() {
     assert_eq!(event.status, EventStatus::Published);
     assert!(event.publish_date.is_some());
     assert!(!DomainAction::find_by_resource(
-        Tables::Events.to_string(),
+        Tables::Events,
         event.id,
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
@@ -1463,7 +1635,7 @@ fn unpublish() {
     assert_eq!(event.status, EventStatus::Draft);
     assert!(event.publish_date.is_none());
     assert!(DomainAction::find_by_resource(
-        Tables::Events.to_string(),
+        Tables::Events,
         event.id,
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,

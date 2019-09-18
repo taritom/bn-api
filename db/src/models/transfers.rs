@@ -268,7 +268,7 @@ impl Transfer {
                     event_id: event.id,
                     source_or_destination,
                 }),
-                Some(Tables::Transfers.to_string()),
+                Some(Tables::Transfers),
                 Some(self.id),
             )
             .commit(conn)?;

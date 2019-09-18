@@ -64,6 +64,7 @@ impl DomainActionRouter {
                     Box::new(SendOrderCompleteExecutor::new(conf))
                 }
                 UpdateGenres => Box::new(UpdateGenresExecutor::new()),
+                ProcessSettlementReport => Box::new(ProcessSettlementReportExecutor::new()),
                 ProcessTransferDrip => Box::new(ProcessTransferDripEventExecutor::new(conf)),
                 //
                 // DO NOT add
@@ -94,6 +95,12 @@ impl DomainActionRouter {
 
         self.add_executor(PaymentProviderIPN, find_executor(PaymentProviderIPN))
             .expect("Configuration error");
+
+        self.add_executor(
+            ProcessSettlementReport,
+            find_executor(ProcessSettlementReport),
+        )
+        .expect("Configuration error");
 
         self.add_executor(ProcessTransferDrip, find_executor(ProcessTransferDrip))
             .expect("Configuration error");

@@ -421,7 +421,7 @@ fn create_drip_actions() {
 
     transfer.create_drip_actions(&event, connection).unwrap();
     let domain_actions = &DomainAction::find_by_resource(
-        Tables::Transfers.to_string(),
+        Tables::Transfers,
         transfer.id,
         DomainActionTypes::ProcessTransferDrip,
         DomainActionStatus::Pending,
@@ -431,10 +431,7 @@ fn create_drip_actions() {
 
     for domain_action in domain_actions {
         assert_eq!(domain_action.main_table_id, Some(transfer.id));
-        assert_eq!(
-            domain_action.main_table,
-            Some(Tables::Transfers.to_string())
-        );
+        assert_eq!(domain_action.main_table, Some(Tables::Transfers));
         let drip_in_days = Utc::now()
             .naive_utc()
             .signed_duration_since(domain_action.scheduled_at)

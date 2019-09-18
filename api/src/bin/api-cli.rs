@@ -54,6 +54,10 @@ pub fn main() {
             SubCommand::with_name("backpopulate-temporary-user-data")
                 .about("Backpopulate temporary user data"),
         )
+        .subcommand(
+            SubCommand::with_name("schedule-missing-domain-actions")
+                .about("Creates any missing reoccurring domain actions"),
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -61,6 +65,7 @@ pub fn main() {
         ("sync-spotify-genres", Some(_)) => sync_spotify_genres(config, database),
         ("regenerate-interaction-records", Some(_)) => regenerate_interaction_records(database),
         ("backpopulate-temporary-user-data", Some(_)) => backpopulate_temporary_user_data(database),
+        ("schedule-missing-domain-actions", Some(_)) => schedule_missing_domain_actions(database),
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
         }
@@ -137,6 +142,21 @@ fn regenerate_interaction_records(database: Database) {
             }
             page += 1;
         }
+    }
+}
+
+fn schedule_missing_domain_actions(database: Database) {
+    info!("Scheduling missing domain actions");
+    let connection = database
+        .get_connection()
+        .expect("Expected connection to establish");
+    let connection = connection.get();
+
+    let organizations = Organization::all(connection).expect("Expected to find organizations");
+    for organization in organizations {
+        organization
+            .schedule_domain_actions(connection)
+            .expect("Expected to schedule any missing domain actions");
     }
 }
 

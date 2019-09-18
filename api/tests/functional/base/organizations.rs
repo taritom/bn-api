@@ -183,6 +183,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         timezone: None,
         globee_api_key: None,
         max_instances_per_ticket_type: Some(11000),
+        settlement_type: None,
     });
 
     let test_request = TestRequest::create_with_uri("/organizations");
@@ -228,11 +229,10 @@ pub fn update(role: Roles, should_succeed: bool) {
         google_ga_key: Some(Some("google_ga_key".to_string())),
         facebook_pixel_key: Some(Some("facebook_pixel_key".to_string())),
         allowed_payment_providers: Some(vec![PaymentProviders::Globee]),
-        timezone: Some("Los Angeles".to_string()),
+        timezone: Some("America/Los_Angeles".to_string()),
         cc_fee_percent: Some(5.5),
         globee_api_key: Some(Some("Itsasecret".to_string())),
-        max_instances_per_ticket_type: None,
-        max_additional_fee_in_cents: None,
+        ..Default::default()
     });
 
     let response: HttpResponse = organizations::update((
@@ -247,6 +247,7 @@ pub fn update(role: Roles, should_succeed: bool) {
         support::expects_unauthorized(&response);
         return;
     }
+
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let updated_organization: Organization = serde_json::from_str(&body).unwrap();
@@ -258,7 +259,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     assert_eq!(updated_organization.cc_fee_percent, 5.5);
 }
 
-pub fn update_with_max_tickets_per_ticket_type(role: Roles, should_succeed: bool) {
+pub fn update_restricted_field(restricted_field: &str, role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
@@ -269,26 +270,23 @@ pub fn update_with_max_tickets_per_ticket_type(role: Roles, should_succeed: bool
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let json = Json(OrganizationEditableAttributes {
+
+    let mut attributes = OrganizationEditableAttributes {
         name: Some(new_name.to_string()),
-        address: Some("address".to_string()),
-        city: Some("city".to_string()),
-        state: Some("state".to_string()),
-        country: Some("country".to_string()),
-        postal_code: Some("postal_code".to_string()),
-        phone: Some("phone".to_string()),
-        company_event_fee_in_cents: (Some(100)),
-        client_event_fee_in_cents: None,
-        sendgrid_api_key: Some(Some("sendgrid_api_key".to_string())),
-        google_ga_key: Some(Some("google_ga_key".to_string())),
-        facebook_pixel_key: Some(Some("facebook_pixel_key".to_string())),
-        allowed_payment_providers: Some(vec![PaymentProviders::Globee]),
-        timezone: Some("Los Angeles".to_string()),
-        cc_fee_percent: Some(5.5),
-        globee_api_key: Some(Some("Itsasecret".to_string())),
-        max_instances_per_ticket_type: Some(11000),
-        max_additional_fee_in_cents: None,
-    });
+        ..Default::default()
+    };
+
+    match restricted_field {
+        "settlement_type" => {
+            attributes.settlement_type = Some(SettlementTypes::Rolling);
+        }
+        "max_instances_per_ticket_type" => {
+            attributes.max_instances_per_ticket_type = Some(11000);
+        }
+        _ => panic!("Unexpected restricted field"),
+    }
+
+    let json = Json(attributes);
 
     let response: HttpResponse = organizations::update((
         test_request.extract_state(),
@@ -306,7 +304,19 @@ pub fn update_with_max_tickets_per_ticket_type(role: Roles, should_succeed: bool
     let body = support::unwrap_body_to_string(&response).unwrap();
     let updated_organization: Organization = serde_json::from_str(&body).unwrap();
     assert_eq!(updated_organization.name, new_name);
-    assert_eq!(updated_organization.max_instances_per_ticket_type, 11000);
+
+    match restricted_field {
+        "settlement_type" => {
+            assert_eq!(
+                updated_organization.settlement_type,
+                SettlementTypes::Rolling
+            );
+        }
+        "max_instances_per_ticket_type" => {
+            assert_eq!(updated_organization.max_instances_per_ticket_type, 11000);
+        }
+        _ => panic!("Unexpected restricted field"),
+    }
 }
 
 pub fn remove_user(role: Roles, should_test_succeed: bool) {

@@ -114,6 +114,18 @@ impl TestDatabase {
         StageBuilder::new(self.connection.get())
     }
 
+    pub fn create_settlement_entry(&self) -> SettlementEntryBuilder {
+        SettlementEntryBuilder::new(self.connection.get())
+    }
+
+    pub fn create_settlement_adjustment(&self) -> SettlementAdjustmentBuilder {
+        SettlementAdjustmentBuilder::new(self.connection.get())
+    }
+
+    pub fn create_settlement(&self) -> SettlementBuilder {
+        SettlementBuilder::new(self.connection.get())
+    }
+
     pub fn create_fee_schedule(&self) -> FeeScheduleBuilder {
         FeeScheduleBuilder::new(self.connection.get())
     }

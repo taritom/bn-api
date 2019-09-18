@@ -901,7 +901,6 @@ impl ActivityItem {
             for item in items {
                 let order_item = OrderItem {
                     id: item.order_item_id,
-
                     order_id: item.order_id,
                     item_type: item.item_type,
                     ticket_type_id: item.ticket_type_id,

@@ -825,7 +825,7 @@ pub fn add_artist(
         DomainActionTypes::UpdateGenres,
         None,
         json!(UpdateGenresPayload { user_id: user.id() }),
-        Some(Tables::Events.to_string()),
+        Some(Tables::Events),
         Some(event.id),
     );
     action.commit(connection)?;
@@ -889,7 +889,7 @@ pub fn update_artists(
         DomainActionTypes::UpdateGenres,
         None,
         json!(UpdateGenresPayload { user_id: user.id() }),
-        Some(Tables::Events.to_string()),
+        Some(Tables::Events),
         Some(event.id),
     );
     action.commit(connection)?;

@@ -43,23 +43,18 @@ impl UpdateGenresExecutor {
 
         let payload: UpdateGenresPayload = serde_json::from_value(action.payload.clone())?;
 
-        match action
-            .main_table
-            .clone()
-            .ok_or(ApplicationError::new(
-                "No table supplied in the action".to_string(),
-            ))?
-            .as_str()
-        {
-            "Artists" => {
+        match action.main_table.clone().ok_or(ApplicationError::new(
+            "No table supplied in the action".to_string(),
+        ))? {
+            Tables::Artists => {
                 for event in Artist::find(&id, conn)?.events(conn)? {
                     event.update_genres(Some(payload.user_id), conn)?;
                 }
             }
-            "Events" => {
+            Tables::Events => {
                 Event::find(id, conn)?.update_genres(Some(payload.user_id), conn)?;
             }
-            "Users" => {
+            Tables::Users => {
                 User::find(id, conn)?.update_genre_info(conn)?;
             }
             _ => return Err(ApplicationError::new("Table not supported".to_string()).into()),

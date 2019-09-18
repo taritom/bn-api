@@ -145,8 +145,16 @@ impl TestProject {
         FeeScheduleBuilder::new(&self.connection)
     }
 
-    pub fn create_new_settlement_transaction(&self) -> SettlementTransactionBuilder {
-        SettlementTransactionBuilder::new(&self.connection)
+    pub fn create_settlement_entry(&self) -> SettlementEntryBuilder {
+        SettlementEntryBuilder::new(&self.connection)
+    }
+
+    pub fn create_settlement_adjustment(&self) -> SettlementAdjustmentBuilder {
+        SettlementAdjustmentBuilder::new(&self.connection)
+    }
+
+    pub fn create_settlement(&self) -> SettlementBuilder {
+        SettlementBuilder::new(&self.connection)
     }
 
     pub fn get_connection(&self) -> &PgConnection {

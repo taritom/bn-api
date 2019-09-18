@@ -100,7 +100,7 @@ pub fn create(
         DomainActionTypes::UpdateGenres,
         None,
         json!(UpdateGenresPayload { user_id: user.id() }),
-        Some(Tables::Artists.to_string()),
+        Some(Tables::Artists),
         Some(artist.id),
     );
     action.commit(connection)?;
@@ -160,7 +160,7 @@ pub fn update(
             DomainActionTypes::UpdateGenres,
             None,
             json!(UpdateGenresPayload { user_id: user.id() }),
-            Some(Tables::Artists.to_string()),
+            Some(Tables::Artists),
             Some(artist.id),
         );
         action.commit(connection)?;

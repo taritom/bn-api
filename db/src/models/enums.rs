@@ -132,6 +132,7 @@ string_enum! { DomainEventTypes [
     LostPassword,
     PurchaseCompleted,
     PushNotificationTokenCreated,
+    SettlementReportProcessed,
     TransferTicketDripSourceSent,
     TransferTicketDripDestinationSent,
     TransferTicketCancelled,
@@ -163,6 +164,7 @@ string_enum! { DomainActionTypes [
     MarketingContactsCreateEventList,
     MarketingContactsBulkEventFanListImport,
     PaymentProviderIPN,
+    ProcessSettlementReport,
     ProcessTransferDrip,
     RegenerateDripActions,
     SendPurchaseCompletedCommunication,
@@ -190,7 +192,9 @@ string_enum! { PaymentStatus [Authorized, Completed, Requested, Refunded, Unpaid
 string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Roles [Super, Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, Promoter, PromoterReadOnly, User] }
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
-string_enum! { SettlementTransactionType[OrderItem, Manual, Report] }
+string_enum! { SettlementTypes [Rolling, PostEvent]}
+string_enum! { SettlementAdjustmentTypes [ManualCredit, ManualDeduction, Chargeback]}
+string_enum! { SettlementEntryTypes [EventFees, TicketType]}
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { SourceOrDestination [Destination,Source]}
 string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, ExternalLogins, FeeSchedules, Holds, Orders, Organizations,

@@ -1,4 +1,5 @@
-use chrono::{NaiveDateTime, Utc};
+use chrono::{Datelike, Duration, NaiveDateTime, TimeZone, Utc};
+use chrono_tz::Tz;
 use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
@@ -8,8 +9,8 @@ use diesel::sql_types::{Array, BigInt, Nullable, Text, Timestamp, Uuid as dUuid}
 use models::scopes;
 use models::*;
 use schema::{
-    assets, event_users, events, fee_schedules, order_items, organization_users, organizations,
-    ticket_types, users, venues,
+    assets, event_users, events, fee_schedules, order_items, orders, organization_users,
+    organizations, ticket_types, users, venues,
 };
 use std::cmp;
 use std::collections::HashMap;
@@ -18,6 +19,8 @@ use utils::errors::*;
 use utils::pagination::Paginate;
 use utils::text;
 use uuid::Uuid;
+
+const DEFAULT_SETTLEMENT_TIMEZONE: &str = "America/Los_Angeles";
 
 #[derive(
     Identifiable,
@@ -56,6 +59,7 @@ pub struct Organization {
     pub globee_api_key: Option<String>,
     pub max_instances_per_ticket_type: i64,
     pub max_additional_fee_in_cents: i64,
+    pub settlement_type: SettlementTypes,
 }
 
 #[derive(Serialize)]
@@ -91,6 +95,7 @@ pub struct NewOrganization {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub globee_api_key: Option<String>,
     pub max_instances_per_ticket_type: Option<i64>,
+    pub settlement_type: Option<SettlementTypes>,
 }
 
 #[derive(Default, Serialize, Clone, Deserialize, Debug)]
@@ -142,6 +147,7 @@ impl NewOrganization {
                 ErrorCode::UpdateError,
                 "Could not set the fee schedule for this organization",
             )?;
+        org.schedule_domain_actions(conn)?;
 
         DomainEvent::create(
             DomainEventTypes::OrganizationCreated,
@@ -191,9 +197,108 @@ pub struct OrganizationEditableAttributes {
     pub max_instances_per_ticket_type: Option<i64>,
     #[serde(default)]
     pub max_additional_fee_in_cents: Option<i64>,
+    pub settlement_type: Option<SettlementTypes>,
 }
 
 impl Organization {
+    pub fn create_next_settlement_processing_domain_action(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if let Some(upcoming_domain_action) = self.upcoming_settlement_domain_action(conn)? {
+            if upcoming_domain_action.scheduled_at > Utc::now().naive_utc() {
+                return DatabaseError::business_process_error(
+                    "Settlement processing domain action is already pending",
+                );
+            }
+        }
+
+        let mut action = DomainAction::create(
+            None,
+            DomainActionTypes::ProcessSettlementReport,
+            None,
+            json!({}),
+            Some(Tables::Organizations),
+            Some(self.id),
+        );
+        action.schedule_at(self.next_settlement_date()?);
+        action.commit(conn)?;
+
+        Ok(())
+    }
+
+    pub fn can_process_settlements(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        Ok(self.first_order_date(conn).optional()?.is_some())
+    }
+
+    pub fn schedule_domain_actions(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        // Settlements weekly domain event
+        if self.upcoming_settlement_domain_action(conn)?.is_none() {
+            self.create_next_settlement_processing_domain_action(conn)?
+        }
+
+        Ok(())
+    }
+
+    pub fn upcoming_settlement_domain_action(
+        &self,
+        conn: &PgConnection,
+    ) -> Result<Option<DomainAction>, DatabaseError> {
+        Ok(DomainAction::find_by_resource(
+            Tables::Organizations,
+            self.id,
+            DomainActionTypes::ProcessSettlementReport,
+            DomainActionStatus::Pending,
+            conn,
+        )?
+        .pop())
+    }
+
+    pub fn timezone(&self) -> Result<Tz, DatabaseError> {
+        self.timezone
+            .clone()
+            .unwrap_or(DEFAULT_SETTLEMENT_TIMEZONE.to_string())
+            .parse::<Tz>()
+            .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())
+    }
+
+    pub fn first_order_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
+        organizations::table
+            .inner_join(events::table.on(events::organization_id.eq(organizations::id)))
+            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
+            .inner_join(
+                order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())),
+            )
+            .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
+            .filter(organizations::id.eq(self.id))
+            .select(organizations::created_at)
+            .distinct()
+            .order_by(organizations::created_at.asc())
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading first order date")
+    }
+
+    pub fn next_settlement_date(&self) -> Result<NaiveDateTime, DatabaseError> {
+        let timezone = self.timezone()?;
+
+        // Take current time
+        let now = Utc::now();
+        let next_monday = now.naive_utc()
+            + Duration::days(
+                7 - now
+                    .with_timezone(&timezone)
+                    .naive_utc()
+                    .weekday()
+                    .num_days_from_monday() as i64,
+            );
+
+        Ok(timezone
+            .ymd(next_monday.year(), next_monday.month(), next_monday.day())
+            .and_hms(0, 0, 0)
+            .with_timezone(&Utc)
+            .naive_utc())
+    }
+
     pub fn create(name: &str, fee_schedule_id: Uuid) -> NewOrganization {
         NewOrganization {
             name: name.into(),
@@ -223,6 +328,12 @@ impl Organization {
             }
         }
 
+        if attributes.timezone.is_some() && attributes.timezone != self.timezone {
+            if let Some(settlement_job) = self.upcoming_settlement_domain_action(conn)? {
+                settlement_job.set_cancelled(conn)?;
+            }
+        }
+
         let event_fee = attributes
             .client_event_fee_in_cents
             .clone()
@@ -232,14 +343,17 @@ impl Organization {
                 .clone()
                 .unwrap_or(self.company_event_fee_in_cents);
 
-        diesel::update(&*self)
+        let organization = diesel::update(&*self)
             .set((
                 attributes,
                 organizations::updated_at.eq(dsl::now),
                 organizations::event_fee_in_cents.eq(event_fee),
             ))
-            .get_result(conn)
-            .to_db_error(ErrorCode::UpdateError, "Could not update organization")
+            .get_result::<Organization>(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update organization")?;
+        organization.schedule_domain_actions(conn)?;
+
+        Ok(organization)
     }
 
     pub fn find_by_asset_id(
@@ -577,7 +691,7 @@ impl Organization {
     }
 
     pub fn is_member(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {
-        let query = select(exists(
+        select(exists(
             organization_users::table
                 .filter(
                     organization_users::user_id
@@ -585,10 +699,9 @@ impl Organization {
                         .and(organization_users::organization_id.eq(self.id)),
                 )
                 .select(organization_users::organization_id),
-        ));
-        query
-            .get_result(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not check user member status")
+        ))
+        .get_result(conn)
+        .to_db_error(ErrorCode::QueryError, "Could not check user member status")
     }
 
     pub fn add_fee_schedule(

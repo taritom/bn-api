@@ -77,7 +77,7 @@ impl BroadcastPushNotificationExecutor {
                         Some(vec!["broadcast"]),
                         None,
                     ))?,
-                    Some(Tables::Events.to_string()),
+                    Some(Tables::Events),
                     Some(action_data.event_id),
                 )
                 .commit(conn.get())?;

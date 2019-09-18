@@ -1,7 +1,127 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
 use bigneon_db::utils::dates;
+use chrono::{Datelike, Duration, TimeZone, Utc};
+use chrono_tz::Tz;
 use uuid::Uuid;
+
+#[test]
+fn create_next_settlement_processing_domain_action() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let domain_action = organization
+        .upcoming_settlement_domain_action(connection)
+        .unwrap()
+        .unwrap();
+    domain_action.set_done(connection).unwrap();
+    assert!(organization
+        .upcoming_settlement_domain_action(connection)
+        .unwrap()
+        .is_none());
+
+    organization
+        .create_next_settlement_processing_domain_action(connection)
+        .unwrap();
+    let domain_action = organization
+        .upcoming_settlement_domain_action(connection)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        domain_action.scheduled_at,
+        organization.next_settlement_date().unwrap()
+    );
+    assert_eq!(domain_action.status, DomainActionStatus::Pending);
+    assert_eq!(domain_action.main_table, Some(Tables::Organizations));
+    assert_eq!(domain_action.main_table_id, Some(organization.id));
+}
+
+#[test]
+fn first_order_date() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    assert!(organization.first_order_date(connection).is_err());
+
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(1)
+        .with_organization(&organization)
+        .finish();
+    assert!(organization.first_order_date(connection).is_err());
+
+    // With order
+    let order = project.create_order().for_event(&event).is_paid().finish();
+    assert_eq!(
+        organization.first_order_date(connection),
+        Ok(order.created_at)
+    );
+}
+
+#[test]
+fn timezone() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+
+    let pt_timezone: Tz = "America/Los_Angeles".parse().unwrap();
+    let sa_timezone: Tz = "Africa/Johannesburg".parse().unwrap();
+
+    // Default behavior no timezone, returns PT
+    assert_eq!(organization.timezone().unwrap(), pt_timezone);
+
+    // Override organization timezone to SA
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                timezone: Some("Africa/Johannesburg".to_string()),
+                ..Default::default()
+            },
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(organization.timezone().unwrap(), sa_timezone);
+
+    // Override organization timezone to PT
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                timezone: Some("America/Los_Angeles".to_string()),
+                ..Default::default()
+            },
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(organization.timezone().unwrap(), pt_timezone);
+}
+
+#[test]
+fn can_process_settlements() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let organization2 = project.create_organization().finish();
+    assert!(!organization.can_process_settlements(connection).unwrap());
+    assert!(!organization2.can_process_settlements(connection).unwrap());
+
+    // No orders just published event
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_ticket_type_count(1)
+        .with_organization(&organization)
+        .finish();
+    assert!(!organization.can_process_settlements(connection).unwrap());
+    assert!(!organization2.can_process_settlements(connection).unwrap());
+
+    // With order
+    project.create_order().for_event(&event).is_paid().finish();
+    assert!(organization.can_process_settlements(connection).unwrap());
+    assert!(!organization2.can_process_settlements(connection).unwrap());
+}
 
 #[test]
 fn create() {
@@ -41,8 +161,156 @@ fn create() {
     );
 
     let updated_fee_schedule = FeeSchedule::find(fee_schedule.id, connection).unwrap();
-
     assert_eq!(updated_fee_schedule.organization_id, organization.id);
+
+    // Settlement report job added during creation
+    let domain_actions = &DomainAction::find_by_resource(
+        Tables::Organizations,
+        organization.id,
+        DomainActionTypes::ProcessSettlementReport,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_actions.len());
+}
+
+#[test]
+fn next_settlement_date() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+
+    let now = Utc::now();
+    let pt_timezone: Tz = "America/Los_Angeles".parse().unwrap();
+    let next_monday = now.naive_utc()
+        + Duration::days(
+            7 - now
+                .with_timezone(&pt_timezone)
+                .naive_utc()
+                .weekday()
+                .num_days_from_monday() as i64,
+        );
+    let expected_pt = pt_timezone
+        .ymd(next_monday.year(), next_monday.month(), next_monday.day())
+        .and_hms(0, 0, 0)
+        .naive_utc();
+    let sa_timezone: Tz = "Africa/Johannesburg".parse().unwrap();
+    let next_monday = now.naive_utc()
+        + Duration::days(
+            7 - now
+                .with_timezone(&sa_timezone)
+                .naive_utc()
+                .weekday()
+                .num_days_from_monday() as i64,
+        );
+    let expected_sa = sa_timezone
+        .ymd(next_monday.year(), next_monday.month(), next_monday.day())
+        .and_hms(0, 0, 0)
+        .naive_utc();
+
+    // Default behavior no timezone, upcoming Monday 12:00 AM PT
+    assert_eq!(organization.next_settlement_date().unwrap(), expected_pt);
+
+    // Override organization timezone to SA
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                timezone: Some("Africa/Johannesburg".to_string()),
+                ..Default::default()
+            },
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(organization.next_settlement_date().unwrap(), expected_sa);
+
+    // Override organization timezone to PT
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                timezone: Some("America/Los_Angeles".to_string()),
+                ..Default::default()
+            },
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(organization.next_settlement_date().unwrap(), expected_pt);
+}
+
+#[test]
+fn upcoming_settlement_domain_action() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let upcoming_settlement_domain_action = organization
+        .upcoming_settlement_domain_action(connection)
+        .unwrap();
+    assert!(upcoming_settlement_domain_action.is_some());
+
+    // Mark as done
+    upcoming_settlement_domain_action
+        .unwrap()
+        .set_done(connection)
+        .unwrap();
+    let upcoming_settlement_domain_action = organization
+        .upcoming_settlement_domain_action(connection)
+        .unwrap();
+    assert!(upcoming_settlement_domain_action.is_none());
+}
+
+#[test]
+fn schedule_domain_actions() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+
+    let domain_actions = &DomainAction::find_by_resource(
+        Tables::Organizations,
+        organization.id,
+        DomainActionTypes::ProcessSettlementReport,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_actions.len());
+
+    // No change since action exists
+    organization.schedule_domain_actions(connection).unwrap();
+    let domain_actions = &DomainAction::find_by_resource(
+        Tables::Organizations,
+        organization.id,
+        DomainActionTypes::ProcessSettlementReport,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_actions.len());
+
+    // Delete action
+    domain_actions[0].set_done(connection).unwrap();
+    let domain_actions = &DomainAction::find_by_resource(
+        Tables::Organizations,
+        organization.id,
+        DomainActionTypes::ProcessSettlementReport,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_actions.len());
+
+    // Added back as it was no longer there (the job creates the next domain action normally)
+    organization.schedule_domain_actions(connection).unwrap();
+    let domain_actions = &DomainAction::find_by_resource(
+        Tables::Organizations,
+        organization.id,
+        DomainActionTypes::ProcessSettlementReport,
+        DomainActionStatus::Pending,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_actions.len());
 }
 
 #[test]
@@ -245,6 +513,7 @@ fn update() {
     let mut edited_organization = project
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
+        .with_timezone("Africa/Johannesburg".to_string())
         .finish();
     edited_organization.name = "Test Org".to_string();
     edited_organization.address = Some("Test Address".to_string());
@@ -255,6 +524,10 @@ fn update() {
     edited_organization.phone = Some("+27123456789".to_string());
     edited_organization.sendgrid_api_key = Some("A_Test_Key".to_string());
 
+    let settlement_report_job = edited_organization
+        .upcoming_settlement_domain_action(connection)
+        .unwrap()
+        .unwrap();
     let mut changed_attrs: OrganizationEditableAttributes = Default::default();
     changed_attrs.name = Some("Test Org".to_string());
     changed_attrs.address = Some("Test Address".to_string());
@@ -272,6 +545,36 @@ fn update() {
         .decrypt(&"encryption_key".to_string())
         .unwrap();
     assert_eq!(edited_organization, updated_organization);
+
+    // Same settlement job as the timezone has not changed
+    assert_eq!(
+        &updated_organization
+            .upcoming_settlement_domain_action(connection)
+            .unwrap()
+            .unwrap(),
+        &settlement_report_job
+    );
+
+    let mut changed_attrs: OrganizationEditableAttributes = Default::default();
+    changed_attrs.timezone = Some("America/Los_Angeles".to_string());
+    let updated_organization = updated_organization
+        .update(changed_attrs, &"encryption_key".to_string(), connection)
+        .unwrap();
+    assert_eq!(
+        updated_organization.timezone,
+        Some("America/Los_Angeles".to_string())
+    );
+
+    // New settlement report job as old date invalidated, old job is now cancelled on reload
+    assert_ne!(
+        &updated_organization
+            .upcoming_settlement_domain_action(connection)
+            .unwrap()
+            .unwrap(),
+        &settlement_report_job
+    );
+    let settlement_report_job = DomainAction::find(settlement_report_job.id, connection).unwrap();
+    assert_eq!(settlement_report_job.status, DomainActionStatus::Cancelled);
 }
 
 #[test]

@@ -7,7 +7,6 @@ use uuid::Uuid;
 fn commit() {
     let project = TestProject::new();
     let conn = project.get_connection();
-
     let domain_action = DomainAction::create(
         None,
         DomainActionTypes::Communication,
@@ -23,7 +22,6 @@ fn commit() {
     );
 
     let domain_action = domain_action.commit(conn).unwrap();
-
     assert!(!domain_action.id.is_nil());
     assert_eq!(
         DomainActionTypes::Communication,
@@ -86,7 +84,7 @@ fn find_by_resource() {
     let project = TestProject::new();
     let conn = project.get_connection();
 
-    let main_table = "Test".to_string();
+    let main_table = Tables::Organizations;
     let main_table_id = Uuid::new_v4();
     let domain_action = project
         .create_domain_action()
@@ -144,7 +142,7 @@ fn has_pending_action() {
     // Empty, no action
     let result = DomainAction::has_pending_action(
         DomainActionTypes::MarketingContactsBulkEventFanListImport,
-        Tables::Events.to_string(),
+        Tables::Events,
         id,
         connection,
     )
@@ -157,7 +155,7 @@ fn has_pending_action() {
         DomainActionTypes::MarketingContactsBulkEventFanListImport,
         None,
         json!(Vec::<u8>::new()),
-        Some(Tables::Events.to_string()),
+        Some(Tables::Events),
         Some(id),
     );
     domain_action.scheduled_at = Utc::now()
@@ -173,7 +171,7 @@ fn has_pending_action() {
 
     let result = DomainAction::has_pending_action(
         DomainActionTypes::MarketingContactsBulkEventFanListImport,
-        Tables::Events.to_string(),
+        Tables::Events,
         id,
         connection,
     )

@@ -43,15 +43,10 @@ impl ProcessTransferDripEventExecutor {
 
         let payload: ProcessTransferDripPayload = serde_json::from_value(action.payload.clone())?;
 
-        match action
-            .main_table
-            .clone()
-            .ok_or(ApplicationError::new(
-                "No table supplied in the action".to_string(),
-            ))?
-            .as_str()
-        {
-            "Events" => {
+        match action.main_table.clone().ok_or(ApplicationError::new(
+            "No table supplied in the action".to_string(),
+        ))? {
+            Tables::Events => {
                 let event = Event::find(id, conn)?;
                 if let Some(publish_date) = event.publish_date {
                     if publish_date <= Utc::now().naive_utc() {
@@ -62,7 +57,7 @@ impl ProcessTransferDripEventExecutor {
                 }
                 event.create_next_transfer_drip_action(self.config.environment, conn)?;
             }
-            "Transfers" => {
+            Tables::Transfers => {
                 let event = Event::find(payload.event_id, conn)?;
                 let transfer = Transfer::find(id, conn)?;
                 let source_user = User::find(transfer.source_user_id, conn)?;

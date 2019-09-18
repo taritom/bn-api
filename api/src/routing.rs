@@ -255,10 +255,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/organizations/{id}/settlements", |r| {
         r.method(Method::GET).with(settlements::index);
-        r.method(Method::POST).with(settlements::create);
-    })
-    .resource("/organizations/{id}/settlements/prepare", |r| {
-        r.method(Method::POST).with(settlements::prepare);
     })
     .resource("/organizations/{id}/invites", |r| {
         r.method(Method::GET).with(organization_invites::index);
@@ -316,6 +312,14 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(stages::show);
         r.method(Method::PUT).with(stages::update);
         r.method(Method::DELETE).with(stages::delete);
+    })
+    .resource("/settlement_adjustments/{id}", |r| {
+        r.method(Method::DELETE)
+            .with(settlement_adjustments::destroy);
+    })
+    .resource("/settlements/{id}/adjustments", |r| {
+        r.method(Method::GET).with(settlement_adjustments::index);
+        r.method(Method::POST).with(settlement_adjustments::create);
     })
     .resource("/settlements/{id}", |r| {
         r.method(Method::GET).with(settlements::show);

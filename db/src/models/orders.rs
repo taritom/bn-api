@@ -69,6 +69,8 @@ pub struct Order {
     pub term: Option<String>,
     pub content: Option<String>,
     pub platform: Option<String>,
+    #[serde(skip_serializing)]
+    pub(crate) settlement_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -961,6 +963,7 @@ impl Order {
                 term: order.term,
                 content: order.content,
                 platform: order.platform,
+                settlement_id: None,
             };
             r.0.push(o.for_display(None, current_user_id, conn)?);
         }
@@ -2325,7 +2328,7 @@ impl Order {
                 DomainActionTypes::SendPurchaseCompletedCommunication,
                 None,
                 json!({"order_id": self.id, "user_id": current_user_id}),
-                Some(Tables::Orders.to_string()),
+                Some(Tables::Orders),
                 Some(self.id),
             );
             action.expires_at = action.scheduled_at.into_builder().add_days(3).finish();

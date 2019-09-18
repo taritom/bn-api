@@ -227,7 +227,7 @@ impl NewBroadcast {
             json!(BroadcastPushNotificationAction {
                 event_id: self.event_id,
             }),
-            Some(Tables::Broadcasts.to_string()),
+            Some(Tables::Broadcasts),
             Some(result.id),
         );
         if let Some(send_at) = self.send_at {

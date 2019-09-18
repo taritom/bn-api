@@ -309,7 +309,7 @@ pub fn create_event(
         )
         .into());
     }
-    let mut organization = event.organization(conn)?;
+    let organization = event.organization(conn)?;
     user.requires_scope_for_organization_event(Scopes::EventWrite, &organization, &event, conn)?;
 
     let client = FacebookClient::from_access_token(
