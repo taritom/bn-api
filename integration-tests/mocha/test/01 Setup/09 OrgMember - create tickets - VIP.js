@@ -42,6 +42,7 @@ let requestBody = `{
 	"price_in_cents": 2500,
 	"limit_per_person": 0,
 	"visibility": "Always",
+	"rank":3,
 	"ticket_pricing":[{
 			"name": "Test_{{$timestamp}}",
 	"price_in_cents": 3000,
@@ -55,6 +56,7 @@ let requestBody = `{
 	"end_date": "9999-01-10T02:22:00"
 
 	}
+	
 	]
 }`;
 

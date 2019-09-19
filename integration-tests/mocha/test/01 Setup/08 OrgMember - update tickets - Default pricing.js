@@ -39,7 +39,8 @@ let requestBody = `{
 	"end_date": "8999-01-10T02:22:00",
 	"visibility": "Always",
 	"price_in_cents": 3000,
-	"parent_id": null
+	"parent_id": null,
+	"rank": 2
 }`;
 
 

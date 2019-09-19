@@ -46,6 +46,8 @@ pub struct CreateTicketTypeRequest {
     pub visibility: TicketTypeVisibility,
     #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
+    #[serde(default)]
+    pub rank: i64,
 }
 
 impl Default for CreateTicketTypeRequest {
@@ -63,6 +65,7 @@ impl Default for CreateTicketTypeRequest {
             price_in_cents: 0,
             visibility: TicketTypeVisibility::Always,
             additional_fee_in_cents: None,
+            rank: 0,
         }
     }
 }
@@ -96,6 +99,7 @@ pub struct UpdateTicketTypeRequest {
     pub parent_id: Option<Option<Uuid>>,
     #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
+    pub rank: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize)]

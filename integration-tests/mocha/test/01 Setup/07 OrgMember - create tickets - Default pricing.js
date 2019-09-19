@@ -42,6 +42,7 @@ let requestBody = `{
 	"price_in_cents": 2500,
 	"limit_per_person": 0,
 	"visibility": "Always",
+	"rank":1,
 	"ticket_pricing":[]
 }`;
 

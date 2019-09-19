@@ -125,6 +125,7 @@ impl TicketType {
         visibility: TicketTypeVisibility,
         parent_id: Option<Uuid>,
         additional_fee_in_cents: i64,
+        rank: Option<i32>,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -139,6 +140,7 @@ impl TicketType {
             visibility,
             parent_id,
             additional_fee_in_cents,
+            rank,
         }
     }
 
@@ -204,6 +206,24 @@ impl TicketType {
             current_user_id,
             conn,
         )?;
+
+        result.shift_other_rank(conn)?;
+
+        Ok(result)
+    }
+
+    pub fn update_rank_only(
+        self,
+        new_rank: i32,
+        conn: &PgConnection,
+    ) -> Result<TicketType, DatabaseError> {
+        let result: TicketType = diesel::update(&self)
+            .set((
+                ticket_types::rank.eq(new_rank),
+                ticket_types::updated_at.eq(dsl::now),
+            ))
+            .get_result(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update ticket type rank")?;
 
         Ok(result)
     }
@@ -700,6 +720,24 @@ impl TicketType {
         .commit(conn)?;
         Ok(result)
     }
+
+    pub fn shift_other_rank(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        let ticket_types: Vec<TicketType> = ticket_types::table
+            .filter(ticket_types::event_id.eq(self.event_id))
+            .filter(ticket_types::rank.ge(self.rank))
+            .filter(ticket_types::id.ne(self.id))
+            .order_by(ticket_types::rank.asc())
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not update ticket type ranks")?;
+
+        // Update other ticket types ranks
+        for other_ticket_type in ticket_types {
+            let new_rank = other_ticket_type.rank + 1;
+            other_ticket_type.update_rank_only(new_rank, conn)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Insertable)]
@@ -717,6 +755,7 @@ pub struct NewTicketType {
     visibility: TicketTypeVisibility,
     parent_id: Option<Uuid>,
     additional_fee_in_cents: i64,
+    rank: Option<i32>,
 }
 
 impl NewTicketType {
@@ -727,26 +766,30 @@ impl NewTicketType {
     ) -> Result<TicketType, DatabaseError> {
         self.validate_record(conn)?;
         let result: TicketType = diesel::insert_into(ticket_types::table)
-            .values(self)
+            .values(&self)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create ticket type")?;
 
-        let max_rank: Option<i32> = ticket_types::table
-            .filter(ticket_types::event_id.eq(result.event_id))
-            .select(dsl::max(ticket_types::rank))
-            .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not find the correct rank for ticket type",
-            )?;
-
+        let rank: Option<i32> = match self.rank {
+            Some(rank) => Some(rank),
+            None => ticket_types::table
+                .filter(ticket_types::event_id.eq(result.event_id))
+                .select(dsl::max(ticket_types::rank))
+                .first(conn)
+                .to_db_error(
+                    ErrorCode::QueryError,
+                    "Could not find the correct rank for ticket type",
+                )?,
+        };
         let result: TicketType = diesel::update(&result)
-            .set(ticket_types::rank.eq(max_rank.unwrap_or(0) + 1))
+            .set(ticket_types::rank.eq(rank.unwrap_or(0) + 1))
             .get_result(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not update rank of ticket type",
             )?;
+
+        result.shift_other_rank(conn)?;
 
         DomainEvent::create(
             DomainEventTypes::TicketTypeCreated,
