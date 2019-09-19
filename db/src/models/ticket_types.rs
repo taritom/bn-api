@@ -16,7 +16,7 @@ use std::cmp::Ordering;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
-use validators;
+use validators::{self, *};
 
 #[derive(
     Associations, Clone, Debug, Identifiable, PartialEq, Queryable, QueryableByName, Serialize,
@@ -30,7 +30,7 @@ pub struct TicketType {
     pub description: Option<String>,
     pub status: TicketTypeStatus,
     pub start_date: Option<NaiveDateTime>,
-    pub end_date: NaiveDateTime,
+    pub end_date: Option<NaiveDateTime>,
     pub increment: i32,
     pub limit_per_person: i32,
     created_at: NaiveDateTime,
@@ -42,6 +42,7 @@ pub struct TicketType {
     pub visibility: TicketTypeVisibility,
     pub additional_fee_in_cents: i64,
     pub deleted_at: Option<NaiveDateTime>,
+    pub end_date_type: TicketTypeEndDateType,
 }
 
 impl PartialOrd for TicketType {
@@ -58,7 +59,8 @@ pub struct TicketTypeEditableAttributes {
     pub description: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option::deserialize")]
     pub start_date: Option<Option<NaiveDateTime>>,
-    pub end_date: Option<NaiveDateTime>,
+    #[serde(default, deserialize_with = "double_option::deserialize")]
+    pub end_date: Option<Option<NaiveDateTime>>,
     pub increment: Option<i32>,
     pub limit_per_person: Option<i32>,
     pub price_in_cents: Option<i64>,
@@ -67,6 +69,7 @@ pub struct TicketTypeEditableAttributes {
     pub parent_id: Option<Option<Uuid>>,
     #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
+    pub end_date_type: Option<TicketTypeEndDateType>,
 }
 
 impl TicketType {
@@ -118,7 +121,8 @@ impl TicketType {
         name: String,
         description: Option<String>,
         start_date: Option<NaiveDateTime>,
-        end_date: NaiveDateTime,
+        end_date: Option<NaiveDateTime>,
+        end_date_type: TicketTypeEndDateType,
         increment: Option<i32>,
         limit_per_person: i32,
         price_in_cents: i64,
@@ -141,6 +145,7 @@ impl TicketType {
             parent_id,
             additional_fee_in_cents,
             rank,
+            end_date_type,
         }
     }
 
@@ -151,6 +156,12 @@ impl TicketType {
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         let mut attributes = attributes;
+
+        // Clear end date if not manual as value is ignored
+        if attributes.end_date_type.unwrap_or(self.end_date_type) != TicketTypeEndDateType::Manual {
+            attributes.end_date = Some(None);
+        }
+
         self.validate_record(&mut attributes, conn)?;
         let result: TicketType = diesel::update(&self)
             .set((&attributes, ticket_types::updated_at.eq(dsl::now)))
@@ -199,7 +210,7 @@ impl TicketType {
             result.name.clone(),
             // TODO: Replace with nullable
             start_date,
-            result.end_date,
+            result.end_date(conn)?,
             result.price_in_cents,
             false,
             Some(TicketPricingStatus::Default),
@@ -267,18 +278,41 @@ impl TicketType {
             None => self
                 .parent(conn)?
                 .ok_or_else(|| {
-                    DatabaseError::new(
-                        ErrorCode::BusinessProcessError,
-                        Some(
-                            "Ticket type must have a start date or start after another ticket type"
-                                .to_string(),
-                        ),
+                    return DatabaseError::business_process_error::<TicketType>(
+                        "Ticket type must have a start date or start after another ticket type",
                     )
-                })
-                .map(|tt| tt.end_date),
+                    .unwrap_err();
+                })?
+                .end_date(conn),
         };
 
         date
+    }
+
+    pub fn end_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
+        if let Some(end_date) = self.end_date {
+            Ok(end_date)
+        } else {
+            let event = self.event(conn)?;
+            let end_date = match self.end_date_type {
+                TicketTypeEndDateType::Manual => {
+                    return DatabaseError::business_process_error::<NaiveDateTime>(
+                        "Manual ticket type end date must have value",
+                    );
+                }
+                TicketTypeEndDateType::EventStart => event.event_start,
+                TicketTypeEndDateType::EventEnd => event.event_end,
+                TicketTypeEndDateType::DoorTime => event.door_time,
+            };
+
+            if end_date.is_none() {
+                return DatabaseError::business_process_error(
+                    "Could not fetch end date for ticket type from event",
+                );
+            }
+
+            Ok(end_date.unwrap())
+        }
     }
 
     pub fn find_for_code(
@@ -312,7 +346,23 @@ impl TicketType {
         attributes: &mut TicketTypeEditableAttributes,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
-        let new_end_date = attributes.end_date.unwrap_or(self.end_date);
+        if attributes.end_date_type.unwrap_or(self.end_date_type) == TicketTypeEndDateType::Manual
+            && (attributes.end_date == Some(None) || self.end_date.is_none())
+        {
+            return Ok(validators::append_validation_error(
+                Ok(()),
+                "end_date",
+                Err(create_validation_error(
+                    "required",
+                    "End date required for manual end date type",
+                )),
+            )?);
+        }
+
+        let new_end_date = attributes
+            .end_date
+            .unwrap_or(None)
+            .unwrap_or(self.end_date(conn)?);
         let new_parent_id = attributes.parent_id.unwrap_or(self.parent_id);
 
         if attributes.start_date.is_some() || attributes.parent_id.is_some() {
@@ -329,7 +379,7 @@ impl TicketType {
                         Ok(()),
                         "start_date",
                         validators::start_date_valid(
-                            TicketType::find(parent_id, conn)?.end_date,
+                            TicketType::find(parent_id, conn)?.end_date(conn)?,
                             new_end_date,
                         ),
                     )?);
@@ -390,6 +440,7 @@ impl TicketType {
                 TicketPricing::ticket_pricing_does_not_overlap_ticket_type_end_date(
                     self,
                     ticket_pricing.end_date,
+                    conn,
                 )?,
             );
         }
@@ -743,28 +794,35 @@ impl TicketType {
 #[derive(Insertable)]
 #[table_name = "ticket_types"]
 pub struct NewTicketType {
-    event_id: Uuid,
-    name: String,
-    description: Option<String>,
-    status: TicketTypeStatus,
-    start_date: Option<NaiveDateTime>,
-    end_date: NaiveDateTime,
-    increment: Option<i32>,
-    limit_per_person: i32,
-    price_in_cents: i64,
-    visibility: TicketTypeVisibility,
-    parent_id: Option<Uuid>,
-    additional_fee_in_cents: i64,
-    rank: Option<i32>,
+    pub event_id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub status: TicketTypeStatus,
+    pub start_date: Option<NaiveDateTime>,
+    pub end_date: Option<NaiveDateTime>,
+    pub increment: Option<i32>,
+    pub limit_per_person: i32,
+    pub price_in_cents: i64,
+    pub visibility: TicketTypeVisibility,
+    pub parent_id: Option<Uuid>,
+    pub additional_fee_in_cents: i64,
+    pub rank: Option<i32>,
+    pub end_date_type: TicketTypeEndDateType,
 }
 
 impl NewTicketType {
     pub fn commit(
-        self,
+        mut self,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
         self.validate_record(conn)?;
+
+        // Clear end date if not manual as value is ignored
+        if self.end_date_type != TicketTypeEndDateType::Manual {
+            self.end_date = None;
+        }
+
         let result: TicketType = diesel::insert_into(ticket_types::table)
             .values(&self)
             .get_result(conn)
@@ -804,7 +862,7 @@ impl NewTicketType {
         result.add_ticket_pricing(
             result.name.clone(),
             result.start_date(conn)?,
-            result.end_date,
+            result.end_date(conn)?,
             result.price_in_cents,
             false,
             Some(TicketPricingStatus::Default),
@@ -816,10 +874,21 @@ impl NewTicketType {
     }
 
     pub fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        if self.end_date_type == TicketTypeEndDateType::Manual && self.end_date.is_none() {
+            return Ok(validators::append_validation_error(
+                Ok(()),
+                "end_date",
+                Err(create_validation_error(
+                    "required",
+                    "End date required for manual end date type",
+                )),
+            )?);
+        }
+
         let validation_errors = validators::append_validation_error(
             Ok(()),
             "start_date",
-            validators::start_date_valid(self.start_date(conn)?, self.end_date),
+            validators::start_date_valid(self.start_date(conn)?, self.end_date(conn)?),
         );
         let validation_errors = validators::append_validation_error(
             validation_errors,
@@ -847,25 +916,45 @@ impl NewTicketType {
         Ok(validation_errors?)
     }
 
+    pub fn end_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
+        if let Some(end_date) = self.end_date {
+            Ok(end_date)
+        } else {
+            let event = Event::find(self.event_id, conn)?;
+            let end_date = match self.end_date_type {
+                TicketTypeEndDateType::Manual => {
+                    return DatabaseError::business_process_error::<NaiveDateTime>(
+                        "Manual ticket type end date must have value",
+                    );
+                }
+                TicketTypeEndDateType::EventStart => event.event_start,
+                TicketTypeEndDateType::EventEnd => event.event_end,
+                TicketTypeEndDateType::DoorTime => event.door_time,
+            };
+
+            if end_date.is_none() {
+                return DatabaseError::business_process_error(
+                    "Could not fetch end date for ticket type from event",
+                );
+            }
+
+            Ok(end_date.unwrap())
+        }
+    }
+
     /// Gets the start date if it is present, or the parent's end date
     pub fn start_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
-        let date = match self.start_date {
-            Some(sd) => Ok(sd),
+        match self.start_date {
+            Some(start_date) => Ok(start_date),
             None =>
                 TicketType::find(
                     self.parent_id.ok_or_else(|| {
-                        DatabaseError::new(
-                            ErrorCode::BusinessProcessError,
-                            Some(
-                                "Could not create ticket type, it must have a start date or start after another ticket type"
-                                    .to_string(),
-                            ),
-                        )
+                        return DatabaseError::business_process_error::<Uuid>(
+                            "Could not create ticket type, it must have a start date or start after another ticket type",
+                        ).unwrap_err();
                     })?,
                     conn,
-                ).map(|tt| tt.end_date)
-        };
-
-        date
+                )?.end_date(conn)
+        }
     }
 }

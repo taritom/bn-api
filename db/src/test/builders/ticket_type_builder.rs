@@ -12,6 +12,7 @@ pub struct TicketTypeBuilder<'a> {
     sales_end: Option<NaiveDateTime>,
     visibility: TicketTypeVisibility,
     additional_fees: i64,
+    end_date_type: TicketTypeEndDateType,
 }
 
 impl<'a> TicketTypeBuilder<'a> {
@@ -25,6 +26,7 @@ impl<'a> TicketTypeBuilder<'a> {
             sales_end: None,
             visibility: TicketTypeVisibility::Always,
             additional_fees: 0,
+            end_date_type: TicketTypeEndDateType::Manual,
         }
     }
 
@@ -35,6 +37,7 @@ impl<'a> TicketTypeBuilder<'a> {
 
     pub fn ending(mut self, date: NaiveDateTime) -> Self {
         self.sales_end = Some(date);
+        self.end_date_type = TicketTypeEndDateType::Manual;
         self
     }
 
@@ -70,19 +73,28 @@ impl<'a> TicketTypeBuilder<'a> {
             .into_builder()
             .add_days(-4)
             .finish();
-        let sales_end = event
-            .event_start
-            .unwrap()
-            .into_builder()
-            .add_hours(-2)
-            .finish();
+        let sales_end = if self.end_date_type != TicketTypeEndDateType::Manual {
+            None
+        } else {
+            Some(
+                self.sales_end.unwrap_or(
+                    event
+                        .event_start
+                        .unwrap()
+                        .into_builder()
+                        .add_hours(-2)
+                        .finish(),
+                ),
+            )
+        };
         event
             .add_ticket_type(
                 self.name.unwrap_or("Ticket Builder".to_string()),
                 None,
                 self.quantity,
                 Some(self.sales_start.unwrap_or(sales_start)),
-                self.sales_end.unwrap_or(sales_end),
+                sales_end,
+                self.end_date_type,
                 Some(event.issuer_wallet(self.event.connection).unwrap().id),
                 None,
                 0,
@@ -135,7 +147,8 @@ impl<'a> TicketPricingBuilder<'a> {
                 "Ticket Pricing Builder".to_string(),
                 self.start
                     .unwrap_or(ticket_type.start_date(connection).unwrap()),
-                self.end.unwrap_or(ticket_type.end_date),
+                self.end
+                    .unwrap_or(ticket_type.end_date(connection).unwrap()),
                 10,
                 false,
                 None,

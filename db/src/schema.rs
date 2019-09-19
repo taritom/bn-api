@@ -646,7 +646,7 @@ table! {
         description -> Nullable<Text>,
         status -> Text,
         start_date -> Nullable<Timestamp>,
-        end_date -> Timestamp,
+        end_date -> Nullable<Timestamp>,
         increment -> Int4,
         limit_per_person -> Int4,
         created_at -> Timestamp,
@@ -658,6 +658,7 @@ table! {
         visibility -> Varchar,
         additional_fee_in_cents -> Int8,
         deleted_at -> Nullable<Timestamp>,
+        end_date_type -> Text,
     }
 }
 

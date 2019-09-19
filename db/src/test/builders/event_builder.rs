@@ -16,6 +16,7 @@ pub struct EventBuilder<'a> {
     venue_id: Option<Uuid>,
     event_start: Option<NaiveDateTime>,
     event_end: Option<NaiveDateTime>,
+    door_time: Option<NaiveDateTime>,
     pub connection: &'a PgConnection,
     with_tickets: bool,
     with_ticket_pricing: bool,
@@ -38,6 +39,7 @@ impl<'a> EventBuilder<'a> {
             venue_id: None,
             event_start: None,
             event_end: None,
+            door_time: None,
             connection,
             with_tickets: false,
             with_ticket_pricing: false,
@@ -92,6 +94,11 @@ impl<'a> EventBuilder<'a> {
 
     pub fn with_venue(mut self, venue: &Venue) -> Self {
         self.venue_id = Some(venue.id.clone());
+        self
+    }
+
+    pub fn with_door_time(mut self, date: NaiveDateTime) -> Self {
+        self.door_time = Some(date);
         self
     }
 
@@ -159,7 +166,8 @@ impl<'a> EventBuilder<'a> {
             organization_id,
             self.venue_id,
             Some(event_start),
-            Some(event_start.into_builder().add_hours(-1).finish()),
+            self.door_time
+                .or_else(|| Some(event_start.into_builder().add_hours(-1).finish())),
             self.publish_date,
             Some(event_end),
         )
@@ -224,7 +232,8 @@ impl<'a> EventBuilder<'a> {
                         None,
                         self.ticket_quantity,
                         Some(self.sales_start.unwrap_or(sales_start)),
-                        self.sales_end.unwrap_or(sales_end),
+                        Some(self.sales_end.unwrap_or(sales_end)),
+                        TicketTypeEndDateType::Manual,
                         Some(wallet_id),
                         None,
                         0,

@@ -54,7 +54,7 @@ impl UserDisplayTicketType {
             description: ticket_type.description.clone(),
             status,
             start_date: ticket_type.start_date,
-            end_date: ticket_type.end_date,
+            end_date: ticket_type.end_date(conn)?,
             ticket_pricing,
             available,
             redemption_code: None,
@@ -139,7 +139,7 @@ impl UserDisplayTicketType {
 
                     if max_pricing
                         .map(|p| p.end_date)
-                        .unwrap_or(ticket_type.end_date)
+                        .unwrap_or(ticket_type.end_date(conn)?)
                         < dates::now().finish()
                     {
                         result.status = TicketTypeStatus::SaleEnded;

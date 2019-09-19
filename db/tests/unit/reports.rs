@@ -1,4 +1,4 @@
-use bigneon_db::dev::{times, TestProject};
+use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::schema::orders;
 use bigneon_db::utils::dates;
@@ -1442,7 +1442,8 @@ fn promo_code_report() {
             None,
             100,
             Some(dates::now().add_days(-1).finish()),
-            times::infinity(),
+            None,
+            TicketTypeEndDateType::EventEnd,
             Some(wallet_id),
             None,
             0,

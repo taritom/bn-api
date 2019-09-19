@@ -201,6 +201,7 @@ string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, Externa
 Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
+string_enum! { TicketTypeEndDateType [DoorTime, EventEnd, EventStart, Manual] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, OnSaleSoon, SaleEnded, Cancelled, Deleted] }
 string_enum! { TicketTypeVisibility [ Always, Hidden, WhenAvailable ]}
 string_enum! { TransferMessageType [Email, Phone] }

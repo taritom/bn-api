@@ -140,8 +140,9 @@ impl TicketPricing {
     pub fn ticket_pricing_does_not_overlap_ticket_type_end_date(
         ticket_type: &TicketType,
         end_date: NaiveDateTime,
+        conn: &PgConnection,
     ) -> Result<Result<(), ValidationError>, DatabaseError> {
-        if ticket_type.end_date < end_date {
+        if ticket_type.end_date(conn)? < end_date {
             let mut validation_error = create_validation_error(
                 "ticket_pricing_overlapping_ticket_type_end_date",
                 "Ticket pricing dates overlap ticket type end date",

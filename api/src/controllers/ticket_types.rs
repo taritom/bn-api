@@ -37,7 +37,8 @@ pub struct CreateTicketTypeRequest {
     pub capacity: u32,
     pub start_date: Option<NaiveDateTime>,
     pub parent_id: Option<Uuid>,
-    pub end_date: NaiveDateTime,
+    pub end_date: Option<NaiveDateTime>,
+    pub end_date_type: Option<TicketTypeEndDateType>,
     #[serde(default)]
     pub ticket_pricing: Vec<CreateTicketPricingRequest>,
     pub increment: Option<i32>,
@@ -58,7 +59,8 @@ impl Default for CreateTicketTypeRequest {
             capacity: 0,
             start_date: None,
             parent_id: None,
-            end_date: times::infinity(),
+            end_date: None,
+            end_date_type: Some(TicketTypeEndDateType::Manual),
             ticket_pricing: vec![],
             increment: None,
             limit_per_person: 0,
@@ -88,7 +90,8 @@ pub struct UpdateTicketTypeRequest {
     pub capacity: Option<u32>,
     #[serde(deserialize_with = "double_option::deserialize")]
     pub start_date: Option<Option<NaiveDateTime>>,
-    pub end_date: Option<NaiveDateTime>,
+    pub end_date: Option<Option<NaiveDateTime>>,
+    pub end_date_type: Option<TicketTypeEndDateType>,
     pub ticket_pricing: Option<Vec<UpdateTicketPricingRequest>>,
     pub increment: Option<i32>,
     pub limit_per_person: Option<i32>,
@@ -340,6 +343,7 @@ pub fn update(
         description: data.description.clone(),
         start_date: data.start_date,
         end_date: data.end_date,
+        end_date_type: data.end_date_type,
         increment: data.increment,
         limit_per_person: data.limit_per_person,
         price_in_cents: data.price_in_cents,
@@ -511,6 +515,9 @@ fn create_ticket_types(
                     Some(times::zero())
                 }),
             ticket_type_data.end_date,
+            ticket_type_data
+                .end_date_type
+                .unwrap_or(TicketTypeEndDateType::Manual),
             Some(org_wallet.id),
             ticket_type_data.increment,
             ticket_type_data.limit_per_person,
@@ -550,7 +557,7 @@ fn create_ticket_types(
                 authorised_signers: Vec::new(),
                 rule_flags: 0,
                 rule_metadata: "".to_string(),
-                expiry_date: data.0.end_date.timestamp(),
+                expiry_date: data.1.end_date(connection)?.timestamp(),
             },
         )?;
         let asset = Asset::find_by_ticket_type(data.1.id, connection)?;

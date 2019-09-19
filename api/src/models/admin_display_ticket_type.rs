@@ -13,7 +13,8 @@ pub struct AdminDisplayTicketType {
     pub capacity: u32,
     pub status: TicketTypeStatus,
     pub start_date: Option<NaiveDateTime>,
-    pub end_date: NaiveDateTime,
+    pub end_date: Option<NaiveDateTime>,
+    pub end_date_type: TicketTypeEndDateType,
     pub available: u32,
     pub increment: u32,
     pub limit_per_person: u32,
@@ -59,6 +60,7 @@ impl AdminDisplayTicketType {
             }),
             parent_id: ticket_type.parent_id,
             end_date: ticket_type.end_date,
+            end_date_type: ticket_type.end_date_type,
             ticket_pricing: ticket_pricing_list.clone(),
             available,
             capacity,
@@ -90,7 +92,7 @@ impl AdminDisplayTicketType {
 
                     if max_pricing
                         .map(|p| p.end_date)
-                        .unwrap_or(ticket_type.end_date)
+                        .unwrap_or(ticket_type.end_date(conn)?)
                         < dates::now().finish()
                     {
                         result.status = TicketTypeStatus::SaleEnded;

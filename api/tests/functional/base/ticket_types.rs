@@ -49,8 +49,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         description: None,
         capacity: 1000,
         start_date: Some(start_date),
-
-        end_date,
+        end_date: Some(end_date),
+        end_date_type: Some(TicketTypeEndDateType::Manual),
         ticket_pricing,
         increment: None,
         limit_per_person: 0,
@@ -117,7 +117,8 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
         description: None,
         capacity: 1000,
         start_date: Some(start_date),
-        end_date,
+        end_date: Some(end_date),
+        end_date_type: Some(TicketTypeEndDateType::Manual),
         ticket_pricing,
         increment: None,
         limit_per_person: 0,
@@ -139,7 +140,8 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
         description: None,
         capacity: 2000,
         start_date: Some(start_date),
-        end_date,
+        end_date: Some(end_date),
+        end_date_type: Some(TicketTypeEndDateType::Manual),
         ticket_pricing,
         increment: None,
         limit_per_person: 0,
@@ -172,7 +174,10 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
                     ticket_type.start_date.map(|d| d.timestamp()),
                     Some(start_date.timestamp())
                 );
-                assert_eq!(ticket_type.end_date.timestamp(), end_date.timestamp());
+                assert_eq!(
+                    ticket_type.end_date(connection).unwrap().timestamp(),
+                    end_date.timestamp()
+                );
             }
             None => panic!("Expected GA ticket type to exist"),
         }
@@ -187,7 +192,10 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
                     ticket_type.start_date.map(|d| d.timestamp()),
                     Some(start_date.timestamp())
                 );
-                assert_eq!(ticket_type.end_date.timestamp(), end_date.timestamp());
+                assert_eq!(
+                    ticket_type.end_date(connection).unwrap().timestamp(),
+                    end_date.timestamp()
+                );
             }
             None => panic!("Expected VIP ticket type to exist"),
         }
@@ -250,7 +258,8 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         description: None,
         capacity: Some(created_ticket_capacity),
         start_date: Some(start_date),
-        end_date,
+        end_date: Some(end_date),
+        end_date_type: None,
         ticket_pricing: Some(request_ticket_pricing),
         increment: None,
         limit_per_person: Some(0),
@@ -300,6 +309,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         capacity: Some(updated_ticket_capacity),
         start_date: Some(updated_ticket_type.start_date),
         end_date: Some(updated_ticket_type.end_date),
+        end_date_type: None,
         ticket_pricing: Some(new_ticket_pricing),
         increment: None,
         limit_per_person: Some(0),
