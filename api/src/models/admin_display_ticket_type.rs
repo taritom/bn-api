@@ -23,6 +23,7 @@ pub struct AdminDisplayTicketType {
     pub visibility: TicketTypeVisibility,
     pub parent_id: Option<Uuid>,
     pub additional_fee_in_cents: i64,
+    pub rank: i32,
 }
 
 impl AdminDisplayTicketType {
@@ -69,6 +70,7 @@ impl AdminDisplayTicketType {
             price_in_cents: ticket_type.price_in_cents,
             visibility: ticket_type.visibility,
             additional_fee_in_cents: ticket_type.additional_fee_in_cents,
+            rank: ticket_type.rank,
         };
 
         let current_ticket_pricing = ticket_type.current_ticket_pricing(false, conn).optional()?;
