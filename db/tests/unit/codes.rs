@@ -92,18 +92,6 @@ pub fn create_with_validation_errors() {
         }
         Err(error) => match &error.error_code {
             ValidationError { errors } => {
-                assert!(errors.contains_key("redemption_code"));
-                assert_eq!(errors["redemption_code"].len(), 1);
-                assert_eq!(errors["redemption_code"][0].code, "length");
-                assert_eq!(
-                    &errors["redemption_code"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
-                    "Redemption code must be at least 6 characters long"
-                );
-
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
                 assert_eq!(
@@ -305,18 +293,6 @@ pub fn update_with_validation_errors() {
         }
         Err(error) => match &error.error_code {
             ValidationError { errors } => {
-                assert!(errors.contains_key("redemption_code"));
-                assert_eq!(errors["redemption_code"].len(), 1);
-                assert_eq!(errors["redemption_code"][0].code, "length");
-                assert_eq!(
-                    &errors["redemption_code"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
-                    "Redemption code must be at least 6 characters long"
-                );
-
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
                 assert_eq!(

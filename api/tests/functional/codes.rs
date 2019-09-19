@@ -216,12 +216,6 @@ fn create_with_validation_errors() {
     assert!(response.error().is_some());
 
     let validation_response = support::validation_response_from_response(&response).unwrap();
-    let redemption_code = validation_response.fields.get("redemption_code").unwrap();
-    assert_eq!(redemption_code[0].code, "length");
-    assert_eq!(
-        &redemption_code[0].message.clone().unwrap().into_owned(),
-        "Redemption code must be at least 6 characters long"
-    );
     let start_date_err = validation_response.fields.get("start_date").unwrap();
     assert_eq!(start_date_err[0].code, "start_date_must_be_before_end_date");
     assert_eq!(
@@ -362,12 +356,6 @@ fn update_with_validation_errors() {
     assert!(response.error().is_some());
 
     let validation_response = support::validation_response_from_response(&response).unwrap();
-    let redemption_code = validation_response.fields.get("redemption_code").unwrap();
-    assert_eq!(redemption_code[0].code, "length");
-    assert_eq!(
-        &redemption_code[0].message.clone().unwrap().into_owned(),
-        "Redemption code must be at least 6 characters long"
-    );
     let start_date = validation_response.fields.get("start_date").unwrap();
     assert_eq!(start_date[0].code, "start_date_must_be_before_end_date");
     assert_eq!(

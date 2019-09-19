@@ -82,10 +82,6 @@ pub struct DisplayCodeAvailability {
 #[table_name = "codes"]
 pub struct UpdateCodeAttributes {
     pub name: Option<String>,
-    #[validate(length(
-        min = "6",
-        message = "Redemption code must be at least 6 characters long"
-    ))]
     pub redemption_code: Option<String>,
     pub max_uses: Option<i64>,
     pub discount_in_cents: Option<Option<i64>>,
@@ -501,10 +497,6 @@ pub struct NewCode {
     pub name: String,
     pub event_id: Uuid,
     pub code_type: CodeTypes,
-    #[validate(length(
-        min = "6",
-        message = "Redemption code must be at least 6 characters long"
-    ))]
     pub redemption_code: String,
     pub max_uses: i64,
     pub discount_in_cents: Option<i64>,
