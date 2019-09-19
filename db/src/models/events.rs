@@ -291,7 +291,6 @@ pub struct EventEditableAttributes {
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub override_status: Option<Option<EventOverrideStatus>>,
     pub event_end: Option<NaiveDateTime>,
-    #[validate(length(max = "6", message = "Access code must be at most 6 characters long"))]
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub private_access_code: Option<Option<String>>,
     pub sendgrid_list_id: Option<i64>,

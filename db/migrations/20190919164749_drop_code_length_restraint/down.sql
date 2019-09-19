@@ -1,0 +1,3 @@
+-- This migration can't be run because there may be redemption_codes that are less than 6 chars
+-- ALTER TABLE codes
+--     ADD CONSTRAINT codes_redemption_code_check CHECK (char_length(redemption_code) >= 6);

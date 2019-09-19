@@ -1,0 +1,1 @@
+ALTER TABLE codes DROP CONSTRAINT IF EXISTS codes_redemption_code_check;
