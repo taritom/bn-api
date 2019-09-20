@@ -102,7 +102,6 @@ impl DomainEvent {
                 data.insert("user_id".to_string(), json!(user.id));
                 data.insert("email".to_string(), json!(user.email));
                 data.insert("phone".to_string(), json!(user.phone));
-                data.insert("timezone".to_string(), json!(user.timezone(conn)?));
                 result.push(data);
             }
             DomainEventTypes::TemporaryUserCreated => {

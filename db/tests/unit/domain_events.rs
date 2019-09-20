@@ -261,7 +261,6 @@ fn webhook_payloads() {
     );
     assert_eq!(fetch_from_payload::<String>(&user_payload, "email"), email);
     assert_eq!(fetch_from_payload::<String>(&user_payload, "phone"), phone);
-    assert!(fetch_from_payload::<Option<String>>(&user_payload, "timezone").is_none());
 
     let timezone = "Africa/Johannesburg".to_string();
     let venue = project
@@ -324,17 +323,6 @@ fn webhook_payloads() {
     assert_eq!(
         fetch_from_payload::<String>(&order_payload, "show_doors_open_time"),
         "5:00 PM SAST".to_string()
-    );
-
-    // Timezone now available via associated order
-    let mut user_payloads = user_domain_event
-        .webhook_payloads("http://localhost:5432", connection)
-        .unwrap();
-    assert_eq!(user_payloads.len(), 1);
-    let user_payload = user_payloads.remove(0);
-    assert_eq!(
-        fetch_from_payload::<String>(&user_payload, "timezone"),
-        timezone
     );
 
     let email = "test@tari.com".to_string();

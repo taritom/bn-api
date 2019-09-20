@@ -143,64 +143,6 @@ impl NewUser {
 }
 
 impl User {
-    pub fn country(&self, conn: &PgConnection) -> Result<Option<String>, DatabaseError> {
-        Ok(self.last_associated_venue(conn)?.map(|v| v.country))
-    }
-
-    pub fn timezone(&self, conn: &PgConnection) -> Result<Option<String>, DatabaseError> {
-        Ok(self.last_associated_venue(conn)?.map(|v| v.timezone))
-    }
-
-    pub fn last_associated_venue(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Option<Venue>, DatabaseError> {
-        use schema::*;
-        events::table
-            .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
-            .inner_join(assets::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .left_join(ticket_instances::table.on(ticket_instances::asset_id.eq(assets::id)))
-            .left_join(
-                wallets::table.on(ticket_instances::wallet_id.eq(wallets::id).and(
-                    wallets::user_id
-                        .eq(self.id)
-                        .and(ticket_instances::status.eq_any(vec![
-                            TicketInstanceStatus::Purchased,
-                            TicketInstanceStatus::Redeemed,
-                        ])),
-                )),
-            )
-            .left_join(
-                event_interest::table.on(event_interest::event_id
-                    .eq(events::id)
-                    .and(event_interest::user_id.eq(self.id))),
-            )
-            .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
-            .left_join(
-                orders::table.on(orders::id.eq(order_items::order_id).and(
-                    orders::status.eq(OrderStatus::Paid).and(
-                        orders::on_behalf_of_user_id
-                            .eq(self.id)
-                            .or(orders::on_behalf_of_user_id
-                                .is_null()
-                                .and(orders::user_id.eq(self.id))),
-                    ),
-                )),
-            )
-            .inner_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
-            .filter(
-                event_interest::id
-                    .is_not_null()
-                    .or(wallets::id.is_not_null())
-                    .or(orders::id.is_not_null()),
-            )
-            .select(venues::all_columns)
-            .order_by(events::event_start.desc())
-            .first::<Venue>(conn)
-            .optional()
-            .to_db_error(ErrorCode::QueryError, "Could not get venue for user")
-    }
-
     pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
         genres::table
             .inner_join(user_genres::table.on(user_genres::genre_id.eq(genres::id)))
