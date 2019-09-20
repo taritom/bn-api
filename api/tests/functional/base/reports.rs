@@ -128,7 +128,7 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
                         event_date: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
                         number_of_tickets: 2,
                         face_value_in_cents: 150,
-                        total_fees_in_cents: 0,
+                        revenue_share_value_in_cents: 0,
                         total_sales_in_cents: 300,
                     },
                     BoxOfficeSalesSummaryOperatorEventRow {
@@ -136,27 +136,15 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
                         event_date: Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11)),
                         number_of_tickets: 2,
                         face_value_in_cents: 150,
-                        total_fees_in_cents: 0,
+                        revenue_share_value_in_cents: 0,
                         total_sales_in_cents: 300,
                     },
                 ],
-                payments: vec![
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Cash".to_string(),
-                        quantity: 0,
-                        total_sales_in_cents: 0,
-                    },
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Credit Card".to_string(),
-                        quantity: 4,
-                        total_sales_in_cents: 600,
-                    },
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Voucher".to_string(),
-                        quantity: 0,
-                        total_sales_in_cents: 0,
-                    },
-                ],
+                payments: vec![BoxOfficeSalesSummaryPaymentRow {
+                    payment_type: ExternalPaymentType::CreditCard,
+                    quantity: 4,
+                    total_sales_in_cents: 600,
+                }],
             },
             BoxOfficeSalesSummaryOperatorRow {
                 operator_id: box_office_user2.id,
@@ -166,45 +154,21 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
                     event_date: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
                     number_of_tickets: 2,
                     face_value_in_cents: 150,
-                    total_fees_in_cents: 0,
+                    revenue_share_value_in_cents: 0,
                     total_sales_in_cents: 300,
                 }],
-                payments: vec![
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Cash".to_string(),
-                        quantity: 0,
-                        total_sales_in_cents: 0,
-                    },
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Credit Card".to_string(),
-                        quantity: 2,
-                        total_sales_in_cents: 300,
-                    },
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Voucher".to_string(),
-                        quantity: 0,
-                        total_sales_in_cents: 0,
-                    },
-                ],
+                payments: vec![BoxOfficeSalesSummaryPaymentRow {
+                    payment_type: ExternalPaymentType::CreditCard,
+                    quantity: 2,
+                    total_sales_in_cents: 300,
+                }],
             },
         ],
-        payments: vec![
-            BoxOfficeSalesSummaryPaymentRow {
-                payment_type: "Cash".to_string(),
-                quantity: 0,
-                total_sales_in_cents: 0,
-            },
-            BoxOfficeSalesSummaryPaymentRow {
-                payment_type: "Credit Card".to_string(),
-                quantity: 6,
-                total_sales_in_cents: 900,
-            },
-            BoxOfficeSalesSummaryPaymentRow {
-                payment_type: "Voucher".to_string(),
-                quantity: 0,
-                total_sales_in_cents: 0,
-            },
-        ],
+        payments: vec![BoxOfficeSalesSummaryPaymentRow {
+            payment_type: ExternalPaymentType::CreditCard,
+            quantity: 6,
+            total_sales_in_cents: 900,
+        }],
     };
 
     assert_eq!(expected_report_data, report_data);

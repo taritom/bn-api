@@ -1185,6 +1185,7 @@ fn box_office_sales_summary_report() {
         .with_member(&box_office_user, Roles::OrgBoxOffice)
         .with_member(&box_office_user2, Roles::OrgBoxOffice)
         .with_fees()
+        .with_event_fee()
         .finish();
     let event = project
         .create_event()
@@ -1261,7 +1262,7 @@ fn box_office_sales_summary_report() {
                         event_date: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
                         number_of_tickets: 2,
                         face_value_in_cents: 150,
-                        total_fees_in_cents: 0,
+                        revenue_share_value_in_cents: 0,
                         total_sales_in_cents: 300,
                     },
                     BoxOfficeSalesSummaryOperatorEventRow {
@@ -1269,23 +1270,23 @@ fn box_office_sales_summary_report() {
                         event_date: Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 10, 11)),
                         number_of_tickets: 2,
                         face_value_in_cents: 150,
-                        total_fees_in_cents: 0,
+                        revenue_share_value_in_cents: 0,
                         total_sales_in_cents: 300,
                     },
                 ],
                 payments: vec![
                     BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Cash".to_string(),
+                        payment_type: ExternalPaymentType::Cash,
                         quantity: 1,
                         total_sales_in_cents: 150,
                     },
                     BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Credit Card".to_string(),
+                        payment_type: ExternalPaymentType::CreditCard,
                         quantity: 1,
                         total_sales_in_cents: 150,
                     },
                     BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Voucher".to_string(),
+                        payment_type: ExternalPaymentType::Voucher,
                         quantity: 2,
                         total_sales_in_cents: 300,
                     },
@@ -1299,41 +1300,29 @@ fn box_office_sales_summary_report() {
                     event_date: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)),
                     number_of_tickets: 2,
                     face_value_in_cents: 150,
-                    total_fees_in_cents: 0,
+                    revenue_share_value_in_cents: 0,
                     total_sales_in_cents: 300,
                 }],
-                payments: vec![
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Cash".to_string(),
-                        quantity: 2,
-                        total_sales_in_cents: 300,
-                    },
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Credit Card".to_string(),
-                        quantity: 0,
-                        total_sales_in_cents: 0,
-                    },
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: "Voucher".to_string(),
-                        quantity: 0,
-                        total_sales_in_cents: 0,
-                    },
-                ],
+                payments: vec![BoxOfficeSalesSummaryPaymentRow {
+                    payment_type: ExternalPaymentType::Cash,
+                    quantity: 2,
+                    total_sales_in_cents: 300,
+                }],
             },
         ],
         payments: vec![
             BoxOfficeSalesSummaryPaymentRow {
-                payment_type: "Cash".to_string(),
+                payment_type: ExternalPaymentType::Cash,
                 quantity: 3,
                 total_sales_in_cents: 450,
             },
             BoxOfficeSalesSummaryPaymentRow {
-                payment_type: "Credit Card".to_string(),
+                payment_type: ExternalPaymentType::CreditCard,
                 quantity: 1,
                 total_sales_in_cents: 150,
             },
             BoxOfficeSalesSummaryPaymentRow {
-                payment_type: "Voucher".to_string(),
+                payment_type: ExternalPaymentType::Voucher,
                 quantity: 2,
                 total_sales_in_cents: 300,
             },

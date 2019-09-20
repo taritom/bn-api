@@ -304,7 +304,7 @@ pub struct BoxOfficeSalesSummaryReportRow {
     #[sql_type = "BigInt"]
     pub face_value_in_cents: i64,
     #[sql_type = "BigInt"]
-    pub total_fees_in_cents: i64,
+    pub revenue_share_value_in_cents: i64,
     #[sql_type = "BigInt"]
     pub total_sales_in_cents: i64,
 }
@@ -317,7 +317,7 @@ pub struct BoxOfficeSalesSummaryReport {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BoxOfficeSalesSummaryPaymentRow {
-    pub payment_type: String,
+    pub payment_type: ExternalPaymentType,
     pub quantity: u32,
     pub total_sales_in_cents: u32,
 }
@@ -336,7 +336,7 @@ pub struct BoxOfficeSalesSummaryOperatorEventRow {
     pub event_date: Option<NaiveDateTime>,
     pub number_of_tickets: u32,
     pub face_value_in_cents: u32,
-    pub total_fees_in_cents: u32,
+    pub revenue_share_value_in_cents: u32,
     pub total_sales_in_cents: u32,
 }
 
@@ -588,14 +588,6 @@ impl TicketCountRow {
 }
 
 impl Report {
-    fn external_payment_type_row_title(external_payment_type: ExternalPaymentType) -> String {
-        match external_payment_type {
-            ExternalPaymentType::Cash => "Cash".to_string(),
-            ExternalPaymentType::CreditCard => "Credit Card".to_string(),
-            ExternalPaymentType::Voucher => "Voucher".to_string(),
-        }
-    }
-
     pub fn box_office_sales_summary_report(
         organization_id: Uuid,
         start: Option<NaiveDateTime>,
@@ -613,20 +605,6 @@ impl Report {
 
         let mut payment_totals: HashMap<ExternalPaymentType, BoxOfficeSalesSummaryPaymentRow> =
             HashMap::new();
-        for external_payment_type in vec![
-            ExternalPaymentType::Cash,
-            ExternalPaymentType::CreditCard,
-            ExternalPaymentType::Voucher,
-        ] {
-            payment_totals.insert(
-                external_payment_type,
-                BoxOfficeSalesSummaryPaymentRow {
-                    payment_type: Report::external_payment_type_row_title(external_payment_type),
-                    quantity: 0,
-                    total_sales_in_cents: 0,
-                },
-            );
-        }
 
         let mut operator_data: Vec<BoxOfficeSalesSummaryOperatorRow> = Vec::new();
         for (operator_id, group) in &box_office_summary_rows
@@ -637,22 +615,6 @@ impl Report {
             let mut event_date = None;
             let mut payments: HashMap<ExternalPaymentType, BoxOfficeSalesSummaryPaymentRow> =
                 HashMap::new();
-            for external_payment_type in vec![
-                ExternalPaymentType::Cash,
-                ExternalPaymentType::CreditCard,
-                ExternalPaymentType::Voucher,
-            ] {
-                payments.insert(
-                    external_payment_type,
-                    BoxOfficeSalesSummaryPaymentRow {
-                        payment_type: Report::external_payment_type_row_title(
-                            external_payment_type,
-                        ),
-                        quantity: 0,
-                        total_sales_in_cents: 0,
-                    },
-                );
-            }
 
             let mut events: Vec<BoxOfficeSalesSummaryOperatorEventRow> = Vec::new();
             for (event_name, event_group) in
@@ -660,40 +622,40 @@ impl Report {
             {
                 let mut number_of_tickets = 0;
                 let mut face_value_in_cents = 0;
-                let mut total_fees_in_cents = 0;
+                let mut revenue_share_value_in_cents = 0;
                 let mut total_sales_in_cents = 0;
                 for event_group_item in event_group {
                     operator_name = Some(event_group_item.operator_name.clone());
                     event_date = event_group_item.event_date.clone();
                     number_of_tickets += event_group_item.number_of_tickets as u32;
                     face_value_in_cents = event_group_item.face_value_in_cents as u32;
-                    total_fees_in_cents += event_group_item.total_fees_in_cents as u32;
+                    revenue_share_value_in_cents =
+                        event_group_item.revenue_share_value_in_cents as u32;
                     total_sales_in_cents += event_group_item.total_sales_in_cents as u32;
-                    match payment_totals.get_mut(&event_group_item.external_payment_type) {
-                        Some(totals) => {
-                            totals.quantity += event_group_item.number_of_tickets as u32;
-                            totals.total_sales_in_cents +=
-                                event_group_item.total_sales_in_cents as u32;
-                        }
-                        None => {
-                            return DatabaseError::business_process_error(
-                                "Cannot delete an order item for an order that is not in draft",
-                            );
-                        }
-                    }
 
-                    match payments.get_mut(&event_group_item.external_payment_type) {
-                        Some(totals) => {
-                            totals.quantity += event_group_item.number_of_tickets as u32;
-                            totals.total_sales_in_cents +=
-                                event_group_item.total_sales_in_cents as u32;
-                        }
-                        None => {
-                            return DatabaseError::business_process_error(
-                                "Cannot delete an order item for an order that is not in draft",
-                            );
-                        }
-                    }
+                    payment_totals
+                        .entry(event_group_item.external_payment_type)
+                        .and_modify(|e| {
+                            e.quantity += event_group_item.number_of_tickets as u32;
+                            e.total_sales_in_cents += event_group_item.total_sales_in_cents as u32;
+                        })
+                        .or_insert_with(|| BoxOfficeSalesSummaryPaymentRow {
+                            payment_type: event_group_item.external_payment_type,
+                            quantity: event_group_item.number_of_tickets as u32,
+                            total_sales_in_cents: event_group_item.total_sales_in_cents as u32,
+                        });
+
+                    payments
+                        .entry(event_group_item.external_payment_type)
+                        .and_modify(|e| {
+                            e.quantity += event_group_item.number_of_tickets as u32;
+                            e.total_sales_in_cents += event_group_item.total_sales_in_cents as u32;
+                        })
+                        .or_insert_with(|| BoxOfficeSalesSummaryPaymentRow {
+                            payment_type: event_group_item.external_payment_type,
+                            quantity: event_group_item.number_of_tickets as u32,
+                            total_sales_in_cents: event_group_item.total_sales_in_cents as u32,
+                        });
                 }
 
                 events.push(BoxOfficeSalesSummaryOperatorEventRow {
@@ -701,7 +663,7 @@ impl Report {
                     event_date,
                     number_of_tickets,
                     face_value_in_cents,
-                    total_fees_in_cents,
+                    revenue_share_value_in_cents,
                     total_sales_in_cents,
                 });
             }
