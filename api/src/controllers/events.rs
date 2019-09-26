@@ -20,7 +20,7 @@ use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
 use std::collections::HashMap;
-use utils::{marketing_contacts, ServiceLocator};
+use utils::ServiceLocator;
 use uuid::Uuid;
 
 #[derive(Deserialize, Clone)]
@@ -470,10 +470,6 @@ pub fn publish(
         conn,
     )?;
     event.publish(Some(user.id()), conn)?;
-
-    // TODO: Remove domain action and replace with domain event EventPublished
-    //       once domain events are ready #DomainEvents
-    let _ = marketing_contacts::CreateEventMarketingListAction::new(event.id).enqueue(conn)?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -1103,33 +1099,6 @@ pub fn holds(
     }
 
     Ok(HttpResponse::Ok().json(Payload::from_data(list, query.page(), query.limit())))
-}
-
-pub fn fans_index(
-    (connection, query, path, user): (
-        Connection,
-        Query<PagingParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
-) -> Result<WebPayload<DisplayFan>, BigNeonError> {
-    let connection = connection.get();
-    let event = Event::find(path.id, connection)?;
-    let org = event.organization(connection)?;
-    user.requires_scope_for_organization_event(Scopes::OrgFans, &org, &event, &connection)?;
-    let payload = event.search_fans(
-        query.get_tag("query"),
-        query.page(),
-        query.limit(),
-        query
-            .sort
-            .as_ref()
-            .map(|s| s.parse().unwrap_or(FanSortField::LastOrder))
-            .unwrap_or(FanSortField::UserCreated),
-        query.dir.unwrap_or(SortingDir::Desc),
-        connection,
-    )?;
-    Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
 pub fn users(

@@ -1531,7 +1531,6 @@ fn search_fans() {
     let search_results = organization
         .search_fans(
             None,
-            None,
             0,
             100,
             FanSortField::FirstName,
@@ -1642,7 +1641,6 @@ fn search_fans() {
     let search_results = organization
         .search_fans(
             None,
-            None,
             0,
             100,
             FanSortField::FirstName,
@@ -1693,7 +1691,6 @@ fn search_fans() {
     assert_eq!(order_user_organization_data.interaction_count, 3);
     let search_results = organization
         .search_fans(
-            None,
             None,
             0,
             100,
@@ -1773,7 +1770,6 @@ fn search_fans() {
     expected_results.sort();
     let search_results = organization
         .search_fans(
-            None,
             None,
             0,
             100,
@@ -1947,7 +1943,6 @@ fn search_fans() {
     let search_results = organization
         .search_fans(
             None,
-            None,
             0,
             100,
             FanSortField::FirstName,
@@ -1981,7 +1976,6 @@ fn search_fans() {
 
     let search_results = organization
         .search_fans(
-            None,
             None,
             0,
             100,
@@ -2020,7 +2014,6 @@ fn search_fans() {
     // Search by email
     let search_results = organization
         .search_fans(
-            None,
             order_user.email.clone(),
             0,
             100,
@@ -2035,7 +2028,6 @@ fn search_fans() {
     // Search by first name
     let search_results = organization
         .search_fans(
-            None,
             order_user.first_name.clone(),
             0,
             100,
@@ -2050,7 +2042,6 @@ fn search_fans() {
     // Search by last name
     let search_results = organization
         .search_fans(
-            None,
             order_user.last_name.clone(),
             0,
             100,
@@ -2065,7 +2056,6 @@ fn search_fans() {
     // Search by last name, first name
     let search_results = organization
         .search_fans(
-            None,
             Some(format!(
                 "{}, {}",
                 order_user.last_name.clone().unwrap(),
@@ -2084,7 +2074,6 @@ fn search_fans() {
     // Search by first name last name
     let search_results = organization
         .search_fans(
-            None,
             Some(format!(
                 "{} {}",
                 order_user.first_name.clone().unwrap(),
@@ -2103,7 +2092,6 @@ fn search_fans() {
     // Search by phone
     let search_results = organization
         .search_fans(
-            None,
             order_user.phone.clone(),
             0,
             100,
@@ -2118,7 +2106,6 @@ fn search_fans() {
     // Filtering returning nothing
     let search_results = organization
         .search_fans(
-            None,
             Some("NOT A REAL NAME".to_string()),
             0,
             100,

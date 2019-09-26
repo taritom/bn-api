@@ -1956,27 +1956,6 @@ impl Event {
         EventArtist::find_all_from_event(self.id, conn)
     }
 
-    pub fn search_fans(
-        &self,
-        query: Option<String>,
-        page: u32,
-        limit: u32,
-        sort_field: FanSortField,
-        sort_direction: SortingDir,
-        conn: &PgConnection,
-    ) -> Result<Payload<DisplayFan>, DatabaseError> {
-        let organization = self.organization(conn)?;
-        organization.search_fans(
-            Some(self.id),
-            query,
-            page,
-            limit,
-            sort_field,
-            sort_direction,
-            conn,
-        )
-    }
-
     pub fn activity_summary(
         &self,
         user_id: Uuid,

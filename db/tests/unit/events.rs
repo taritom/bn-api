@@ -4008,19 +4008,8 @@ fn search_fans() {
         .is_paid()
         .finish();
 
-    let expected_results = event
-        .search_fans(
-            None,
-            0,
-            100,
-            FanSortField::FirstName,
-            SortingDir::Asc,
-            &project.connection,
-        )
-        .unwrap();
     let search_results = organization
         .search_fans(
-            Some(event.id),
             None,
             0,
             100,
@@ -4029,39 +4018,14 @@ fn search_fans() {
             &project.connection,
         )
         .unwrap();
-    assert_eq!(search_results, expected_results);
-    let mut expected_results = vec![order_user.id, order_user2.id, order_user3.id];
-    expected_results.sort();
-    let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
-    results.sort();
-    assert_eq!(results, expected_results);
-
-    let expected_results = event2
-        .search_fans(
-            None,
-            0,
-            100,
-            FanSortField::FirstName,
-            SortingDir::Asc,
-            &project.connection,
-        )
-        .unwrap();
-    let search_results = organization
-        .search_fans(
-            Some(event2.id),
-            None,
-            0,
-            100,
-            FanSortField::FirstName,
-            SortingDir::Asc,
-            &project.connection,
-        )
-        .unwrap();
-    assert_eq!(search_results, expected_results);
-    let expected_results = vec![order_user4.id];
-    let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
-    results.sort();
-    assert_eq!(results, expected_results);
+    let expected_results = vec![
+        order_user.id,
+        order_user2.id,
+        order_user3.id,
+        order_user4.id,
+    ];
+    let results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
+    assert_equiv!(results, expected_results);
 }
 
 #[test]
@@ -4095,16 +4059,4 @@ fn checked_in_users() {
     assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
     let users = Event::checked_in_users(event.id, connection).unwrap();
     assert_eq!(users[0], user);
-    let fans = event
-        .search_fans(
-            None,
-            0,
-            100,
-            FanSortField::FirstName,
-            SortingDir::Asc,
-            &project.connection,
-        )
-        .unwrap()
-        .data;
-    assert_eq!(user.id, fans[0].user_id);
 }

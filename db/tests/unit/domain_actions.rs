@@ -141,7 +141,7 @@ fn has_pending_action() {
 
     // Empty, no action
     let result = DomainAction::has_pending_action(
-        DomainActionTypes::MarketingContactsBulkEventFanListImport,
+        DomainActionTypes::BroadcastPushNotification,
         Tables::Events,
         id,
         connection,
@@ -152,7 +152,7 @@ fn has_pending_action() {
     // New action
     let mut domain_action = DomainAction::create(
         None,
-        DomainActionTypes::MarketingContactsBulkEventFanListImport,
+        DomainActionTypes::BroadcastPushNotification,
         None,
         json!(Vec::<u8>::new()),
         Some(Tables::Events),
@@ -170,7 +170,7 @@ fn has_pending_action() {
     domain_action.commit(connection).unwrap();
 
     let result = DomainAction::has_pending_action(
-        DomainActionTypes::MarketingContactsBulkEventFanListImport,
+        DomainActionTypes::BroadcastPushNotification,
         Tables::Events,
         id,
         connection,

@@ -485,7 +485,6 @@ impl Organization {
 
     pub fn has_fan(&self, user: &User, conn: &PgConnection) -> Result<bool, DatabaseError> {
         let results = self.search_fans(
-            None,
             Some(user.id.to_string()),
             0,
             1,
@@ -734,7 +733,7 @@ impl Organization {
 
     pub fn search_fans(
         &self,
-        event_id: Option<Uuid>,
+        //        event_id: Option<Uuid>,
         search_query: Option<String>,
         page: u32,
         limit: u32,
@@ -759,48 +758,9 @@ impl Organization {
         };
 
         let mut query = events::table
-            .left_join(
-                order_items::table
-                    .inner_join(
-                        orders::table.on(order_items::order_id
-                            .eq(orders::id)
-                            .and(orders::status.eq(OrderStatus::Paid))),
-                    )
-                    .on(order_items::event_id
-                        .eq(events::id.nullable())
-                        .and(order_items::item_type.eq(OrderItemTypes::Tickets))),
-            )
-            .left_join(
-                ticket_instances::table
-                    .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            )
-            .left_join(refunds::table.on(refunds::order_id.eq(orders::id)))
-            .left_join(
-                transfer_tickets::table
-                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
-            )
-            .left_join(transfers::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
-            // Include user records for the purchasing user
             .inner_join(
-                users::table.on(orders::on_behalf_of_user_id
-                    .eq(users::id.nullable())
-                    .or(users::id
-                        .eq(orders::user_id)
-                        .and(orders::on_behalf_of_user_id.is_null()))
-                    .or(wallets::user_id.eq(users::id.nullable()).and(
-                        ticket_instances::status.eq_any(vec![
-                            TicketInstanceStatus::Redeemed,
-                            TicketInstanceStatus::Purchased,
-                        ]),
-                    ))
-                    .or(transfers::source_user_id.eq(users::id))
-                    .or(transfers::destination_user_id.eq(users::id.nullable()))),
-            )
-            .left_join(
-                organization_interactions::table.on(organization_interactions::user_id
-                    .eq(users::id)
-                    .and(organization_interactions::organization_id.eq(events::organization_id))),
+                organizations::table
+                    .inner_join(organization_interactions::table.left_join(users::table)),
             )
             .filter(events::organization_id.eq(self.id))
             .into_boxed();
@@ -833,9 +793,9 @@ impl Organization {
             }
         }
 
-        if let Some(event_id) = event_id {
-            query = query.filter(events::id.eq(event_id));
-        }
+        //        if let Some(event_id) = event_id {
+        //            query = query.filter(events::id.eq(event_id));
+        //        }
 
         //First fetch all of the fans
         let (fans, record_count): (Vec<DisplayFan>, i64) = query
@@ -857,13 +817,13 @@ impl Organization {
                 users::phone,
                 users::thumb_profile_pic_url,
                 events::organization_id,
-                sql::<Nullable<BigInt>>("COUNT(distinct orders.id) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
+                sql::<Nullable<BigInt>>("CAST (0 AS BIGINT)"), //order_count
                 users::created_at,
-                sql::<Nullable<Timestamp>>("MIN(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
-                sql::<Nullable<Timestamp>>("MAX(orders.order_date) FILTER (WHERE COALESCE(orders.on_behalf_of_user_id, orders.user_id) = users.id)"),
-                sql::<Nullable<BigInt>>("CAST (0 AS BIGINT)"),//The will be replaced
-                sql::<Nullable<Timestamp>>("organization_interactions.first_interaction"),
-                sql::<Nullable<Timestamp>>("organization_interactions.last_interaction"),
+                sql::<Nullable<Timestamp>>("NULL"), //first_order_time
+                sql::<Nullable<Timestamp>>("NULL"), //last_order_time
+                sql::<Nullable<BigInt>>("CAST (0 AS BIGINT)"), //revenue_in_cents - This will be replaced
+                organization_interactions::first_interaction.nullable(),
+                organization_interactions::last_interaction.nullable(),
             ))
             .order_by(sql::<()>(&format!("{} {}", sort_column, sort_direction)))
             .paginate(page as i64)
@@ -876,19 +836,23 @@ impl Organization {
 
         //Now extract all of the user_ids that were found
         let user_ids: Vec<Uuid> = fans.iter().map(|x| x.user_id).collect();
-        let user_value_map: HashMap<Uuid, i64> =
-            self.user_revenue_totals(event_id, user_ids, conn)?;
+        let user_value_map: HashMap<Uuid, FanRevenue> = self.user_revenue_totals(user_ids, conn)?;
 
         //Map fans with their new values if they were found
         let fans = fans
             .into_iter()
             .map(|x| {
-                let revenue_in_cents = user_value_map
-                    .get(&x.user_id)
-                    .and_then(|x| Some(x.clone()))
-                    .or(Some(0i64));
+                let fan_revenue = user_value_map.get(&x.user_id).map(|x| x.clone()).unwrap_or(
+                    FanRevenue {
+                        ..Default::default()
+                    }
+                    .clone(),
+                );
                 let fan = DisplayFan {
-                    revenue_in_cents,
+                    revenue_in_cents: Some(fan_revenue.revenue_in_cents.unwrap_or(0)),
+                    first_order_time: fan_revenue.first_order_time,
+                    last_order_time: fan_revenue.last_order_time,
+                    order_count: Some(fan_revenue.order_count.unwrap_or(0)),
                     ..x
                 };
                 fan
@@ -1149,31 +1113,21 @@ impl Organization {
 
     pub fn user_revenue_totals(
         &self,
-        event_id: Option<Uuid>,
         user_ids: Vec<Uuid>,
         conn: &PgConnection,
-    ) -> Result<HashMap<Uuid, i64>, DatabaseError> {
-        #[derive(Debug, Queryable, QueryableByName)]
-        struct R {
-            #[sql_type = "BigInt"]
-            revenue_in_cents: i64,
-            #[sql_type = "dUuid"]
-            user_id: Uuid,
-        }
-
+    ) -> Result<HashMap<Uuid, FanRevenue>, DatabaseError> {
         let query_revenue = include_str!("../queries/total_revenue_per_user.sql");
-        let user_values: Vec<R> = diesel::sql_query(query_revenue)
+        let user_values: Vec<FanRevenue> = diesel::sql_query(query_revenue)
             .bind::<dUuid, _>(self.id)
-            .bind::<Nullable<dUuid>, _>(event_id)
             .bind::<Text, _>(OrderStatus::Paid)
             .bind::<Array<dUuid>, _>(user_ids)
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load revenue per fan")?;
 
         //Store the user_id:value in a hashmap for easy collection
-        let mut user_value_map: HashMap<Uuid, i64> = HashMap::new();
+        let mut user_value_map: HashMap<Uuid, FanRevenue> = HashMap::new();
         for i in user_values.iter() {
-            user_value_map.insert(i.user_id, i.revenue_in_cents);
+            user_value_map.insert(i.user_id, i.clone());
         }
         Ok(user_value_map)
     }

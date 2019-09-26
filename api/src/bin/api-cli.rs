@@ -48,7 +48,17 @@ pub fn main() {
         )
         .subcommand(
             SubCommand::with_name("regenerate-interaction-records")
-                .about("Regenerate interaction records for organization users"),
+                .about("Regenerate interaction records for organization users")
+                .arg(
+                    Arg::with_name("email")
+                        .help("Email of user with access to orders to regenerate")
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("password")
+                        .help("Password of user with access to orders to regenerate")
+                        .required(true),
+                ),
         )
         .subcommand(
             SubCommand::with_name("backpopulate-temporary-user-data")
@@ -63,7 +73,11 @@ pub fn main() {
     match matches.subcommand() {
         ("sync-purchase-metadata", Some(_)) => sync_purchase_metadata(database, service_locator),
         ("sync-spotify-genres", Some(_)) => sync_spotify_genres(config, database),
-        ("regenerate-interaction-records", Some(_)) => regenerate_interaction_records(database),
+        ("regenerate-interaction-records", Some(args)) => regenerate_interaction_records(
+            args.value_of("email").unwrap(),
+            args.value_of("password").unwrap(),
+            database,
+        ),
         ("backpopulate-temporary-user-data", Some(_)) => backpopulate_temporary_user_data(database),
         ("schedule-missing-domain-actions", Some(_)) => schedule_missing_domain_actions(database),
         _ => {
@@ -106,33 +120,52 @@ fn backpopulate_temporary_user_data(database: Database) {
     }
 }
 
-fn regenerate_interaction_records(database: Database) {
+fn regenerate_interaction_records(email: &str, password: &str, database: Database) {
     info!("Regenerating interaction records");
     let connection = database
         .get_connection()
         .expect("Expected connection to establish");
     let connection = connection.get();
-    let organizations = Organization::all(connection).expect("Expected to find organizations");
 
-    for organization in organizations {
-        let mut page = 0;
-        loop {
-            let search_fans = organization
-                .search_fans(
-                    None,
-                    None,
-                    page,
-                    40,
-                    FanSortField::Email,
-                    SortingDir::Desc,
-                    connection,
-                )
-                .expect("Expected to find organization fans");
+    let current_user = User::find_by_email(email, connection).unwrap();
 
-            if search_fans.data.len() == 0 {
-                break;
-            } else {
-                for fan in search_fans.data {
+    if !current_user.check_password(password) {
+        panic!("Invalid password");
+    }
+
+    let mut paging = PagingParameters::default();
+    loop {
+        let users = Order::search(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            true,
+            true,
+            true,
+            true,
+            None,
+            None,
+            current_user.id,
+            &paging,
+            connection,
+        )
+        .unwrap();
+
+        if users.0.len() == 0 {
+            break;
+        } else {
+            for fan in users.0 {
+                for organization in Order::find(fan.id, connection)
+                    .unwrap()
+                    .organizations(connection)
+                    .unwrap()
+                {
                     organization
                         .regenerate_interaction_data(fan.user_id, connection)
                         .expect("Expected to regenerate interaction data");
@@ -140,8 +173,9 @@ fn regenerate_interaction_records(database: Database) {
 
                 thread::sleep(time::Duration::from_secs(2));
             }
-            page += 1;
         }
+
+        paging.page = Some(paging.page.unwrap_or(0) + 1);
     }
 }
 

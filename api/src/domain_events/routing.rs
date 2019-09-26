@@ -54,10 +54,6 @@ impl DomainActionRouter {
                 Communication => Box::new(SendCommunicationExecutor::new(conf)),
                 BroadcastPushNotification => Box::new(BroadcastPushNotificationExecutor::new()),
 
-                MarketingContactsBulkEventFanListImport => {
-                    Box::new(BulkEventFanListImportExecutor::new(conf))
-                }
-                MarketingContactsCreateEventList => Box::new(CreateEventListExecutor::new(conf)),
                 PaymentProviderIPN => Box::new(ProcessPaymentIPNExecutor::new(&conf)),
                 RegenerateDripActions => Box::new(RegenerateDripActionsExecutor::new(conf)),
                 SendPurchaseCompletedCommunication => {
@@ -78,18 +74,6 @@ impl DomainActionRouter {
         self.add_executor(
             BroadcastPushNotification,
             find_executor(BroadcastPushNotification),
-        )
-        .expect("Configuration error");
-
-        self.add_executor(
-            MarketingContactsCreateEventList,
-            find_executor(MarketingContactsCreateEventList),
-        )
-        .expect("Configuration error");
-
-        self.add_executor(
-            MarketingContactsBulkEventFanListImport,
-            find_executor(MarketingContactsBulkEventFanListImport),
         )
         .expect("Configuration error");
 

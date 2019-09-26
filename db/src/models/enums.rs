@@ -160,9 +160,6 @@ string_enum! { DomainActionTypes [
     BroadcastPushNotification,
     // Email/SMS/Push Communication
     Communication,
-    // Marketing Contacts
-    MarketingContactsCreateEventList,
-    MarketingContactsBulkEventFanListImport,
     PaymentProviderIPN,
     ProcessSettlementReport,
     ProcessTransferDrip,
