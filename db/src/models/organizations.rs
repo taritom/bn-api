@@ -759,18 +759,22 @@ impl Organization {
         };
 
         let mut query = events::table
-            .left_join(event_interest::table.on(events::id.eq(event_interest::event_id)))
-            .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
             .left_join(
-                orders::table.on(order_items::order_id
-                    .eq(orders::id)
-                    .and(orders::status.eq(OrderStatus::Paid))),
+                order_items::table
+                    .inner_join(
+                        orders::table.on(order_items::order_id
+                            .eq(orders::id)
+                            .and(orders::status.eq(OrderStatus::Paid))),
+                    )
+                    .on(order_items::event_id
+                        .eq(events::id.nullable())
+                        .and(order_items::item_type.eq(OrderItemTypes::Tickets))),
             )
             .left_join(
                 ticket_instances::table
+                    .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
                     .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
             )
-            .left_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .left_join(refunds::table.on(refunds::order_id.eq(orders::id)))
             .left_join(
                 transfer_tickets::table
@@ -790,7 +794,6 @@ impl Organization {
                             TicketInstanceStatus::Purchased,
                         ]),
                     ))
-                    .or(event_interest::user_id.eq(users::id))
                     .or(transfers::source_user_id.eq(users::id))
                     .or(transfers::destination_user_id.eq(users::id.nullable()))),
             )

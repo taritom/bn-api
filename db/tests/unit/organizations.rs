@@ -1473,23 +1473,13 @@ fn search_fans() {
     // Has a transferred ticket which makes them a fan
     let transfer_user = project.create_user().finish();
     // Just event interested
-    let interested_user = project.create_user().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    project
-        .create_event_interest()
-        .with_user(&order_user2)
-        .with_event(&event)
-        .finish();
-    project
-        .create_event_interest()
-        .with_user(&interested_user)
-        .with_event(&event)
-        .finish();
+
     let mut order = project
         .create_order()
         .for_user(&order_user)
@@ -1522,12 +1512,7 @@ fn search_fans() {
         .finish();
 
     // Expected results after initial orders
-    let mut expected_results = vec![
-        order_user.id,
-        order_user2.id,
-        order_user3.id,
-        interested_user.id,
-    ];
+    let mut expected_results = vec![order_user.id, order_user2.id, order_user3.id];
 
     let order_user_organization_data = organization
         .interaction_data(order_user.id, connection)
@@ -1536,15 +1521,11 @@ fn search_fans() {
     let order_user2_organization_data = organization
         .interaction_data(order_user2.id, connection)
         .unwrap();
-    assert_eq!(order_user2_organization_data.interaction_count, 3);
+    assert_eq!(order_user2_organization_data.interaction_count, 2);
     let order_user3_organization_data = organization
         .interaction_data(order_user3.id, connection)
         .unwrap();
     assert_eq!(order_user3_organization_data.interaction_count, 1);
-    let interested_user_organization_data = organization
-        .interaction_data(interested_user.id, connection)
-        .unwrap();
-    assert_eq!(interested_user_organization_data.interaction_count, 1);
 
     expected_results.sort();
     let search_results = organization
@@ -1634,29 +1615,6 @@ fn search_fans() {
             last_interaction_time: Some(order_user3_organization_data.last_interaction),
         }
     );
-    assert_eq!(
-        search_results
-            .data
-            .iter()
-            .find(|f| f.user_id == interested_user.id)
-            .unwrap(),
-        &DisplayFan {
-            user_id: interested_user.id,
-            first_name: interested_user.first_name.clone(),
-            last_name: interested_user.last_name.clone(),
-            email: interested_user.email.clone(),
-            phone: interested_user.phone.clone(),
-            thumb_profile_pic_url: interested_user.thumb_profile_pic_url.clone(),
-            organization_id: organization.id,
-            order_count: Some(0),
-            created_at: interested_user.created_at,
-            first_order_time: None,
-            last_order_time: None,
-            revenue_in_cents: Some(0),
-            first_interaction_time: Some(interested_user_organization_data.first_interaction),
-            last_interaction_time: Some(interested_user_organization_data.last_interaction),
-        }
-    );
 
     // Initial order is refunded -- it should still show the user but with new order details
     let items = order.items(&connection).unwrap();
@@ -1675,12 +1633,7 @@ fn search_fans() {
     order
         .refund(&refund_items, order_user.id, None, connection)
         .unwrap();
-    let mut expected_results = vec![
-        order_user.id,
-        order_user2.id,
-        order_user3.id,
-        interested_user.id,
-    ];
+    let mut expected_results = vec![order_user.id, order_user2.id, order_user3.id];
     expected_results.sort();
     let order_user_organization_data = organization
         .interaction_data(order_user.id, connection)
@@ -1732,12 +1685,7 @@ fn search_fans() {
         .quantity(5)
         .is_paid()
         .finish();
-    let mut expected_results = vec![
-        order_user.id,
-        order_user2.id,
-        order_user3.id,
-        interested_user.id,
-    ];
+    let mut expected_results = vec![order_user.id, order_user2.id, order_user3.id];
     expected_results.sort();
     let order_user_organization_data = organization
         .interaction_data(order_user.id, connection)
@@ -1821,7 +1769,6 @@ fn search_fans() {
         order_user3.id,
         previous_transfer_user.id,
         transfer_user.id,
-        interested_user.id,
     ];
     expected_results.sort();
     let search_results = organization
@@ -1853,7 +1800,7 @@ fn search_fans() {
     let order_user2_organization_data = organization
         .interaction_data(order_user2.id, connection)
         .unwrap();
-    assert_eq!(order_user2_organization_data.interaction_count, 3);
+    assert_eq!(order_user2_organization_data.interaction_count, 2);
     let order_user3_organization_data = organization
         .interaction_data(order_user3.id, connection)
         .unwrap();
@@ -1980,29 +1927,6 @@ fn search_fans() {
             revenue_in_cents: Some(0),
             first_interaction_time: Some(transfer_user_organization_data.first_interaction),
             last_interaction_time: Some(transfer_user_organization_data.last_interaction),
-        }
-    );
-    assert_eq!(
-        search_results
-            .data
-            .iter()
-            .find(|f| f.user_id == interested_user.id)
-            .unwrap(),
-        &DisplayFan {
-            user_id: interested_user.id,
-            first_name: interested_user.first_name.clone(),
-            last_name: interested_user.last_name.clone(),
-            email: interested_user.email.clone(),
-            phone: interested_user.phone.clone(),
-            thumb_profile_pic_url: interested_user.thumb_profile_pic_url.clone(),
-            organization_id: organization.id,
-            order_count: Some(0),
-            created_at: interested_user.created_at,
-            first_order_time: None,
-            last_order_time: None,
-            revenue_in_cents: Some(0),
-            first_interaction_time: Some(interested_user_organization_data.first_interaction),
-            last_interaction_time: Some(interested_user_organization_data.last_interaction),
         }
     );
 

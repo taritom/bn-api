@@ -3953,7 +3953,6 @@ fn search_fans() {
     let order_user3 = project.create_user().finish();
     let order_user4 = project.create_user().finish();
     let box_office_user = project.create_user().finish();
-    let interested_user = project.create_user().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -3969,11 +3968,6 @@ fn search_fans() {
     project
         .create_event_interest()
         .with_user(&order_user2)
-        .with_event(&event)
-        .finish();
-    project
-        .create_event_interest()
-        .with_user(&interested_user)
         .with_event(&event)
         .finish();
     project
@@ -4036,12 +4030,7 @@ fn search_fans() {
         )
         .unwrap();
     assert_eq!(search_results, expected_results);
-    let mut expected_results = vec![
-        order_user.id,
-        order_user2.id,
-        order_user3.id,
-        interested_user.id,
-    ];
+    let mut expected_results = vec![order_user.id, order_user2.id, order_user3.id];
     expected_results.sort();
     let mut results: Vec<Uuid> = search_results.data.iter().map(|f| f.user_id).collect();
     results.sort();
