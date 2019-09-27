@@ -4901,6 +4901,7 @@ pub fn search_by_general_query() {
 
     let actual = Order::search(
         None,
+        None,
         Some(&order2.id.to_string()[4..8]),
         None,
         None,
@@ -4923,6 +4924,7 @@ pub fn search_by_general_query() {
     assert_eq!(1, actual.1);
     assert_eq!(order2.id, actual.0[0].id);
 }
+
 #[test]
 pub fn search_by_event_id() {
     let project = TestProject::new();
@@ -4934,6 +4936,63 @@ pub fn search_by_event_id() {
 
     let actual = Order::search(
         Some(event.id),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        None,
+        None,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order2.id, actual.0[0].id);
+}
+
+#[test]
+pub fn search_by_organization_id() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let _order1 = project.create_order().is_paid().finish();
+    let org1 = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&org1)
+        .with_tickets()
+        .finish();
+    let order2 = project.create_order().for_event(&event).is_paid().finish();
+
+    let org2 = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&org2)
+        .with_tickets()
+        .finish();
+    let _order3 = project.create_order().for_event(&event2).is_paid().finish();
+
+    let actual = Order::search(
+        None,
+        Some(org1.id),
         None,
         None,
         None,
@@ -4967,6 +5026,7 @@ pub fn search_by_partial_order_id() {
     let order2 = project.create_order().for_event(&event).is_paid().finish();
 
     let actual = Order::search(
+        None,
         None,
         None,
         Some(&order2.id.to_string()[4..8]),
@@ -5010,6 +5070,7 @@ pub fn search_by_partial_ticket_id() {
         None,
         None,
         None,
+        None,
         Some(&ticket.id.to_string()[4..8]),
         None,
         None,
@@ -5046,6 +5107,7 @@ pub fn search_by_email() {
         .finish();
 
     let actual = Order::search(
+        None,
         None,
         None,
         None,
@@ -5089,6 +5151,7 @@ pub fn search_by_email_on_behalf_of() {
         None,
         None,
         None,
+        None,
         Some(&user.email.unwrap()[2..6]),
         None,
         None,
@@ -5124,6 +5187,7 @@ pub fn search_by_name() {
         .finish();
 
     let actual = Order::search(
+        None,
         None,
         None,
         None,
@@ -5173,6 +5237,7 @@ pub fn search_by_last_name_first() {
         None,
         None,
         None,
+        None,
         Some("last search"),
         None,
         None,
@@ -5201,6 +5266,7 @@ pub fn search_by_ticket_type() {
     let order2 = project.create_order().for_event(&event).is_paid().finish();
 
     let actual = Order::search(
+        None,
         None,
         None,
         None,
@@ -5253,6 +5319,7 @@ pub fn search_by_promo_code_hold() {
         None,
         None,
         None,
+        None,
         Some(&hold.redemption_code.unwrap()[2..4]),
         true,
         true,
@@ -5286,6 +5353,7 @@ pub fn search_by_promo_code_code() {
         .finish();
 
     let actual = Order::search(
+        None,
         None,
         None,
         None,
@@ -5337,6 +5405,7 @@ pub fn search_by_all() {
 
     let actual = Order::search(
         Some(event.id),
+        Some(event.organization_id),
         Some(&order2.id.to_string()[4..8]),
         Some(&order2.id.to_string()[4..8]),
         Some(&ticket.id.to_string()[4..8]),

@@ -724,6 +724,7 @@ impl Order {
 
     pub fn search(
         event_id: Option<Uuid>,
+        organization_id: Option<Uuid>,
         general_query: Option<&str>,
         partial_order_no: Option<&str>,
         partial_ticket_no: Option<&str>,
@@ -748,6 +749,7 @@ impl Order {
         select distinct o.*
         from orders o
             inner join order_items oi on oi.order_id = o.id
+            inner join events e on oi.event_id = e.id
             inner join ticket_types tt on oi.ticket_type_id= tt.id
             left join refunded_tickets rt on oi.id = rt.order_item_id
             left join ticket_instances ti on (oi.id = ti.order_item_id or rt.ticket_instance_id = ti.id)
@@ -769,6 +771,13 @@ impl Order {
             query = query
                 .sql(format!(" and tt.event_id = ${} ", bind_no))
                 .bind::<sql_types::Uuid, _>(event_id);
+        }
+
+        if let Some(organization_id) = organization_id {
+            bind_no = bind_no + 1;
+            query = query
+                .sql(format!(" and e.organization_id = ${} ", bind_no))
+                .bind::<sql_types::Uuid, _>(organization_id);
         }
 
         if let Some(general_query) = general_query {

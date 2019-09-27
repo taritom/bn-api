@@ -53,6 +53,7 @@ pub fn orders(
     let mut paging: Paging = query.clone().into();
     let orders = Order::search(
         event_id,
+        None,
         query.query(),
         query.get_tag_as_str("order_no"),
         query.get_tag_as_str("ticket_no"),
