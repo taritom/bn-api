@@ -872,6 +872,7 @@ impl Event {
                 order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())),
             )
             .filter(order_items::id.eq_any(order_item_ids))
+            .filter(events::deleted_at.is_null())
             .select(events::all_columns)
             .order_by(events::name.asc())
             .distinct()
@@ -883,7 +884,10 @@ impl Event {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading event",
-            events::table.find(id).first::<Event>(conn),
+            events::table
+                .filter(events::deleted_at.is_null())
+                .find(id)
+                .first::<Event>(conn),
         )
     }
 
@@ -1169,6 +1173,13 @@ impl Event {
             100,
             conn,
         )?;
+
+        if results.len() == 0 {
+            return DatabaseError::business_process_error(
+                "Unable to display summary, summary data not available for event",
+            );
+        }
+
         Ok(results.remove(0))
     }
 

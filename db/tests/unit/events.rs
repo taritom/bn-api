@@ -2,6 +2,7 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::services::CountryLookup;
 use bigneon_db::utils::dates;
+use bigneon_db::utils::errors::DatabaseError;
 use chrono::prelude::*;
 use chrono::Duration;
 use std::collections::HashMap;
@@ -636,6 +637,56 @@ fn next_drip_date_staging() {
 }
 
 #[test]
+fn find_by_slug() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    assert_eq!(
+        Event::find_by_slug(&event.slug, false, connection)
+            .unwrap()
+            .0,
+        event.clone()
+    );
+    assert_eq!(
+        Event::find_by_slug(&event.slug, true, connection)
+            .unwrap()
+            .0,
+        event.clone()
+    );
+    event.clone().delete(user.id, connection).unwrap();
+    assert!(Event::find_by_slug(&event.slug, false, connection).is_err());
+    assert_eq!(
+        Event::find_by_slug(&event.slug, true, connection)
+            .unwrap()
+            .0
+            .id,
+        event.clone().id
+    );
+}
+
+#[test]
+fn find() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    assert_eq!(Event::find(event.id, connection).unwrap(), event.clone());
+    event.clone().delete(user.id, connection).unwrap();
+    assert!(Event::find(event.id, connection).is_err());
+}
+
+#[test]
 fn delete() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -646,27 +697,28 @@ fn delete() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let event_id = event.id;
     let domain_events = DomainEvent::find(
         Tables::Events,
-        Some(event_id),
+        Some(event.id),
         Some(DomainEventTypes::EventDeleted),
         connection,
     )
     .unwrap();
     assert_eq!(0, domain_events.len());
 
-    assert!(event.delete(user.id, connection).is_ok());
+    assert!(event.clone().delete(user.id, connection).is_ok());
     let domain_events = DomainEvent::find(
         Tables::Events,
-        Some(event_id),
+        Some(event.id),
         Some(DomainEventTypes::EventDeleted),
         connection,
     )
     .unwrap();
     assert_eq!(1, domain_events.len());
 
-    let event = Event::find(event_id, connection).unwrap();
+    let event = Event::find_by_slug(&event.slug, true, connection)
+        .unwrap()
+        .0;
     assert!(event.deleted_at.is_some());
 
     // Already deleted
@@ -695,6 +747,27 @@ fn delete() {
     )
     .unwrap();
     assert!(event.delete(user.id, connection).is_err());
+}
+
+#[test]
+fn summary() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_ticket_type_count(1)
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    assert!(event.summary(connection).is_ok());
+    event.clone().delete(user.id, connection).unwrap();
+    assert_eq!(
+        event.summary(connection),
+        DatabaseError::business_process_error(
+            "Unable to display summary, summary data not available for event",
+        )
+    );
 }
 
 #[test]
@@ -1822,6 +1895,7 @@ fn get_sales_by_date_range() {
 fn find_by_ids() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let user = project.create_user().finish();
     let event = project.create_event().with_name("Event1".into()).finish();
     let event2 = project.create_event().with_name("Event2".into()).finish();
 
@@ -1835,7 +1909,13 @@ fn find_by_ids() {
     );
     assert_equiv!(
         Event::find_by_ids(vec![event.id, event2.id], connection).unwrap(),
-        vec![event, event2]
+        vec![event.clone(), event2.clone()]
+    );
+
+    event.clone().delete(user.id, connection).unwrap();
+    assert_equiv!(
+        Event::find_by_ids(vec![event.id, event2.id], connection).unwrap(),
+        vec![event2]
     );
 }
 

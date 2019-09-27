@@ -170,7 +170,9 @@ pub fn delete(role: Roles, should_test_succeed: bool) {
         events::delete((database.connection.clone().into(), path, auth_user)).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        let event = Event::find(event.id, connection).unwrap();
+        let event = Event::find_by_slug(&event.slug, true, connection)
+            .unwrap()
+            .0;
         assert!(event.deleted_at.is_some());
     } else {
         support::expects_unauthorized(&response);
