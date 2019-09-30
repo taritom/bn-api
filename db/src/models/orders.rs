@@ -305,10 +305,10 @@ impl Order {
             }
         }
 
-        // If there are no more items for an event, refund the per event fees
-        for mut fee_item in self.find_orphaned_per_event_fees(conn)? {
-            total_to_be_refunded += fee_item.refund_one_unit(true, conn)?;
-        }
+        //        // If there are no more items for an event, refund the per event fees
+        //        for mut fee_item in self.find_orphaned_per_event_fees(conn)? {
+        //            total_to_be_refunded += fee_item.refund_one_unit(true, conn)?;
+        //        }
 
         // Refund items automatically refund their dependencies so the difference in refund_quantity
         // is used to calculate the refund item data.
@@ -379,34 +379,34 @@ impl Order {
         order_item.refund_one_unit(refund_fees, conn)
     }
 
-    fn find_orphaned_per_event_fees(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<OrderItem>, DatabaseError> {
-        order_items::table
-            .filter(order_items::refunded_quantity.ne(order_items::quantity))
-            .filter(order_items::order_id.eq(self.id))
-            .filter(
-                order_items::item_type
-                    .eq(OrderItemTypes::EventFees)
-                    .or(order_items::item_type.eq(OrderItemTypes::CreditCardFees)),
-            )
-            .filter(sql("not exists(
-                select oi2.id from order_items oi2
-                where oi2.order_id = order_items.order_id
-                and oi2.event_id = order_items.event_id
-                and oi2.item_type <> 'EventFees'
-                and oi2.item_type <> 'Discount'
-                and oi2.item_type <> 'CreditCardFees'
-                and oi2.refunded_quantity <> oi2.quantity
-            )"))
-            .select(order_items::all_columns)
-            .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not check if order only contains event fees",
-            )
-    }
+    //    fn find_orphaned_per_event_fees(
+    //        &self,
+    //        conn: &PgConnection,
+    //    ) -> Result<Vec<OrderItem>, DatabaseError> {
+    //        order_items::table
+    //            .filter(order_items::refunded_quantity.ne(order_items::quantity))
+    //            .filter(order_items::order_id.eq(self.id))
+    //            .filter(
+    //                order_items::item_type
+    //                    .eq(OrderItemTypes::EventFees)
+    //                    .or(order_items::item_type.eq(OrderItemTypes::CreditCardFees)),
+    //            )
+    //            .filter(sql("not exists(
+    //                select oi2.id from order_items oi2
+    //                where oi2.order_id = order_items.order_id
+    //                and oi2.event_id = order_items.event_id
+    //                and oi2.item_type <> 'EventFees'
+    //                and oi2.item_type <> 'Discount'
+    //                and oi2.item_type <> 'CreditCardFees'
+    //                and oi2.refunded_quantity <> oi2.quantity
+    //            )"))
+    //            .select(order_items::all_columns)
+    //            .load(conn)
+    //            .to_db_error(
+    //                ErrorCode::QueryError,
+    //                "Could not check if order only contains event fees",
+    //            )
+    //    }
 
     pub fn details(
         &self,

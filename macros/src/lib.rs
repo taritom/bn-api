@@ -39,6 +39,7 @@ macro_rules! map (
 mod test {
     use super::*;
 
+    #[test]
     fn test_assert_equivalent() {
         assert_equiv!(vec![1, 2, 3], vec![3, 2, 1]);
         assert_nequiv!(vec![1, 6, 3], vec![3, 2, 1]);

@@ -2884,9 +2884,7 @@ fn details() {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket2.id),
     }];
-    let refund_amount = order_item.unit_price_in_cents
-        + fee_item.unit_price_in_cents
-        + event_fee_item.unit_price_in_cents;
+    let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
     let (_refund, amount) = cart
         .refund(&refund_items, user.id, None, connection)
         .unwrap();
@@ -2947,8 +2945,8 @@ fn details() {
         ticket_price_in_cents: 0,
         fees_price_in_cents: 250,
         total_price_in_cents: 250,
-        status: "Refunded".to_string(),
-        refundable: false,
+        status: "Purchased".to_string(),
+        refundable: true,
         attendee_email: None,
         attendee_id: None,
         attendee_first_name: None,
