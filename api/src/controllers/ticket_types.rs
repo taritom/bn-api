@@ -102,7 +102,7 @@ pub struct UpdateTicketTypeRequest {
     pub parent_id: Option<Option<Uuid>>,
     #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
-    pub rank: Option<i64>,
+    pub rank: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -350,6 +350,7 @@ pub fn update(
         visibility: data.visibility,
         parent_id: data.parent_id,
         additional_fee_in_cents: data.additional_fee_in_cents,
+        rank: data.rank,
     };
     let updated_ticket_type = ticket_type.update(update_parameters, Some(user.id()), connection)?;
 

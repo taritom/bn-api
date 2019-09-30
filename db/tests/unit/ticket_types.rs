@@ -1,9 +1,10 @@
-use bigneon_db::dev::TestProject;
+use bigneon_db::dev::{times, TestProject};
 use bigneon_db::prelude::*;
 use bigneon_db::schema::ticket_instances;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
 use diesel::prelude::*;
+use itertools::Itertools;
 use uuid::Uuid;
 
 #[test]
@@ -121,7 +122,6 @@ fn new_record_end_date() {
         parent_id: None,
         additional_fee_in_cents: 0,
         end_date_type: TicketTypeEndDateType::Manual,
-        rank: None,
     };
     assert_eq!(new_ticket_type.end_date(connection), Ok(end_date));
 
@@ -821,6 +821,89 @@ fn update() {
     assert_eq!(updated_ticket_type.name, update_name);
     assert_eq!(updated_ticket_type.start_date, Some(update_start_date));
     assert_eq!(updated_ticket_type.end_date, Some(update_end_date));
+}
+
+#[test]
+fn update_rank() {
+    let db = TestProject::new();
+    let conn = db.get_connection();
+    let event = db.create_event().finish();
+    event
+        .add_ticket_type(
+            "Tix1".to_string(),
+            None,
+            10,
+            Some(times::now()),
+            None,
+            TicketTypeEndDateType::EventStart,
+            None,
+            None,
+            10,
+            10,
+            TicketTypeVisibility::Always,
+            None,
+            0,
+            None,
+            conn,
+        )
+        .unwrap();
+    let tix2 = event
+        .add_ticket_type(
+            "Tix2".to_string(),
+            None,
+            10,
+            Some(times::now()),
+            None,
+            TicketTypeEndDateType::EventStart,
+            None,
+            None,
+            10,
+            10,
+            TicketTypeVisibility::Always,
+            None,
+            0,
+            None,
+            conn,
+        )
+        .unwrap();
+    let types = event.ticket_types(true, None, conn).unwrap();
+    assert_eq!(
+        types
+            .iter()
+            .map(|tt| (tt.name.as_str(), tt.rank))
+            .collect_vec(),
+        vec![("Tix1", 0), ("Tix2", 1)]
+    );
+
+    // Reorder
+    let attrs = TicketTypeEditableAttributes {
+        rank: Some(0),
+        ..Default::default()
+    };
+    let tix2 = tix2.update(attrs, None, conn).unwrap();
+    let types = event.ticket_types(true, None, conn).unwrap();
+    assert_eq!(
+        types
+            .iter()
+            .map(|tt| (tt.name.as_str(), tt.rank))
+            .collect_vec(),
+        vec![("Tix2", 0), ("Tix1", 1)]
+    );
+
+    // Reorder
+    let attrs = TicketTypeEditableAttributes {
+        rank: Some(1),
+        ..Default::default()
+    };
+    tix2.update(attrs, None, conn).unwrap();
+    let types = event.ticket_types(true, None, conn).unwrap();
+    assert_eq!(
+        types
+            .iter()
+            .map(|tt| (tt.name.as_str(), tt.rank))
+            .collect_vec(),
+        vec![("Tix1", 0), ("Tix2", 1)]
+    );
 }
 
 #[test]

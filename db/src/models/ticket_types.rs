@@ -12,6 +12,7 @@ use schema::{
     ticket_type_codes, ticket_types,
 };
 use serde_with::rust::double_option;
+use std::cmp;
 use std::cmp::Ordering;
 use utils::errors::*;
 use uuid::Uuid;
@@ -70,6 +71,7 @@ pub struct TicketTypeEditableAttributes {
     #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
     pub end_date_type: Option<TicketTypeEndDateType>,
+    pub rank: Option<i32>,
 }
 
 impl TicketType {
@@ -129,7 +131,6 @@ impl TicketType {
         visibility: TicketTypeVisibility,
         parent_id: Option<Uuid>,
         additional_fee_in_cents: i64,
-        rank: Option<i32>,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -144,7 +145,6 @@ impl TicketType {
             visibility,
             parent_id,
             additional_fee_in_cents,
-            rank,
             end_date_type,
         }
     }
@@ -218,7 +218,7 @@ impl TicketType {
             conn,
         )?;
 
-        result.shift_other_rank(conn)?;
+        result.shift_other_rank(self.rank, conn)?;
 
         Ok(result)
     }
@@ -772,10 +772,21 @@ impl TicketType {
         Ok(result)
     }
 
-    pub fn shift_other_rank(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn shift_other_rank(
+        &self,
+        from_rank: i32,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        if self.rank == from_rank {
+            return Ok(());
+        }
+        let min_rank = cmp::min(self.rank, from_rank);
+        let max_rank = cmp::max(self.rank, from_rank);
+
         let ticket_types: Vec<TicketType> = ticket_types::table
             .filter(ticket_types::event_id.eq(self.event_id))
-            .filter(ticket_types::rank.ge(self.rank))
+            .filter(ticket_types::rank.ge(min_rank))
+            .filter(ticket_types::rank.le(max_rank))
             .filter(ticket_types::id.ne(self.id))
             .order_by(ticket_types::rank.asc())
             .load(conn)
@@ -783,7 +794,11 @@ impl TicketType {
 
         // Update other ticket types ranks
         for other_ticket_type in ticket_types {
-            let new_rank = other_ticket_type.rank + 1;
+            let new_rank = if self.rank > from_rank {
+                other_ticket_type.rank - 1
+            } else {
+                other_ticket_type.rank + 1
+            };
             other_ticket_type.update_rank_only(new_rank, conn)?;
         }
 
@@ -806,7 +821,6 @@ pub struct NewTicketType {
     pub visibility: TicketTypeVisibility,
     pub parent_id: Option<Uuid>,
     pub additional_fee_in_cents: i64,
-    pub rank: Option<i32>,
     pub end_date_type: TicketTypeEndDateType,
 }
 
@@ -822,32 +836,27 @@ impl NewTicketType {
         if self.end_date_type != TicketTypeEndDateType::Manual {
             self.end_date = None;
         }
+        let rank: Option<i32> = ticket_types::table
+            .filter(ticket_types::event_id.eq(self.event_id))
+            .select(dsl::max(ticket_types::rank))
+            .first(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not find the correct rank for ticket type",
+            )?;
 
         let result: TicketType = diesel::insert_into(ticket_types::table)
             .values(&self)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create ticket type")?;
 
-        let rank: Option<i32> = match self.rank {
-            Some(rank) => Some(rank),
-            None => ticket_types::table
-                .filter(ticket_types::event_id.eq(result.event_id))
-                .select(dsl::max(ticket_types::rank))
-                .first(conn)
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Could not find the correct rank for ticket type",
-                )?,
-        };
         let result: TicketType = diesel::update(&result)
-            .set(ticket_types::rank.eq(rank.unwrap_or(0) + 1))
+            .set(ticket_types::rank.eq(rank.unwrap_or(-1) + 1))
             .get_result(conn)
             .to_db_error(
                 ErrorCode::UpdateError,
                 "Could not update rank of ticket type",
             )?;
-
-        result.shift_other_rank(conn)?;
 
         DomainEvent::create(
             DomainEventTypes::TicketTypeCreated,

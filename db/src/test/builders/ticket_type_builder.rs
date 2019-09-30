@@ -64,6 +64,7 @@ impl<'a> TicketTypeBuilder<'a> {
         self.additional_fees = amount;
         self
     }
+
     pub fn finish(mut self) -> Event {
         let connection = self.event.connection;
         let event = self.event.finish();

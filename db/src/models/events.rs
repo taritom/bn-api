@@ -1937,7 +1937,6 @@ impl Event {
             visibility,
             parent_id,
             additional_fee_in_cents,
-            None,
         )
         .commit(current_user_id, conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;
