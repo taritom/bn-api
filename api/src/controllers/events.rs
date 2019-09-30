@@ -264,7 +264,7 @@ pub fn show(
         }
     };
 
-    let is_user_admin = match user {
+    let user_has_privileges = match user {
         Some(ref user) => user.has_scope_for_organization_event(
             Scopes::EventWrite,
             &organization,
@@ -275,9 +275,10 @@ pub fn show(
     };
 
     let event_ended = event.event_end.unwrap_or(times::infinity()) < dates::now().finish();
-    if (!is_user_admin && event.publish_date.unwrap_or(times::infinity()) > dates::now().finish())
-        || event.deleted_at.is_some()
-        || event_ended
+    if !user_has_privileges
+        && (event.publish_date.unwrap_or(times::infinity()) > dates::now().finish()
+            || event.deleted_at.is_some()
+            || event_ended)
     {
         return application::not_found();
     }
@@ -375,13 +376,14 @@ pub fn show(
         tracking_keys.facebook_pixel_key = Some(pixel.to_string());
     }
 
-    let (min_ticket_price, max_ticket_price) =
-        if event.publish_date.unwrap_or(times::infinity()) < dates::now().finish() || is_user_admin
-        {
-            event.current_ticket_pricing_range(box_office_pricing, connection)?
-        } else {
-            (None, None)
-        };
+    let (min_ticket_price, max_ticket_price) = if event.publish_date.unwrap_or(times::infinity())
+        < dates::now().finish()
+        || user_has_privileges
+    {
+        event.current_ticket_pricing_range(box_office_pricing, connection)?
+    } else {
+        (None, None)
+    };
     // Show private access code to any admin with write access
     let show_private_access_code = if let Some(user) = user {
         user.has_scope_for_organization_event(
@@ -447,7 +449,7 @@ pub fn show(
         slug: event.slug.clone(),
         facebook_pixel_key: event.facebook_pixel_key,
         extra_admin_data: event.extra_admin_data.and_then(|data| {
-            if is_user_admin {
+            if user_has_privileges {
                 Some(data)
             } else {
                 None
