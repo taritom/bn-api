@@ -231,6 +231,7 @@ table! {
         external_user_id -> Text,
         updated_at -> Timestamp,
         scopes -> Array<Text>,
+        deleted_at -> Nullable<Timestamp>,
     }
 }
 

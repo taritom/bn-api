@@ -1026,7 +1026,7 @@ impl User {
         scopes: Vec<String>,
         conn: &PgConnection,
     ) -> Result<ExternalLogin, DatabaseError> {
-        let external_login = self.find_external_login(&site, conn).optional()?;
+        let external_login = ExternalLogin::find_user(&external_user_id, &site, conn)?;
         if let Some(login) = external_login {
             login.delete(current_user_id, conn)?;
         };

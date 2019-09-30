@@ -1,5 +1,6 @@
-use chrono::NaiveDateTime;
+use chrono::prelude::*;
 use diesel;
+use diesel::dsl;
 use diesel::prelude::*;
 
 use models::domain_events::DomainEvent;
@@ -24,6 +25,7 @@ pub struct ExternalLogin {
     pub external_user_id: String,
     pub updated_at: NaiveDateTime,
     pub scopes: Vec<String>,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 #[derive(Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -86,6 +88,7 @@ impl ExternalLogin {
             external_logins::table
                 .filter(external_logins::user_id.eq(user_id))
                 .filter(external_logins::site.eq(site))
+                .filter(external_logins::deleted_at.is_null())
                 .first::<ExternalLogin>(conn),
         )
     }
@@ -101,6 +104,7 @@ impl ExternalLogin {
             external_logins::table
                 .filter(external_logins::external_user_id.eq(external_user_id))
                 .filter(external_logins::site.eq(site))
+                .filter(external_logins::deleted_at.is_null())
                 .first::<ExternalLogin>(conn)
                 .optional(),
         )
@@ -115,7 +119,8 @@ impl ExternalLogin {
         let data = json!({
         "external_user_id": self.external_user_id.clone(), "site": self.site.clone(), "user_id": self.user_id.clone(), "scopes": self.scopes.clone()
         });
-        diesel::delete(&self)
+        diesel::update(&self)
+            .set((external_logins::deleted_at.eq(dsl::now)))
             .execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Could not delete external login")?;
         DomainEvent::create(
