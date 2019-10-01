@@ -51,16 +51,6 @@ pub fn main() {
             SubCommand::with_name("regenerate-interaction-records")
                 .about("Regenerate interaction records for organization users")
                 .arg(
-                    Arg::with_name("email")
-                        .help("Email of user with access to orders to regenerate")
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("password")
-                        .help("Password of user with access to orders to regenerate")
-                        .required(true),
-                )
-                .arg(
                     Arg::with_name("organization")
                         .help("The organization id to limit this to")
                         .required(false),
@@ -79,12 +69,9 @@ pub fn main() {
     match matches.subcommand() {
         ("sync-purchase-metadata", Some(_)) => sync_purchase_metadata(database, service_locator),
         ("sync-spotify-genres", Some(_)) => sync_spotify_genres(config, database),
-        ("regenerate-interaction-records", Some(args)) => regenerate_interaction_records(
-            args.value_of("email").unwrap(),
-            args.value_of("password").unwrap(),
-            args.value_of("organization"),
-            database,
-        ),
+        ("regenerate-interaction-records", Some(args)) => {
+            regenerate_interaction_records(args.value_of("organization"), database)
+        }
         ("backpopulate-temporary-user-data", Some(_)) => backpopulate_temporary_user_data(database),
         ("schedule-missing-domain-actions", Some(_)) => schedule_missing_domain_actions(database),
         _ => {
@@ -127,73 +114,40 @@ fn backpopulate_temporary_user_data(database: Database) {
     }
 }
 
-fn regenerate_interaction_records(
-    email: &str,
-    password: &str,
-    org_id: Option<&str>,
-    database: Database,
-) {
+fn regenerate_interaction_records(org_id: Option<&str>, database: Database) {
     info!("Regenerating interaction records");
     let connection = database
         .get_connection()
         .expect("Expected connection to establish");
     let connection = connection.get();
 
-    let current_user = User::find_by_email(email, connection).unwrap();
-
-    if !current_user.check_password(password) {
-        panic!("Invalid password");
-    }
-
-    let organization_id = match org_id {
-        Some(org_id) => Some(Uuid::from_str(org_id).unwrap()),
-        None => None,
+    let organizations = match org_id {
+        Some(organization_id) => {
+            vec![Organization::find(Uuid::from_str(organization_id).unwrap(), connection).unwrap()]
+        }
+        None => Organization::all(connection).unwrap(),
     };
 
     let mut paging = PagingParameters::default();
     let mut inc = 1;
     loop {
-        let users = Order::search(
-            None,
-            organization_id,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            true,
-            true,
-            true,
-            true,
-            None,
-            None,
-            current_user.id,
-            &paging,
-            connection,
-        )
-        .unwrap();
+        let users = User::all(&paging, connection).unwrap();
 
         if users.0.len() == 0 {
             break;
         } else {
-            for fan in users.0 {
+            for user in users.0 {
                 println!("{} of {}", inc, users.1);
                 inc = inc + 1;
-                for organization in Order::find(fan.id, connection)
-                    .unwrap()
-                    .organizations(connection)
-                    .unwrap()
-                {
+                for organization in &organizations {
                     organization
-                        .regenerate_interaction_data(fan.user_id, connection)
+                        .regenerate_interaction_data(user.id, connection)
                         .expect("Expected to regenerate interaction data");
                 }
             }
         }
 
+        thread::sleep(time::Duration::from_secs(1));
         paging.page = Some(paging.page.unwrap_or(0) + 1);
     }
 }

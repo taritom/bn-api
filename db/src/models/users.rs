@@ -143,6 +143,21 @@ impl NewUser {
 }
 
 impl User {
+    pub fn all(
+        paging: &PagingParameters,
+        conn: &PgConnection,
+    ) -> Result<(Vec<User>, i64), DatabaseError> {
+        DatabaseError::wrap(
+            ErrorCode::QueryError,
+            "Unable to load all users",
+            users::table
+                .order_by(users::created_at)
+                .paginate(paging.page.unwrap_or(0) as i64)
+                .per_page(paging.limit.unwrap_or(100) as i64)
+                .load_and_count_pages(conn),
+        )
+    }
+
     pub fn genres(&self, conn: &PgConnection) -> Result<Vec<String>, DatabaseError> {
         genres::table
             .inner_join(user_genres::table.on(user_genres::genre_id.eq(genres::id)))
@@ -522,35 +537,45 @@ impl User {
     ) -> Result<FanProfile, DatabaseError> {
         use schema::*;
 
-        let query = events::table
-            .left_join(event_interest::table.on(events::id.eq(event_interest::event_id)))
-            .left_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
+        let query = users::table
             .left_join(
-                orders::table.on(order_items::order_id
-                    .eq(orders::id)
-                    .and(orders::status.eq(OrderStatus::Paid))),
+                transfers::table.on(transfers::source_user_id
+                    .eq(users::id)
+                    .or(transfers::destination_user_id.eq(users::id.nullable()))),
             )
+            .left_join(transfer_tickets::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
+            .left_join(wallets::table.on(wallets::user_id.eq(users::id.nullable())))
             .left_join(
-                ticket_instances::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            )
-            .left_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
-            .inner_join(
-                users::table.on(orders::on_behalf_of_user_id
-                    .eq(users::id.nullable())
-                    .or(users::id
-                        .eq(orders::user_id)
-                        .and(orders::on_behalf_of_user_id.is_null()))
-                    .or(wallets::user_id.eq(users::id.nullable()).and(
+                ticket_instances::table.on(transfer_tickets::ticket_instance_id
+                    .eq(ticket_instances::id)
+                    .or(ticket_instances::wallet_id.eq(wallets::id).and(
                         ticket_instances::status.eq_any(vec![
                             TicketInstanceStatus::Redeemed,
                             TicketInstanceStatus::Purchased,
                         ]),
-                    ))
-                    .or(event_interest::user_id.eq(users::id))),
+                    ))),
             )
-            .filter(events::organization_id.eq(organization.id))
+            .left_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .left_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
+            .left_join(
+                orders::table.on(orders::status.eq(OrderStatus::Paid).and(
+                    orders::on_behalf_of_user_id
+                        .eq(users::id.nullable())
+                        .or(orders::user_id
+                            .eq(users::id)
+                            .and(orders::on_behalf_of_user_id.is_null())),
+                )),
+            )
+            .left_join(order_items::table.on(orders::id.eq(order_items::order_id)))
+            .left_join(event_interest::table.on(users::id.eq(event_interest::user_id)))
+            .inner_join(
+                events::table.on(events::id
+                    .eq(event_interest::event_id)
+                    .or(ticket_types::event_id.eq(events::id))
+                    .or(order_items::event_id.eq(events::id.nullable()))),
+            )
             .filter(users::id.eq(self.id))
+            .filter(events::organization_id.eq(organization.id))
             .group_by((users::id, events::organization_id))
             .select((
                 sql::<BigInt>(

@@ -432,6 +432,8 @@ fn get_profile_for_organization() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
+    let user4 = project.create_user().finish();
+    let user5 = project.create_user().finish();
     let organization = project.create_organization().with_fees().finish();
 
     let event = project
@@ -876,7 +878,38 @@ fn get_profile_for_organization() {
         &vec![ticket.id],
         "example@tari.com",
         TransferMessageType::Email,
-        user.id,
+        user4.id,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        user4
+            .get_profile_for_organization(&organization, connection)
+            .unwrap(),
+        FanProfile {
+            first_name: user4.first_name.clone(),
+            last_name: user4.last_name.clone(),
+            email: user4.email.clone(),
+            facebook_linked: false,
+            event_count: 1,
+            revenue_in_cents: 0,
+            ticket_sales: 0,
+            tickets_owned: 1,
+            profile_pic_url: user4.profile_pic_url.clone(),
+            thumb_profile_pic_url: user4.thumb_profile_pic_url.clone(),
+            cover_photo_url: user4.cover_photo_url.clone(),
+            created_at: user4.created_at,
+            attendance_information: vec![],
+        }
+    );
+
+    // Transfer ticket again
+    TicketInstance::direct_transfer(
+        user4.id,
+        &vec![ticket.id],
+        "example@tari.com",
+        TransferMessageType::Email,
+        user5.id,
         connection,
     )
     .unwrap();
@@ -884,43 +917,52 @@ fn get_profile_for_organization() {
     TicketInstance::redeem_ticket(
         ticket.id,
         ticket.redeem_key.clone().unwrap(),
-        user.id,
+        user5.id,
         connection,
     )
     .unwrap();
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
+        user4
+            .get_profile_for_organization(&organization, connection)
             .unwrap(),
         FanProfile {
-            first_name: user.first_name.clone(),
-            last_name: user.last_name.clone(),
-            email: user.email.clone(),
-            facebook_linked: true,
-            event_count: 3,
-            revenue_in_cents: 2210,
-            ticket_sales: 13,
-            tickets_owned: 13,
-            profile_pic_url: user.profile_pic_url.clone(),
-            thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
-            cover_photo_url: user.cover_photo_url.clone(),
-            created_at: user.created_at,
-            attendance_information: vec![
-                AttendanceInformation {
-                    event_name: event.name.clone(),
-                    event_id: event.id,
-                    event_start: event.event_start
-                },
-                AttendanceInformation {
-                    event_name: event2.name.clone(),
-                    event_id: event2.id,
-                    event_start: event2.event_start
-                },
-                AttendanceInformation {
-                    event_name: event3.name.clone(),
-                    event_id: event3.id,
-                    event_start: event3.event_start
-                }
-            ],
+            first_name: user4.first_name.clone(),
+            last_name: user4.last_name.clone(),
+            email: user4.email.clone(),
+            facebook_linked: false,
+            event_count: 1,
+            revenue_in_cents: 0,
+            ticket_sales: 0,
+            tickets_owned: 0,
+            profile_pic_url: user4.profile_pic_url.clone(),
+            thumb_profile_pic_url: user4.thumb_profile_pic_url.clone(),
+            cover_photo_url: user4.cover_photo_url.clone(),
+            created_at: user4.created_at,
+            attendance_information: vec![],
+        }
+    );
+    assert_eq!(
+        user5
+            .get_profile_for_organization(&organization, connection)
+            .unwrap(),
+        FanProfile {
+            first_name: user5.first_name.clone(),
+            last_name: user5.last_name.clone(),
+            email: user5.email.clone(),
+            facebook_linked: false,
+            event_count: 1,
+            revenue_in_cents: 0,
+            ticket_sales: 0,
+            tickets_owned: 1,
+            profile_pic_url: user5.profile_pic_url.clone(),
+            thumb_profile_pic_url: user5.thumb_profile_pic_url.clone(),
+            cover_photo_url: user5.cover_photo_url.clone(),
+            created_at: user5.created_at,
+            attendance_information: vec![AttendanceInformation {
+                event_name: event3.name.clone(),
+                event_id: event3.id,
+                event_start: event3.event_start
+            }],
         }
     );
 
@@ -941,10 +983,10 @@ fn get_profile_for_organization() {
             last_name: user.last_name.clone(),
             email: user.email.clone(),
             facebook_linked: true,
-            event_count: 3,
+            event_count: 2,
             revenue_in_cents: 2210,
             ticket_sales: 13,
-            tickets_owned: 13,
+            tickets_owned: 12,
             profile_pic_url: user.profile_pic_url.clone(),
             thumb_profile_pic_url: user.thumb_profile_pic_url.clone(),
             cover_photo_url: user.cover_photo_url.clone(),
@@ -959,11 +1001,6 @@ fn get_profile_for_organization() {
                     event_name: event2.name.clone(),
                     event_id: event2.id,
                     event_start: event2.event_start
-                },
-                AttendanceInformation {
-                    event_name: event3.name.clone(),
-                    event_id: event3.id,
-                    event_start: event3.event_start
                 }
             ],
         }
