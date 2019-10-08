@@ -9,6 +9,7 @@ pub struct VenueBuilder<'a> {
     is_private: bool,
     timezone: String,
     country: String,
+    city: String,
     connection: &'a PgConnection,
 }
 
@@ -22,6 +23,7 @@ impl<'a> VenueBuilder<'a> {
             organization_id: None,
             timezone: "America/Los_Angeles".into(),
             country: "US".into(),
+            city: "San Francisco".into(),
         }
     }
 
@@ -32,6 +34,11 @@ impl<'a> VenueBuilder<'a> {
 
     pub fn with_country(mut self, country: String) -> Self {
         self.country = country;
+        self
+    }
+
+    pub fn with_city(mut self, city: String) -> Self {
+        self.city = city;
         self
     }
 
@@ -63,7 +70,7 @@ impl<'a> VenueBuilder<'a> {
             self.timezone,
         );
         venue.country = self.country;
-
+        venue.city = self.city;
         let venue = venue.commit(self.connection).unwrap();
         venue.set_privacy(self.is_private, self.connection).unwrap()
     }

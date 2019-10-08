@@ -641,12 +641,23 @@ fn find_by_slug() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
+    let venue = project
+        .create_venue()
+        .with_name("Test Venue".to_string())
+        .with_city("San Francisco".to_string())
+        .finish();
     let event = project
         .create_event()
+        .with_name("Test Event".to_string())
         .with_ticket_type_count(1)
         .with_tickets()
         .with_ticket_pricing()
+        .with_venue(&venue)
         .finish();
+    assert_eq!(
+        &"test-event-at-test-venue-san-francisco".to_string(),
+        &event.slug
+    );
     assert_eq!(
         Event::find_by_slug(&event.slug, false, connection)
             .unwrap()

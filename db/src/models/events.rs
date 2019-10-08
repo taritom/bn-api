@@ -189,7 +189,15 @@ impl NewEvent {
             ),
         )?;
         if new_event.slug.is_none() {
-            let slug = create_slug(&new_event.name);
+            let slug_name = match new_event.venue_id {
+                Some(venue_id) => {
+                    let venue = Venue::find(venue_id, conn)?;
+                    format!("{} at {} {}", &new_event.name, venue.name, venue.city)
+                }
+                None => new_event.name.clone(),
+            };
+
+            let slug = create_slug(&slug_name);
             new_event.slug = Some(slug.clone());
             loop {
                 let existing =
