@@ -2,6 +2,7 @@ use chrono::prelude::*;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
+use diesel::sql_query;
 use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
@@ -16,25 +17,15 @@ pub struct ActivitySummary {
     pub activity_items: Vec<ActivityItem>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Queryable, QueryableByName)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EventActivityItem {
-    #[sql_type = "dUuid"]
     pub event_id: Uuid,
-    #[sql_type = "Text"]
     pub name: String,
-    #[sql_type = "Nullable<Text>"]
     pub code: Option<String>,
-    #[sql_type = "Nullable<BigInt>"]
     pub code_discount_in_cents: Option<i64>,
-    #[sql_type = "Nullable<Text>"]
     pub code_type: Option<String>,
-    #[sql_type = "BigInt"]
     pub quantity: i64,
-    #[sql_type = "BigInt"]
     pub total_in_cents: i64,
-    #[serde(skip_serializing)]
-    #[sql_type = "dUuid"]
-    pub order_id: Uuid,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Queryable)]
@@ -211,7 +202,6 @@ impl ActivityItem {
         user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<Vec<ActivityItem>, DatabaseError> {
-        use schema::*;
         if order_id.is_none() && event_id.is_none() {
             return Err(DatabaseError::new(
                 ErrorCode::BusinessProcessError,
@@ -226,70 +216,95 @@ impl ActivityItem {
         struct R {
             #[sql_type = "dUuid"]
             order_id: Uuid,
-            #[sql_type = "BigInt"]
-            ticket_quantity: i64,
             #[sql_type = "Timestamp"]
             occurred_at: NaiveDateTime,
-            #[sql_type = "BigInt"]
-            total_in_cents: i64,
-            #[sql_type = "Array<dUuid>"]
-            event_ids: Vec<Uuid>,
             #[sql_type = "dUuid"]
             purchased_by: Uuid,
             #[sql_type = "dUuid"]
             user_id: Uuid,
+            #[sql_type = "BigInt"]
+            ticket_quantity: i64,
+            #[sql_type = "BigInt"]
+            total_in_cents: i64,
+            #[sql_type = "dUuid"]
+            event_id: Uuid,
+            #[sql_type = "Text"]
+            event_name: String,
+            #[sql_type = "Nullable<Text>"]
+            code: Option<String>,
+            #[sql_type = "Nullable<BigInt>"]
+            code_discount_in_cents: Option<i64>,
+            #[sql_type = "Nullable<Text>"]
+            code_type: Option<String>,
         }
-
-        let mut query = orders::table
-            .inner_join(order_items::table.on(order_items::order_id.eq(orders::id)))
-            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-            .filter(orders::status.eq(OrderStatus::Paid))
-            .into_boxed();
+        let mut query = sql_query(
+            r#"
+        SELECT DISTINCT
+            o.id as order_id,
+            o.created_at as occurred_at,
+            o.user_id as purchased_by,
+            COALESCE(o.on_behalf_of_user_id, o.user_id) as user_id,
+            CAST(
+                COALESCE(SUM(oi.quantity) FILTER (WHERE oi.item_type = 'Tickets'), 0) as BigInt
+            ) as ticket_quantity,
+            CAST(COALESCE(SUM(oi.unit_price_in_cents * oi.quantity), 0) as BigInt) as total_in_cents,
+            e.id as event_id,
+            e.name as event_name,
+            COALESCE(h.redemption_code, c.redemption_code) as code,
+            COALESCE(h.discount_in_cents, c.discount_in_cents) as code_discount_in_cents,
+            COALESCE(h.hold_type, c.code_type) as code_type
+        FROM orders o
+        JOIN order_items oi ON oi.order_id = o.id
+        JOIN events e ON e.id = oi.event_id
+        LEFT JOIN order_items parent_oi ON parent_oi.id = oi.parent_id
+        -- Associate children with parent's code or hold for grouping
+        LEFT JOIN codes c on c.id = COALESCE(parent_oi.code_id, oi.code_id)
+        LEFT JOIN holds h on h.id = COALESCE(parent_oi.hold_id, oi.hold_id)
+        WHERE
+            o.status = 'Paid'
+        "#,
+        )
+        .into_boxed();
 
         if let (Some(event_id), Some(user_id)) = (event_id, user_id) {
-            query = query.filter(events::id.eq(event_id)).filter(
-                orders::on_behalf_of_user_id
-                    .eq(Some(user_id))
-                    .or(orders::user_id.eq(user_id)),
-            );
+            query = query
+                .sql(format!(" and e.id = $1 "))
+                .bind::<dUuid, _>(event_id);
+            query = query
+                .sql(format!(
+                    " and COALESCE(o.on_behalf_of_user_id, o.user_id) = $2 "
+                ))
+                .bind::<dUuid, _>(user_id);
         } else if let Some(order_id) = order_id {
-            query = query.filter(orders::id.eq(order_id));
+            query = query
+                .sql(format!(" AND o.id = $1 "))
+                .bind::<dUuid, _>(order_id);
         }
+
         let order_data: Vec<R> = query
-            .select((
-                orders::id,
-                sql::<BigInt>(
-                    "CAST(
-                        (SELECT sum(quantity)
-                        FROM order_items oi
-                        WHERE oi.order_id = orders.id
-                        AND oi.item_type = 'Tickets')
-                    as BigInt) as ticket_quantity",
-                ),
-                orders::created_at,
-                sql("CAST(SUM(order_items.unit_price_in_cents * order_items.quantity) as BigInt) as total_in_cents"),
-                sql::<Array<dUuid>>(
-                    "
-                    ARRAY(
-                        SELECT DISTINCT oi.event_id
-                        FROM order_items oi
-                        WHERE oi.order_id = orders.id
-                    ) as event_ids
-                ",
-                ),
-                orders::user_id,
-                sql::<dUuid>(
-                    "
-                    COALESCE(orders.on_behalf_of_user_id, orders.user_id)
-                ",
-                ),
-            ))
-            .group_by((orders::id, orders::created_at, orders::user_id, orders::on_behalf_of_user_id, orders::user_id))
-            .distinct()
+            .sql(
+                "
+                GROUP BY
+                    o.id,
+                    o.created_at,
+                    o.user_id,
+                    o.on_behalf_of_user_id,
+                    e.id,
+                    e.name,
+                    h.hold_type,
+                    c.code_type,
+                    h.redemption_code,
+                    c.redemption_code,
+                    h.discount_in_cents,
+                    c.discount_in_cents
+                ORDER BY
+                    o.created_at desc
+            ",
+            )
             .load(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Unable to load purchases for organization fan",
+                "Unable to load purchase event data for organization fan",
             )?;
 
         let mut user_ids = Vec::new();
@@ -305,100 +320,59 @@ impl ActivityItem {
             user_map.insert(user.id, user.into());
         }
 
-        let order_ids: Vec<Uuid> = order_data.iter().map(|d| d.order_id).collect();
-        let order_event_data: Vec<EventActivityItem> = orders::table
-            .inner_join(order_items::table.on(order_items::order_id.eq(orders::id)))
-            .left_join(ticket_pricing::table.on(order_items::ticket_pricing_id.eq(ticket_pricing::id.nullable())))
-            .left_join(codes::table.on(order_items::code_id.eq(codes::id.nullable())))
-            .left_join(holds::table.on(order_items::hold_id.eq(holds::id.nullable())))
-            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-            .filter(orders::id.eq_any(order_ids))
-            .filter(order_items::parent_id.is_null())
-            .group_by((
-                orders::id,
-                events::id,
-                events::name,
-                holds::hold_type,
-                codes::code_type,
-                holds::redemption_code,
-                codes::redemption_code,
-                holds::discount_in_cents,
-                codes::discount_in_cents,
-            ))
-            .select((
-                events::id,
-                events::name,
-                sql("COALESCE(holds.redemption_code, codes.redemption_code) as code"),
-                sql("COALESCE(holds.discount_in_cents, codes.discount_in_cents) as discount_in_cents"),
-                sql("COALESCE(holds.hold_type, codes.code_type) as code_type"),
-                sql("CAST(COALESCE(SUM(order_items.quantity) FILTER (WHERE order_items.item_type = 'Tickets'), 0) as BigInt) as quantity"),
-                // Sum up all children in calculation, event fees are split off but children of holds/codes are combined
-                sql("
-                COALESCE((
-                    SELECT CAST(SUM(oi2.unit_price_in_cents * oi2.quantity) as BigInt)
-                    FROM order_items oi
-                    JOIN order_items oi2 ON oi.id = oi2.parent_id OR oi.id = oi2.id
-                    LEFT JOIN holds h ON h.id = oi.hold_id
-                    LEFT JOIN codes c ON c.id = oi.code_id
-                    WHERE COALESCE(holds.redemption_code, codes.redemption_code, '') = COALESCE(h.redemption_code, c.redemption_code, '')
-                    AND oi.event_id = events.id
-                    AND oi.order_id = orders.id
-                    AND oi.parent_id is null
-                ), 0) as total_in_cents"),
-                orders::id
-            ))
-            .distinct()
-            .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load purchase event data for organization fan",
-            )?;
-
-        let mut event_map: HashMap<Uuid, Vec<EventActivityItem>> = HashMap::new();
-        for order_event_datum in order_event_data {
-            event_map
-                .entry(order_event_datum.order_id)
-                .or_insert(Vec::new())
-                .push(order_event_datum.clone());
-        }
-
-        let mut activity_items: Vec<ActivityItem> = Vec::new();
-        for order_datum in order_data {
-            let purchased_by = user_map
-                .get(&order_datum.purchased_by)
-                .map(|u| u.clone())
-                .ok_or_else(|| {
-                    DatabaseError::new(
-                        ErrorCode::BusinessProcessError,
-                        Some("Order can't load purchasing user".to_string()),
-                    )
-                })?;
-            let user = user_map
-                .get(&order_datum.user_id)
-                .map(|u| u.clone())
-                .ok_or_else(|| {
-                    DatabaseError::new(
-                        ErrorCode::BusinessProcessError,
-                        Some("Order can't load user".to_string()),
-                    )
-                })?;
-
-            activity_items.push(ActivityItem::Purchase {
-                order_id: order_datum.order_id,
-                order_number: Order::parse_order_number(order_datum.order_id),
-                ticket_quantity: order_datum.ticket_quantity,
-                events: event_map
-                    .get(&order_datum.order_id)
-                    .map(|e| e.clone())
-                    .unwrap_or(Vec::new()),
-                occurred_at: order_datum.occurred_at,
-                purchased_by,
+        let mut order_activities: HashMap<Uuid, ActivityItem> = HashMap::new();
+        for order_datum in &order_data {
+            let event_activity_item = EventActivityItem {
+                event_id: order_datum.event_id,
+                name: order_datum.event_name.clone(),
+                code: order_datum.code.clone(),
+                code_discount_in_cents: order_datum.code_discount_in_cents,
+                code_type: order_datum.code_type.clone(),
+                quantity: order_datum.ticket_quantity,
                 total_in_cents: order_datum.total_in_cents,
-                user,
-            });
+            };
+
+            let purchased_by = user_map.get(&order_datum.purchased_by).ok_or_else(|| {
+                DatabaseError::new(
+                    ErrorCode::BusinessProcessError,
+                    Some("Order can't load purchasing user".to_string()),
+                )
+            })?;
+            let user = user_map.get(&order_datum.user_id).ok_or_else(|| {
+                DatabaseError::new(
+                    ErrorCode::BusinessProcessError,
+                    Some("Order can't load user".to_string()),
+                )
+            })?;
+
+            order_activities
+                .entry(order_datum.order_id)
+                .and_modify(|activity_item| {
+                    if let ActivityItem::Purchase {
+                        ref mut ticket_quantity,
+                        ref mut total_in_cents,
+                        ref mut events,
+                        ..
+                    } = activity_item
+                    {
+                        *ticket_quantity += order_datum.ticket_quantity;
+                        *total_in_cents += order_datum.total_in_cents;
+                        events.push(event_activity_item.clone());
+                    }
+                })
+                .or_insert_with(|| ActivityItem::Purchase {
+                    order_id: order_datum.order_id,
+                    order_number: Order::parse_order_number(order_datum.order_id),
+                    ticket_quantity: order_datum.ticket_quantity,
+                    events: vec![event_activity_item],
+                    occurred_at: order_datum.occurred_at,
+                    purchased_by: purchased_by.clone(),
+                    total_in_cents: order_datum.total_in_cents,
+                    user: user.clone(),
+                });
         }
 
-        Ok(activity_items)
+        Ok(order_activities.into_iter().map(|(_, v)| v).collect())
     }
 
     fn load_transfers(
@@ -460,24 +434,21 @@ impl ActivityItem {
             )
             .left_join(orders::table.on(orders::id.eq(order_items::order_id)))
             .inner_join(
-                domain_events::table.on(domain_events::main_id
-                    .eq(transfers::id.nullable())
-                    .and(domain_events::main_table.eq(Tables::Transfers))
-                    .and(domain_events::event_type.eq_any(vec![
-                        DomainEventTypes::TransferTicketCancelled,
-                        DomainEventTypes::TransferTicketCompleted,
-                        DomainEventTypes::TransferTicketStarted,
-                    ]))),
+                domain_events::table.on(domain_events::main_table
+                    .eq(Tables::Transfers)
+                    .and(domain_events::main_id.eq(transfers::id.nullable()))),
             )
+            .filter(domain_events::event_type.eq_any(vec![
+                DomainEventTypes::TransferTicketCancelled,
+                DomainEventTypes::TransferTicketCompleted,
+                DomainEventTypes::TransferTicketStarted,
+            ]))
             .into_boxed();
 
         if let (Some(event_id), Some(user_id)) = (event_id, user_id) {
             query = query.filter(ticket_types::event_id.eq(event_id)).filter(
                 transfers::source_user_id
                     .eq(user_id)
-                    .or(transfers::cancelled_by_user_id.eq(user_id).and(
-                        domain_events::event_type.eq(DomainEventTypes::TransferTicketCancelled),
-                    ))
                     .or(transfers::destination_user_id.eq(user_id).and(
                         domain_events::event_type.eq(DomainEventTypes::TransferTicketCompleted),
                     )),
@@ -662,11 +633,9 @@ impl ActivityItem {
             .into_boxed();
 
         if let (Some(event_id), Some(user_id)) = (event_id, user_id) {
-            query = query.filter(ticket_types::event_id.eq(event_id)).filter(
-                wallets::user_id
-                    .eq(user_id)
-                    .or(ticket_instances::redeemed_by_user_id.eq(Some(user_id))),
-            );
+            query = query
+                .filter(ticket_types::event_id.eq(event_id))
+                .filter(wallets::user_id.eq(user_id));
         } else if let Some(order_id) = order_id {
             query = query.filter(orders::id.eq(order_id));
         }
@@ -792,9 +761,8 @@ impl ActivityItem {
             query = query
                 .filter(order_items::event_id.eq(Some(event_id)))
                 .filter(
-                    refunds::user_id
-                        .eq(user_id)
-                        .or(orders::on_behalf_of_user_id.eq(Some(user_id)))
+                    orders::on_behalf_of_user_id
+                        .eq(Some(user_id))
                         .or(orders::on_behalf_of_user_id
                             .is_null()
                             .and(orders::user_id.eq(user_id))),
@@ -842,6 +810,7 @@ impl ActivityItem {
 
         #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Queryable)]
         pub struct RI {
+            pub refund_id: Uuid,
             pub id: Uuid,
             pub amount: i64,
             pub quantity: i64,
@@ -864,41 +833,56 @@ impl ActivityItem {
             pub refunded_quantity: i64,
         };
 
-        for refund_datum in &refund_data {
-            let items: Vec<RI> = refunds::table
-                .inner_join(refund_items::table.on(refund_items::refund_id.eq(refunds::id)))
-                .inner_join(order_items::table.on(refund_items::order_item_id.eq(order_items::id)))
-                .filter(refunds::id.eq(refund_datum.refund_id))
-                .select((
-                    refund_items::id,
-                    refund_items::amount,
-                    refund_items::quantity,
-                    order_items::id,
-                    order_items::order_id,
-                    order_items::item_type,
-                    order_items::ticket_type_id,
-                    order_items::event_id,
-                    order_items::quantity,
-                    order_items::unit_price_in_cents,
-                    order_items::created_at,
-                    order_items::updated_at,
-                    order_items::ticket_pricing_id,
-                    order_items::fee_schedule_range_id,
-                    order_items::parent_id,
-                    order_items::hold_id,
-                    order_items::code_id,
-                    order_items::company_fee_in_cents,
-                    order_items::client_fee_in_cents,
-                    order_items::refunded_quantity,
-                ))
-                .load(conn)
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Unable to load refund data for organization fan",
-                )?;
+        let refund_ids: Vec<Uuid> = refund_data.iter().map(|r| r.refund_id).collect();
+        let items: Vec<RI> = refunds::table
+            .inner_join(refund_items::table.on(refund_items::refund_id.eq(refunds::id)))
+            .inner_join(order_items::table.on(refund_items::order_item_id.eq(order_items::id)))
+            .filter(refunds::id.eq_any(refund_ids))
+            .select((
+                refund_items::refund_id,
+                refund_items::id,
+                refund_items::amount,
+                refund_items::quantity,
+                order_items::id,
+                order_items::order_id,
+                order_items::item_type,
+                order_items::ticket_type_id,
+                order_items::event_id,
+                order_items::quantity,
+                order_items::unit_price_in_cents,
+                order_items::created_at,
+                order_items::updated_at,
+                order_items::ticket_pricing_id,
+                order_items::fee_schedule_range_id,
+                order_items::parent_id,
+                order_items::hold_id,
+                order_items::code_id,
+                order_items::company_fee_in_cents,
+                order_items::client_fee_in_cents,
+                order_items::refunded_quantity,
+            ))
+            .order_by(refunds::id)
+            .load(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Unable to load refund data for organization fan",
+            )?;
 
+        for refund_datum in refund_data {
             let mut refund_items = vec![];
-            for item in items {
+            let refunded_by = user_map
+                .get(&refund_datum.refunded_by)
+                .map(|u| u.clone())
+                .ok_or_else(|| {
+                    DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some("Unable to load refunded by user".to_string()),
+                    )
+                })?;
+            for item in items
+                .iter()
+                .filter(|i| i.refund_id == refund_datum.refund_id)
+            {
                 let order_item = OrderItem {
                     id: item.order_item_id,
                     order_id: item.order_id,
@@ -927,16 +911,6 @@ impl ActivityItem {
                 });
             }
 
-            let refunded_by = user_map
-                .get(&refund_datum.refunded_by)
-                .map(|u| u.clone())
-                .ok_or_else(|| {
-                    DatabaseError::new(
-                        ErrorCode::BusinessProcessError,
-                        Some("Unable to load refunded by user".to_string()),
-                    )
-                })?;
-
             activity_items.push(ActivityItem::Refund {
                 refund_id: refund_datum.refund_id,
                 reason: refund_datum.reason.clone(),
@@ -948,6 +922,7 @@ impl ActivityItem {
                 refunded_by,
             });
         }
+
         Ok(activity_items)
     }
 
@@ -986,9 +961,9 @@ impl ActivityItem {
             .inner_join(order_items::table.on(order_items::order_id.eq(orders::id)))
             .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
             .inner_join(
-                notes::table.on(notes::main_id
-                    .eq(orders::id)
-                    .and(notes::main_table.eq(Tables::Orders))),
+                notes::table.on(notes::main_table
+                    .eq(Tables::Orders)
+                    .and(notes::main_id.eq(orders::id))),
             )
             .into_boxed();
 
@@ -998,8 +973,7 @@ impl ActivityItem {
                     .eq(Some(user_id))
                     .or(orders::on_behalf_of_user_id
                         .is_null()
-                        .and(orders::user_id.eq(user_id)))
-                    .or(notes::created_by.eq(user_id)),
+                        .and(orders::user_id.eq(user_id))),
             );
         } else if let Some(order_id) = order_id {
             query = query.filter(orders::id.eq(order_id));

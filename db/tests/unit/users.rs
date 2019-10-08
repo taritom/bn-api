@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use chrono::{Duration, NaiveDateTime, Utc};
 use diesel;
 use diesel::prelude::*;
+use diesel::sql_types;
+use diesel::RunQueryDsl;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -108,7 +110,7 @@ fn activity() {
         .for_ticket_type(&event2.ticket_types(true, None, connection).unwrap()[0])
         .with_discount_in_cents(Some(10))
         .finish();
-    project
+    let order = project
         .create_order()
         .for_event(&event)
         .on_behalf_of_user(&user)
@@ -117,13 +119,35 @@ fn activity() {
         .with_redemption_code(hold.redemption_code.clone().unwrap())
         .is_paid()
         .finish();
-    project
+    diesel::sql_query(
+        r#"
+        UPDATE orders
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_hours(-1).finish())
+    .bind::<sql_types::Uuid, _>(order.id)
+    .execute(connection)
+    .unwrap();
+    let order = project
         .create_order()
         .for_event(&event2)
         .for_user(&user)
         .quantity(3)
         .is_paid()
         .finish();
+    diesel::sql_query(
+        r#"
+        UPDATE orders
+        SET created_at = $1
+        WHERE id = $2;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_minutes(-30).finish())
+    .bind::<sql_types::Uuid, _>(order.id)
+    .execute(connection)
+    .unwrap();
     project
         .create_order()
         .for_event(&event2)
@@ -199,26 +223,12 @@ fn activity() {
 
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection)
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
                 .unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
-        user3
-            .activity(
-                &organization,
-                0,
-                100,
-                SortingDir::Asc,
-                PastOrUpcoming::Upcoming,
-                None,
-                connection
-            )
-            .unwrap()
-            .data
-    );
-    assert!(user3
-        .activity(
-            &organization2,
+        user.activity(
+            &organization,
             0,
             100,
             SortingDir::Asc,
@@ -228,7 +238,7 @@ fn activity() {
         )
         .unwrap()
         .data
-        .is_empty());
+    );
 
     // Event is now in the past
     let event = event
@@ -244,7 +254,7 @@ fn activity() {
         .unwrap();
 
     // Is not found via upcoming filter
-    assert!(user3
+    assert!(user
         .activity(
             &organization,
             0,
@@ -261,22 +271,21 @@ fn activity() {
     // Is found via past filter
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user3.id, None, connection)
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
                 .unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
-        user3
-            .activity(
-                &organization,
-                0,
-                100,
-                SortingDir::Asc,
-                PastOrUpcoming::Past,
-                None,
-                connection
-            )
-            .unwrap()
-            .data
+        user.activity(
+            &organization,
+            0,
+            100,
+            SortingDir::Asc,
+            PastOrUpcoming::Past,
+            None,
+            connection
+        )
+        .unwrap()
+        .data
     );
 }
 

@@ -235,7 +235,7 @@ fn load_for_event() {
             activity_items7.len(),
             activity_items8.len(),
         ),
-        (10, 5, 6, 4, 0, 3, 0, 1)
+        (10, 5, 0, 1, 0, 3, 0, 0)
     );
 
     let mut expected_results: Vec<(String, Uuid, Option<String>)> = Vec::new();
@@ -285,31 +285,12 @@ fn load_for_event() {
         )
     });
 
-    let mut expected_results3: Vec<(String, Uuid, Option<String>)> = Vec::new();
-    expected_results3.push(("CheckIn".to_string(), ticket2.id, None));
-    expected_results3.push(("CheckIn".to_string(), ticket6.id, None));
-    expected_results3.push(("Refund".to_string(), refund2.0.id, None));
-    expected_results3.push(("Refund".to_string(), refund3.0.id, None));
-    expected_results3.push(("Note".to_string(), note.id, None));
-    expected_results3.push(("Note".to_string(), note3.id, None));
-    expected_results3.sort_by_key(|(table, id, additional_data)| {
-        format!(
-            "{}_{}_{}",
-            table,
-            id,
-            additional_data.clone().unwrap_or("".to_string())
-        )
-    });
-
     let mut expected_results4: Vec<(String, Uuid, Option<String>)> = Vec::new();
-    expected_results4.push(("Note".to_string(), note4.id, None));
-    expected_results4.push(("Note".to_string(), note2.id, None));
     expected_results4.push((
         "Transfer".to_string(),
         transfer.id,
         Some("Accepted".to_string()),
     ));
-    expected_results4.push(("Purchase".to_string(), order.id, None));
     expected_results4.sort_by_key(|(table, id, additional_data)| {
         format!(
             "{}_{}_{}",
@@ -340,20 +321,11 @@ fn load_for_event() {
         )
     });
 
-    let mut expected_results8: Vec<(String, Uuid, Option<String>)> = Vec::new();
-    expected_results8.push((
-        "Transfer".to_string(),
-        transfer3.id,
-        Some("Cancelled".to_string()),
-    ));
-
     for (activity_items, expected_results) in vec![
         (activity_items, expected_results),
         (activity_items2, expected_results2),
-        (activity_items3, expected_results3),
         (activity_items4, expected_results4),
         (activity_items6, expected_results6),
-        (activity_items8, expected_results8),
     ] {
         let mut records_found: Vec<(String, Uuid, Option<String>)> = Vec::new();
         for activity_item in activity_items {
