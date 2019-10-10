@@ -6,6 +6,8 @@ use chrono::prelude::*;
 use chrono::Duration;
 use diesel;
 use diesel::prelude::*;
+use diesel::sql_types;
+use diesel::RunQueryDsl;
 
 #[test]
 fn find_last_settlement_for_organization() {
@@ -81,6 +83,33 @@ fn process_settlement_for_organization() {
         end_time - Duration::days(7) + Duration::seconds(1)
     );
     assert_eq!(settlement.end_time, end_time);
+
+    // Set old end time which affects start time of new settlement (to handle timezone updates)
+    let old_start_time = dates::now().add_days(-14).add_hours(-3).finish();
+    let old_end_time = dates::now().add_days(-7).add_hours(-3).finish();
+    diesel::sql_query(
+        r#"
+        UPDATE settlements
+        SET start_time = $1,
+        end_time = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(old_start_time)
+    .bind::<sql_types::Timestamp, _>(old_end_time)
+    .bind::<sql_types::Uuid, _>(settlement.id)
+    .execute(connection)
+    .unwrap();
+
+    let settlement =
+        Settlement::process_settlement_for_organization(&organization, connection).unwrap();
+    assert_eq!(
+        settlement.start_time.timestamp(),
+        (old_end_time + Duration::seconds(1)).timestamp()
+    );
+    let end_time =
+        organization.next_settlement_date().unwrap() - Duration::days(7) - Duration::seconds(1);
+    assert_eq!(settlement.end_time.timestamp(), end_time.timestamp());
 }
 
 #[test]

@@ -1,5 +1,5 @@
 use bigneon_db::dev::TestProject;
-use bigneon_db::models::{FeeSchedule, NewFeeScheduleRange};
+use bigneon_db::prelude::*;
 use uuid::Uuid;
 
 #[test]

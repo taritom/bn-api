@@ -71,6 +71,29 @@ fn create_and_find_by_user_id() {
 }
 
 #[test]
+fn from() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let push_notification_token =
+        PushNotificationToken::create(user.id, "source".to_string(), "token".to_string())
+            .commit(user.id, connection)
+            .unwrap();
+    let display_push_notification: DisplayPushNotificationToken =
+        push_notification_token.clone().into();
+    assert_eq!(
+        display_push_notification,
+        DisplayPushNotificationToken {
+            id: push_notification_token.id,
+            token_source: push_notification_token.token_source,
+            token: push_notification_token.token,
+            last_notification_at: push_notification_token.last_notification_at,
+            created_at: push_notification_token.created_at,
+        }
+    );
+}
+
+#[test]
 fn find() {
     let project = TestProject::new();
     let connection = project.get_connection();

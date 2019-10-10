@@ -38,6 +38,7 @@ pub enum Scopes {
     OrgAdminUsers,
     OrgFans,
     OrgFinancialReports,
+    OrgModifySettlementType,
     OrgRead,
     OrgReadEvents,
     OrgReports,
@@ -100,6 +101,7 @@ impl fmt::Display for Scopes {
             Scopes::OrderRefund => "order:refund",
             Scopes::OrderResendConfirmation => "order:resend-confirmation",
             Scopes::OrgAdmin => "org:admin",
+            Scopes::OrgModifySettlementType => "org:modify-settlement-type",
             Scopes::OrgRead => "org:read",
             Scopes::OrgReadEvents => "org:read-events",
             Scopes::OrgReports => "org:reports",
@@ -161,6 +163,7 @@ impl FromStr for Scopes {
             "order:refund" => Scopes::OrderRefund,
             "order:resend-confirmation" => Scopes::OrderResendConfirmation,
             "org:admin" => Scopes::OrgAdmin,
+            "org:modify-settlement-type" => Scopes::OrgModifySettlementType,
             "org:read" => Scopes::OrgRead,
             "org:read-events" => Scopes::OrgReadEvents,
             "org:reports" => Scopes::OrgReports,
@@ -346,6 +349,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::OrgAdmin,
                 Scopes::RegionWrite,
                 Scopes::OrgFinancialReports,
+                Scopes::OrgModifySettlementType,
             ];
             roles.extend(get_scopes_for_role(OrgOwner));
             roles
@@ -523,6 +527,7 @@ fn get_scopes_test() {
             "org:admin-users",
             "org:fans",
             "org:financial-reports",
+            "org:modify-settlement-type",
             "org:read",
             "org:read-events",
             "org:reports",
@@ -584,6 +589,7 @@ fn get_scopes_test() {
             "org:admin-users",
             "org:fans",
             "org:financial-reports",
+            "org:modify-settlement-type",
             "org:read",
             "org:read-events",
             "org:reports",

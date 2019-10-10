@@ -912,7 +912,7 @@ impl TicketInstance {
         user_id: Uuid,
         ticket_ids: &[Uuid],
         conn: &PgConnection,
-    ) -> Result<(WalletId, Vec<(Uuid, NaiveDateTime)>), DatabaseError> {
+    ) -> Result<(Uuid, Vec<(Uuid, NaiveDateTime)>), DatabaseError> {
         let tickets = TicketInstance::find_for_user(user_id, conn)?;
         let mut ticket_ids_and_updated_at = vec![];
         let mut all_tickets_valid = true;
@@ -941,7 +941,7 @@ impl TicketInstance {
             ));
         }
 
-        Ok((WalletId::new(wallet_id), ticket_ids_and_updated_at))
+        Ok((wallet_id, ticket_ids_and_updated_at))
     }
 
     pub fn create_transfer(

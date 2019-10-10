@@ -81,6 +81,10 @@ impl TestProject {
         DomainActionBuilder::new(&self.connection)
     }
 
+    pub fn create_domain_event_publisher(&self) -> DomainEventPublisherBuilder {
+        DomainEventPublisherBuilder::new(&self.connection)
+    }
+
     pub fn create_event(&self) -> EventBuilder {
         EventBuilder::new(&self.connection)
     }

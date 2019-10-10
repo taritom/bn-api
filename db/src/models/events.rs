@@ -18,7 +18,6 @@ use schema::{
     organization_users, organizations, payments, ticket_instances, ticket_types, transfer_tickets,
     transfers, venues,
 };
-use serde::Deserializer;
 use serde_json::Value;
 use serde_with::rust::double_option;
 use services::*;
@@ -79,23 +78,6 @@ pub struct Event {
 impl PartialOrd for Event {
     fn partial_cmp(&self, other: &Event) -> Option<Ordering> {
         Some(self.id.cmp(&other.id))
-    }
-}
-
-pub fn from_str_or_num_to_str<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let value: Value = Deserialize::deserialize(deserializer)?;
-
-    if value.is_string() {
-        Ok(Some(String::from(value.as_str().unwrap_or(""))))
-    } else if value.is_number() {
-        Ok(Some(String::from(
-            value.as_f64().unwrap_or(0f64).to_string(),
-        )))
-    } else {
-        Ok(None)
     }
 }
 

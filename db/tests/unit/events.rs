@@ -3,10 +3,225 @@ use bigneon_db::models::*;
 use bigneon_db::services::CountryLookup;
 use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::DatabaseError;
+use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
 use chrono::Duration;
 use std::collections::HashMap;
 use uuid::Uuid;
+
+#[test]
+fn count_report() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_name("Event1".to_string())
+        .with_tickets()
+        .finish();
+    let mut ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
+
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+
+    // Partially refunded order
+    let mut order = project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .on_behalf_of_user(&user2)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    let items = order.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let ticket = &tickets[0];
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    order
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
+
+    // Redeem ticket
+    let ticket2 = &tickets[1];
+    TicketInstance::redeem_ticket(
+        ticket2.id,
+        ticket2.redeem_key.clone().unwrap(),
+        user.id,
+        connection,
+    )
+    .unwrap();
+
+    // Hold order
+    let hold = project
+        .create_hold()
+        .with_quantity(10)
+        .with_ticket_type_id(ticket_type.id)
+        .with_hold_type(HoldTypes::Discount)
+        .finish();
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .finish();
+    project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user)
+        .on_behalf_of_user(&user3)
+        .is_paid()
+        .with_redemption_code(hold.redemption_code.clone().unwrap())
+        .finish();
+
+    // Comp order
+    let comp = project
+        .create_hold()
+        .with_quantity(10)
+        .with_ticket_type_id(ticket_type.id)
+        .with_hold_type(HoldTypes::Comp)
+        .finish();
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .with_redemption_code(comp.redemption_code.clone().unwrap())
+        .finish();
+
+    // Discount code order
+    let code = project
+        .create_code()
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .with_discount_in_cents(Some(50))
+        .finish();
+    project
+        .create_order()
+        .quantity(2)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .with_redemption_code(code.redemption_code.clone())
+        .finish();
+
+    // New price point for ticket type but has same price
+    let old_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
+    ticket_type = ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                ..Default::default()
+            },
+            None,
+            connection,
+        )
+        .unwrap();
+    let new_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
+    assert_ne!(old_pricing.id, new_pricing.id);
+    let order_dupe_price = project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    assert_eq!(
+        order_dupe_price
+            .items(connection)
+            .unwrap()
+            .iter()
+            .find(|i| i.ticket_type_id == Some(ticket_type.id))
+            .unwrap()
+            .ticket_pricing_id,
+        Some(new_pricing.id)
+    );
+
+    // New price point for ticket type with new price so orders will create a new row
+    let old_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
+    ticket_type = ticket_type
+        .update(
+            TicketTypeEditableAttributes {
+                price_in_cents: Some(200),
+                ..Default::default()
+            },
+            None,
+            connection,
+        )
+        .unwrap();
+    let new_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
+    assert_ne!(old_pricing.id, new_pricing.id);
+    let order_new_price = project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    assert_eq!(
+        order_new_price
+            .items(connection)
+            .unwrap()
+            .iter()
+            .find(|i| i.ticket_type_id == Some(ticket_type.id))
+            .unwrap()
+            .ticket_pricing_id,
+        Some(new_pricing.id)
+    );
+
+    let result = event
+        .clone()
+        .count_report(None, None, true, true, true, false, connection)
+        .unwrap();
+    assert_eq!(6, result.sales.len());
+    let ticket_count_report =
+        Report::ticket_count_report(Some(event.id), Some(organization.id), connection).unwrap();
+    assert_eq!(result, ticket_count_report);
+
+    let result = event
+        .clone()
+        .count_report(None, None, true, true, false, false, connection)
+        .unwrap();
+    assert_eq!(3, result.sales.len());
+
+    let result = event
+        .clone()
+        .count_report(None, None, true, false, false, false, connection)
+        .unwrap();
+    assert_eq!(2, result.sales.len());
+
+    let result = event
+        .clone()
+        .count_report(None, None, false, false, false, false, connection)
+        .unwrap();
+    assert_eq!(2, result.sales.len());
+}
 
 #[test]
 fn get_all_events_with_sales_between() {
@@ -80,6 +295,13 @@ fn get_all_events_with_sales_between() {
     )
     .unwrap();
     assert!(found_events.is_empty());
+}
+
+#[test]
+fn default() {
+    let event: NewEvent = Default::default();
+    assert_eq!(event.status, NewEvent::default_status());
+    assert_eq!(event.is_external, NewEvent::default_is_external());
 }
 
 #[test]
@@ -1104,6 +1326,7 @@ fn update_genres() {
 #[test]
 fn create() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let venue = project.create_venue().finish();
     let user = project.create_user().finish();
     let organization = project
@@ -1119,7 +1342,76 @@ fn create() {
 
     assert_eq!(event.venue_id, Some(venue.id));
     assert_eq!(event.organization_id, organization.id);
-    assert_eq!(event.id.to_string().is_empty(), false);
+    assert_eq!(event.slug, "newevent-at-name-san-francisco");
+
+    // Auto generate random slug due to lack of legal characters
+    let event = project
+        .create_event()
+        .with_name("".into())
+        .with_organization(&organization)
+        .finish();
+    assert_eq!(event.organization_id, organization.id);
+    assert_eq!(event.slug.len(), 5);
+
+    // Create without an event start does not auto set event_end and door_time
+    let event = Event::create(
+        "name",
+        EventStatus::Draft,
+        organization.id,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    .commit(None, connection)
+    .unwrap();
+    assert_eq!(event.event_start, None);
+    assert_eq!(event.door_time, None);
+    assert_eq!(event.event_end, None);
+
+    // Create with an event start does auto set event_end and door_time
+    let event_start = dates::now().add_days(3).finish();
+    let expected_event_end = NaiveDateTime::from(event_start + Duration::days(1));
+    let expected_door_time = NaiveDateTime::from(event_start - Duration::hours(1));
+    let event = Event::create(
+        "name",
+        EventStatus::Draft,
+        organization.id,
+        None,
+        Some(event_start),
+        None,
+        None,
+        None,
+    )
+    .commit(None, connection)
+    .unwrap();
+    assert_eq!(
+        event.event_start.map(|t| t.timestamp()),
+        Some(event_start.timestamp())
+    );
+    assert_eq!(
+        event.door_time.map(|t| t.timestamp()),
+        Some(expected_door_time.timestamp())
+    );
+    assert_eq!(
+        event.event_end.map(|t| t.timestamp()),
+        Some(expected_event_end.timestamp())
+    );
+}
+
+#[test]
+fn is_published() {
+    let project = TestProject::new();
+    let mut event = project.create_event().finish();
+    event.publish_date = None;
+    assert!(!event.is_published());
+
+    event.publish_date = Some(dates::now().add_minutes(1).finish());
+    assert!(!event.is_published());
+
+    event.publish_date = Some(dates::now().add_minutes(-1).finish());
+    assert!(event.is_published());
 }
 
 #[test]
@@ -1141,6 +1433,7 @@ fn update() {
         .finish();
     //Edit event
     let parameters = EventEditableAttributes {
+        private_access_code: Some(Some("PRIVATE".to_string())),
         door_time: Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11)),
         ..Default::default()
     };
@@ -1151,6 +1444,7 @@ fn update() {
         event.door_time,
         Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11))
     );
+    assert_eq!(event.private_access_code, Some("private".to_string()));
 }
 
 #[test]
@@ -1496,6 +1790,47 @@ fn guest_list() {
     let guest_list_item = guest_list.0.first().unwrap();
     assert_eq!(1, guest_list.1);
     assert_eq!(first_ticket.id, guest_list_item.ticket.id);
+}
+
+#[test]
+fn publish_fails_without_required_fields() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut event = project
+        .create_event()
+        .with_status(EventStatus::Draft)
+        .finish();
+    event.promo_image_url = None;
+    let result = event.publish(None, connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("venue_id"));
+                assert_eq!(errors["venue_id"].len(), 1);
+                assert_eq!(errors["venue_id"][0].code, "required");
+                assert_eq!(
+                    &errors["venue_id"][0].message.clone().unwrap().into_owned(),
+                    "Event can't be published without a venue"
+                );
+
+                assert!(errors.contains_key("promo_image_url"));
+                assert_eq!(errors["promo_image_url"].len(), 1);
+                assert_eq!(errors["promo_image_url"][0].code, "required");
+                assert_eq!(
+                    &errors["promo_image_url"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Event can't be published without a promo image"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 }
 
 #[test]
@@ -1900,6 +2235,34 @@ fn get_sales_by_date_range() {
         "Sales data start date must come before end date",
         results.unwrap_err().cause.unwrap().to_string()
     );
+}
+
+#[test]
+fn find_incl_org_venue_fees() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project
+        .create_organization()
+        .with_event_fee()
+        .with_fees()
+        .finish();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
+    let venue = project.create_venue().finish();
+    let event = project
+        .create_event()
+        .with_event_start(
+            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_event_end(
+            NaiveDateTime::parse_from_str("2014-03-06 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_organization(&organization)
+        .with_venue(&venue)
+        .finish();
+    let result = Event::find_incl_org_venue_fees(event.id, connection).unwrap();
+    assert_eq!(result, (event, organization, Some(venue), fee_schedule));
 }
 
 #[test]

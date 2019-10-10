@@ -4,6 +4,44 @@ use rand::prelude::*;
 use uuid::Uuid;
 
 #[test]
+fn remove() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().finish();
+    assert!(!EventInterest::find_interest_by_event_ids_for_user(
+        vec![event.id],
+        user.id,
+        connection,
+    )
+    .unwrap()
+    .get(&event.id)
+    .unwrap());
+
+    EventInterest::create(event.id, user.id)
+        .commit(connection)
+        .unwrap();
+    assert!(EventInterest::find_interest_by_event_ids_for_user(
+        vec![event.id],
+        user.id,
+        connection,
+    )
+    .unwrap()
+    .get(&event.id)
+    .unwrap());
+
+    EventInterest::remove(event.id, user.id, connection).unwrap();
+    assert!(!EventInterest::find_interest_by_event_ids_for_user(
+        vec![event.id],
+        user.id,
+        connection,
+    )
+    .unwrap()
+    .get(&event.id)
+    .unwrap());
+}
+
+#[test]
 fn create() {
     let project = TestProject::new();
     let user = project.create_user().finish();
@@ -122,6 +160,19 @@ fn list_interested_users() {
     let primary_event = project.create_event().finish();
     let secondary_event = project.create_event().finish();
     let primary_user = project.create_user().finish();
+    let request_from_page: usize = 0;
+    let request_limit: usize = 100;
+
+    let result = EventInterest::list_interested_users(
+        primary_event.id,
+        primary_user.id,
+        request_from_page as u32,
+        request_limit as u32,
+        project.get_connection(),
+    )
+    .unwrap();
+    assert!(result.data.is_empty());
+
     //Create set of secondary users with interest in the primary and secondary event
     let n_secondary_users = 15;
     let mut rng = thread_rng();
@@ -161,8 +212,6 @@ fn list_interested_users() {
     desired_user_id_completelist.sort(); //Sort results for testing purposes
     if desired_user_id_completelist.len() > 0 {
         //Test1 - Normal Query of list of interested users for event, excluding primary user
-        let request_from_page: usize = 0;
-        let request_limit: usize = 100;
         let result = EventInterest::list_interested_users(
             primary_event.id,
             primary_user.id,

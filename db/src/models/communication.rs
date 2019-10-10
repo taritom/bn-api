@@ -6,9 +6,9 @@ use utils::errors::*;
 
 pub type TemplateData = HashMap<String, String>;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct CommAddress {
-    addresses: Vec<String>,
+    pub addresses: Vec<String>,
 }
 
 impl CommAddress {

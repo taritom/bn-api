@@ -2,6 +2,38 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
 
 #[test]
+fn mark_fee_only_refunded() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().with_fees().finish();
+    let event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_ticket_pricing()
+        .finish();
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let ticket = &tickets[0];
+    let mut refunded_ticket =
+        RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
+    assert!(refunded_ticket.ticket_refunded_at.is_none());
+    assert!(refunded_ticket.fee_refunded_at.is_none());
+    refunded_ticket.mark_fee_only_refunded(connection).unwrap();
+
+    let refunded_ticket =
+        RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
+    assert!(refunded_ticket.ticket_refunded_at.is_none());
+    assert!(refunded_ticket.fee_refunded_at.is_some());
+}
+
+#[test]
 fn find_and_find_by_ticket_instance_ids() {
     let project = TestProject::new();
     let connection = project.get_connection();

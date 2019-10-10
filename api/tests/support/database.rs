@@ -62,6 +62,14 @@ impl TestDatabase {
         EventBuilder::new(self.connection.get())
     }
 
+    pub fn create_domain_action(&self) -> DomainActionBuilder {
+        DomainActionBuilder::new(self.connection.get())
+    }
+
+    pub fn create_domain_event_publisher(&self) -> DomainEventPublisherBuilder {
+        DomainEventPublisherBuilder::new(self.connection.get())
+    }
+
     pub fn create_hold(&self) -> HoldBuilder {
         HoldBuilder::new(self.connection.get())
     }

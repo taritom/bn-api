@@ -98,7 +98,7 @@ pub struct NewOrganization {
     pub settlement_type: Option<SettlementTypes>,
 }
 
-#[derive(Default, Serialize, Clone, Deserialize, Debug)]
+#[derive(Default, Serialize, Clone, Deserialize, Debug, PartialEq)]
 pub struct TrackingKeys {
     pub google_ga_key: Option<String>,
     pub facebook_pixel_key: Option<String>,

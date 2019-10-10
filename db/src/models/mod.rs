@@ -148,6 +148,42 @@ where
     }
 }
 
+pub fn from_str_or_num_to_str<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: Value = Deserialize::deserialize(deserializer)?;
+
+    if value.is_string() {
+        Ok(Some(String::from(value.as_str().unwrap_or(""))))
+    } else if value.is_number() {
+        Ok(Some(String::from(
+            value.as_f64().unwrap_or(0f64).to_string(),
+        )))
+    } else {
+        Ok(None)
+    }
+}
+
+#[test]
+fn from_str_or_num_to_str_properly_deserializes() {
+    let event_data = r#"{"age_limit": ""}"#;
+    let event: EventEditableAttributes = serde_json::from_str(&event_data).unwrap();
+    assert_eq!(event.age_limit, Some("".to_string()));
+
+    let event_data = r#"{}"#;
+    let event: EventEditableAttributes = serde_json::from_str(&event_data).unwrap();
+    assert_eq!(event.age_limit, None);
+
+    let event_data = r#"{"age_limit": "1"}"#;
+    let event: EventEditableAttributes = serde_json::from_str(&event_data).unwrap();
+    assert_eq!(event.age_limit, Some("1".to_string()));
+
+    let event_data = r#"{"age_limit": 1}"#;
+    let event: EventEditableAttributes = serde_json::from_str(&event_data).unwrap();
+    assert_eq!(event.age_limit, Some("1".to_string()));
+}
+
 #[test]
 fn double_option_deserialize_unless_blank_properly_deserializes() {
     let event_data = r#"{"name": "Event"}"#;

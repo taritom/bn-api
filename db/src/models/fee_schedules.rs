@@ -8,7 +8,7 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(Queryable, Identifiable, Clone, Debug, Serialize)]
+#[derive(Queryable, Identifiable, Clone, Debug, PartialEq, Serialize)]
 pub struct FeeSchedule {
     pub id: Uuid,
     pub name: String,

@@ -1876,6 +1876,7 @@ fn get_global_scopes() {
             "org:admin-users",
             "org:fans",
             "org:financial-reports",
+            "org:modify-settlement-type",
             "org:read",
             "org:read-events",
             "org:reports",
