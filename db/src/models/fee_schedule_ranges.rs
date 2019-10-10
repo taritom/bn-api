@@ -11,7 +11,7 @@ pub struct FeeScheduleRange {
     #[allow(dead_code)]
     pub id: Uuid,
     #[allow(dead_code)]
-    fee_schedule_id: Uuid,
+    pub fee_schedule_id: Uuid,
     pub min_price_in_cents: i64,
     pub fee_in_cents: i64,
     pub created_at: NaiveDateTime,

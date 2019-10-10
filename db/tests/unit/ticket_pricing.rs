@@ -1,7 +1,9 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
-use bigneon_db::utils::errors::ErrorCode::ValidationError;
+use bigneon_db::utils::errors::{ErrorCode::ValidationError, *};
 use chrono::NaiveDate;
+use diesel;
+use diesel::RunQueryDsl;
 
 #[test]
 fn create() {
@@ -491,6 +493,7 @@ fn find() {
 #[test]
 fn get_current_ticket_pricing() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let organization = project.create_organization().with_fees().finish();
     let event = project
         .create_event()
@@ -501,15 +504,41 @@ fn get_current_ticket_pricing() {
     let ticket_types =
         TicketType::find_by_event_id(event.id, true, None, project.get_connection()).unwrap();
 
-    let ticket_pricing = TicketPricing::get_current_ticket_pricing(
-        ticket_types[0].id,
-        false,
-        false,
-        project.get_connection(),
-    )
-    .unwrap();
+    let ticket_pricing =
+        TicketPricing::get_current_ticket_pricing(ticket_types[0].id, false, false, connection)
+            .unwrap();
 
-    assert_eq!(ticket_pricing.name, "Standard".to_string())
+    assert_eq!(ticket_pricing.name, "Standard".to_string());
+
+    diesel::sql_query(
+        r#"
+        update ticket_pricing set status = 'Deleted';
+        "#,
+    )
+    .execute(connection)
+    .unwrap();
+    assert_eq!(
+        TicketPricing::get_current_ticket_pricing(ticket_types[0].id, false, false, connection,),
+        Err(DatabaseError::new(
+            ErrorCode::NoResults,
+            Some("No ticket pricing found".to_string()),
+        ))
+    );
+
+    diesel::sql_query(
+        r#"
+        update ticket_pricing set status = 'Published';
+        "#,
+    )
+    .execute(connection)
+    .unwrap();
+    assert_eq!(
+        TicketPricing::get_current_ticket_pricing(ticket_types[0].id, false, false, connection,),
+        Err(DatabaseError::new(
+            ErrorCode::MultipleResultsWhenOneExpected,
+            Some("Expected a single ticket pricing period but multiple were found".to_string()),
+        ))
+    );
 }
 
 #[test]

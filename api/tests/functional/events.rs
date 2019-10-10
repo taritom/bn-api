@@ -492,7 +492,7 @@ fn show_from_slug() {
         .with_venue(&venue)
         .finish();
     let _event_interest = EventInterest::create(event1.id, user.id).commit(conn);
-    let slug1 = "newevent1";
+    let slug1 = "newevent1-at-name-san-francisco";
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", slug1));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
@@ -523,7 +523,7 @@ fn show_from_slug() {
 
     //Now delete the event
     event1.delete(user.id, conn).unwrap();
-    let slug1 = "newevent1";
+    let slug1 = "newevent1-at-name-san-francisco";
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", slug1));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     path.id = slug1.to_string();

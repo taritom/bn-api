@@ -4,9 +4,10 @@ use diesel;
 use diesel::dsl::{exists, select};
 use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
-use diesel::pg::types::sql_types::Array;
+use diesel::pg::types::sql_types::{Array, Jsonb};
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_query;
+use diesel::sql_types::{BigInt, Bool, Nullable, Text, Timestamp, Uuid as dUuid};
 use models::*;
 use schema::{event_users, events, genres, organization_users, organizations, user_genres, users};
 use serde_json::Value;
@@ -378,64 +379,164 @@ impl User {
         activity_type: Option<ActivityType>,
         conn: &PgConnection,
     ) -> Result<Payload<ActivitySummary>, DatabaseError> {
-        use schema::*;
-
         let (start_time, end_time) = Event::dates_by_past_or_upcoming(None, None, past_or_upcoming);
-        let (events, event_count): (Vec<Event>, i64) = ticket_instances::table
-            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
-            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
-            .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
-            .left_join(
-                transfer_tickets::table
-                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
-            )
-            .left_join(transfers::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
-            .left_join(
-                refunded_tickets::table
-                    .on(ticket_instances::id.eq(refunded_tickets::ticket_instance_id)),
-            )
-            .left_join(
-                order_items::table.on(ticket_instances::order_item_id
-                    .eq(order_items::id.nullable())
-                    .or(refunded_tickets::order_item_id.eq(order_items::id))),
-            )
-            .left_join(
-                orders::table.on(order_items::order_id
-                    .eq(orders::id)
-                    .and(orders::status.eq(OrderStatus::Paid))),
-            )
-            .left_join(refunds::table.on(refunds::order_id.eq(orders::id)))
-            .left_join(
-                notes::table.on(notes::main_id
-                    .eq(orders::id)
-                    .and(notes::main_table.eq(Tables::Orders))),
-            )
-            .filter(
-                wallets::user_id
-                    .eq(self.id)
-                    .or(transfers::cancelled_by_user_id.eq(self.id))
-                    .or(transfers::source_user_id.eq(self.id))
-                    .or(transfers::destination_user_id.eq(self.id))
-                    .or(ticket_instances::redeemed_by_user_id.eq(self.id))
-                    .or(orders::on_behalf_of_user_id.eq(Some(self.id)))
-                    .or(orders::user_id.eq(self.id))
-                    .or(refunds::user_id.eq(self.id))
-                    .or(notes::created_by.eq(self.id)),
-            )
-            .filter(events::event_end.ge(start_time))
-            .filter(events::event_end.le(end_time))
-            .filter(events::organization_id.eq(organization.id))
-            .select(events::all_columns)
-            .distinct()
-            .order_by(sql::<()>(&format!("events.event_start {}", sort_direction)))
-            .paginate(page as i64)
-            .per_page(limit as i64)
-            .load_and_count_pages(conn)
+
+        #[derive(Queryable, QueryableByName)]
+        struct R {
+            #[sql_type = "dUuid"]
+            id: Uuid,
+            #[sql_type = "Text"]
+            name: String,
+            #[sql_type = "dUuid"]
+            organization_id: Uuid,
+            #[sql_type = "Nullable<dUuid>"]
+            venue_id: Option<Uuid>,
+            #[sql_type = "Timestamp"]
+            created_at: NaiveDateTime,
+            #[sql_type = "Nullable<Timestamp>"]
+            event_start: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Timestamp>"]
+            door_time: Option<NaiveDateTime>,
+            #[sql_type = "Text"]
+            status: EventStatus,
+            #[sql_type = "Nullable<Timestamp>"]
+            publish_date: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Timestamp>"]
+            redeem_date: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Text>"]
+            promo_image_url: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            additional_info: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            age_limit: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            top_line_info: Option<String>,
+            #[sql_type = "Nullable<Timestamp>"]
+            cancelled_at: Option<NaiveDateTime>,
+            #[sql_type = "Timestamp"]
+            updated_at: NaiveDateTime,
+            #[sql_type = "Nullable<Text>"]
+            video_url: Option<String>,
+            #[sql_type = "Bool"]
+            is_external: bool,
+            #[sql_type = "Nullable<Text>"]
+            external_url: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            override_status: Option<EventOverrideStatus>,
+            #[sql_type = "Nullable<BigInt>"]
+            client_fee_in_cents: Option<i64>,
+            #[sql_type = "Nullable<BigInt>"]
+            company_fee_in_cents: Option<i64>,
+            #[sql_type = "Nullable<BigInt>"]
+            settlement_amount_in_cents: Option<i64>,
+            #[sql_type = "Nullable<Timestamp>"]
+            event_end: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<BigInt>"]
+            sendgrid_list_id: Option<i64>,
+            #[sql_type = "Text"]
+            event_type: EventTypes,
+            #[sql_type = "Nullable<Text>"]
+            cover_image_url: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            private_access_code: Option<String>,
+            #[sql_type = "Text"]
+            slug: String,
+            #[sql_type = "Nullable<Text>"]
+            facebook_pixel_key: Option<String>,
+            #[sql_type = "Nullable<Timestamp>"]
+            deleted_at: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Jsonb>"]
+            extra_admin_data: Option<Value>,
+            #[sql_type = "BigInt"]
+            total: i64,
+        }
+
+        let mut query = sql_query(
+            r#"
+        SELECT DISTINCT
+            e.*, COUNT(*) OVER () as total
+        FROM users u
+        LEFT JOIN orders o ON COALESCE(o.on_behalf_of_user_id, o.user_id) = u.id
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        LEFT JOIN transfers t ON t.destination_user_id = u.id OR t.source_user_id = u.id
+        LEFT JOIN transfer_tickets tt ON tt.transfer_id = t.id
+        LEFT JOIN wallets w ON w.user_id = u.id
+        LEFT JOIN ticket_instances ti ON w.id = ti.wallet_id OR tt.ticket_instance_id = ti.id
+        LEFT JOIN assets a ON a.id = ti.asset_id
+        LEFT JOIN ticket_types tt2 ON tt2.id = a.ticket_type_id
+        JOIN events e ON oi.event_id = e.id OR tt2.event_id = e.id
+        WHERE (o.status = 'Paid' OR o.status is NULL)
+        "#,
+        )
+        .into_boxed();
+
+        let mut bind_no = 1;
+        query = query
+            .sql(format!(" AND u.id = ${} ", bind_no))
+            .bind::<dUuid, _>(self.id);
+
+        bind_no += 1;
+        query = query
+            .sql(format!(" AND e.organization_id = ${} ", bind_no))
+            .bind::<dUuid, _>(organization.id);
+
+        bind_no += 1;
+        query = query
+            .sql(format!(" AND e.event_end >= ${} ", bind_no))
+            .bind::<Timestamp, _>(start_time);
+
+        bind_no += 1;
+        query = query
+            .sql(format!(" AND e.event_end <= ${} ", bind_no))
+            .bind::<Timestamp, _>(end_time);
+
+        query = query.sql(format!(" ORDER BY e.event_end {}", sort_direction));
+
+        let results: Vec<R> = query
+            .sql(format!(" LIMIT ${} OFFSET ${} ", bind_no + 1, bind_no + 2))
+            .bind::<BigInt, _>(limit as i64)
+            .bind::<BigInt, _>(page as i64 * limit as i64)
+            .get_results(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not load events for organization fan",
+                "Unable to load purchase event data for organization fan",
             )?;
+
+        let total = results.get(0).map(|s| s.total).unwrap_or(0);
+        let events = results.into_iter().map(|event| Event {
+            id: event.id,
+            name: event.name,
+            organization_id: event.organization_id,
+            venue_id: event.venue_id,
+            created_at: event.created_at,
+            event_start: event.event_start,
+            door_time: event.door_time,
+            status: event.status,
+            publish_date: event.publish_date,
+            redeem_date: event.redeem_date,
+            promo_image_url: event.promo_image_url,
+            additional_info: event.additional_info,
+            age_limit: event.age_limit,
+            top_line_info: event.top_line_info,
+            cancelled_at: event.cancelled_at,
+            updated_at: event.updated_at,
+            video_url: event.video_url,
+            is_external: event.is_external,
+            external_url: event.external_url,
+            override_status: event.override_status,
+            client_fee_in_cents: event.client_fee_in_cents,
+            company_fee_in_cents: event.company_fee_in_cents,
+            settlement_amount_in_cents: event.settlement_amount_in_cents,
+            event_end: event.event_end,
+            sendgrid_list_id: event.sendgrid_list_id,
+            event_type: event.event_type,
+            cover_image_url: event.cover_image_url,
+            private_access_code: event.private_access_code,
+            slug: event.slug,
+            facebook_pixel_key: event.facebook_pixel_key,
+            deleted_at: event.deleted_at,
+            extra_admin_data: event.extra_admin_data,
+        });
 
         let mut result: Vec<ActivitySummary> = Vec::new();
         for event in events {
@@ -446,7 +547,7 @@ impl User {
         }
 
         let mut payload = Payload::new(result, Paging::new(page, limit));
-        payload.paging.total = event_count as u64;
+        payload.paging.total = total as u64;
         payload.paging.dir = sort_direction;
         Ok(payload)
     }

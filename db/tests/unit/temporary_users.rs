@@ -75,14 +75,16 @@ fn find_or_build_from_transfer() {
         .create_order()
         .for_user(&user)
         .for_event(&event)
-        .quantity(3)
+        .quantity(4)
         .is_paid()
         .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let ticket2 = &TicketInstance::find_for_user(user.id, connection).unwrap()[1];
     let ticket3 = &TicketInstance::find_for_user(user.id, connection).unwrap()[2];
+    let ticket4 = &TicketInstance::find_for_user(user.id, connection).unwrap()[3];
 
     let email = "test@tari.com".to_string();
+    let phone = "12345678901".to_string();
 
     let transfer = TicketInstance::create_transfer(
         user.id,
@@ -111,6 +113,15 @@ fn find_or_build_from_transfer() {
         connection,
     )
     .unwrap();
+    let transfer4 = TicketInstance::create_transfer(
+        user.id,
+        &[ticket4.id],
+        Some(&phone),
+        Some(TransferMessageType::Phone),
+        false,
+        connection,
+    )
+    .unwrap();
 
     let temporary_user = TemporaryUser::find_or_build_from_transfer(&transfer, connection)
         .unwrap()
@@ -127,6 +138,11 @@ fn find_or_build_from_transfer() {
         .unwrap();
     assert_eq!(Some(email.clone()), temporary_user3.email);
     assert_eq!(temporary_user, temporary_user3);
+
+    let temporary_user4 = TemporaryUser::find_or_build_from_transfer(&transfer4, connection)
+        .unwrap()
+        .unwrap();
+    assert_eq!(Some(phone.clone()), temporary_user4.phone);
 }
 
 #[test]

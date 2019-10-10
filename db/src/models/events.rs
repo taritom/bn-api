@@ -18,7 +18,6 @@ use schema::{
     organization_users, organizations, payments, ticket_instances, ticket_types, transfer_tickets,
     transfers, venues,
 };
-use serde::Deserializer;
 use serde_json::Value;
 use serde_with::rust::double_option;
 use services::*;
@@ -79,23 +78,6 @@ pub struct Event {
 impl PartialOrd for Event {
     fn partial_cmp(&self, other: &Event) -> Option<Ordering> {
         Some(self.id.cmp(&other.id))
-    }
-}
-
-pub fn from_str_or_num_to_str<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let value: Value = Deserialize::deserialize(deserializer)?;
-
-    if value.is_string() {
-        Ok(Some(String::from(value.as_str().unwrap_or(""))))
-    } else if value.is_number() {
-        Ok(Some(String::from(
-            value.as_f64().unwrap_or(0f64).to_string(),
-        )))
-    } else {
-        Ok(None)
     }
 }
 
@@ -189,7 +171,15 @@ impl NewEvent {
             ),
         )?;
         if new_event.slug.is_none() {
-            let slug = create_slug(&new_event.name);
+            let slug_name = match new_event.venue_id {
+                Some(venue_id) => {
+                    let venue = Venue::find(venue_id, conn)?;
+                    format!("{} at {} {}", &new_event.name, venue.name, venue.city)
+                }
+                None => new_event.name.clone(),
+            };
+
+            let slug = create_slug(&slug_name);
             new_event.slug = Some(slug.clone());
             loop {
                 let existing =

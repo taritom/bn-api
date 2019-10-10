@@ -7,6 +7,73 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 #[test]
+fn find_after_seq() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let initial_domain_event = DomainEvent::create(
+        DomainEventTypes::EventArtistAdded,
+        "First".to_string(),
+        Tables::EventArtists,
+        None,
+        None,
+        None,
+    )
+    .commit(connection)
+    .unwrap();
+    assert!(
+        DomainEvent::find_after_seq(initial_domain_event.seq, 2, connection)
+            .unwrap()
+            .is_empty()
+    );
+
+    let domain_event = DomainEvent::create(
+        DomainEventTypes::EventArtistAdded,
+        "First".to_string(),
+        Tables::EventArtists,
+        None,
+        None,
+        None,
+    )
+    .commit(connection)
+    .unwrap();
+    assert_eq!(
+        DomainEvent::find_after_seq(initial_domain_event.seq, 2, connection).unwrap(),
+        vec![domain_event.clone()]
+    );
+    assert!(DomainEvent::find_after_seq(domain_event.seq, 2, connection)
+        .unwrap()
+        .is_empty());
+
+    let domain_event2 = DomainEvent::create(
+        DomainEventTypes::EventArtistAdded,
+        "First".to_string(),
+        Tables::EventArtists,
+        None,
+        None,
+        None,
+    )
+    .commit(connection)
+    .unwrap();
+    assert_eq!(
+        DomainEvent::find_after_seq(initial_domain_event.seq, 2, connection).unwrap(),
+        vec![domain_event.clone(), domain_event2.clone()]
+    );
+    assert_eq!(
+        DomainEvent::find_after_seq(initial_domain_event.seq, 1, connection).unwrap(),
+        vec![domain_event.clone()]
+    );
+    assert_eq!(
+        DomainEvent::find_after_seq(domain_event.seq, 2, connection).unwrap(),
+        vec![domain_event2.clone()]
+    );
+    assert!(
+        DomainEvent::find_after_seq(domain_event2.seq, 2, connection)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn find_by_ids() {
     let project = TestProject::new();
     let connection = project.get_connection();

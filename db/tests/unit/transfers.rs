@@ -2,7 +2,7 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::DatabaseError;
-use bigneon_db::utils::errors::ErrorCode;
+use bigneon_db::utils::errors::ErrorCode::{self, *};
 use chrono::prelude::*;
 use chrono_tz::Tz;
 use diesel;
@@ -103,8 +103,19 @@ fn drip_header() {
             connection,
         )
         .unwrap();
+    let staging_drip_header = transfer
+        .drip_header(
+            &event,
+            SourceOrDestination::Source,
+            false,
+            Environment::Staging,
+            connection,
+        )
+        .unwrap();
     assert!(!drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
     assert!(drip_header.contains("test@tari.com"));
+    assert!(!staging_drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
+    assert!(staging_drip_header.contains("test@tari.com"));
     let drip_header = transfer
         .drip_header(
             &event,
@@ -698,8 +709,27 @@ fn update_associated_orders() {
     transfer2
         .add_transfer_ticket(ticket2.id, connection)
         .unwrap();
-    assert!(transfer2.update_associated_orders(connection).is_ok());
-    assert_eq!(vec![transfer2], order2.transfers(connection).unwrap());
+    assert!(transfer2
+        .clone()
+        .update_associated_orders(connection)
+        .is_ok());
+    assert_eq!(
+        vec![transfer2.clone()],
+        order2.transfers(connection).unwrap()
+    );
+
+    assert!(transfer2
+        .clone()
+        .complete(user2.id, None, connection)
+        .is_ok());
+    let transfer2 = Transfer::find(transfer2.id, connection).unwrap();
+    assert_eq!(
+        transfer2.update_associated_orders(connection),
+        Err(DatabaseError::new(
+            ErrorCode::UpdateError,
+            Some("Transfer cannot be updated as it is no longer pending".to_string()),
+        ))
+    );
 }
 
 #[test]
@@ -1458,7 +1488,6 @@ fn create_commit() {
         .unwrap()
         .remove(0);
     let transfer_key = Uuid::new_v4();
-
     let transfer = Transfer::create(user.id, transfer_key, None, None, false)
         .commit(connection)
         .unwrap();
@@ -1466,6 +1495,29 @@ fn create_commit() {
     assert_eq!(transfer.status, TransferStatus::Pending);
     assert_eq!(transfer.source_user_id, user.id);
     assert_eq!(transfer.transfer_key, transfer_key);
+
+    let result = Transfer::create(user.id, transfer_key, None, None, false).commit(connection);
+    match result {
+        Ok(_) => {
+            panic!("Expected error");
+        }
+        Err(error) => match &error.error_code {
+            ValidationError { errors } => {
+                assert!(errors.contains_key("transfer_key"));
+                assert_eq!(errors["transfer_key"].len(), 1);
+                assert_eq!(errors["transfer_key"][0].code, "uniqueness");
+                assert_eq!(
+                    &errors["transfer_key"][0]
+                        .message
+                        .clone()
+                        .unwrap()
+                        .into_owned(),
+                    "Transfer key is already in use"
+                );
+            }
+            _ => panic!("Expected validation error"),
+        },
+    }
 }
 
 #[test]

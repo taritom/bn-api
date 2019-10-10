@@ -55,7 +55,7 @@ pub fn create_auth_user_from_user(
     database: &TestDatabase,
 ) -> AuthUser {
     let test_request = TestRequest::create();
-    if [Roles::Admin, Roles::User].contains(&role) {
+    if [Roles::Super, Roles::Admin, Roles::User].contains(&role) {
         let user = user.add_role(role, database.connection.get()).unwrap();
         AuthUser::new(user, &test_request.request).unwrap()
     } else {

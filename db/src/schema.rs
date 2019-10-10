@@ -174,6 +174,17 @@ table! {
 }
 
 table! {
+    event_users (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        event_id -> Uuid,
+        role -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     events (id) {
         id -> Uuid,
         name -> Text,
@@ -207,17 +218,6 @@ table! {
         facebook_pixel_key -> Nullable<Text>,
         deleted_at -> Nullable<Timestamp>,
         extra_admin_data -> Nullable<Jsonb>,
-    }
-}
-
-table! {
-    event_users (id) {
-        id -> Uuid,
-        user_id -> Uuid,
-        event_id -> Uuid,
-        role -> Text,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -325,6 +325,16 @@ table! {
 }
 
 table! {
+    order_transfers (id) {
+        id -> Uuid,
+        order_id -> Uuid,
+        transfer_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     orders (id) {
         id -> Uuid,
         user_id -> Uuid,
@@ -351,16 +361,6 @@ table! {
         content -> Nullable<Text>,
         platform -> Nullable<Text>,
         settlement_id -> Nullable<Uuid>,
-    }
-}
-
-table! {
-    order_transfers (id) {
-        id -> Uuid,
-        order_id -> Uuid,
-        transfer_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -395,6 +395,17 @@ table! {
 }
 
 table! {
+    organization_users (id) {
+        id -> Uuid,
+        organization_id -> Uuid,
+        user_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        role -> Array<Text>,
+    }
+}
+
+table! {
     organizations (id) {
         id -> Uuid,
         name -> Text,
@@ -420,17 +431,6 @@ table! {
         max_instances_per_ticket_type -> Int8,
         max_additional_fee_in_cents -> Int8,
         settlement_type -> Text,
-    }
-}
-
-table! {
-    organization_users (id) {
-        id -> Uuid,
-        organization_id -> Uuid,
-        user_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-        role -> Array<Text>,
     }
 }
 
@@ -477,24 +477,24 @@ table! {
 }
 
 table! {
-    refunded_tickets (id) {
-        id -> Uuid,
-        order_item_id -> Uuid,
-        ticket_instance_id -> Uuid,
-        fee_refunded_at -> Nullable<Timestamp>,
-        ticket_refunded_at -> Nullable<Timestamp>,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     refund_items (id) {
         id -> Uuid,
         refund_id -> Uuid,
         order_item_id -> Uuid,
         quantity -> Int8,
         amount -> Int8,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    refunded_tickets (id) {
+        id -> Uuid,
+        order_item_id -> Uuid,
+        ticket_instance_id -> Uuid,
+        fee_refunded_at -> Nullable<Timestamp>,
+        ticket_refunded_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -664,6 +664,16 @@ table! {
 }
 
 table! {
+    transfer_tickets (id) {
+        id -> Uuid,
+        ticket_instance_id -> Uuid,
+        transfer_id -> Uuid,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
     transfers (id) {
         id -> Uuid,
         source_user_id -> Uuid,
@@ -677,16 +687,6 @@ table! {
         cancelled_by_user_id -> Nullable<Uuid>,
         direct -> Bool,
         destination_temporary_user_id -> Nullable<Uuid>,
-    }
-}
-
-table! {
-    transfer_tickets (id) {
-        id -> Uuid,
-        ticket_instance_id -> Uuid,
-        transfer_id -> Uuid,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -853,8 +853,8 @@ allow_tables_to_appear_in_same_query!(
     event_artists,
     event_genres,
     event_interest,
-    events,
     event_users,
+    events,
     external_logins,
     fee_schedule_ranges,
     fee_schedules,
@@ -862,17 +862,17 @@ allow_tables_to_appear_in_same_query!(
     holds,
     notes,
     order_items,
-    orders,
     order_transfers,
+    orders,
     organization_interactions,
     organization_invites,
-    organizations,
     organization_users,
+    organizations,
     payment_methods,
     payments,
     push_notification_tokens,
-    refunded_tickets,
     refund_items,
+    refunded_tickets,
     refunds,
     regions,
     settlement_adjustments,
@@ -885,8 +885,8 @@ allow_tables_to_appear_in_same_query!(
     ticket_pricing,
     ticket_type_codes,
     ticket_types,
-    transfers,
     transfer_tickets,
+    transfers,
     user_genres,
     users,
     venues,

@@ -611,27 +611,156 @@ fn find_for_event() {
 }
 
 #[test]
+fn upcoming_events() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let _past_event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_event_start(dates::now().add_minutes(-10).finish())
+        .finish();
+    let future_event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_event_start(dates::now().add_minutes(10).finish())
+        .finish();
+    let _other_organization_event = project.create_event().finish();
+    let _unpublished_event = project
+        .create_event()
+        .with_organization(&organization)
+        .with_status(EventStatus::Draft)
+        .finish();
+
+    assert_eq!(
+        organization.upcoming_events(connection).unwrap(),
+        vec![future_event]
+    );
+}
+
+#[test]
+fn tracking_keys_for_ids() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let encryption_key = "encryption_key".to_string();
+    let google_ga_key = "ga-key".to_string();
+    let facebook_pixel_key = "fb-key".to_string();
+    let org_update = OrganizationEditableAttributes {
+        google_ga_key: Some(Some(google_ga_key.clone())),
+        facebook_pixel_key: Some(Some(facebook_pixel_key.clone())),
+        ..Default::default()
+    };
+    organization
+        .update(org_update, &encryption_key, connection)
+        .unwrap();
+
+    let result =
+        Organization::tracking_keys_for_ids(vec![organization.id], &encryption_key, connection)
+            .unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(
+        *result.get(&organization.id).unwrap(),
+        TrackingKeys {
+            google_ga_key: Some(google_ga_key),
+            facebook_pixel_key: Some(facebook_pixel_key),
+        }
+    );
+}
+
+#[test]
+fn venues() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let organization2 = project.create_organization().finish();
+    let venue1 = project
+        .create_venue()
+        .with_name("Venue1".to_string())
+        .with_organization(&organization)
+        .finish();
+    let venue2 = project
+        .create_venue()
+        .with_name("Venue2".to_string())
+        .with_organization(&organization)
+        .finish();
+    let venue3 = project
+        .create_venue()
+        .with_name("Venue1".to_string())
+        .with_organization(&organization2)
+        .finish();
+    assert_eq!(
+        organization.venues(connection).unwrap(),
+        vec![venue1, venue2]
+    );
+    assert_eq!(organization2.venues(connection).unwrap(), vec![venue3]);
+}
+
+#[test]
+fn pending_invites() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let organization_invite = project
+        .create_organization_invite()
+        .with_email(&"Invite1@tari.com".to_string())
+        .with_org(&organization)
+        .with_invitee(&user)
+        .finish();
+    let mut organization_invite2 = project
+        .create_organization_invite()
+        .with_email(&"Invite2@tari.com".to_string())
+        .with_org(&organization)
+        .with_invitee(&user)
+        .finish();
+
+    let pending = organization.pending_invites(None, connection).unwrap();
+    assert_eq!(
+        pending,
+        vec![organization_invite.clone(), organization_invite2.clone()]
+    );
+    organization_invite2.accept_invite(connection).unwrap();
+
+    let pending = organization.pending_invites(None, connection).unwrap();
+    assert_eq!(pending, vec![organization_invite.clone()]);
+}
+
+#[test]
 fn users() {
     let project = TestProject::new();
     let user = project.create_user().with_last_name("User1").finish();
     let user2 = project.create_user().with_last_name("User2").finish();
     let user3 = project.create_user().with_last_name("User3").finish();
+    let user4 = project.create_user().with_last_name("User4").finish();
     let organization = project
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
+        .with_member(&user4, Roles::PromoterReadOnly)
         .finish();
     let organization2 = project
         .create_organization()
         .with_member(&user3, Roles::OrgOwner)
         .finish();
+    let event = project.create_event().finish();
+    let event2 = project.create_event().finish();
+    let event3 = project.create_event().finish();
+    EventUser::create(user4.id, event.id, Roles::PromoterReadOnly)
+        .commit(project.get_connection())
+        .unwrap();
+    EventUser::create(user4.id, event2.id, Roles::PromoterReadOnly)
+        .commit(project.get_connection())
+        .unwrap();
     OrganizationUser::create(organization2.id, user2.id, vec![Roles::OrgMember])
         .commit(project.get_connection())
         .unwrap();
 
     // Owner is included in the user results for organization2 but not organization2
     let user_results = organization.users(None, project.get_connection()).unwrap();
-    assert_eq!(user_results.len(), 1);
-    assert_eq!(user.id, user_results[0].1.id);
+    assert_eq!(
+        vec![user.id, user4.id],
+        user_results.iter().map(|u| u.1.id).collect::<Vec<Uuid>>()
+    );
 
     let user_results = organization2.users(None, project.get_connection()).unwrap();
     assert_eq!(
@@ -644,8 +773,10 @@ fn users() {
         .commit(project.get_connection())
         .unwrap();
     let user_results = organization.users(None, project.get_connection()).unwrap();
-    assert_eq!(user_results.len(), 1);
-    assert_eq!(user.id, user_results[0].1.id);
+    assert_eq!(
+        vec![user.id, user4.id],
+        user_results.iter().map(|u| u.1.id).collect::<Vec<Uuid>>()
+    );
     let user_results2 = organization2.users(None, project.get_connection()).unwrap();
     assert_eq!(user_results2.len(), 2);
     assert_eq!(user2.id, user_results2[0].1.id);
@@ -656,13 +787,34 @@ fn users() {
         .commit(project.get_connection())
         .unwrap();
     let user_results = organization.users(None, project.get_connection()).unwrap();
-    assert_eq!(user_results.len(), 2);
+    assert_eq!(user_results.len(), 3);
     assert_eq!(user.id, user_results[0].1.id);
     assert_eq!(user2.id, user_results[1].1.id);
+    assert_eq!(user4.id, user_results[2].1.id);
     let user_results2 = organization2.users(None, project.get_connection()).unwrap();
     assert_eq!(user_results2.len(), 2);
     assert_eq!(user2.id, user_results2[0].1.id);
     assert_eq!(user3.id, user_results2[1].1.id);
+
+    // Restricted to event1
+    let user_results = organization
+        .users(Some(event.id), project.get_connection())
+        .unwrap();
+    assert_eq!(user_results.len(), 1);
+    assert_eq!(user4.id, user_results[0].1.id);
+
+    // Restricted to event2
+    let user_results = organization
+        .users(Some(event2.id), project.get_connection())
+        .unwrap();
+    assert_eq!(user_results.len(), 1);
+    assert_eq!(user4.id, user_results[0].1.id);
+
+    // Restricted to event3
+    let user_results = organization
+        .users(Some(event3.id), project.get_connection())
+        .unwrap();
+    assert_eq!(user_results.len(), 0);
 }
 
 #[test]

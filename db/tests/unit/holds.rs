@@ -64,6 +64,12 @@ fn quantity_and_children_quantity() {
     let (quantity, available) = hold.quantity(connection).unwrap();
     assert_eq!(quantity, 8);
     assert_eq!(available, 7);
+
+    let display_hold = hold.clone().into_display(connection).unwrap();
+    assert_eq!(display_hold.quantity, quantity);
+    assert_eq!(display_hold.available, available);
+    assert_eq!(display_hold.id, hold.id);
+
     let (quantity, available) = hold.children_quantity(connection).unwrap();
     assert_eq!(quantity, 2);
     assert_eq!(available, 2);
@@ -234,11 +240,22 @@ fn update() {
         name: Some("New name".to_string()),
         ..Default::default()
     };
-    let new_hold = hold.update(update_patch, db.get_connection()).unwrap();
-    assert_eq!(new_hold.name, "New name".to_string());
-    assert_eq!(new_hold.max_per_user, None);
-    assert_eq!(new_hold.end_at, None);
-    assert_eq!(new_hold.discount_in_cents, Some(10));
+    let hold = hold.update(update_patch, db.get_connection()).unwrap();
+    assert_eq!(hold.name, "New name".to_string());
+    assert_eq!(hold.max_per_user, None);
+    assert_eq!(hold.end_at, None);
+    assert_eq!(hold.discount_in_cents, Some(10));
+
+    let db = TestProject::new();
+    let hold = db.create_hold().finish();
+    let update_patch = UpdateHoldAttributes {
+        discount_in_cents: Some(Some(10)),
+        hold_type: Some(HoldTypes::Comp),
+        ..Default::default()
+    };
+    let hold = hold.update(update_patch, db.get_connection()).unwrap();
+    assert_eq!(hold.discount_in_cents, None);
+    assert_eq!(hold.hold_type, HoldTypes::Comp);
 }
 
 #[test]
@@ -684,8 +701,12 @@ fn find_by_parent_hold_id() {
     let found_comp = Hold::find_by_parent_id(parent_id, None, 0, 1000, connection).unwrap();
     assert_eq!(comp, found_comp.data[0]);
 
+    let parent = Hold::find(parent_id, connection).unwrap();
+    assert_eq!(parent.comps(connection).unwrap(), vec![comp.clone()]);
+
     // Should be removed from results once destroyed
     comp.destroy(None, connection).unwrap();
     let found_comp = Hold::find_by_parent_id(parent_id, None, 0, 1000, connection).unwrap();
     assert_eq!(0, found_comp.data.len());
+    assert!(parent.comps(connection).unwrap().is_empty());
 }

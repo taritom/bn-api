@@ -187,9 +187,9 @@ pub fn update(
     let mut organization = Organization::find(parameters.id, conn)?;
     let organization_update = organization_parameters.into_inner();
 
-    if organization_update.max_instances_per_ticket_type.is_some()
-        || organization_update.settlement_type.is_some()
-    {
+    if organization_update.settlement_type.is_some() {
+        user.requires_scope_for_organization(Scopes::OrgModifySettlementType, &organization, conn)?;
+    } else if organization_update.max_instances_per_ticket_type.is_some() {
         user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, conn)?;
     } else {
         user.requires_scope_for_organization(Scopes::OrgWrite, &organization, conn)?;

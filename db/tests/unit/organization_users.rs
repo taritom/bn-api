@@ -2,6 +2,30 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::models::{OrganizationUser, Roles};
 
 #[test]
+fn find_users_by_organization() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let organization = project
+        .create_organization()
+        .with_member(&user, Roles::OrgOwner)
+        .finish();
+    let organization2 = project
+        .create_organization()
+        .with_member(&user2, Roles::OrgOwner)
+        .finish();
+    let result = OrganizationUser::find_users_by_organization(organization.id, connection).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].user_id, user.id);
+
+    let result =
+        OrganizationUser::find_users_by_organization(organization2.id, connection).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].user_id, user2.id);
+}
+
+#[test]
 fn create() {
     let project = TestProject::new();
     let user = project.create_user().finish();

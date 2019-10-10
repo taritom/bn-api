@@ -2,6 +2,28 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
 
 #[test]
+fn clear_all_from_event() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let artist = project.create_artist().finish();
+    let event = project.create_event().finish();
+    let rank = 1;
+    let importance = 0;
+
+    EventArtist::create(event.id, artist.id, rank, None, importance, None)
+        .commit(None, project.get_connection())
+        .unwrap();
+    assert!(!EventArtist::find_all_from_event(event.id, connection)
+        .unwrap()
+        .is_empty());
+
+    EventArtist::clear_all_from_event(event.id, connection).unwrap();
+    assert!(EventArtist::find_all_from_event(event.id, connection)
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
 fn create() {
     let project = TestProject::new();
     let artist = project.create_artist().finish();

@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 pub const FACEBOOK_SITE: &str = "facebook.com";
 
-#[derive(Identifiable, Associations, Queryable, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Clone, Identifiable, Associations, Queryable, Serialize, Deserialize, PartialEq, Debug)]
 #[belongs_to(User, foreign_key = "user_id")]
 #[table_name = "external_logins"]
 pub struct ExternalLogin {
@@ -53,9 +53,22 @@ impl NewExternalLogin {
             "Could not create new external login",
             res,
         )?;
-        DomainEvent::create(ExternalLoginCreated, "External login created".to_string(),
-            Tables::ExternalLogins, Some(res.id),current_user_id,
-                            Some(json!({"user_id": self.user_id, "site": &self.site, "external_user_id": &self.external_user_id, "scopes": &self.scopes}))).commit(conn)?;
+
+        DomainEvent::create(
+            ExternalLoginCreated,
+            "External login created".to_string(),
+            Tables::ExternalLogins,
+            Some(res.id),
+            current_user_id,
+            Some(json!({
+                "user_id": self.user_id,
+                "site": &self.site,
+                "external_user_id": &self.external_user_id,
+                "scopes": &self.scopes
+            })),
+        )
+        .commit(conn)?;
+
         Ok(res)
     }
 }
@@ -117,12 +130,16 @@ impl ExternalLogin {
     ) -> Result<(), DatabaseError> {
         let id = self.id;
         let data = json!({
-        "external_user_id": self.external_user_id.clone(), "site": self.site.clone(), "user_id": self.user_id.clone(), "scopes": self.scopes.clone()
+            "external_user_id": self.external_user_id.clone(),
+            "site": self.site.clone(),
+            "user_id": self.user_id.clone(),
+            "scopes": self.scopes.clone()
         });
         diesel::update(&self)
             .set((external_logins::deleted_at.eq(dsl::now)))
             .execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Could not delete external login")?;
+
         DomainEvent::create(
             ExternalLoginDeleted,
             "External login deleted".to_string(),

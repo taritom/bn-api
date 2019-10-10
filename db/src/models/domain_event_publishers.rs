@@ -55,6 +55,21 @@ impl DomainEventPublisher {
             )
     }
 
+    pub fn delete(self, conn: &PgConnection) -> Result<(), DatabaseError> {
+        diesel::update(&self)
+            .set((
+                domain_event_publishers::deleted_at.eq(dsl::now.nullable()),
+                domain_event_publishers::updated_at.eq(dsl::now),
+            ))
+            .execute(conn)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Could not delete domain event publisher",
+            )?;
+
+        Ok(())
+    }
+
     pub fn find_with_unpublished_domain_events(
         limit: i64,
         conn: &PgConnection,

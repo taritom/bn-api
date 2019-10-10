@@ -378,6 +378,10 @@ mod update_tests_with_settlement_type {
         organizations::update_restricted_field("settlement_type", Roles::OrgMember, false);
     }
     #[test]
+    fn update_super() {
+        organizations::update_restricted_field("settlement_type", Roles::Super, true);
+    }
+    #[test]
     fn update_admin() {
         organizations::update_restricted_field("settlement_type", Roles::Admin, true);
     }

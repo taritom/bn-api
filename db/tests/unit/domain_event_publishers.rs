@@ -8,6 +8,68 @@ use diesel::RunQueryDsl;
 use uuid::Uuid;
 
 #[test]
+fn find_all() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut domain_event_publisher = project.create_domain_event_publisher().finish();
+    domain_event_publisher
+        .update_last_domain_event_seq(1, connection)
+        .unwrap();
+    let domain_event_publisher =
+        DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
+    let mut domain_event_publisher2 = project.create_domain_event_publisher().finish();
+    domain_event_publisher2
+        .update_last_domain_event_seq(2, connection)
+        .unwrap();
+    let domain_event_publisher2 =
+        DomainEventPublisher::find(domain_event_publisher2.id, connection).unwrap();
+    assert_eq!(
+        DomainEventPublisher::find_all(connection).unwrap(),
+        vec![
+            domain_event_publisher.clone(),
+            domain_event_publisher2.clone()
+        ]
+    );
+
+    domain_event_publisher2.delete(connection).unwrap();
+    assert_eq!(
+        DomainEventPublisher::find_all(connection).unwrap(),
+        vec![domain_event_publisher]
+    );
+}
+
+#[test]
+fn update_last_domain_event_seq() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let mut domain_event_publisher = project.create_domain_event_publisher().finish();
+    domain_event_publisher
+        .update_last_domain_event_seq(1, connection)
+        .unwrap();
+    let mut domain_event_publisher =
+        DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
+    assert_eq!(domain_event_publisher.last_domain_event_seq, Some(1));
+
+    domain_event_publisher
+        .update_last_domain_event_seq(2, connection)
+        .unwrap();
+    let domain_event_publisher =
+        DomainEventPublisher::find(domain_event_publisher.id, connection).unwrap();
+    assert_eq!(domain_event_publisher.last_domain_event_seq, Some(2));
+}
+
+#[test]
+fn delete() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let domain_event_publisher = project.create_domain_event_publisher().finish();
+    assert_eq!(DomainEventPublisher::find_all(connection).unwrap().len(), 1);
+
+    domain_event_publisher.delete(connection).unwrap();
+    assert_eq!(DomainEventPublisher::find_all(connection).unwrap().len(), 0);
+}
+
+#[test]
 fn find_with_unpublished_domain_events() {
     let project = TestProject::new();
     let connection = project.get_connection();

@@ -2,6 +2,31 @@ use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
 
 #[test]
+fn for_display() {
+    let project = TestProject::new();
+    let user = project.create_user().finish();
+    let connection = project.get_connection();
+
+    let payment_method = PaymentMethod::create(
+        user.id,
+        PaymentProviders::Stripe,
+        true,
+        "cus_example".into(),
+        "abc".into(),
+    )
+    .commit(user.id, connection)
+    .unwrap();
+
+    assert_eq!(
+        payment_method.clone().for_display(),
+        Ok(DisplayPaymentMethod {
+            name: payment_method.name,
+            is_default: payment_method.is_default,
+        })
+    )
+}
+
+#[test]
 fn create() {
     let project = TestProject::new();
     let user = project.create_user().finish();
