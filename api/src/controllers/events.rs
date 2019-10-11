@@ -13,7 +13,7 @@ use errors::*;
 use extractors::*;
 use helpers::application;
 use models::{
-    EventShowResult, PathParameters, RedeemTicketPathParameters, ShortOrganization,
+    EventShowResult, PathParameters, RedeemTicketPathParameters, RequestInfo, ShortOrganization,
     UserDisplayTicketType, WebPayload,
 };
 use serde_json::Value;
@@ -227,12 +227,13 @@ pub struct StringPathParameters {
 }
 
 pub fn show(
-    (state, connection, parameters, query, user): (
+    (state, connection, parameters, query, user, request): (
         State<AppState>,
         ReadonlyConnection,
         Path<StringPathParameters>,
         Query<EventParameters>,
         OptionalUser,
+        RequestInfo,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
@@ -314,7 +315,37 @@ pub fn show(
     let mut display_ticket_types = Vec::new();
     let mut sales_start_date = Some(times::infinity());
     let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
+
+    let platform = if box_office_pricing {
+        Platforms::BoxOffice
+    } else {
+        // If we can't determine the platform, then serve it as web
+        if let Some(user_agent) = request.user_agent {
+            Platforms::from_user_agent(user_agent.as_str()).unwrap_or(Platforms::Web)
+        } else {
+            Platforms::Web
+        }
+    };
+
     for ticket_type in ticket_types {
+        match platform {
+            Platforms::App => {
+                if !ticket_type.app_sales_enabled {
+                    continue;
+                }
+            }
+            Platforms::Web => {
+                if !ticket_type.web_sales_enabled {
+                    continue;
+                }
+            }
+            Platforms::BoxOffice => {
+                if !ticket_type.box_office_sales_enabled {
+                    continue;
+                }
+            }
+        };
+
         if ticket_type.status != TicketTypeStatus::Cancelled {
             let display_ticket_type = UserDisplayTicketType::from_ticket_type(
                 &ticket_type,

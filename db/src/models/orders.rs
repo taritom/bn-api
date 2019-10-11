@@ -10,7 +10,6 @@ use diesel::{sql_query, sql_types};
 use itertools::Itertools;
 use log::Level::{self, Debug};
 use models::*;
-use regex::RegexSet;
 use schema::{
     event_users, events, order_items, order_transfers, orders, organization_users, organizations,
     payments, transfers, users,
@@ -541,18 +540,10 @@ impl Order {
 
         let mut platform: Option<String> = None;
         if user_agent.is_some() {
-            let agent = user_agent.as_ref().unwrap();
-
-            let set = RegexSet::new(&[r"okhttp", r"Big.*Neon", r"Mozilla"])?;
-
-            let matches = set.matches(agent).into_iter().collect_vec();
-
-            if matches.contains(&0) || matches.contains(&1) {
-                platform = Some("App".to_string());
-            }
-            if matches.contains(&2) {
-                platform = Some("Web".to_string());
-            }
+            platform =
+                Platforms::from_user_agent(user_agent.as_ref().map(|ua| ua.as_str()).unwrap())
+                    .map(|p| p.to_string())
+                    .ok();
         }
         if purchase_completed {
             self.purchase_user_agent = user_agent;

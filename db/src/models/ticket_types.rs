@@ -44,6 +44,9 @@ pub struct TicketType {
     pub additional_fee_in_cents: i64,
     pub deleted_at: Option<NaiveDateTime>,
     pub end_date_type: TicketTypeEndDateType,
+    pub web_sales_enabled: bool,
+    pub box_office_sales_enabled: bool,
+    pub app_sales_enabled: bool,
 }
 
 impl PartialOrd for TicketType {
@@ -71,6 +74,9 @@ pub struct TicketTypeEditableAttributes {
     #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
     pub end_date_type: Option<TicketTypeEndDateType>,
+    pub web_sales_enabled: Option<bool>,
+    pub box_office_sales_enabled: Option<bool>,
+    pub app_sales_enabled: Option<bool>,
     pub rank: Option<i32>,
 }
 

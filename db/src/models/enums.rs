@@ -187,6 +187,7 @@ string_enum! { PaymentMethods [CreditCard, External, Free, Provider] }
 string_enum! { PaymentProviders [External, Globee, Free, Stripe] }
 string_enum! { PaymentStatus [Authorized, Completed, Requested, Refunded, Unpaid, PendingConfirmation, Cancelled, Draft, Unknown, PendingIpn] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
+string_enum! { Platforms [Web, App, BoxOffice]}
 string_enum! { Roles [Super, Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, Promoter, PromoterReadOnly, User] }
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTypes [Rolling, PostEvent]}

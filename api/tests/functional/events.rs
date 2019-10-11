@@ -437,6 +437,9 @@ fn show() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -471,6 +474,9 @@ fn show_future_published_no_preview() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
@@ -514,6 +520,9 @@ fn show_from_slug() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -534,6 +543,9 @@ fn show_from_slug() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
@@ -569,6 +581,9 @@ fn show_from_slug() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -623,6 +638,9 @@ fn show_future_published_with_preview() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -658,6 +676,9 @@ fn show_deleted_event() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
@@ -728,6 +749,9 @@ fn show_private() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -758,6 +782,9 @@ fn show_private() {
         path,
         query_parameters,
         OptionalUser(Some(auth_org_user)),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -774,6 +801,9 @@ fn show_private() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user.clone())),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -792,6 +822,9 @@ fn show_private() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
 
@@ -864,6 +897,9 @@ fn show_with_cancelled_ticket_type() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -930,6 +966,9 @@ fn show_with_access_restricted_ticket_type_and_no_code() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -999,6 +1038,9 @@ fn show_with_access_restricted_ticket_type_and_access_code() {
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -1033,6 +1075,9 @@ fn show_with_visibility_always_before_sale() {
         path,
         request.query(),
         auth_user.into_optional(),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
 
@@ -1071,6 +1116,9 @@ fn show_with_visibility_always_before_sale_pricing() {
         path,
         request.query(),
         auth_user.into_optional(),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
 
@@ -1110,6 +1158,9 @@ fn show_with_visibility_always_after_sale() {
         path,
         request.query(),
         auth_user.into_optional(),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
 
@@ -1146,6 +1197,9 @@ fn show_with_hidden_ticket_type() {
         path,
         request.query(),
         auth_user.into_optional(),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
 

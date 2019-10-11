@@ -2,7 +2,7 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::*;
 use bigneon_api::extractors::*;
-use bigneon_api::models::{PathParameters, UserDisplayTicketType};
+use bigneon_api::models::{PathParameters, RequestInfo, UserDisplayTicketType};
 use bigneon_db::dev::times;
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -101,6 +101,9 @@ pub fn show_box_office_pricing(role: Roles, should_test_succeed: bool) {
         path,
         query_parameters,
         OptionalUser(Some(auth_user)),
+        RequestInfo {
+            user_agent: Some("test".to_string()),
+        },
     ))
     .into();
 

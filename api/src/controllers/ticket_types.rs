@@ -102,6 +102,12 @@ pub struct UpdateTicketTypeRequest {
     pub parent_id: Option<Option<Uuid>>,
     #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
+    #[serde(default)]
+    pub web_sales_enabled: Option<bool>,
+    #[serde(default)]
+    pub box_office_sales_enabled: Option<bool>,
+    #[serde(default)]
+    pub app_sales_enabled: Option<bool>,
     pub rank: Option<i32>,
 }
 
@@ -344,12 +350,15 @@ pub fn update(
         start_date: data.start_date,
         end_date: data.end_date,
         end_date_type: data.end_date_type,
+        web_sales_enabled: data.web_sales_enabled,
+        box_office_sales_enabled: data.box_office_sales_enabled,
         increment: data.increment,
         limit_per_person: data.limit_per_person,
         price_in_cents: data.price_in_cents,
         visibility: data.visibility,
         parent_id: data.parent_id,
         additional_fee_in_cents: data.additional_fee_in_cents,
+        app_sales_enabled: data.app_sales_enabled,
         rank: data.rank,
     };
     let updated_ticket_type = ticket_type.update(update_parameters, Some(user.id()), connection)?;
