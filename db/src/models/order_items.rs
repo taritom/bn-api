@@ -3,10 +3,12 @@ use diesel;
 use diesel::dsl::{self, select};
 use diesel::prelude::*;
 use diesel::sql_types::{Array, BigInt, Nullable, Text, Uuid as dUuid};
+use itertools::Itertools;
 use models::*;
 use schema::{codes, order_items, ticket_instances, ticket_types};
 use std::borrow::Cow;
 use std::cmp;
+use std::collections::HashMap;
 use utils::errors::*;
 use uuid::Uuid;
 use validator::*;
@@ -466,12 +468,42 @@ impl OrderItem {
     }
 
     pub(crate) fn find_for_display(
-        order_id: Uuid,
+        order_ids: Vec<Uuid>,
         organization_ids: Option<Vec<Uuid>>,
         user_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<Vec<DisplayOrderItem>, DatabaseError> {
-        diesel::sql_query(
+    ) -> Result<HashMap<Uuid, Vec<DisplayOrderItem>>, DatabaseError> {
+        #[derive(Queryable, QueryableByName)]
+        struct R {
+            #[sql_type = "dUuid"]
+            id: Uuid,
+            #[sql_type = "Nullable<dUuid>"]
+            parent_id: Option<Uuid>,
+            #[sql_type = "Nullable<dUuid>"]
+            ticket_type_id: Option<Uuid>,
+            #[sql_type = "Nullable<dUuid>"]
+            ticket_pricing_id: Option<Uuid>,
+            #[sql_type = "BigInt"]
+            quantity: i64,
+            #[sql_type = "BigInt"]
+            refunded_quantity: i64,
+            #[sql_type = "BigInt"]
+            unit_price_in_cents: i64,
+            #[sql_type = "Text"]
+            item_type: OrderItemTypes,
+            #[sql_type = "Text"]
+            description: String,
+            #[sql_type = "Nullable<Text>"]
+            redemption_code: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            cart_item_status: Option<CartItemStatus>,
+            #[sql_type = "dUuid"]
+            event_id: Uuid,
+            #[sql_type = "dUuid"]
+            order_id: Uuid,
+        }
+
+        let results: Vec<R> = diesel::sql_query(
             r#"
         SELECT
            oi.id,
@@ -500,7 +532,8 @@ impl OrderItem {
              WHEN h.id IS NOT NULL AND h.end_at < now() THEN 'HoldExpired'
              ELSE 'Valid'
            END AS cart_item_status,
-           e.id AS event_id
+           e.id AS event_id,
+           oi.order_id
         FROM order_items oi
            JOIN orders o ON oi.order_id = o.id
            LEFT JOIN ticket_pricing tp ON tp.id = oi.ticket_pricing_id
@@ -524,10 +557,10 @@ impl OrderItem {
                SELECT count(ti.id) as count, oi.id
                FROM order_items oi
                LEFT JOIN ticket_instances ti ON oi.id = ti.order_item_id
-               WHERE oi.order_id = $1
+               WHERE oi.order_id = ANY($1)
                GROUP BY oi.id
            ) oit on oit.id = oi.id
-        WHERE oi.order_id = $1
+        WHERE oi.order_id = ANY($1)
         -- Filter by organization id if list provided otherwise do not filter
         AND (
             e.id is NULL
@@ -536,19 +569,44 @@ impl OrderItem {
         )
         AND (
             'Admin' = ANY(u.role)
+            OR 'Super' = ANY(u.role)
             OR o.user_id = $3
             OR o.on_behalf_of_user_id = $3
             OR (NOT 'Promoter' = ANY(ou.role))
             OR ep.id is not null
         )
-        ORDER BY oi.item_type DESC
+        ORDER BY oi.order_id, tt.name, oi.item_type DESC
         "#,
         )
-        .bind::<dUuid, _>(order_id)
+        .bind::<Array<dUuid>, _>(order_ids)
         .bind::<Nullable<Array<dUuid>>, _>(organization_ids)
         .bind::<dUuid, _>(user_id)
         .load(conn)
-        .to_db_error(ErrorCode::QueryError, "Could not load order items")
+        .to_db_error(ErrorCode::QueryError, "Could not load order items")?;
+
+        let mut order_items: HashMap<Uuid, Vec<DisplayOrderItem>> = HashMap::new();
+        for (order_id, items) in &results.into_iter().group_by(|oi| oi.order_id) {
+            let mut display_items = Vec::new();
+            for item in items {
+                display_items.push(DisplayOrderItem {
+                    id: item.id,
+                    parent_id: item.parent_id,
+                    ticket_type_id: item.ticket_type_id,
+                    ticket_pricing_id: item.ticket_pricing_id,
+                    quantity: item.quantity,
+                    refunded_quantity: item.refunded_quantity,
+                    unit_price_in_cents: item.unit_price_in_cents,
+                    item_type: item.item_type,
+                    description: item.description,
+                    redemption_code: item.redemption_code,
+                    cart_item_status: item.cart_item_status,
+                    event_id: item.event_id,
+                });
+            }
+            order_items.insert(order_id, display_items);
+        }
+
+        Ok(order_items)
     }
 
     pub fn find_for_order(
@@ -564,7 +622,10 @@ impl OrderItem {
             .then_order_by(order_items::item_type.asc())
             .select(order_items::all_columns)
             .load(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load order items")
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not find order items for order",
+            )
     }
 
     pub fn find(order_item_id: Uuid, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {

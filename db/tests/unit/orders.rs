@@ -1064,7 +1064,10 @@ fn items_for_display() {
     )
     .unwrap();
     let items = cart.items(&connection).unwrap();
-    let display_items = cart.items_for_display(None, user.id, connection).unwrap();
+    let display_items = Order::items_for_display(vec![cart.id], None, user.id, connection)
+        .unwrap()
+        .remove(&cart.id)
+        .unwrap();
     assert_eq!(4, display_items.len());
     assert!(display_items.iter().find(|i| i.id == items[0].id).is_some());
     assert!(display_items.iter().find(|i| i.id == items[1].id).is_some());
@@ -4622,6 +4625,12 @@ fn for_display() {
         .unwrap();
     let display_order = order.for_display(None, order.user_id, connection).unwrap();
     assert_eq!(Some(0), display_order.seconds_until_expiry);
+
+    // Draft order won't expire until items added
+    let user = project.create_user().finish();
+    let order = Order::find_or_create_cart(&user, connection).unwrap();
+    let display_order = order.for_display(None, user.id, connection).unwrap();
+    assert_eq!(None, display_order.seconds_until_expiry);
 }
 
 #[test]

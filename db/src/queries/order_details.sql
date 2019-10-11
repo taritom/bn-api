@@ -101,6 +101,7 @@ FROM (
                  o.user_id = $3
                  OR o.on_behalf_of_user_id = $3
                  OR 'Admin' = ANY (u.role)
+                 OR 'Super' = ANY (u.role)
                  OR (
                          NOT ('Promoter' = ANY (ou.role))
                          OR ep.id IS NOT NULL

@@ -921,7 +921,7 @@ impl User {
     }
 
     pub fn is_admin(&self) -> bool {
-        self.has_role(Roles::Admin)
+        self.has_role(Roles::Admin) || self.has_role(Roles::Super)
     }
 
     pub fn get_global_scopes(&self) -> Vec<Scopes> {
