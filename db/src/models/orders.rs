@@ -2100,6 +2100,10 @@ impl Order {
         current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
+        if external_payment {
+            self.set_external_payment_type(ExternalPaymentType::Voucher, current_user_id, conn)?;
+        }
+
         let payment = Payment::create(
             self.id,
             Some(current_user_id),

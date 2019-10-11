@@ -4518,9 +4518,7 @@ fn add_free_payment() {
     assert_eq!(0, order.calculate_total(connection).unwrap());
     assert_eq!(order.status, OrderStatus::Draft);
     assert!(order.payments(connection).unwrap().is_empty());
-    order
-        .add_free_payment(false, user.id, project.get_connection())
-        .unwrap();
+    order.add_free_payment(false, user.id, connection).unwrap();
     assert_eq!(order.status, OrderStatus::Paid);
 
     let payments = order.payments(connection).unwrap();
@@ -4528,6 +4526,8 @@ fn add_free_payment() {
     let payment = &payments[0];
     assert_eq!(payment.payment_method, PaymentMethods::Free);
     assert_eq!(payment.provider, PaymentProviders::Free);
+    order = Order::find(order.id, connection).unwrap();
+    assert_eq!(order.external_payment_type, None);
 
     // External free order
     let mut order = project
@@ -4539,9 +4539,7 @@ fn add_free_payment() {
     assert_eq!(0, order.calculate_total(connection).unwrap());
     assert_eq!(order.status, OrderStatus::Draft);
     assert!(order.payments(connection).unwrap().is_empty());
-    order
-        .add_free_payment(true, user.id, project.get_connection())
-        .unwrap();
+    order.add_free_payment(true, user.id, connection).unwrap();
     assert_eq!(order.status, OrderStatus::Paid);
 
     let payments = order.payments(connection).unwrap();
@@ -4549,6 +4547,11 @@ fn add_free_payment() {
     let payment = &payments[0];
     assert_eq!(payment.payment_method, PaymentMethods::Free);
     assert_eq!(payment.provider, PaymentProviders::External);
+    order = Order::find(order.id, connection).unwrap();
+    assert_eq!(
+        order.external_payment_type,
+        Some(ExternalPaymentType::Voucher)
+    );
 }
 
 #[test]
