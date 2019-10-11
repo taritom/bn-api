@@ -2723,6 +2723,7 @@ fn details() {
         .create_event()
         .with_organization(&organization)
         .with_tickets()
+        .with_a_specific_number_of_tickets(2)
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
@@ -2816,10 +2817,10 @@ fn details() {
             total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
-            attendee_email: user.email.clone(),
-            attendee_id: Some(user.id),
-            attendee_first_name: user.first_name.clone(),
-            attendee_last_name: user.last_name.clone(),
+            attendee_email: None,
+            attendee_id: None,
+            attendee_first_name: None,
+            attendee_last_name: None,
             ticket_type_id: Some(ticket_type.id),
             ticket_type_name: Some(ticket_type.name.clone()),
             code: None,
@@ -2900,10 +2901,10 @@ fn details() {
             total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
-            attendee_email: user.email.clone(),
-            attendee_id: Some(user.id),
-            attendee_first_name: user.first_name.clone(),
-            attendee_last_name: user.last_name.clone(),
+            attendee_email: None,
+            attendee_id: None,
+            attendee_first_name: None,
+            attendee_last_name: None,
             ticket_type_id: Some(ticket_type.id),
             ticket_type_name: Some(ticket_type.name.clone()),
             code: None,
@@ -2920,10 +2921,10 @@ fn details() {
             total_price_in_cents: 170,
             status: "Refunded".to_string(),
             refundable: false,
-            attendee_email: user.email.clone(),
-            attendee_id: Some(user.id),
-            attendee_first_name: user.first_name.clone(),
-            attendee_last_name: user.last_name.clone(),
+            attendee_email: None,
+            attendee_id: None,
+            attendee_first_name: None,
+            attendee_last_name: None,
             ticket_type_id: Some(ticket_type.id),
             ticket_type_name: Some(ticket_type.name.clone()),
             code: None,
@@ -2981,6 +2982,325 @@ fn details() {
         .details(&vec![organization.id], user2.id, connection)
         .unwrap();
     assert_eq!(expected_order_details, order_details);
+
+    // Order details for box office purchase
+    let user3 = project.create_user().finish();
+    let box_office_order = project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user2)
+        .on_behalf_of_user(&user3)
+        .is_paid()
+        .finish();
+    let items = box_office_order.items(connection).unwrap();
+    let order_item = OrderItem::find(
+        items
+            .iter()
+            .find(|i| i.ticket_type_id == Some(ticket_type.id))
+            .unwrap()
+            .id,
+        connection,
+    )
+    .unwrap();
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let ticket = &tickets[0];
+    let expected_order_details = vec![OrderDetailsLineItem {
+        ticket_instance_id: Some(ticket.id),
+        order_item_id: order_item.id,
+        description: format!("{} - {}", event.name, ticket_type.name),
+        ticket_price_in_cents: 150,
+        fees_price_in_cents: 0,
+        total_price_in_cents: 150,
+        status: "Purchased".to_string(),
+        refundable: true,
+        attendee_email: user3.email.clone(),
+        attendee_id: Some(user3.id),
+        attendee_first_name: user3.first_name.clone(),
+        attendee_last_name: user3.last_name.clone(),
+        ticket_type_id: Some(ticket_type.id),
+        ticket_type_name: Some(ticket_type.name.clone()),
+        code: None,
+        code_type: None,
+        pending_transfer_id: None,
+        discount_price_in_cents: None,
+    }];
+
+    let order_details = box_office_order
+        .details(&vec![organization.id], user2.id, connection)
+        .unwrap();
+    assert_eq!(expected_order_details, order_details);
+
+    // Test behavior around reused ticket instances
+    // Only one ticket remaining
+    assert_eq!(
+        ticket_type
+            .valid_available_ticket_count(connection)
+            .unwrap(),
+        1
+    );
+    let mut new_order = project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    let items = new_order.items(connection).unwrap();
+    let order_item = OrderItem::find(
+        items
+            .iter()
+            .find(|i| i.ticket_type_id == Some(ticket_type.id))
+            .unwrap()
+            .id,
+        connection,
+    )
+    .unwrap();
+    let event_fee_item = items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::EventFees)
+        .unwrap();
+    let ticket = &TicketInstance::find_for_order_item(order_item.id, connection).unwrap()[0];
+    let expected_order_details = vec![
+        OrderDetailsLineItem {
+            ticket_instance_id: Some(ticket.id),
+            order_item_id: order_item.id,
+            description: format!("{} - {}", event.name, ticket_type.name),
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
+            status: "Purchased".to_string(),
+            refundable: true,
+            attendee_email: user.email.clone(),
+            attendee_id: Some(user.id),
+            attendee_first_name: user.first_name.clone(),
+            attendee_last_name: user.last_name.clone(),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_type_name: Some(ticket_type.name.clone()),
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+        OrderDetailsLineItem {
+            ticket_instance_id: None,
+            order_item_id: event_fee_item.id,
+            description: format!("Event Fees - {}", event.name),
+            ticket_price_in_cents: 0,
+            fees_price_in_cents: 250,
+            total_price_in_cents: 250,
+            status: "Purchased".to_string(),
+            refundable: true,
+            attendee_email: None,
+            attendee_id: None,
+            attendee_first_name: None,
+            attendee_last_name: None,
+            ticket_type_id: None,
+            ticket_type_name: None,
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+    ];
+    let order_details = new_order
+        .details(&vec![organization.id], user.id, connection)
+        .unwrap();
+    assert_eq!(expected_order_details, order_details);
+
+    // Refund order and create a new order
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    new_order
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
+
+    let new_order2 = project
+        .create_order()
+        .quantity(1)
+        .for_event(&event)
+        .for_user(&user2)
+        .is_paid()
+        .finish();
+    let items = new_order2.items(connection).unwrap();
+    let order_item2 = OrderItem::find(
+        items
+            .iter()
+            .find(|i| i.ticket_type_id == Some(ticket_type.id))
+            .unwrap()
+            .id,
+        connection,
+    )
+    .unwrap();
+    let event_fee_item2 = items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::EventFees)
+        .unwrap();
+    let ticket2 = &TicketInstance::find_for_order_item(order_item2.id, connection).unwrap()[0];
+    assert_eq!(ticket.id, ticket2.id);
+
+    // Old order's details show refunded
+    let expected_order_details = vec![
+        OrderDetailsLineItem {
+            ticket_instance_id: Some(ticket.id),
+            order_item_id: order_item.id,
+            description: format!("{} - {}", event.name, ticket_type.name),
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
+            status: "Refunded".to_string(),
+            refundable: false,
+            attendee_email: None,
+            attendee_id: None,
+            attendee_first_name: None,
+            attendee_last_name: None,
+            ticket_type_id: Some(ticket_type.id),
+            ticket_type_name: Some(ticket_type.name.clone()),
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+        OrderDetailsLineItem {
+            ticket_instance_id: None,
+            order_item_id: event_fee_item.id,
+            description: format!("Event Fees - {}", event.name),
+            ticket_price_in_cents: 0,
+            fees_price_in_cents: 250,
+            total_price_in_cents: 250,
+            status: "Purchased".to_string(),
+            refundable: true,
+            attendee_email: None,
+            attendee_id: None,
+            attendee_first_name: None,
+            attendee_last_name: None,
+            ticket_type_id: None,
+            ticket_type_name: None,
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+    ];
+    let order_details = new_order
+        .details(&vec![organization.id], user.id, connection)
+        .unwrap();
+    assert_eq!(expected_order_details, order_details);
+
+    // New order's details show purchased
+    let expected_order_details2 = vec![
+        OrderDetailsLineItem {
+            ticket_instance_id: Some(ticket2.id),
+            order_item_id: order_item2.id,
+            description: format!("{} - {}", event.name, ticket_type.name),
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
+            status: "Purchased".to_string(),
+            refundable: true,
+            attendee_email: user2.email.clone(),
+            attendee_id: Some(user2.id),
+            attendee_first_name: user2.first_name.clone(),
+            attendee_last_name: user2.last_name.clone(),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_type_name: Some(ticket_type.name.clone()),
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+        OrderDetailsLineItem {
+            ticket_instance_id: None,
+            order_item_id: event_fee_item2.id,
+            description: format!("Event Fees - {}", event.name),
+            ticket_price_in_cents: 0,
+            fees_price_in_cents: 250,
+            total_price_in_cents: 250,
+            status: "Purchased".to_string(),
+            refundable: true,
+            attendee_email: None,
+            attendee_id: None,
+            attendee_first_name: None,
+            attendee_last_name: None,
+            ticket_type_id: None,
+            ticket_type_name: None,
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+    ];
+    let order_details = new_order2
+        .details(&vec![organization.id], user2.id, connection)
+        .unwrap();
+    assert_eq!(expected_order_details2, order_details);
+
+    // Transfer new_order2's ticket to user3
+    TicketInstance::direct_transfer(
+        user2.id,
+        &vec![ticket2.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user3.id,
+        connection,
+    )
+    .unwrap();
+
+    // First order's details unchanged by transfer of second order's ticket
+    let order_details = new_order
+        .details(&vec![organization.id], user.id, connection)
+        .unwrap();
+    assert_eq!(expected_order_details, order_details);
+
+    // Second order shows transferred for status as a result of ticket transfer
+    let expected_order_details2 = vec![
+        OrderDetailsLineItem {
+            ticket_instance_id: Some(ticket2.id),
+            order_item_id: order_item2.id,
+            description: format!("{} - {}", event.name, ticket_type.name),
+            ticket_price_in_cents: 150,
+            fees_price_in_cents: 20,
+            total_price_in_cents: 170,
+            status: "Transferred".to_string(),
+            refundable: false,
+            attendee_email: user3.email.clone(),
+            attendee_id: Some(user3.id),
+            attendee_first_name: user3.first_name.clone(),
+            attendee_last_name: user3.last_name.clone(),
+            ticket_type_id: Some(ticket_type.id),
+            ticket_type_name: Some(ticket_type.name.clone()),
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+        OrderDetailsLineItem {
+            ticket_instance_id: None,
+            order_item_id: event_fee_item2.id,
+            description: format!("Event Fees - {}", event.name),
+            ticket_price_in_cents: 0,
+            fees_price_in_cents: 250,
+            total_price_in_cents: 250,
+            status: "Purchased".to_string(),
+            refundable: true,
+            attendee_email: None,
+            attendee_id: None,
+            attendee_first_name: None,
+            attendee_last_name: None,
+            ticket_type_id: None,
+            ticket_type_name: None,
+            code: None,
+            code_type: None,
+            pending_transfer_id: None,
+            discount_price_in_cents: None,
+        },
+    ];
+    let order_details = new_order2
+        .details(&vec![organization.id], user2.id, connection)
+        .unwrap();
+    assert_eq!(expected_order_details2, order_details);
 }
 
 #[test]
