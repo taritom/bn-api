@@ -3,6 +3,7 @@ use actix_web::{HttpResponse, State};
 use auth::user::User as AuthUser;
 use auth::TokenResponse;
 use bigneon_db::prelude::*;
+use bigneon_db::validators::{append_validation_error, create_validation_error};
 use db::Connection;
 use errors::*;
 use extractors::*;
@@ -16,6 +17,7 @@ use reqwest;
 use serde_json;
 use server::AppState;
 use uuid::Uuid;
+use validator::ValidationErrors;
 
 const FACEBOOK_GRAPH_URL: &str = "https://graph.facebook.com";
 #[derive(Deserialize)]
@@ -318,10 +320,42 @@ pub fn create_event(
             .access_token,
     );
 
+    let mut validation_errors: Result<(), ValidationErrors> = Ok(());
+
+    if event.additional_info.is_none() || event.additional_info == Some("".to_string()) {
+        validation_errors = append_validation_error(
+            validation_errors,
+            "additional_info",
+            Err(create_validation_error(
+                "additional_info",
+                "Event must have additional info to use as a description on Facebook",
+            )),
+        );
+    }
+
+    if event.promo_image_url.is_none() {
+        validation_errors = append_validation_error(
+            validation_errors,
+            "promo_image_url",
+            Err(create_validation_error(
+                "promo_image_url",
+                "Event must have a cover image to use as an image on Facebook",
+            )),
+        );
+    }
+
+    let _result = match validation_errors {
+        Ok(_) => (),
+        Err(e) => {
+            let res: DatabaseError = e.into();
+            return Err(res.into());
+        }
+    };
+
     let fb_event = FBEvent::new(
         data.category.parse()?,
         event.name.clone(),
-        event.additional_info.clone().unwrap_or("".to_string()),
+        event.additional_info.clone().unwrap(),
         FBID(data.page_id.clone()),
         event
             .venue(conn)?
@@ -332,7 +366,7 @@ pub fn create_event(
             })?
             .timezone,
         event
-            .cover_image_url
+            .promo_image_url
             .as_ref()
             .map(|u| CoverPhoto::new(u.to_string())),
         event
@@ -347,7 +381,8 @@ pub fn create_event(
     let _fb_id = client.official_events.create(fb_event)?;
 
     // Save fb_id onto event
-    unimplemented!();
+    // unimplemented!();
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[derive(Deserialize)]
