@@ -347,7 +347,8 @@ impl TicketType {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         if attributes.end_date_type.unwrap_or(self.end_date_type) == TicketTypeEndDateType::Manual
-            && (attributes.end_date == Some(None) || self.end_date.is_none())
+            && (attributes.end_date == Some(None)
+                || (attributes.end_date.is_none() && self.end_date.is_none()))
         {
             return Ok(validators::append_validation_error(
                 Ok(()),
