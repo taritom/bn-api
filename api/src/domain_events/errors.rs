@@ -10,7 +10,7 @@ use std::io;
 #[derive(Debug)]
 pub enum DomainActionError {
     Simple(String),
-    CausedBy(Box<error::Error + Send>),
+    CausedBy(Box<dyn error::Error + Send>),
 }
 
 impl Error for DomainActionError {

@@ -7,7 +7,7 @@ use tokio::prelude::*;
 pub fn send_webhook_async(
     tokens: &[String],
     body: &str,
-) -> Box<Future<Item = (), Error = BigNeonError>> {
+) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
     match send_webhook(tokens, body) {
         Ok(_) => Box::new(future::ok(())),
         Err(e) => Box::new(future::err(e)),

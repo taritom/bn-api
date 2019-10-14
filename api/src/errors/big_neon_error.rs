@@ -20,7 +20,7 @@ use tari_client::TariError;
 use uuid::ParseError as UuidParseError;
 
 #[derive(Debug)]
-pub struct BigNeonError(Box<ConvertToWebError + Send + Sync>);
+pub struct BigNeonError(Box<dyn ConvertToWebError + Send + Sync>);
 
 macro_rules! error_conversion {
     ($e: ty) => {
@@ -71,11 +71,11 @@ impl ResponseError for BigNeonError {
 }
 
 impl BigNeonError {
-    pub fn new(inner: Box<ConvertToWebError + Send + Sync>) -> BigNeonError {
+    pub fn new(inner: Box<dyn ConvertToWebError + Send + Sync>) -> BigNeonError {
         BigNeonError(inner)
     }
 
-    pub fn into_inner(&self) -> &ConvertToWebError {
+    pub fn into_inner(&self) -> &dyn ConvertToWebError {
         self.0.as_ref()
     }
 }

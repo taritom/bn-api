@@ -136,7 +136,7 @@ impl ExternalLogin {
             "scopes": self.scopes.clone()
         });
         diesel::update(&self)
-            .set((external_logins::deleted_at.eq(dsl::now)))
+            .set(external_logins::deleted_at.eq(dsl::now))
             .execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Could not delete external login")?;
 

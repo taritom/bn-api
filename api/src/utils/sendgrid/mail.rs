@@ -49,7 +49,7 @@ pub fn send_email_async(
     body: Option<String>,
     categories: Option<Vec<String>>,
     unique_args: Option<HashMap<String, String>>,
-) -> Box<Future<Item = (), Error = BigNeonError>> {
+) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
     let mut sg_message = SGMailMessage::new();
     sg_message.subject = Some(title);
     sg_message.from = SGEmail::from(source_email_address);
@@ -118,7 +118,7 @@ pub fn send_email_template_async(
     template_data: &[TemplateData],
     categories: Option<Vec<String>>,
     unique_args: Option<HashMap<String, String>>,
-) -> Box<Future<Item = (), Error = BigNeonError>> {
+) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
     Box::new(if dest_email_addresses.len() != template_data.len() {
         Either::A(future::err(
             ApplicationError::new(

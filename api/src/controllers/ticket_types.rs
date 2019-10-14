@@ -428,7 +428,6 @@ pub fn update(
                 )?;
             } else {
                 //TODO send error when all data was not specified
-
             }
         }
         updated_ticket_type.validate_ticket_pricing(connection)?;

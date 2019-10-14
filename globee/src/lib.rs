@@ -526,5 +526,4 @@ pub mod test {
         let errors = response.errors.unwrap();
         assert_eq!(errors.len(), 4);
     }
-
 }

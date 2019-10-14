@@ -150,7 +150,17 @@ pub fn update(
     }
 
     let genres = artist_parameters.genres.clone();
-    let updated_artist = artist.update(&artist_parameters.into(), connection)?;
+    let main_genre = artist_parameters.main_genre.clone();
+    let mut attr: ArtistEditableAttributes = artist_parameters.into();
+    attr.main_genre_id = match main_genre {
+        Some(g) => match g {
+            Some(g) => Some(Genre::find_or_create(&vec![g], connection)?.pop()),
+            None => Some(None),
+        },
+        None => None,
+    };
+
+    let updated_artist = artist.update(&attr, connection)?;
 
     if let Some(genres) = genres {
         artist.set_genres(&genres, Some(user.id()), connection)?;

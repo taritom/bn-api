@@ -152,7 +152,8 @@ impl DomainActionMonitor {
         database: &Database,
         router: &'a DomainActionRouter,
         limit: usize,
-    ) -> Result<Vec<(&'a DomainActionExecutor, DomainAction, Connection)>, DomainActionError> {
+    ) -> Result<Vec<(&'a dyn DomainActionExecutor, DomainAction, Connection)>, DomainActionError>
+    {
         let connection = database.get_connection()?;
 
         let pending_actions = DomainAction::find_pending(None, connection.get())?;

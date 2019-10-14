@@ -11,7 +11,7 @@ pub fn send_sms_async(
     from: String,
     to: Vec<String>,
     body: &str,
-) -> Box<Future<Item = (), Error = BigNeonError>> {
+) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
     let client = twilio::Client::new(account_id, api_key);
     for t in to.iter() {
         let message = OutboundMessage::new(&from, t, body);

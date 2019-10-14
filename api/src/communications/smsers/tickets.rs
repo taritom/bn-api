@@ -38,7 +38,7 @@ pub fn transfer_drip_reminder(
     event: &Event,
     config: &Config,
     conn: &PgConnection,
-    deep_linker: &DeepLinker,
+    deep_linker: &dyn DeepLinker,
 ) -> Result<(), BigNeonError> {
     let receive_tickets_link = transfer.receive_url(config.front_end_url.clone(), conn)?;
     let shortened_link = deep_linker.create_deep_link(&receive_tickets_link)?;
@@ -77,7 +77,7 @@ pub fn send_tickets(
     transfer: &Transfer,
     from_user: &User,
     conn: &PgConnection,
-    deep_linker: &DeepLinker,
+    deep_linker: &dyn DeepLinker,
 ) -> Result<(), BigNeonError> {
     let receive_tickets_link = transfer.receive_url(config.front_end_url.clone(), conn)?;
     let shortened_link = deep_linker.create_deep_link(&receive_tickets_link)?;

@@ -13,7 +13,7 @@ pub trait DomainActionExecutor {
 }
 
 pub struct DomainActionRouter {
-    routes: HashMap<DomainActionTypes, Box<DomainActionExecutor>>,
+    routes: HashMap<DomainActionTypes, Box<dyn DomainActionExecutor>>,
 }
 impl DomainActionRouter {
     pub fn new() -> DomainActionRouter {
@@ -25,7 +25,7 @@ impl DomainActionRouter {
     pub fn add_executor(
         &mut self,
         action_type: DomainActionTypes,
-        executor: Box<DomainActionExecutor>,
+        executor: Box<dyn DomainActionExecutor>,
     ) -> Result<(), DomainActionError> {
         match self.routes.insert(action_type, executor) {
             Some(_) => Err(DomainActionError::Simple(
@@ -48,7 +48,7 @@ impl DomainActionRouter {
         // This method is not necessary, but creates a compile time error
         // by using the `match` to identify DomainActionTypes that have not been catered for.
         // If you disagree with this approach or find a better way, feel free to unroll it.
-        let find_executor = |action_type| -> Box<DomainActionExecutor> {
+        let find_executor = |action_type| -> Box<dyn DomainActionExecutor> {
             let conf = conf.clone();
             match action_type {
                 Communication => Box::new(SendCommunicationExecutor::new(conf)),
