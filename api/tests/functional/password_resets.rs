@@ -174,5 +174,5 @@ fn update_incorrect_token() {
     assert!(user.password_reset_requested_at.is_some());
     assert!(!user.check_password(&new_password));
 
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }

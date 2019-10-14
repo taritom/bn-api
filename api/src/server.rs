@@ -5,6 +5,7 @@ use bigneon_db::utils::errors::DatabaseError;
 use config::Config;
 use db::*;
 use domain_events::DomainActionMonitor;
+use log::Level::Debug;
 use middleware::{AppVersionHeader, BigNeonLogger, DatabaseTransaction, Metatags};
 use routing;
 use std::io;
@@ -47,6 +48,7 @@ impl Server {
         process_http: bool,
         process_actions_til_empty: bool,
     ) {
+        jlog!(Debug, "bigneon_api::server", "Server start requested", {"process_actions": process_actions, "process_events": process_events, "process_http":process_http, "process_actions_til_empty": process_actions_til_empty});
         let bind_addr = format!("{}:{}", config.api_host, config.api_port);
 
         let database = Database::from_config(&config);
@@ -59,7 +61,7 @@ impl Server {
             return;
         }
 
-        if process_actions {
+        if process_actions || process_events {
             domain_action_monitor.start(process_actions, process_events)
         }
 
@@ -126,7 +128,7 @@ impl Server {
             let _ = io::stdin().read_line(&mut input);
         }
 
-        if process_actions {
+        if process_actions || process_events {
             domain_action_monitor.stop()
         }
     }

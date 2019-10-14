@@ -72,24 +72,39 @@ impl DomainActionMonitor {
         config: &Config,
         database: &Database,
     ) -> Result<usize, DomainActionError> {
-        let connection = database.get_connection()?;
-        let connection = connection.get();
+        let conn = database.get_connection()?;
+
+        let connection = conn.get();
 
         let mut domain_event_publishers = DomainEventPublisher::find_all(connection)?;
 
         if domain_event_publishers.len() == 0 {
+            jlog!(
+                Debug,
+                "bigneon::domain_events",
+                "No event publishers found",
+                {}
+            );
             return Ok(0);
         };
+        jlog!(
+            Debug,
+            "bigneon::domain_events",
+            "Event publishers found",
+            {"num_publishers": domain_event_publishers.len()}
+        );
         let mut events_published = 0;
         let domain_events = DomainEvent::find_after_seq(
             domain_event_publishers[0]
                 .last_domain_event_seq
                 .unwrap_or(-1),
-            100,
+            500,
             connection,
         )?;
-        jlog!(Info, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
+        jlog!(Debug, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
         for event in domain_events {
+            conn.begin_transaction()?;
+            //            jlog!(Debug, "bigneon::domain_events", "Checking event for publishers", { "event_type": &event.event_type, "organization_id": event.organization_id});
             // Process
             for publisher in domain_event_publishers
                 .iter_mut()
@@ -99,12 +114,13 @@ impl DomainActionMonitor {
                     && (publisher.organization_id.is_none()
                         || publisher.organization_id == event.organization_id)
                 {
+                    jlog!(Debug, "bigneon::domain_events", "Publishing event", {"publisher_id": publisher.id, "event_type": &event.event_type, "organization_id": event.organization_id});
                     publisher.publish(&event, &config.front_end_url, connection)?;
                 }
-
                 publisher.update_last_domain_event_seq(event.seq, connection)?;
             }
             events_published += 1;
+            conn.commit_transaction()?;
         }
 
         Ok(events_published)
@@ -302,7 +318,7 @@ impl DomainActionMonitor {
                         Err(e) => jlog!(
                             Error,
                             "bigneon::domain_actions",
-                            "Domain action monitor failed", {"error": e.description()}
+                            "Domain action monitor failed", {"error": e.to_string()}
                         ),
                     };
                     Ok(())
@@ -310,6 +326,12 @@ impl DomainActionMonitor {
             ));
         }
         if run_events {
+            jlog!(
+                Info,
+                "bigneon::domain_actions",
+                "Domain event publisher starting",
+                {}
+            );
             let database = self.database.clone();
             let interval = self.interval;
 
@@ -320,7 +342,18 @@ impl DomainActionMonitor {
             self.worker_threads.push((
                 tx,
                 thread::spawn(move || {
-                    DomainActionMonitor::publish_events_to_actions(config, database, interval, rx)
+                    match DomainActionMonitor::publish_events_to_actions(
+                        config, database, interval, rx,
+                    ) {
+                        Ok(_) => (),
+                        Err(e) => jlog!(
+                            Error,
+                            "bigneon::domain_actions",
+                            "Domain event publisher failed", {"error": e.to_string()}
+                        ), // Should we panic?
+                    };
+
+                    Ok(())
                 }),
             ));
         }

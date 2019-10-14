@@ -121,6 +121,8 @@ table! {
         updated_at -> Timestamp,
         last_domain_event_seq -> Nullable<Int8>,
         deleted_at -> Nullable<Timestamp>,
+        adapter -> Nullable<Varchar>,
+        adapter_config -> Nullable<Jsonb>,
     }
 }
 

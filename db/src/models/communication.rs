@@ -3,6 +3,7 @@ use itertools::Itertools;
 use models::*;
 use std::collections::HashMap;
 use utils::errors::*;
+use uuid::Uuid;
 
 pub type TemplateData = HashMap<String, String>;
 
@@ -58,6 +59,8 @@ pub struct Communication {
     pub template_data: Option<Vec<TemplateData>>,
     pub categories: Option<Vec<String>>,
     pub extra_data: Option<HashMap<String, String>>,
+    pub main_table: Option<Tables>,
+    pub main_table_id: Option<Uuid>,
 }
 
 impl Communication {
@@ -82,6 +85,8 @@ impl Communication {
             template_data,
             categories: categories.map(|c| c.into_iter().map(|c1| c1.into()).collect_vec()),
             extra_data,
+            main_table_id: None,
+            main_table: None,
         }
     }
 
@@ -96,9 +101,9 @@ impl Communication {
                 CommunicationType::Push => Some(CommunicationChannelType::Push),
                 CommunicationType::Webhook => Some(CommunicationChannelType::Webhook),
             },
-            json!(self),
-            None,
-            None,
+            json!(&self),
+            self.main_table,
+            self.main_table_id,
         )
         .commit(connection)?;
         Ok(())

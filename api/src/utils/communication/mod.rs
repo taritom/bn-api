@@ -1,6 +1,7 @@
 use bigneon_db::models::enums::*;
 use bigneon_db::models::*;
 use config::Config;
+use diesel::PgConnection;
 use errors::*;
 use futures::future::Either;
 use futures::Future;
@@ -14,6 +15,7 @@ use utils::webhook;
 pub fn send_async(
     domain_action: &DomainAction,
     config: &Config,
+    conn: &PgConnection,
 ) -> impl Future<Item = (), Error = BigNeonError> {
     let communication: Communication = match serde_json::from_value(domain_action.payload.clone()) {
         Ok(v) => v,
@@ -67,6 +69,9 @@ pub fn send_async(
                         CommunicationType::Webhook => webhook::send_webhook_async(
                             &destination_addresses,
                             &communication.body.unwrap_or(communication.title),
+                            domain_action.main_table_id,
+                            conn,
+                            &config,
                         ),
                     };
                     Either::B(future)

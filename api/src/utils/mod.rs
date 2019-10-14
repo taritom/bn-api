@@ -9,3 +9,4 @@ mod service_locator;
 pub mod spotify;
 pub mod twilio;
 pub mod webhook;
+mod webhook_adapters;

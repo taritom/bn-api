@@ -195,7 +195,7 @@ string_enum! { SettlementAdjustmentTypes [ManualCredit, ManualDeduction, Chargeb
 string_enum! { SettlementEntryTypes [EventFees, TicketType]}
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { SourceOrDestination [Destination,Source]}
-string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, ExternalLogins, FeeSchedules, Holds, Orders, Organizations,
+string_enum! { Tables [Artists, Broadcasts, Codes, DomainEventPublishers, Events, EventArtists, ExternalLogins, FeeSchedules, Holds, Orders, Organizations,
 Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
@@ -204,6 +204,7 @@ string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, OnSaleSoon
 string_enum! { TicketTypeVisibility [ Always, Hidden, WhenAvailable ]}
 string_enum! { TransferMessageType [Email, Phone] }
 string_enum! { TransferStatus [Pending, Cancelled, Completed] }
+string_enum! { WebhookAdapters [CustomerIo]}
 
 impl Roles {
     pub fn get_event_limited_roles() -> Vec<Roles> {

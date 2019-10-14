@@ -40,36 +40,32 @@ impl PasswordResetable for User {
     ) -> Result<User, DatabaseError> {
         use schema::users::dsl::*;
 
-        let result = User::find_by_password_reset_token(token, conn);
-        match result {
-            Ok(user) => {
-                if user.has_valid_password_reset_token() {
-                    let hash = PasswordHash::generate(password, None);
-                    let now = Utc::now().naive_utc();
+        let user = User::find_by_password_reset_token(token, conn)?;
 
-                    DatabaseError::wrap(
-                        ErrorCode::UpdateError,
-                        "Could not save new password for user",
-                        diesel::update(users.filter(id.eq(user.id)))
-                            .set((
-                                hashed_pw.eq(&hash.to_string()),
-                                password_modified_at.eq(now),
-                                updated_at.eq(dsl::now),
-                                PasswordReset {
-                                    password_reset_token: None,
-                                    password_reset_requested_at: None,
-                                },
-                            ))
-                            .get_result(conn),
-                    )
-                } else {
-                    Err(DatabaseError::new(
-                        ErrorCode::InternalError,
-                        Some("Password reset token is expired".to_string()),
+        if user.has_valid_password_reset_token() {
+            let hash = PasswordHash::generate(password, None);
+            let now = Utc::now().naive_utc();
+
+            DatabaseError::wrap(
+                ErrorCode::UpdateError,
+                "Could not save new password for user",
+                diesel::update(users.filter(id.eq(user.id)))
+                    .set((
+                        hashed_pw.eq(&hash.to_string()),
+                        password_modified_at.eq(now),
+                        updated_at.eq(dsl::now),
+                        PasswordReset {
+                            password_reset_token: None,
+                            password_reset_requested_at: None,
+                        },
                     ))
-                }
-            }
-            Err(e) => Err(e),
+                    .get_result(conn),
+            )
+        } else {
+            Err(DatabaseError::new(
+                ErrorCode::InternalError,
+                Some("Password reset token is expired".to_string()),
+            ))
         }
     }
 
