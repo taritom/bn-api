@@ -21,7 +21,7 @@ fn create_next_settlement_processing_domain_action() {
         .is_none());
 
     organization
-        .create_next_settlement_processing_domain_action(connection)
+        .create_next_settlement_processing_domain_action(None, connection)
         .unwrap();
     let domain_action = organization
         .upcoming_settlement_domain_action(connection)
@@ -29,7 +29,7 @@ fn create_next_settlement_processing_domain_action() {
         .unwrap();
     assert_eq!(
         domain_action.scheduled_at,
-        organization.next_settlement_date().unwrap()
+        organization.next_settlement_date(None).unwrap()
     );
     assert_eq!(domain_action.status, DomainActionStatus::Pending);
     assert_eq!(domain_action.main_table, Some(Tables::Organizations));
@@ -78,6 +78,7 @@ fn timezone() {
                 timezone: Some("Africa/Johannesburg".to_string()),
                 ..Default::default()
             },
+            None,
             &"encryption_key".to_string(),
             connection,
         )
@@ -91,6 +92,7 @@ fn timezone() {
                 timezone: Some("America/Los_Angeles".to_string()),
                 ..Default::default()
             },
+            None,
             &"encryption_key".to_string(),
             connection,
         )
@@ -146,7 +148,7 @@ fn create() {
     organization.sendgrid_api_key = Some("A_Test_Key".to_string());
 
     let mut organization = organization
-        .commit(&"encryption_key".to_string(), None, connection)
+        .commit(None, &"encryption_key".to_string(), None, connection)
         .unwrap();
     assert_eq!(organization.id.to_string().is_empty(), false);
 
@@ -210,7 +212,10 @@ fn next_settlement_date() {
         .naive_utc();
 
     // Default behavior no timezone, upcoming Monday 12:00 AM PT
-    assert_eq!(organization.next_settlement_date().unwrap(), expected_pt);
+    assert_eq!(
+        organization.next_settlement_date(None).unwrap(),
+        expected_pt
+    );
 
     // Override organization timezone to SA
     let organization = organization
@@ -219,11 +224,15 @@ fn next_settlement_date() {
                 timezone: Some("Africa/Johannesburg".to_string()),
                 ..Default::default()
             },
+            None,
             &"encryption_key".to_string(),
             connection,
         )
         .unwrap();
-    assert_eq!(organization.next_settlement_date().unwrap(), expected_sa);
+    assert_eq!(
+        organization.next_settlement_date(None).unwrap(),
+        expected_sa
+    );
 
     // Override organization timezone to PT
     let organization = organization
@@ -232,11 +241,37 @@ fn next_settlement_date() {
                 timezone: Some("America/Los_Angeles".to_string()),
                 ..Default::default()
             },
+            None,
             &"encryption_key".to_string(),
             connection,
         )
         .unwrap();
-    assert_eq!(organization.next_settlement_date().unwrap(), expected_pt);
+    assert_eq!(
+        organization.next_settlement_date(None).unwrap(),
+        expected_pt
+    );
+
+    // Using a passed in settlement period
+    let tomorrow = now.naive_utc() + Duration::days(1);
+    let expected_pt = pt_timezone
+        .ymd(tomorrow.year(), tomorrow.month(), tomorrow.day())
+        .and_hms(0, 0, 0)
+        .naive_utc();
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                timezone: Some("America/Los_Angeles".to_string()),
+                ..Default::default()
+            },
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        organization.next_settlement_date(Some(1)).unwrap(),
+        expected_pt
+    );
 }
 
 #[test]
@@ -277,7 +312,9 @@ fn schedule_domain_actions() {
     assert_eq!(1, domain_actions.len());
 
     // No change since action exists
-    organization.schedule_domain_actions(connection).unwrap();
+    organization
+        .schedule_domain_actions(None, connection)
+        .unwrap();
     let domain_actions = &DomainAction::find_by_resource(
         Tables::Organizations,
         organization.id,
@@ -301,7 +338,9 @@ fn schedule_domain_actions() {
     assert_eq!(0, domain_actions.len());
 
     // Added back as it was no longer there (the job creates the next domain action normally)
-    organization.schedule_domain_actions(connection).unwrap();
+    organization
+        .schedule_domain_actions(None, connection)
+        .unwrap();
     let domain_actions = &DomainAction::find_by_resource(
         Tables::Organizations,
         organization.id,
@@ -538,7 +577,12 @@ fn update() {
     changed_attrs.phone = Some("+27123456789".to_string());
     changed_attrs.sendgrid_api_key = Some(Some("A_Test_Key".to_string()));
     let mut updated_organization = edited_organization
-        .update(changed_attrs, &"encryption_key".to_string(), connection)
+        .update(
+            changed_attrs,
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
         .unwrap();
 
     updated_organization
@@ -558,7 +602,12 @@ fn update() {
     let mut changed_attrs: OrganizationEditableAttributes = Default::default();
     changed_attrs.timezone = Some("America/Los_Angeles".to_string());
     let updated_organization = updated_organization
-        .update(changed_attrs, &"encryption_key".to_string(), connection)
+        .update(
+            changed_attrs,
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
         .unwrap();
     assert_eq!(
         updated_organization.timezone,
@@ -652,7 +701,7 @@ fn tracking_keys_for_ids() {
         ..Default::default()
     };
     organization
-        .update(org_update, &encryption_key, connection)
+        .update(org_update, None, &encryption_key, connection)
         .unwrap();
 
     let result =
@@ -2320,7 +2369,7 @@ fn credit_card_fees() {
     };
 
     organization
-        .update(org_update, &"encryption_key".to_string(), connection)
+        .update(org_update, None, &"encryption_key".to_string(), connection)
         .unwrap();
 
     cart.update_quantities(

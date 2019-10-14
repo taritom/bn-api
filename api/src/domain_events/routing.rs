@@ -60,7 +60,7 @@ impl DomainActionRouter {
                     Box::new(SendOrderCompleteExecutor::new(conf))
                 }
                 UpdateGenres => Box::new(UpdateGenresExecutor::new()),
-                ProcessSettlementReport => Box::new(ProcessSettlementReportExecutor::new()),
+                ProcessSettlementReport => Box::new(ProcessSettlementReportExecutor::new(conf)),
                 ProcessTransferDrip => Box::new(ProcessTransferDripEventExecutor::new(conf)),
                 //
                 // DO NOT add

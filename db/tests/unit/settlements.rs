@@ -65,7 +65,7 @@ fn process_settlement_for_organization() {
     assert_eq!(0, domain_events.len());
 
     let settlement =
-        Settlement::process_settlement_for_organization(&organization, connection).unwrap();
+        Settlement::process_settlement_for_organization(&organization, None, connection).unwrap();
     let domain_events = DomainEvent::find(
         Tables::Organizations,
         Some(organization.id),
@@ -77,7 +77,7 @@ fn process_settlement_for_organization() {
     assert_eq!(settlement.organization_id, organization.id);
 
     let end_time =
-        organization.next_settlement_date().unwrap() - Duration::days(7) - Duration::seconds(1);
+        organization.next_settlement_date(None).unwrap() - Duration::days(7) - Duration::seconds(1);
     assert_eq!(
         settlement.start_time,
         end_time - Duration::days(7) + Duration::seconds(1)
@@ -102,13 +102,13 @@ fn process_settlement_for_organization() {
     .unwrap();
 
     let settlement =
-        Settlement::process_settlement_for_organization(&organization, connection).unwrap();
+        Settlement::process_settlement_for_organization(&organization, None, connection).unwrap();
     assert_eq!(
         settlement.start_time.timestamp(),
         (old_end_time + Duration::seconds(1)).timestamp()
     );
     let end_time =
-        organization.next_settlement_date().unwrap() - Duration::days(7) - Duration::seconds(1);
+        organization.next_settlement_date(None).unwrap() - Duration::days(7) - Duration::seconds(1);
     assert_eq!(settlement.end_time.timestamp(), end_time.timestamp());
 }
 

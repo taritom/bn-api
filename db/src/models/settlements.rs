@@ -13,6 +13,8 @@ use uuid::Uuid;
 
 sql_function!(fn process_settlement_for_event(settlement_id: dUuid, event_id: dUuid, start_time: Nullable<Timestamp>, end_time: Nullable<Timestamp>));
 
+pub const DEFAULT_SETTLEMENT_PERIOD_IN_DAYS: i64 = 7;
+
 #[derive(Associations, Debug, Identifiable, PartialEq, Queryable, Serialize, Deserialize, Clone)]
 #[table_name = "settlements"]
 pub struct Settlement {
@@ -94,17 +96,29 @@ impl Settlement {
 
     pub fn process_settlement_for_organization(
         organization: &Organization,
+        settlement_period_in_days: Option<u32>,
         conn: &PgConnection,
     ) -> Result<Settlement, DatabaseError> {
         let last_processed_settlement =
             Settlement::find_last_settlement_for_organization(organization, conn)?;
 
-        let end_time =
-            organization.next_settlement_date()? - Duration::days(7) - Duration::seconds(1);
+        let end_time = organization.next_settlement_date(settlement_period_in_days)?
+            - Duration::days(
+                settlement_period_in_days
+                    .map(|p| p as i64)
+                    .unwrap_or(DEFAULT_SETTLEMENT_PERIOD_IN_DAYS),
+            )
+            - Duration::seconds(1);
         let start_time = if let Some(settlement) = last_processed_settlement {
             settlement.end_time + Duration::seconds(1)
         } else {
-            end_time - Duration::days(7) + Duration::seconds(1)
+            end_time
+                - Duration::days(
+                    settlement_period_in_days
+                        .map(|p| p as i64)
+                        .unwrap_or(DEFAULT_SETTLEMENT_PERIOD_IN_DAYS),
+                )
+                + Duration::seconds(1)
         };
 
         let settlement = Settlement::create(

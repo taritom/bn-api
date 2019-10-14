@@ -1,4 +1,5 @@
 use bigneon_db::prelude::*;
+use config::Config;
 use db::Connection;
 use domain_events::executor_future::ExecutorFuture;
 use domain_events::routing::DomainActionExecutor;
@@ -6,7 +7,9 @@ use errors::*;
 use futures::future;
 use log::Level::Error;
 
-pub struct ProcessSettlementReportExecutor {}
+pub struct ProcessSettlementReportExecutor {
+    config: Config,
+}
 
 impl DomainActionExecutor for ProcessSettlementReportExecutor {
     fn execute(&self, action: DomainAction, conn: Connection) -> ExecutorFuture {
@@ -21,8 +24,8 @@ impl DomainActionExecutor for ProcessSettlementReportExecutor {
 }
 
 impl ProcessSettlementReportExecutor {
-    pub fn new() -> ProcessSettlementReportExecutor {
-        ProcessSettlementReportExecutor {}
+    pub fn new(config: Config) -> ProcessSettlementReportExecutor {
+        ProcessSettlementReportExecutor { config }
     }
 
     pub fn perform_job(
@@ -41,9 +44,16 @@ impl ProcessSettlementReportExecutor {
             Tables::Organizations => {
                 let organization = Organization::find(id, conn)?;
                 if organization.can_process_settlements(conn)? {
-                    Settlement::process_settlement_for_organization(&organization, conn)?;
+                    Settlement::process_settlement_for_organization(
+                        &organization,
+                        self.config.settlement_period_in_days,
+                        conn,
+                    )?;
                 }
-                organization.create_next_settlement_processing_domain_action(conn)?;
+                organization.create_next_settlement_processing_domain_action(
+                    self.config.settlement_period_in_days,
+                    conn,
+                )?;
             }
             _ => return Err(ApplicationError::new("Table not supported".to_string()).into()),
         };

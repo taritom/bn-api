@@ -73,7 +73,9 @@ pub fn main() {
             regenerate_interaction_records(args.value_of("organization"), database)
         }
         ("backpopulate-temporary-user-data", Some(_)) => backpopulate_temporary_user_data(database),
-        ("schedule-missing-domain-actions", Some(_)) => schedule_missing_domain_actions(database),
+        ("schedule-missing-domain-actions", Some(_)) => {
+            schedule_missing_domain_actions(config, database)
+        }
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
         }
@@ -152,7 +154,7 @@ fn regenerate_interaction_records(org_id: Option<&str>, database: Database) {
     }
 }
 
-fn schedule_missing_domain_actions(database: Database) {
+fn schedule_missing_domain_actions(config: Config, database: Database) {
     info!("Scheduling missing domain actions");
     let connection = database
         .get_connection()
@@ -162,7 +164,7 @@ fn schedule_missing_domain_actions(database: Database) {
     let organizations = Organization::all(connection).expect("Expected to find organizations");
     for organization in organizations {
         organization
-            .schedule_domain_actions(connection)
+            .schedule_domain_actions(config.settlement_period_in_days, connection)
             .expect("Expected to schedule any missing domain actions");
     }
 }

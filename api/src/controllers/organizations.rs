@@ -162,6 +162,7 @@ pub fn create(
     };
 
     let mut organization = new_organization_with_fee_schedule.commit(
+        state.config.settlement_period_in_days,
         &state.config.api_keys_encryption_key,
         Some(user.id()),
         connection,
@@ -197,6 +198,7 @@ pub fn update(
 
     let mut updated_organization = organization.update(
         organization_update,
+        state.config.settlement_period_in_days,
         &state.config.api_keys_encryption_key,
         conn,
     )?;

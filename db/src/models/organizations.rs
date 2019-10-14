@@ -107,6 +107,7 @@ pub struct TrackingKeys {
 impl NewOrganization {
     pub fn commit(
         self,
+        settlement_period_in_days: Option<u32>,
         encryption_key: &str,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
@@ -147,7 +148,7 @@ impl NewOrganization {
                 ErrorCode::UpdateError,
                 "Could not set the fee schedule for this organization",
             )?;
-        org.schedule_domain_actions(conn)?;
+        org.schedule_domain_actions(settlement_period_in_days, conn)?;
 
         DomainEvent::create(
             DomainEventTypes::OrganizationCreated,
@@ -203,6 +204,7 @@ pub struct OrganizationEditableAttributes {
 impl Organization {
     pub fn create_next_settlement_processing_domain_action(
         &self,
+        settlement_period_in_days: Option<u32>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         if let Some(upcoming_domain_action) = self.upcoming_settlement_domain_action(conn)? {
@@ -221,7 +223,7 @@ impl Organization {
             Some(Tables::Organizations),
             Some(self.id),
         );
-        action.schedule_at(self.next_settlement_date()?);
+        action.schedule_at(self.next_settlement_date(settlement_period_in_days)?);
         action.commit(conn)?;
 
         Ok(())
@@ -231,10 +233,14 @@ impl Organization {
         Ok(self.first_order_date(conn).optional()?.is_some())
     }
 
-    pub fn schedule_domain_actions(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn schedule_domain_actions(
+        &self,
+        settlement_period_in_days: Option<u32>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         // Settlements weekly domain event
         if self.upcoming_settlement_domain_action(conn)?.is_none() {
-            self.create_next_settlement_processing_domain_action(conn)?
+            self.create_next_settlement_processing_domain_action(settlement_period_in_days, conn)?
         }
 
         Ok(())
@@ -278,25 +284,42 @@ impl Organization {
             .to_db_error(ErrorCode::QueryError, "Error loading first order date")
     }
 
-    pub fn next_settlement_date(&self) -> Result<NaiveDateTime, DatabaseError> {
+    pub fn next_settlement_date(
+        &self,
+        settlement_period_in_days: Option<u32>,
+    ) -> Result<NaiveDateTime, DatabaseError> {
         let timezone = self.timezone()?;
 
         // Take current time
         let now = Utc::now();
-        let next_monday = now.naive_utc()
-            + Duration::days(
-                7 - now
-                    .with_timezone(&timezone)
-                    .naive_utc()
-                    .weekday()
-                    .num_days_from_monday() as i64,
-            );
 
-        Ok(timezone
-            .ymd(next_monday.year(), next_monday.month(), next_monday.day())
-            .and_hms(0, 0, 0)
-            .with_timezone(&Utc)
-            .naive_utc())
+        // If this is a normal week long settlement period, set it to start on the following Monday
+        // Else set as number of days from today
+        if let Some(settlement_period) = settlement_period_in_days {
+            let next_date = now.naive_utc() + Duration::days(settlement_period as i64);
+
+            Ok(timezone
+                .ymd(next_date.year(), next_date.month(), next_date.day())
+                .and_hms(0, 0, 0)
+                .with_timezone(&Utc)
+                .naive_utc())
+        } else {
+            let next_monday = now.naive_utc()
+                + Duration::days(
+                    DEFAULT_SETTLEMENT_PERIOD_IN_DAYS
+                        - now
+                            .with_timezone(&timezone)
+                            .naive_utc()
+                            .weekday()
+                            .num_days_from_monday() as i64,
+                );
+
+            Ok(timezone
+                .ymd(next_monday.year(), next_monday.month(), next_monday.day())
+                .and_hms(0, 0, 0)
+                .with_timezone(&Utc)
+                .naive_utc())
+        }
     }
 
     pub fn create(name: &str, fee_schedule_id: Uuid) -> NewOrganization {
@@ -310,6 +333,7 @@ impl Organization {
     pub fn update(
         &self,
         mut attributes: OrganizationEditableAttributes,
+        settlement_period_in_days: Option<u32>,
         encryption_key: &String,
         conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
@@ -351,7 +375,7 @@ impl Organization {
             ))
             .get_result::<Organization>(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update organization")?;
-        organization.schedule_domain_actions(conn)?;
+        organization.schedule_domain_actions(settlement_period_in_days, conn)?;
 
         Ok(organization)
     }

@@ -45,6 +45,7 @@ pub struct Config {
     pub sendgrid_template_bn_transfer_tickets_drip_destination: String,
     pub sendgrid_template_bn_password_reset: String,
     pub sendgrid_template_bn_user_invite: String,
+    pub settlement_period_in_days: Option<u32>,
     pub spotify_auth_token: Option<String>,
     pub twilio_account_id: String,
     pub twilio_api_key: String,
@@ -120,6 +121,9 @@ const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS_RECEIPT: &str =
 const SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS: &str = "SENDGRID_TEMPLATE_BN_TRANSFER_TICKETS";
 const SENDGRID_TEMPLATE_BN_PASSWORD_RESET: &str = "SENDGRID_TEMPLATE_BN_PASSWORD_RESET";
 const SENDGRID_TEMPLATE_BN_USER_INVITE: &str = "SENDGRID_TEMPLATE_BN_USER_INVITE";
+
+// Settlement period settings
+const SETTLEMENT_PERIOD_IN_DAYS: &str = "SETTLEMENT_PERIOD_IN_DAYS";
 
 //Spotify settings
 const SPOTIFY_AUTH_TOKEN: &str = "SPOTIFY_AUTH_TOKEN";
@@ -301,6 +305,11 @@ impl Config {
         let sendgrid_template_bn_user_invite = env::var(&SENDGRID_TEMPLATE_BN_USER_INVITE)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_INVITE));
 
+        let settlement_period_in_days = env::var(&SETTLEMENT_PERIOD_IN_DAYS).ok().map(|s| {
+            s.parse()
+                .expect("Not a valid integer for settlement period in days")
+        });
+
         let spotify_auth_token = env::var(&SPOTIFY_AUTH_TOKEN).ok();
 
         let twilio_api_key = env::var(&TWILIO_API_KEY)
@@ -397,6 +406,7 @@ impl Config {
             sendgrid_template_bn_transfer_tickets_drip_source,
             sendgrid_template_bn_password_reset,
             sendgrid_template_bn_user_invite,
+            settlement_period_in_days,
             spotify_auth_token,
             twilio_api_key,
             twilio_account_id,
