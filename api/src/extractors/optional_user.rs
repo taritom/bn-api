@@ -4,6 +4,7 @@ use auth::user::User;
 use server::AppState;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct OptionalUser(pub Option<User>);
 
 impl FromRequest<AppState> for OptionalUser {

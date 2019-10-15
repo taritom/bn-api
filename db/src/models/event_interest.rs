@@ -84,7 +84,7 @@ impl EventInterest {
     }
 
     pub fn find_interest_by_event_ids_for_user(
-        event_ids: Vec<Uuid>,
+        event_ids: &[Uuid],
         user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<HashMap<Uuid, bool>, DatabaseError> {
@@ -97,7 +97,7 @@ impl EventInterest {
 
         let found_records: Vec<Uuid> = result.iter().map(|ei| ei.event_id).collect();
         for event_id in event_ids {
-            event_interest_map.insert(event_id, found_records.contains(&event_id));
+            event_interest_map.insert(*event_id, found_records.contains(&event_id));
         }
 
         Ok(event_interest_map)

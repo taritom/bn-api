@@ -126,6 +126,17 @@ fn can_process_settlements() {
 }
 
 #[test]
+fn for_display() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let organization = project.create_organization().finish();
+    let slug = Slug::primary_slug(organization.id, Tables::Organizations, connection).unwrap();
+    let display_organization = organization.for_display(connection).unwrap();
+    assert_eq!(display_organization.id, organization.id);
+    assert_eq!(display_organization.slug, slug.slug);
+}
+
+#[test]
 fn create() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -151,6 +162,11 @@ fn create() {
         .commit(None, &"encryption_key".to_string(), None, connection)
         .unwrap();
     assert_eq!(organization.id.to_string().is_empty(), false);
+    assert!(organization.slug_id.is_some());
+    let slug = Slug::primary_slug(organization.id, Tables::Organizations, connection).unwrap();
+    assert_eq!(slug.main_table_id, organization.id);
+    assert_eq!(slug.main_table, Tables::Organizations);
+    assert_eq!(slug.slug_type, SlugTypes::Organization);
 
     assert_ne!(
         organization.sendgrid_api_key,

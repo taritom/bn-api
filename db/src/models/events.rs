@@ -12,7 +12,6 @@ use diesel::sql_types::{
 };
 use log::Level;
 use models::*;
-use regex::Regex;
 use schema::{
     artists, assets, event_artists, event_genres, events, genres, order_items, orders,
     organization_users, organizations, payments, ticket_instances, ticket_types, transfer_tickets,
@@ -25,11 +24,9 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use time::Duration;
-use unidecode::unidecode;
 use utils::errors::*;
 use utils::pagination::*;
-use utils::rand::random_alpha_string;
-use utils::{regexes, text};
+use utils::text;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 use validators;
@@ -69,10 +66,10 @@ pub struct Event {
     pub event_type: EventTypes,
     pub cover_image_url: Option<String>,
     pub private_access_code: Option<String>,
-    pub slug: String,
     pub facebook_pixel_key: Option<String>,
     pub deleted_at: Option<NaiveDateTime>,
     pub extra_admin_data: Option<Value>,
+    pub slug_id: Option<Uuid>,
 }
 
 impl PartialOrd for Event {
@@ -127,8 +124,6 @@ pub struct NewEvent {
     pub event_type: EventTypes,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub private_access_code: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub slug: Option<String>,
 
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_pixel_key: Option<String>,
@@ -170,31 +165,26 @@ impl NewEvent {
                 "event_end",
             ),
         )?;
-        if new_event.slug.is_none() {
-            let slug_name = match new_event.venue_id {
-                Some(venue_id) => {
-                    let venue = Venue::find(venue_id, conn)?;
-                    format!("{} at {} {}", &new_event.name, venue.name, venue.city)
-                }
-                None => new_event.name.clone(),
-            };
-
-            let slug = create_slug(&slug_name);
-            new_event.slug = Some(slug.clone());
-            loop {
-                let existing =
-                    Event::find_by_slug(new_event.slug.as_ref().unwrap(), true, conn).optional()?;
-                if existing.is_none() {
-                    break;
-                }
-                new_event.slug = Some(format!("{}-{}", &slug, random_alpha_string(5)));
-            }
-        }
 
         let result: Event = diesel::insert_into(events::table)
             .values(&new_event)
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new event")?;
+
+        let venue = result.venue(conn)?;
+        let slug = Slug::generate_slug(
+            &SlugContext::Event {
+                id: result.id,
+                name: result.name.clone(),
+                venue: venue,
+            },
+            SlugTypes::Event,
+            conn,
+        )?;
+        let result = diesel::update(&result)
+            .set((events::updated_at.eq(dsl::now), events::slug_id.eq(slug.id)))
+            .get_result::<Event>(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update event slug")?;
 
         DomainEvent::create(
             DomainEventTypes::EventCreated,
@@ -216,28 +206,6 @@ impl NewEvent {
     pub fn default_is_external() -> bool {
         false
     }
-}
-
-fn create_slug(name: &str) -> String {
-    // Unwrap should be treated as a compile time error
-
-    let only_characters = Regex::new(r#"[^a-zA-Z0-9]"#).unwrap();
-    let duplicate_dashes = Regex::new(r#"-+"#).unwrap();
-
-    let slug = unidecode(name);
-    let slug = only_characters.replace_all(&slug, " ");
-    let mut slug: String = duplicate_dashes
-        .replace_all(&regexes::whitespace().replace_all(&slug.trim(), "-"), "-")
-        .to_lowercase()
-        .chars()
-        .take(250)
-        .collect();
-
-    // If the slug is empty, generate a short random string
-    if slug.len() == 0 {
-        slug = random_alpha_string(5);
-    }
-    slug
 }
 
 #[derive(AsChangeset, Default, Deserialize, Validate, Serialize)]
@@ -285,7 +253,6 @@ pub struct EventEditableAttributes {
     pub private_access_code: Option<Option<String>>,
     pub sendgrid_list_id: Option<i64>,
     pub event_type: Option<EventTypes>,
-    pub slug: Option<String>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub facebook_pixel_key: Option<Option<String>>,
 }
@@ -550,7 +517,7 @@ impl Event {
     }
 
     pub fn ticket_pricing_range_by_events(
-        event_ids: Vec<Uuid>,
+        event_ids: &[Uuid],
         box_office_pricing: bool,
         conn: &PgConnection,
     ) -> Result<HashMap<Uuid, (i64, i64)>, DatabaseError> {
@@ -619,7 +586,7 @@ impl Event {
         conn: &PgConnection,
     ) -> Result<(Option<i64>, Option<i64>), DatabaseError> {
         if let Some((min_ticket_price, max_ticket_price)) =
-            Event::ticket_pricing_range_by_events(vec![self.id], box_office_pricing, conn)?
+            Event::ticket_pricing_range_by_events(&vec![self.id], box_office_pricing, conn)?
                 .get(&self.id)
         {
             Ok((Some(*min_ticket_price), Some(*max_ticket_price)))
@@ -910,37 +877,6 @@ impl Event {
             .order_by(events::name)
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Error loading events")
-    }
-
-    pub fn find_by_slug(
-        slug: &str,
-        include_deleted: bool,
-        conn: &PgConnection,
-    ) -> Result<(Event, Organization, Option<Venue>, FeeSchedule), DatabaseError> {
-        use schema::*;
-
-        let mut query = events::table
-            .inner_join(organizations::table.inner_join(fee_schedules::table))
-            .left_join(venues::table)
-            .filter(events::slug.eq(slug))
-            .select((
-                events::all_columns,
-                organizations::all_columns,
-                venues::all_columns.nullable(),
-                fee_schedules::all_columns,
-            ))
-            .into_boxed();
-
-        //Also check the deleted events on create because there is a unique index on the slug field
-        if !include_deleted {
-            query = query.filter(events::deleted_at.is_null());
-        }
-
-        let res: (Event, Organization, Option<Venue>, FeeSchedule) = query
-            .load(conn)
-            .to_db_error(ErrorCode::QueryError, "Error loading event")
-            .expect_single()?;
-        Ok(res)
     }
 
     pub fn cancel(
@@ -1642,7 +1578,7 @@ impl Event {
         query_filter: Option<String>,
         region_id: Option<Uuid>,
         organization_id: Option<Uuid>,
-        venue_id: Option<Uuid>,
+        venue_ids: Option<Vec<Uuid>>,
         genres: Option<Vec<String>>,
         start_time: Option<NaiveDateTime>,
         end_time: Option<NaiveDateTime>,
@@ -1822,8 +1758,8 @@ impl Event {
         if let Some(organization_id) = organization_id {
             query = query.filter(events::organization_id.eq(organization_id));
         }
-        if let Some(venue_id) = venue_id {
-            query = query.filter(events::venue_id.eq(venue_id));
+        if let Some(venue_ids) = venue_ids {
+            query = query.filter(events::venue_id.eq_any(venue_ids));
         }
 
         if let Some(statuses) = status_filter {
@@ -1968,12 +1904,19 @@ impl Event {
         })
     }
 
+    pub fn slug(&self, conn: &PgConnection) -> Result<String, DatabaseError> {
+        Slug::primary_slug(self.id, Tables::Events, conn).map(|s| s.slug)
+    }
+
     pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayEvent, DatabaseError> {
         let venue = self.venue(conn)?;
-        let display_venue: Option<DisplayVenue> =
-            venue.clone().and_then(|venue| Some(venue.into()));
+        let display_venue = match venue {
+            Some(ref v) => Some(v.for_display(conn)?),
+            None => None,
+        };
         let artists = self.artists(conn)?;
         let genres = self.genres(conn)?;
+        let slug = self.slug(conn)?;
 
         let localized_times = self.get_all_localized_time_strings(venue.as_ref());
         let (min_ticket_price, max_ticket_price) =
@@ -1998,7 +1941,7 @@ impl Event {
             override_status: self.override_status,
             localized_times,
             event_type: self.event_type,
-            slug: self.slug.clone(),
+            slug,
         })
     }
 }

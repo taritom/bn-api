@@ -96,7 +96,7 @@ impl EventArtist {
     }
 
     pub fn find_all_from_events(
-        event_ids: Vec<Uuid>,
+        event_ids: &[Uuid],
         conn: &PgConnection,
     ) -> Result<HashMap<Uuid, Vec<DisplayEventArtist>>, DatabaseError> {
         let results: Vec<(EventArtist, Artist)> = event_artists::table
@@ -130,7 +130,7 @@ impl EventArtist {
         event_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<DisplayEventArtist>, DatabaseError> {
-        let result = EventArtist::find_all_from_events(vec![event_id], conn)?
+        let result = EventArtist::find_all_from_events(&vec![event_id], conn)?
             .remove(&event_id)
             .map_or(Vec::new(), |x| x);
         Ok(result)

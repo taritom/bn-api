@@ -22,6 +22,7 @@ pub mod regions;
 pub mod reports;
 pub mod settlement_adjustments;
 pub mod settlements;
+pub mod slugs;
 pub mod stages;
 pub mod status;
 pub mod ticket_types;

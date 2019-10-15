@@ -7,22 +7,12 @@ const pm = require('../../pm');const debug=require('debug');var log = debug('bn-
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/events';
+const apiEndPoint = '/events/{{last_event_slug}}';
 
 
 var response;
 var responseBody;
 
-
-const post = async function (request_body) {
-    return baseUrl
-        .post(pm.substitute(apiEndPoint))
-        .set('Accept', 'application/json')
-        .set('Content-Type', 'application/json')
-        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
-
-        .send(pm.substitute(request_body));
-};
 
 const get = async function (request_body) {
     return baseUrl
@@ -34,20 +24,12 @@ const get = async function (request_body) {
         .send();
 };
 
-let requestBody = `{
-    "name": "It's my party",
-    "organization_id": "{{last_org_id}}",
-    "venue_id": "{{last_venue_id}}",
-    "event_start": "2020-11-13T12:00:00",
-    "event_end": "2020-11-14T12:00:00",
-    "event_type": "Music",
-    "age_limit": "A custom age limit"
-}`;
+let requestBody = ``;
 
 
-describe('OrgMember  - Create Event', function () {
+describe('Guest  - Get Event by slug', function () {
     before(async function () {
-        response = await post(requestBody);
+        response = await get(requestBody);
         log(response.request.header);
         log(response.request.url);
         log(response.request._data);
@@ -60,13 +42,12 @@ describe('OrgMember  - Create Event', function () {
 
     after(async function () {
         // add after methods
-        let response =  JSON.parse(responseBody);
-        pm.environment.set("last_event_id",response.id);
+
 
     });
 
-    it("should be 201", function () {
-        expect(response.status).to.equal(201);
+    it("should be 200", function () {
+        expect(response.status).to.equal(200);
     })
 
 

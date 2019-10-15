@@ -7,7 +7,7 @@ const pm = require('../../pm');const debug=require('debug');var log = debug('bn-
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/events/{{last_event_slug}}';
+const apiEndPoint = '/events/{{last_event_id}}';
 
 
 var response;
@@ -27,7 +27,7 @@ const get = async function (request_body) {
 let requestBody = ``;
 
 
-describe('Guest  - Get Event by slug', function () {
+describe('Guest  - Get Event by ID', function () {
     before(async function () {
         response = await get(requestBody);
         log(response.request.header);
@@ -42,7 +42,8 @@ describe('Guest  - Get Event by slug', function () {
 
     after(async function () {
         // add after methods
-
+        let response =  JSON.parse(responseBody);
+        pm.environment.set("last_event_slug", response.slug);
 
     });
 
@@ -52,5 +53,3 @@ describe('Guest  - Get Event by slug', function () {
 
 
 });
-
-            

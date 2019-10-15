@@ -60,6 +60,7 @@ pub struct Organization {
     pub max_instances_per_ticket_type: i64,
     pub max_additional_fee_in_cents: i64,
     pub settlement_type: SettlementTypes,
+    pub slug_id: Option<Uuid>,
 }
 
 #[derive(Serialize)]
@@ -137,6 +138,22 @@ impl NewOrganization {
             ))
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new organization")?;
+
+        let slug = Slug::generate_slug(
+            &SlugContext::Organization {
+                id: org.id,
+                name: org.name.clone(),
+            },
+            SlugTypes::Organization,
+            conn,
+        )?;
+        let org = diesel::update(&org)
+            .set((
+                organizations::updated_at.eq(dsl::now),
+                organizations::slug_id.eq(slug.id),
+            ))
+            .get_result::<Organization>(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update organization slug")?;
 
         diesel::update(fee_schedules::table.filter(fee_schedules::id.eq(org.fee_schedule_id)))
             .set((
@@ -1174,4 +1191,33 @@ impl Organization {
 
         Ok(())
     }
+
+    pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayOrganization, DatabaseError> {
+        Ok(DisplayOrganization {
+            id: self.id,
+            name: self.name.clone(),
+            address: self.address.clone(),
+            city: self.city.clone(),
+            state: self.state.clone(),
+            country: self.country.clone(),
+            postal_code: self.postal_code.clone(),
+            phone: self.phone.clone(),
+            timezone: self.timezone.clone(),
+            slug: Slug::primary_slug(self.id, Tables::Organizations, conn)?.slug,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct DisplayOrganization {
+    pub id: Uuid,
+    pub name: String,
+    pub address: Option<String>,
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub country: Option<String>,
+    pub postal_code: Option<String>,
+    pub phone: Option<String>,
+    pub timezone: Option<String>,
+    pub slug: String,
 }

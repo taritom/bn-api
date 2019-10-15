@@ -10,7 +10,7 @@ fn remove() {
     let user = project.create_user().finish();
     let event = project.create_event().finish();
     assert!(!EventInterest::find_interest_by_event_ids_for_user(
-        vec![event.id],
+        &vec![event.id],
         user.id,
         connection,
     )
@@ -22,7 +22,7 @@ fn remove() {
         .commit(connection)
         .unwrap();
     assert!(EventInterest::find_interest_by_event_ids_for_user(
-        vec![event.id],
+        &vec![event.id],
         user.id,
         connection,
     )
@@ -32,7 +32,7 @@ fn remove() {
 
     EventInterest::remove(event.id, user.id, connection).unwrap();
     assert!(!EventInterest::find_interest_by_event_ids_for_user(
-        vec![event.id],
+        &vec![event.id],
         user.id,
         connection,
     )
@@ -84,34 +84,25 @@ fn find_interest_by_event_ids_for_user() {
     let all_event_ids = vec![event1.id, event2.id, event3.id];
 
     // User 1
-    let found_interest = EventInterest::find_interest_by_event_ids_for_user(
-        all_event_ids.clone(),
-        user1.id,
-        connection,
-    )
-    .unwrap();
+    let found_interest =
+        EventInterest::find_interest_by_event_ids_for_user(&all_event_ids, user1.id, connection)
+            .unwrap();
     assert!(found_interest.get(&event1.id).unwrap());
     assert!(!found_interest.get(&event2.id).unwrap());
     assert!(found_interest.get(&event3.id).unwrap());
 
     // User 2
-    let found_interest = EventInterest::find_interest_by_event_ids_for_user(
-        all_event_ids.clone(),
-        user2.id,
-        connection,
-    )
-    .unwrap();
+    let found_interest =
+        EventInterest::find_interest_by_event_ids_for_user(&all_event_ids, user2.id, connection)
+            .unwrap();
     assert!(!found_interest.get(&event1.id).unwrap());
     assert!(found_interest.get(&event2.id).unwrap());
     assert!(!found_interest.get(&event3.id).unwrap());
 
     // User 3
-    let found_interest = EventInterest::find_interest_by_event_ids_for_user(
-        all_event_ids.clone(),
-        user3.id,
-        connection,
-    )
-    .unwrap();
+    let found_interest =
+        EventInterest::find_interest_by_event_ids_for_user(&all_event_ids, user3.id, connection)
+            .unwrap();
     assert!(!found_interest.get(&event1.id).unwrap());
     assert!(!found_interest.get(&event2.id).unwrap());
     assert!(!found_interest.get(&event3.id).unwrap());

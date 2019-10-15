@@ -125,6 +125,10 @@ impl TestProject {
         RegionBuilder::new(&self.connection)
     }
 
+    pub fn create_slug(&self) -> SlugBuilder {
+        SlugBuilder::new(&self.connection)
+    }
+
     pub fn create_user(&self) -> UserBuilder {
         UserBuilder::new(&self.connection)
     }

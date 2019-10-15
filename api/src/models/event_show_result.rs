@@ -7,6 +7,8 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EventShowResult {
     pub id: Uuid,
+    #[serde(rename = "type")]
+    pub response_type: String,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub private_access_code: Option<Option<String>>,

@@ -118,7 +118,7 @@ fn find_all_by_events() {
         .unwrap();
 
     let mut result =
-        EventArtist::find_all_from_events(vec![event1.id, event2.id], project.get_connection())
+        EventArtist::find_all_from_events(&vec![event1.id, event2.id], project.get_connection())
             .unwrap();
 
     assert_equiv!(

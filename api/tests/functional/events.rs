@@ -307,6 +307,7 @@ pub fn index_with_draft_for_user_ignores_drafts() {
 #[test]
 pub fn index_search_with_filter() {
     let database = TestDatabase::new();
+    let connection = database.connection.get();
     let organization = database.create_organization().finish();
     let event = database
         .create_event()
@@ -324,6 +325,7 @@ pub fn index_search_with_filter() {
         .finish();
 
     let localized_times = event.get_all_localized_time_strings(None);
+    let slug = event.slug(connection).unwrap();
     let expected_events = vec![EventVenueEntry {
         id: event.id,
         name: event.name,
@@ -352,12 +354,8 @@ pub fn index_search_with_filter() {
             ..Default::default()
         },
         event_type: EventTypes::Music,
-        slug: event.slug.clone(),
-        url: format!(
-            "{}/events/{}",
-            env::var("FRONT_END_URL").unwrap(),
-            event.slug
-        ),
+        url: format!("{}/{}", env::var("FRONT_END_URL").unwrap(), &slug),
+        slug,
         event_end: event.event_end,
     }];
 
@@ -365,7 +363,7 @@ pub fn index_search_with_filter() {
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     let response: HttpResponse = events::index((
         test_request.extract_state(),
-        database.connection.into(),
+        database.connection.clone().into(),
         parameters,
         OptionalUser(None),
     ))
@@ -558,7 +556,7 @@ fn show_from_slug() {
         .with_venue(&venue)
         .finish();
     let _event_interest = EventInterest::create(event2.id, user.id).commit(conn);
-    let slug2 = event2.clone().slug;
+    let slug2 = event2.clone().slug(conn).unwrap();
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", slug2));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
@@ -2196,39 +2194,7 @@ pub fn show_from_organizations_upcoming() {
     );
 }
 
-#[derive(Serialize)]
-struct EventVenueEntry {
-    id: Uuid,
-    name: String,
-    organization_id: Uuid,
-    venue_id: Option<Uuid>,
-    created_at: NaiveDateTime,
-    event_start: Option<NaiveDateTime>,
-    door_time: Option<NaiveDateTime>,
-    status: EventStatus,
-    publish_date: Option<NaiveDateTime>,
-    promo_image_url: Option<String>,
-    additional_info: Option<String>,
-    top_line_info: Option<String>,
-    age_limit: Option<String>,
-    cancelled_at: Option<NaiveDateTime>,
-    venue: Option<Venue>,
-    artists: Option<Vec<DisplayEventArtist>>,
-    min_ticket_price: Option<i64>,
-    max_ticket_price: Option<i64>,
-    is_external: bool,
-    external_url: Option<String>,
-    user_is_interested: bool,
-    localized_times: EventLocalizedTimeStrings,
-    tracking_keys: TrackingKeys,
-    event_type: EventTypes,
-    updated_at: NaiveDateTime,
-    slug: String,
-    url: String,
-    event_end: Option<NaiveDateTime>,
-}
-
-fn event_venue_entry(
+pub fn event_venue_entry(
     event: &Event,
     venue: &Venue,
     artists: &Vec<DisplayEventArtist>,
@@ -2239,6 +2205,7 @@ fn event_venue_entry(
     let (min_ticket_price, max_ticket_price) = event
         .current_ticket_pricing_range(false, connection)
         .unwrap();
+    let slug = event.slug(connection).unwrap();
     EventVenueEntry {
         id: event.id,
         name: event.name.clone(),
@@ -2269,12 +2236,8 @@ fn event_venue_entry(
             ..Default::default()
         },
         event_type: event.event_type,
-        slug: event.slug.clone(),
-        url: format!(
-            "{}/events/{}",
-            env::var("FRONT_END_URL").unwrap(),
-            &event.slug
-        ),
+        url: format!("{}/{}", env::var("FRONT_END_URL").unwrap(), &slug),
+        slug,
         event_end: event.event_end,
     }
 }

@@ -206,10 +206,10 @@ table! {
         event_type -> Text,
         cover_image_url -> Nullable<Text>,
         private_access_code -> Nullable<Text>,
-        slug -> Varchar,
         facebook_pixel_key -> Nullable<Text>,
         deleted_at -> Nullable<Timestamp>,
         extra_admin_data -> Nullable<Jsonb>,
+        slug_id -> Nullable<Uuid>,
     }
 }
 
@@ -423,6 +423,7 @@ table! {
         max_instances_per_ticket_type -> Int8,
         max_additional_fee_in_cents -> Int8,
         settlement_type -> Text,
+        slug_id -> Nullable<Uuid>,
     }
 }
 
@@ -561,6 +562,18 @@ table! {
         status -> Text,
         comment -> Nullable<Text>,
         only_finished_events -> Bool,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    slugs (id) {
+        id -> Uuid,
+        slug -> Varchar,
+        main_table -> Text,
+        main_table_id -> Uuid,
+        slug_type -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -751,6 +764,7 @@ table! {
         latitude -> Nullable<Float8>,
         longitude -> Nullable<Float8>,
         timezone -> Text,
+        slug_id -> Nullable<Uuid>,
     }
 }
 
@@ -885,6 +899,7 @@ allow_tables_to_appear_in_same_query!(
     settlement_adjustments,
     settlement_entries,
     settlements,
+    slugs,
     stages,
     temporary_user_links,
     temporary_users,

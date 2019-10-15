@@ -37,6 +37,7 @@ pub mod services;
 pub mod settlement_adjustments;
 pub mod settlement_entries;
 pub mod settlements;
+pub mod slugs;
 pub mod stages;
 pub mod temporary_users;
 pub mod ticket_instances;

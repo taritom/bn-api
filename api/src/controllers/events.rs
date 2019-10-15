@@ -7,15 +7,11 @@ use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
 use db::Connection;
 use db::ReadonlyConnection;
-use diesel::PgConnection;
 use domain_events::executors::UpdateGenresPayload;
 use errors::*;
 use extractors::*;
 use helpers::application;
-use models::{
-    EventShowResult, PathParameters, RedeemTicketPathParameters, RequestInfo, ShortOrganization,
-    UserDisplayTicketType, WebPayload,
-};
+use models::*;
 use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
@@ -51,38 +47,6 @@ pub struct SearchParameters {
     updated_at: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     category: Option<EventTypes>,
-}
-
-#[derive(Serialize)]
-struct EventVenueEntry {
-    id: Uuid,
-    name: String,
-    organization_id: Uuid,
-    venue_id: Option<Uuid>,
-    created_at: NaiveDateTime,
-    event_start: Option<NaiveDateTime>,
-    door_time: Option<NaiveDateTime>,
-    status: EventStatus,
-    publish_date: Option<NaiveDateTime>,
-    promo_image_url: Option<String>,
-    additional_info: Option<String>,
-    top_line_info: Option<String>,
-    age_limit: Option<String>,
-    cancelled_at: Option<NaiveDateTime>,
-    venue: Option<Venue>,
-    artists: Option<Vec<DisplayEventArtist>>,
-    min_ticket_price: Option<i64>,
-    max_ticket_price: Option<i64>,
-    is_external: bool,
-    external_url: Option<String>,
-    user_is_interested: bool,
-    localized_times: EventLocalizedTimeStrings,
-    tracking_keys: TrackingKeys,
-    event_type: EventTypes,
-    updated_at: NaiveDateTime,
-    slug: String,
-    url: String,
-    event_end: Option<NaiveDateTime>,
 }
 
 impl From<SearchParameters> for Paging {
@@ -132,7 +96,12 @@ pub fn checkins(
 ) -> Result<HttpResponse, BigNeonError> {
     let events = auth_user.user.find_events_with_access_to_scan(conn.get())?;
     let mut payload = Payload::new(
-        event_venues_from_events(events, Some(auth_user.user), &state, conn.get())?,
+        EventVenueEntry::event_venues_from_events(
+            events,
+            Some(auth_user.user),
+            &state,
+            conn.get(),
+        )?,
         query.into_inner().into(),
     );
     payload.paging.total = payload.data.len() as u64;
@@ -180,7 +149,7 @@ pub fn index(
         query.query.clone(),
         query.region_id,
         query.organization_id,
-        query.venue_id,
+        query.venue_id.map(|v| vec![v]),
         if query.genres.is_empty() {
             None
         } else {
@@ -205,7 +174,7 @@ pub fn index(
     let (events, count) = events_count;
 
     let mut payload = Payload::new(
-        event_venues_from_events(events, user, &state, connection)?,
+        EventVenueEntry::event_venues_from_events(events, user, &state, connection)?,
         query.into(),
     );
     payload.paging.total = count as u64;
@@ -221,11 +190,6 @@ pub struct EventParameters {
     pub private_access_code: Option<String>,
 }
 
-#[derive(Deserialize)]
-pub struct StringPathParameters {
-    pub id: String,
-}
-
 pub fn show(
     (state, connection, parameters, query, user, request): (
         State<AppState>,
@@ -239,10 +203,23 @@ pub fn show(
     let connection = connection.get();
     let user = user.into_inner();
 
-    let (event, organization, venue, fee_schedule) = match parameters.id.parse() {
-        Ok(i) => Event::find_incl_org_venue_fees(i, connection)?,
-        Err(_) => Event::find_by_slug(&parameters.id, false, connection)?,
+    let event_id = match parameters.id.parse() {
+        Ok(i) => i,
+        Err(_) => {
+            // Backwards compatibility for existing links
+            let slugs = Slug::find_by_slug(&parameters.id, connection)?;
+            if slugs.is_empty()
+                || (slugs[0].main_table != Tables::Events || slugs[0].slug_type != SlugTypes::Event)
+            {
+                return application::not_found();
+            }
+
+            slugs[0].main_table_id
+        }
     };
+
+    let (event, organization, venue, fee_schedule) =
+        Event::find_incl_org_venue_fees(event_id, connection)?;
 
     if event.private_access_code.is_some()
         && !(query.private_access_code.is_some()
@@ -433,8 +410,10 @@ pub fn show(
         + event
             .company_fee_in_cents
             .unwrap_or(organization.company_event_fee_in_cents);
+    let slug = event.slug(connection)?;
     let payload = &EventShowResult {
         id: event.id,
+        response_type: "Event".to_string(),
         private_access_code: if show_private_access_code {
             Some(event.private_access_code)
         } else {
@@ -476,8 +455,8 @@ pub fn show(
         tracking_keys,
         event_type: event.event_type,
         sales_start_date,
-        url: format!("{}/events/{}", &state.config.front_end_url, &event.slug),
-        slug: event.slug.clone(),
+        url: format!("{}/{}", &state.config.front_end_url, &slug),
+        slug,
         facebook_pixel_key: event.facebook_pixel_key,
         extra_admin_data: event.extra_admin_data.and_then(|data| {
             if user_has_privileges {
@@ -1205,112 +1184,6 @@ pub fn remove_user(
         }
         None => Ok(HttpResponse::Ok().finish()),
     }
-}
-
-fn event_venues_from_events(
-    events: Vec<Event>,
-    user: Option<User>,
-    state: &State<AppState>,
-    connection: &PgConnection,
-) -> Result<Vec<EventVenueEntry>, DatabaseError> {
-    let mut venue_ids: Vec<Uuid> = events
-        .iter()
-        .filter(|e| e.venue_id.is_some())
-        .map(|e| e.venue_id.unwrap())
-        .collect();
-    venue_ids.sort();
-    venue_ids.dedup();
-
-    let event_ticket_range_mapping = Event::ticket_pricing_range_by_events(
-        events.iter().map(|e| e.id).collect::<Vec<Uuid>>(),
-        false,
-        connection,
-    )?;
-
-    let venues = Venue::find_by_ids(venue_ids, connection)?;
-    let venue_map = venues.into_iter().fold(HashMap::new(), |mut map, v| {
-        map.insert(v.id, v.clone());
-        map
-    });
-
-    let event_ids = events.iter().map(|e| e.id).collect();
-    let mut artists_map = EventArtist::find_all_from_events(event_ids, connection)?;
-
-    let mut organization_ids: Vec<Uuid> = events.iter().map(|e| e.organization_id).collect();
-    organization_ids.sort();
-    organization_ids.dedup();
-
-    let tracking_keys_for_orgs = Organization::tracking_keys_for_ids(
-        organization_ids,
-        &state.config.api_keys_encryption_key,
-        connection,
-    )?;
-
-    let event_interest = match user {
-        Some(ref u) => EventInterest::find_interest_by_event_ids_for_user(
-            events.iter().map(|e| e.id).collect::<Vec<Uuid>>(),
-            u.id,
-            connection,
-        )?,
-        None => HashMap::new(),
-    };
-
-    let mut results: Vec<EventVenueEntry> = Vec::new();
-
-    for event in events.into_iter() {
-        let venue = event.venue_id.and_then(|v| Some(venue_map[&v].clone()));
-        let artists = artists_map.remove(&event.id).map_or(Vec::new(), |x| x);
-        let mut min_ticket_price = None;
-        let mut max_ticket_price = None;
-        if let Some((min, max)) = event_ticket_range_mapping.get(&event.id) {
-            min_ticket_price = Some(*min);
-            max_ticket_price = Some(*max);
-        }
-
-        let localized_times = event.get_all_localized_time_strings(venue.as_ref());
-        let organization_id = event.organization_id;
-        let tracking_keys = tracking_keys_for_orgs
-            .get(&organization_id)
-            .unwrap_or(&TrackingKeys {
-                ..Default::default()
-            })
-            .clone();
-
-        results.push(EventVenueEntry {
-            venue,
-            artists: Some(artists),
-            id: event.id,
-            name: event.name,
-            organization_id,
-            venue_id: event.venue_id,
-            created_at: event.created_at,
-            updated_at: event.updated_at,
-            slug: event.slug.clone(),
-            event_start: event.event_start,
-            door_time: event.door_time,
-            status: event.status,
-            publish_date: event.publish_date,
-            promo_image_url: event.promo_image_url,
-            additional_info: event.additional_info,
-            top_line_info: event.top_line_info,
-            age_limit: event.age_limit,
-            cancelled_at: event.cancelled_at,
-            min_ticket_price,
-            max_ticket_price,
-            is_external: event.is_external,
-            external_url: event.external_url,
-            user_is_interested: event_interest
-                .get(&event.id)
-                .map(|i| i.to_owned())
-                .unwrap_or(false),
-            localized_times,
-            tracking_keys,
-            event_type: event.event_type,
-            url: format!("{}/events/{}", state.config.front_end_url, &event.slug),
-            event_end: event.event_end,
-        });
-    }
-    Ok(results)
 }
 
 #[derive(Deserialize)]

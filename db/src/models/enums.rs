@@ -193,10 +193,11 @@ string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull]
 string_enum! { SettlementTypes [Rolling, PostEvent]}
 string_enum! { SettlementAdjustmentTypes [ManualCredit, ManualDeduction, Chargeback]}
 string_enum! { SettlementEntryTypes [EventFees, TicketType]}
+string_enum! { SlugTypes[ Event, Organization, Venue, City ] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { SourceOrDestination [Destination,Source]}
 string_enum! { Tables [Artists, Broadcasts, Codes, DomainEventPublishers, Events, EventArtists, ExternalLogins, FeeSchedules, Holds, Orders, Organizations,
-Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
+Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users, Venues] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeEndDateType [DoorTime, EventEnd, EventStart, Manual] }

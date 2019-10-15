@@ -439,14 +439,14 @@ impl User {
             cover_image_url: Option<String>,
             #[sql_type = "Nullable<Text>"]
             private_access_code: Option<String>,
-            #[sql_type = "Text"]
-            slug: String,
             #[sql_type = "Nullable<Text>"]
             facebook_pixel_key: Option<String>,
             #[sql_type = "Nullable<Timestamp>"]
             deleted_at: Option<NaiveDateTime>,
             #[sql_type = "Nullable<Jsonb>"]
             extra_admin_data: Option<Value>,
+            #[sql_type = "dUuid"]
+            slug_id: Uuid,
             #[sql_type = "BigInt"]
             total: i64,
         }
@@ -532,10 +532,10 @@ impl User {
             event_type: event.event_type,
             cover_image_url: event.cover_image_url,
             private_access_code: event.private_access_code,
-            slug: event.slug,
             facebook_pixel_key: event.facebook_pixel_key,
             deleted_at: event.deleted_at,
             extra_admin_data: event.extra_admin_data,
+            slug_id: Some(event.slug_id),
         });
 
         let mut result: Vec<ActivitySummary> = Vec::new();

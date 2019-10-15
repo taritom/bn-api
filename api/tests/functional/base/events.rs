@@ -2,7 +2,7 @@ use actix_web::{http::StatusCode, FromRequest, HttpResponse, Path, Query};
 use bigneon_api::controllers::events;
 use bigneon_api::controllers::events::*;
 use bigneon_api::extractors::*;
-use bigneon_api::models::{PathParameters, RequestInfo, UserDisplayTicketType};
+use bigneon_api::models::*;
 use bigneon_db::dev::times;
 use bigneon_db::models::*;
 use chrono::prelude::*;
@@ -173,10 +173,7 @@ pub fn delete(role: Roles, should_test_succeed: bool) {
         events::delete((database.connection.clone().into(), path, auth_user)).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        let event = Event::find_by_slug(&event.slug, true, connection)
-            .unwrap()
-            .0;
-        assert!(event.deleted_at.is_some());
+        assert!(Event::find(event.id, connection).is_err());
     } else {
         support::expects_unauthorized(&response);
     }
@@ -833,6 +830,8 @@ pub fn expected_show_json(
     #[derive(Serialize)]
     struct R {
         id: Uuid,
+        #[serde(rename = "type")]
+        response_type: String,
         name: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         private_access_code: Option<Option<String>>,
@@ -917,8 +916,10 @@ pub fn expected_show_json(
         + event
             .company_fee_in_cents
             .unwrap_or(organization.company_event_fee_in_cents);
+    let slug = event.slug(connection).unwrap();
     serde_json::to_string(&R {
         id: event.id,
+        response_type: "Event".to_string(),
         private_access_code: if vec![
             Roles::Promoter,
             Roles::OrgMember,
@@ -970,12 +971,8 @@ pub fn expected_show_json(
         },
         event_type: event.event_type,
         sales_start_date,
-        url: format!(
-            "{}/events/{}",
-            env::var("FRONT_END_URL").unwrap(),
-            &event.slug
-        ),
-        slug: event.slug.clone(),
+        url: format!("{}/{}", env::var("FRONT_END_URL").unwrap(), &slug),
+        slug,
         facebook_pixel_key: None,
         extra_admin_data: None,
     })
