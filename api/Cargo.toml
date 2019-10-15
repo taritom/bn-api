@@ -20,7 +20,6 @@ diesel="1.4.2"
 dotenv = "0.13"
 expo-server-sdk = "0.1.0"
 facebook = { path="../facebook"}
-failure ="0.1"
 futures = "0.1"
 globee={path="../globee"}
 itertools = "0.7"
@@ -29,6 +28,7 @@ lazy_static = "1.2.0"
 log = { version = "0.4", features = ["max_level_debug"]}
 logging = {path="../logging"}
 macros = {path="../macros"}
+phonenumber = "0.2.3"
 r2d2 = "0.8"
 regex = "1"
 reqwest="0.9"

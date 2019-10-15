@@ -12,6 +12,7 @@ use extractors::*;
 use helpers::application;
 use log::Level::Debug;
 use models::*;
+use phonenumber::PhoneNumber;
 use server::AppState;
 use std::cmp;
 use std::collections::HashMap;
@@ -474,11 +475,15 @@ pub fn send_box_office_instructions(
             conn,
         )?;
     }
-    smsers::box_office::checkin_instructions(
-        &state.config,
-        data.into_inner().phone,
-        path.id,
-        conn,
-    )?;
+    let phone = data.into_inner().phone;
+    let phone: PhoneNumber = match phone.parse() {
+        Ok(number) => number,
+        Err(_) => match format!("+{}", phone).parse() {
+            Ok(number) => number,
+            Err(_) => return application::bad_request("Phone number is not valid"),
+        },
+    };
+
+    smsers::box_office::checkin_instructions(&state.config, phone, path.id, conn)?;
     Ok(HttpResponse::Ok().json({}))
 }

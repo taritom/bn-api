@@ -26,6 +26,7 @@ extern crate log;
 extern crate logging;
 #[macro_use]
 extern crate macros;
+extern crate phonenumber;
 extern crate r2d2;
 extern crate regex;
 extern crate reqwest;

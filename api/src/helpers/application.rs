@@ -37,6 +37,12 @@ pub fn unprocessable<T: Responder>(message: &str) -> Result<T, BigNeonError> {
             .into(),
     )
 }
+pub fn bad_request<T: Responder>(message: &str) -> Result<T, BigNeonError> {
+    Err(
+        ApplicationError::new_with_type(ApplicationErrorType::BadRequest, message.to_string())
+            .into(),
+    )
+}
 
 pub fn internal_server_error<T: Responder>(message: &str) -> Result<T, BigNeonError> {
     error!("Internal Server Error: {}", message);
