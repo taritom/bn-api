@@ -814,7 +814,7 @@ fn update_fees() {
     assert_eq!(fee_item.item_type, OrderItemTypes::PerUnitFees);
 
     // Updating credit card fee and regenerating
-    let organization = organization
+    organization
         .update(
             OrganizationEditableAttributes {
                 cc_fee_percent: Some(0f32),
