@@ -61,6 +61,25 @@ fn create_stub() {
 }
 
 #[test]
+fn new_for_invite() {
+    let user = User::new_for_invite(None, None, None);
+    assert!(user.first_name.is_none());
+    assert!(user.last_name.is_none());
+    assert!(user.email.is_none());
+    assert!(!user.hashed_pw.is_empty());
+
+    let user = User::new_for_invite(
+        Some("First".to_string()),
+        Some("Last".to_string()),
+        Some("test@example.com".to_string()),
+    );
+    assert_eq!(user.first_name, Some("First".to_string()));
+    assert_eq!(user.last_name, Some("Last".to_string()));
+    assert_eq!(user.email, Some("test@example.com".to_string()));
+    assert!(!user.hashed_pw.is_empty());
+}
+
+#[test]
 fn update_genre_info() {
     let project = TestProject::new();
     let connection = project.get_connection();

@@ -371,7 +371,9 @@ impl Order {
         }
 
         // Release tickets if they are purchased (i.e. not yet redeemed)
-        if ticket_instance.status == TicketInstanceStatus::Purchased {
+        if ticket_instance.status == TicketInstanceStatus::Purchased
+            && order_item.item_type == OrderItemTypes::Tickets
+        {
             ticket_instance.release(TicketInstanceStatus::Purchased, user_id, conn)?;
         }
 
