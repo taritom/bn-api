@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use diesel;
 use diesel::prelude::*;
-use log::Level::Info;
+use log::Level::{Error, Info};
 use models::*;
 use schema::domain_events;
 use serde_json;
@@ -169,39 +169,49 @@ impl DomainEvent {
                 // Receiver is associated with the v3 UUID of their destination address
                 // Receiver has a temp account made for them in the customer system on TransferTicketStarted
                 let mut data: HashMap<String, serde_json::Value> = HashMap::new();
-                let transfer = Transfer::find(main_id, conn)?;
+                let transfer = Transfer::find(main_id, conn).optional()?;
+                // There is a historic bug where a transfer did not exist, unfortunately
+                // will have to skip those
+                if let Some(transfer) = transfer {
+                    data.insert("direct_transfer".to_string(), json!(transfer.direct));
+                    data.insert(
+                        "number_of_tickets_transferred".to_string(),
+                        json!(transfer.transfer_ticket_count(conn)?),
+                    );
 
-                data.insert("direct_transfer".to_string(), json!(transfer.direct));
-                data.insert(
-                    "number_of_tickets_transferred".to_string(),
-                    json!(transfer.transfer_ticket_count(conn)?),
-                );
+                    data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
+                    let mut events = transfer.events(conn)?;
+                    // TODO: lock down transfers to have only one event
+                    if let Some(event) = events.pop() {
+                        DomainEvent::webhook_payload_event_data(&event, &mut data, conn)?;
+                    }
+                    let mut recipient_data = data.clone();
+                    let mut transferer_data = data;
 
-                data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
-                let mut events = transfer.events(conn)?;
-                // TODO: lock down transfers to have only one event
-                if let Some(event) = events.pop() {
-                    DomainEvent::webhook_payload_event_data(&event, &mut data, conn)?;
+                    DomainEvent::recipient_payload_data(
+                        &transfer,
+                        self.event_type,
+                        &mut recipient_data,
+                        front_end_url,
+                        conn,
+                    )?;
+                    result.push(recipient_data);
+
+                    DomainEvent::transferer_payload_data(
+                        &transfer,
+                        self.event_type,
+                        &mut transferer_data,
+                        conn,
+                    )?;
+                    result.push(transferer_data);
+                } else {
+                    jlog!(
+                        Error,
+                        "bigneon-db::models::domain_events",
+                        "Could not find transfer for id",
+                        { "domain_event": &self }
+                    );
                 }
-                let mut recipient_data = data.clone();
-                let mut transferer_data = data;
-
-                DomainEvent::recipient_payload_data(
-                    &transfer,
-                    self.event_type,
-                    &mut recipient_data,
-                    front_end_url,
-                    conn,
-                )?;
-                result.push(recipient_data);
-
-                DomainEvent::transferer_payload_data(
-                    &transfer,
-                    self.event_type,
-                    &mut transferer_data,
-                    conn,
-                )?;
-                result.push(transferer_data);
             }
             _ => {
                 return Err(DatabaseError::new(
@@ -498,12 +508,12 @@ impl NewDomainEvent {
             .to_db_error(ErrorCode::InsertError, "Could not insert domain event")?;
 
         jlog!(Info, &format!("Domain Event: {} `{}` on {}:{}", self.event_type,
-            self.display_text, self.main_table, self.main_id.map(|i| i.to_string()).unwrap_or_default()),{
-                "domain_event_id": result.id,
-                "event_type": self.event_type.clone(),
-                "main_table": self.main_table.clone(),
-                "main_id": self.main_id,
-                "event_data": self.event_data
+        self.display_text, self.main_table, self.main_id.map( |i| i.to_string()).unwrap_or_default())           ,{
+            "domain_event_id": result.id,
+            "event_type": self.event_type.clone(),
+            "main_table": self.main_table.clone(),
+            "main_id": self.main_id,
+            "event_data": self.event_data
         });
 
         result.post_processing(conn)?;

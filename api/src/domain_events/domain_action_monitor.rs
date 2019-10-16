@@ -114,7 +114,7 @@ impl DomainActionMonitor {
                     && (publisher.organization_id.is_none()
                         || publisher.organization_id == event.organization_id)
                 {
-                    jlog!(Debug, "bigneon::domain_events", "Publishing event", {"publisher_id": publisher.id, "event_type": &event.event_type, "organization_id": event.organization_id});
+                    jlog!(Info, "bigneon::domain_events", "Publishing event", {"publisher_id": publisher.id, "event_type": &event.event_type, "organization_id": event.organization_id, "event": &event});
                     publisher.publish(&event, &config.front_end_url, connection)?;
                 }
                 publisher.update_last_domain_event_seq(event.seq, connection)?;
