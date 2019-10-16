@@ -359,6 +359,12 @@ impl DomainActionMonitor {
         }
     }
 
+    pub fn wait_for_end(&mut self) {
+        for w in self.worker_threads.drain(..) {
+            w.1.join().unwrap().unwrap();
+        }
+    }
+
     pub fn stop(&mut self) {
         for w in self.worker_threads.drain(..) {
             w.0.send(()).unwrap();
