@@ -120,6 +120,7 @@ fn create_post_event_entries() {
     let organization = project
         .create_organization()
         .with_event_fee()
+        .with_cc_fee(5f32)
         .with_settlement_type(SettlementTypes::PostEvent)
         .finish();
     let organization2 = project
@@ -370,12 +371,9 @@ fn create_post_event_entries() {
     assert_eq!(event_fee_entry.ticket_type_id, None);
     assert_eq!(event_fee_entry.face_value_in_cents, 0);
     assert_eq!(event_fee_entry.revenue_share_value_in_cents, 150);
-    assert_eq!(event_fee_entry.online_sold_quantity, 5);
-    assert_eq!(event_fee_entry.fee_sold_quantity, 0);
-    assert_eq!(
-        event_fee_entry.total_sales_in_cents,
-        event_fee_entry.online_sold_quantity * event_fee_entry.face_value_in_cents
-    );
+    assert_eq!(event_fee_entry.online_sold_quantity, 0);
+    assert_eq!(event_fee_entry.fee_sold_quantity, 5);
+    assert_eq!(event_fee_entry.total_sales_in_cents, 750);
 }
 
 #[test]
@@ -386,6 +384,7 @@ fn create_rolling_entries() {
     let organization = project
         .create_organization()
         .with_event_fee()
+        .with_cc_fee(5f32)
         .with_settlement_type(SettlementTypes::Rolling)
         .finish();
     let organization2 = project
@@ -639,12 +638,9 @@ fn create_rolling_entries() {
     assert_eq!(event_fee_entry.ticket_type_id, None);
     assert_eq!(event_fee_entry.face_value_in_cents, 0);
     assert_eq!(event_fee_entry.revenue_share_value_in_cents, 150);
-    assert_eq!(event_fee_entry.online_sold_quantity, 4);
-    assert_eq!(event_fee_entry.fee_sold_quantity, 0);
-    assert_eq!(
-        event_fee_entry.total_sales_in_cents,
-        event_fee_entry.online_sold_quantity * event_fee_entry.face_value_in_cents
-    );
+    assert_eq!(event_fee_entry.online_sold_quantity, 0);
+    assert_eq!(event_fee_entry.fee_sold_quantity, 4);
+    assert_eq!(event_fee_entry.total_sales_in_cents, 600);
 
     let event_entries_data = display_settlement
         .event_entries
@@ -690,12 +686,9 @@ fn create_rolling_entries() {
     assert_eq!(event_fee_entry.ticket_type_id, None);
     assert_eq!(event_fee_entry.face_value_in_cents, 0);
     assert_eq!(event_fee_entry.revenue_share_value_in_cents, 150);
-    assert_eq!(event_fee_entry.online_sold_quantity, 1);
-    assert_eq!(event_fee_entry.fee_sold_quantity, 0);
-    assert_eq!(
-        event_fee_entry.total_sales_in_cents,
-        event_fee_entry.online_sold_quantity * event_fee_entry.face_value_in_cents
-    );
+    assert_eq!(event_fee_entry.online_sold_quantity, 0);
+    assert_eq!(event_fee_entry.fee_sold_quantity, 1);
+    assert_eq!(event_fee_entry.total_sales_in_cents, 150);
 }
 
 #[test]
