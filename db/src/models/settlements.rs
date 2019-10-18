@@ -10,6 +10,7 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::pagination::*;
 use uuid::Uuid;
+use validators;
 
 sql_function!(fn process_settlement_for_event(settlement_id: dUuid, event_id: dUuid, start_time: Nullable<Timestamp>, end_time: Nullable<Timestamp>));
 
@@ -49,6 +50,8 @@ pub struct DisplaySettlement {
 
 impl NewSettlement {
     pub fn commit(&self, conn: &PgConnection) -> Result<Settlement, DatabaseError> {
+        self.validate_record()?;
+
         let settlement = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new settlement",
@@ -60,6 +63,23 @@ impl NewSettlement {
         settlement.create_entries(conn)?;
 
         Ok(settlement)
+    }
+
+    fn validate_record(&self) -> Result<(), DatabaseError> {
+        let validation_errors = validators::append_validation_error(
+            Ok(()),
+            "start_time",
+            validators::n_date_valid(
+                Some(self.start_time),
+                Some(self.end_time),
+                "end_time_before_start_time",
+                "End time must be after start time",
+                "start_time",
+                "end_time",
+            ),
+        );
+
+        Ok(validation_errors?)
     }
 }
 
