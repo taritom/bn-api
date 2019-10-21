@@ -1834,18 +1834,26 @@ impl Order {
                 o.platform,
                 o.checkout_url,
                 o.checkout_url_expires,
-                ARRAY_AGG(DISTINCT p.payment_method) FILTER (WHERE p.payment_method IS NOT NULL) as payment_methods,
-                ARRAY_AGG(DISTINCT p.provider) FILTER (WHERE p.provider IS NOT NULL) as providers,
+                p.payment_methods,
+                p.providers,
                 CAST(COALESCE(SUM(oi.unit_price_in_cents * oi.quantity), 0) as BigInt) as total_in_cents,
                 CAST(COALESCE(SUM(oi.unit_price_in_cents * oi.refunded_quantity), 0) as BigInt) as total_refunded_in_cents,
-                ARRAY_AGG(SUBSTRING(orgs.allowed_payment_providers::text from 2 for char_length(orgs.allowed_payment_providers::text) - 2)) FILTER (WHERE orgs.allowed_payment_providers IS NOT NULL) as allowed_payment_providers,
+                ARRAY_AGG(DISTINCT SUBSTRING(orgs.allowed_payment_providers::text from 2 for char_length(orgs.allowed_payment_providers::text) - 2)) FILTER (WHERE orgs.allowed_payment_providers IS NOT NULL) as allowed_payment_providers,
                 ARRAY_AGG(DISTINCT e.organization_id) FILTER (WHERE e.organization_id IS NOT NULL) as organization_ids,
                 ARRAY_AGG(DISTINCT e.id) FILTER (WHERE e.id IS NOT NULL) as event_ids
             FROM orders o
             LEFT JOIN order_items oi ON oi.order_id = o.id
             LEFT JOIN events e ON oi.event_id = e.id
             LEFT JOIN organizations orgs ON e.organization_id = orgs.id
-            LEFT JOIN payments p ON p.order_id = o.id
+            LEFT JOIN (
+                SELECT
+                    p.order_id,
+                    ARRAY_AGG(DISTINCT p.provider) FILTER (WHERE p.provider IS NOT NULL) as providers,
+                    ARRAY_AGG(DISTINCT p.payment_method) FILTER (WHERE p.payment_method IS NOT NULL) as payment_methods
+                FROM payments p
+                WHERE p.status in ('Completed', 'Refunded')
+                GROUP BY p.payment_method, p.order_id
+            ) AS p on o.id = p.order_id
         "#,
         )
         .into_boxed();
@@ -1867,11 +1875,12 @@ impl Order {
                 o.platform,
                 o.expires_at,
                 o.checkout_url_expires,
-                o.checkout_url
+                o.checkout_url,
+                p.payment_methods,
+                p.providers
             ORDER BY o.order_date desc
         ",
         );
-
         let results: Vec<R> = query.get_results(conn).to_db_error(
             ErrorCode::QueryError,
             "Unable to load order data for organization fan",
