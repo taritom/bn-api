@@ -359,6 +359,11 @@ impl DomainEvent {
             json!(event.event_start.map(|e| e.timestamp())),
         );
 
+        data.insert(
+            "show_end".to_string(),
+            json!(event.event_end.map(|e| e.timestamp())),
+        );
+
         if let Some(event_start) = localized_times.event_start {
             data.insert(
                 "show_start_date".to_string(),
@@ -378,6 +383,13 @@ impl DomainEvent {
             data.insert(
                 "show_doors_open_time".to_string(),
                 json!(door_time.format("%l:%M %p %Z").to_string().trim()),
+            );
+        }
+
+        if let Some(event_end) = localized_times.event_end {
+            data.insert(
+                "show_end_time".to_string(),
+                json!(event_end.format("%l:%M %p %Z").to_string().trim()),
             );
         }
         if let Some(venue) = event.venue(conn)? {
