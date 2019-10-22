@@ -56,10 +56,10 @@ enum SearchEngine {
 fn get_search_engine_url(se: SearchEngine, api_url: &String) -> String {
     match se {
         SearchEngine::Google => format!(
-            "http://www.google.com/webmasters/sitemaps/ping?sitemap={}",
+            "http://www.google.com/webmasters/sitemaps/ping?sitemap={}/sitemap.xml",
             api_url
         ),
-        SearchEngine::Bing => format!("http://www.bing.com/ping?sitemap=http%3A%2F%2F{}", api_url),
+        SearchEngine::Bing => format!("http://www.bing.com/ping?sitemap={}/sitemap.xml", api_url),
     }
 }
 
@@ -88,11 +88,11 @@ mod test {
         let bing_result = get_search_engine_url(SearchEngine::Bing, &sitemap_url);
         let google_result = get_search_engine_url(SearchEngine::Google, &sitemap_url);
         let bing_result_test = format!(
-            "http://www.bing.com/ping?sitemap=http%3A%2F%2F{}",
+            "http://www.bing.com/ping?sitemap={}/sitemap.xml",
             sitemap_url
         );
         let google_result_test = format!(
-            "http://www.google.com/webmasters/sitemaps/ping?sitemap={}",
+            "http://www.google.com/webmasters/sitemaps/ping?sitemap={}/sitemap.xml",
             sitemap_url
         );
         assert_eq!(bing_result_test, bing_result);
