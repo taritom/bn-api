@@ -1861,6 +1861,9 @@ impl Event {
         visibility: TicketTypeVisibility,
         parent_id: Option<Uuid>,
         additional_fee_in_cents: i64,
+        app_sales_enabled: bool,
+        web_sales_enabled: bool,
+        box_office_sales_enabled: bool,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<TicketType, DatabaseError> {
@@ -1878,6 +1881,9 @@ impl Event {
             visibility,
             parent_id,
             additional_fee_in_cents,
+            app_sales_enabled,
+            web_sales_enabled,
+            box_office_sales_enabled,
         )
         .commit(current_user_id, conn)?;
         let asset = Asset::create(ticket_type.id, asset_name).commit(conn)?;

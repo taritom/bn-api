@@ -2377,6 +2377,9 @@ fn add_tickets_below_min_fee() {
             TicketTypeVisibility::Always,
             None,
             0,
+            true,
+            true,
+            true,
             None,
             connection,
         )

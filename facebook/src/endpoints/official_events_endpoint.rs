@@ -43,7 +43,7 @@ impl OfficialEventsEndpoint {
             .post(&format!("{}/v3.1/official_events", &self.client.base_url))
             .json(&request)
             .send()?;
-        let status = resp.status();
+        //        let status = resp.status();
         //        if status != StatusCode::UNPROCESSABLE_ENTITY && status != StatusCode::OK {
         //            return Err(resp.error_for_status().err().map(|e| e.into()).unwrap_or(
         //                GlobeeError::UnexpectedResponseError(format!(
@@ -59,7 +59,6 @@ impl OfficialEventsEndpoint {
         jlog!(Info, "Response from Facebook", { "response": &value });
         //let value: GlobeeResponse<PaymentResponse> = serde_json::from_value(value)?;
 
-        panic!("oh noes");
         Ok(FBID("asdf".to_string()))
     }
 }

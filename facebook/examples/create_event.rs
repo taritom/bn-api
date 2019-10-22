@@ -8,7 +8,7 @@ fn main() {
     let access_token = "".to_string(); // Get from Graph Explorer tool - https://developers.facebook.com/tools/explorer
     let fb = FacebookClient::from_access_token(access_token);
 
-    let accounts = fb.me.accounts.list().unwrap();
+    let _accounts = fb.me.accounts.list().unwrap();
 
     let event = Event {
         name: "Hello world".to_string(),

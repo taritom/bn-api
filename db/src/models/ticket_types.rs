@@ -137,6 +137,9 @@ impl TicketType {
         visibility: TicketTypeVisibility,
         parent_id: Option<Uuid>,
         additional_fee_in_cents: i64,
+        app_sales_enabled: bool,
+        web_sales_enabled: bool,
+        box_office_sales_enabled: bool,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -152,6 +155,9 @@ impl TicketType {
             parent_id,
             additional_fee_in_cents,
             end_date_type,
+            app_sales_enabled,
+            web_sales_enabled,
+            box_office_sales_enabled,
         }
     }
 
@@ -829,6 +835,9 @@ pub struct NewTicketType {
     pub parent_id: Option<Uuid>,
     pub additional_fee_in_cents: i64,
     pub end_date_type: TicketTypeEndDateType,
+    pub app_sales_enabled: bool,
+    pub web_sales_enabled: bool,
+    pub box_office_sales_enabled: bool,
 }
 
 impl NewTicketType {
