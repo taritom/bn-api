@@ -31,5 +31,5 @@ pub fn index(connection: (Connection)) -> Result<HttpResponse, BigNeonError> {
 }
 
 fn create_url(slug: &str) -> String {
-    format!("{}/events/{}", env::var("FRONT_END_URL").unwrap(), slug)
+    format!("{}/tickets/{}", env::var("FRONT_END_URL").unwrap(), slug)
 }
