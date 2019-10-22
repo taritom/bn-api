@@ -148,6 +148,13 @@ impl Slug {
             .to_db_error(ErrorCode::QueryError, "Error loading slug")
     }
 
+    pub fn find_all(ids: Vec<Uuid>, conn: &PgConnection) -> Result<Vec<Slug>, DatabaseError> {
+        slugs::table
+            .filter(slugs::id.eq_any(ids))
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading slug")
+    }
+
     pub fn find_by_slug(slug: &str, conn: &PgConnection) -> Result<Vec<Slug>, DatabaseError> {
         slugs::table
             .filter(slugs::slug.eq(slug))

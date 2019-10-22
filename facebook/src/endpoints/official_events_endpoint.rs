@@ -2,7 +2,7 @@ use error::FacebookError;
 use facebook_client::FacebookClientInner;
 use facebook_request::FacebookRequest;
 use fbid::FBID;
-use log::Level::{Debug, Info};
+use log::Level::Info;
 use nodes::Event;
 use std::rc::Rc;
 
@@ -23,7 +23,7 @@ impl OfficialEventsEndpoint {
 
         jlog!(Info, "Sending request to Facebook", { "request": &request });
 
-        /// Example json to use at https://developers.facebook.com/tools/explorer
+        // Example json to use at https://developers.facebook.com/tools/explorer
         /*
         {
             "category": "WORKSHOP",

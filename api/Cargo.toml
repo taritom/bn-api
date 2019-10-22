@@ -46,3 +46,4 @@ uuid = { version = "0.6", features = ["serde", "v4"] }
 url="1.7.2"
 validator = "0.8"
 validator_derive = "0.8"
+sitemap = "0.4"

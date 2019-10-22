@@ -405,6 +405,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(venues::index);
         r.method(Method::POST).with(venues::create);
     })
+    .resource("/sitemap.xml", |r| {
+        r.method(Method::GET).with(sitemap_gen::index);
+    })
     .register()
     .default_resource(|r| {
         r.method(Method::GET)

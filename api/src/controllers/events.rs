@@ -7,6 +7,7 @@ use chrono::Duration;
 use controllers::organizations::DisplayOrganizationUser;
 use db::Connection;
 use db::ReadonlyConnection;
+use diesel::PgConnection;
 use domain_events::executors::UpdateGenresPayload;
 use errors::*;
 use extractors::*;
@@ -689,6 +690,7 @@ pub fn create(
 
     let event = new_event.commit(Some(user.id()), connection)?;
 
+    create_domain_action_event(event.id, connection);
     Ok(HttpResponse::Created().json(event))
 }
 
@@ -717,7 +719,22 @@ pub fn update(
     //    }
 
     let updated_event = event.update(Some(user.id()), event_parameters, connection)?;
+
+    create_domain_action_event(updated_event.id, connection);
+
     Ok(HttpResponse::Ok().json(&updated_event))
+}
+
+fn create_domain_action_event(event_id: Uuid, conn: &PgConnection) {
+    let domain_action = DomainAction::create(
+        None,
+        DomainActionTypes::SubmitSitemapToSearchEngines,
+        None,
+        json!({}),
+        Some(Tables::Events),
+        Some(event_id),
+    );
+    domain_action.commit(conn).unwrap();
 }
 
 pub fn delete(
