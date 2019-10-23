@@ -972,14 +972,14 @@ impl NewTicketType {
         match self.start_date {
             Some(start_date) => Ok(start_date),
             None =>
-                TicketType::find(
+                Ok(cmp::min(TicketType::find(
                     self.parent_id.ok_or_else(|| {
                         return DatabaseError::business_process_error::<Uuid>(
                             "Could not create ticket type, it must have a start date or start after another ticket type",
                         ).unwrap_err();
                     })?,
                     conn,
-                )?.end_date(conn)
+                )?.end_date(conn)?, self.end_date(conn)?))
         }
     }
 }
