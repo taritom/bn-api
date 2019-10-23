@@ -439,9 +439,13 @@ pub fn show(
         video_url: event.video_url,
         organization: ShortOrganization {
             id: organization.id,
+            slug: organization.slug(connection).optional()?.map(|s| s.slug),
             name: organization.name,
         },
-        venue,
+        venue: match venue {
+            Some(v) => Some(v.for_display(connection)?),
+            None => None,
+        },
         artists: event_artists,
         ticket_types: display_ticket_types,
         total_interest,

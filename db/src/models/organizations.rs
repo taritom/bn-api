@@ -277,6 +277,13 @@ impl Organization {
         .pop())
     }
 
+    pub fn slug(&self, conn: &PgConnection) -> Result<Slug, DatabaseError> {
+        match self.slug_id {
+            Some(s) => Ok(Slug::find(s, conn)?),
+            None => DatabaseError::no_results("Organization does not have a slug"),
+        }
+    }
+
     pub fn timezone(&self) -> Result<Tz, DatabaseError> {
         self.timezone
             .clone()
