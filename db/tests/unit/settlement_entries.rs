@@ -23,7 +23,7 @@ fn find_for_settlement_by_event() {
         Some("test comment".to_string()),
         true,
     )
-    .commit(connection)
+    .commit(None, connection)
     .unwrap();
     let settlement_entry = project
         .create_settlement_entry()
@@ -102,7 +102,7 @@ fn create() {
         Some("test comment".to_string()),
         true,
     )
-    .commit(connection)
+    .commit(None, connection)
     .unwrap();
 
     let settlement_entry = project
