@@ -149,7 +149,7 @@ impl Slug {
     }
 
     pub fn find_by_slug_type(
-        slug_type: String,
+        slug_type: &str,
         conn: &PgConnection,
     ) -> Result<Vec<Slug>, DatabaseError> {
         slugs::table
