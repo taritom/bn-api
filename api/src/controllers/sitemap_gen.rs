@@ -30,6 +30,15 @@ pub fn index(
         conn,
     );
 
+    // Cities
+    let city_slug_id = Slug::find_by_slug("city", conn)?.iter().map(|s| s.id).collect_vec();
+    let city_urls = create_urls(
+        &state.config.front_end_url,
+        city_slug_id,
+        "cities".to_string(),
+        conn,
+    );
+
     // Venues
     let venue_slugs_ids = Venue::all(None, conn)?
         .iter()
@@ -63,6 +72,7 @@ pub fn index(
     let mut urls = event_urls;
     urls.extend(venue_urls);
     urls.extend(organizations_urls);
+    urls.extend(city_urls);
 
     let sitemap_xml = gen_sitemap::create_sitemap(&urls)?;
 
@@ -81,7 +91,9 @@ fn create_urls(
     let slugs = Slug::find_all(slug_ids, conn).unwrap();
     let gen_urls = slugs
         .iter()
-        .map(|slug| format!("{}/{}/{}", front_url, url_parm, slug.slug))
+        .map(|slug| &slug.slug)
+        .unique()
+        .map(|s| format!("{}/{}/{}", front_url, url_parm, s))
         .collect_vec();
     gen_urls
 }
