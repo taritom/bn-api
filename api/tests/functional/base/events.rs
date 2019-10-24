@@ -973,7 +973,7 @@ pub fn expected_show_json(
         },
         event_type: event.event_type,
         sales_start_date,
-        url: format!("{}/{}", env::var("FRONT_END_URL").unwrap(), &slug),
+        url: format!("{}/tickets/{}", env::var("FRONT_END_URL").unwrap(), &slug),
         slug,
         facebook_pixel_key: None,
         extra_admin_data: None,

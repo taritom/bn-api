@@ -460,7 +460,7 @@ pub fn show(
         tracking_keys,
         event_type: event.event_type,
         sales_start_date,
-        url: format!("{}/{}", &state.config.front_end_url, &slug),
+        url: format!("{}/tickets/{}", &state.config.front_end_url, &slug),
         slug,
         facebook_pixel_key: event.facebook_pixel_key,
         extra_admin_data: event.extra_admin_data.and_then(|data| {
