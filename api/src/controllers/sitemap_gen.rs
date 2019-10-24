@@ -7,10 +7,12 @@ use itertools::Itertools;
 use server::AppState;
 use utils::gen_sitemap;
 use diesel::PgConnection;
+use uuid::Uuid;
 
 pub fn index(
     (connection, state): (Connection, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
+
     let conn = connection.get();
 
     //find all active events
@@ -32,7 +34,7 @@ pub fn index(
         .map(|s| s.unwrap())
         .collect_vec();
 
-    let mut venue_urls = create_urls( &state.config.front_end_url, venue_slugs_ids, "venues".to_string(), conn);
+    let venue_urls = create_urls( &state.config.front_end_url, venue_slugs_ids, "venues".to_string(), conn);
 
     // Organizations
     let organizations_slugs_ids = Organization::all(conn)?
@@ -56,8 +58,8 @@ pub fn index(
         .into())
 }
 
-fn create_urls(front_url: &String, slug_ids: Vec<String>, url_parm: String, conn: &PgConnection) -> Vec<String> {
-    let slugs = Slug::find_all(slug_ids, conn)?;
-    let gen_urls = slugs.iter().map(|slug| format!("{}/{}/{}", front_url, url_parm, slug));
+fn create_urls(front_url: &String, slug_ids: Vec<Uuid>, url_parm: String, conn: &PgConnection) -> Vec<String> {
+    let slugs = Slug::find_all(slug_ids, conn).unwrap();
+    let gen_urls = slugs.iter().map(|slug| format!("{}/{}/{}", front_url, url_parm, slug.slug)).collect_vec();
     gen_urls
 }
