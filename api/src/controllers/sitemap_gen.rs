@@ -31,7 +31,10 @@ pub fn index(
     );
 
     // Cities
-    let city_slug_id = Slug::find_by_slug_type("City", conn)?.iter().map(|s| s.id).collect_vec();
+    let city_slug_id = Slug::find_by_slug_type("City", conn)?
+        .iter()
+        .map(|s| s.id)
+        .collect_vec();
     let city_urls = create_urls(
         &state.config.front_end_url,
         city_slug_id,
@@ -40,7 +43,10 @@ pub fn index(
     );
 
     // Venues
-    let venue_slugs_ids = Slug::find_by_slug_type("Venue", conn)?.iter().map(|s| s.id).collect_vec();
+    let venue_slugs_ids = Slug::find_by_slug_type("Venue", conn)?
+        .iter()
+        .map(|s| s.id)
+        .collect_vec();
     let venue_urls = create_urls(
         &state.config.front_end_url,
         venue_slugs_ids,
@@ -49,7 +55,10 @@ pub fn index(
     );
 
     // Organizations
-    let organizations_slugs_ids  = Slug::find_by_slug_type("Organization", conn)?.iter().map(|s| s.id).collect_vec();
+    let organizations_slugs_ids = Slug::find_by_slug_type("Organization", conn)?
+        .iter()
+        .map(|s| s.id)
+        .collect_vec();
     let organizations_urls = create_urls(
         &state.config.front_end_url,
         organizations_slugs_ids,
