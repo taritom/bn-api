@@ -268,7 +268,7 @@ fn create_post_event_entries() {
         Some("test comment".to_string()),
         true,
     )
-    .commit(connection)
+    .commit(None, connection)
     .unwrap();
 
     let display_settlement = settlement.clone().for_display(connection).unwrap();
@@ -282,7 +282,7 @@ fn create_post_event_entries() {
         Some("test comment".to_string()),
         true,
     )
-    .commit(connection)
+    .commit(None, connection)
     .unwrap();
 
     let display_settlement = settlement.clone().for_display(connection).unwrap();
@@ -547,7 +547,7 @@ fn create_rolling_entries() {
         Some("test comment".to_string()),
         false,
     )
-    .commit(connection)
+    .commit(None, connection)
     .unwrap();
 
     let display_settlement = settlement.clone().for_display(connection).unwrap();
@@ -696,12 +696,21 @@ fn create_rolling_entries() {
 fn create() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let user = project.create_user().finish();
     let organization = project.create_organization().finish();
     project
         .create_event()
         .with_name("NewEvent".into())
         .with_organization(&organization)
         .finish();
+    let domain_events = DomainEvent::find(
+        Tables::Organizations,
+        Some(organization.id),
+        Some(DomainEventTypes::SettlementReportProcessed),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
     let settlement = Settlement::create(
         organization.id,
         NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11),
@@ -710,11 +719,21 @@ fn create() {
         Some("test comment".to_string()),
         true,
     )
-    .commit(connection)
+    .commit(Some(user.clone()), connection)
     .unwrap();
 
     assert_eq!(settlement.organization_id, organization.id);
     assert_eq!(settlement.comment, Some("test comment".to_string()));
+
+    let domain_events = DomainEvent::find(
+        Tables::Organizations,
+        Some(organization.id),
+        Some(DomainEventTypes::SettlementReportProcessed),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+    assert_eq!(domain_events[0].user_id, Some(user.id));
 }
 
 #[test]
@@ -735,7 +754,7 @@ fn create_with_validation_errors() {
         Some("test comment".to_string()),
         true,
     )
-    .commit(connection);
+    .commit(None, connection);
 
     match result {
         Ok(_) => {

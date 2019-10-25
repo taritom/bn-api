@@ -49,7 +49,11 @@ pub struct DisplaySettlement {
 }
 
 impl NewSettlement {
-    pub fn commit(&self, conn: &PgConnection) -> Result<Settlement, DatabaseError> {
+    pub fn commit(
+        &self,
+        user: Option<User>,
+        conn: &PgConnection,
+    ) -> Result<Settlement, DatabaseError> {
         self.validate_record()?;
 
         let settlement = DatabaseError::wrap(
@@ -61,6 +65,16 @@ impl NewSettlement {
         )?;
 
         settlement.create_entries(conn)?;
+
+        DomainEvent::create(
+            DomainEventTypes::SettlementReportProcessed,
+            format!("Settlement processed"),
+            Tables::Organizations,
+            Some(settlement.organization_id),
+            user.map(|u| u.id),
+            Some(json!({"settlement_id": settlement.id})),
+        )
+        .commit(conn)?;
 
         Ok(settlement)
     }
@@ -149,17 +163,7 @@ impl Settlement {
             None,
             organization.settlement_type == SettlementTypes::PostEvent,
         )
-        .commit(conn)?;
-
-        DomainEvent::create(
-            DomainEventTypes::SettlementReportProcessed,
-            format!("Settlement processed"),
-            Tables::Organizations,
-            Some(organization.id),
-            None,
-            Some(json!({"settlement_id": settlement.id})),
-        )
-        .commit(conn)?;
+        .commit(None, conn)?;
 
         Ok(settlement)
     }
