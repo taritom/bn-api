@@ -161,9 +161,6 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/genres", |r| {
         r.method(Method::GET).with(genres::index);
     })
-    .resource("/genres/list", |r| {
-        r.method(Method::GET).with(genres::list);
-    })
     .resource("/invitations/{id}", |r| {
         r.method(Method::GET).with(organization_invites::view);
     })
