@@ -46,55 +46,55 @@ pub fn create_sitemap(urls: &[String]) -> Result<String, BigNeonError> {
 pub fn create_sitemap_conn(conn: &PgConnection, front_end_url: &String) -> Result<String, BigNeonError> {
     //find all active events
     let events_slug_ids = Event::find_all_active_events(conn)?
-    .iter()
-    .filter(|e| e.publish_date.is_some() && e.publish_date.unwrap() < Utc::now().naive_utc())
-    .map(|e| e.slug_id)
-    .filter(|s| s.is_some())
-    .map(|s| s.unwrap())
-    .collect_vec();
+        .iter()
+        .filter(|e| e.publish_date.is_some() && e.publish_date.unwrap() < Utc::now().naive_utc())
+        .map(|e| e.slug_id)
+        .filter(|s| s.is_some())
+        .map(|s| s.unwrap())
+        .collect_vec();
 
     let event_urls = create_urls(
-    front_end_url,
-    events_slug_ids,
-    "tickets".to_string(),
-    conn,
-    );
+        front_end_url,
+        events_slug_ids,
+        "tickets".to_string(),
+        conn,
+        );
 
     // Cities
     let city_slug_id = Slug::find_by_slug_type("City", conn)?
-    .iter()
-    .map(|s| s.id)
-    .collect_vec();
-    let city_urls = create_urls(
-    front_end_url,
-    city_slug_id,
-    "cities".to_string(),
-    conn,
-    );
+        .iter()
+        .map(|s| s.id)
+        .collect_vec();
+        let city_urls = create_urls(
+        front_end_url,
+        city_slug_id,
+        "cities".to_string(),
+        conn,
+        );
 
     // Venues
     let venue_slugs_ids = Slug::find_by_slug_type("Venue", conn)?
-    .iter()
-    .map(|s| s.id)
-    .collect_vec();
-    let venue_urls = create_urls(
-    front_end_url,
-    venue_slugs_ids,
-    "venues".to_string(),
-    conn,
-    );
+        .iter()
+        .map(|s| s.id)
+        .collect_vec();
+        let venue_urls = create_urls(
+        front_end_url,
+        venue_slugs_ids,
+        "venues".to_string(),
+        conn,
+        );
 
     // Organizations
     let organizations_slugs_ids = Slug::find_by_slug_type("Organization", conn)?
-    .iter()
-    .map(|s| s.id)
-    .collect_vec();
-    let organizations_urls = create_urls(
-    front_end_url,
-    organizations_slugs_ids,
-    "organizations".to_string(),
-    conn,
-    );
+        .iter()
+        .map(|s| s.id)
+        .collect_vec();
+        let organizations_urls = create_urls(
+        front_end_url,
+        organizations_slugs_ids,
+        "organizations".to_string(),
+        conn,
+        );
 
     let mut urls = event_urls;
     urls.extend(venue_urls);

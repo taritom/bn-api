@@ -2,6 +2,7 @@ use support::database::TestDatabase;
 use support;
 use bigneon_db::models::{Roles};
 use bigneon_db::prelude::*;
+use bigneon_api::utils::gen_sitemap;
 
 #[test]
 fn index() {
@@ -50,4 +51,7 @@ fn index() {
         .for_organization(&organization)
         .with_slug("redirect-me3")
         .finish();
+
+    let sitemap_xml = gen_sitemap::create_sitemap_conn(conn, &state.config.front_end_url)?;
+
 }
