@@ -1,9 +1,10 @@
-use error::FacebookError;
+use error::{FacebookError, FacebookErrorResponse};
 use facebook_client::FacebookClientInner;
 use facebook_request::FacebookRequest;
 use fbid::FBID;
 use log::Level::Info;
 use nodes::Event;
+use reqwest::StatusCode;
 use std::rc::Rc;
 
 pub struct OfficialEventsEndpoint {
@@ -57,7 +58,14 @@ impl OfficialEventsEndpoint {
         println!("{:?}", value);
 
         jlog!(Info, "Response from Facebook", { "response": &value });
-        //let value: GlobeeResponse<PaymentResponse> = serde_json::from_value(value)?;
+
+        if resp.status() != StatusCode::OK {
+            if let Some(error) = value.get("error") {
+                let error: FacebookErrorResponse = serde_json::from_value(error.clone())?;
+                return Err(FacebookError::FacebookError(error));
+            }
+            resp.error_for_status()?;
+        }
 
         Ok(FBID("asdf".to_string()))
     }
