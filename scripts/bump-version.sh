@@ -2,16 +2,11 @@
 
 set -e
 
-if [[ -z $1 ]]; then
-  echo "Usage: $0 branch [--tag-commit]"
-  exit 1
-fi
-
-if [[ -n $2 && $2 == "--tag-commit" ]]; then
+if [[ -n $1 && $1 == "--tag-commit" ]]; then
   TAG_COMMIT=1
 fi
 
-BRANCH="$1"
+BRANCH="$DRONE_COMMIT_BRANCH"
 new_version=""
 
 # Expects a current version

@@ -208,7 +208,7 @@ steps:
           GITHUB_SSH_KEY:
               from_secret: github_deploy_key
       commands:
-        - ./scripts/bump-version.sh $DRONE_COMMIT_BRANCH --tag-commit
+        - ./scripts/bump-version.sh --tag-commit
       when:
           event: push
           branch: [master, develop]
