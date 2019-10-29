@@ -80,12 +80,12 @@ if [[ -n $TAG_COMMIT ]]; then
   git config --global user.email "travis@travis-ci.org"
   git config --global user.name "Travis CI"
 
-  git checkout master
+  git checkout "$BRANCH"
 
   git remote add sshremote git@github.com:$DRONE_REPO.git
 
   git commit -m "Version bump to ${new_version} [skip ci]"
   git tag ${new_version}
-  git push sshremote master
+  git push sshremote "$BRANCH"
   git push sshremote ${new_version}
 fi
