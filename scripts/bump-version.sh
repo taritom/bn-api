@@ -48,7 +48,8 @@ function bump_patch() {
 function bump_file() {
   local INPUT_FILE="$1"
   local BUMP_VER=$2
-  local CURRENT_VERSION=$(grep -m 1 -Po '(?<=version = ")[^"]*' "$INPUT_FILE")
+
+  local CURRENT_VERSION=$(grep -m 1 -o 'version = ".*"'  "$INPUT_FILE" | sed -n 's/.*version = "\(.*\)"/\1/p')
   bump_patch "$CURRENT_VERSION" "$BUMP_VER"
 
   local SEARCH='^(version[[:space:]]*=[[:space:]]*).+'
