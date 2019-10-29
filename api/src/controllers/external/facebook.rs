@@ -7,6 +7,7 @@ use bigneon_db::validators::{append_validation_error, create_validation_error};
 use db::Connection;
 use errors::*;
 use extractors::*;
+use facebook::error::FacebookError;
 use facebook::nodes::Event as FBEvent;
 use facebook::prelude::{CoverPhoto, FacebookClient, FBID};
 use helpers::application;
@@ -321,17 +322,17 @@ pub fn create_event(
     );
 
     let mut validation_errors: Result<(), ValidationErrors> = Ok(());
-
-    if event.additional_info.is_none() || event.additional_info == Some("".to_string()) {
-        validation_errors = append_validation_error(
-            validation_errors,
-            "additional_info",
-            Err(create_validation_error(
-                "additional_info",
-                "Event must have additional info to use as a description on Facebook",
-            )),
-        );
-    }
+    //
+    //    if event.additional_info.is_none() || event.additional_info == Some("".to_string()) {
+    //        validation_errors = append_validation_error(
+    //            validation_errors,
+    //            "additional_info",
+    //            Err(create_validation_error(
+    //                "additional_info",
+    //                "Event must have additional info to use as a description on Facebook",
+    //            )),
+    //        );
+    //    }
 
     if event.promo_image_url.is_none() {
         validation_errors = append_validation_error(
@@ -355,7 +356,7 @@ pub fn create_event(
     let fb_event = FBEvent::new(
         data.category.parse()?,
         event.name.clone(),
-        event.additional_info.clone().unwrap(),
+        data.description.clone(),
         FBID(data.page_id.clone()),
         event
             .venue(conn)?
@@ -378,7 +379,15 @@ pub fn create_event(
             })?
             .to_string(),
     );
-    let _fb_id = client.official_events.create(fb_event)?;
+    let _fb_id = match client.official_events.create(fb_event){
+        Ok(i) => i,
+        Err(err) => match err {
+            FacebookError::FacebookError(e) => {
+                return Err(ApplicationError::unprocessable(&format!("Could not create event on Facebook. Facebook returned: ({}) {} [fbtrace_id:{}]", e.code, &e.message, &e.fbtrace_id)).into())
+            },
+            _ => return Err(err.into())
+        }
+    };
 
     // Save fb_id onto event
     // unimplemented!();
@@ -390,4 +399,5 @@ pub struct CreateFacebookEvent {
     event_id: Uuid,
     page_id: String,
     category: String,
+    description: String,
 }
