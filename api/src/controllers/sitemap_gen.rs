@@ -16,4 +16,3 @@ pub fn index(
         .body(sitemap_xml)
         .into())
 }
-
