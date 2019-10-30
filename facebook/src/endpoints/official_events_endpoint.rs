@@ -41,7 +41,7 @@ impl OfficialEventsEndpoint {
         }
         */
         let mut resp = client
-            .post(&format!("{}/v3.1/official_events", &self.client.base_url))
+            .post(&format!("{}/v5.0/official_events", &self.client.base_url))
             .json(&request)
             .send()?;
         //        let status = resp.status();
@@ -67,6 +67,11 @@ impl OfficialEventsEndpoint {
             resp.error_for_status()?;
         }
 
-        Ok(FBID("asdf".to_string()))
+        #[derive(Deserialize)]
+        struct R {
+            id: String,
+        }
+
+        Ok(FBID(serde_json::from_value::<R>(value)?.id))
     }
 }
