@@ -24,7 +24,7 @@ fn main() {
         }),
         place_id: Some(FBID("http://www.facebook.com/pages/<page_id>".to_string())),
 
-        address: None
+        address: None,
     };
     fb.official_events.create(event).unwrap();
 }
