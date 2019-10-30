@@ -39,6 +39,12 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::PUT).with(broadcasts::update);
         r.method(Method::DELETE).with(broadcasts::delete);
     })
+    .resource("/broadcasts/countopen/{id}", |r| {
+        r.method(Method::GET).with(broadcasts::tracking_count_open);
+    })
+    .resource("/broadcasts/countsent/{id}", |r| {
+        r.method(Method::GET).with(broadcasts::tracking_count_sent);
+    })
     .resource("/cart", |r| {
         r.method(Method::DELETE).with(cart::destroy);
         r.method(Method::POST).with(cart::update_cart);
