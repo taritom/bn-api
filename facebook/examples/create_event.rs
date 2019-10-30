@@ -15,13 +15,16 @@ fn main() {
         category: Category::MusicEvent,
         description: "This is a test event".to_string(),
         start_time: Utc::now().naive_utc().to_string(),
+        ticket_uri: None,
         timezone: "Africa/Harare".to_string(),
         cover: Some(CoverPhoto {
             source: "http://noimg.com".to_string(),
             offset_x: 0,
             offset_y: 0,
         }),
-        place_id: FBID("http://www.facebook.com/pages/<page_id>".to_string()),
+        place_id: Some(FBID("http://www.facebook.com/pages/<page_id>".to_string())),
+
+        address: None
     };
     fb.official_events.create(event).unwrap();
 }
