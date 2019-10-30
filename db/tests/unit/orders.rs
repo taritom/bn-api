@@ -5866,6 +5866,100 @@ pub fn search_by_all() {
 }
 
 #[test]
+pub fn search_by_transferee_name() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let transferee = project
+        .create_user()
+        .with_first_name("Samantha")
+        .with_last_name("Zorber")
+        .with_email("missdaisy@yahoooooo.com".to_string())
+        .finish();
+    let order = project
+        .create_order()
+        .for_user(&user)
+        .quantity(2)
+        .is_paid()
+        .finish();
+    let _order2 = project
+        .create_order()
+        .for_user(&user2)
+        .quantity(1)
+        .is_paid()
+        .finish();
+
+    let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
+    let ticket = &tickets[0];
+
+    let mut transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
+    transfer.update_associated_orders(connection).unwrap();
+    transfer
+        .update(
+            TransferEditableAttributes {
+                destination_user_id: Some(transferee.id),
+                ..Default::default()
+            },
+            connection,
+        )
+        .unwrap();
+
+    let actual = Order::search(
+        None,
+        None,
+        Some("Samantha"),
+        None,
+        None,
+        None,
+        None,
+        Some(&user.first_name.as_ref().unwrap().to_string()),
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        None,
+        None,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order.id, actual.0[0].id);
+
+    let actual = Order::search(
+        None,
+        None,
+        Some("Zorb"),
+        None,
+        None,
+        None,
+        None,
+        Some(&user.first_name.as_ref().unwrap().to_string()),
+        None,
+        None,
+        true,
+        true,
+        true,
+        true,
+        None,
+        None,
+        user.id,
+        &PagingParameters::default(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, actual.1);
+    assert_eq!(order.id, actual.0[0].id);
+}
+
+#[test]
 pub fn additional_fee() {
     let project = TestProject::new();
     let connection = project.get_connection();
