@@ -349,6 +349,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/transfers/transfer_key/{id}", |r| {
         r.method(Method::GET).with(transfers::show_by_transfer_key);
     })
+    .resource("/transfers/activity", |r| {
+        r.method(Method::GET).with(transfers::activity);
+    })
     .resource("/transfers/{id}", |r| {
         r.method(Method::DELETE).with(transfers::cancel);
     })

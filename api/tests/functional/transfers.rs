@@ -167,6 +167,79 @@ mod cancel_tests {
 }
 
 #[test]
+pub fn activity() {
+    let database = TestDatabase::new();
+    let connection = database.connection.get();
+    let user = database.create_user().finish();
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .with_organization(&organization)
+        .finish();
+    let order = database
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+
+    let ticket = TicketInstance::find(
+        TicketInstance::find_ids_for_order(order.id, connection)
+            .unwrap()
+            .pop()
+            .unwrap(),
+        connection,
+    )
+    .unwrap();
+
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
+    transfer.update_associated_orders(connection).unwrap();
+
+    let auth_user =
+        support::create_auth_user_from_user(&user, Roles::User, Some(&organization), &database);
+    let test_request = TestRequest::create_with_uri("/transfers?past_or_upcoming=Upcoming");
+    let paging_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let filter_parameters =
+        Query::<PastOrUpcomingParameters>::extract(&test_request.request).unwrap();
+    let response: Result<WebPayload<UserTransferActivitySummary>, BigNeonError> =
+        transfers::activity((
+            database.connection.clone().into(),
+            paging_parameters,
+            filter_parameters,
+            auth_user.clone(),
+        ));
+
+    let response = response.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = response.payload();
+    assert_eq!(payload.data.len(), 1);
+    let data = payload.data.first().unwrap();
+    assert_eq!(data.event, event.for_display(connection).unwrap());
+    assert_eq!(data.ticket_activity_items.len(), 1);
+    let activity_items = data.ticket_activity_items.get(&ticket.id).unwrap();
+    assert_eq!(activity_items.len(), 1);
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        ticket_ids,
+        ..
+    } = activity_items.first().unwrap()
+    {
+        assert_eq!(*transfer_id, transfer.id);
+        assert_eq!(action, &"Started".to_string());
+        assert_eq!(*status, TransferStatus::Pending);
+        assert_eq!(ticket_ids, &vec![ticket.id]);
+    }
+}
+
+#[test]
 pub fn show_by_transfer_key() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
