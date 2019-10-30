@@ -285,20 +285,22 @@ impl TicketType {
 
     /// Gets the start date if it is present, or the parent's end date
     pub fn start_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
-        let date = match self.start_date {
-            Some(sd) => Ok(sd),
-            None => self
-                .parent(conn)?
-                .ok_or_else(|| {
-                    return DatabaseError::business_process_error::<TicketType>(
-                        "Ticket type must have a start date or start after another ticket type",
-                    )
-                    .unwrap_err();
-                })?
-                .end_date(conn),
-        };
-
-        date
+        match self.start_date {
+            Some(start_date) => Ok(start_date),
+            None => Ok(cmp::min(
+                TicketType::find(
+                    self.parent_id.ok_or_else(|| {
+                        return DatabaseError::business_process_error::<Uuid>(
+                            "Ticket type must have a start date or start after another ticket type",
+                        )
+                        .unwrap_err();
+                    })?,
+                    conn,
+                )?
+                .end_date(conn)?,
+                self.end_date(conn)?,
+            )),
+        }
     }
 
     pub fn end_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
@@ -910,11 +912,15 @@ impl NewTicketType {
             )?);
         }
 
-        let validation_errors = validators::append_validation_error(
-            Ok(()),
-            "start_date",
-            validators::start_date_valid(self.start_date(conn)?, self.end_date(conn)?),
-        );
+        let validation_errors = if self.parent_id.is_some() {
+            Ok(())
+        } else {
+            validators::append_validation_error(
+                Ok(()),
+                "start_date",
+                validators::start_date_valid(self.start_date(conn)?, self.end_date(conn)?),
+            )
+        };
         let validation_errors = validators::append_validation_error(
             validation_errors,
             "additional_fee_in_cents",
