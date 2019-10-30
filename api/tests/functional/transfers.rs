@@ -185,7 +185,6 @@ pub fn activity() {
         .quantity(1)
         .is_paid()
         .finish();
-
     let ticket = TicketInstance::find(
         TicketInstance::find_ids_for_order(order.id, connection)
             .unwrap()
@@ -195,15 +194,14 @@ pub fn activity() {
     )
     .unwrap();
 
-    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
-        .commit(connection)
-        .unwrap();
-    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
-    transfer.update_associated_orders(connection).unwrap();
+    let transfer =
+        TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection)
+            .unwrap();
 
     let auth_user =
         support::create_auth_user_from_user(&user, Roles::User, Some(&organization), &database);
-    let test_request = TestRequest::create_with_uri("/transfers?past_or_upcoming=Upcoming");
+    let test_request =
+        TestRequest::create_with_uri("/transfers/activity?past_or_upcoming=Upcoming");
     let paging_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     let filter_parameters =
         Query::<PastOrUpcomingParameters>::extract(&test_request.request).unwrap();
