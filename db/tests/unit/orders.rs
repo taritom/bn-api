@@ -6166,7 +6166,7 @@ pub fn search_by_transferee_name() {
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = &tickets[0];
 
-    let mut transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
     transfer.add_transfer_ticket(ticket.id, connection).unwrap();
