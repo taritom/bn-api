@@ -4,6 +4,7 @@ use chrono::prelude::*;
 use diesel::PgConnection;
 use server::AppState;
 use std::collections::HashMap;
+use utils::cloudinary::optimize_cloudinary;
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -18,6 +19,7 @@ pub struct EventVenueEntry {
     pub status: EventStatus,
     pub publish_date: Option<NaiveDateTime>,
     pub promo_image_url: Option<String>,
+    pub original_promo_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub top_line_info: Option<String>,
     pub age_limit: Option<String>,
@@ -125,7 +127,8 @@ impl EventVenueEntry {
                 door_time: event.door_time,
                 status: event.status,
                 publish_date: event.publish_date,
-                promo_image_url: event.promo_image_url,
+                promo_image_url: optimize_cloudinary(&event.promo_image_url),
+                original_promo_image_url: event.promo_image_url,
                 additional_info: event.additional_info,
                 top_line_info: event.top_line_info,
                 age_limit: event.age_limit,

@@ -23,6 +23,7 @@ pub struct EventShowResult {
     pub status: EventStatus,
     pub publish_date: Option<NaiveDateTime>,
     pub promo_image_url: Option<String>,
+    pub original_promo_image_url: Option<String>,
     pub cover_image_url: Option<String>,
     pub additional_info: Option<String>,
     pub top_line_info: Option<String>,
