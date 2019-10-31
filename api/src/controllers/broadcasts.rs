@@ -118,7 +118,7 @@ pub fn tracking_count_open(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     Broadcast::increment_sent_count(path.id, connection)?;
-    Ok(HttpResponse::Ok().json("{'counted': true"))
+    Ok(HttpResponse::Ok().finish())
 }
 
 pub fn tracking_count_sent(
@@ -126,5 +126,5 @@ pub fn tracking_count_sent(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     Broadcast::increment_open_count(path.id, connection)?;
-    Ok(HttpResponse::Ok().json("{'counted': true"))
+    Ok(HttpResponse::Ok().finish())
 }
