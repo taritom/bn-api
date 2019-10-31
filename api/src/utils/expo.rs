@@ -1,15 +1,15 @@
 use errors::*;
 use expo::*;
 use log::Level::Debug;
-use std::str::FromStr;
-use tokio::prelude::*;
 use serde::export::Option;
 use serde_json::Value;
+use std::str::FromStr;
+use tokio::prelude::*;
 
 pub fn send_push_notification_async(
     tokens: &[String],
     body: &str,
-    custom_data: Option<Value>
+    custom_data: Option<Value>,
 ) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
     match send_push_notification(tokens, body, custom_data) {
         Ok(_) => Box::new(future::ok(())),
@@ -17,13 +17,19 @@ pub fn send_push_notification_async(
     }
 }
 
-pub fn send_push_notification(tokens: &[String], body: &str, custom_data: Option<Value>) -> Result<(), BigNeonError> {
+pub fn send_push_notification(
+    tokens: &[String],
+    body: &str,
+    custom_data: Option<Value>,
+) -> Result<(), BigNeonError> {
     let push_notifier = PushNotifier::new().gzip_policy(GzipPolicy::Always);
 
     let mut msgs = vec![];
     for token in tokens {
         let push_token = PushToken::from_str(token).map_err(|e| ApplicationError::new(e))?;
-        let msg = PushMessage::new(push_token).body(body).data(custom_data.clone().unwrap_or(Value::Null));
+        let msg = PushMessage::new(push_token)
+            .body(body)
+            .data(custom_data.clone().unwrap_or(Value::Null));
         msgs.push(msg);
     }
 
