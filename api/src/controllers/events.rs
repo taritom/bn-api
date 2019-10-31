@@ -17,6 +17,7 @@ use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
 use std::collections::HashMap;
+use utils::cloudinary::optimize_cloudinary;
 use utils::ServiceLocator;
 use uuid::Uuid;
 
@@ -431,7 +432,8 @@ pub fn show(
         fee_in_cents,
         status: event.status,
         publish_date: event.publish_date,
-        promo_image_url: event.promo_image_url,
+        promo_image_url: optimize_cloudinary(&event.promo_image_url),
+        original_promo_image_url: event.promo_image_url,
         cover_image_url: event.cover_image_url,
         additional_info: event.additional_info,
         top_line_info: event.top_line_info,
