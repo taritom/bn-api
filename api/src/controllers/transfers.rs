@@ -7,7 +7,7 @@ use db::Connection;
 use diesel::PgConnection;
 use errors::*;
 use helpers::application;
-use models::{OptionalPathParameters, PathParameters, WebPayload};
+use models::*;
 use server::AppState;
 
 #[derive(Deserialize, Clone)]
@@ -87,6 +87,30 @@ pub fn index(
         "source_or_destination".to_string(),
         json!(filter_query.source_or_destination),
     );
+    Ok(WebPayload::new(StatusCode::OK, payload))
+}
+
+pub fn activity(
+    (connection, paging_query, past_or_upcoming_query, auth_user): (
+        Connection,
+        Query<PagingParameters>,
+        Query<PastOrUpcomingParameters>,
+        User,
+    ),
+) -> Result<WebPayload<UserTransferActivitySummary>, BigNeonError> {
+    let connection = connection.get();
+    auth_user.requires_scope(Scopes::TransferReadOwn)?;
+
+    let payload = auth_user.user.transfer_activity_by_event_tickets(
+        paging_query.page(),
+        paging_query.limit.unwrap_or(std::u32::MAX),
+        paging_query.dir.unwrap_or(SortingDir::Desc),
+        past_or_upcoming_query
+            .past_or_upcoming
+            .unwrap_or(PastOrUpcoming::Upcoming),
+        connection,
+    )?;
+
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
