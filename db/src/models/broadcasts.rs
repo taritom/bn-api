@@ -91,7 +91,7 @@ impl Broadcast {
     ) -> Result<Broadcast, DatabaseError> {
         let broadcast = Broadcast::find(id, connection)?;
         diesel::update(&broadcast)
-            .set(broadcasts::dsl::opened_quantity.eq(broadcast.sent_quantity + 1))
+            .set(broadcasts::dsl::opened_quantity.eq(broadcast.opened_quantity + 1))
             .get_result(connection)
             .to_db_error(ErrorCode::QueryError, "Unable to load push notification")
     }
@@ -102,7 +102,7 @@ impl Broadcast {
     ) -> Result<Broadcast, DatabaseError> {
         let broadcast = Broadcast::find(id, connection)?;
         diesel::update(&broadcast)
-            .set(broadcasts::dsl::opened_quantity.eq(broadcast.sent_quantity + 1))
+            .set(broadcasts::dsl::sent_quantity.eq(broadcast.sent_quantity + 1))
             .get_result(connection)
             .to_db_error(ErrorCode::QueryError, "Unable to load push notification")
     }

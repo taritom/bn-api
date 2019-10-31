@@ -1,6 +1,7 @@
 mod artists;
 mod auth;
 mod base;
+mod broadcast;
 mod cart;
 mod codes;
 mod comps;
@@ -26,4 +27,3 @@ mod transfers;
 mod user_invites;
 mod users;
 mod venues;
-mod broadcast;
