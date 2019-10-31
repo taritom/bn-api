@@ -141,8 +141,12 @@ fn main_event_id() {
         .finish();
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    assert_eq!(
+        DatabaseError::no_results("Could not find any event for this order"),
+        cart.main_event_id(connection)
+    );
 
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     assert!(cart
         .update_quantities(
             user.id,
@@ -156,7 +160,6 @@ fn main_event_id() {
             connection,
         )
         .is_ok());
-
     assert_eq!(event.id, cart.main_event_id(connection).unwrap());
 }
 
@@ -427,23 +430,124 @@ fn set_user_agent() {
     let user_agent = Some("Fake User Agent 1".to_string());
     let user_agent2 = Some("Fake User Agent 2".to_string());
     let user_agent3 = Some("Fake User Agent 3".to_string());
+    let user_agent4 = Some("okhttp fake".to_string());
+    let user_agent5 = Some("Big abc Neon".to_string());
+    let user_agent6 = Some("Mozilla fake".to_string());
     assert!(cart.create_user_agent.is_none());
     assert!(cart.purchase_user_agent.is_none());
+    assert!(cart.platform.is_none());
 
     cart.set_user_agent(user_agent.clone(), false, connection)
         .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(user_agent.clone(), cart.create_user_agent);
     assert!(cart.purchase_user_agent.is_none());
+    assert!(cart.platform.is_none());
 
     cart.set_user_agent(user_agent2.clone(), false, connection)
         .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(user_agent2.clone(), cart.create_user_agent);
     assert!(cart.purchase_user_agent.is_none());
+    assert!(cart.platform.is_none());
 
     cart.set_user_agent(user_agent3.clone(), true, connection)
         .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
     assert_eq!(user_agent2, cart.create_user_agent);
     assert_eq!(user_agent3, cart.purchase_user_agent);
+    assert!(cart.platform.is_none());
+
+    cart.set_user_agent(user_agent4.clone(), true, connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.platform, Some(Platforms::App.to_string()));
+
+    cart.set_user_agent(user_agent5.clone(), true, connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.platform, Some(Platforms::App.to_string()));
+
+    cart.set_user_agent(user_agent6.clone(), true, connection)
+        .unwrap();
+    let cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.platform, Some(Platforms::Web.to_string()));
+}
+
+#[test]
+fn set_tracking_data() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::TrackingDataUpdated),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(0, domain_events.len());
+
+    // No data sent
+    cart.set_tracking_data(None, Some(user.id), connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    let domain_events = DomainEvent::find(
+        Tables::Orders,
+        Some(cart.id),
+        Some(DomainEventTypes::TrackingDataUpdated),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(1, domain_events.len());
+    assert!(cart.tracking_data.is_none());
+    assert!(cart.source.is_none());
+    assert!(cart.medium.is_none());
+    assert!(cart.campaign.is_none());
+    assert!(cart.term.is_none());
+    assert!(cart.content.is_none());
+
+    // With data
+    let mut tracking_data: HashMap<&str, &str> = HashMap::new();
+    tracking_data.insert("fbclid", "abc123");
+    tracking_data.insert("utm_source", "utm_source-source");
+    tracking_data.insert("referrer", "referrer-source");
+    tracking_data.insert("utm_medium", "utm_medium-source");
+    tracking_data.insert("utm_campaign", "utm_campaign-source");
+    tracking_data.insert("utm_term", "utm_term-source");
+    tracking_data.insert("utm_content", "utm_content-source");
+    let tracking_data_value = json!(tracking_data);
+    cart.set_tracking_data(Some(tracking_data_value.clone()), Some(user.id), connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.tracking_data, Some(tracking_data_value));
+    assert_eq!(cart.source, Some("facebook".to_string()));
+    assert_eq!(cart.medium, Some("utm_medium-source".to_string()));
+    assert_eq!(cart.campaign, Some("utm_campaign-source".to_string()));
+    assert_eq!(cart.term, Some("utm_term-source".to_string()));
+    assert_eq!(cart.content, Some("utm_content-source".to_string()));
+
+    // With data but no facebook id
+    let mut tracking_data: HashMap<&str, &str> = HashMap::new();
+    tracking_data.insert("utm_source", "utm_source-source");
+    tracking_data.insert("referrer", "referrer-source");
+    let tracking_data_value = json!(tracking_data);
+    cart.set_tracking_data(Some(tracking_data_value.clone()), Some(user.id), connection)
+        .unwrap();
+    let mut cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.tracking_data, Some(tracking_data_value));
+    assert_eq!(cart.source, Some("utm_source-source".to_string()));
+
+    // No facebook id and utm_source, falls back on referrer
+    let mut tracking_data: HashMap<&str, &str> = HashMap::new();
+    tracking_data.insert("referrer", "referrer-source");
+    let tracking_data_value = json!(tracking_data);
+    cart.set_tracking_data(Some(tracking_data_value.clone()), Some(user.id), connection)
+        .unwrap();
+    let cart = Order::find(cart.id, connection).unwrap();
+    assert_eq!(cart.tracking_data, Some(tracking_data_value));
+    assert_eq!(cart.source, Some("referrer-source".to_string()));
 }
 
 #[test]
@@ -590,6 +694,35 @@ fn set_remove_expiry() {
         .set_expiry(Some(user.id), None, true, connection)
         .is_ok());
     assert!((default_expiry.timestamp() - cart.expires_at.unwrap().timestamp()).abs() < 2);
+
+    // Cart fails to remove expiry with items in cart
+    let event = project
+        .create_event()
+        .with_tickets()
+        .with_ticket_pricing()
+        .finish();
+    let ticket_type = event
+        .ticket_types(true, None, connection)
+        .unwrap()
+        .remove(0);
+    cart.update_quantities(
+        user.id,
+        &[UpdateOrderItem {
+            ticket_type_id: ticket_type.id,
+            quantity: 2,
+            redemption_code: None,
+        }],
+        false,
+        false,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        cart.remove_expiry(user.id, connection),
+        DatabaseError::business_process_error(
+            "Cannot clear the expiry of an order when there are items in it",
+        )
+    );
 }
 
 #[test]
@@ -609,6 +742,7 @@ fn update_fees() {
     let connection = project.get_connection();
     let organization = project
         .create_organization()
+        .with_cc_fee(5f32)
         .with_event_fee()
         .with_fees()
         .finish();
@@ -644,11 +778,12 @@ fn update_fees() {
         .find(|i| i.ticket_type_id == Some(ticket_type.id))
         .unwrap();
     diesel::delete(
-        order_items::table.filter(
-            order_items::parent_id
-                .eq(order_item.id)
-                .or(order_items::item_type.eq(OrderItemTypes::EventFees)),
-        ),
+        order_items::table.filter(order_items::parent_id.eq(order_item.id).or(
+            order_items::item_type.eq_any(vec![
+                OrderItemTypes::EventFees,
+                OrderItemTypes::CreditCardFees,
+            ]),
+        )),
     )
     .execute(connection)
     .unwrap();
@@ -657,19 +792,49 @@ fn update_fees() {
         .iter()
         .find(|i| i.item_type == OrderItemTypes::EventFees)
         .is_none());
+    assert!(items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::CreditCardFees)
+        .is_none());
     assert!(order_item.find_fee_item(connection).unwrap().is_none());
 
     // Trigger fee
     cart.update_fees_and_discounts(connection).unwrap();
     let items = cart.items(connection).unwrap();
-    let event_fee_item = items
+    assert!(items
         .iter()
-        .find(|i| i.item_type == OrderItemTypes::EventFees);
-    assert!(event_fee_item.is_some());
-
+        .find(|i| i.item_type == OrderItemTypes::EventFees)
+        .is_some());
+    assert!(items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::CreditCardFees)
+        .is_some());
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     assert_eq!(fee_item.parent_id, Some(order_item.id));
     assert_eq!(fee_item.item_type, OrderItemTypes::PerUnitFees);
+
+    // Updating credit card fee and regenerating
+    organization
+        .update(
+            OrganizationEditableAttributes {
+                cc_fee_percent: Some(0f32),
+                ..Default::default()
+            },
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    cart.update_fees_and_discounts(connection).unwrap();
+    let items = cart.items(connection).unwrap();
+    assert!(items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::EventFees)
+        .is_some());
+    assert!(items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::CreditCardFees)
+        .is_none());
 
     // Using a Comp, no fees
     let comp = project
@@ -688,8 +853,16 @@ fn update_fees() {
         connection,
     )
     .unwrap();
-
     cart.update_fees_and_discounts(connection).unwrap();
+    let items = cart.items(connection).unwrap();
+    assert!(items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::EventFees)
+        .is_none());
+    assert!(items
+        .iter()
+        .find(|i| i.item_type == OrderItemTypes::CreditCardFees)
+        .is_none());
 }
 
 #[test]
@@ -3325,37 +3498,20 @@ fn refund() {
         .with_ticket_pricing()
         .finish();
     let user = project.create_user().finish();
-    let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
+    let user2 = project.create_user().finish();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
-    cart.update_quantities(
-        user.id,
-        &[UpdateOrderItem {
-            ticket_type_id: ticket_type.id,
-            quantity: 2,
-            redemption_code: None,
-        }],
-        false,
-        false,
-        connection,
-    )
-    .unwrap();
-
-    let total = cart.calculate_total(connection).unwrap();
-    cart.add_external_payment(
-        Some("Test".to_string()),
-        ExternalPaymentType::CreditCard,
-        user.id,
-        total,
-        connection,
-    )
-    .unwrap();
-
-    let items = cart.items(&connection).unwrap();
+    let mut order = project
+        .create_order()
+        .for_tickets(ticket_type.id)
+        .quantity(2)
+        .is_paid()
+        .for_user(&user)
+        .finish();
+    let items = order.items(&connection).unwrap();
     let order_item = items
         .iter()
         .find(|i| i.ticket_type_id == Some(ticket_type.id))
         .unwrap();
-
     let event_fee_item = items
         .iter()
         .find(|i| i.item_type == OrderItemTypes::EventFees)
@@ -3364,6 +3520,36 @@ fn refund() {
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
+
+    // Refund fails when ticket instance transferred
+    TicketInstance::direct_transfer(
+        user.id,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user2.id,
+        connection,
+    )
+    .unwrap();
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    assert_eq!(
+        DatabaseError::business_process_error("Ticket was transferred so ineligible for refund",),
+        order.refund(&refund_items, user.id, None, connection)
+    );
+
+    // Able to be refunded once ticket has been transferred back to the original owner
+    TicketInstance::direct_transfer(
+        user2.id,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user.id,
+        connection,
+    )
+    .unwrap();
 
     // Refund first ticket and event fee (leaving one ticket + one fee item for that ticket)
     let refund_items = vec![
@@ -3379,12 +3565,12 @@ fn refund() {
     let refund_amount = event_fee_item.unit_price_in_cents
         + order_item.unit_price_in_cents
         + fee_item.unit_price_in_cents;
-    let (refund, amount) = cart
+    let (refund, amount) = order
         .refund(&refund_items, user.id, None, connection)
         .unwrap();
     assert_eq!(amount, refund_amount);
     assert_eq!(refund.user_id, user.id);
-    assert_eq!(refund.order_id, cart.id);
+    assert_eq!(refund.order_id, order.id);
 
     // Each order item has a corresponding refund_item record
     let refund_items = refund.items(connection).unwrap();
@@ -3402,15 +3588,10 @@ fn refund() {
         .find(|ri| ri.order_item_id == event_fee_item.id)
         .unwrap();
 
-    assert_eq!(found_item.order_item_id, order_item.id);
     assert_eq!(found_item.amount, order_item.unit_price_in_cents);
     assert_eq!(found_item.quantity, 1);
-
-    assert_eq!(found_fee_item.order_item_id, fee_item.id);
     assert_eq!(found_fee_item.amount, fee_item.unit_price_in_cents);
     assert_eq!(found_fee_item.quantity, 1);
-
-    assert_eq!(found_event_fee_item.order_item_id, event_fee_item.id);
     assert_eq!(
         found_event_fee_item.amount,
         event_fee_item.unit_price_in_cents
@@ -3422,12 +3603,107 @@ fn refund() {
     assert!(ticket.order_item_id.is_none());
 
     // Reload order item
-    let order_item = OrderItem::find_in_order(cart.id, order_item.id, connection).unwrap();
+    let order_item = OrderItem::find_in_order(order.id, order_item.id, connection).unwrap();
     assert_eq!(order_item.refunded_quantity, 1);
 
     // Reload fee item
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     assert_eq!(fee_item.refunded_quantity, 1);
+
+    // Refund fails when refunding item not belonging to order
+    let code = project
+        .create_code()
+        .with_discount_in_cents(Some(20))
+        .with_event(&event)
+        .for_ticket_type(&ticket_type)
+        .finish();
+    let mut order2 = project
+        .create_order()
+        .for_tickets(ticket_type.id)
+        .quantity(2)
+        .is_paid()
+        .with_redemption_code(code.redemption_code.clone())
+        .for_user(&user)
+        .finish();
+    let items = order2.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let discount_item = order_item.find_discount_item(connection).unwrap().unwrap();
+    let ticket = &TicketInstance::find_for_order_item(order_item.id, connection).unwrap()[0];
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    assert_eq!(
+        DatabaseError::business_process_error("Order item id does not belong to this order",),
+        order.refund(&refund_items, user.id, None, connection)
+    );
+
+    // Refund succeeds when refunding only ticket fee
+    let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: fee_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    let (refund, amount) = order2
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
+    assert_eq!(amount, fee_item.unit_price_in_cents);
+    assert_eq!(refund.user_id, user.id);
+    assert_eq!(refund.order_id, order2.id);
+
+    // Only fee item returned with refunded items
+    let refund_items = refund.items(connection).unwrap();
+    assert_eq!(refund_items.len(), 1);
+    let found_fee_item = &refund_items[0];
+    assert_eq!(found_fee_item.order_item_id, fee_item.id);
+    assert_eq!(found_fee_item.amount, fee_item.unit_price_in_cents);
+    assert_eq!(found_fee_item.quantity, 1);
+
+    // Reload ticket
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    assert_eq!(ticket.order_item_id, Some(order_item.id));
+
+    // Refunding ticket after refunding fee succeeds
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    let (refund, amount) = order2
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
+    assert_eq!(
+        amount,
+        order_item.unit_price_in_cents + discount_item.unit_price_in_cents
+    );
+    assert_eq!(refund.user_id, user.id);
+    assert_eq!(refund.order_id, order2.id);
+
+    // Only order item returned with refunded items
+    let refund_items = refund.items(connection).unwrap();
+    assert_eq!(refund_items.len(), 2);
+    let found_item = refund_items
+        .iter()
+        .find(|ri| ri.order_item_id == order_item.id)
+        .unwrap();
+    let found_discount_item = refund_items
+        .iter()
+        .find(|ri| ri.order_item_id == discount_item.id)
+        .unwrap();
+
+    assert_eq!(found_item.amount, order_item.unit_price_in_cents);
+    assert_eq!(found_item.quantity, 1);
+    assert_eq!(
+        found_discount_item.amount,
+        discount_item.unit_price_in_cents
+    );
+    assert_eq!(found_discount_item.quantity, 1);
+
+    // Reload ticket
+    let ticket = TicketInstance::find(ticket.id, connection).unwrap();
+    assert!(ticket.order_item_id.is_none());
 }
 
 #[test]
@@ -3611,11 +3887,9 @@ fn clear_cart() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
-
     cart.update_quantities(
         user.id,
         &vec![UpdateOrderItem {
@@ -3629,7 +3903,6 @@ fn clear_cart() {
     )
     .unwrap();
     assert!(!cart.items(&connection).unwrap().is_empty());
-
     cart.clear_cart(user.id, connection).unwrap();
     assert!(cart.items(&connection).unwrap().is_empty());
 }
@@ -5893,7 +6166,7 @@ pub fn search_by_transferee_name() {
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = &tickets[0];
 
-    let mut transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
     transfer.add_transfer_ticket(ticket.id, connection).unwrap();

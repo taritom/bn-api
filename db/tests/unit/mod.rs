@@ -25,6 +25,7 @@ pub mod organization_interactions;
 pub mod organization_invites;
 pub mod organization_users;
 pub mod organizations;
+pub mod paging;
 pub mod payment_methods;
 pub mod payments;
 pub mod push_notification_tokens;

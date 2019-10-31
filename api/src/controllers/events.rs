@@ -1241,10 +1241,11 @@ pub fn create_link(
     )?;
 
     let query = query.into_inner();
+    let slug = event.slug(conn).unwrap_or(path.id.to_string());
     let long_link = format!(
-        "{}/events/{}/tickets?utm_source={}&utm_medium={}&utm_campaign={}&utm_term={}&utm_content={}",
+        "{}/tickets/{}?utm_source={}&utm_medium={}&utm_campaign={}&utm_term={}&utm_content={}",
         state.config.front_end_url,
-        path.id,
+        slug,
         query.source.as_ref().unwrap_or(&"".to_string()),
         query.medium.as_ref().unwrap_or(&"".to_string()),
         query.campaign.as_ref().unwrap_or(&"".to_string()),
