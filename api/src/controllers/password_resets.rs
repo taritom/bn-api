@@ -2,10 +2,12 @@ use actix_web::{HttpResponse, State};
 use auth::TokenResponse;
 use bigneon_db::models::concerns::users::password_resetable::*;
 use bigneon_db::models::User;
+use bigneon_db::utils::errors::Optional;
 use communications::mailers;
 use db::Connection;
 use errors::*;
 use extractors::*;
+use helpers::application;
 use server::AppState;
 use uuid::Uuid;
 
@@ -57,12 +59,16 @@ pub fn update(
         &parameters.password_reset_token,
         &parameters.password,
         connection.get(),
-    )?;
+    )
+    .optional()?;
 
-    Ok(HttpResponse::Ok().json(&TokenResponse::create_from_user(
-        &state.config.token_secret,
-        &state.config.token_issuer,
-        &state.config.jwt_expiry_time,
-        &user,
-    )?))
+    match user {
+        Some(user) => Ok(HttpResponse::Ok().json(&TokenResponse::create_from_user(
+            &state.config.token_secret,
+            &state.config.token_issuer,
+            &state.config.jwt_expiry_time,
+            &user,
+        )?)),
+        None => application::unprocessable("Password has already been reset."),
+    }
 }

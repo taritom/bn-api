@@ -98,6 +98,10 @@ impl TestDatabase {
         PaymentMethodBuilder::new(self.connection.get())
     }
 
+    pub fn create_slug(&self) -> SlugBuilder {
+        SlugBuilder::new(self.connection.get())
+    }
+
     pub fn create_region(&self) -> RegionBuilder {
         RegionBuilder::new(self.connection.get())
     }

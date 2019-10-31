@@ -3,23 +3,13 @@ use diesel;
 use diesel::prelude::ConnectionError;
 use r2d2;
 use std::error;
-use std::error::Error;
 use std::fmt;
 use std::io;
 
 #[derive(Debug)]
 pub enum DomainActionError {
     Simple(String),
-    CausedBy(Box<error::Error + Send>),
-}
-
-impl Error for DomainActionError {
-    fn description(&self) -> &str {
-        match self {
-            DomainActionError::Simple(s) => s,
-            DomainActionError::CausedBy(c) => c.description(),
-        }
-    }
+    CausedBy(Box<dyn error::Error + Send>),
 }
 
 impl From<DatabaseError> for DomainActionError {
@@ -60,6 +50,9 @@ impl From<r2d2::Error> for DomainActionError {
 
 impl fmt::Display for DomainActionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
+        match self {
+            DomainActionError::Simple(s) => f.write_str(s),
+            DomainActionError::CausedBy(c) => f.write_str(&c.to_string()),
+        }
     }
 }

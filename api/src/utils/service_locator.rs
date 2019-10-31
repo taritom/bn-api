@@ -47,7 +47,7 @@ impl ServiceLocator {
         &self,
         provider: PaymentProviders,
         organization: &Organization,
-    ) -> Result<Box<PaymentProcessor>, BigNeonError> {
+    ) -> Result<Box<dyn PaymentProcessor>, BigNeonError> {
         match provider {
             PaymentProviders::Stripe => Ok(Box::new(StripePaymentProcessor::new(
                 self.stripe_secret_key.clone(),
@@ -69,7 +69,7 @@ impl ServiceLocator {
         }
     }
 
-    pub fn create_deep_linker(&self) -> Result<Box<DeepLinker>, BigNeonError> {
+    pub fn create_deep_linker(&self) -> Result<Box<dyn DeepLinker>, BigNeonError> {
         Ok(Box::new(BranchDeepLinker::new(
             self.branch_io_base_url.clone(),
             self.branch_io_branch_key.clone(),

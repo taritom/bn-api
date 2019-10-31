@@ -50,7 +50,7 @@ fn status_code_and_message(code: StatusCode, message: &str) -> HttpResponse {
         .json(json!({"error": message.to_string()}))
 }
 
-impl ConvertToWebError for Error {
+impl ConvertToWebError for dyn Error {
     fn to_response(&self) -> HttpResponse {
         error!("General error: {}", self);
         internal_error("Internal error")

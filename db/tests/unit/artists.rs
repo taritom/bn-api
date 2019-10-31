@@ -502,10 +502,14 @@ fn update() {
     let name = "Old Name";
     let artist = project.create_artist().with_name(name.into()).finish();
 
+    let mut main_genre =
+        Genre::find_or_create(&vec!["blues".to_string()], project.get_connection()).unwrap();
     let mut artist_parameters = ArtistEditableAttributes::new();
     artist_parameters.name = Some("New Name".into());
     artist_parameters.bio = Some("Bio".into());
     artist_parameters.website_url = Some(Some("http://www.example.com".into()));
+    artist_parameters.main_genre_id = Some(main_genre.pop());
+
     let updated_artist = artist
         .update(&artist_parameters, &project.get_connection())
         .unwrap();
@@ -513,6 +517,10 @@ fn update() {
     assert_eq!(updated_artist.id, artist.id);
     assert_ne!(updated_artist.name, artist.name);
     assert_eq!(updated_artist.name, artist_parameters.name.unwrap());
+    assert_eq!(
+        updated_artist.main_genre_id,
+        artist_parameters.main_genre_id.unwrap()
+    );
 }
 
 #[test]

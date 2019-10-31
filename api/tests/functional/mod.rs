@@ -18,6 +18,8 @@ mod regions;
 mod reports;
 mod settlement_adjustments;
 mod settlements;
+mod sitemap;
+mod slugs;
 mod stages;
 mod ticket_types;
 mod tickets;

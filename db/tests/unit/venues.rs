@@ -5,13 +5,57 @@ use bigneon_db::utils::errors::ErrorCode::ValidationError;
 #[test]
 fn commit() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let name = "Name";
     let venue = Venue::create(name.clone(), None, None, "America/Los_Angeles".into())
-        .commit(project.get_connection())
+        .commit(connection)
         .unwrap();
 
     assert_eq!(venue.name, name);
     assert_eq!(venue.id.to_string().is_empty(), false);
+    assert!(venue.slug_id.is_some());
+    let slug = Slug::primary_slug(venue.id, Tables::Venues, connection).unwrap();
+    assert_eq!(slug.main_table_id, venue.id);
+    assert_eq!(slug.main_table, Tables::Venues);
+    assert_eq!(slug.slug_type, SlugTypes::Venue);
+
+    // No city slug exists for this record
+    assert!(Slug::find_by_type(venue.id, Tables::Venues, SlugTypes::City, connection).is_err());
+
+    // Create venue with default San Francisco, CA, USA city
+    let venue = project.create_venue().finish();
+    let slug = Slug::find_by_type(venue.id, Tables::Venues, SlugTypes::City, connection).unwrap();
+    assert_eq!(slug.main_table_id, venue.id);
+    assert_eq!(slug.main_table, Tables::Venues);
+    assert_eq!(slug.slug_type, SlugTypes::City);
+
+    // Second venue should also create new slug
+    let venue2 = project.create_venue().finish();
+    let slug2 = Slug::find_by_type(venue2.id, Tables::Venues, SlugTypes::City, connection).unwrap();
+    assert_ne!(&slug, &slug2);
+    assert_eq!(&slug.slug, &slug2.slug);
+    assert_eq!(slug2.main_table_id, venue2.id);
+    assert_eq!(slug2.main_table, Tables::Venues);
+    assert_eq!(slug2.slug_type, SlugTypes::City);
+
+    // Different state
+    let venue3 = project.create_venue().with_state("MA".to_string()).finish();
+    let slug3 = Slug::find_by_type(venue3.id, Tables::Venues, SlugTypes::City, connection).unwrap();
+    assert_ne!(&slug, &slug3);
+    assert_ne!(&slug.slug, &slug3.slug);
+    assert_eq!(slug3.main_table_id, venue3.id);
+    assert_eq!(slug3.main_table, Tables::Venues);
+    assert_eq!(slug3.slug_type, SlugTypes::City);
+
+    // Matches venue3 so should have same slug as it
+    let venue4 = project.create_venue().with_state("MA".to_string()).finish();
+    let slug4 = Slug::find_by_type(venue4.id, Tables::Venues, SlugTypes::City, connection).unwrap();
+    assert_ne!(&slug3, &slug4);
+    assert_eq!(&slug3.slug, &slug4.slug);
+    assert_ne!(&slug.slug, &slug4.slug);
+    assert_eq!(slug4.main_table_id, venue4.id);
+    assert_eq!(slug4.main_table, Tables::Venues);
+    assert_eq!(slug4.slug_type, SlugTypes::City);
 }
 
 #[test]
@@ -64,20 +108,51 @@ fn update_with_validation_errors() {
 #[test]
 fn update() {
     let project = TestProject::new();
+    let connection = project.get_connection();
     let venue = project.create_venue().finish();
 
+    let slug = Slug::find_by_type(venue.id, Tables::Venues, SlugTypes::City, connection).unwrap();
     let new_name = "New Venue Name";
     let new_address = "Test Address";
-
     let parameters = VenueEditableAttributes {
         name: Some(new_name.to_string()),
         address: Some(new_address.to_string()),
         ..Default::default()
     };
 
-    let updated_venue = venue.update(parameters, project.get_connection()).unwrap();
-    assert_eq!(updated_venue.name, new_name);
-    assert_eq!(updated_venue.address, new_address);
+    let venue = venue.update(parameters, project.get_connection()).unwrap();
+    // Slug not changed as city, state, or country have not been modified
+    assert_eq!(
+        slug,
+        Slug::find_by_type(venue.id, Tables::Venues, SlugTypes::City, connection).unwrap()
+    );
+    assert_eq!(venue.name, new_name);
+    assert_eq!(venue.address, new_address);
+
+    let new_city = "Test City";
+    let parameters = VenueEditableAttributes {
+        city: Some(new_city.to_string()),
+        ..Default::default()
+    };
+    let venue = venue.update(parameters, project.get_connection()).unwrap();
+    assert_eq!(venue.city, new_city);
+    let slug2 = Slug::find_by_type(venue.id, Tables::Venues, SlugTypes::City, connection).unwrap();
+
+    // Slug has changed with new city name and old slug has been removed
+    assert_ne!(slug.id, slug2.id);
+    assert_ne!(slug.slug, slug2.slug);
+    assert!(Slug::find(slug.id, connection).is_err());
+}
+
+#[test]
+fn for_display() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let venue = project.create_venue().finish();
+    let slug = Slug::primary_slug(venue.id, Tables::Venues, connection).unwrap();
+    let display_venue = venue.for_display(connection).unwrap();
+    assert_eq!(display_venue.id, venue.id);
+    assert_eq!(display_venue.slug, slug.slug);
 }
 
 #[test]

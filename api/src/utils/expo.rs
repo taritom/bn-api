@@ -7,7 +7,7 @@ use tokio::prelude::*;
 pub fn send_push_notification_async(
     tokens: &[String],
     body: &str,
-) -> Box<Future<Item = (), Error = BigNeonError>> {
+) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
     match send_push_notification(tokens, body) {
         Ok(_) => Box::new(future::ok(())),
         Err(e) => Box::new(future::err(e)),

@@ -72,24 +72,39 @@ impl DomainActionMonitor {
         config: &Config,
         database: &Database,
     ) -> Result<usize, DomainActionError> {
-        let connection = database.get_connection()?;
-        let connection = connection.get();
+        let conn = database.get_connection()?;
+
+        let connection = conn.get();
 
         let mut domain_event_publishers = DomainEventPublisher::find_all(connection)?;
 
         if domain_event_publishers.len() == 0 {
+            jlog!(
+                Debug,
+                "bigneon::domain_events",
+                "No event publishers found",
+                {}
+            );
             return Ok(0);
         };
+        jlog!(
+            Debug,
+            "bigneon::domain_events",
+            "Event publishers found",
+            {"num_publishers": domain_event_publishers.len()}
+        );
         let mut events_published = 0;
         let domain_events = DomainEvent::find_after_seq(
             domain_event_publishers[0]
                 .last_domain_event_seq
                 .unwrap_or(-1),
-            100,
+            500,
             connection,
         )?;
-        jlog!(Info, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
+        jlog!(Debug, "bigneon::domain_events", "Events found", {"events": domain_events.len()});
         for event in domain_events {
+            conn.begin_transaction()?;
+            //            jlog!(Debug, "bigneon::domain_events", "Checking event for publishers", { "event_type": &event.event_type, "organization_id": event.organization_id});
             // Process
             for publisher in domain_event_publishers
                 .iter_mut()
@@ -99,12 +114,13 @@ impl DomainActionMonitor {
                     && (publisher.organization_id.is_none()
                         || publisher.organization_id == event.organization_id)
                 {
+                    jlog!(Info, "bigneon::domain_events", "Publishing event", {"publisher_id": publisher.id, "event_type": &event.event_type, "organization_id": event.organization_id, "event": &event});
                     publisher.publish(&event, &config.front_end_url, connection)?;
                 }
-
                 publisher.update_last_domain_event_seq(event.seq, connection)?;
             }
             events_published += 1;
+            conn.commit_transaction()?;
         }
 
         Ok(events_published)
@@ -152,7 +168,8 @@ impl DomainActionMonitor {
         database: &Database,
         router: &'a DomainActionRouter,
         limit: usize,
-    ) -> Result<Vec<(&'a DomainActionExecutor, DomainAction, Connection)>, DomainActionError> {
+    ) -> Result<Vec<(&'a dyn DomainActionExecutor, DomainAction, Connection)>, DomainActionError>
+    {
         let connection = database.get_connection()?;
 
         let pending_actions = DomainAction::find_pending(None, connection.get())?;
@@ -278,6 +295,14 @@ impl DomainActionMonitor {
     }
 
     pub fn start(&mut self, run_actions: bool, run_events: bool) {
+        // Use this channel to tell the server to shut down
+        let (actions_tx, actions_rx) = mpsc::channel::<()>();
+
+        let (events_tx, events_rx) = mpsc::channel::<()>();
+
+        let actions_stop_signals = vec![events_tx.clone()];
+
+        let events_stop_signals = vec![actions_tx.clone()];
         if run_actions {
             jlog!(
                 Info,
@@ -289,39 +314,87 @@ impl DomainActionMonitor {
             let database = self.database.clone();
             let interval = self.interval;
 
-            // Use this channel to tell the server to shut down
-            let (tx, rx) = mpsc::channel::<()>();
-
             // Create a worker thread to run domain actions
             self.worker_threads.push((
-                tx,
+                actions_tx,
                 thread::spawn(move || {
-                    match DomainActionMonitor::run_actions(config, database, interval, rx) {
-                        Ok(_) => (),
-                        Err(e) => jlog!(
-                            Error,
-                            "bigneon::domain_actions",
-                            "Domain action monitor failed", {"error": e.description()}
-                        ),
-                    };
-                    Ok(())
+                    let res =
+                        DomainActionMonitor::run_actions(config, database, interval, actions_rx)
+                            .map_err(|e| {
+                                jlog!(
+                                    Error,
+                                    "bigneon::domain_actions",
+                                    "Domain event publisher failed", {"error": e.to_string()}
+                                );
+                                e
+                            });
+
+                    for signal in actions_stop_signals {
+                        match signal.send(()) {
+                            Ok(_) => (),
+                            Err(_) => {
+                                // Other thread may have failed
+                                ()
+                            }
+                        }
+                    }
+                    res
                 }),
             ));
         }
+
         if run_events {
+            jlog!(
+                Info,
+                "bigneon::domain_actions",
+                "Domain event publisher starting",
+                {}
+            );
             let database = self.database.clone();
             let interval = self.interval;
 
             let config = self.config.clone();
-            let (tx, rx) = mpsc::channel::<()>();
 
             // Create a worker thread to publish events to subscribers
             self.worker_threads.push((
-                tx,
+                events_tx,
                 thread::spawn(move || {
-                    DomainActionMonitor::publish_events_to_actions(config, database, interval, rx)
+                    let res = DomainActionMonitor::publish_events_to_actions(
+                        config, database, interval, events_rx,
+                    )
+                    .map_err(|e| {
+                        jlog!(
+                            Error,
+                            "bigneon::domain_actions",
+                            "Domain event publisher failed", {"error": e.to_string()}
+                        );
+                        e
+                    });
+
+                    for signal in events_stop_signals {
+                        match signal.send(()) {
+                            Ok(_) => (),
+                            Err(_) => {
+                                // Other thread may have failed
+                                ()
+                            }
+                        }
+                    }
+
+                    res
                 }),
             ));
+        }
+    }
+
+    pub fn wait_for_end(&mut self) {
+        let mut results = vec![];
+        for w in self.worker_threads.drain(..) {
+            results.push(w.1.join());
+        }
+        for r in results {
+            r.expect("Thread did not end successfully")
+                .expect("Error returned from thread");
         }
     }
 

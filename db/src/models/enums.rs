@@ -165,6 +165,7 @@ string_enum! { DomainActionTypes [
     ProcessTransferDrip,
     RegenerateDripActions,
     SendPurchaseCompletedCommunication,
+    SubmitSitemapToSearchEngines,
     UpdateGenres
 ]}
 string_enum! { BroadcastStatus [Pending, InProgress, Completed, Cancelled]}
@@ -187,15 +188,17 @@ string_enum! { PaymentMethods [CreditCard, External, Free, Provider] }
 string_enum! { PaymentProviders [External, Globee, Free, Stripe] }
 string_enum! { PaymentStatus [Authorized, Completed, Requested, Refunded, Unpaid, PendingConfirmation, Cancelled, Draft, Unknown, PendingIpn] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
+string_enum! { Platforms [Web, App, BoxOffice]}
 string_enum! { Roles [Super, Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, Promoter, PromoterReadOnly, User] }
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTypes [Rolling, PostEvent]}
 string_enum! { SettlementAdjustmentTypes [ManualCredit, ManualDeduction, Chargeback]}
 string_enum! { SettlementEntryTypes [EventFees, TicketType]}
+string_enum! { SlugTypes[ Event, Organization, Venue, City ] }
 string_enum! { SortingDir[ Asc, Desc ] }
 string_enum! { SourceOrDestination [Destination,Source]}
-string_enum! { Tables [Artists, Broadcasts, Codes, Events, EventArtists, ExternalLogins, FeeSchedules, Holds, Orders, Organizations,
-Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users] }
+string_enum! { Tables [Artists, Broadcasts, Codes, DomainEventPublishers, Events, EventArtists, ExternalLogins, FeeSchedules, Holds, Orders, Organizations,
+Notes, Payments, PaymentMethods, PushNotificationTokens, TemporaryUsers, TicketInstances, TicketTypes, TicketPricing, Transfers, Users, Venues] }
 string_enum! { TicketInstanceStatus [Available, Reserved, Purchased, Redeemed, Nullified]}
 string_enum! { TicketPricingStatus [Published, Deleted, Default] }
 string_enum! { TicketTypeEndDateType [DoorTime, EventEnd, EventStart, Manual] }
@@ -203,6 +206,7 @@ string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, OnSaleSoon
 string_enum! { TicketTypeVisibility [ Always, Hidden, WhenAvailable ]}
 string_enum! { TransferMessageType [Email, Phone] }
 string_enum! { TransferStatus [Pending, Cancelled, Completed] }
+string_enum! { WebhookAdapters [CustomerIo]}
 
 impl Roles {
     pub fn get_event_limited_roles() -> Vec<Roles> {

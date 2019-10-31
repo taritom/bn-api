@@ -570,7 +570,13 @@ fn checkout_payment_processor(
         service_locator.create_payment_processor(provider, &event.organization(connection)?)?;
     match client.behavior() {
         PaymentProcessorBehavior::RedirectToPaymentPage(behavior) => {
-            return redirect_to_payment_page(&*behavior, &auth_user.user, order, conn.get(), config);
+            return redirect_to_payment_page(
+                &*behavior,
+                &auth_user.user,
+                order,
+                conn.get(),
+                config,
+            );
         }
         PaymentProcessorBehavior::AuthThenComplete(behavior) => {
             let token = if use_stored_payment {
@@ -668,13 +674,13 @@ fn checkout_payment_processor(
 }
 
 fn auth_then_complete(
-    client: &AuthThenCompletePaymentBehavior,
+    client: &dyn AuthThenCompletePaymentBehavior,
     token: String,
     currency: &str,
     order: &mut Order,
     auth_user: &User,
     conn: &Connection,
-    payment_processor: &PaymentProcessor,
+    payment_processor: &dyn PaymentProcessor,
     request_info: &RequestInfo,
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
@@ -730,7 +736,7 @@ fn auth_then_complete(
 }
 
 fn redirect_to_payment_page(
-    client: &RedirectToPaymentPageBehavior,
+    client: &dyn RedirectToPaymentPageBehavior,
     user: &DbUser,
     order: &mut Order,
     conn: &PgConnection,

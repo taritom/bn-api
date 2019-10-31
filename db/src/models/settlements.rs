@@ -10,8 +10,11 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use utils::pagination::*;
 use uuid::Uuid;
+use validators;
 
 sql_function!(fn process_settlement_for_event(settlement_id: dUuid, event_id: dUuid, start_time: Nullable<Timestamp>, end_time: Nullable<Timestamp>));
+
+pub const DEFAULT_SETTLEMENT_PERIOD_IN_DAYS: i64 = 7;
 
 #[derive(Associations, Debug, Identifiable, PartialEq, Queryable, Serialize, Deserialize, Clone)]
 #[table_name = "settlements"]
@@ -46,7 +49,13 @@ pub struct DisplaySettlement {
 }
 
 impl NewSettlement {
-    pub fn commit(&self, conn: &PgConnection) -> Result<Settlement, DatabaseError> {
+    pub fn commit(
+        &self,
+        user: Option<User>,
+        conn: &PgConnection,
+    ) -> Result<Settlement, DatabaseError> {
+        self.validate_record()?;
+
         let settlement = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new settlement",
@@ -57,7 +66,34 @@ impl NewSettlement {
 
         settlement.create_entries(conn)?;
 
+        DomainEvent::create(
+            DomainEventTypes::SettlementReportProcessed,
+            format!("Settlement processed"),
+            Tables::Organizations,
+            Some(settlement.organization_id),
+            user.map(|u| u.id),
+            Some(json!({"settlement_id": settlement.id})),
+        )
+        .commit(conn)?;
+
         Ok(settlement)
+    }
+
+    fn validate_record(&self) -> Result<(), DatabaseError> {
+        let validation_errors = validators::append_validation_error(
+            Ok(()),
+            "start_time",
+            validators::n_date_valid(
+                Some(self.start_time),
+                Some(self.end_time),
+                "end_time_before_start_time",
+                "End time must be after start time",
+                "start_time",
+                "end_time",
+            ),
+        );
+
+        Ok(validation_errors?)
     }
 }
 
@@ -94,17 +130,29 @@ impl Settlement {
 
     pub fn process_settlement_for_organization(
         organization: &Organization,
+        settlement_period_in_days: Option<u32>,
         conn: &PgConnection,
     ) -> Result<Settlement, DatabaseError> {
         let last_processed_settlement =
             Settlement::find_last_settlement_for_organization(organization, conn)?;
 
-        let end_time =
-            organization.next_settlement_date()? - Duration::days(7) - Duration::seconds(1);
+        let end_time = organization.next_settlement_date(settlement_period_in_days)?
+            - Duration::days(
+                settlement_period_in_days
+                    .map(|p| p as i64)
+                    .unwrap_or(DEFAULT_SETTLEMENT_PERIOD_IN_DAYS),
+            )
+            - Duration::seconds(1);
         let start_time = if let Some(settlement) = last_processed_settlement {
             settlement.end_time + Duration::seconds(1)
         } else {
-            end_time - Duration::days(7) + Duration::seconds(1)
+            end_time
+                - Duration::days(
+                    settlement_period_in_days
+                        .map(|p| p as i64)
+                        .unwrap_or(DEFAULT_SETTLEMENT_PERIOD_IN_DAYS),
+                )
+                + Duration::seconds(1)
         };
 
         let settlement = Settlement::create(
@@ -115,17 +163,7 @@ impl Settlement {
             None,
             organization.settlement_type == SettlementTypes::PostEvent,
         )
-        .commit(conn)?;
-
-        DomainEvent::create(
-            DomainEventTypes::SettlementReportProcessed,
-            format!("Settlement processed"),
-            Tables::Organizations,
-            Some(organization.id),
-            None,
-            Some(json!({"settlement_id": settlement.id})),
-        )
-        .commit(conn)?;
+        .commit(None, conn)?;
 
         Ok(settlement)
     }

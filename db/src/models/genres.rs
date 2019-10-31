@@ -4,6 +4,7 @@ use diesel::prelude::*;
 use diesel::sql_types::{Array, Text, Uuid as dUuid};
 use schema::{artist_genres, genres};
 use std::collections::HashMap;
+use utils::errors::ErrorCode::QueryError;
 use utils::errors::*;
 use uuid::Uuid;
 
@@ -37,6 +38,14 @@ impl Genre {
                 .push(genre.clone());
         }
         Ok(artist_genre_mapping)
+    }
+
+    pub fn find(id: Uuid, conn: &PgConnection) -> Result<Genre, DatabaseError> {
+        genres::table
+            .filter(genres::id.eq(id))
+            .load(conn)
+            .to_db_error(QueryError, "Could not find genre")
+            .expect_single()
     }
 
     pub fn find_or_create(

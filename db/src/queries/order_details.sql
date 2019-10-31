@@ -5,8 +5,11 @@ SELECT ticket_instance_id,
        fees_price_in_cents,
        (ticket_price_in_cents + fees_price_in_cents) AS total_price_in_cents,
        status,
-       status IN ('Purchased', 'Redeemed')           AS refundable,
-       attendee_email,
+       status IN ('Purchased', 'Redeemed') AS refundable,
+       CASE WHEN status <> 'Refunded' THEN attendee_email ELSE NULL END AS attendee_email,
+       CASE WHEN status <> 'Refunded' THEN attendee_id ELSE NULL END AS attendee_id,
+       CASE WHEN status <> 'Refunded' THEN attendee_first_name ELSE NULL END AS attendee_first_name,
+       CASE WHEN status <> 'Refunded' THEN attendee_last_name ELSE NULL END AS attendee_last_name,
        attendee_id,
        attendee_first_name,
        attendee_last_name,
@@ -33,7 +36,7 @@ FROM (
                     END                            AS fees_price_in_cents,
                 CASE
                     WHEN oi.quantity = oi.refunded_quantity OR rt.ticket_refunded_at IS NOT NULL THEN 'Refunded'
-                    WHEN w.user_id <> o.user_id THEN 'Transferred'
+                    WHEN w.user_id <> COALESCE(o.on_behalf_of_user_id, o.user_id) THEN 'Transferred'
                     WHEN tfs.id IS NOT NULL THEN 'In Transfer'
                     WHEN ti.status IS NULL THEN 'Purchased'
                     ELSE ti.status
@@ -83,7 +86,7 @@ FROM (
                   LEFT JOIN codes c ON oi.code_id = c.id
                   LEFT JOIN wallets w ON ti.wallet_id = w.id
                   LEFT JOIN users wallet_owner ON w.user_id = wallet_owner.id
-                  LEFT JOIN refunded_tickets rt ON rt.ticket_instance_id = ti.id
+                  LEFT JOIN refunded_tickets rt ON rt.ticket_instance_id = ti.id AND rt.order_item_id = oi.id
                   LEFT JOIN order_items fi ON fi.parent_id = oi.id AND fi.item_type = 'PerUnitFees'
                   LEFT JOIN order_items dis ON dis.parent_id = oi.id AND dis.item_type = 'Discount'
                   LEFT JOIN (
@@ -98,6 +101,7 @@ FROM (
                  o.user_id = $3
                  OR o.on_behalf_of_user_id = $3
                  OR 'Admin' = ANY (u.role)
+                 OR 'Super' = ANY (u.role)
                  OR (
                          NOT ('Promoter' = ANY (ou.role))
                          OR ep.id IS NOT NULL

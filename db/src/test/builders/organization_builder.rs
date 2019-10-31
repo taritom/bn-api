@@ -108,7 +108,7 @@ impl<'a> OrganizationBuilder<'a> {
         let mut organization = Organization::create(&self.name, self.fee_schedule.unwrap().id);
         organization.settlement_type = self.settlement_type;
         let mut organization = organization
-            .commit("encryption_key", None, self.connection)
+            .commit(None, "encryption_key", None, self.connection)
             .unwrap();
 
         let event_fee_update = OrganizationEditableAttributes {
@@ -123,6 +123,7 @@ impl<'a> OrganizationBuilder<'a> {
         organization = organization
             .update(
                 event_fee_update,
+                None,
                 &"encryption_key".to_string(),
                 self.connection,
             )
@@ -152,7 +153,7 @@ impl<'a> OrganizationBuilder<'a> {
             attrs.phone = Some(<String>::from("+27123456789"));
 
             organization = organization
-                .update(attrs, &"encryption_key".to_string(), self.connection)
+                .update(attrs, None, &"encryption_key".to_string(), self.connection)
                 .unwrap();
         }
         organization

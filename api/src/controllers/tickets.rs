@@ -323,7 +323,7 @@ pub fn receive_transfer(
 fn transfer_tickets_on_blockchain(
     tickets: &[TicketInstance],
     connection: &PgConnection,
-    tari_client: &TariClient,
+    tari_client: &dyn TariClient,
     sender_wallet: &Wallet,
     receiver_wallet: &Wallet,
 ) -> Result<(), BigNeonError> {

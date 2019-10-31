@@ -60,6 +60,7 @@ pub struct Organization {
     pub max_instances_per_ticket_type: i64,
     pub max_additional_fee_in_cents: i64,
     pub settlement_type: SettlementTypes,
+    pub slug_id: Option<Uuid>,
 }
 
 #[derive(Serialize)]
@@ -107,6 +108,7 @@ pub struct TrackingKeys {
 impl NewOrganization {
     pub fn commit(
         self,
+        settlement_period_in_days: Option<u32>,
         encryption_key: &str,
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
@@ -137,6 +139,22 @@ impl NewOrganization {
             .get_result(conn)
             .to_db_error(ErrorCode::InsertError, "Could not create new organization")?;
 
+        let slug = Slug::generate_slug(
+            &SlugContext::Organization {
+                id: org.id,
+                name: org.name.clone(),
+            },
+            SlugTypes::Organization,
+            conn,
+        )?;
+        let org = diesel::update(&org)
+            .set((
+                organizations::updated_at.eq(dsl::now),
+                organizations::slug_id.eq(slug.id),
+            ))
+            .get_result::<Organization>(conn)
+            .to_db_error(ErrorCode::UpdateError, "Could not update organization slug")?;
+
         diesel::update(fee_schedules::table.filter(fee_schedules::id.eq(org.fee_schedule_id)))
             .set((
                 fee_schedules::organization_id.eq(org.id),
@@ -147,7 +165,7 @@ impl NewOrganization {
                 ErrorCode::UpdateError,
                 "Could not set the fee schedule for this organization",
             )?;
-        org.schedule_domain_actions(conn)?;
+        org.schedule_domain_actions(settlement_period_in_days, conn)?;
 
         DomainEvent::create(
             DomainEventTypes::OrganizationCreated,
@@ -203,6 +221,7 @@ pub struct OrganizationEditableAttributes {
 impl Organization {
     pub fn create_next_settlement_processing_domain_action(
         &self,
+        settlement_period_in_days: Option<u32>,
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         if let Some(upcoming_domain_action) = self.upcoming_settlement_domain_action(conn)? {
@@ -221,7 +240,7 @@ impl Organization {
             Some(Tables::Organizations),
             Some(self.id),
         );
-        action.schedule_at(self.next_settlement_date()?);
+        action.schedule_at(self.next_settlement_date(settlement_period_in_days)?);
         action.commit(conn)?;
 
         Ok(())
@@ -231,10 +250,14 @@ impl Organization {
         Ok(self.first_order_date(conn).optional()?.is_some())
     }
 
-    pub fn schedule_domain_actions(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
+    pub fn schedule_domain_actions(
+        &self,
+        settlement_period_in_days: Option<u32>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
         // Settlements weekly domain event
         if self.upcoming_settlement_domain_action(conn)?.is_none() {
-            self.create_next_settlement_processing_domain_action(conn)?
+            self.create_next_settlement_processing_domain_action(settlement_period_in_days, conn)?
         }
 
         Ok(())
@@ -252,6 +275,13 @@ impl Organization {
             conn,
         )?
         .pop())
+    }
+
+    pub fn slug(&self, conn: &PgConnection) -> Result<Slug, DatabaseError> {
+        match self.slug_id {
+            Some(s) => Ok(Slug::find(s, conn)?),
+            None => DatabaseError::no_results("Organization does not have a slug"),
+        }
     }
 
     pub fn timezone(&self) -> Result<Tz, DatabaseError> {
@@ -278,25 +308,35 @@ impl Organization {
             .to_db_error(ErrorCode::QueryError, "Error loading first order date")
     }
 
-    pub fn next_settlement_date(&self) -> Result<NaiveDateTime, DatabaseError> {
+    pub fn next_settlement_date(
+        &self,
+        settlement_period_in_days: Option<u32>,
+    ) -> Result<NaiveDateTime, DatabaseError> {
         let timezone = self.timezone()?;
+        let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
+        let today = timezone
+            .ymd(now.year(), now.month(), now.day())
+            .and_hms(0, 0, 0);
 
-        // Take current time
-        let now = Utc::now();
-        let next_monday = now.naive_utc()
-            + Duration::days(
-                7 - now
-                    .with_timezone(&timezone)
-                    .naive_utc()
-                    .weekday()
-                    .num_days_from_monday() as i64,
-            );
+        // If this is a normal week long settlement period, set it to start on the following Monday
+        // Else set as number of days from today
+        if let Some(settlement_period) = settlement_period_in_days {
+            let next_period = today.naive_local() + Duration::days(settlement_period as i64);
+            let next_date = timezone
+                .ymd(next_period.year(), next_period.month(), next_period.day())
+                .and_hms(0, 0, 0)
+                .naive_utc();
 
-        Ok(timezone
-            .ymd(next_monday.year(), next_monday.month(), next_monday.day())
-            .and_hms(0, 0, 0)
-            .with_timezone(&Utc)
-            .naive_utc())
+            Ok(next_date)
+        } else {
+            let next_date = today.naive_utc()
+                + Duration::days(
+                    DEFAULT_SETTLEMENT_PERIOD_IN_DAYS
+                        - today.naive_local().weekday().num_days_from_monday() as i64,
+                );
+
+            Ok(next_date)
+        }
     }
 
     pub fn create(name: &str, fee_schedule_id: Uuid) -> NewOrganization {
@@ -310,6 +350,7 @@ impl Organization {
     pub fn update(
         &self,
         mut attributes: OrganizationEditableAttributes,
+        settlement_period_in_days: Option<u32>,
         encryption_key: &String,
         conn: &PgConnection,
     ) -> Result<Organization, DatabaseError> {
@@ -351,7 +392,7 @@ impl Organization {
             ))
             .get_result::<Organization>(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update organization")?;
-        organization.schedule_domain_actions(conn)?;
+        organization.schedule_domain_actions(settlement_period_in_days, conn)?;
 
         Ok(organization)
     }
@@ -1150,4 +1191,33 @@ impl Organization {
 
         Ok(())
     }
+
+    pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayOrganization, DatabaseError> {
+        Ok(DisplayOrganization {
+            id: self.id,
+            name: self.name.clone(),
+            address: self.address.clone(),
+            city: self.city.clone(),
+            state: self.state.clone(),
+            country: self.country.clone(),
+            postal_code: self.postal_code.clone(),
+            phone: self.phone.clone(),
+            timezone: self.timezone.clone(),
+            slug: Slug::primary_slug(self.id, Tables::Organizations, conn)?.slug,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct DisplayOrganization {
+    pub id: Uuid,
+    pub name: String,
+    pub address: Option<String>,
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub country: Option<String>,
+    pub postal_code: Option<String>,
+    pub phone: Option<String>,
+    pub timezone: Option<String>,
+    pub slug: String,
 }

@@ -26,6 +26,7 @@ extern crate log;
 extern crate logging;
 #[macro_use]
 extern crate macros;
+extern crate phonenumber;
 extern crate r2d2;
 extern crate regex;
 extern crate reqwest;
@@ -44,6 +45,7 @@ extern crate uuid;
 extern crate validator;
 #[macro_use]
 extern crate validator_derive;
+extern crate sitemap;
 
 pub mod auth;
 pub mod communications;

@@ -62,7 +62,6 @@ describe('OrgMember  - Create Event', function () {
         // add after methods
         let response =  JSON.parse(responseBody);
         pm.environment.set("last_event_id",response.id);
-        pm.environment.set("last_event_slug",response.slug);
 
     });
 
@@ -72,5 +71,3 @@ describe('OrgMember  - Create Event', function () {
 
 
 });
-
-            

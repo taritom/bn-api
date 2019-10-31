@@ -52,7 +52,7 @@ steps:
     - name: rust-fmt-check
       depends_on:
         - clone
-      image: rust:1.31.1
+      image: rust:1.38.0
       commands:
         - rustup component add rustfmt-preview
         - cargo fmt --all -- --check
@@ -81,7 +81,7 @@ steps:
     - name: compile
       depends_on:
         - clone
-      image: rust:1.31.1
+      image: rust:1.38.0
       environment: *env
       commands:
       - cargo build --release --bins
@@ -89,7 +89,7 @@ steps:
       - test -x target/release/bndb_cli
       when:
         event: [pull_request, push]
-        branch: master
+        branch: [master, develop]
 
 #    - name: rebuild-cache
 #      depends_on:
@@ -122,7 +122,7 @@ steps:
     - name: other-tests
       depends_on:
         - compile
-      image: rust:1.31.1
+      image: rust:1.38.0
       environment:
         <<: *env
         DATABASE_URL: postgres://app:password@database/other_tests
@@ -134,7 +134,7 @@ steps:
         - ./scripts/run-other-tests-ci.sh
       when:
         event: [pull_request, push]
-        branch: master
+        branch: [master, develop]
 
 #    - name: api-tests
 #      depends_on:
@@ -167,7 +167,7 @@ steps:
         - ./scripts/run-integration-tests-ci.sh
       when:
           event: [pull_request, push]
-          branch: master
+          branch: [master, develop]
 
 #    - name: publish
 #      image: plugins/ecr
@@ -203,7 +203,7 @@ steps:
       image: sdbondi/git-ssh-client:0.2-alpine
       environment:
           <<: *env
-          GH_USER_EMAIL: 'sdbondi@users.noreply.github.com'
+          GH_USER_EMAIL: 'travis@travis-ci.org'
           GH_USER_NAME: 'Travis CI'
           GITHUB_SSH_KEY:
               from_secret: github_deploy_key
@@ -211,7 +211,7 @@ steps:
         - ./scripts/bump-version.sh --tag-commit
       when:
           event: push
-          branch: master
+          branch: [master, develop]
 
 #    - name: deploy-dev
 #      image: sdbondi/drone-lambda-trigger
@@ -251,7 +251,7 @@ steps:
         root: drone
       when:
           event: [pull_request, push]
-          branch: master
+          branch: [master, develop]
 
     - name: notify
       image: plugins/slack
@@ -282,11 +282,11 @@ services:
           POSTGRES_PASSWORD: password
       when:
           event: [pull_request, push]
-          branch: master
+          branch: [master, develop]
 
 
 ---
 kind: signature
-hmac: 5414400a3400621c0747e7f7c904543c62c2f511df05390fabbd3a43a649a52d
+hmac: c6a2349cbde12ad6acd0b495f4e880af28cfdd7104c7b540230c894b14240f64
 
 ...

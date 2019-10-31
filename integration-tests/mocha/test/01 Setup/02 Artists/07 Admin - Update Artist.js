@@ -7,29 +7,33 @@ const pm = require('../../pm');const debug=require('debug');var log = debug('bn-
 
 const baseUrl = supertest(pm.environment.get('server'));
 
-const apiEndPoint = '/events/{{last_event_slug}}';
+const apiEndPoint = '/artists/{{last_artist_id}}';
 
 
 var response;
 var responseBody;
 
 
-const get = async function (request_body) {
+const put = async function (request_body) {
     return baseUrl
-        .get(pm.substitute(apiEndPoint))
-
-        .set('Authorization', pm.substitute('Bearer {{org_member_token}}'))
-
+        .put(pm.substitute(apiEndPoint))
         .set('Accept', 'application/json')
-        .send();
+        .set('Content-Type', 'application/json')
+        .set('Authorization', pm.substitute('Bearer {{token}}'))
+
+        .send(pm.substitute(request_body));
 };
 
-let requestBody = ``;
+let requestBody = `{
+	"name":"Artist updated {{$timestamp}}",
+	"bio": "Artist bio updated",
+	"main_genre": "blues"
+}`;
+let json = {};
 
-
-describe('Guest  - Get Event by slug', function () {
+describe('Admin - Update Artist', function () {
     before(async function () {
-        response = await get(requestBody);
+        response = await put(requestBody);
         log(response.request.header);
         log(response.request.url);
         log(response.request._data);
@@ -38,6 +42,9 @@ describe('Guest  - Get Event by slug', function () {
         //log(pm);
         log(response.status);
         log(responseBody);
+
+
+        json = JSON.parse(responseBody);
     });
 
     after(async function () {
@@ -48,9 +55,18 @@ describe('Guest  - Get Event by slug', function () {
 
     it("should be 200", function () {
         expect(response.status).to.equal(200);
+
     })
+
+
+    it("should be updated", function () {
+        expect(json.name).to.include("Artist updated");
+        expect(json.bio).to.equal("Artist bio updated");
+        expect(json.main_genre_id).to.not.be.null;
+        expect(json.main_genre).to.equal("blues");
+    });
 
 
 });
 
-            
+

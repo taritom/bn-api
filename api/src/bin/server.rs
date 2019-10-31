@@ -65,7 +65,7 @@ fn main() {
             .expect("Unknown value for `process-actions`. Use `true` or `false`"),
         matches
             .value_of("process-events")
-            .unwrap_or("false")
+            .unwrap_or("true")
             .parse()
             .expect("Unknown value for `process-events`. Use `true` or `false`"),
         matches

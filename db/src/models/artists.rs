@@ -7,9 +7,7 @@ use models::*;
 use schema::{
     artist_genres, artists, event_artists, events, genres, organization_users, organizations,
 };
-use utils::errors::ConvertToDatabaseError;
-use utils::errors::DatabaseError;
-use utils::errors::ErrorCode;
+use utils::errors::*;
 use utils::text;
 use uuid::Uuid;
 use validator::Validate;
@@ -35,6 +33,7 @@ pub struct Artist {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub other_image_urls: Option<Vec<String>>,
+    pub main_genre_id: Option<Uuid>,
 }
 
 #[derive(Insertable, Default, Deserialize, Validate)]
@@ -255,17 +254,16 @@ impl Artist {
 
         let artist_ids: Vec<Uuid> = artists.iter().map(|a| a.id).collect();
         let genre_mapping = Genre::find_by_artist_ids(&artist_ids, conn)?;
+        let mut result = vec![];
+        for artist in artists {
+            let genres = genre_mapping
+                .get(&artist.id)
+                .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
+                .unwrap_or(Vec::new());
+            result.push(DisplayArtist::from(artist, genres, conn)?);
+        }
 
-        Ok(artists
-            .into_iter()
-            .map(|a| {
-                let genres = genre_mapping
-                    .get(&a.id)
-                    .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
-                    .unwrap_or(Vec::new());
-                DisplayArtist::from(a, genres)
-            })
-            .collect())
+        Ok(result)
     }
 
     pub fn all(
@@ -303,21 +301,21 @@ impl Artist {
         let artist_ids: Vec<Uuid> = artists.iter().map(|a| a.id).collect();
         let genre_mapping = Genre::find_by_artist_ids(&artist_ids, conn)?;
 
-        Ok(artists
-            .into_iter()
-            .map(|a| {
-                let genres = genre_mapping
-                    .get(&a.id)
-                    .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
-                    .unwrap_or(Vec::new());
-                DisplayArtist::from(a, genres)
-            })
-            .collect())
+        let mut result = vec![];
+        for artist in artists {
+            let genres = genre_mapping
+                .get(&artist.id)
+                .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
+                .unwrap_or(Vec::new());
+            result.push(DisplayArtist::from(artist, genres, conn)?);
+        }
+
+        Ok(result)
     }
 
     pub fn for_display(self, conn: &PgConnection) -> Result<DisplayArtist, DatabaseError> {
         let genres = self.genres(conn)?;
-        Ok(DisplayArtist::from(self, genres))
+        DisplayArtist::from(self, genres, conn)
     }
 
     pub fn find(id: &Uuid, conn: &PgConnection) -> Result<Artist, DatabaseError> {
@@ -364,17 +362,16 @@ impl Artist {
 
         let artist_ids: Vec<Uuid> = artists.iter().map(|a| a.id).collect();
         let genre_mapping = Genre::find_by_artist_ids(&artist_ids, conn)?;
+        let mut result = vec![];
+        for artist in artists {
+            let genres = genre_mapping
+                .get(&artist.id)
+                .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
+                .unwrap_or(Vec::new());
+            result.push(DisplayArtist::from(artist, genres, conn)?);
+        }
 
-        Ok(artists
-            .into_iter()
-            .map(|a| {
-                let genres = genre_mapping
-                    .get(&a.id)
-                    .map(|m| m.into_iter().map(|g| g.name.clone()).collect())
-                    .unwrap_or(Vec::new());
-                DisplayArtist::from(a, genres)
-            })
-            .collect())
+        Ok(result)
     }
 
     pub fn update(
@@ -451,6 +448,7 @@ pub struct ArtistEditableAttributes {
     pub soundcloud_username: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub bandcamp_username: Option<Option<String>>,
+    pub main_genre_id: Option<Option<Uuid>>,
 }
 
 impl ArtistEditableAttributes {
@@ -479,12 +477,24 @@ pub struct DisplayArtist {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub other_image_urls: Option<Vec<String>>,
+    pub main_genre_id: Option<Uuid>,
+    pub main_genre: Option<String>,
     pub genres: Vec<String>,
 }
 
 impl DisplayArtist {
-    fn from(artist: Artist, genres: Vec<String>) -> Self {
-        DisplayArtist {
+    fn from(
+        artist: Artist,
+        genres: Vec<String>,
+        conn: &PgConnection,
+    ) -> Result<Self, DatabaseError> {
+        let main_genre = if let Some(main_genre_id) = artist.main_genre_id {
+            Some(Genre::find(main_genre_id, conn)?.name)
+        } else {
+            None
+        };
+
+        Ok(DisplayArtist {
             id: artist.id,
             organization_id: artist.organization_id,
             is_private: artist.is_private,
@@ -503,7 +513,9 @@ impl DisplayArtist {
             created_at: artist.created_at,
             updated_at: artist.updated_at,
             other_image_urls: artist.other_image_urls,
+            main_genre_id: artist.main_genre_id,
+            main_genre,
             genres,
-        }
+        })
     }
 }

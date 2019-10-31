@@ -4,8 +4,8 @@ use payments::*;
 use uuid::Uuid;
 
 pub enum PaymentProcessorBehavior {
-    AuthThenComplete(Box<AuthThenCompletePaymentBehavior>),
-    RedirectToPaymentPage(Box<RedirectToPaymentPageBehavior>),
+    AuthThenComplete(Box<dyn AuthThenCompletePaymentBehavior>),
+    RedirectToPaymentPage(Box<dyn RedirectToPaymentPageBehavior>),
 }
 
 pub trait AuthThenCompletePaymentBehavior {

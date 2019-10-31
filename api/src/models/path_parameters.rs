@@ -16,6 +16,11 @@ pub struct ExternalPathParameters {
 }
 
 #[derive(Deserialize)]
+pub struct StringPathParameters {
+    pub id: String,
+}
+
+#[derive(Deserialize)]
 pub struct MainTablePathParameters {
     // Can't use enum currently, see https://github.com/actix/actix-web/issues/318
     pub main_table: String,

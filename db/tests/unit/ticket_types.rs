@@ -122,6 +122,9 @@ fn new_record_end_date() {
         parent_id: None,
         additional_fee_in_cents: 0,
         end_date_type: TicketTypeEndDateType::Manual,
+        app_sales_enabled: true,
+        web_sales_enabled: true,
+        box_office_sales_enabled: true,
     };
     assert_eq!(new_ticket_type.end_date(connection), Ok(end_date));
 
@@ -164,6 +167,9 @@ fn create() {
             TicketTypeVisibility::Always,
             None,
             0,
+            true,
+            true,
+            true,
             None,
             conn,
         )
@@ -195,6 +201,9 @@ pub fn create_with_validation_errors() {
         TicketTypeVisibility::Always,
         None,
         0,
+        true,
+        true,
+        true,
         None,
         connection,
     );
@@ -238,6 +247,9 @@ pub fn create_with_validation_errors() {
         TicketTypeVisibility::Always,
         None,
         0,
+        true,
+        true,
+        true,
         None,
         connection,
     );
@@ -579,6 +591,9 @@ fn create_large_amount() {
             TicketTypeVisibility::Always,
             None,
             0,
+            true,
+            true,
+            true,
             None,
             conn,
         )
@@ -821,6 +836,40 @@ fn update() {
     assert_eq!(updated_ticket_type.name, update_name);
     assert_eq!(updated_ticket_type.start_date, Some(update_start_date));
     assert_eq!(updated_ticket_type.end_date, Some(update_end_date));
+    assert_eq!(
+        updated_ticket_type.end_date_type,
+        TicketTypeEndDateType::Manual
+    );
+
+    // End date type set, end_date cleared and no validation is raised for missing a value
+    let update_parameters = TicketTypeEditableAttributes {
+        end_date: Some(Some(update_end_date)),
+        end_date_type: Some(TicketTypeEndDateType::EventEnd),
+        ..Default::default()
+    };
+    let updated_ticket_type = updated_ticket_type
+        .update(update_parameters, None, connection)
+        .unwrap();
+    assert_eq!(updated_ticket_type.end_date, None);
+    assert_eq!(
+        updated_ticket_type.end_date_type,
+        TicketTypeEndDateType::EventEnd
+    );
+
+    // End date type set to manual, end_date persisted and no validation is raised
+    let update_parameters = TicketTypeEditableAttributes {
+        end_date: Some(Some(update_end_date)),
+        end_date_type: Some(TicketTypeEndDateType::Manual),
+        ..Default::default()
+    };
+    let updated_ticket_type = updated_ticket_type
+        .update(update_parameters, None, connection)
+        .unwrap();
+    assert_eq!(updated_ticket_type.end_date, Some(update_end_date));
+    assert_eq!(
+        updated_ticket_type.end_date_type,
+        TicketTypeEndDateType::Manual
+    );
 }
 
 #[test]
@@ -843,6 +892,9 @@ fn update_rank() {
             TicketTypeVisibility::Always,
             None,
             0,
+            true,
+            true,
+            true,
             None,
             conn,
         )
@@ -862,6 +914,9 @@ fn update_rank() {
             TicketTypeVisibility::Always,
             None,
             0,
+            true,
+            true,
+            true,
             None,
             conn,
         )
@@ -1026,6 +1081,9 @@ fn tiered_pricing_update() {
             TicketTypeVisibility::Always,
             None,
             0,
+            true,
+            true,
+            true,
             None,
             conn,
         )
@@ -1045,6 +1103,9 @@ fn tiered_pricing_update() {
             TicketTypeVisibility::Always,
             Some(ticket_type_a.id),
             0,
+            true,
+            true,
+            true,
             None,
             conn,
         )

@@ -44,6 +44,9 @@ pub struct TicketType {
     pub additional_fee_in_cents: i64,
     pub deleted_at: Option<NaiveDateTime>,
     pub end_date_type: TicketTypeEndDateType,
+    pub web_sales_enabled: bool,
+    pub box_office_sales_enabled: bool,
+    pub app_sales_enabled: bool,
 }
 
 impl PartialOrd for TicketType {
@@ -71,6 +74,9 @@ pub struct TicketTypeEditableAttributes {
     #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
     pub end_date_type: Option<TicketTypeEndDateType>,
+    pub web_sales_enabled: Option<bool>,
+    pub box_office_sales_enabled: Option<bool>,
+    pub app_sales_enabled: Option<bool>,
     pub rank: Option<i32>,
 }
 
@@ -131,6 +137,9 @@ impl TicketType {
         visibility: TicketTypeVisibility,
         parent_id: Option<Uuid>,
         additional_fee_in_cents: i64,
+        app_sales_enabled: bool,
+        web_sales_enabled: bool,
+        box_office_sales_enabled: bool,
     ) -> NewTicketType {
         NewTicketType {
             event_id,
@@ -146,6 +155,9 @@ impl TicketType {
             parent_id,
             additional_fee_in_cents,
             end_date_type,
+            app_sales_enabled,
+            web_sales_enabled,
+            box_office_sales_enabled,
         }
     }
 
@@ -273,20 +285,22 @@ impl TicketType {
 
     /// Gets the start date if it is present, or the parent's end date
     pub fn start_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
-        let date = match self.start_date {
-            Some(sd) => Ok(sd),
-            None => self
-                .parent(conn)?
-                .ok_or_else(|| {
-                    return DatabaseError::business_process_error::<TicketType>(
-                        "Ticket type must have a start date or start after another ticket type",
-                    )
-                    .unwrap_err();
-                })?
-                .end_date(conn),
-        };
-
-        date
+        match self.start_date {
+            Some(start_date) => Ok(start_date),
+            None => Ok(cmp::min(
+                TicketType::find(
+                    self.parent_id.ok_or_else(|| {
+                        return DatabaseError::business_process_error::<Uuid>(
+                            "Ticket type must have a start date or start after another ticket type",
+                        )
+                        .unwrap_err();
+                    })?,
+                    conn,
+                )?
+                .end_date(conn)?,
+                self.end_date(conn)?,
+            )),
+        }
     }
 
     pub fn end_date(&self, conn: &PgConnection) -> Result<NaiveDateTime, DatabaseError> {
@@ -347,7 +361,8 @@ impl TicketType {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         if attributes.end_date_type.unwrap_or(self.end_date_type) == TicketTypeEndDateType::Manual
-            && (attributes.end_date == Some(None) || self.end_date.is_none())
+            && (attributes.end_date == Some(None)
+                || (attributes.end_date.is_none() && self.end_date.is_none()))
         {
             return Ok(validators::append_validation_error(
                 Ok(()),
@@ -822,6 +837,9 @@ pub struct NewTicketType {
     pub parent_id: Option<Uuid>,
     pub additional_fee_in_cents: i64,
     pub end_date_type: TicketTypeEndDateType,
+    pub app_sales_enabled: bool,
+    pub web_sales_enabled: bool,
+    pub box_office_sales_enabled: bool,
 }
 
 impl NewTicketType {
@@ -894,11 +912,15 @@ impl NewTicketType {
             )?);
         }
 
-        let validation_errors = validators::append_validation_error(
-            Ok(()),
-            "start_date",
-            validators::start_date_valid(self.start_date(conn)?, self.end_date(conn)?),
-        );
+        let validation_errors = if self.parent_id.is_some() {
+            Ok(())
+        } else {
+            validators::append_validation_error(
+                Ok(()),
+                "start_date",
+                validators::start_date_valid(self.start_date(conn)?, self.end_date(conn)?),
+            )
+        };
         let validation_errors = validators::append_validation_error(
             validation_errors,
             "additional_fee_in_cents",
@@ -956,14 +978,14 @@ impl NewTicketType {
         match self.start_date {
             Some(start_date) => Ok(start_date),
             None =>
-                TicketType::find(
+                Ok(cmp::min(TicketType::find(
                     self.parent_id.ok_or_else(|| {
                         return DatabaseError::business_process_error::<Uuid>(
                             "Could not create ticket type, it must have a start date or start after another ticket type",
                         ).unwrap_err();
                     })?,
                     conn,
-                )?.end_date(conn)
+                )?.end_date(conn)?, self.end_date(conn)?))
         }
     }
 }

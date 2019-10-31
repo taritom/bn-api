@@ -282,19 +282,14 @@ impl User {
         }
     }
 
-    pub fn new_for_invite(
+    pub fn new_stub(
         first_name: Option<String>,
         last_name: Option<String>,
         email: Option<String>,
+        phone: Option<String>,
     ) -> NewUser {
         let rand_password = random_alpha_string(16);
-        Self::create(
-            first_name.clone(),
-            last_name.clone(),
-            email.clone(),
-            None,
-            rand_password.as_str(),
-        )
+        Self::create(first_name, last_name, email, phone, rand_password.as_str())
     }
 
     pub fn create_from_external_login(
@@ -357,16 +352,8 @@ impl User {
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
-        let hash = PasswordHash::generate("random", None);
-        let new_user = NewUser {
-            first_name: Some(first_name),
-            last_name: Some(last_name),
-            email,
-            phone,
-            hashed_pw: hash.to_string(),
-            role: vec![Roles::User],
-        };
-        new_user.commit(current_user_id, conn)
+        Self::new_stub(Some(first_name), Some(last_name), email, phone)
+            .commit(current_user_id, conn)
     }
 
     pub fn activity(
@@ -439,14 +426,14 @@ impl User {
             cover_image_url: Option<String>,
             #[sql_type = "Nullable<Text>"]
             private_access_code: Option<String>,
-            #[sql_type = "Text"]
-            slug: String,
             #[sql_type = "Nullable<Text>"]
             facebook_pixel_key: Option<String>,
             #[sql_type = "Nullable<Timestamp>"]
             deleted_at: Option<NaiveDateTime>,
             #[sql_type = "Nullable<Jsonb>"]
             extra_admin_data: Option<Value>,
+            #[sql_type = "dUuid"]
+            slug_id: Uuid,
             #[sql_type = "BigInt"]
             total: i64,
         }
@@ -532,10 +519,10 @@ impl User {
             event_type: event.event_type,
             cover_image_url: event.cover_image_url,
             private_access_code: event.private_access_code,
-            slug: event.slug,
             facebook_pixel_key: event.facebook_pixel_key,
             deleted_at: event.deleted_at,
             extra_admin_data: event.extra_admin_data,
+            slug_id: Some(event.slug_id),
         });
 
         let mut result: Vec<ActivitySummary> = Vec::new();
@@ -921,7 +908,7 @@ impl User {
     }
 
     pub fn is_admin(&self) -> bool {
-        self.has_role(Roles::Admin)
+        self.has_role(Roles::Admin) || self.has_role(Roles::Super)
     }
 
     pub fn get_global_scopes(&self) -> Vec<Scopes> {

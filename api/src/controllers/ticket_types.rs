@@ -13,6 +13,7 @@ use models::{AdminDisplayTicketType, EventTicketPathParameters, PathParameters};
 use serde_with::rust::double_option;
 use server::AppState;
 use tari_client::MessagePayloadCreateAsset as TariNewAsset;
+use utils::serializers::default_as_true;
 use uuid::Uuid;
 
 #[derive(Clone, Deserialize)]
@@ -49,6 +50,12 @@ pub struct CreateTicketTypeRequest {
     pub additional_fee_in_cents: Option<i64>,
     #[serde(default)]
     pub rank: i64,
+    #[serde(default = "default_as_true")]
+    pub web_sales_enabled: bool,
+    #[serde(default = "default_as_true")]
+    pub box_office_sales_enabled: bool,
+    #[serde(default = "default_as_true")]
+    pub app_sales_enabled: bool,
 }
 
 impl Default for CreateTicketTypeRequest {
@@ -68,6 +75,9 @@ impl Default for CreateTicketTypeRequest {
             visibility: TicketTypeVisibility::Always,
             additional_fee_in_cents: None,
             rank: 0,
+            web_sales_enabled: true,
+            box_office_sales_enabled: true,
+            app_sales_enabled: true,
         }
     }
 }
@@ -102,6 +112,12 @@ pub struct UpdateTicketTypeRequest {
     pub parent_id: Option<Option<Uuid>>,
     #[serde(default)]
     pub additional_fee_in_cents: Option<i64>,
+    #[serde(default)]
+    pub web_sales_enabled: Option<bool>,
+    #[serde(default)]
+    pub box_office_sales_enabled: Option<bool>,
+    #[serde(default)]
+    pub app_sales_enabled: Option<bool>,
     pub rank: Option<i32>,
 }
 
@@ -344,12 +360,15 @@ pub fn update(
         start_date: data.start_date,
         end_date: data.end_date,
         end_date_type: data.end_date_type,
+        web_sales_enabled: data.web_sales_enabled,
+        box_office_sales_enabled: data.box_office_sales_enabled,
         increment: data.increment,
         limit_per_person: data.limit_per_person,
         price_in_cents: data.price_in_cents,
         visibility: data.visibility,
         parent_id: data.parent_id,
         additional_fee_in_cents: data.additional_fee_in_cents,
+        app_sales_enabled: data.app_sales_enabled,
         rank: data.rank,
     };
     let updated_ticket_type = ticket_type.update(update_parameters, Some(user.id()), connection)?;
@@ -419,7 +438,6 @@ pub fn update(
                 )?;
             } else {
                 //TODO send error when all data was not specified
-
             }
         }
         updated_ticket_type.validate_ticket_pricing(connection)?;
@@ -526,6 +544,9 @@ fn create_ticket_types(
             ticket_type_data.visibility,
             ticket_type_data.parent_id,
             ticket_type_data.additional_fee_in_cents.unwrap_or(0),
+            ticket_type_data.app_sales_enabled,
+            ticket_type_data.web_sales_enabled,
+            ticket_type_data.box_office_sales_enabled,
             Some(user.id()),
             connection,
         )?;

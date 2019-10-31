@@ -252,6 +252,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/organizations/{id}/settlements", |r| {
         r.method(Method::GET).with(settlements::index);
+        r.method(Method::POST).with(settlements::create);
     })
     .resource("/organizations/{id}/invites", |r| {
         r.method(Method::GET).with(organization_invites::index);
@@ -321,6 +322,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/settlements/{id}", |r| {
         r.method(Method::GET).with(settlements::show);
         r.method(Method::DELETE).with(settlements::destroy);
+    })
+    .resource("/slugs/{id}", |r| {
+        r.method(Method::GET).with(slugs::show);
     })
     .resource("/tickets/transfer", |r| {
         r.method(Method::POST).with(tickets::transfer_authorization);
@@ -401,6 +405,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/venues", |r| {
         r.method(Method::GET).with(venues::index);
         r.method(Method::POST).with(venues::create);
+    })
+    .resource("/sitemap.xml", |r| {
+        r.method(Method::GET).with(sitemap_gen::index);
     })
     .register()
     .default_resource(|r| {

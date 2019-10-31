@@ -7,6 +7,8 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EventShowResult {
     pub id: Uuid,
+    #[serde(rename = "type")]
+    pub response_type: String,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub private_access_code: Option<Option<String>>,
@@ -28,7 +30,7 @@ pub struct EventShowResult {
     pub age_limit: Option<String>,
     pub video_url: Option<String>,
     pub organization: ShortOrganization,
-    pub venue: Option<Venue>,
+    pub venue: Option<DisplayVenue>,
     pub artists: Vec<DisplayEventArtist>,
     pub ticket_types: Vec<UserDisplayTicketType>,
     pub total_interest: u32,
@@ -54,4 +56,5 @@ pub struct EventShowResult {
 pub struct ShortOrganization {
     pub id: Uuid,
     pub name: String,
+    pub slug: Option<String>,
 }

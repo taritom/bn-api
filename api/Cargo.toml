@@ -1,6 +1,6 @@
 [package]
 name = "bigneon_api"
-version = "1.0.250"
+version = "1.1.6"
 authors = ["CjS77"]
 license = "BSD-3"
 repository = "https://github.com/big-neon/bn-api/"
@@ -18,9 +18,9 @@ chrono = {version = "0.4", features = ["serde"]}
 clap = "2.32"
 diesel="1.4.2"
 dotenv = "0.13"
-expo-server-sdk = "0.1.0"
+# Pulling from github as dependency fix merged into master has yet to be released
+expo-server-sdk = { git = "https://github.com/expo/expo-server-sdk-rust", rev="a4334d2d7243ac5e0ecb77478bb42774bbd9af54" }
 facebook = { path="../facebook"}
-failure ="0.1"
 futures = "0.1"
 globee={path="../globee"}
 itertools = "0.7"
@@ -29,9 +29,10 @@ lazy_static = "1.2.0"
 log = { version = "0.4", features = ["max_level_debug"]}
 logging = {path="../logging"}
 macros = {path="../macros"}
+phonenumber = "0.2.3"
 r2d2 = "0.8"
 regex = "1"
-reqwest="0.9"
+reqwest="0.9.22"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
@@ -41,8 +42,9 @@ tari-client= {path="../tari-client"}
 tokio = "0.1"
 # TODO move this to the bigneon org? Currently just testing this lib, so if we
 # are still using it in a few months, fork it into /bigneon
-twilio= { git = "https://github.com/mikethetike/twilio-rs" , rev="8a746caed756c3cfe57e082084fda8be3170721a"}
+twilio= { git = "https://github.com/mikethetike/twilio-rs", rev="8a746caed756c3cfe57e082084fda8be3170721a"}
 uuid = { version = "0.6", features = ["serde", "v4"] }
 url="1.7.2"
 validator = "0.8"
 validator_derive = "0.8"
+sitemap = "0.4"

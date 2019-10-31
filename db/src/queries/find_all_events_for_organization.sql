@@ -25,7 +25,7 @@ SELECT e.id,
        e.external_url,
        e.override_status,
        e.event_type,
-       e.slug,
+       s.slug,
        e.extra_admin_data,
        (SELECT min(tp.start_date)
         FROM ticket_pricing tp
@@ -56,6 +56,7 @@ SELECT e.id,
           AND o.status = 'Paid') AS sales_total_in_cents,
       (SELECT NOT EXISTS(SELECT 1 from order_items oi WHERE oi.event_id = e.id LIMIT 1)) AS eligible_for_deletion
 FROM events e
+JOIN slugs s ON e.slug_id = s.id
        LEFT JOIN venues v ON e.venue_id = v.id
 WHERE e.organization_id = $1
   AND e.deleted_at is null

@@ -5,12 +5,11 @@ use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
-use diesel::sql_types::{BigInt, Bool, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid};
+use diesel::sql_types::{BigInt, Bool, Integer, Nullable, Text, Timestamp, Uuid as dUuid};
 use diesel::{sql_query, sql_types};
 use itertools::Itertools;
 use log::Level::{self, Debug};
 use models::*;
-use regex::RegexSet;
 use schema::{
     event_users, events, order_items, order_transfers, orders, organization_users, organizations,
     payments, transfers, users,
@@ -22,7 +21,7 @@ use std::collections::HashMap;
 use time::Duration;
 use utils::dates::*;
 use utils::errors::*;
-use utils::iterators::intersect_set;
+use utils::iterators::*;
 use utils::regexes;
 use uuid::Uuid;
 use validator::*;
@@ -372,7 +371,9 @@ impl Order {
         }
 
         // Release tickets if they are purchased (i.e. not yet redeemed)
-        if ticket_instance.status == TicketInstanceStatus::Purchased {
+        if ticket_instance.status == TicketInstanceStatus::Purchased
+            && order_item.item_type == OrderItemTypes::Tickets
+        {
             ticket_instance.release(TicketInstanceStatus::Purchased, user_id, conn)?;
         }
 
@@ -420,7 +421,7 @@ impl Order {
             .bind::<Array<dUuid>, _>(organization_ids)
             .bind::<dUuid, _>(user_id)
             .load(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load order items")
+            .to_db_error(ErrorCode::QueryError, "Could not load order details")
     }
 
     pub fn partially_visible_order(
@@ -541,18 +542,10 @@ impl Order {
 
         let mut platform: Option<String> = None;
         if user_agent.is_some() {
-            let agent = user_agent.as_ref().unwrap();
-
-            let set = RegexSet::new(&[r"okhttp", r"Big.*Neon", r"Mozilla"])?;
-
-            let matches = set.matches(agent).into_iter().collect_vec();
-
-            if matches.contains(&0) || matches.contains(&1) {
-                platform = Some("App".to_string());
-            }
-            if matches.contains(&2) {
-                platform = Some("Web".to_string());
-            }
+            platform =
+                Platforms::from_user_agent(user_agent.as_ref().map(|ua| ua.as_str()).unwrap())
+                    .map(|p| p.to_string())
+                    .ok();
         }
         if purchase_completed {
             self.purchase_user_agent = user_agent;
@@ -755,10 +748,12 @@ impl Order {
             left join ticket_instances ti on (oi.id = ti.order_item_id or rt.ticket_instance_id = ti.id)
             left join transfer_tickets trt on trt.ticket_instance_id = ti.id
             left join transfers trns on trt.transfer_id = trns.id
+            left join users trnsu on trns.destination_user_id = trnsu.id
             left join holds h on oi.hold_id = h.id
             left join codes c on oi.code_id = c.id
             inner join users u on o.user_id = u.id
             left join users bu on o.on_behalf_of_user_id = bu.id
+
         where o.status <> 'Draft'
         "#,
         )
@@ -783,7 +778,7 @@ impl Order {
         if let Some(general_query) = general_query {
             bind_no = bind_no + 1;
             query = query
-                .sql(format!(" and (o.id::text ilike ${}  or ti.id::text ilike ${} or coalesce(bu.email, u.email) ilike ${} or trns.transfer_address ilike ${} or coalesce(bu.phone, u.phone) ilike ${} or coalesce(h.redemption_code, c.redemption_code) ilike ${}  or (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${}) )", bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no))
+                .sql(format!(" and (o.id::text ilike ${}  or ti.id::text ilike ${} or coalesce(bu.email, u.email) ilike ${} or trns.transfer_address ilike ${} or coalesce(bu.phone, u.phone) ilike ${} or coalesce(h.redemption_code, c.redemption_code) ilike ${}  or (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${} or trnsu.first_name || ' ' || trnsu.last_name ilike ${} or trnsu.last_name || ' ' || trnsu.first_name ilike ${}) )", bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no))
                 .bind::<diesel::sql_types::Text, _>(format!("%{}%", general_query));
         }
 
@@ -879,52 +874,6 @@ impl Order {
         struct R {
             #[sql_type = "dUuid"]
             id: Uuid,
-            #[sql_type = "dUuid"]
-            user_id: Uuid,
-            #[sql_type = "Text"]
-            status: OrderStatus,
-            #[sql_type = "Text"]
-            order_type: OrderTypes,
-            #[sql_type = "Timestamp"]
-            order_date: NaiveDateTime,
-            #[sql_type = "Nullable<Timestamp>"]
-            expires_at: Option<NaiveDateTime>,
-            #[sql_type = "BigInt"]
-            version: i64,
-            #[sql_type = "Nullable<dUuid>"]
-            on_behalf_of_user_id: Option<Uuid>,
-            #[sql_type = "Timestamp"]
-            created_at: NaiveDateTime,
-            #[sql_type = "Timestamp"]
-            updated_at: NaiveDateTime,
-            #[sql_type = "Nullable<Timestamp>"]
-            paid_at: Option<NaiveDateTime>,
-            #[sql_type = "Bool"]
-            box_office_pricing: bool,
-            #[sql_type = "Nullable<Text>"]
-            checkout_url: Option<String>,
-            #[sql_type = "Nullable<Timestamp>"]
-            checkout_url_expires: Option<NaiveDateTime>,
-            #[sql_type = "Nullable<Text>"]
-            create_user_agent: Option<String>,
-            #[sql_type = "Nullable<Text>"]
-            purchase_user_agent: Option<String>,
-            #[sql_type = "Nullable<Text>"]
-            external_payment_type: Option<ExternalPaymentType>,
-            #[sql_type = "Nullable<Jsonb>"]
-            tracking_data: Option<serde_json::Value>,
-            #[sql_type = "Nullable<Text>"]
-            source: Option<String>,
-            #[sql_type = "Nullable<Text>"]
-            campaign: Option<String>,
-            #[sql_type = "Nullable<Text>"]
-            medium: Option<String>,
-            #[sql_type = "Nullable<Text>"]
-            term: Option<String>,
-            #[sql_type = "Nullable<Text>"]
-            content: Option<String>,
-            #[sql_type = "Nullable<Text>"]
-            platform: Option<String>,
             #[sql_type = "BigInt"]
             total: i64,
         }
@@ -938,45 +887,19 @@ impl Order {
             ))
             .bind::<sql_types::BigInt, _>(limit)
             .bind::<sql_types::BigInt, _>(paging.page.unwrap_or(0) as i64 * limit);
-        let orders: Vec<R> = query
+        let order_data: Vec<R> = query
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
 
-        let mut r = (
-            Vec::<DisplayOrder>::new(),
-            orders.get(0).map(|s| s.total).unwrap_or(0),
-        );
-        for order in orders {
-            let o = Order {
-                id: order.id,
-                user_id: order.user_id,
-                status: order.status,
-                order_type: order.order_type,
-                order_date: order.order_date,
-                expires_at: order.expires_at,
-                version: order.version,
-                on_behalf_of_user_id: order.on_behalf_of_user_id,
-                created_at: order.created_at,
-                updated_at: order.updated_at,
-                paid_at: order.paid_at,
-                box_office_pricing: order.box_office_pricing,
-                checkout_url: order.checkout_url,
-                checkout_url_expires: order.checkout_url_expires,
-                create_user_agent: order.create_user_agent,
-                purchase_user_agent: order.purchase_user_agent,
-                external_payment_type: order.external_payment_type,
-                tracking_data: order.tracking_data,
-                source: order.source,
-                campaign: order.campaign,
-                medium: order.medium,
-                term: order.term,
-                content: order.content,
-                platform: order.platform,
-                settlement_id: None,
-            };
-            r.0.push(o.for_display(None, current_user_id, conn)?);
-        }
-        Ok(r)
+        Ok((
+            Order::load_for_display(
+                order_data.iter().map(|o| o.id).collect(),
+                None,
+                current_user_id,
+                conn,
+            )?,
+            order_data.get(0).map(|s| s.total).unwrap_or(0),
+        ))
     }
 
     /// Sets the expiry time of an order. All tickets in the current order are also updated
@@ -1643,22 +1566,18 @@ impl Order {
         user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Vec<DisplayOrder>, DatabaseError> {
-        use schema::*;
-        let orders: Vec<Order> = orders::table
+        let order_ids: Vec<Uuid> = orders::table
             .filter(
-                orders::user_id
-                    .eq(user_id)
-                    .or(orders::on_behalf_of_user_id.eq(user_id)),
+                sql("COALESCE(orders.on_behalf_of_user_id, orders.user_id) = ")
+                    .bind::<dUuid, _>(user_id),
             )
             .filter(orders::status.ne(OrderStatus::Draft))
             .order_by(orders::order_date.desc())
-            .load(conn)
+            .select(orders::id)
+            .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
-        let mut r = Vec::<DisplayOrder>::new();
-        for order in orders {
-            r.push(order.for_display(None, user_id, conn)?);
-        }
-        Ok(r)
+
+        Order::load_for_display(order_ids, None, user_id, conn)
     }
 
     pub fn items(&self, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
@@ -1848,174 +1767,336 @@ impl Order {
         user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<DisplayOrder, DatabaseError> {
+        let mut results = Order::load_for_display(vec![self.id], organization_ids, user_id, conn)?;
+
+        if results.len() != 1 {
+            return DatabaseError::business_process_error("Unable to load display order");
+        }
+
+        Ok(results.remove(0))
+    }
+
+    pub fn load_for_display(
+        order_ids: Vec<Uuid>,
+        organization_ids: Option<Vec<Uuid>>,
+        current_user_id: Uuid,
+        conn: &PgConnection,
+    ) -> Result<Vec<DisplayOrder>, DatabaseError> {
+        let current_user = User::find(current_user_id, conn)?;
+
+        #[derive(Queryable, QueryableByName)]
+        struct R {
+            #[sql_type = "dUuid"]
+            id: Uuid,
+            #[sql_type = "Text"]
+            order_number: String,
+            #[sql_type = "Text"]
+            status: OrderStatus,
+            #[sql_type = "Timestamp"]
+            order_date: NaiveDateTime,
+            #[sql_type = "Nullable<Timestamp>"]
+            expires_at: Option<NaiveDateTime>,
+            #[sql_type = "dUuid"]
+            user_id: Uuid,
+            #[sql_type = "Nullable<dUuid>"]
+            on_behalf_of_user_id: Option<Uuid>,
+            #[sql_type = "Nullable<Timestamp>"]
+            paid_at: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Text>"]
+            platform: Option<String>,
+            #[sql_type = "Nullable<Text>"]
+            checkout_url: Option<String>,
+            #[sql_type = "Nullable<Timestamp>"]
+            checkout_url_expires: Option<NaiveDateTime>,
+            #[sql_type = "Nullable<Array<Text>>"]
+            payment_methods: Option<Vec<PaymentMethods>>,
+            #[sql_type = "Nullable<Array<Text>>"]
+            providers: Option<Vec<PaymentProviders>>,
+            #[sql_type = "BigInt"]
+            total_in_cents: i64,
+            #[sql_type = "BigInt"]
+            total_refunded_in_cents: i64,
+            #[sql_type = "Nullable<Array<Text>>"]
+            allowed_payment_providers: Option<Vec<String>>,
+            #[sql_type = "Nullable<Array<dUuid>>"]
+            organization_ids: Option<Vec<Uuid>>,
+            #[sql_type = "Nullable<Array<dUuid>>"]
+            event_ids: Option<Vec<Uuid>>,
+        }
+
+        let mut query = sql_query(
+            r#"
+            SELECT
+                o.id,
+                RIGHT(o.id::text, 8) as order_number,
+                o.status,
+                o.order_date,
+                o.expires_at,
+                o.user_id,
+                o.on_behalf_of_user_id,
+                o.paid_at,
+                o.platform,
+                o.checkout_url,
+                o.checkout_url_expires,
+                p.payment_methods,
+                p.providers,
+                CAST(COALESCE(SUM(oi.unit_price_in_cents * oi.quantity), 0) as BigInt) as total_in_cents,
+                CAST(COALESCE(SUM(oi.unit_price_in_cents * oi.refunded_quantity), 0) as BigInt) as total_refunded_in_cents,
+                ARRAY_AGG(DISTINCT SUBSTRING(orgs.allowed_payment_providers::text from 2 for char_length(orgs.allowed_payment_providers::text) - 2)) FILTER (WHERE orgs.allowed_payment_providers IS NOT NULL) as allowed_payment_providers,
+                ARRAY_AGG(DISTINCT e.organization_id) FILTER (WHERE e.organization_id IS NOT NULL) as organization_ids,
+                ARRAY_AGG(DISTINCT e.id) FILTER (WHERE e.id IS NOT NULL) as event_ids
+            FROM orders o
+            LEFT JOIN order_items oi ON oi.order_id = o.id
+            LEFT JOIN events e ON oi.event_id = e.id
+            LEFT JOIN organizations orgs ON e.organization_id = orgs.id
+            LEFT JOIN (
+                SELECT
+                    p.order_id,
+                    ARRAY_AGG(DISTINCT p.provider) FILTER (WHERE p.provider IS NOT NULL) as providers,
+                    ARRAY_AGG(DISTINCT p.payment_method) FILTER (WHERE p.payment_method IS NOT NULL) as payment_methods
+                FROM payments p
+                WHERE p.status in ('Completed', 'Refunded')
+                GROUP BY p.payment_method, p.order_id
+            ) AS p on o.id = p.order_id
+        "#,
+        )
+        .into_boxed();
+
+        query = query
+            .sql(" WHERE o.id = ANY($1) ")
+            .bind::<Array<dUuid>, _>(&order_ids);
+
+        query = query.sql(
+            "
+            GROUP BY
+                o.id,
+                o.status,
+                o.order_date,
+                o.expires_at,
+                o.user_id,
+                o.on_behalf_of_user_id,
+                o.paid_at,
+                o.platform,
+                o.expires_at,
+                o.checkout_url_expires,
+                o.checkout_url,
+                p.payment_methods,
+                p.providers
+            ORDER BY o.order_date desc
+        ",
+        );
+        let results: Vec<R> = query.get_results(conn).to_db_error(
+            ErrorCode::QueryError,
+            "Unable to load order data for organization fan",
+        )?;
+
+        let mut user_ids = Vec::new();
+        for result in &results {
+            if let Some(on_behalf_of_user_id) = result.on_behalf_of_user_id {
+                user_ids.push(on_behalf_of_user_id);
+            }
+            user_ids.push(result.user_id);
+        }
+        user_ids.sort();
+        user_ids.dedup();
+        let users = User::find_by_ids(&user_ids, conn)?;
+        let mut user_map: HashMap<Uuid, DisplayUser> = HashMap::new();
+        for user in users {
+            user_map.insert(user.id, user.for_display()?);
+        }
+
+        let mut event_ids = Vec::new();
+        for result in &results {
+            if let Some(ref ids) = result.event_ids {
+                event_ids.append(&mut ids.clone());
+            }
+        }
+        event_ids.sort();
+        event_ids.dedup();
+        let events = Event::find_by_ids(event_ids, conn)?;
+        let mut event_map: HashMap<Uuid, Event> = HashMap::new();
+        for event in events {
+            event_map.insert(event.id, event);
+        }
+
+        let mut order_items = Order::items_for_display(
+            results.iter().map(|r| r.id).collect(),
+            organization_ids.clone(),
+            current_user_id,
+            conn,
+        )?;
+
         let now = Utc::now().naive_utc();
-        let seconds_until_expiry = self.expires_at.map(|expires_at| {
-            if expires_at >= now {
-                let duration = expires_at.signed_duration_since(now);
-                duration.num_seconds() as u32
+        let mut display_orders: Vec<DisplayOrder> = Vec::new();
+        for result in results {
+            let seconds_until_expiry = result.expires_at.map(|expires_at| {
+                if expires_at >= now {
+                    let duration = expires_at.signed_duration_since(now);
+                    duration.num_seconds() as u32
+                } else {
+                    0
+                }
+            });
+
+            let items = if order_items.contains_key(&result.id) {
+                order_items.remove(&result.id).ok_or_else(|| {
+                    DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some("Order can't load items".to_string()),
+                    )
+                })?
             } else {
-                0
-            }
-        });
+                Vec::new()
+            };
 
-        let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
-        for e in self.events(conn)? {
-            if let Some(ref organization_ids) = organization_ids {
-                if !organization_ids.contains(&e.organization_id) {
-                    continue;
-                }
-            }
-
-            let tickets_bought = Order::quantity_for_user_for_event(
-                self.on_behalf_of_user_id.unwrap_or(self.user_id),
-                e.id,
-                conn,
-            )?;
-            for (tt_id, num) in tickets_bought {
-                let limit = TicketType::find(tt_id, conn)?.limit_per_person;
-                if limit > 0 {
-                    limited_tickets_remaining.push(TicketsRemaining {
-                        ticket_type_id: tt_id,
-                        tickets_remaining: limit - num,
-                    });
-                }
-            }
-        }
-        // Check if this order contains any other organization items if a list of organization_ids is passed in
-        let mut order_contains_other_tickets = false;
-        if let Some(ref organization_ids) = organization_ids {
-            order_contains_other_tickets = select(exists(
-                order_items::table
-                    .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
-                    .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-                    .inner_join(users::table.on(users::id.eq(user_id)))
-                    .left_join(
-                        organization_users::table
-                            .on(organization_users::organization_id.eq(events::organization_id)),
-                    )
-                    .left_join(
-                        event_users::table.on(event_users::event_id
-                            .eq(events::id)
-                            .and(event_users::user_id.eq(users::id))),
-                    )
-                    .filter(order_items::order_id.eq(self.id))
-                    .filter(orders::user_id.ne(user_id))
-                    .filter(organization_users::user_id.eq(user_id))
-                    .filter(
-                        sql("(
-                        'Admin' = ANY(users.role)
-                        OR orders.on_behalf_of_user_id = users.id
-                        OR organization_users.id is NULL
-                        OR (
-                            event_users.id IS NULL
-                            AND (
-                                'Promoter' = ANY(organization_users.role)
-                                OR 'PromoterReadOnly' = ANY(organization_users.role)
-                            )
+            let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
+            if let Some(event_ids) = result.event_ids {
+                for event_id in event_ids {
+                    let event = event_map.get(&event_id).ok_or_else(|| {
+                        DatabaseError::new(
+                            ErrorCode::BusinessProcessError,
+                            Some("Order can't load event data".to_string()),
                         )
-                        OR NOT events.organization_id = ANY (")
-                        .bind::<Array<dUuid>, _>(organization_ids)
-                        .sql(
-                            ")
-                    )",
-                        ),
-                    ),
-            ))
-            .get_result(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not determine if order contains tickets for other organizations",
-            )?;
-        };
-        let available_payment_methods: Vec<Vec<PaymentProviders>> = order_items::table
-            .inner_join(events::table.inner_join(organizations::table))
-            .filter(order_items::order_id.eq(self.id))
-            .select(organizations::allowed_payment_providers)
-            .distinct()
-            .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load organizations for order",
-            )?;
+                    })?;
 
-        let allowed_payment_methods: Vec<AllowedPaymentMethod> =
-            intersect_set(&available_payment_methods)
-                .into_iter()
-                .filter_map(|p| match p {
-                    PaymentProviders::Stripe => Some(AllowedPaymentMethod {
-                        method: "Card".to_string(),
-                        provider: PaymentProviders::Stripe,
-                        display_name: "Card".to_string(),
-                    }),
-                    PaymentProviders::Globee => Some(AllowedPaymentMethod {
-                        method: "Provider".to_string(),
-                        provider: PaymentProviders::Globee,
-                        display_name: "Pay with crypto".to_string(),
-                    }),
-                    _ => None,
-                })
-                .collect();
-        let items = self.items_for_display(organization_ids, user_id, conn)?;
+                    if let Some(ref organization_ids) = &organization_ids {
+                        if !organization_ids.contains(&event.organization_id) {
+                            continue;
+                        }
+                    }
 
-        let mut payment: Option<Payment> = None;
-        if self.paid_at.is_some() {
-            payment = self
-                .payments(conn)?
-                .into_iter()
-                .find(|p| p.status == PaymentStatus::Completed);
-        }
+                    let tickets_bought = Order::quantity_for_user_for_event(
+                        result.on_behalf_of_user_id.unwrap_or(result.user_id),
+                        event.id,
+                        conn,
+                    )?;
+                    for (tt_id, num) in tickets_bought {
+                        let limit = TicketType::find(tt_id, conn)?.limit_per_person;
+                        if limit > 0 {
+                            limited_tickets_remaining.push(TicketsRemaining {
+                                ticket_type_id: tt_id,
+                                tickets_remaining: limit - num,
+                            });
+                        }
+                    }
+                }
+            }
 
-        let (total_in_cents, total_refunded_in_cents) =
-            self.calculate_total_and_refunded_total(conn)?;
+            let mut available_payment_providers: Vec<Vec<PaymentProviders>> = Vec::new();
+            if let Some(order_allowed_payment_providers) = result.allowed_payment_providers {
+                for providers in order_allowed_payment_providers {
+                    let mut allowed_payment_providers: Vec<PaymentProviders> = Vec::new();
+                    for provider in providers.split(",") {
+                        allowed_payment_providers.push(provider.trim().parse()?);
+                    }
+                    available_payment_providers.push(allowed_payment_providers);
+                }
+            }
 
-        let mut on_behalf_of_user: Option<DisplayUser> = None;
+            let allowed_payment_methods: Vec<AllowedPaymentMethod> =
+                intersect_set(&available_payment_providers)
+                    .into_iter()
+                    .filter_map(|p| match p {
+                        PaymentProviders::Stripe => Some(AllowedPaymentMethod {
+                            method: "Card".to_string(),
+                            provider: PaymentProviders::Stripe,
+                            display_name: "Card".to_string(),
+                        }),
+                        PaymentProviders::Globee => Some(AllowedPaymentMethod {
+                            method: "Provider".to_string(),
+                            provider: PaymentProviders::Globee,
+                            display_name: "Pay with crypto".to_string(),
+                        }),
+                        _ => None,
+                    })
+                    .collect();
 
-        if let Some(on_behalf_of_user_id) = self.on_behalf_of_user_id {
-            on_behalf_of_user = Some(User::find(on_behalf_of_user_id, conn)?.for_display()?);
-        }
+            let order_organization_ids = result.organization_ids.clone().unwrap_or(Vec::new());
+            let order_contains_other_tickets = !current_user.is_admin()
+                && organization_ids.is_some()
+                && order_organization_ids.len()
+                    != intersection(&order_organization_ids, organization_ids.as_ref().unwrap())
+                        .len();
 
-        Ok(DisplayOrder {
-            id: self.id,
-            status: self.status.clone(),
-            date: self.order_date,
-            expires_at: self.expires_at,
-            valid_for_purchase: DisplayOrder::valid_for_purchase(self.status, &items),
-            items,
-            limited_tickets_remaining,
-            total_in_cents,
-            total_refunded_in_cents,
-            seconds_until_expiry,
-            user_id: self.user_id,
-            user: User::find(self.user_id, conn)?.for_display()?,
-            order_number: self.order_number(),
-            paid_at: self.paid_at,
-            checkout_url: if self
-                .checkout_url_expires
-                .unwrap_or(NaiveDateTime::from_timestamp(0, 0))
-                > Utc::now().naive_utc()
+            let user = user_map
+                .get(&result.user_id)
+                .ok_or_else(|| {
+                    DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some("Order can't load user".to_string()),
+                    )
+                })?
+                .clone();
+            let on_behalf_of_user = if let Some(on_behalf_of_user_id) = result.on_behalf_of_user_id
             {
-                self.checkout_url.clone()
+                Some(
+                    user_map
+                        .get(&on_behalf_of_user_id)
+                        .ok_or_else(|| {
+                            DatabaseError::new(
+                                ErrorCode::BusinessProcessError,
+                                Some("Order can't load user".to_string()),
+                            )
+                        })?
+                        .clone(),
+                )
             } else {
                 None
-            },
-            allowed_payment_methods,
-            order_contains_other_tickets,
-            platform: self.platform.clone(),
-            is_box_office: self.on_behalf_of_user_id.is_some(),
-            payment_method: payment.as_ref().map(|p| p.payment_method),
-            payment_provider: payment.map(|p| p.provider),
-            on_behalf_of_user_id: self.on_behalf_of_user_id,
-            on_behalf_of_user,
-        })
+            };
+
+            display_orders.push(DisplayOrder {
+                id: result.id,
+                status: result.status.clone(),
+                date: result.order_date,
+                expires_at: result.expires_at,
+                valid_for_purchase: DisplayOrder::valid_for_purchase(result.status, &items),
+                limited_tickets_remaining,
+                total_in_cents: result.total_in_cents,
+                total_refunded_in_cents: result.total_refunded_in_cents,
+                seconds_until_expiry,
+                user_id: result.user_id,
+                user,
+                order_number: result.order_number,
+                paid_at: result.paid_at,
+                checkout_url: if result
+                    .checkout_url_expires
+                    .unwrap_or(NaiveDateTime::from_timestamp(0, 0))
+                    > Utc::now().naive_utc()
+                {
+                    result.checkout_url.clone()
+                } else {
+                    None
+                },
+                allowed_payment_methods,
+                order_contains_other_tickets,
+                platform: result.platform.clone(),
+                is_box_office: result.on_behalf_of_user_id.is_some(),
+                payment_method: result
+                    .payment_methods
+                    .map(|r| r.first().map(|p| *p))
+                    .unwrap_or(None),
+                payment_provider: result
+                    .providers
+                    .map(|r| r.first().map(|p| *p))
+                    .unwrap_or(None),
+                on_behalf_of_user_id: result.on_behalf_of_user_id,
+                on_behalf_of_user,
+                items,
+            });
+        }
+
+        let mut iter = order_ids.iter();
+        display_orders.sort_by_key(|order| iter.position(|&id| id == order.id));
+        Ok(display_orders)
     }
 
     pub fn items_for_display(
-        &self,
+        order_ids: Vec<Uuid>,
         organization_ids: Option<Vec<Uuid>>,
         user_id: Uuid,
         conn: &PgConnection,
-    ) -> Result<Vec<DisplayOrderItem>, DatabaseError> {
-        OrderItem::find_for_display(self.id, organization_ids, user_id, conn)
+    ) -> Result<HashMap<Uuid, Vec<DisplayOrderItem>>, DatabaseError> {
+        OrderItem::find_for_display(order_ids, organization_ids, user_id, conn)
     }
 
     pub fn find_item(
@@ -2100,6 +2181,10 @@ impl Order {
         current_user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Payment, DatabaseError> {
+        if external_payment {
+            self.set_external_payment_type(ExternalPaymentType::Voucher, current_user_id, conn)?;
+        }
+
         let payment = Payment::create(
             self.id,
             Some(current_user_id),

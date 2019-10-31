@@ -309,5 +309,4 @@ mod test {
 
         assert!(!subject.is_expired());
     }
-
 }

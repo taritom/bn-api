@@ -17,7 +17,7 @@ impl SendCommunicationExecutor {
 
 impl DomainActionExecutor for SendCommunicationExecutor {
     fn execute(&self, action: DomainAction, conn: Connection) -> ExecutorFuture {
-        let future = communication::send_async(&action, &self.config);
+        let future = communication::send_async(&action, &self.config, conn.get());
         ExecutorFuture::new(action, conn, Box::new(future))
     }
 }

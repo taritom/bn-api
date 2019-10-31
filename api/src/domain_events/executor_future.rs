@@ -12,7 +12,7 @@ pub struct ExecutorFuture {
     started_at: NaiveDateTime,
     action: DomainAction,
     conn: Connection,
-    inner: Box<Future<Item = (), Error = BigNeonError>>,
+    inner: Box<dyn Future<Item = (), Error = BigNeonError>>,
 }
 
 unsafe impl Send for ExecutorFuture {}
@@ -21,7 +21,7 @@ impl ExecutorFuture {
     pub fn new(
         action: DomainAction,
         conn: Connection,
-        future: Box<Future<Item = (), Error = BigNeonError>>,
+        future: Box<dyn Future<Item = (), Error = BigNeonError>>,
     ) -> ExecutorFuture {
         ExecutorFuture {
             action,

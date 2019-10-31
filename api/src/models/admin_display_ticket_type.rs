@@ -24,6 +24,9 @@ pub struct AdminDisplayTicketType {
     pub parent_id: Option<Uuid>,
     pub additional_fee_in_cents: i64,
     pub rank: i32,
+    pub app_sales_enabled: bool,
+    pub web_sales_enabled: bool,
+    pub box_office_sales_enabled: bool,
 }
 
 impl AdminDisplayTicketType {
@@ -71,6 +74,9 @@ impl AdminDisplayTicketType {
             visibility: ticket_type.visibility,
             additional_fee_in_cents: ticket_type.additional_fee_in_cents,
             rank: ticket_type.rank,
+            app_sales_enabled: ticket_type.app_sales_enabled,
+            web_sales_enabled: ticket_type.web_sales_enabled,
+            box_office_sales_enabled: ticket_type.box_office_sales_enabled,
         };
 
         let current_ticket_pricing = ticket_type.current_ticket_pricing(false, conn).optional()?;

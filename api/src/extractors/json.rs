@@ -32,7 +32,7 @@ where
     T: DeserializeOwned + 'static,
 {
     type Config = JsonConfig;
-    type Result = Box<Future<Item = Self, Error = Error>>;
+    type Result = Box<dyn Future<Item = Self, Error = Error>>;
 
     #[inline]
     fn from_request(req: &HttpRequest<AppState>, cfg: &Self::Config) -> Self::Result {

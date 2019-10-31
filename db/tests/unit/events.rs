@@ -224,6 +224,15 @@ fn count_report() {
 }
 
 #[test]
+fn slug() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let event = project.create_event().finish();
+    let slug = Slug::primary_slug(event.id, Tables::Events, connection).unwrap();
+    assert_eq!(event.slug(connection).unwrap(), slug.slug);
+}
+
+#[test]
 fn get_all_events_with_sales_between() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -859,51 +868,6 @@ fn next_drip_date_staging() {
 }
 
 #[test]
-fn find_by_slug() {
-    let project = TestProject::new();
-    let connection = project.get_connection();
-    let user = project.create_user().finish();
-    let venue = project
-        .create_venue()
-        .with_name("Test Venue".to_string())
-        .with_city("San Francisco".to_string())
-        .finish();
-    let event = project
-        .create_event()
-        .with_name("Test Event".to_string())
-        .with_ticket_type_count(1)
-        .with_tickets()
-        .with_ticket_pricing()
-        .with_venue(&venue)
-        .finish();
-    assert_eq!(
-        &"test-event-at-test-venue-san-francisco".to_string(),
-        &event.slug
-    );
-    assert_eq!(
-        Event::find_by_slug(&event.slug, false, connection)
-            .unwrap()
-            .0,
-        event.clone()
-    );
-    assert_eq!(
-        Event::find_by_slug(&event.slug, true, connection)
-            .unwrap()
-            .0,
-        event.clone()
-    );
-    event.clone().delete(user.id, connection).unwrap();
-    assert!(Event::find_by_slug(&event.slug, false, connection).is_err());
-    assert_eq!(
-        Event::find_by_slug(&event.slug, true, connection)
-            .unwrap()
-            .0
-            .id,
-        event.clone().id
-    );
-}
-
-#[test]
 fn find() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -948,14 +912,7 @@ fn delete() {
     )
     .unwrap();
     assert_eq!(1, domain_events.len());
-
-    let event = Event::find_by_slug(&event.slug, true, connection)
-        .unwrap()
-        .0;
-    assert!(event.deleted_at.is_some());
-
-    // Already deleted
-    assert!(event.delete(user.id, connection).is_err());
+    assert!(Event::find(event.id, connection).is_err());
 
     // Can't delete as event has associated order
     let event = project
@@ -979,7 +936,8 @@ fn delete() {
         connection,
     )
     .unwrap();
-    assert!(event.delete(user.id, connection).is_err());
+    assert!(event.clone().delete(user.id, connection).is_err());
+    assert!(Event::find(event.id, connection).is_ok());
 }
 
 #[test]
@@ -1342,16 +1300,12 @@ fn create() {
 
     assert_eq!(event.venue_id, Some(venue.id));
     assert_eq!(event.organization_id, organization.id);
-    assert_eq!(event.slug, "newevent-at-name-san-francisco");
-
-    // Auto generate random slug due to lack of legal characters
-    let event = project
-        .create_event()
-        .with_name("".into())
-        .with_organization(&organization)
-        .finish();
-    assert_eq!(event.organization_id, organization.id);
-    assert_eq!(event.slug.len(), 5);
+    assert_eq!(event.id.to_string().is_empty(), false);
+    assert!(event.slug_id.is_some());
+    let slug = Slug::primary_slug(event.id, Tables::Events, connection).unwrap();
+    assert_eq!(slug.main_table_id, event.id);
+    assert_eq!(slug.main_table, Tables::Events);
+    assert_eq!(slug.slug_type, SlugTypes::Event);
 
     // Create without an event start does not auto set event_end and door_time
     let event = Event::create(
@@ -3116,7 +3070,7 @@ fn search() {
         None,
         None,
         None,
-        Some(venue1.id),
+        Some(vec![venue1.id]),
         None,
         None,
         None,
@@ -4285,6 +4239,9 @@ fn add_ticket_type() {
             TicketTypeVisibility::Always,
             None,
             0,
+            true,
+            true,
+            true,
             None,
             conn,
         )
@@ -4317,6 +4274,9 @@ fn ticket_types() {
             TicketTypeVisibility::Always,
             None,
             0,
+            true,
+            true,
+            true,
             None,
             conn,
         )
@@ -4336,6 +4296,9 @@ fn ticket_types() {
             TicketTypeVisibility::Always,
             None,
             0,
+            true,
+            true,
+            true,
             None,
             conn,
         )

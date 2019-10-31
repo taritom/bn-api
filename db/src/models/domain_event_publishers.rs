@@ -6,7 +6,9 @@ use diesel::prelude::*;
 use itertools::Itertools;
 use models::*;
 use schema::{domain_event_published, domain_event_publishers};
+use serde_json::Value;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use utils::errors::*;
 use uuid::Uuid;
 use validator::Validate;
@@ -21,7 +23,7 @@ pub static SUPPORTED_DOMAIN_EVENT_TYPES_FOR_PUBLISHING: &'static [DomainEventTyp
     DomainEventTypes::PushNotificationTokenCreated,
 ];
 
-#[derive(Clone, Debug, Serialize, Eq, Hash, PartialEq, Identifiable, Queryable, QueryableByName)]
+#[derive(Clone, Debug, Serialize, Identifiable, Queryable, QueryableByName)]
 #[table_name = "domain_event_publishers"]
 pub struct DomainEventPublisher {
     pub id: Uuid,
@@ -33,6 +35,22 @@ pub struct DomainEventPublisher {
     pub updated_at: NaiveDateTime,
     pub last_domain_event_seq: Option<i64>,
     pub deleted_at: Option<NaiveDateTime>,
+    pub adapter: Option<WebhookAdapters>,
+    pub adapter_config: Option<Value>,
+}
+
+impl Eq for DomainEventPublisher {}
+
+impl PartialEq for DomainEventPublisher {
+    fn eq(&self, other: &DomainEventPublisher) -> bool {
+        self.id.eq(&other.id)
+    }
+}
+
+impl Hash for DomainEventPublisher {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
+    }
 }
 
 #[derive(AsChangeset, Deserialize, Validate)]
@@ -51,7 +69,7 @@ impl DomainEventPublisher {
             .load(conn)
             .to_db_error(
                 ErrorCode::QueryError,
-                "Could not load Domain Event Publisher",
+                "Could not load Domain Event Publishers",
             )
     }
 
@@ -227,7 +245,7 @@ impl DomainEventPublisher {
             )?;
 
         for webhook_payload in domain_event.webhook_payloads(front_end_url, conn)? {
-            Communication::new(
+            let mut comms = Communication::new(
                 CommunicationType::Webhook,
                 "Domain Event Webhook".to_string(),
                 Some(json!(webhook_payload).to_string()),
@@ -235,10 +253,12 @@ impl DomainEventPublisher {
                 CommAddress::from(self.webhook_url.clone()),
                 None,
                 None,
-                Some(vec!["transfers"]),
+                Some(vec!["webhooks"]),
                 None,
-            )
-            .queue(conn)?;
+            );
+            comms.main_table = Some(Tables::DomainEventPublishers);
+            comms.main_table_id = Some(self.id);
+            comms.queue(conn)?;
         }
 
         Ok(())
