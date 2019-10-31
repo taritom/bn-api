@@ -93,7 +93,10 @@ impl Broadcast {
         diesel::update(&broadcast)
             .set(broadcasts::dsl::opened_quantity.eq(broadcast.opened_quantity + 1))
             .get_result(connection)
-            .to_db_error(ErrorCode::UpdateError, "Unable to update open count on broadcast")
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Unable to update open count on broadcast",
+            )
     }
 
     pub fn increment_sent_count(
@@ -104,7 +107,10 @@ impl Broadcast {
         diesel::update(&broadcast)
             .set(broadcasts::dsl::sent_quantity.eq(broadcast.sent_quantity + 1))
             .get_result(connection)
-            .to_db_error(ErrorCode::UpdateError, "Unable to update sent count on broadcast")
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Unable to update sent count on broadcast",
+            )
     }
 
     pub fn find(id: Uuid, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {
