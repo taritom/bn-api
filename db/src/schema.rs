@@ -57,6 +57,8 @@ table! {
         progress -> Int4,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        sent_quantity -> Int8,
+        opened_quantity -> Int8,
     }
 }
 
