@@ -1,4 +1,4 @@
-use bigneon_db::models::enums::{BroadcastChannel, BroadcastType};
+use bigneon_db::models::enums::{BroadcastChannel, BroadcastType, BroadcastAudience};
 use bigneon_db::prelude::Broadcast;
 use std::string::ToString;
 use support::database::TestDatabase;
@@ -12,10 +12,11 @@ fn broadcast_counter() {
         id,
         BroadcastType::Custom,
         BroadcastChannel::PushNotification,
-        "Name".to_string(),
-        Some("Custom Message".to_string()),
+        Option::from("Name".to_string()),
         None,
         None,
+        None,
+        BroadcastAudience::PeopleAtTheEvent,
     )
     .commit(connection)
     .unwrap();

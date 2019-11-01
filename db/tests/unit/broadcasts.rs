@@ -1,6 +1,7 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::prelude::*;
 use chrono::Utc;
+use bigneon_db::models::Scopes::BoxOfficeTicketRead;
 
 #[test]
 fn new_broadcast_commit() {
@@ -14,10 +15,11 @@ fn new_broadcast_commit() {
         event.id,
         BroadcastType::LastCall,
         BroadcastChannel::PushNotification,
-        "myname".to_string(),
         None,
         Some(send_at),
         None,
+        None,
+    BroadcastAudience::PeopleAtTheEvent
     );
 
     assert_eq!(
@@ -28,7 +30,6 @@ fn new_broadcast_commit() {
 
     let broadcast = broadcast.commit(conn).unwrap();
     assert!(!broadcast.id.is_nil());
-    assert_eq!("myname".to_string(), broadcast.name);
 
     assert_eq!(broadcast.channel, BroadcastChannel::PushNotification);
 
@@ -53,10 +54,11 @@ fn new_custom_broadcast_commit() {
         event.id,
         BroadcastType::Custom,
         BroadcastChannel::PushNotification,
-        "Custom Name No Message".to_string(),
+        Option::from("Custom Name No Message".to_string()),
         None,
         None,
         None,
+        BroadcastAudience::PeopleAtTheEvent,
     )
     .commit(conn);
     assert!(broadcast_err.is_err());
@@ -65,10 +67,11 @@ fn new_custom_broadcast_commit() {
         event.id,
         BroadcastType::Custom,
         BroadcastChannel::PushNotification,
-        "Custom Name".to_string(),
-        Some("Custom Message".to_string()),
+        Option::from("Custom Name".to_string()),
         None,
         None,
+        None,
+        BroadcastAudience::PeopleAtTheEvent,
     );
 
     assert_eq!(
@@ -79,7 +82,6 @@ fn new_custom_broadcast_commit() {
 
     let broadcast = broadcast.commit(conn).unwrap();
     assert!(!broadcast.id.is_nil());
-    assert_eq!("Custom Name".to_string(), broadcast.name);
 
     assert_eq!(broadcast.channel, BroadcastChannel::PushNotification);
     assert_eq!(broadcast.message, Some("Custom Message".to_string()));
@@ -135,7 +137,6 @@ fn broadcast_update() {
 
     let broadcast = project
         .create_broadcast()
-        .with_name("old name".to_string())
         .with_channel(BroadcastChannel::PushNotification)
         .with_send_at(Utc::now().naive_utc())
         .with_status(BroadcastStatus::Pending)
@@ -144,7 +145,6 @@ fn broadcast_update() {
     let attributes = BroadcastEditableAttributes {
         notification_type: None,
         channel: None,
-        name: Some("new name".to_string()),
         message: None,
         send_at: Some(None),
         status: Some(BroadcastStatus::InProgress),
@@ -154,7 +154,6 @@ fn broadcast_update() {
 
     assert_eq!(broadcast.status, BroadcastStatus::InProgress);
     assert_eq!(broadcast.channel, BroadcastChannel::PushNotification);
-    assert_eq!(broadcast.name, "new name");
     assert!(broadcast.send_at.is_none());
 }
 
@@ -171,7 +170,6 @@ fn broadcast_update_if_cancelled() {
     let attributes = BroadcastEditableAttributes {
         notification_type: None,
         channel: None,
-        name: Some("new name".to_string()),
         message: None,
         send_at: Some(None),
         status: Some(BroadcastStatus::InProgress),

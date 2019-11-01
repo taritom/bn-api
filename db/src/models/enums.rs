@@ -169,7 +169,7 @@ string_enum! { DomainActionTypes [
     UpdateGenres
 ]}
 string_enum! { BroadcastStatus [Pending, InProgress, Completed, Cancelled]}
-string_enum! { BroadcastChannel [PushNotification]}
+string_enum! { BroadcastChannel [PushNotification, Email]}
 string_enum! { BroadcastType [Custom, LastCall]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
 string_enum! { Environment [Development, Production, Staging, Test]}
@@ -241,6 +241,12 @@ impl Default for BroadcastStatus {
 impl Default for BroadcastChannel {
     fn default() -> BroadcastChannel {
         BroadcastChannel::PushNotification
+    }
+}
+
+impl Default for BroadcastAudience {
+    fn default() -> BroadcastAudience {
+        BroadcastAudience::PeopleAtTheEvent
     }
 }
 

@@ -50,7 +50,6 @@ table! {
         event_id -> Uuid,
         notification_type -> Varchar,
         channel -> Varchar,
-        name -> Text,
         message -> Nullable<Text>,
         send_at -> Nullable<Timestamp>,
         status -> Varchar,
@@ -59,6 +58,8 @@ table! {
         updated_at -> Timestamp,
         sent_quantity -> Int8,
         opened_quantity -> Int8,
+        subject -> Nullable<Text>,
+        audience -> Varchar,
     }
 }
 

@@ -1,7 +1,7 @@
 use actix_web::Path;
 use actix_web::{HttpResponse, Query};
 use auth::user::User;
-use bigneon_db::models::enums::{BroadcastChannel, BroadcastType};
+use bigneon_db::models::enums::{BroadcastAudience, BroadcastChannel, BroadcastType};
 use bigneon_db::models::scopes::Scopes;
 use bigneon_db::models::{Broadcast, BroadcastEditableAttributes, Organization, PagingParameters};
 use chrono::NaiveDateTime;
@@ -13,12 +13,14 @@ use reqwest::StatusCode;
 
 #[derive(Deserialize, Serialize)]
 pub struct NewBroadcastData {
-    pub name: Option<String>,
+    // TODO: Should this change to subject?
     pub notification_type: BroadcastType,
     //None is now
     pub send_at: Option<NaiveDateTime>,
     pub message: Option<String>,
     pub channel: Option<BroadcastChannel>,
+    pub audience: BroadcastAudience,
+    pub subject: Option<String>,
 }
 
 pub fn create(
@@ -32,23 +34,23 @@ pub fn create(
     let connection = conn.get();
     let organization = Organization::find_for_event(path.id, connection)?;
 
-    user.requires_scope_for_organization(Scopes::EventBroadcast, &organization, connection)?;
-    let push_notification = Broadcast::create(
-        path.id,
-        json.notification_type.clone(),
-        json.channel
-            .clone()
-            .unwrap_or(BroadcastChannel::PushNotification),
-        json.name
-            .clone()
-            .unwrap_or(json.notification_type.to_string()),
-        json.message.clone(),
-        json.send_at.clone(),
-        None,
-    )
-    .commit(connection)?;
+    let channel = json.channel.unwrap_or(BroadcastChannel::PushNotification);
+;
 
-    Ok(HttpResponse::Created().json(json!(push_notification)))
+    user.requires_scope_for_organization(Scopes::EventBroadcast, &organization, connection)?;
+
+        let broadcast = Broadcast::create(
+            path.id,
+            json.notification_type,
+            channel,
+            json.message.clone(),
+            json.send_at,
+            None,
+            None,
+            BroadcastAudience::PeopleAtTheEvent
+        )
+        .commit(connection)?;
+            Ok(HttpResponse::Created().json(json!(broadcast)))
 }
 
 pub fn index(

@@ -1,7 +1,6 @@
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use models::*;
-use rand::prelude::*;
 use uuid::Uuid;
 
 use test::builders::event_builder::EventBuilder;
@@ -10,30 +9,36 @@ pub struct BroadcastBuilder<'a> {
     event_id: Option<Uuid>,
     notification_type: BroadcastType,
     channel: BroadcastChannel,
-    name: String,
     message: Option<String>,
     send_at: Option<NaiveDateTime>,
     status: BroadcastStatus,
     connection: &'a PgConnection,
+    subject: Option<String>,
+    audience: BroadcastAudience,
 }
 
 impl<'a> BroadcastBuilder<'a> {
     pub fn new(connection: &'a PgConnection) -> Self {
-        let x: u32 = random();
         BroadcastBuilder {
-            name: format!("Broadcast {}", x).into(),
             event_id: None,
             notification_type: BroadcastType::LastCall,
             channel: BroadcastChannel::PushNotification,
             message: None,
             send_at: None,
             status: BroadcastStatus::Pending,
+            subject : None,
+            audience: BroadcastAudience::PeopleAtTheEvent,
             connection,
         }
     }
 
-    pub fn with_name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn with_subject(mut self, subject: Option<String>) -> Self {
+        self.subject = subject;
+        self
+    }
+
+    pub fn with_audience(mut self, audience: BroadcastAudience) -> Self {
+        self.audience = audience;
         self
     }
 
@@ -66,10 +71,11 @@ impl<'a> BroadcastBuilder<'a> {
             self.event_id.unwrap(),
             self.notification_type,
             self.channel,
-            self.name.clone(),
             self.message.clone(),
             self.send_at,
             Some(self.status),
+            None,
+            BroadcastAudience::PeopleAtTheEvent
         );
 
         broadcast.commit(self.connection).unwrap()

@@ -17,13 +17,14 @@ pub struct NewBroadcast {
     pub event_id: Uuid,
     pub notification_type: BroadcastType,
     pub channel: BroadcastChannel,
-    pub name: String,
     pub message: Option<String>,
     pub send_at: Option<NaiveDateTime>,
     pub status: BroadcastStatus,
     pub progress: i32,
     pub sent_quantity: i64,
     pub opened_quantity: i64,
+    pub subject: Option<String>,
+    pub audience: BroadcastAudience,
 }
 
 #[derive(Queryable, Identifiable, Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -33,7 +34,6 @@ pub struct Broadcast {
     pub event_id: Uuid,
     pub notification_type: BroadcastType,
     pub channel: BroadcastChannel,
-    pub name: String,
     pub message: Option<String>,
     pub send_at: Option<NaiveDateTime>,
     pub status: BroadcastStatus,
@@ -42,6 +42,9 @@ pub struct Broadcast {
     pub updated_at: NaiveDateTime,
     pub sent_quantity: i64,
     pub opened_quantity: i64,
+    pub subject: Option<String>,
+    pub audience: BroadcastAudience,
+    // TODO: Make mocha test work
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -51,8 +54,6 @@ pub struct BroadcastEditableAttributes {
     pub notification_type: Option<BroadcastType>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub channel: Option<BroadcastChannel>,
-    #[serde(default, deserialize_with = "deserialize_unless_blank")]
-    pub name: Option<String>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub message: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
@@ -66,22 +67,24 @@ impl Broadcast {
         event_id: Uuid,
         notification_type: BroadcastType,
         channel: BroadcastChannel,
-        name: String,
         message: Option<String>,
         send_at: Option<NaiveDateTime>,
         status: Option<BroadcastStatus>,
+        subject: Option<String>,
+        audience: BroadcastAudience,
     ) -> NewBroadcast {
         NewBroadcast {
             event_id,
             notification_type,
             channel,
-            name,
             message,
             send_at,
             status: status.unwrap_or(BroadcastStatus::Pending),
             progress: 0,
             sent_quantity: 0,
             opened_quantity: 0,
+            subject,
+            audience
         }
     }
 
@@ -159,7 +162,6 @@ impl Broadcast {
         let attributes: BroadcastEditableAttributes = BroadcastEditableAttributes {
             notification_type: None,
             channel: None,
-            name: None,
             message: None,
             send_at: None,
             status: Some(BroadcastStatus::Cancelled),
