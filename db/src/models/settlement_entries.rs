@@ -89,6 +89,7 @@ impl SettlementEntry {
                 settlement_entries::updated_at,
             ))
             .order_by(events::event_start)
+            .then_order_by(settlement_entries::event_id)
             .then_order_by(settlement_entries::settlement_entry_type.nullable().desc())
             .then_order_by(ticket_types::rank)
             .then_order_by(settlement_entries::face_value_in_cents)

@@ -731,7 +731,8 @@ fn create_rolling_entries() {
     assert_eq!(ticket_type_entry.fee_sold_quantity, 10);
     assert_eq!(
         ticket_type_entry.total_sales_in_cents,
-        ticket_type_entry.online_sold_quantity * ticket_type_entry.face_value_in_cents + ticket_type_entry.fee_sold_quantity * ticket_type_entry.revenue_share_value_in_cents
+        ticket_type_entry.online_sold_quantity * ticket_type_entry.face_value_in_cents
+            + ticket_type_entry.fee_sold_quantity * ticket_type_entry.revenue_share_value_in_cents
     );
 
     let event_fee_entry = event_entries
