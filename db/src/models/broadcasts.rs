@@ -99,13 +99,14 @@ impl Broadcast {
             )
     }
 
-    pub fn increment_sent_count(
+    pub fn set_sent_count(
         id: Uuid,
+        count: i64,
         connection: &PgConnection,
     ) -> Result<Broadcast, DatabaseError> {
         let broadcast = Broadcast::find(id, connection)?;
         diesel::update(&broadcast)
-            .set(broadcasts::dsl::sent_quantity.eq(broadcast.sent_quantity + 1))
+            .set(broadcasts::dsl::sent_quantity.eq(count))
             .get_result(connection)
             .to_db_error(
                 ErrorCode::UpdateError,

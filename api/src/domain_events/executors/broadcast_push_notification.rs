@@ -6,6 +6,7 @@ use errors::*;
 use futures::future;
 use itertools::Itertools;
 use log::Level::Error;
+use validator::HasLen;
 
 pub struct BroadcastPushNotificationExecutor {}
 
@@ -53,6 +54,8 @@ impl BroadcastPushNotificationExecutor {
                 Event::checked_in_users(broadcast.event_id, conn.get())?
             }
         };
+
+        Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn.get())?;
 
         for user in audience {
             let tokens = user
