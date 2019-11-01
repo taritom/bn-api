@@ -312,7 +312,14 @@ impl Organization {
         &self,
         settlement_period_in_days: Option<u32>,
     ) -> Result<NaiveDateTime, DatabaseError> {
-        let timezone = self.timezone()?;
+        let timezone = if self.settlement_type == SettlementTypes::Rolling {
+            "America/Los_Angeles"
+                .to_string()
+                .parse::<Tz>()
+                .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())?
+        } else {
+            self.timezone()?
+        };
         let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
         let today = timezone
             .ymd(now.year(), now.month(), now.day())

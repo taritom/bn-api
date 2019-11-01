@@ -220,7 +220,7 @@ impl Settlement {
                 conn,
             )?
         } else {
-            Event::get_all_events_with_sales_between(
+            Event::get_all_events_with_transactions_between(
                 self.organization_id,
                 self.start_time,
                 self.end_time,

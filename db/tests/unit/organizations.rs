@@ -237,11 +237,29 @@ fn next_settlement_date() {
         expected_sa
     );
 
-    // Override organization timezone to PT
+    // Switch to rolling which always uses PT
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                settlement_type: Some(SettlementTypes::Rolling),
+                ..Default::default()
+            },
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        organization.next_settlement_date(None).unwrap(),
+        expected_pt
+    );
+
+    // Override organization timezone to PT and switch back to PostEvent
     let organization = organization
         .update(
             OrganizationEditableAttributes {
                 timezone: Some("America/Los_Angeles".to_string()),
+                settlement_type: Some(SettlementTypes::PostEvent),
                 ..Default::default()
             },
             None,
@@ -276,6 +294,23 @@ fn next_settlement_date() {
     assert_eq!(
         organization.next_settlement_date(Some(1)).unwrap(),
         expected_sa
+    );
+
+    // Rolling with passed in settlement period
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                settlement_type: Some(SettlementTypes::Rolling),
+                ..Default::default()
+            },
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        organization.next_settlement_date(Some(1)).unwrap(),
+        expected_pt
     );
 }
 

@@ -272,13 +272,15 @@ pub struct EventLocalizedTimeStrings {
 }
 
 impl Event {
-    pub fn get_all_events_with_sales_between(
+    pub fn get_all_events_with_transactions_between(
         organization_id: Uuid,
         start: NaiveDateTime,
         end: NaiveDateTime,
         conn: &PgConnection,
     ) -> Result<Vec<Event>, DatabaseError> {
-        events::table
+        use schema::*;
+
+        let mut events: Vec<Event> = events::table
             .inner_join(order_items::table.on(order_items::event_id.eq(events::id.nullable())))
             .inner_join(orders::table.on(orders::id.eq(order_items::order_id)))
             .filter(events::deleted_at.is_null())
@@ -287,11 +289,30 @@ impl Event {
             .filter(events::is_external.eq(false))
             .filter(orders::paid_at.ge(start))
             .filter(orders::paid_at.le(end))
-            .order_by(events::event_end.asc())
             .select(events::all_columns)
             .distinct()
             .get_results(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not retrieve events")
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve events")?;
+
+        let mut refund_events: Vec<Event> = refunds::table
+            .inner_join(refund_items::table.on(refund_items::refund_id.eq(refunds::id)))
+            .inner_join(order_items::table.on(order_items::id.eq(refund_items::order_item_id)))
+            .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
+            .filter(events::id.ne_all(events.iter().map(|e| e.id).collect::<Vec<Uuid>>()))
+            .filter(events::deleted_at.is_null())
+            .filter(events::organization_id.eq(organization_id))
+            .filter(events::status.eq(EventStatus::Published))
+            .filter(events::is_external.eq(false))
+            .filter(refunds::created_at.ge(start))
+            .filter(refunds::created_at.le(end))
+            .select(events::all_columns)
+            .distinct()
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve events")?;
+
+        events.append(&mut refund_events);
+        events.sort_by_key(|e| e.event_end);
+        Ok(events)
     }
 
     pub fn eligible_for_deletion(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
