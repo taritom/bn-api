@@ -205,7 +205,7 @@ string_enum! { TicketTypeEndDateType [DoorTime, EventEnd, EventStart, Manual] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, OnSaleSoon, SaleEnded, Cancelled, Deleted] }
 string_enum! { TicketTypeVisibility [ Always, Hidden, WhenAvailable ]}
 string_enum! { TransferMessageType [Email, Phone] }
-string_enum! { TransferStatus [Pending, Cancelled, Completed] }
+string_enum! { TransferStatus [Pending, Cancelled, Completed, EventEnded] }
 string_enum! { WebhookAdapters [CustomerIo]}
 
 impl Roles {
