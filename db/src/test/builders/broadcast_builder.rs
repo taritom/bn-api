@@ -26,7 +26,7 @@ impl<'a> BroadcastBuilder<'a> {
             message: None,
             send_at: None,
             status: BroadcastStatus::Pending,
-            subject : None,
+            subject: None,
             audience: BroadcastAudience::PeopleAtTheEvent,
             connection,
         }
@@ -75,7 +75,7 @@ impl<'a> BroadcastBuilder<'a> {
             self.send_at,
             Some(self.status),
             None,
-            BroadcastAudience::PeopleAtTheEvent
+            BroadcastAudience::PeopleAtTheEvent,
         );
 
         broadcast.commit(self.connection).unwrap()

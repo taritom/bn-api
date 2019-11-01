@@ -39,18 +39,18 @@ pub fn create(
 
     user.requires_scope_for_organization(Scopes::EventBroadcast, &organization, connection)?;
 
-        let broadcast = Broadcast::create(
-            path.id,
-            json.notification_type,
-            channel,
-            json.message.clone(),
-            json.send_at,
-            None,
-            None,
-            BroadcastAudience::PeopleAtTheEvent
-        )
-        .commit(connection)?;
-            Ok(HttpResponse::Created().json(json!(broadcast)))
+    let broadcast = Broadcast::create(
+        path.id,
+        json.notification_type,
+        channel,
+        json.message.clone(),
+        json.send_at,
+        None,
+        None,
+        BroadcastAudience::PeopleAtTheEvent,
+    )
+    .commit(connection)?;
+    Ok(HttpResponse::Created().json(json!(broadcast)))
 }
 
 pub fn index(

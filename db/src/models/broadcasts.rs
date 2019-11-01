@@ -84,7 +84,7 @@ impl Broadcast {
             sent_quantity: 0,
             opened_quantity: 0,
             subject,
-            audience
+            audience,
         }
     }
 

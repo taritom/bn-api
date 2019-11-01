@@ -1,4 +1,4 @@
-use bigneon_db::models::enums::{BroadcastChannel, BroadcastType, BroadcastAudience};
+use bigneon_db::models::enums::{BroadcastAudience, BroadcastChannel, BroadcastType};
 use bigneon_db::prelude::Broadcast;
 use std::string::ToString;
 use support::database::TestDatabase;

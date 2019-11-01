@@ -1,7 +1,7 @@
 use bigneon_db::dev::TestProject;
+use bigneon_db::models::Scopes::BoxOfficeTicketRead;
 use bigneon_db::prelude::*;
 use chrono::Utc;
-use bigneon_db::models::Scopes::BoxOfficeTicketRead;
 
 #[test]
 fn new_broadcast_commit() {
@@ -19,7 +19,7 @@ fn new_broadcast_commit() {
         Some(send_at),
         None,
         None,
-    BroadcastAudience::PeopleAtTheEvent
+        BroadcastAudience::PeopleAtTheEvent,
     );
 
     assert_eq!(
