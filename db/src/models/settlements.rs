@@ -1,4 +1,5 @@
-use chrono::{Duration, NaiveDateTime};
+use chrono::{Datelike, Duration, NaiveDateTime, TimeZone, Utc};
+use chrono_tz::Tz;
 use diesel;
 use diesel::dsl::select;
 use diesel::prelude::*;
@@ -260,17 +261,70 @@ impl Settlement {
         Ok(())
     }
 
+    pub fn current_week_visible_date() -> Result<NaiveDateTime, DatabaseError> {
+        let timezone = "America/Los_Angeles"
+            .to_string()
+            .parse::<Tz>()
+            .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())?;
+
+        let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
+        let noon_today = timezone
+            .ymd(now.year(), now.month(), now.day())
+            .and_hms(12, 0, 0);
+
+        // A settlement becomes visible once it has passed Wednesday Noon PT
+        Ok(noon_today.naive_utc()
+            + Duration::days(
+                -(noon_today.naive_local().weekday().num_days_from_monday() as i64) + 2,
+            ))
+    }
+
+    pub fn current_week_cutoff_date(
+        organization: &Organization,
+    ) -> Result<NaiveDateTime, DatabaseError> {
+        let timezone = organization.timezone()?;
+        let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
+
+        let today = timezone
+            .ymd(now.year(), now.month(), now.day())
+            .and_hms(0, 0, 0);
+        Ok(today.naive_utc()
+            - Duration::days(today.naive_local().weekday().num_days_from_monday() as i64))
+    }
+
+    pub fn visible(&self, organization: &Organization) -> Result<bool, DatabaseError> {
+        Ok(
+            Utc::now().naive_utc() >= Settlement::current_week_visible_date()?
+                || self.created_at < Settlement::current_week_cutoff_date(&organization)?,
+        )
+    }
+
     pub fn find_for_organization(
         organization_id: Uuid,
         limit: Option<u32>,
         page: Option<u32>,
+        hide_early_settlements: bool,
         conn: &PgConnection,
     ) -> Result<Payload<Settlement>, DatabaseError> {
         let limit = limit.unwrap_or(20);
         let page = page.unwrap_or(0);
 
-        let (settlements, record_count): (Vec<Settlement>, i64) = settlements::table
+        let mut query = settlements::table
             .filter(settlements::organization_id.eq(organization_id))
+            .into_boxed();
+
+        if hide_early_settlements {
+            // If the visible date has not been reached, filter out any settlements from prior to Monday
+            if Settlement::current_week_visible_date()? > Utc::now().naive_utc() {
+                let organization = Organization::find(organization_id, conn)?;
+                query = query.filter(
+                    settlements::created_at
+                        .lt(Settlement::current_week_cutoff_date(&organization)?),
+                );
+            }
+        }
+
+        let (settlements, record_count): (Vec<Settlement>, i64) = query
             .order_by(settlements::start_time.desc())
             .select(settlements::all_columns)
             .paginate(page as i64)

@@ -770,6 +770,7 @@ fn create_rolling_entries() {
         .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(9)))
         .execute(connection)
         .unwrap();
+    assert_eq!(refund.settlement_id, None);
     let settlement3 = Settlement::create(
         organization.id,
         dates::now().add_days(7).finish(),
@@ -811,6 +812,11 @@ fn create_rolling_entries() {
         ticket_type_entry.total_sales_in_cents,
         -ticket_type_entry.face_value_in_cents + -ticket_type_entry.revenue_share_value_in_cents
     );
+    // Reloading records shows settlement associated with them marking it as having been processed
+    let order = Order::find(order.id, connection).unwrap();
+    assert_eq!(order.settlement_id, Some(settlement.id));
+    let refund = Refund::find(refund.id, connection).unwrap();
+    assert_eq!(refund.settlement_id, Some(settlement3.id));
 }
 
 #[test]
@@ -1017,9 +1023,10 @@ fn find_for_organization() {
         .create_settlement()
         .with_organization(&organization)
         .finish();
-    let settlements = Settlement::find_for_organization(organization.id, None, None, connection)
-        .unwrap()
-        .data;
+    let settlements =
+        Settlement::find_for_organization(organization.id, None, None, false, connection)
+            .unwrap()
+            .data;
     assert_eq!(settlements.len(), 1);
     assert_eq!(settlements[0].id, settlement.id);
 }
