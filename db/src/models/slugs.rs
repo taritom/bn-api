@@ -212,7 +212,7 @@ impl Slug {
                 main_table_id = Some(*id);
                 main_table = Some(Tables::Events);
                 slug_name = Some(match venue {
-                    Some(venue) => format!("{} at {} {}", &name, venue.name, venue.city),
+                    Some(venue) => format!("{} {}", &name, venue.city),
                     None => name.clone(),
                 });
             }
