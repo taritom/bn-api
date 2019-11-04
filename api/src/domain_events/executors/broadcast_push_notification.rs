@@ -79,10 +79,13 @@ impl BroadcastPushNotificationExecutor {
                         None,
                         Some(vec!["broadcast"]),
                         Some(
-                            [("broadcast_id".to_string(), broadcast.id.to_string())]
-                                .iter()
-                                .cloned()
-                                .collect(),
+                            [
+                                ("broadcast_id".to_string(), broadcast.id.to_string()),
+                                ("event_id".to_string(), broadcast.event_id.to_string()),
+                            ]
+                            .iter()
+                            .cloned()
+                            .collect(),
                         ),
                     ))?,
                     Some(Tables::Events),
