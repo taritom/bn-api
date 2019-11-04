@@ -39,11 +39,8 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::PUT).with(broadcasts::update);
         r.method(Method::DELETE).with(broadcasts::delete);
     })
-    .resource("/broadcasts/tracking_count_open/{id}", |r| {
-        r.method(Method::GET).with(broadcasts::tracking_count_open);
-    })
-    .resource("/broadcasts/tracking_count_sent/{id}", |r| {
-        r.method(Method::GET).with(broadcasts::tracking_count_sent);
+    .resource("/broadcasts/{id}/tracking_count", |r| {
+        r.method(Method::POST).with(broadcasts::tracking_count);
     })
     .resource("/cart", |r| {
         r.method(Method::DELETE).with(cart::destroy);
@@ -237,6 +234,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/organizations/{id}/events", |r| {
         r.method(Method::GET).with(events::show_from_organizations);
     })
+    .resource("/organizations/{id}/export_event_data", |r| {
+        r.method(Method::GET).with(events::export_event_data);
+    })
     .resource("/organizations/{id}/fans/{user_id}/activity", |r| {
         r.method(Method::GET).with(users::activity);
     })
@@ -354,6 +354,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/transfers/transfer_key/{id}", |r| {
         r.method(Method::GET).with(transfers::show_by_transfer_key);
+    })
+    .resource("/transfers/activity", |r| {
+        r.method(Method::GET).with(transfers::activity);
     })
     .resource("/transfers/{id}", |r| {
         r.method(Method::DELETE).with(transfers::cancel);

@@ -115,15 +115,7 @@ pub fn delete(
     Ok(HttpResponse::Ok().json(broadcast))
 }
 
-pub fn tracking_count_open(
-    (conn, path, _user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
-    let connection = conn.get();
-    Broadcast::increment_sent_count(path.id, connection)?;
-    Ok(HttpResponse::Ok().finish())
-}
-
-pub fn tracking_count_sent(
+pub fn tracking_count(
     (conn, path, _user): (Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();

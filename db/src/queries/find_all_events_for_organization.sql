@@ -65,6 +65,7 @@ WHERE e.organization_id = $1
         WHEN $2 THEN e.event_start >= now() OR e.event_end > now() -- upcoming
         ELSE e.event_end <= now() END -- past
   AND ($5 IS NULL OR e.id = ANY($5))
+  AND CASE WHEN $6 THEN e.status <> 'Draft' ELSE 1=1 END
 ORDER BY CASE WHEN $2 THEN e.event_start END ASC, CASE WHEN NOT $2 THEN e.event_start END DESC
 LIMIT $4
 OFFSET $3;

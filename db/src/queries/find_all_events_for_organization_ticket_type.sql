@@ -29,6 +29,7 @@ WHERE e.organization_id = $1
         WHEN $2 THEN e.event_start >= now() OR e.event_end > now() -- upcoming
         ELSE e.event_end <= now() END -- past
   AND ($3 IS NULL or e.id = ANY($3))
+  AND CASE WHEN $4 THEN e.status <> 'Draft' ELSE 1=1 END
   AND ti.status <> 'Nullified'
   AND e.deleted_at is null
 GROUP BY t2.name, t2.id, t2.event_id;

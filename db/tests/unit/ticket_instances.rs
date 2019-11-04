@@ -1436,6 +1436,24 @@ fn create_transfer() {
     )
     .unwrap();
     assert_eq!(1, domain_events.len());
+
+    // Event ended cannot create transfer
+    transfer2.cancel(user.id, None, connection).unwrap();
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-7).finish()),
+        event_end: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    let result =
+        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection);
+    assert_eq!(
+        result,
+        Err(DatabaseError::new(
+            ErrorCode::BusinessProcessError,
+            Some("Cannot transfer ticket, event has ended.".to_string()),
+        ))
+    );
 }
 
 #[test]
@@ -1570,6 +1588,39 @@ fn receive_ticket_transfer() {
     // Transferred tickets have their name overrides cleared
     assert_eq!(reloaded_ticket.first_name_override, None);
     assert_eq!(reloaded_ticket.last_name_override, None);
+
+    // Event has ended, cannot accept ticket transfer
+    let sender_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
+    let receiver_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
+    let transfer = TicketInstance::create_transfer(
+        user2.id,
+        &[reloaded_ticket.id],
+        None,
+        None,
+        false,
+        connection,
+    )
+    .unwrap();
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-7).finish()),
+        event_end: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    let result = TicketInstance::receive_ticket_transfer(
+        transfer.into_authorization(connection).unwrap(),
+        &sender_wallet,
+        user.id,
+        receiver_wallet.id,
+        connection,
+    );
+    assert_eq!(
+        result,
+        Err(DatabaseError::new(
+            ErrorCode::BusinessProcessError,
+            Some("Cannot transfer ticket, event has ended.".to_string()),
+        ))
+    );
 }
 
 #[test]

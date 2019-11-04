@@ -1907,6 +1907,75 @@ mod holds_tests {
     }
 }
 
+#[cfg(test)]
+mod export_event_data_tests {
+    use super::*;
+
+    #[test]
+    fn export_event_data_org_member() {
+        base::events::export_event_data(Roles::OrgMember, false, None);
+    }
+
+    #[test]
+    fn export_event_data_admin() {
+        base::events::export_event_data(Roles::Admin, true, None);
+    }
+
+    #[test]
+    fn export_event_data_user() {
+        base::events::export_event_data(Roles::User, false, None);
+    }
+
+    #[test]
+    fn export_event_data_org_owner() {
+        base::events::export_event_data(Roles::OrgOwner, true, None);
+    }
+
+    #[test]
+    fn export_event_data_door_person() {
+        base::events::export_event_data(Roles::DoorPerson, false, None);
+    }
+
+    #[test]
+    fn export_event_data_promoter() {
+        base::events::export_event_data(Roles::Promoter, false, None);
+    }
+
+    #[test]
+    fn export_event_data_promoter_read_only() {
+        base::events::export_event_data(Roles::PromoterReadOnly, false, None);
+    }
+
+    #[test]
+    fn export_event_data_org_admin() {
+        base::events::export_event_data(Roles::OrgAdmin, true, None);
+    }
+
+    #[test]
+    fn export_event_data_box_office() {
+        base::events::export_event_data(Roles::OrgBoxOffice, false, None);
+    }
+
+    #[test]
+    fn export_event_data_event_data_exporter() {
+        base::events::export_event_data(Roles::PrismIntegration, true, None);
+    }
+
+    #[test]
+    fn export_event_data_event_data_exporter_past() {
+        base::events::export_event_data(Roles::PrismIntegration, true, Some(PastOrUpcoming::Past));
+    }
+
+    #[test]
+    fn export_event_data_event_data_exporter_upcoming() {
+        base::events::export_event_data(
+            Roles::PrismIntegration,
+            true,
+            Some(PastOrUpcoming::Upcoming),
+        );
+    }
+}
+
 #[test]
 pub fn delete_fails_has_ticket_in_cart() {
     let database = TestDatabase::new();

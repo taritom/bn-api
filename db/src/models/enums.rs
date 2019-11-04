@@ -189,7 +189,7 @@ string_enum! { PaymentProviders [External, Globee, Free, Stripe] }
 string_enum! { PaymentStatus [Authorized, Completed, Requested, Refunded, Unpaid, PendingConfirmation, Cancelled, Draft, Unknown, PendingIpn] }
 string_enum! { PastOrUpcoming [Past,Upcoming]}
 string_enum! { Platforms [Web, App, BoxOffice]}
-string_enum! { Roles [Super, Admin, DoorPerson, OrgMember, OrgOwner, OrgAdmin, OrgBoxOffice, Promoter, PromoterReadOnly, User] }
+string_enum! { Roles [Admin, DoorPerson, OrgAdmin, OrgBoxOffice, OrgMember, OrgOwner, PrismIntegration, Promoter, PromoterReadOnly, User, Super] }
 string_enum! { SettlementStatus[PendingSettlement, RequiresAudit, SettledInFull] }
 string_enum! { SettlementTypes [Rolling, PostEvent]}
 string_enum! { SettlementAdjustmentTypes [ManualCredit, ManualDeduction, Chargeback]}
@@ -205,7 +205,7 @@ string_enum! { TicketTypeEndDateType [DoorTime, EventEnd, EventStart, Manual] }
 string_enum! { TicketTypeStatus [NoActivePricing, Published, SoldOut, OnSaleSoon, SaleEnded, Cancelled, Deleted] }
 string_enum! { TicketTypeVisibility [ Always, Hidden, WhenAvailable ]}
 string_enum! { TransferMessageType [Email, Phone] }
-string_enum! { TransferStatus [Pending, Cancelled, Completed] }
+string_enum! { TransferStatus [Pending, Cancelled, Completed, EventEnded] }
 string_enum! { WebhookAdapters [CustomerIo]}
 
 impl Roles {

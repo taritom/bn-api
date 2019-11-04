@@ -20,9 +20,9 @@ fn broadcast_counter() {
     )
     .commit(connection)
     .unwrap();
-    Broadcast::increment_sent_count(broadcast.id, &connection).unwrap();
+    Broadcast::set_sent_count(broadcast.id, 2, &connection).unwrap();
     Broadcast::increment_open_count(broadcast.id, &connection).unwrap();
     let b = Broadcast::find(broadcast.id, &connection).unwrap();
-    assert_eq!(b.sent_quantity, 1);
+    assert_eq!(b.sent_quantity, 2);
     assert_eq!(b.opened_quantity, 1);
 }
