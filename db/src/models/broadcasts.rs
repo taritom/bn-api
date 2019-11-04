@@ -261,9 +261,7 @@ impl NewBroadcast {
             None,
             DomainActionTypes::BroadcastPushNotification,
             None,
-            json!(BroadcastPushNotificationAction {
-                event_id: self.event_id,
-            }),
+            json!(""),
             Some(Tables::Broadcasts),
             Some(result.id),
         );
@@ -288,9 +286,4 @@ impl NewBroadcast {
         );
         Ok(validation_errors?)
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct BroadcastPushNotificationAction {
-    pub event_id: Uuid,
 }

@@ -83,7 +83,7 @@ macro_rules! string_enum {
 
 string_enum! { ActivityType [Purchase, Transfer, CheckIn,Refund, Note]}
 string_enum! { AssetStatus [Unsynced] }
-string_enum! { BroadcastAudience [ PeopleAtTheEvent ]}
+string_enum! { BroadcastAudience [ PeopleAtTheEvent, TicketHolders  ]}
 string_enum! { CartItemStatus [CodeExpired, HoldExpired, TicketNullified, TicketNotReserved, Valid] }
 string_enum! { CodeTypes [Access, Discount] }
 string_enum! { CommunicationChannelType [Email, Sms, Push, Webhook]}
@@ -172,6 +172,7 @@ string_enum! { BroadcastStatus [Pending, InProgress, Completed, Cancelled]}
 string_enum! { BroadcastChannel [PushNotification, Email]}
 string_enum! { BroadcastType [Custom, LastCall]}
 string_enum! { DomainActionStatus [Pending, RetriesExceeded, Errored, Success, Cancelled]}
+string_enum! { EmailProvider [Sendgrid, CustomerIo]}
 string_enum! { Environment [Development, Production, Staging, Test]}
 string_enum! { EventStatus [Draft,Closed,Published,Offline]}
 string_enum! { EventSearchSortField [ Name, EventStart]}

@@ -1,7 +1,9 @@
-use bigneon_db::models::Environment;
+use bigneon_db::models::{EmailProvider, Environment};
 use bigneon_db::utils::errors::EnumParseError;
 use dotenv::dotenv;
+use itertools::Itertools;
 use std::env;
+use std::str;
 use tari_client::{HttpTariClient, TariClient, TariTestClient};
 
 #[derive(Clone)]
@@ -15,6 +17,7 @@ pub struct Config {
     pub database_url: String,
     pub readonly_database_url: String,
     pub domain: String,
+    pub email_templates: EmailTemplates,
     pub environment: Environment,
     pub facebook_app_id: Option<String>,
     pub facebook_app_secret: Option<String>,
@@ -70,6 +73,17 @@ pub struct ConnectionPoolConfig {
     pub max: u32,
 }
 
+#[derive(Clone)]
+pub struct EmailTemplates {
+    pub custom_broadcast: EmailTemplate,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct EmailTemplate {
+    pub provider: EmailProvider,
+    pub template_id: String,
+}
+
 const ACTIX_WORKERS: &str = "ACTIX_WORKERS";
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
 const APP_NAME: &str = "APP_NAME";
@@ -78,6 +92,7 @@ const API_PORT: &str = "API_PORT";
 const DATABASE_URL: &str = "DATABASE_URL";
 const READONLY_DATABASE_URL: &str = "READONLY_DATABASE_URL";
 const DOMAIN: &str = "DOMAIN";
+const EMAIL_TEMPLATES_CUSTOM_BROADCAST: &str = "EMAIL_TEMPLATES_CUSTOM_BROADCAST";
 const ENVIRONMENT: &str = "ENVIRONMENT";
 const FACEBOOK_APP_ID: &str = "FACEBOOK_APP_ID";
 const FACEBOOK_APP_SECRET: &str = "FACEBOOK_APP_SECRET";
@@ -243,6 +258,18 @@ impl Config {
 
         let sendgrid_api_key = env::var(&SENDGRID_API_KEY)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_API_KEY));
+
+        let val = env::var(&EMAIL_TEMPLATES_CUSTOM_BROADCAST)
+            .unwrap_or_else(|_| panic!("{} must be defined", EMAIL_TEMPLATES_CUSTOM_BROADCAST));
+        let custom_broadcast: Vec<&str> = val.as_str().split(':').collect_vec();
+
+        let custom_broadcast = EmailTemplate {
+            provider: custom_broadcast[0].parse().unwrap(),
+            template_id: custom_broadcast[1].to_string(),
+        };
+
+        let email_templates = EmailTemplates { custom_broadcast };
+
         let sendgrid_template_bn_refund = env::var(&SENDGRID_TEMPLATE_BN_REFUND)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_REFUND));
         let sendgrid_template_bn_user_registered = env::var(&SENDGRID_TEMPLATE_BN_USER_REGISTERED)
@@ -374,6 +401,7 @@ impl Config {
             database_url,
             readonly_database_url,
             domain,
+            email_templates,
             environment,
             facebook_app_id,
             facebook_app_secret,
