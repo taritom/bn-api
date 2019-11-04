@@ -85,6 +85,146 @@ impl From<SearchParameters> for Paging {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct EventExportData {
+    pub id: Uuid,
+    pub name: String,
+    pub organization_id: Uuid,
+    pub venue: Option<VenueInfo>,
+    pub created_at: NaiveDateTime,
+    pub event_start: Option<NaiveDateTime>,
+    pub door_time: Option<NaiveDateTime>,
+    pub event_end: Option<NaiveDateTime>,
+    pub status: EventStatus,
+    pub promo_image_url: Option<String>,
+    pub additional_info: Option<String>,
+    pub top_line_info: Option<String>,
+    pub age_limit: Option<String>,
+    pub cancelled_at: Option<NaiveDateTime>,
+    pub min_ticket_price: Option<u32>,
+    pub max_ticket_price: Option<u32>,
+    pub publish_date: Option<NaiveDateTime>,
+    pub on_sale: Option<NaiveDateTime>,
+    pub total_tickets: u32,
+    pub sold_unreserved: Option<u32>,
+    pub sold_held: Option<u32>,
+    pub tickets_open: u32,
+    pub tickets_held: u32,
+    pub tickets_redeemed: u32,
+    pub ticket_types: Vec<EventExportTicketType>,
+    pub is_external: bool,
+    pub external_url: Option<String>,
+    pub localized_times: EventLocalizedTimeStrings,
+    pub event_type: EventTypes,
+    pub slug: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct EventExportTicketType {
+    pub event_id: Uuid,
+    pub name: String,
+    pub status: TicketTypeStatus,
+    pub min_price: i64,
+    pub max_price: i64,
+    pub total: i64,
+    pub sold_unreserved: Option<i64>,
+    pub sold_held: Option<i64>,
+    pub open: i64,
+    pub held: i64,
+    pub redeemed: i64,
+}
+
+impl From<EventSummaryResult> for EventExportData {
+    fn from(e: EventSummaryResult) -> EventExportData {
+        EventExportData {
+            id: e.id,
+            name: e.name.clone(),
+            organization_id: e.organization_id,
+            venue: e.venue.clone(),
+            created_at: e.created_at,
+            event_start: e.event_start,
+            door_time: e.door_time,
+            event_end: e.event_end,
+            status: e.status,
+            promo_image_url: e.promo_image_url.clone(),
+            additional_info: e.additional_info.clone(),
+            top_line_info: e.top_line_info.clone(),
+            age_limit: e.age_limit.clone(),
+            cancelled_at: e.cancelled_at,
+            min_ticket_price: e.min_ticket_price,
+            max_ticket_price: e.max_ticket_price,
+            publish_date: e.publish_date,
+            on_sale: e.on_sale,
+            total_tickets: e.total_tickets,
+            sold_unreserved: e.sold_unreserved,
+            sold_held: e.sold_held,
+            tickets_open: e.tickets_open,
+            tickets_held: e.tickets_held,
+            tickets_redeemed: e.tickets_redeemed,
+            ticket_types: e
+                .ticket_types
+                .clone()
+                .into_iter()
+                .map(|tt| tt.into())
+                .collect(),
+            is_external: e.is_external,
+            external_url: e.external_url.clone(),
+            localized_times: e.localized_times.clone(),
+            event_type: e.event_type.clone(),
+            slug: e.slug.clone(),
+        }
+    }
+}
+
+impl From<EventSummaryResultTicketType> for EventExportTicketType {
+    fn from(tt: EventSummaryResultTicketType) -> EventExportTicketType {
+        EventExportTicketType {
+            event_id: tt.event_id,
+            name: tt.name,
+            status: tt.status,
+            min_price: tt.min_price,
+            max_price: tt.max_price,
+            total: tt.total,
+            sold_unreserved: tt.sold_unreserved,
+            sold_held: tt.sold_held,
+            open: tt.open,
+            held: tt.held,
+            redeemed: tt.redeemed,
+        }
+    }
+}
+
+pub fn export_event_data(
+    (connection, path, paging, user): (
+        Connection,
+        Path<PathParameters>,
+        Query<PagingParameters>,
+        AuthUser,
+    ),
+) -> Result<WebPayload<EventExportData>, BigNeonError> {
+    let conn = connection.get();
+    let organization = Organization::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::EventDataRead, &organization, conn)?;
+
+    let events = Event::find_all_events_for_organization(
+        path.id,
+        paging
+            .get_tag("past_or_upcoming")
+            .map(|past_or_upcoming| past_or_upcoming.parse().unwrap_or(PastOrUpcoming::Upcoming)),
+        None,
+        true,
+        paging.page(),
+        paging.limit(),
+        conn,
+    )?;
+
+    let export_data: Vec<EventExportData> = events.data.into_iter().map(|e| e.into()).collect();
+    Ok(WebPayload::new(
+        StatusCode::OK,
+        Payload::from_data(export_data, paging.page(), paging.limit()),
+    ))
+}
+
 /**
  * What events does this user have authority to check in
 **/
@@ -592,10 +732,12 @@ pub fn show_from_organizations(
     let user_roles = org.get_roles_for_user(&user.user, conn)?;
     let mut events = Event::find_all_events_for_organization(
         path.id,
-        paging
-            .get_tag("past_or_upcoming")
-            .unwrap_or_else(|| "Upcoming".to_string())
-            .parse()?,
+        Some(
+            paging
+                .get_tag("past_or_upcoming")
+                .unwrap_or_else(|| "Upcoming".to_string())
+                .parse()?,
+        ),
         if Roles::get_event_limited_roles()
             .iter()
             .find(|r| user_roles.contains(&r))
@@ -605,6 +747,7 @@ pub fn show_from_organizations(
         } else {
             None
         },
+        false,
         paging.page(),
         paging.limit(),
         conn,

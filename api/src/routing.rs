@@ -234,6 +234,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/organizations/{id}/events", |r| {
         r.method(Method::GET).with(events::show_from_organizations);
     })
+    .resource("/organizations/{id}/export_event_data", |r| {
+        r.method(Method::GET).with(events::export_event_data);
+    })
     .resource("/organizations/{id}/fans/{user_id}/activity", |r| {
         r.method(Method::GET).with(users::activity);
     })

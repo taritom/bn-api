@@ -1072,8 +1072,9 @@ impl Event {
 
     pub fn find_all_events_for_organization(
         organization_id: Uuid,
-        past_or_upcoming: PastOrUpcoming,
+        past_or_upcoming: Option<PastOrUpcoming>,
         event_ids: Option<Vec<Uuid>>,
+        filter_drafts: bool,
         page: u32,
         limit: u32,
         conn: &PgConnection,
@@ -1090,19 +1091,23 @@ impl Event {
             FROM events e
             WHERE e.deleted_at is null
             AND e.organization_id = $1
-            AND CASE WHEN $2
-                THEN
+            AND CASE
+                WHEN $2 IS NULL THEN
+                    1=1
+                WHEN $2 = 'Upcoming' THEN
                     COALESCE(e.event_start, '31 Dec 9999') >= now()
                     OR COALESCE(e.event_end, '31 Dec 1999') > now()
                 ELSE
                     COALESCE(e.event_end, '31 Dec 1999') <= now()
             END
-            AND ($3 IS NULL OR e.id = ANY($3));
+            AND ($3 IS NULL OR e.id = ANY($3))
+            AND CASE WHEN $4 THEN e.status <> 'Draft' ELSE 1=1 END;
         "#,
         )
         .bind::<dUuid, _>(organization_id)
-        .bind::<Bool, _>(past_or_upcoming == PastOrUpcoming::Upcoming)
+        .bind::<Nullable<Text>, _>(past_or_upcoming)
         .bind::<Nullable<Array<dUuid>>, _>(event_ids.clone())
+        .bind::<Bool, _>(filter_drafts)
         .get_results(conn)
         .to_db_error(
             ErrorCode::QueryError,
@@ -1114,8 +1119,9 @@ impl Event {
 
         let results = Event::find_summary_data(
             organization_id,
-            Some(past_or_upcoming),
+            past_or_upcoming,
             event_ids,
+            filter_drafts,
             page,
             limit,
             conn,
@@ -1131,6 +1137,7 @@ impl Event {
             self.organization_id,
             None,
             Some(vec![self.id]),
+            false,
             0,
             100,
             conn,
@@ -1149,6 +1156,7 @@ impl Event {
         organization_id: Uuid,
         past_or_upcoming: Option<PastOrUpcoming>,
         event_ids: Option<Vec<Uuid>>,
+        filter_drafts: bool,
         page: u32,
         limit: u32,
         conn: &PgConnection,
@@ -1222,6 +1230,7 @@ impl Event {
             .bind::<BigInt, _>((page * limit) as i64)
             .bind::<BigInt, _>(limit as i64)
             .bind::<Nullable<Array<dUuid>>, _>(event_ids.clone())
+            .bind::<Bool, _>(filter_drafts)
             .get_results(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -1237,6 +1246,7 @@ impl Event {
             .bind::<dUuid, _>(organization_id)
             .bind::<Nullable<Bool>, _>(past_or_upcoming.map(|p| p == PastOrUpcoming::Upcoming))
             .bind::<Nullable<Array<dUuid>>, _>(event_ids)
+            .bind::<Bool, _>(filter_drafts)
             .get_results(conn)
             .to_db_error(
                 ErrorCode::QueryError,
@@ -1275,6 +1285,7 @@ impl Event {
                 created_at: r.created_at,
                 event_start: r.event_start,
                 door_time: r.door_time,
+                event_end: r.event_end,
                 status: r.status,
                 promo_image_url: r.promo_image_url,
                 additional_info: r.additional_info,
@@ -2023,6 +2034,7 @@ pub struct EventSummaryResult {
     pub created_at: NaiveDateTime,
     pub event_start: Option<NaiveDateTime>,
     pub door_time: Option<NaiveDateTime>,
+    pub event_end: Option<NaiveDateTime>,
     pub status: EventStatus,
     pub promo_image_url: Option<String>,
     pub additional_info: Option<String>,
@@ -2055,7 +2067,7 @@ pub struct EventSummaryResult {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, QueryableByName)]
 pub struct EventSummaryResultTicketType {
     #[sql_type = "dUuid"]
-    pub(crate) event_id: Uuid,
+    pub event_id: Uuid,
     #[sql_type = "Text"]
     pub name: String,
     #[sql_type = "Text"]

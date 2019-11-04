@@ -2528,8 +2528,9 @@ fn find_all_events_for_organization() {
     // Past events
     let events = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Past,
+        Some(PastOrUpcoming::Past),
         None,
+        false,
         0,
         100,
         connection,
@@ -2541,8 +2542,9 @@ fn find_all_events_for_organization() {
     // Upcoming (current, future) events
     let events = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Upcoming,
+        Some(PastOrUpcoming::Upcoming),
         None,
+        false,
         0,
         100,
         connection,
@@ -2556,6 +2558,27 @@ fn find_all_events_for_organization() {
         ]
     );
     assert_eq!(events.paging.total, 2);
+
+    // No filter on past or upcoming returns all events
+    let events = Event::find_all_events_for_organization(
+        organization.id,
+        None,
+        None,
+        false,
+        0,
+        100,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        events.data,
+        vec![
+            past_event.summary(connection).unwrap(),
+            current_event.summary(connection).unwrap(),
+            future_event.summary(connection).unwrap()
+        ]
+    );
+    assert_eq!(events.paging.total, 3);
 }
 
 #[test]
@@ -4174,11 +4197,12 @@ fn find_for_organization() {
 
     let all_events = vec![event2.id, event.id];
 
-    //find all events via organisation
+    //find all events via organization
     let found_event_via_organizations = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Past,
+        Some(PastOrUpcoming::Past),
         None,
+        false,
         0,
         100,
         project.get_connection(),
@@ -4196,8 +4220,9 @@ fn find_for_organization() {
     // Restrict to just a subset of events
     let found_event_via_organizations = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Past,
+        Some(PastOrUpcoming::Past),
         Some(vec![event.id]),
+        false,
         0,
         100,
         project.get_connection(),
@@ -4215,8 +4240,9 @@ fn find_for_organization() {
     // Returning both events
     let found_event_via_organizations = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Past,
+        Some(PastOrUpcoming::Past),
         Some(vec![event.id, event2.id]),
+        false,
         0,
         100,
         project.get_connection(),

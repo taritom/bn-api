@@ -1114,6 +1114,7 @@ pub fn get_scopes_for_user() {
     let no_access_user = project.create_user().finish();
     let promoter = project.create_user().finish();
     let promoter_read_only = project.create_user().finish();
+    let event_data_exporter = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_member(&owner, Roles::OrgOwner)
@@ -1123,6 +1124,7 @@ pub fn get_scopes_for_user() {
         .with_member(&door_person, Roles::DoorPerson)
         .with_member(&promoter, Roles::Promoter)
         .with_member(&promoter_read_only, Roles::PromoterReadOnly)
+        .with_member(&event_data_exporter, Roles::PrismIntegration)
         .finish();
     let mut admin = project.create_user().finish();
     admin = admin.add_role(Roles::Admin, connection).unwrap();
@@ -1145,6 +1147,7 @@ pub fn get_scopes_for_user() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",
@@ -1204,6 +1207,7 @@ pub fn get_scopes_for_user() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",
@@ -1290,6 +1294,16 @@ pub fn get_scopes_for_user() {
             "event:view-guests",
             "dashboard:read",
         ]
+    );
+
+    assert_equiv!(
+        organization
+            .get_scopes_for_user(&event_data_exporter, connection)
+            .unwrap()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>(),
+        vec!["event:data-read",]
     );
 
     assert_equiv!(
@@ -1414,6 +1428,7 @@ pub fn get_scopes_for_user() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",

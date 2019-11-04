@@ -17,6 +17,7 @@ pub enum Scopes {
     DashboardRead,
     EventBroadcast,
     EventCancel,
+    EventDataRead,
     EventDelete,
     EventFinancialReports,
     EventInterest,
@@ -86,6 +87,7 @@ impl fmt::Display for Scopes {
             Scopes::DashboardRead => "dashboard:read",
             Scopes::EventBroadcast => "event:broadcast",
             Scopes::EventCancel => "event:cancel",
+            Scopes::EventDataRead => "event:data-read",
             Scopes::EventDelete => "event:delete",
             Scopes::EventWrite => "event:write",
             Scopes::EventFinancialReports => "event:financial-reports",
@@ -151,6 +153,7 @@ impl FromStr for Scopes {
             "dashboard:read" => Scopes::DashboardRead,
             "event:broadcast" => Scopes::EventBroadcast,
             "event:cancel" => Scopes::EventCancel,
+            "event:data-read" => Scopes::EventDataRead,
             "event:delete" => Scopes::EventDelete,
             "event:write" => Scopes::EventWrite,
             "event:financial-reports" => Scopes::EventFinancialReports,
@@ -249,6 +252,10 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
             ];
             roles
         }
+        PrismIntegration => {
+            let roles = vec![Scopes::EventDataRead];
+            roles
+        }
         OrgBoxOffice => {
             let mut roles = vec![
                 Scopes::EventViewGuests,
@@ -338,6 +345,7 @@ fn get_scopes_for_role(role: Roles) -> Vec<Scopes> {
                 Scopes::UserRead,
                 Scopes::OrgUsers,
                 Scopes::EventBroadcast,
+                Scopes::EventDataRead,
                 Scopes::EventFinancialReports,
                 Scopes::EventReports,
                 Scopes::NoteDelete,
@@ -393,6 +401,7 @@ fn get_scopes_for_role_test() {
             Scopes::DashboardRead,
             Scopes::EventBroadcast,
             Scopes::EventCancel,
+            Scopes::EventDataRead,
             Scopes::EventDelete,
             Scopes::EventFinancialReports,
             Scopes::EventInterest,
@@ -460,6 +469,7 @@ fn get_scopes_test() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",
@@ -518,6 +528,7 @@ fn get_scopes_test() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",
@@ -583,6 +594,7 @@ fn get_scopes_test() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",
