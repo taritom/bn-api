@@ -120,13 +120,9 @@ FROM (
   -- Filter out any records where the sum of their quantities is 0
   -- Negative indicates a refund settlement adjustment, positive purchases
   HAVING
-    SUM(online_sold_quantity) > 0
+    SUM(online_sold_quantity) <> 0
   OR
-    SUM(online_sold_quantity) < 0
-  OR
-    SUM(fee_sold_quantity) > 0
-  OR
-    SUM(fee_sold_quantity) < 0
+    SUM(fee_sold_quantity) <> 0
 ;
 
 -- Update associated orders as part of this settlement
