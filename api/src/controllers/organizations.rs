@@ -264,6 +264,11 @@ pub fn add_or_replace_user(
                 &organization,
                 connection,
             )?,
+            Roles::PrismIntegration => user.requires_scope_for_organization(
+                Scopes::OrgAdminUsers,
+                &organization,
+                connection,
+            )?,
             Roles::OrgMember => {
                 user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
             }

@@ -85,6 +85,11 @@ fn create_invite(
                 &organization,
                 connection,
             )?,
+            &Roles::PrismIntegration => auth_user.requires_scope_for_organization(
+                Scopes::OrgAdminUsers,
+                &organization,
+                connection,
+            )?,
             &Roles::OrgMember => auth_user.requires_scope_for_organization(
                 Scopes::OrgUsers,
                 &organization,
@@ -110,10 +115,7 @@ fn create_invite(
                 &organization,
                 connection,
             )?,
-            _ => DatabaseError::validation_error(
-                "role",
-                "Role must be either OrgOwner or OrgMember",
-            )?,
+            _ => DatabaseError::validation_error("role", "Role not valid")?,
         }
     }
 
@@ -208,6 +210,11 @@ pub fn destroy(
             )?,
             &Roles::OrgMember => auth_user.requires_scope_for_organization(
                 Scopes::OrgUsers,
+                &organization,
+                connection,
+            )?,
+            &Roles::PrismIntegration => auth_user.requires_scope_for_organization(
+                Scopes::OrgAdminUsers,
                 &organization,
                 connection,
             )?,
