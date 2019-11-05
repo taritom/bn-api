@@ -1,15 +1,21 @@
-FROM rust:1.38-slim as builder
+FROM rust:1.38.0 as builder
 
-RUN apt update && apt install \
-    libpq-dev \
-    musl-tools \
-    openssl \
-    libssl-dev \
-    pkg-config \
-    gcc \
-    make \
-    build-essential \
-    -y
+RUN \
+    wget https://github.com/openssl/openssl/archive/OpenSSL_1_1_0-stable.zip && \
+    unzip OpenSSL_1_1_0-stable.zip && cd openssl-OpenSSL_1_1_0-stable && \
+    ./config && make -j $(nproc) && make install
+ENV LD_LIBRARY_PATH /usr/local/lib
+
+#RUN apt update && apt install \
+#    libpq-dev \
+#    musl-tools \
+#    openssl \
+#    libssl-dev \
+#    pkg-config \
+#    gcc \
+#    make \
+#    build-essential \
+#    -y
 
 # create a new empty shell project
 RUN USER=root cargo new --bin bn-api
