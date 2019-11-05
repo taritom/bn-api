@@ -5,7 +5,6 @@ RUN \
     unzip OpenSSL_1_1_0-stable.zip && cd openssl-OpenSSL_1_1_0-stable && \
     ./config && make -j $(nproc) && make install
 ENV LD_LIBRARY_PATH /usr/local/lib
-
 #RUN apt update && apt install \
 #    libpq-dev \
 #    musl-tools \
