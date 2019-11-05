@@ -2332,6 +2332,8 @@ fn get_global_scopes() {
             "org:write",
             "redeem:ticket",
             "region:write",
+            "settlement:read",
+            "settlement:read-early",
             "settlement:write",
             "ticket:admin",
             "ticket:read",

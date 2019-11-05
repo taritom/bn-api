@@ -14,6 +14,8 @@ pub struct Refund {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub reason: Option<String>,
+    #[serde(skip_serializing)]
+    pub settlement_id: Option<Uuid>,
 }
 
 impl Refund {

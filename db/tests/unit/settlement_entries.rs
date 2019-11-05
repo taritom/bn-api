@@ -1,5 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
+use bigneon_db::utils::dates;
 use chrono::prelude::*;
 
 #[test]
@@ -11,6 +12,13 @@ fn find_for_settlement_by_event() {
         .create_event()
         .with_tickets()
         .with_ticket_type_count(2)
+        .with_organization(&organization)
+        .with_event_start(dates::now().add_days(-2).finish())
+        .finish();
+    let event2 = project
+        .create_event()
+        .with_organization(&organization)
+        .with_event_start(dates::now().add_days(-1).finish())
         .finish();
     let mut ticket_types = event.ticket_types(false, None, connection).unwrap();
     let ticket_type = ticket_types.remove(0);
@@ -45,6 +53,12 @@ fn find_for_settlement_by_event() {
         .with_event(&event)
         .with_settlement(&settlement)
         .finish();
+    let settlement_entry4 = project
+        .create_settlement_entry()
+        .with_face_value_in_cents(60)
+        .with_event(&event2)
+        .with_settlement(&settlement)
+        .finish();
 
     // Ticket type adjusts order
     ticket_type.clone().update_rank_only(0, connection).unwrap();
@@ -54,7 +68,15 @@ fn find_for_settlement_by_event() {
         .unwrap();
     let mut results =
         SettlementEntry::find_for_settlement_by_event(&settlement, connection).unwrap();
-    assert_eq!(results.len(), 1);
+    assert_eq!(results.len(), 2);
+    let grouped_settlement_entry = results.pop().unwrap();
+    assert_eq!(
+        grouped_settlement_entry.event,
+        event2.for_display(connection).unwrap()
+    );
+    assert_eq!(grouped_settlement_entry.entries.len(), 1);
+    assert_eq!(grouped_settlement_entry.entries[0].id, settlement_entry4.id);
+
     let grouped_settlement_entry = results.pop().unwrap();
     assert_eq!(
         grouped_settlement_entry.event,
@@ -70,7 +92,11 @@ fn find_for_settlement_by_event() {
     ticket_type2.update_rank_only(0, connection).unwrap();
     let mut results =
         SettlementEntry::find_for_settlement_by_event(&settlement, connection).unwrap();
-    assert_eq!(results.len(), 1);
+    assert_eq!(results.len(), 2);
+    let grouped_settlement_entry = results.pop().unwrap();
+    assert_eq!(grouped_settlement_entry.entries.len(), 1);
+    assert_eq!(grouped_settlement_entry.entries[0].id, settlement_entry4.id);
+
     let grouped_settlement_entry = results.pop().unwrap();
     assert_eq!(grouped_settlement_entry.entries.len(), 3);
     assert_eq!(grouped_settlement_entry.entries[0].id, settlement_entry2.id);
