@@ -51,5 +51,6 @@ pub fn send_webhook(
 
     let payload: HashMap<String, serde_json::Value> = serde_json::from_str(body)?;
 
+    //    CustomerIoClient::new();
     adapter.send(webhook_urls, payload)
 }

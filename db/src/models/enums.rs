@@ -87,7 +87,7 @@ string_enum! { BroadcastAudience [ PeopleAtTheEvent, TicketHolders  ]}
 string_enum! { CartItemStatus [CodeExpired, HoldExpired, TicketNullified, TicketNotReserved, Valid] }
 string_enum! { CodeTypes [Access, Discount] }
 string_enum! { CommunicationChannelType [Email, Sms, Push, Webhook]}
-string_enum! { CommunicationType [Email, EmailTemplate, Sms, Push, Webhook]}
+string_enum! { CommunicationType [EmailTemplate, Sms, Push, Webhook]}
 string_enum! { DomainEventTypes [
     CodeCreated,
     CodeDeleted,

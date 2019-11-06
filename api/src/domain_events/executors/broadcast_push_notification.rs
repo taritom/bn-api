@@ -66,6 +66,8 @@ impl BroadcastPushNotificationExecutor {
             }
         };
 
+        let event = Event::find(broadcast.event_id, conn)?;
+
         Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn)?;
 
         for (user, tickets, order_no) in audience {
@@ -81,6 +83,7 @@ impl BroadcastPushNotificationExecutor {
                     &user,
                     &tickets,
                     order_no,
+                    &event,
                 )?,
             }
         }
@@ -139,17 +142,20 @@ fn queue_email_notification(
     user: &User,
     tickets: &[TicketInstance],
     order_no: Option<Uuid>,
+    event: &Event,
 ) -> Result<(), BigNeonError> {
     if user.email.is_none() {
         return Ok(());
     }
 
+    let data = TemplateData::new();
+    //    data.insert()
     DomainAction::create(
         None,
         DomainActionTypes::Communication,
         Some(CommunicationChannelType::Email),
         serde_json::to_value(Communication::new(
-            CommunicationType::Email,
+            CommunicationType::EmailTemplate,
             broadcast.subject.as_ref().unwrap_or(&message).to_string(),
             Some(message),
             None,

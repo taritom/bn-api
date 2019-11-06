@@ -10,6 +10,7 @@ extern crate actix_web;
 extern crate bigneon_db;
 extern crate branch_rs;
 extern crate chrono;
+extern crate customer_io;
 extern crate diesel;
 extern crate dotenv;
 extern crate expo_server_sdk as expo;

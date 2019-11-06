@@ -10,7 +10,8 @@ members = [
     "tari-client",
     "stripe",
     "logging",
-    "macros"
+    "macros",
+    "customer_io"
 ]
 
 [patch.crates-io]

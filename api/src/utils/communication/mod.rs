@@ -10,7 +10,7 @@ use tokio::prelude::*;
 use utils::sendgrid::mail as sendgrid;
 use utils::twilio;
 use utils::webhook;
-use utils::{customer_io, expo};
+use utils::{customer_io_comm, expo};
 
 pub fn send_async(
     domain_action: &DomainAction,
@@ -38,15 +38,6 @@ pub fn send_async(
                     let destination_addresses = communication.destinations.get();
 
                     let future = match communication.comm_type {
-                        CommunicationType::Email => sendgrid::send_email_async(
-                            &config.sendgrid_api_key,
-                            communication.source.as_ref().unwrap().get_first().unwrap(),
-                            destination_addresses,
-                            communication.title.clone(),
-                            communication.body.clone(),
-                            communication.categories.clone(),
-                            communication.extra_data.clone(),
-                        ),
                         CommunicationType::EmailTemplate => {
                             if communication.template_id.is_none() {
                                 Box::new(future::err(ApplicationError::new("Template ID must be specified when communication type is EmailTemplate".to_string()).into()))
@@ -68,19 +59,13 @@ pub fn send_async(
                                             serde_json::from_str(template_id).unwrap();
                                         match template.provider {
                                             EmailProvider::CustomerIo => {
-                                                customer_io::send_email_async(
-                                                    &config.sendgrid_api_key,
-                                                    communication
-                                                        .source
-                                                        .as_ref()
-                                                        .unwrap()
-                                                        .get_first()
-                                                        .unwrap(),
-                                                    destination_addresses,
-                                                    template_id.clone(),
-                                                    None,
-                                                    communication.categories.clone(),
-                                                    communication.extra_data.clone(),
+                                                customer_io_comm::send_email_async(
+                                                    config,
+                                                    communication.destinations.addresses,
+                                                    communication.title,
+                                                    communication.body,
+                                                    communication.categories,
+                                                    communication.extra_data,
                                                 )
                                             }
                                             EmailProvider::Sendgrid => {

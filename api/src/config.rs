@@ -60,6 +60,7 @@ pub struct Config {
     pub connection_pool: ConnectionPoolConfig,
     pub ssr_trigger_header: String,
     pub ssr_trigger_value: String,
+    pub customer_io: CustomerIoSettings,
 }
 
 #[derive(Clone)]
@@ -84,6 +85,16 @@ pub struct EmailTemplate {
     pub template_id: String,
 }
 
+#[derive(Clone)]
+pub struct CustomerIoSettings {
+    pub base_url: String,
+    pub api_key: String,
+    pub site_id: String,
+}
+
+const CUSTOMER_IO_API_KEY: &str = "";
+const CUSTOMER_IO_SITE_ID: &str = "";
+const CUSTOMER_IO_BASE_URL: &str = "CUSTOMER_IO_BASE_URL";
 const ACTIX_WORKERS: &str = "ACTIX_WORKERS";
 const ALLOWED_ORIGINS: &str = "ALLOWED_ORIGINS";
 const APP_NAME: &str = "APP_NAME";
@@ -270,8 +281,24 @@ impl Config {
 
         let email_templates = EmailTemplates { custom_broadcast };
 
+        let customer_io_base_url = env::var(&CUSTOMER_IO_BASE_URL)
+            .unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_BASE_URL));
+
+        let customer_io_api_key = env::var(&CUSTOMER_IO_API_KEY)
+            .unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_API_KEY));
+
+        let customer_io_site_id = env::var(&CUSTOMER_IO_SITE_ID)
+            .unwrap_or_else(|_| panic!("{} must be defined.", CUSTOMER_IO_SITE_ID));
+
+        let customer_io = CustomerIoSettings {
+            base_url: customer_io_base_url,
+            api_key: customer_io_api_key,
+            site_id: customer_io_site_id,
+        };
+
         let sendgrid_template_bn_refund = env::var(&SENDGRID_TEMPLATE_BN_REFUND)
             .unwrap_or_else(|_| panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_REFUND));
+
         let sendgrid_template_bn_user_registered = env::var(&SENDGRID_TEMPLATE_BN_USER_REGISTERED)
             .unwrap_or_else(|_| {
                 panic!("{} must be defined.", SENDGRID_TEMPLATE_BN_USER_REGISTERED)
@@ -394,6 +421,7 @@ impl Config {
             actix: Actix {
                 workers: actix_workers,
             },
+            customer_io,
             allowed_origins,
             app_name,
             api_host,

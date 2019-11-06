@@ -69,7 +69,7 @@ fn push() {
 
 #[test]
 fn communication_new() {
-    let communication_type = CommunicationType::Email;
+    let communication_type = CommunicationType::EmailTemplate;
     let title = "Title".to_string();
     let body = Some("Body".to_string());
     let source_communication_address = Some(CommAddress::from("abc@tari.com".to_string()));
