@@ -18,10 +18,7 @@ fn create() {
         ticket_type_code.ticket_type_id, ticket_type.id,
         "TicketType foreign key does not match"
     );
-    assert_eq!(
-        ticket_type_code.code_id, code.id,
-        "Code foreign key does not match"
-    );
+    assert_eq!(ticket_type_code.code_id, code.id, "Code foreign key does not match");
 }
 
 #[test]
@@ -55,14 +52,10 @@ fn destroy_multiple() {
         vec![ticket_type.id, ticket_type2.id, ticket_type3.id].sort()
     );
 
-    TicketTypeCode::destroy_multiple(code.id, vec![ticket_type.id, ticket_type3.id], connection)
-        .unwrap();
+    TicketTypeCode::destroy_multiple(code.id, vec![ticket_type.id, ticket_type3.id], connection).unwrap();
 
     let display_code = code.for_display(connection).unwrap();
-    assert_eq!(
-        display_code.display_code.ticket_type_ids,
-        vec![ticket_type2.id]
-    );
+    assert_eq!(display_code.display_code.ticket_type_ids, vec![ticket_type2.id]);
 }
 
 #[test]
@@ -85,11 +78,7 @@ fn create_with_validation_errors() {
                 assert_eq!(errors["ticket_type_id"].len(), 1);
                 assert_eq!(errors["ticket_type_id"][0].code, "invalid");
                 assert_eq!(
-                    &errors["ticket_type_id"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["ticket_type_id"][0].message.clone().unwrap().into_owned(),
                     "Ticket type not valid for code as it does not belong to same event"
                 );
             }

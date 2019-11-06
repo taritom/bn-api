@@ -8,17 +8,7 @@ use utils::errors::DatabaseError;
 use utils::errors::ErrorCode;
 use uuid::Uuid;
 
-#[derive(
-    AsChangeset,
-    Clone,
-    Debug,
-    Deserialize,
-    Identifiable,
-    PartialEq,
-    Queryable,
-    QueryableByName,
-    Serialize,
-)]
+#[derive(AsChangeset, Clone, Debug, Deserialize, Identifiable, PartialEq, Queryable, QueryableByName, Serialize)]
 #[table_name = "settlement_adjustments"]
 pub struct SettlementAdjustment {
     pub id: Uuid,
@@ -49,19 +39,13 @@ impl SettlementAdjustment {
         settlement_adjustments::table
             .filter(settlement_adjustments::id.eq(id))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load Settlement Adjustment",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load Settlement Adjustment")
     }
 
     pub fn destroy(self, conn: &PgConnection) -> Result<usize, DatabaseError> {
         diesel::delete(settlement_adjustments::table.filter(settlement_adjustments::id.eq(self.id)))
             .execute(conn)
-            .to_db_error(
-                ErrorCode::DeleteError,
-                "Error removing settlement adjustment",
-            )
+            .to_db_error(ErrorCode::DeleteError, "Error removing settlement adjustment")
     }
 }
 

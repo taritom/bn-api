@@ -17,10 +17,7 @@ fn find_spotify_linked_artists() {
         .with_name("Artist 2".to_string())
         .with_spotify_id("spotify_2".to_string())
         .finish();
-    let _artist3 = project
-        .create_artist()
-        .with_name("Artist 3".to_string())
-        .finish();
+    let _artist3 = project.create_artist().with_name("Artist 3".to_string()).finish();
 
     assert_eq!(
         Artist::find_spotify_linked_artists(connection),
@@ -33,62 +30,35 @@ fn set_genres() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let creator = project.create_user().finish();
-    let artist = project
-        .create_artist()
-        .with_name("Artist 1".to_string())
-        .finish();
-    let artist2 = project
-        .create_artist()
-        .with_name("Artist 2".to_string())
-        .finish();
+    let artist = project.create_artist().with_name("Artist 1".to_string()).finish();
+    let artist2 = project.create_artist().with_name("Artist 2".to_string()).finish();
 
     // No genres set
     assert!(artist.genres(connection).unwrap().is_empty());
     assert!(artist2.genres(connection).unwrap().is_empty());
 
     for (table, id) in vec![(Tables::Artists, artist.id), (Tables::Artists, artist2.id)] {
-        let domain_events = DomainEvent::find(
-            table,
-            Some(id),
-            Some(DomainEventTypes::GenresUpdated),
-            connection,
-        )
-        .unwrap();
+        let domain_events =
+            DomainEvent::find(table, Some(id), Some(DomainEventTypes::GenresUpdated), connection).unwrap();
         assert_eq!(0, domain_events.len());
     }
 
     artist
         .set_genres(
-            &vec![
-                "emo".to_string(),
-                "test".to_string(),
-                "Hard Rock".to_string(),
-            ],
+            &vec!["emo".to_string(), "test".to_string(), "Hard Rock".to_string()],
             Some(creator.id),
             connection,
         )
         .unwrap();
     assert_eq!(
         artist.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
+        vec!["emo".to_string(), "hard-rock".to_string(), "test".to_string()]
     );
     assert!(artist2.genres(connection).unwrap().is_empty());
 
-    for (table, id, event_count) in vec![
-        (Tables::Artists, artist.id, 1),
-        (Tables::Artists, artist2.id, 0),
-    ] {
-        let domain_events = DomainEvent::find(
-            table,
-            Some(id),
-            Some(DomainEventTypes::GenresUpdated),
-            connection,
-        )
-        .unwrap();
+    for (table, id, event_count) in vec![(Tables::Artists, artist.id, 1), (Tables::Artists, artist2.id, 0)] {
+        let domain_events =
+            DomainEvent::find(table, Some(id), Some(DomainEventTypes::GenresUpdated), connection).unwrap();
         assert_eq!(event_count, domain_events.len());
     }
 
@@ -101,28 +71,16 @@ fn set_genres() {
         .unwrap();
     assert_eq!(
         artist.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
+        vec!["emo".to_string(), "hard-rock".to_string(), "test".to_string()]
     );
     assert_eq!(
         artist2.genres(connection).unwrap(),
         vec!["emo".to_string(), "happy".to_string()]
     );
 
-    for (table, id, event_count) in vec![
-        (Tables::Artists, artist.id, 1),
-        (Tables::Artists, artist2.id, 1),
-    ] {
-        let domain_events = DomainEvent::find(
-            table,
-            Some(id),
-            Some(DomainEventTypes::GenresUpdated),
-            connection,
-        )
-        .unwrap();
+    for (table, id, event_count) in vec![(Tables::Artists, artist.id, 1), (Tables::Artists, artist2.id, 1)] {
+        let domain_events =
+            DomainEvent::find(table, Some(id), Some(DomainEventTypes::GenresUpdated), connection).unwrap();
         assert_eq!(event_count, domain_events.len());
     }
 
@@ -132,25 +90,13 @@ fn set_genres() {
         .unwrap();
     assert_eq!(
         artist.genres(connection).unwrap(),
-        vec![
-            "emo".to_string(),
-            "hard-rock".to_string(),
-            "test".to_string()
-        ]
+        vec!["emo".to_string(), "hard-rock".to_string(), "test".to_string()]
     );
     assert_eq!(artist2.genres(connection).unwrap(), vec!["emo".to_string()]);
 
-    for (table, id, event_count) in vec![
-        (Tables::Artists, artist.id, 1),
-        (Tables::Artists, artist2.id, 2),
-    ] {
-        let domain_events = DomainEvent::find(
-            table,
-            Some(id),
-            Some(DomainEventTypes::GenresUpdated),
-            connection,
-        )
-        .unwrap();
+    for (table, id, event_count) in vec![(Tables::Artists, artist.id, 1), (Tables::Artists, artist2.id, 2)] {
+        let domain_events =
+            DomainEvent::find(table, Some(id), Some(DomainEventTypes::GenresUpdated), connection).unwrap();
         assert_eq!(event_count, domain_events.len());
     }
 }
@@ -161,20 +107,13 @@ fn for_display() {
     let connection = project.get_connection();
     let artist = project.create_artist().finish();
     artist
-        .set_genres(
-            &vec!["emo".to_string(), "hard-rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], None, connection)
         .unwrap();
 
     let display_artist = artist.clone().for_display(connection).unwrap();
     assert_eq!(display_artist.id, artist.id);
     assert_eq!(display_artist.name, artist.name);
-    assert_eq!(
-        display_artist.genres,
-        vec!["emo".to_string(), "hard-rock".to_string()]
-    );
+    assert_eq!(display_artist.genres, vec!["emo".to_string(), "hard-rock".to_string()]);
 }
 
 #[test]
@@ -183,14 +122,8 @@ fn events() {
     let connection = project.get_connection();
     let artist = project.create_artist().finish();
     let artist2 = project.create_artist().finish();
-    let event = project
-        .create_event()
-        .with_name("Event 1".to_string())
-        .finish();
-    let event2 = project
-        .create_event()
-        .with_name("Event 2".to_string())
-        .finish();
+    let event = project.create_event().with_name("Event 1".to_string()).finish();
+    let event2 = project.create_event().with_name("Event 2".to_string()).finish();
     project
         .create_event_artist()
         .with_event(&event)
@@ -256,11 +189,7 @@ fn new_artist_validate() {
     assert_eq!(errors["youtube_video_urls"].len(), 1);
     assert_eq!(errors["youtube_video_urls"][0].code, "url");
     assert_eq!(
-        &errors["youtube_video_urls"][0]
-            .message
-            .clone()
-            .unwrap()
-            .into_owned(),
+        &errors["youtube_video_urls"][0].message.clone().unwrap().into_owned(),
         "URL is invalid"
     );
 
@@ -268,11 +197,7 @@ fn new_artist_validate() {
     assert_eq!(errors["website_url"].len(), 1);
     assert_eq!(errors["website_url"][0].code, "url");
     assert_eq!(
-        &errors["website_url"][0]
-            .message
-            .clone()
-            .unwrap()
-            .into_owned(),
+        &errors["website_url"][0].message.clone().unwrap().into_owned(),
         "Website URL is invalid"
     );
 }
@@ -314,8 +239,7 @@ fn artist_search() {
     );
 
     // Logged out search
-    let found_artists =
-        Artist::search(&None, Some("many".to_string()), connection).expect("No artists found");
+    let found_artists = Artist::search(&None, Some("many".to_string()), connection).expect("No artists found");
     assert_eq!(1, found_artists.len());
     assert!(found_artists.iter().any(|a| a.name == sample_artists[1]));
 
@@ -327,8 +251,7 @@ fn artist_search() {
     }
 
     // Owner search, with filter query
-    let found_artists = Artist::search(&Some(owner), Some("artist".to_string()), connection)
-        .expect("No artists found");
+    let found_artists = Artist::search(&Some(owner), Some("artist".to_string()), connection).expect("No artists found");
     assert_eq!(4, found_artists.len());
     for name in &sample_artists {
         assert!(found_artists.iter().any(|a| a.name == *name));
@@ -385,11 +308,7 @@ fn artist_editable_attributes_validate() {
     assert_eq!(errors["website_url"].len(), 1);
     assert_eq!(errors["website_url"][0].code, "url");
     assert_eq!(
-        &errors["website_url"][0]
-            .message
-            .clone()
-            .unwrap()
-            .into_owned(),
+        &errors["website_url"][0].message.clone().unwrap().into_owned(),
         "Website URL is invalid"
     );
 
@@ -397,11 +316,7 @@ fn artist_editable_attributes_validate() {
     assert_eq!(errors["youtube_video_urls"].len(), 1);
     assert_eq!(errors["youtube_video_urls"][0].code, "url");
     assert_eq!(
-        &errors["youtube_video_urls"][0]
-            .message
-            .clone()
-            .unwrap()
-            .into_owned(),
+        &errors["youtube_video_urls"][0].message.clone().unwrap().into_owned(),
         "URL is invalid"
     );
 }
@@ -446,11 +361,7 @@ fn all() {
     let name = "Name";
     let owner = project.create_user().finish();
     let user = project.create_user().finish();
-    let admin = project
-        .create_user()
-        .finish()
-        .add_role(Roles::Admin, conn)
-        .unwrap();
+    let admin = project.create_user().finish().add_role(Roles::Admin, conn).unwrap();
 
     let organization = project
         .create_organization()
@@ -502,25 +413,19 @@ fn update() {
     let name = "Old Name";
     let artist = project.create_artist().with_name(name.into()).finish();
 
-    let mut main_genre =
-        Genre::find_or_create(&vec!["blues".to_string()], project.get_connection()).unwrap();
+    let mut main_genre = Genre::find_or_create(&vec!["blues".to_string()], project.get_connection()).unwrap();
     let mut artist_parameters = ArtistEditableAttributes::new();
     artist_parameters.name = Some("New Name".into());
     artist_parameters.bio = Some("Bio".into());
     artist_parameters.website_url = Some(Some("http://www.example.com".into()));
     artist_parameters.main_genre_id = Some(main_genre.pop());
 
-    let updated_artist = artist
-        .update(&artist_parameters, &project.get_connection())
-        .unwrap();
+    let updated_artist = artist.update(&artist_parameters, &project.get_connection()).unwrap();
 
     assert_eq!(updated_artist.id, artist.id);
     assert_ne!(updated_artist.name, artist.name);
     assert_eq!(updated_artist.name, artist_parameters.name.unwrap());
-    assert_eq!(
-        updated_artist.main_genre_id,
-        artist_parameters.main_genre_id.unwrap()
-    );
+    assert_eq!(updated_artist.main_genre_id, artist_parameters.main_genre_id.unwrap());
 }
 
 #[test]
@@ -535,16 +440,10 @@ fn destroy() {
 fn organization() {
     let project = TestProject::new();
     let organization = project.create_organization().finish();
-    let artist = project
-        .create_artist()
-        .with_organization(&organization)
-        .finish();
+    let artist = project.create_artist().with_organization(&organization).finish();
     let artist2 = project.create_artist().finish();
 
-    assert_eq!(
-        Ok(Some(organization)),
-        artist.organization(project.get_connection())
-    );
+    assert_eq!(Ok(Some(organization)), artist.organization(project.get_connection()));
     assert_eq!(Ok(None), artist2.organization(project.get_connection()));
 }
 
@@ -560,10 +459,7 @@ fn find_for_organization() {
         .finish()
         .add_role(Roles::Admin, connection)
         .unwrap();
-    let _public_artist = project
-        .create_artist()
-        .with_name("Artist0".to_string())
-        .finish();
+    let _public_artist = project.create_artist().with_name("Artist0".to_string()).finish();
     let organization = project
         .create_organization()
         .with_member(&owner, Roles::OrgOwner)
@@ -617,20 +513,16 @@ fn find_for_organization() {
     assert_eq!(found_artists, public_organization_artists);
 
     // Private artist is not shown for users
-    let found_artists =
-        Artist::find_for_organization(Some(&user), organization.id, connection).unwrap();
+    let found_artists = Artist::find_for_organization(Some(&user), organization.id, connection).unwrap();
     assert_eq!(found_artists, public_organization_artists);
 
     // Private artist is shown for admins, owners, and members
-    let found_artists =
-        Artist::find_for_organization(Some(&owner), organization.id, connection).unwrap();
+    let found_artists = Artist::find_for_organization(Some(&owner), organization.id, connection).unwrap();
     assert_eq!(found_artists, organization_artists);
 
-    let found_artists =
-        Artist::find_for_organization(Some(&member), organization.id, connection).unwrap();
+    let found_artists = Artist::find_for_organization(Some(&member), organization.id, connection).unwrap();
     assert_eq!(found_artists, organization_artists);
 
-    let found_artists =
-        Artist::find_for_organization(Some(&admin), organization.id, connection).unwrap();
+    let found_artists = Artist::find_for_organization(Some(&admin), organization.id, connection).unwrap();
     assert_eq!(found_artists, organization_artists);
 }

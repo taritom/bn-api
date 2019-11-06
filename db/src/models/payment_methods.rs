@@ -46,18 +46,12 @@ impl PaymentMethod {
         }
     }
 
-    pub fn find_default_for_user(
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<PaymentMethod, DatabaseError> {
+    pub fn find_default_for_user(user_id: Uuid, conn: &PgConnection) -> Result<PaymentMethod, DatabaseError> {
         payment_methods::table
             .filter(payment_methods::user_id.eq(user_id))
             .filter(payment_methods::is_default.eq(true))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load default payment method for user",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load default payment method for user")
     }
 
     pub fn find_for_user(
@@ -76,10 +70,7 @@ impl PaymentMethod {
         query
             .order_by(payment_methods::name)
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load payment methods for user",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load payment methods for user")
     }
 
     pub fn update(
@@ -98,8 +89,7 @@ impl PaymentMethod {
         )
         .commit(conn)?;
 
-        let query =
-            diesel::update(self).set((attributes, payment_methods::updated_at.eq(dsl::now)));
+        let query = diesel::update(self).set((attributes, payment_methods::updated_at.eq(dsl::now)));
 
         DatabaseError::wrap(
             ErrorCode::UpdateError,
@@ -126,11 +116,7 @@ pub struct NewPaymentMethod {
 }
 
 impl NewPaymentMethod {
-    pub fn commit(
-        self,
-        current_user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<PaymentMethod, DatabaseError> {
+    pub fn commit(self, current_user_id: Uuid, conn: &PgConnection) -> Result<PaymentMethod, DatabaseError> {
         let payment_method = diesel::insert_into(payment_methods::table)
             .values(self)
             .get_result::<PaymentMethod>(conn)

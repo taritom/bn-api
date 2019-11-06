@@ -16,7 +16,7 @@ impl<'a> SettlementAdjustmentBuilder<'a> {
             settlement_id: None,
             note: None,
             amount_in_cents: 100,
-            connection: connection,
+            connection,
         }
     }
 

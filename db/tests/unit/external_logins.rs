@@ -140,10 +140,7 @@ fn delete() {
         0
     );
 
-    external_login
-        .clone()
-        .delete(Some(user.id), connection)
-        .unwrap();
+    external_login.clone().delete(Some(user.id), connection).unwrap();
     assert_eq!(
         ExternalLogin::find_user(&external_user_id, &site, connection).unwrap(),
         None

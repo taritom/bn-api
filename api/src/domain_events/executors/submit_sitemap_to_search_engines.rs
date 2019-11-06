@@ -25,21 +25,14 @@ impl DomainActionExecutor for SubmitSitemapToSearchEnginesExecutor {
 }
 
 impl SubmitSitemapToSearchEnginesExecutor {
-    pub fn new(
-        api_url: String,
-        block_external_comms: bool,
-    ) -> SubmitSitemapToSearchEnginesExecutor {
+    pub fn new(api_url: String, block_external_comms: bool) -> SubmitSitemapToSearchEnginesExecutor {
         SubmitSitemapToSearchEnginesExecutor {
             api_url,
             block_external_comms,
         }
     }
 
-    pub fn perform_job(
-        &self,
-        _action: &DomainAction,
-        _conn: &Connection,
-    ) -> Result<(), BigNeonError> {
+    pub fn perform_job(&self, _action: &DomainAction, _conn: &Connection) -> Result<(), BigNeonError> {
         // block this function if environmental variable is set
         if self.block_external_comms {
             return Ok(());
@@ -87,10 +80,7 @@ mod test {
         let sitemap_url = "http://test.com/sitemap.com".to_string();
         let bing_result = get_search_engine_url(SearchEngine::Bing, &sitemap_url);
         let google_result = get_search_engine_url(SearchEngine::Google, &sitemap_url);
-        let bing_result_test = format!(
-            "http://www.bing.com/ping?sitemap={}/sitemap.xml",
-            sitemap_url
-        );
+        let bing_result_test = format!("http://www.bing.com/ping?sitemap={}/sitemap.xml", sitemap_url);
         let google_result_test = format!(
             "http://www.google.com/webmasters/sitemaps/ping?sitemap={}/sitemap.xml",
             sitemap_url

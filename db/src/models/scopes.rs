@@ -212,10 +212,7 @@ impl FromStr for Scopes {
 }
 
 pub fn get_scopes(roles: Vec<Roles>) -> Vec<Scopes> {
-    let mut scopes: Vec<Scopes> = roles
-        .into_iter()
-        .flat_map(|r| get_scopes_for_role(r))
-        .collect();
+    let mut scopes: Vec<Scopes> = roles.into_iter().flat_map(|r| get_scopes_for_role(r)).collect();
     scopes.sort();
     scopes.dedup();
     scopes

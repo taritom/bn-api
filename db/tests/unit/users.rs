@@ -78,11 +78,7 @@ fn update_genre_info() {
         .with_artist(&artist)
         .finish();
     artist
-        .set_genres(
-            &vec!["emo".to_string(), "hard-rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], None, connection)
         .unwrap();
     event.update_genres(None, connection).unwrap();
     let user = project.create_user().finish();
@@ -168,14 +164,10 @@ fn transfer_activity_by_event_tickets() {
     .unwrap();
 
     // Pending transfer
-    let transfer2 =
-        TicketInstance::create_transfer(user.id, &[ticket2.id], None, None, false, connection)
-            .unwrap();
+    let transfer2 = TicketInstance::create_transfer(user.id, &[ticket2.id], None, None, false, connection).unwrap();
 
     // Cancelled transfer
-    let transfer3 =
-        TicketInstance::create_transfer(user.id, &[ticket3.id], None, None, false, connection)
-            .unwrap();
+    let transfer3 = TicketInstance::create_transfer(user.id, &[ticket3.id], None, None, false, connection).unwrap();
     transfer3.cancel(user.id, None, connection).unwrap();
 
     // Cancelled and retransferred ticket
@@ -190,12 +182,8 @@ fn transfer_activity_by_event_tickets() {
     .unwrap();
     let transfer4 = transfer4.cancel(user.id, None, connection).unwrap();
     // Only ticket 4 and 5 retransferred
-    let transfer5 =
-        TicketInstance::create_transfer(user.id, &[ticket4.id], None, None, false, connection)
-            .unwrap();
-    let transfer6 =
-        TicketInstance::create_transfer(user.id, &[ticket5.id], None, None, false, connection)
-            .unwrap();
+    let transfer5 = TicketInstance::create_transfer(user.id, &[ticket4.id], None, None, false, connection).unwrap();
+    let transfer6 = TicketInstance::create_transfer(user.id, &[ticket5.id], None, None, false, connection).unwrap();
     // Ticket 5 is accepted by user2
     let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
@@ -208,9 +196,7 @@ fn transfer_activity_by_event_tickets() {
     )
     .unwrap();
     // Ticket 5 is transferred again and accepted by user3
-    let transfer7 =
-        TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, false, connection)
-            .unwrap();
+    let transfer7 = TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, false, connection).unwrap();
     let sender_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user3.id, connection).unwrap();
     TicketInstance::receive_ticket_transfer(
@@ -285,44 +271,20 @@ fn transfer_activity_by_event_tickets() {
     .unwrap();
 
     let mut user1_activity = user
-        .transfer_activity_by_event_tickets(
-            0,
-            100,
-            SortingDir::Desc,
-            PastOrUpcoming::Upcoming,
-            connection,
-        )
+        .transfer_activity_by_event_tickets(0, 100, SortingDir::Desc, PastOrUpcoming::Upcoming, connection)
         .unwrap();
     let mut user2_activity = user2
-        .transfer_activity_by_event_tickets(
-            0,
-            100,
-            SortingDir::Desc,
-            PastOrUpcoming::Upcoming,
-            connection,
-        )
+        .transfer_activity_by_event_tickets(0, 100, SortingDir::Desc, PastOrUpcoming::Upcoming, connection)
         .unwrap();
     let user3_activity = user3
-        .transfer_activity_by_event_tickets(
-            0,
-            100,
-            SortingDir::Desc,
-            PastOrUpcoming::Upcoming,
-            connection,
-        )
+        .transfer_activity_by_event_tickets(0, 100, SortingDir::Desc, PastOrUpcoming::Upcoming, connection)
         .unwrap();
 
     assert_eq!(user1_activity.paging.total, 2);
     let mut user_event2_data = user1_activity.data.remove(0);
-    assert_eq!(
-        user_event2_data.event,
-        event2.for_display(connection).unwrap()
-    );
+    assert_eq!(user_event2_data.event, event2.for_display(connection).unwrap());
     assert_eq!(user_event2_data.ticket_activity_items.len(), 2);
-    let mut ticket_activity = user_event2_data
-        .ticket_activity_items
-        .remove(&ticket4.id)
-        .unwrap();
+    let mut ticket_activity = user_event2_data.ticket_activity_items.remove(&ticket4.id).unwrap();
     if let ActivityItem::Transfer {
         transfer_id,
         action,
@@ -366,10 +328,7 @@ fn transfer_activity_by_event_tickets() {
         assert_eq!(status, TransferStatus::Cancelled);
         assert_eq!(ticket_ids, transfer4_tickets);
     }
-    let mut ticket_activity = user_event2_data
-        .ticket_activity_items
-        .remove(&ticket5.id)
-        .unwrap();
+    let mut ticket_activity = user_event2_data.ticket_activity_items.remove(&ticket5.id).unwrap();
     if let ActivityItem::Transfer {
         transfer_id,
         action,
@@ -426,15 +385,9 @@ fn transfer_activity_by_event_tickets() {
     }
 
     let mut user_event_data = user1_activity.data.remove(0);
-    assert_eq!(
-        user_event_data.event,
-        event.for_display(connection).unwrap()
-    );
+    assert_eq!(user_event_data.event, event.for_display(connection).unwrap());
     assert_eq!(user_event_data.ticket_activity_items.len(), 2);
-    let mut ticket_activity = user_event_data
-        .ticket_activity_items
-        .remove(&ticket.id)
-        .unwrap();
+    let mut ticket_activity = user_event_data.ticket_activity_items.remove(&ticket.id).unwrap();
     if let ActivityItem::Transfer {
         transfer_id,
         action,
@@ -461,10 +414,7 @@ fn transfer_activity_by_event_tickets() {
         assert_eq!(status, TransferStatus::Completed);
         assert_eq!(ticket_ids, vec![ticket.id]);
     }
-    let mut ticket_activity = user_event_data
-        .ticket_activity_items
-        .remove(&ticket2.id)
-        .unwrap();
+    let mut ticket_activity = user_event_data.ticket_activity_items.remove(&ticket2.id).unwrap();
     if let ActivityItem::Transfer {
         transfer_id,
         action,
@@ -481,15 +431,9 @@ fn transfer_activity_by_event_tickets() {
 
     assert_eq!(user2_activity.paging.total, 1);
     let mut user2_event2_data = user2_activity.data.remove(0);
-    assert_eq!(
-        user2_event2_data.event,
-        event2.for_display(connection).unwrap()
-    );
+    assert_eq!(user2_event2_data.event, event2.for_display(connection).unwrap());
     assert_eq!(user2_event2_data.ticket_activity_items.len(), 1);
-    let mut ticket_activity = user2_event2_data
-        .ticket_activity_items
-        .remove(&ticket5.id)
-        .unwrap();
+    let mut ticket_activity = user2_event2_data.ticket_activity_items.remove(&ticket5.id).unwrap();
     if let ActivityItem::Transfer {
         transfer_id,
         action,
@@ -527,16 +471,8 @@ fn activity() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
-    let organization2 = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
+    let organization2 = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -611,8 +547,7 @@ fn activity() {
 
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection).unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
         user.activity(
@@ -629,8 +564,7 @@ fn activity() {
     );
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event2.id, user.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event2.id, user.id, None, connection).unwrap(),
             event: event2.for_display(connection).unwrap(),
         }],
         user.activity(
@@ -675,8 +609,7 @@ fn activity() {
 
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection).unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
         user.activity(
@@ -723,8 +656,7 @@ fn activity() {
     // Is found via past filter
     assert_eq!(
         vec![ActivitySummary {
-            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection)
-                .unwrap(),
+            activity_items: ActivityItem::load_for_event(event.id, user.id, None, connection).unwrap(),
             event: event.for_display(connection).unwrap(),
         }],
         user.activity(
@@ -774,11 +706,7 @@ fn genres() {
         .with_artist(&artist)
         .finish();
     artist
-        .set_genres(
-            &vec!["emo".to_string(), "hard-rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], None, connection)
         .unwrap();
     event.update_genres(None, connection).unwrap();
 
@@ -843,8 +771,8 @@ fn commit_duplicate_email() {
     let email = user1.email;
     let phone_number = Some("555-555-5555".to_string());
     let password = "examplePassword";
-    let result = User::create(first_name, last_name, email, phone_number, password)
-        .commit(None, project.get_connection());
+    let result =
+        User::create(first_name, last_name, email, phone_number, password).commit(None, project.get_connection());
 
     assert_eq!(result.is_err(), true);
     assert_eq!(
@@ -862,9 +790,7 @@ fn find_external_login() {
     // No external login for facebook, returns None
     assert_eq!(
         None,
-        user.find_external_login(FACEBOOK_SITE, connection)
-            .optional()
-            .unwrap()
+        user.find_external_login(FACEBOOK_SITE, connection).optional().unwrap()
     );
 
     // With external login present
@@ -880,9 +806,7 @@ fn find_external_login() {
         .unwrap();
     assert_eq!(
         Some(external_login),
-        user.find_external_login(FACEBOOK_SITE, connection)
-            .optional()
-            .unwrap()
+        user.find_external_login(FACEBOOK_SITE, connection).optional().unwrap()
     );
 }
 
@@ -941,8 +865,7 @@ fn get_profile_for_organization() {
         .finish();
 
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -971,8 +894,7 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -1005,8 +927,7 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -1036,8 +957,7 @@ fn get_profile_for_organization() {
     .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -1057,30 +977,14 @@ fn get_profile_for_organization() {
 
     // Redeem tickets from order
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
     let ticket2 = &tickets[1];
-    TicketInstance::redeem_ticket(
-        ticket.id,
-        ticket.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
-    TicketInstance::redeem_ticket(
-        ticket2.id,
-        ticket2.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
+    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user.id, connection).unwrap();
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -1113,23 +1017,13 @@ fn get_profile_for_organization() {
 
     // Redeem a ticket from new order
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
-    TicketInstance::redeem_ticket(
-        ticket.id,
-        ticket.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
 
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -1160,8 +1054,7 @@ fn get_profile_for_organization() {
         .is_paid()
         .finish();
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -1202,16 +1095,9 @@ fn get_profile_for_organization() {
         connection,
     )
     .unwrap();
-    TicketInstance::redeem_ticket(
-        ticket.id,
-        ticket.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -1233,9 +1119,7 @@ fn get_profile_for_organization() {
         }
     );
     assert_eq!(
-        user2
-            .get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user2.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user2.first_name.clone(),
             last_name: user2.last_name.clone(),
@@ -1272,17 +1156,10 @@ fn get_profile_for_organization() {
         .unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
-    TicketInstance::redeem_ticket(
-        ticket.id,
-        ticket.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
 
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -1338,9 +1215,7 @@ fn get_profile_for_organization() {
     )
     .unwrap();
     assert_eq!(
-        user4
-            .get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user4.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user4.first_name.clone(),
             last_name: user4.last_name.clone(),
@@ -1369,17 +1244,9 @@ fn get_profile_for_organization() {
     )
     .unwrap();
 
-    TicketInstance::redeem_ticket(
-        ticket.id,
-        ticket.redeem_key.clone().unwrap(),
-        user5.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user5.id, connection).unwrap();
     assert_eq!(
-        user4
-            .get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user4.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user4.first_name.clone(),
             last_name: user4.last_name.clone(),
@@ -1397,9 +1264,7 @@ fn get_profile_for_organization() {
         }
     );
     assert_eq!(
-        user5
-            .get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user5.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user5.first_name.clone(),
             last_name: user5.last_name.clone(),
@@ -1431,8 +1296,7 @@ fn get_profile_for_organization() {
         .is_paid()
         .finish();
     assert_eq!(
-        user.get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
@@ -1461,9 +1325,7 @@ fn get_profile_for_organization() {
         }
     );
     assert_eq!(
-        user3
-            .get_profile_for_organization(&organization, connection)
-            .unwrap(),
+        user3.get_profile_for_organization(&organization, connection).unwrap(),
         FanProfile {
             first_name: user3.first_name.clone(),
             last_name: user3.last_name.clone(),
@@ -1658,68 +1520,35 @@ fn get_event_ids_by_organization() {
         user.get_event_ids_by_organization(connection).unwrap()
     );
 
-    let organization = project
-        .create_organization()
-        .with_name("Organization1".into())
-        .finish();
-    let organization2 = project
-        .create_organization()
-        .with_name("Organization2".into())
-        .finish();
+    let organization = project.create_organization().with_name("Organization1".into()).finish();
+    let organization2 = project.create_organization().with_name("Organization2".into()).finish();
     let organization3 = project
         .create_organization()
         .with_name("Organization3".into())
         .with_member(&user, Roles::OrgAdmin)
         .finish();
 
-    let event = project
-        .create_event()
-        .with_organization(&organization)
-        .finish();
-    let event2 = project
-        .create_event()
-        .with_organization(&organization2)
-        .finish();
-    let event3 = project
-        .create_event()
-        .with_organization(&organization2)
-        .finish();
+    let event = project.create_event().with_organization(&organization).finish();
+    let event2 = project.create_event().with_organization(&organization2).finish();
+    let event3 = project.create_event().with_organization(&organization2).finish();
 
     organization
-        .add_user(
-            user.id,
-            vec![Roles::PromoterReadOnly],
-            vec![event.id],
-            connection,
-        )
+        .add_user(user.id, vec![Roles::PromoterReadOnly], vec![event.id], connection)
         .unwrap();
     organization2
-        .add_user(
-            user.id,
-            vec![Roles::Promoter],
-            vec![event2.id, event3.id],
-            connection,
-        )
+        .add_user(user.id, vec![Roles::Promoter], vec![event2.id, event3.id], connection)
         .unwrap();
 
     let (events_by_organization, readonly_events_by_organization) =
         user.get_event_ids_by_organization(connection).unwrap();
-    assert!(events_by_organization
-        .get(&organization.id)
-        .unwrap()
-        .is_empty());
+    assert!(events_by_organization.get(&organization.id).unwrap().is_empty());
     assert!(readonly_events_by_organization
         .get(&organization2.id)
         .unwrap()
         .is_empty());
-    let organization_results = readonly_events_by_organization
-        .get(&organization.id)
-        .unwrap();
+    let organization_results = readonly_events_by_organization.get(&organization.id).unwrap();
     assert_eq!(&vec![event.id], organization_results);
-    let mut organization2_results = events_by_organization
-        .get(&organization2.id)
-        .unwrap()
-        .clone();
+    let mut organization2_results = events_by_organization.get(&organization2.id).unwrap().clone();
     organization2_results.sort();
     let mut expected_organization2 = vec![event2.id, event3.id];
     expected_organization2.sort();
@@ -1803,10 +1632,7 @@ fn payment_methods() {
         .with_name(PaymentProviders::External)
         .with_user(&user)
         .finish();
-    assert_eq!(
-        vec![payment_method.clone()],
-        user.payment_methods(connection).unwrap(),
-    );
+    assert_eq!(vec![payment_method.clone()], user.payment_methods(connection).unwrap(),);
 
     let payment_method2 = project
         .create_payment_method()
@@ -1839,8 +1665,8 @@ fn find_by_email() {
     let project = TestProject::new();
     let user = project.create_user().finish();
 
-    let found_user = User::find_by_email(&user.email.clone().unwrap(), project.get_connection())
-        .expect("User was not found");
+    let found_user =
+        User::find_by_email(&user.email.clone().unwrap(), project.get_connection()).expect("User was not found");
     assert_eq!(found_user, user);
 
     let not_found = User::find_by_email("not@real.com", project.get_connection());
@@ -2023,10 +1849,7 @@ fn organizations() {
         .with_name("Organization2".into())
         .with_member(&user, Roles::OrgMember)
         .finish();
-    let _organization3 = project
-        .create_organization()
-        .with_name("Organization3".into())
-        .finish();
+    let _organization3 = project.create_organization().with_name("Organization3".into()).finish();
 
     assert_eq!(
         vec![organization, organization2],
@@ -2077,9 +1900,7 @@ fn find_events_with_access_to_scan() {
 
     let owner_events = owner.find_events_with_access_to_scan(connection).unwrap();
     let scanner_events = scanner.find_events_with_access_to_scan(connection).unwrap();
-    let normal_user_events = _normal_user
-        .find_events_with_access_to_scan(connection)
-        .unwrap();
+    let normal_user_events = _normal_user.find_events_with_access_to_scan(connection).unwrap();
 
     assert_eq!(owner_events, vec![published_event.clone()]);
     assert_eq!(scanner_events, vec![published_event]);
@@ -2102,19 +1923,13 @@ fn get_roles_by_organization() {
         .with_name("Organization2".into())
         .with_member(&user, Roles::OrgMember)
         .finish();
-    let _organization3 = project
-        .create_organization()
-        .with_name("Organization3".into())
-        .finish();
+    let _organization3 = project.create_organization().with_name("Organization3".into()).finish();
 
     let mut expected_results = HashMap::new();
     expected_results.insert(organization.id.clone(), vec![Roles::OrgOwner]);
     expected_results.insert(organization2.id.clone(), vec![Roles::OrgMember]);
 
-    assert_eq!(
-        user.get_roles_by_organization(connection).unwrap(),
-        expected_results
-    );
+    assert_eq!(user.get_roles_by_organization(connection).unwrap(), expected_results);
 }
 
 #[test]
@@ -2133,10 +1948,7 @@ fn get_scopes_by_organization() {
         .with_name("Organization2".into())
         .with_member(&user, Roles::OrgMember)
         .finish();
-    let _organization3 = project
-        .create_organization()
-        .with_name("Organization3".into())
-        .finish();
+    let _organization3 = project.create_organization().with_name("Organization3".into()).finish();
 
     let mut expected_results = HashMap::new();
     expected_results.insert(
@@ -2236,10 +2048,7 @@ fn get_scopes_by_organization() {
         ],
     );
 
-    assert_eq!(
-        user.get_scopes_by_organization(connection).unwrap(),
-        expected_results
-    );
+    assert_eq!(user.get_scopes_by_organization(connection).unwrap(), expected_results);
 }
 
 #[test]
@@ -2357,11 +2166,9 @@ fn add_role() {
     let project = TestProject::new();
     let user = project.create_user().finish();
 
-    user.add_role(Roles::Admin, project.get_connection())
-        .unwrap();
+    user.add_role(Roles::Admin, project.get_connection()).unwrap();
     //Try adding a duplicate role to check that it isnt duplicated.
-    user.add_role(Roles::Admin, project.get_connection())
-        .unwrap();
+    user.add_role(Roles::Admin, project.get_connection()).unwrap();
 
     let user2 = User::find(user.id, project.get_connection()).unwrap();
     assert_eq!(user2.role, vec![Roles::User, Roles::Admin]);

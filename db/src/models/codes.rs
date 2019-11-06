@@ -103,18 +103,12 @@ impl Code {
                 .filter(codes::event_id.eq(e))
                 .filter(codes::deleted_at.is_null())
                 .first(conn)
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Could not load code with that redeem code",
-                )?,
+                .to_db_error(ErrorCode::QueryError, "Could not load code with that redeem code")?,
             None => codes::table
                 .filter(codes::redemption_code.eq(redemption_code.to_uppercase()))
                 .filter(codes::deleted_at.is_null())
                 .first(conn)
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Could not load code with that redeem code",
-                )?,
+                .to_db_error(ErrorCode::QueryError, "Could not load code with that redeem code")?,
         };
 
         let available = code.max_uses - Code::find_number_of_uses(code.id, None, conn)?;
@@ -144,11 +138,7 @@ impl Code {
         Ok(used.iter().fold(0, |acc, x| acc + x))
     }
 
-    pub fn update_ticket_types(
-        &self,
-        ticket_type_ids: Vec<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn update_ticket_types(&self, ticket_type_ids: Vec<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         let existing_ticket_type_ids = TicketType::find_for_code(self.id, conn)?
             .into_iter()
             .map(|tt| tt.id)
@@ -170,10 +160,7 @@ impl Code {
         Ok(())
     }
 
-    pub fn for_display(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<DisplayCodeAvailability, DatabaseError> {
+    pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayCodeAvailability, DatabaseError> {
         let ticket_type_ids = TicketType::find_for_code(self.id, conn)?
             .into_iter()
             .map(|tt| tt.id)
@@ -211,8 +198,7 @@ impl Code {
             deleted_at: None,
         };
 
-        let available =
-            display_code.max_uses - Code::find_number_of_uses(display_code.id, None, conn)?;
+        let available = display_code.max_uses - Code::find_number_of_uses(display_code.id, None, conn)?;
 
         Ok(DisplayCodeAvailability {
             display_code,
@@ -250,8 +236,7 @@ impl Code {
         let now = Utc::now().naive_utc();
         if now < self.start_date || now > self.end_date {
             let mut errors = ValidationErrors::new();
-            let mut validation_error =
-                create_validation_error("invalid", "Code not valid for current datetime");
+            let mut validation_error = create_validation_error("invalid", "Code not valid for current datetime");
             validation_error.add_param(Cow::from("code_id"), &self.id);
             validation_error.add_param(Cow::from("start_date"), &self.start_date);
             validation_error.add_param(Cow::from("end_date"), &self.end_date);
@@ -276,10 +261,7 @@ impl Code {
             .filter(events::id.eq(self.event_id))
             .select(organizations::all_columns)
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load organization for code",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load organization for code")
     }
 
     pub fn find_for_event(
@@ -313,9 +295,7 @@ impl Code {
 
         let display_codes: Vec<DisplayCode> = diesel::sql_query(query)
             .bind::<diesel::sql_types::Uuid, _>(event_id)
-            .bind::<diesel::sql_types::Nullable<diesel::sql_types::Text>, _>(
-                code_type.map(|s| s.to_string()),
-            )
+            .bind::<diesel::sql_types::Nullable<diesel::sql_types::Text>, _>(code_type.map(|s| s.to_string()))
             .get_results(conn)
             .to_db_error(ErrorCode::QueryError, "Cannot find codes for event")?;
 
@@ -325,7 +305,7 @@ impl Code {
             let available = dc.max_uses - Code::find_number_of_uses(dc.id, None, conn)?;
             display_codes_availability.push(DisplayCodeAvailability {
                 display_code: dc,
-                available: available,
+                available,
             });
         }
 
@@ -338,42 +318,29 @@ impl Code {
         discount_in_cents: Option<i64>,
         discount_as_percentage: Option<i64>,
     ) -> Result<(), ValidationError> {
-        if code_type == CodeTypes::Discount
-            && discount_in_cents.is_none()
-            && discount_as_percentage.is_none()
-        {
-            let mut validation_error =
-                create_validation_error("required", "Discount required for Discount code type");
+        if code_type == CodeTypes::Discount && discount_in_cents.is_none() && discount_as_percentage.is_none() {
+            let mut validation_error = create_validation_error("required", "Discount required for Discount code type");
             validation_error.add_param(Cow::from("code_type"), &code_type);
             validation_error.add_param(Cow::from("discount_in_cents"), &discount_in_cents);
-            validation_error
-                .add_param(Cow::from("discount_as_percentage"), &discount_as_percentage);
+            validation_error.add_param(Cow::from("discount_as_percentage"), &discount_as_percentage);
             return Err(validation_error);
         }
 
-        if code_type == CodeTypes::Discount
-            && discount_in_cents.is_some()
-            && discount_as_percentage.is_some()
-        {
+        if code_type == CodeTypes::Discount && discount_in_cents.is_some() && discount_as_percentage.is_some() {
             let mut validation_error = create_validation_error(
                 "only_single_discount_type_allowed",
                 "Cannot apply more than one type of discount",
             );
             validation_error.add_param(Cow::from("code_type"), &code_type);
             validation_error.add_param(Cow::from("discount_in_cents"), &discount_in_cents);
-            validation_error
-                .add_param(Cow::from("discount_as_percentage"), &discount_as_percentage);
+            validation_error.add_param(Cow::from("discount_as_percentage"), &discount_as_percentage);
             return Err(validation_error);
         }
 
         Ok(())
     }
 
-    fn validate_record(
-        &self,
-        update_attrs: &UpdateCodeAttributes,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    fn validate_record(&self, update_attrs: &UpdateCodeAttributes, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut validation_errors = update_attrs.validate();
 
         validation_errors = validators::append_validation_error(
@@ -390,9 +357,7 @@ impl Code {
             "discount_in_cents",
             Code::single_discount_present_for_discount_type(
                 self.code_type.clone(),
-                update_attrs
-                    .discount_in_cents
-                    .unwrap_or(self.discount_in_cents),
+                update_attrs.discount_in_cents.unwrap_or(self.discount_in_cents),
                 update_attrs
                     .discount_as_percentage
                     .unwrap_or(self.discount_as_percentage),
@@ -425,11 +390,9 @@ impl Code {
     ) -> Result<Code, DatabaseError> {
         let mut update_attrs = update_attrs;
 
-        if update_attrs.discount_in_cents.is_some() || update_attrs.discount_as_percentage.is_some()
-        {
+        if update_attrs.discount_in_cents.is_some() || update_attrs.discount_as_percentage.is_some() {
             update_attrs.discount_in_cents = Some(update_attrs.discount_in_cents.unwrap_or(None));
-            update_attrs.discount_as_percentage =
-                Some(update_attrs.discount_as_percentage.unwrap_or(None));
+            update_attrs.discount_as_percentage = Some(update_attrs.discount_as_percentage.unwrap_or(None));
         }
 
         self.validate_record(&update_attrs, conn)?;
@@ -464,16 +427,9 @@ impl Code {
             .to_db_error(ErrorCode::QueryError, "Could not retrieve code")
     }
 
-    pub fn destroy(
-        &self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<usize, DatabaseError> {
+    pub fn destroy(&self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<usize, DatabaseError> {
         let result = diesel::update(codes::table.filter(codes::id.eq(self.id)))
-            .set((
-                codes::deleted_at.eq(dsl::now),
-                codes::updated_at.eq(dsl::now),
-            ))
+            .set((codes::deleted_at.eq(dsl::now), codes::updated_at.eq(dsl::now)))
             .execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Could not delete code")?;
 
@@ -507,11 +463,7 @@ pub struct NewCode {
 }
 
 impl NewCode {
-    pub fn commit(
-        self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Code, DatabaseError> {
+    pub fn commit(self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<Code, DatabaseError> {
         self.validate_record(conn)?;
 
         let result: Code = diesel::insert_into(codes::table)

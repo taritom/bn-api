@@ -28,8 +28,7 @@ impl BroadcastPushNotificationExecutor {
     }
 
     fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
-        let action_data: BroadcastPushNotificationAction =
-            serde_json::from_value(action.payload.clone())?;
+        let action_data: BroadcastPushNotificationAction = serde_json::from_value(action.payload.clone())?;
         let broadcast_id = action.main_table_id.ok_or(ApplicationError::new(
             "No broadcast id attached to domain action".to_string(),
         ))?;
@@ -50,9 +49,7 @@ impl BroadcastPushNotificationExecutor {
         };
 
         let audience = match audience_type {
-            BroadcastAudience::PeopleAtTheEvent => {
-                Event::checked_in_users(broadcast.event_id, conn.get())?
-            }
+            BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn.get())?,
         };
 
         Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn.get())?;

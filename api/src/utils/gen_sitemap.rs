@@ -21,14 +21,12 @@ pub fn create_sitemap(urls: &[String]) -> Result<String, BigNeonError> {
         })?;
 
         for url in urls.iter() {
-            urlwriter
-                .url(UrlEntry::builder().loc(url.clone()))
-                .map_err(|_e| {
-                    ApplicationError::new_with_type(
-                        ApplicationErrorType::Internal,
-                        format!("fn create_sitemap: Unable to write url, {}", url),
-                    )
-                })?;
+            urlwriter.url(UrlEntry::builder().loc(url.clone())).map_err(|_e| {
+                ApplicationError::new_with_type(
+                    ApplicationErrorType::Internal,
+                    format!("fn create_sitemap: Unable to write url, {}", url),
+                )
+            })?;
         }
         urlwriter.end().map_err(|_e| {
             ApplicationError::new_with_type(
@@ -43,10 +41,7 @@ pub fn create_sitemap(urls: &[String]) -> Result<String, BigNeonError> {
     Ok(buffer)
 }
 
-pub fn create_sitemap_conn(
-    conn: &PgConnection,
-    front_end_url: &String,
-) -> Result<String, BigNeonError> {
+pub fn create_sitemap_conn(conn: &PgConnection, front_end_url: &String) -> Result<String, BigNeonError> {
     //find all active events
     let events_slug_ids = Event::find_all_active_events(conn)?
         .iter()
@@ -93,12 +88,7 @@ pub fn create_sitemap_conn(
     Ok(sitemap_xml)
 }
 
-pub fn create_urls(
-    front_url: &String,
-    slug_ids: Vec<Uuid>,
-    url_parm: String,
-    conn: &PgConnection,
-) -> Vec<String> {
+pub fn create_urls(front_url: &String, slug_ids: Vec<Uuid>, url_parm: String, conn: &PgConnection) -> Vec<String> {
     let slugs = Slug::find_all(slug_ids, conn).unwrap();
     let gen_urls = slugs
         .iter()

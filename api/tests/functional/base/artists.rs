@@ -25,8 +25,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         ..Default::default()
     });
 
-    let response: HttpResponse =
-        artists::create((database.connection.into(), json, auth_user)).into();
+    let response: HttpResponse = artists::create((database.connection.into(), json, auth_user)).into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -43,8 +42,7 @@ pub fn create_with_organization(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let name = "Artist Example";
     let bio = "Bio";
@@ -58,8 +56,7 @@ pub fn create_with_organization(role: Roles, should_test_succeed: bool) {
         ..Default::default()
     });
 
-    let response: HttpResponse =
-        artists::create((database.connection.into(), json, auth_user.clone())).into();
+    let response: HttpResponse = artists::create((database.connection.into(), json, auth_user.clone())).into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -81,8 +78,7 @@ pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = artist.id;
 
-    let response: HttpResponse =
-        artists::toggle_privacy((database.connection.into(), path, auth_user)).into();
+    let response: HttpResponse = artists::toggle_privacy((database.connection.into(), path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -99,21 +95,14 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let connection = database.connection.get();
     let organization = database.create_organization().finish();
     let artist = database.create_artist().finish();
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let event = database.create_event().with_organization(&organization).finish();
     database
         .create_event_artist()
         .with_event(&event)
         .with_artist(&artist)
         .finish();
     artist
-        .set_genres(
-            &vec!["emo".to_string(), "hard-rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], None, connection)
         .unwrap();
     event.update_genres(None, connection).unwrap();
     assert_eq!(
@@ -141,8 +130,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     attributes.genres = Some(vec!["emo".to_string()]);
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        artists::update((database.connection.clone().into(), path, json, auth_user)).into();
+    let response: HttpResponse = artists::update((database.connection.clone().into(), path, json, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -171,13 +159,9 @@ pub fn update_with_organization(role: Roles, should_test_succeed: bool, is_priva
 
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
-    let mut artist = database
-        .create_artist()
-        .with_organization(&organization)
-        .finish();
+    let mut artist = database.create_artist().with_organization(&organization).finish();
 
     if is_private {
         artist = artist.set_privacy(true, database.connection.get()).unwrap();
@@ -198,8 +182,7 @@ pub fn update_with_organization(role: Roles, should_test_succeed: bool, is_priva
     attributes.youtube_video_urls = Some(Vec::new());
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        artists::update((database.connection.into(), path, json, auth_user.clone())).into();
+    let response: HttpResponse = artists::update((database.connection.into(), path, json, auth_user.clone())).into();
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);

@@ -58,17 +58,18 @@ fn hashes_with_salt() {
 
 #[test]
 fn verify_password() {
-    let sh = PasswordHash::from_str(
-        "$argon2i$m=4096,t=3,p=1$c29tZXNhbHQ$rVJmrKufM5nm57O4lxgQoBmRXtL42QhxbKzskhnBaMg",
-    )
-    .unwrap();
+    let sh = PasswordHash::from_str("$argon2i$m=4096,t=3,p=1$c29tZXNhbHQ$rVJmrKufM5nm57O4lxgQoBmRXtL42QhxbKzskhnBaMg")
+        .unwrap();
     assert!(sh.verify("test"));
     assert!(!sh.verify("wrong_password"));
 }
 
 #[test]
 fn verify_library_hash() {
-    let sh = PasswordHash::from_str("$argon2i$m=4096,t=3,p=1$dG9kbzogZnV6eiB0ZXN0cw$Eh1lW3mjkhlMLRQdE7vXZnvwDXSGLBfXa6BGK4a1J3s").unwrap();
+    let sh = PasswordHash::from_str(
+        "$argon2i$m=4096,t=3,p=1$dG9kbzogZnV6eiB0ZXN0cw$Eh1lW3mjkhlMLRQdE7vXZnvwDXSGLBfXa6BGK4a1J3s",
+    )
+    .unwrap();
     assert!(sh.verify("argon2i!"));
 }
 

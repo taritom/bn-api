@@ -87,11 +87,7 @@ impl<'a> HoldBuilder<'a> {
         let ticket_type_id = match self.ticket_type_id {
             Some(id) => {
                 let ticket_type = TicketType::find(id, self.connection).unwrap();
-                self.event_id = Some(
-                    Event::find(ticket_type.event_id, self.connection)
-                        .unwrap()
-                        .id,
-                );
+                self.event_id = Some(Event::find(ticket_type.event_id, self.connection).unwrap().id);
 
                 id
             }
@@ -128,8 +124,7 @@ impl<'a> HoldBuilder<'a> {
         .commit(None, self.connection)
         .unwrap();
 
-        hold.set_quantity(None, self.quantity, self.connection)
-            .unwrap();
+        hold.set_quantity(None, self.quantity, self.connection).unwrap();
         hold
     }
 }

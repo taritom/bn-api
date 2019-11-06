@@ -11,10 +11,7 @@ pub struct RefreshToken {
 
 impl RefreshToken {
     pub fn new(user_id: &Uuid, issuer: String) -> Self {
-        let issued = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let issued = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
         RefreshToken {
             iss: issuer,

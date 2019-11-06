@@ -178,8 +178,7 @@ fn create_with_validation_errors() {
     let database = TestDatabase::new();
     let organization = database.create_organization().finish();
     let user = database.create_user().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
     let event = database
         .create_event()
         .with_tickets()
@@ -198,18 +197,14 @@ fn create_with_validation_errors() {
         end_at: None,
         max_per_user: None,
         quantity: 2,
-        ticket_type_id: event
-            .ticket_types(true, None, database.connection.get())
-            .unwrap()[0]
-            .id,
+        ticket_type_id: event.ticket_types(true, None, database.connection.get()).unwrap()[0].id,
     });
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        holds::create((database.connection.into(), json, path, auth_user)).into();
+    let response: HttpResponse = holds::create((database.connection.into(), json, path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -227,14 +222,10 @@ fn update_with_validation_errors() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let hold = database
-        .create_hold()
-        .with_hold_type(HoldTypes::Comp)
-        .finish();
+    let hold = database.create_hold().with_hold_type(HoldTypes::Comp).finish();
     let event = Event::find(hold.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
     let name = "New Name";
 
     let test_request = TestRequest::create();
@@ -247,8 +238,7 @@ fn update_with_validation_errors() {
         ..Default::default()
     });
 
-    let response: HttpResponse =
-        holds::update((database.connection.clone(), json, path, auth_user)).into();
+    let response: HttpResponse = holds::update((database.connection.clone(), json, path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
@@ -266,8 +256,7 @@ pub fn read_hold() {
     let database = TestDatabase::new();
     let organization = database.create_organization().finish();
     let user = database.create_user().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
     let event = database
         .create_event()
         .with_tickets()
@@ -286,23 +275,15 @@ pub fn read_hold() {
         end_at: None,
         max_per_user: None,
         quantity: 2,
-        ticket_type_id: event
-            .ticket_types(true, None, database.connection.get())
-            .unwrap()[0]
-            .id,
+        ticket_type_id: event.ticket_types(true, None, database.connection.get()).unwrap()[0].id,
     });
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = holds::create((
-        database.connection.clone().into(),
-        json,
-        path,
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        holds::create((database.connection.clone().into(), json, path, auth_user.clone())).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     let created_hold: DisplayHold = serde_json::from_str(body).unwrap();
 

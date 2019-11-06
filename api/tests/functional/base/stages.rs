@@ -23,8 +23,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
-    let response: HttpResponse =
-        stages::create((database.connection.into(), path, json, user)).into();
+    let response: HttpResponse = stages::create((database.connection.into(), path, json, user)).into();
 
     if !should_succeed {
         support::expects_unauthorized(&response);
@@ -51,8 +50,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     attributes.name = Some(new_name.to_string());
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        stages::update((database.connection.into(), path, json, user)).into();
+    let response: HttpResponse = stages::update((database.connection.into(), path, json, user)).into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;

@@ -62,26 +62,16 @@ fn find_for_settlement_by_event() {
 
     // Ticket type adjusts order
     ticket_type.clone().update_rank_only(0, connection).unwrap();
-    ticket_type2
-        .clone()
-        .update_rank_only(1, connection)
-        .unwrap();
-    let mut results =
-        SettlementEntry::find_for_settlement_by_event(&settlement, connection).unwrap();
+    ticket_type2.clone().update_rank_only(1, connection).unwrap();
+    let mut results = SettlementEntry::find_for_settlement_by_event(&settlement, connection).unwrap();
     assert_eq!(results.len(), 2);
     let grouped_settlement_entry = results.pop().unwrap();
-    assert_eq!(
-        grouped_settlement_entry.event,
-        event2.for_display(connection).unwrap()
-    );
+    assert_eq!(grouped_settlement_entry.event, event2.for_display(connection).unwrap());
     assert_eq!(grouped_settlement_entry.entries.len(), 1);
     assert_eq!(grouped_settlement_entry.entries[0].id, settlement_entry4.id);
 
     let grouped_settlement_entry = results.pop().unwrap();
-    assert_eq!(
-        grouped_settlement_entry.event,
-        event.for_display(connection).unwrap()
-    );
+    assert_eq!(grouped_settlement_entry.event, event.for_display(connection).unwrap());
     assert_eq!(grouped_settlement_entry.entries.len(), 3);
     assert_eq!(grouped_settlement_entry.entries[0].id, settlement_entry.id);
     assert_eq!(grouped_settlement_entry.entries[1].id, settlement_entry2.id);
@@ -90,8 +80,7 @@ fn find_for_settlement_by_event() {
     // Adjust order in reverse for event
     ticket_type.update_rank_only(1, connection).unwrap();
     ticket_type2.update_rank_only(0, connection).unwrap();
-    let mut results =
-        SettlementEntry::find_for_settlement_by_event(&settlement, connection).unwrap();
+    let mut results = SettlementEntry::find_for_settlement_by_event(&settlement, connection).unwrap();
     assert_eq!(results.len(), 2);
     let grouped_settlement_entry = results.pop().unwrap();
     assert_eq!(grouped_settlement_entry.entries.len(), 1);

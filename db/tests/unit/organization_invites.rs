@@ -38,9 +38,7 @@ fn find_pending_by_org() {
         .with_org(&organization)
         .with_invitee(&user)
         .finish();
-    let pending =
-        OrganizationInvite::find_pending_by_organization(organization.id, None, connection)
-            .unwrap();
+    let pending = OrganizationInvite::find_pending_by_organization(organization.id, None, connection).unwrap();
     assert_eq!(pending.len(), 1);
     let email = "test@test.com".to_string();
     let active_find = OrganizationInvite::find_active_invite_by_email(&email, connection).unwrap();
@@ -55,10 +53,7 @@ fn create_event_limited_access_user() {
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
-    let event = project
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let event = project.create_event().with_organization(&organization).finish();
     let organization_invite = OrganizationInvite::create(
         organization.id,
         user.id,
@@ -103,20 +98,13 @@ fn create_with_validation_errors() {
                 assert_eq!(errors["user_email"].len(), 1);
                 assert_eq!(errors["user_email"][0].code, "email");
                 assert_eq!(
-                    &errors["user_email"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["user_email"][0].message.clone().unwrap().into_owned(),
                     "User email is invalid"
                 );
 
                 assert!(errors.contains_key("event_ids"));
                 assert_eq!(errors["event_ids"].len(), 1);
-                assert_eq!(
-                    errors["event_ids"][0].code,
-                    "event_ids_do_not_belong_to_organization"
-                );
+                assert_eq!(errors["event_ids"][0].code, "event_ids_do_not_belong_to_organization");
                 assert_eq!(
                     &errors["event_ids"][0].message.clone().unwrap().into_owned(),
                     "Event ids invalid for organization user"
@@ -153,9 +141,7 @@ fn change_invite_status_of_invite() {
     we will test for a period of 30 seconds
     */
     assert!(org_invite.accept_invite(&project.get_connection()).is_ok());
-    assert!(org_invite2
-        .decline_invite(&project.get_connection())
-        .is_ok());
+    assert!(org_invite2.decline_invite(&project.get_connection()).is_ok());
 
     assert_eq!(org_invite.accepted, Some(1));
     assert_eq!(org_invite.security_token, None);
@@ -179,11 +165,8 @@ fn view_invitation() {
         .with_invitee(&user)
         .with_inviter(&inviter)
         .finish();
-    let display_invite = OrganizationInvite::get_invite_display(
-        &org_invite.security_token.unwrap(),
-        project.get_connection(),
-    )
-    .unwrap();
+    let display_invite =
+        OrganizationInvite::get_invite_display(&org_invite.security_token.unwrap(), project.get_connection()).unwrap();
 
     assert_eq!(display_invite.organization_name, organization.name);
     assert_eq!(
@@ -208,18 +191,13 @@ fn test_token_validity() {
         .with_org(&organization)
         .with_invitee(&user)
         .finish();
-    let recovered_invite = OrganizationInvite::find_by_token(
-        org_invite.security_token.unwrap(),
-        project.get_connection(),
-    )
-    .unwrap();
+    let recovered_invite =
+        OrganizationInvite::find_by_token(org_invite.security_token.unwrap(), project.get_connection()).unwrap();
     assert_eq!(org_invite, recovered_invite);
     org_invite.created_at = NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11);
     org_invite = update(&org_invite, &project.get_connection()).unwrap();
-    let recovered_invite2 = OrganizationInvite::find_by_token(
-        org_invite.security_token.unwrap(),
-        &project.get_connection(),
-    );
+    let recovered_invite2 =
+        OrganizationInvite::find_by_token(org_invite.security_token.unwrap(), &project.get_connection());
     let error_value = DatabaseError {
         code: 2000,
         message: "No results".into(),
@@ -373,14 +351,12 @@ fn find_pending_by_organization_paged() {
     org_invite2.change_invite_status(1, connection).unwrap();
 
     let paged_invites =
-        OrganizationInvite::find_pending_by_organization_paged(organization.id, 0, 100, connection)
-            .unwrap();
+        OrganizationInvite::find_pending_by_organization_paged(organization.id, 0, 100, connection).unwrap();
     assert_eq!(
         vec![DisplayInvite {
             id: org_invite3.id,
             organization_name: organization.name,
-            inviter_name: format!("{} {}", user4.first_name.unwrap(), user4.last_name.unwrap())
-                .into(),
+            inviter_name: format!("{} {}", user4.first_name.unwrap(), user4.last_name.unwrap()).into(),
             expires_at: org_invite3.created_at + Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS),
         }],
         paged_invites.data
@@ -408,19 +384,14 @@ fn test_sending_status() {
     we will test for a period of 30 seconds
     */
     let pre_send_invite = org_invite.clone();
-    let post_send_invite = org_invite
-        .change_sent_status(true, &project.get_connection())
-        .unwrap();
+    let post_send_invite = org_invite.change_sent_status(true, &project.get_connection()).unwrap();
 
     assert_eq!(pre_send_invite.sent_invite, false);
     assert_eq!(post_send_invite.sent_invite, true);
 }
 
 // dont want to update the details in the main function, so keeping this in the unit test section
-fn update(
-    org_invite: &OrganizationInvite,
-    conn: &PgConnection,
-) -> Result<OrganizationInvite, DatabaseError> {
+fn update(org_invite: &OrganizationInvite, conn: &PgConnection) -> Result<OrganizationInvite, DatabaseError> {
     DatabaseError::wrap(
         ErrorCode::UpdateError,
         "Could not update organization_invite",

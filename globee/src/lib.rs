@@ -66,14 +66,9 @@ impl GlobeeClient {
         }
     }
 
-    pub fn create_payment_request(
-        &self,
-        request: PaymentRequest,
-    ) -> Result<PaymentResponse, GlobeeError> {
+    pub fn create_payment_request(&self, request: PaymentRequest) -> Result<PaymentResponse, GlobeeError> {
         let client = reqwest::Client::new();
-        jlog!(Debug, "Sending payment request to Globee", {
-            "request": &request
-        });
+        jlog!(Debug, "Sending payment request to Globee", { "request": &request });
 
         let mut resp = client
             .post(&format!("{}payment-request", &self.base_url))
@@ -83,10 +78,7 @@ impl GlobeeClient {
         let status = resp.status();
         if status != StatusCode::UNPROCESSABLE_ENTITY && status != StatusCode::OK {
             return Err(resp.error_for_status().err().map(|e| e.into()).unwrap_or(
-                GlobeeError::UnexpectedResponseError(format!(
-                    "Unexpected status code from Globee: {}",
-                    status
-                )),
+                GlobeeError::UnexpectedResponseError(format!("Unexpected status code from Globee: {}", status)),
             ));
         };
         let value: serde_json::Value = resp.json()?;
@@ -111,9 +103,7 @@ impl GlobeeClient {
     }
     pub fn get_payment_request(&self, id: &str) -> Result<GlobeeIpnRequest, GlobeeError> {
         let client = reqwest::Client::new();
-        jlog!(Debug, "Retrieving payment request from Globee", {
-            "id": id
-        });
+        jlog!(Debug, "Retrieving payment request from Globee", { "id": id });
 
         let mut resp = client
             .get(&format!("{}payment-request/{}", &self.base_url, id))
@@ -122,10 +112,7 @@ impl GlobeeClient {
         let status = resp.status();
         if status != StatusCode::UNPROCESSABLE_ENTITY && status != StatusCode::OK {
             return Err(resp.error_for_status().err().map(|e| e.into()).unwrap_or(
-                GlobeeError::UnexpectedResponseError(format!(
-                    "Unexpected status code from Globee: {}",
-                    status
-                )),
+                GlobeeError::UnexpectedResponseError(format!("Unexpected status code from Globee: {}", status)),
             ));
         };
         let value: serde_json::Value = resp.json()?;
@@ -273,9 +260,7 @@ where
     if value.is_string() {
         let value = value.as_str();
         if let Some(s) = value {
-            f64::from_str(s)
-                .map_err(serde::de::Error::custom)
-                .map(|f| Some(f))
+            f64::from_str(s).map_err(serde::de::Error::custom).map(|f| Some(f))
         } else {
             Ok(None)
         }
@@ -294,9 +279,7 @@ where
 
     let value = value.as_str();
     if let Some(s) = value {
-        f64::from_str(s)
-            .map_err(serde::de::Error::custom)
-            .map(|f| Some(f))
+        f64::from_str(s).map_err(serde::de::Error::custom).map(|f| Some(f))
     } else {
         Ok(None)
     }
@@ -340,16 +323,10 @@ pub struct Customer {
 pub struct PaymentDetails {
     pub currency: Option<String>,
 
-    #[serde(
-        deserialize_with = "from_str_or_num_to_num",
-        serialize_with = "num_to_string"
-    )]
+    #[serde(deserialize_with = "from_str_or_num_to_num", serialize_with = "num_to_string")]
     pub received_amount: Option<f64>,
 
-    #[serde(
-        deserialize_with = "from_str_or_num_to_num",
-        serialize_with = "num_to_string"
-    )]
+    #[serde(deserialize_with = "from_str_or_num_to_num", serialize_with = "num_to_string")]
     pub received_difference: Option<f64>,
 }
 

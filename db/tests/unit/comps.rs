@@ -24,10 +24,7 @@ fn create() {
 #[test]
 pub fn create_with_validation_errors() {
     let db = TestProject::new();
-    let hold = db
-        .create_hold()
-        .with_hold_type(HoldTypes::Discount)
-        .finish();
+    let hold = db.create_hold().with_hold_type(HoldTypes::Discount).finish();
     let result = Hold::create_comp_for_person(
         "test".into(),
         None,
@@ -130,9 +127,7 @@ fn find_by_redemption_code() {
     let db = TestProject::new();
     let connection = db.get_connection();
     let comp = db.create_comp().finish();
-    let found_comp =
-        Hold::find_by_redemption_code(&comp.redemption_code.clone().unwrap(), None, connection)
-            .unwrap();
+    let found_comp = Hold::find_by_redemption_code(&comp.redemption_code.clone().unwrap(), None, connection).unwrap();
     assert_eq!(comp, found_comp);
 }
 
@@ -155,11 +150,7 @@ fn find_for_hold() {
         .with_quantity(1)
         .with_name("Comp2".into())
         .finish();
-    let _comp3 = db
-        .create_comp()
-        .with_hold(&hold2)
-        .with_name("Comp3".into())
-        .finish();
+    let _comp3 = db.create_comp().with_hold(&hold2).with_name("Comp3".into()).finish();
 
     let update_patch = UpdateHoldAttributes {
         hold_type: Some(HoldTypes::Discount),
@@ -168,11 +159,9 @@ fn find_for_hold() {
     };
     let _hold2 = hold2.update(update_patch, connection).unwrap();
 
-    let found_comps =
-        Hold::find_by_parent_id(hold1.id, Some(HoldTypes::Comp), 0, 1000, connection).unwrap();
+    let found_comps = Hold::find_by_parent_id(hold1.id, Some(HoldTypes::Comp), 0, 1000, connection).unwrap();
     assert_eq!(vec![comp1, comp2], found_comps.data);
 
-    let found_comps =
-        Hold::find_by_parent_id(hold3.id, Some(HoldTypes::Comp), 0, 1000, connection).unwrap();
+    let found_comps = Hold::find_by_parent_id(hold3.id, Some(HoldTypes::Comp), 0, 1000, connection).unwrap();
     assert!(found_comps.is_empty());
 }

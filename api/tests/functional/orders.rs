@@ -40,8 +40,7 @@ pub fn show() {
     path.id = order.id;
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
-    let response: HttpResponse =
-        orders::show((database.connection.clone(), path, auth_user)).into();
+    let response: HttpResponse = orders::show((database.connection.clone(), path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_order: DisplayOrder = serde_json::from_str(&body).unwrap();
@@ -76,8 +75,7 @@ pub fn show_for_box_office_purchased_user() {
     path.id = order.id;
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
-    let response: HttpResponse =
-        orders::show((database.connection.clone(), path, auth_user)).into();
+    let response: HttpResponse = orders::show((database.connection.clone(), path, auth_user)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_order: DisplayOrder = serde_json::from_str(&body).unwrap();
@@ -96,13 +94,8 @@ pub fn resend_confirmation_on_draft_order() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let order = database
-        .create_order()
-        .for_event(&event)
-        .for_user(&user2)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let order = database.create_order().for_event(&event).for_user(&user2).finish();
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
     assert_eq!(order.status, OrderStatus::Draft);
 
     let test_request = TestRequest::create();
@@ -250,10 +243,7 @@ mod show_other_user_order_not_matching_users_organization_tests {
 
     #[test]
     fn show_other_user_order_not_matching_users_organization_org_member() {
-        base::orders::show_other_user_order_not_matching_users_organization(
-            Roles::OrgMember,
-            false,
-        );
+        base::orders::show_other_user_order_not_matching_users_organization(Roles::OrgMember, false);
     }
     #[test]
     fn show_other_user_order_not_matching_users_organization_admin() {
@@ -269,10 +259,7 @@ mod show_other_user_order_not_matching_users_organization_tests {
     }
     #[test]
     fn show_other_user_order_not_matching_users_organization_door_person() {
-        base::orders::show_other_user_order_not_matching_users_organization(
-            Roles::DoorPerson,
-            false,
-        );
+        base::orders::show_other_user_order_not_matching_users_organization(Roles::DoorPerson, false);
     }
     #[test]
     fn show_other_user_order_not_matching_users_organization_promoter() {
@@ -280,10 +267,7 @@ mod show_other_user_order_not_matching_users_organization_tests {
     }
     #[test]
     fn show_other_user_order_not_matching_users_organization_promoter_read_only() {
-        base::orders::show_other_user_order_not_matching_users_organization(
-            Roles::PromoterReadOnly,
-            false,
-        );
+        base::orders::show_other_user_order_not_matching_users_organization(Roles::PromoterReadOnly, false);
     }
     #[test]
     fn show_other_user_order_not_matching_users_organization_org_admin() {
@@ -291,10 +275,7 @@ mod show_other_user_order_not_matching_users_organization_tests {
     }
     #[test]
     fn show_other_user_order_not_matching_users_organization_box_office() {
-        base::orders::show_other_user_order_not_matching_users_organization(
-            Roles::OrgBoxOffice,
-            false,
-        );
+        base::orders::show_other_user_order_not_matching_users_organization(Roles::OrgBoxOffice, false);
     }
 }
 
@@ -310,8 +291,7 @@ pub fn show_for_draft_returns_forbidden() {
     path.id = order.id;
 
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
-    let response: HttpResponse =
-        orders::show((database.connection.clone(), path, auth_user)).into();
+    let response: HttpResponse = orders::show((database.connection.clone(), path, auth_user)).into();
     support::expects_forbidden(&response, Some("You do not have access to this order"));
 }
 
@@ -359,8 +339,7 @@ pub fn index() {
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let test_request = TestRequest::create_with_uri(&format!("/?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        orders::index((database.connection.clone(), query_parameters, auth_user)).into();
+    let response: HttpResponse = orders::index((database.connection.clone(), query_parameters, auth_user)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -459,11 +438,7 @@ mod refund_tests {
 pub fn refund_for_non_refundable_tickets() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let organization = database
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = database.create_organization().with_event_fee().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -472,8 +447,7 @@ pub fn refund_for_non_refundable_tickets() {
         .finish();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     cart.update_quantities(
@@ -501,15 +475,9 @@ pub fn refund_for_non_refundable_tickets() {
 
     let items = cart.items(&connection).unwrap();
 
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
 
-    let event_fee_item = items
-        .iter()
-        .find(|i| i.item_type == OrderItemTypes::EventFees)
-        .unwrap();
+    let event_fee_item = items.iter().find(|i| i.item_type == OrderItemTypes::EventFees).unwrap();
 
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
@@ -583,14 +551,9 @@ pub fn refund_hold_ticket() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let hold = database
-        .create_hold()
-        .with_quantity(1)
-        .with_event(&event)
-        .finish();
+    let hold = database.create_hold().with_quantity(1).with_event(&event).finish();
     let user = database.create_user().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     cart.update_quantities(
@@ -617,10 +580,7 @@ pub fn refund_hold_ticket() {
     .unwrap();
 
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     let discount_item = order_item.find_discount_item(connection).unwrap().unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
@@ -651,9 +611,8 @@ pub fn refund_hold_ticket() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let refund_response: RefundResponse = serde_json::from_str(&body).unwrap();
-    let expected_refund_amount = order_item.unit_price_in_cents
-        + fee_item.unit_price_in_cents
-        + discount_item.unit_price_in_cents;
+    let expected_refund_amount =
+        order_item.unit_price_in_cents + fee_item.unit_price_in_cents + discount_item.unit_price_in_cents;
     assert_eq!(refund_response.amount_refunded, expected_refund_amount);
 
     let mut expected_refund_breakdown = HashMap::new();

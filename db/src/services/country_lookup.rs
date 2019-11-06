@@ -32,8 +32,7 @@ impl CountryLookup {
     pub fn parse_city_state_country(
         &self,
         input: &str,
-    ) -> Result<Vec<(Option<String>, Option<StateDatum>, Option<CountryDatum>)>, DatabaseError>
-    {
+    ) -> Result<Vec<(Option<String>, Option<StateDatum>, Option<CountryDatum>)>, DatabaseError> {
         let mut city_state_countries = Vec::new();
         let query_fragments: Vec<String> = input
             .split(|c| c == ',' || c == ' ')
@@ -43,8 +42,7 @@ impl CountryLookup {
         let mut found_countries = Vec::new();
         let query_fragment_size = query_fragments.len();
         for i in 0..cmp::min(query_fragment_size, MAXIMUM_COUNTRY_FRAGMENTS) {
-            let test_fragment =
-                query_fragments[(query_fragment_size - 1 - i)..query_fragment_size].join(" ");
+            let test_fragment = query_fragments[(query_fragment_size - 1 - i)..query_fragment_size].join(" ");
             if let Some(country_datum) = self.find(&test_fragment) {
                 found_countries.push((
                     country_datum,
@@ -126,10 +124,7 @@ impl Ord for CountryDatum {
 }
 
 impl CountryDatum {
-    pub fn parse_city_state(
-        &self,
-        input: &str,
-    ) -> Result<Vec<(Option<String>, Option<StateDatum>)>, DatabaseError> {
+    pub fn parse_city_state(&self, input: &str) -> Result<Vec<(Option<String>, Option<StateDatum>)>, DatabaseError> {
         let mut potential_city_states = Vec::new();
         let query_fragments: Vec<String> = input
             .split(|c| c == ',' || c == ' ')
@@ -138,8 +133,7 @@ impl CountryDatum {
             .collect();
         let query_fragment_size = query_fragments.len();
         for i in 0..cmp::min(query_fragment_size, MAXIMUM_STATE_FRAGMENTS) {
-            let test_fragment =
-                query_fragments[(query_fragment_size - 1 - i)..query_fragment_size].join(" ");
+            let test_fragment = query_fragments[(query_fragment_size - 1 - i)..query_fragment_size].join(" ");
             if let Some(state_datum) = self.state(&test_fragment) {
                 let mut city: Option<String> = None;
                 if query_fragment_size - i - 1 > 0 {
@@ -185,11 +179,7 @@ impl CountryDatum {
         }
 
         // Find by province code
-        if let Some((province, code)) = self
-            .province_codes
-            .iter()
-            .find(|(_, v)| v.to_lowercase() == input)
-        {
+        if let Some((province, code)) = self.province_codes.iter().find(|(_, v)| v.to_lowercase() == input) {
             let mut label: Option<String> = None;
             if let Some(province_labels) = &self.province_labels {
                 label = province_labels.get(province).map(|l| l.clone());

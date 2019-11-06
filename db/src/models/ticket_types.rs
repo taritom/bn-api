@@ -8,8 +8,7 @@ use diesel::sql_types::{Nullable, Text, Uuid as dUuid};
 use itertools::Itertools;
 use models::*;
 use schema::{
-    assets, events, fee_schedules, organizations, ticket_instances, ticket_pricing,
-    ticket_type_codes, ticket_types,
+    assets, events, fee_schedules, organizations, ticket_instances, ticket_pricing, ticket_type_codes, ticket_types,
 };
 use serde_with::rust::double_option;
 use std::cmp;
@@ -19,9 +18,7 @@ use uuid::Uuid;
 use validator::*;
 use validators::{self, *};
 
-#[derive(
-    Associations, Clone, Debug, Identifiable, PartialEq, Queryable, QueryableByName, Serialize,
-)]
+#[derive(Associations, Clone, Debug, Identifiable, PartialEq, Queryable, QueryableByName, Serialize)]
 #[table_name = "ticket_types"]
 #[belongs_to(Event)]
 pub struct TicketType {
@@ -89,32 +86,21 @@ impl TicketType {
             .filter(ticket_types::id.eq(self.id))
             .select(events::all_columns)
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve event for ticket type",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve event for ticket type")
             .expect_single()?;
         Ok(res)
     }
 
     pub fn fee_schedule(&self, conn: &PgConnection) -> Result<FeeSchedule, DatabaseError> {
         ticket_types::table
-            .inner_join(
-                events::table.inner_join(organizations::table.inner_join(fee_schedules::table)),
-            )
+            .inner_join(events::table.inner_join(organizations::table.inner_join(fee_schedules::table)))
             .filter(ticket_types::id.eq(self.id))
             .select(fee_schedules::all_columns)
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve fee schedule for ticket type",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve fee schedule for ticket type")
     }
 
-    pub fn find_by_ids(
-        ids: &Vec<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Vec<TicketType>, DatabaseError> {
+    pub fn find_by_ids(ids: &Vec<Uuid>, conn: &PgConnection) -> Result<Vec<TicketType>, DatabaseError> {
         ticket_types::table
             .filter(ticket_types::id.eq_any(ids))
             .order_by(ticket_types::rank)
@@ -209,12 +195,11 @@ impl TicketType {
         if let Some(parent) = result.parent(conn)? {
             if parent.valid_available_ticket_count(conn)? == 0 {
                 // Try keep the previous date if it was set.
-                start_date =
-                    if previous_start_date.unwrap_or(times::infinity()) < Utc::now().naive_utc() {
-                        previous_start_date.unwrap()
-                    } else {
-                        Utc::now().naive_utc()
-                    }
+                start_date = if previous_start_date.unwrap_or(times::infinity()) < Utc::now().naive_utc() {
+                    previous_start_date.unwrap()
+                } else {
+                    Utc::now().naive_utc()
+                }
             }
         }
 
@@ -235,16 +220,9 @@ impl TicketType {
         Ok(result)
     }
 
-    pub fn update_rank_only(
-        self,
-        new_rank: i32,
-        conn: &PgConnection,
-    ) -> Result<TicketType, DatabaseError> {
+    pub fn update_rank_only(self, new_rank: i32, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
         let result: TicketType = diesel::update(&self)
-            .set((
-                ticket_types::rank.eq(new_rank),
-                ticket_types::updated_at.eq(dsl::now),
-            ))
+            .set((ticket_types::rank.eq(new_rank), ticket_types::updated_at.eq(dsl::now)))
             .get_result(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update ticket type rank")?;
 
@@ -320,32 +298,22 @@ impl TicketType {
             };
 
             if end_date.is_none() {
-                return DatabaseError::business_process_error(
-                    "Could not fetch end date for ticket type from event",
-                );
+                return DatabaseError::business_process_error("Could not fetch end date for ticket type from event");
             }
 
             Ok(end_date.unwrap())
         }
     }
 
-    pub fn find_for_code(
-        code_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<TicketType>, DatabaseError> {
+    pub fn find_for_code(code_id: Uuid, conn: &PgConnection) -> Result<Vec<TicketType>, DatabaseError> {
         ticket_types::table
-            .inner_join(
-                ticket_type_codes::table.on(ticket_type_codes::ticket_type_id.eq(ticket_types::id)),
-            )
+            .inner_join(ticket_type_codes::table.on(ticket_type_codes::ticket_type_id.eq(ticket_types::id)))
             .filter(ticket_type_codes::code_id.eq(code_id))
             .select(ticket_types::all_columns)
             .order_by(ticket_types::rank)
             .then_order_by(ticket_types::name)
             .get_results(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not find ticket types for code",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not find ticket types for code")
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
@@ -361,8 +329,7 @@ impl TicketType {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         if attributes.end_date_type.unwrap_or(self.end_date_type) == TicketTypeEndDateType::Manual
-            && (attributes.end_date == Some(None)
-                || (attributes.end_date.is_none() && self.end_date.is_none()))
+            && (attributes.end_date == Some(None) || (attributes.end_date.is_none() && self.end_date.is_none()))
         {
             return Ok(validators::append_validation_error(
                 Ok(()),
@@ -374,10 +341,7 @@ impl TicketType {
             )?);
         }
 
-        let new_end_date = attributes
-            .end_date
-            .unwrap_or(None)
-            .unwrap_or(self.end_date(conn)?);
+        let new_end_date = attributes.end_date.unwrap_or(None).unwrap_or(self.end_date(conn)?);
         let new_parent_id = attributes.parent_id.unwrap_or(self.parent_id);
 
         if attributes.start_date.is_some() || attributes.parent_id.is_some() {
@@ -386,17 +350,17 @@ impl TicketType {
             // If there is a parent id, start date must be null
             if let Some(parent_id) = new_parent_id {
                 if new_start_date.is_some() {
-                    return Ok(validators::simple_error("start_date", "Start date cannot be specified if the ticket type is set to start after another ticket type")?);
+                    return Ok(validators::simple_error(
+                        "start_date",
+                        "Start date cannot be specified if the ticket type is set to start after another ticket type",
+                    )?);
                 }
                 // Otherwise the end date of the parent must be before the end date
                 else {
                     return Ok(validators::append_validation_error(
                         Ok(()),
                         "start_date",
-                        validators::start_date_valid(
-                            TicketType::find(parent_id, conn)?.end_date(conn)?,
-                            new_end_date,
-                        ),
+                        validators::start_date_valid(TicketType::find(parent_id, conn)?.end_date(conn)?, new_end_date),
                     )?);
                 }
             } else {
@@ -413,10 +377,7 @@ impl TicketType {
             return Ok(validators::append_validation_error(
                 Ok(()),
                 "start_date",
-                validators::start_date_valid(
-                    new_start_date.unwrap_or(self.start_date(conn)?),
-                    new_end_date,
-                ),
+                validators::start_date_valid(new_start_date.unwrap_or(self.start_date(conn)?), new_end_date),
             )?);
         }
 
@@ -444,10 +405,7 @@ impl TicketType {
             validation_errors = validators::append_validation_error(
                 validation_errors,
                 "ticket_pricing.start_date",
-                TicketPricing::ticket_pricing_does_not_overlap_ticket_type_start_date(
-                    self,
-                    ticket_pricing.start_date,
-                )?,
+                TicketPricing::ticket_pricing_does_not_overlap_ticket_type_start_date(self, ticket_pricing.start_date)?,
             );
             validation_errors = validators::append_validation_error(
                 validation_errors,
@@ -495,11 +453,7 @@ impl TicketType {
         Ok(())
     }
 
-    pub fn start_sales(
-        self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn start_sales(self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.start_date.unwrap_or(times::infinity()) > times::now() {
             DomainEvent::create(
                 DomainEventTypes::TicketTypeSalesStarted,
@@ -524,17 +478,11 @@ impl TicketType {
 
         Ok(())
     }
-    pub fn find_dependent_ticket_types(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<TicketType>, DatabaseError> {
+    pub fn find_dependent_ticket_types(&self, conn: &PgConnection) -> Result<Vec<TicketType>, DatabaseError> {
         ticket_types::table
             .filter(ticket_types::parent_id.eq(Some(self.id)))
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load dependent ticket types",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load dependent ticket types")
     }
 
     pub fn find_by_event_id(
@@ -569,20 +517,14 @@ impl TicketType {
                 .bind::<dUuid, _>(event_id)
                 .bind::<Nullable<Text>, _>(redemption_code)
                 .load(conn)
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Could not load ticket types for event",
-                )
+                .to_db_error(ErrorCode::QueryError, "Could not load ticket types for event")
         } else {
             ticket_types::table
                 .filter(ticket_types::event_id.eq(event_id))
                 .order_by(ticket_types::rank)
                 .then_order_by(ticket_types::name)
                 .load(conn)
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Could not load ticket types for event",
-                )
+                .to_db_error(ErrorCode::QueryError, "Could not load ticket types for event")
         }
     }
 
@@ -592,10 +534,7 @@ impl TicketType {
             .filter(assets::ticket_type_id.eq(self.id))
             .select(dsl::count(ticket_instances::id))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load ticket count for ticket type",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket count for ticket type")?;
         Ok(valid_ticket_count as u32)
     }
 
@@ -606,10 +545,7 @@ impl TicketType {
             .filter(ticket_instances::status.ne(TicketInstanceStatus::Nullified))
             .select(dsl::count(ticket_instances::id))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load ticket count for ticket type",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket count for ticket type")?;
         Ok(valid_ticket_count as u32)
     }
 
@@ -617,23 +553,16 @@ impl TicketType {
         let valid_unsold_ticket_count: i64 = ticket_instances::table
             .inner_join(assets::table)
             .filter(assets::ticket_type_id.eq(self.id))
-            .filter(ticket_instances::status.eq_any(vec![
-                TicketInstanceStatus::Available,
-                TicketInstanceStatus::Reserved,
-            ]))
+            .filter(
+                ticket_instances::status.eq_any(vec![TicketInstanceStatus::Available, TicketInstanceStatus::Reserved]),
+            )
             .select(dsl::count(ticket_instances::id))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load ticket count for ticket type",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket count for ticket type")?;
         Ok(valid_unsold_ticket_count as u32)
     }
 
-    pub fn valid_sold_and_reserved_ticket_count(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<u32, DatabaseError> {
+    pub fn valid_sold_and_reserved_ticket_count(&self, conn: &PgConnection) -> Result<u32, DatabaseError> {
         let valid_unsold_ticket_count: i64 = ticket_instances::table
             .inner_join(assets::table)
             .filter(assets::ticket_type_id.eq(self.id))
@@ -644,10 +573,7 @@ impl TicketType {
             ]))
             .select(dsl::count(ticket_instances::id))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load ticket count for ticket type",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket count for ticket type")?;
         Ok(valid_unsold_ticket_count as u32)
     }
 
@@ -666,10 +592,9 @@ impl TicketType {
             .filter(ticket_instances::hold_id.is_null())
             .select(dsl::count(ticket_instances::id));
 
-        let valid_available_ticket_count: i64 = query.first(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not load ticket count for ticket type",
-        )?;
+        let valid_available_ticket_count: i64 = query
+            .first(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket count for ticket type")?;
         Ok(valid_available_ticket_count as u32)
     }
 
@@ -699,16 +624,13 @@ impl TicketType {
         } else {
             query = query.filter(ticket_pricing::status.eq(TicketPricingStatus::Published));
         }
-        query.order_by(ticket_pricing::name).load(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not load ticket pricing for ticket type",
-        )
+        query
+            .order_by(ticket_pricing::name)
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket pricing for ticket type")
     }
 
-    pub fn is_event_available_for_sale(
-        ticket_type_id: &Uuid,
-        conn: &PgConnection,
-    ) -> Result<bool, DatabaseError> {
+    pub fn is_event_available_for_sale(ticket_type_id: &Uuid, conn: &PgConnection) -> Result<bool, DatabaseError> {
         let valid_ticket_count: i64 = ticket_types::table
             .inner_join(events::table)
             .filter(ticket_types::id.eq(ticket_type_id))
@@ -723,10 +645,7 @@ impl TicketType {
             .filter(ticket_types::status.ne(TicketTypeStatus::Cancelled.to_string()))
             .select(dsl::count(ticket_types::id))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load ticket pricing for ticket type",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket pricing for ticket type")?;
         if valid_ticket_count <= 0 {
             return Ok(false);
         }
@@ -746,10 +665,9 @@ impl TicketType {
         if !include_default {
             query = query.filter(ticket_pricing::status.ne(TicketPricingStatus::Default));
         }
-        query.load(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not load ticket pricing for ticket type",
-        )
+        query
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket pricing for ticket type")
     }
 
     pub fn add_ticket_pricing(
@@ -787,11 +705,7 @@ impl TicketType {
         Ok(result)
     }
 
-    pub fn shift_other_rank(
-        &self,
-        from_rank: i32,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn shift_other_rank(&self, from_rank: i32, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.rank == from_rank {
             return Ok(());
         }
@@ -843,11 +757,7 @@ pub struct NewTicketType {
 }
 
 impl NewTicketType {
-    pub fn commit(
-        mut self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<TicketType, DatabaseError> {
+    pub fn commit(mut self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<TicketType, DatabaseError> {
         self.validate_record(conn)?;
 
         // Clear end date if not manual as value is ignored
@@ -858,10 +768,7 @@ impl NewTicketType {
             .filter(ticket_types::event_id.eq(self.event_id))
             .select(dsl::max(ticket_types::rank))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not find the correct rank for ticket type",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not find the correct rank for ticket type")?;
 
         let result: TicketType = diesel::insert_into(ticket_types::table)
             .values(&self)
@@ -871,10 +778,7 @@ impl NewTicketType {
         let result: TicketType = diesel::update(&result)
             .set(ticket_types::rank.eq(rank.unwrap_or(-1) + 1))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not update rank of ticket type",
-            )?;
+            .to_db_error(ErrorCode::UpdateError, "Could not update rank of ticket type")?;
 
         DomainEvent::create(
             DomainEventTypes::TicketTypeCreated,
@@ -964,9 +868,7 @@ impl NewTicketType {
             };
 
             if end_date.is_none() {
-                return DatabaseError::business_process_error(
-                    "Could not fetch end date for ticket type from event",
-                );
+                return DatabaseError::business_process_error("Could not fetch end date for ticket type from event");
             }
 
             Ok(end_date.unwrap())

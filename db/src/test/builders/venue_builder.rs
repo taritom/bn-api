@@ -70,12 +70,7 @@ impl<'a> VenueBuilder<'a> {
     }
 
     pub fn finish(self) -> Venue {
-        let mut venue = Venue::create(
-            &self.name,
-            self.region_id,
-            self.organization_id,
-            self.timezone,
-        );
+        let mut venue = Venue::create(&self.name, self.region_id, self.organization_id, self.timezone);
         venue.country = self.country;
         venue.city = self.city;
         venue.state = self.state;

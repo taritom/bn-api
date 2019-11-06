@@ -32,8 +32,7 @@ pub fn redemption_code_unique_per_event_validation(
         "Could not confirm if redemption code unique",
     )?;
     if !result {
-        let mut validation_error =
-            create_validation_error("uniqueness", "Redemption code must be unique");
+        let mut validation_error = create_validation_error("uniqueness", "Redemption code must be unique");
         validation_error.add_param(Cow::from("id"), &id);
         validation_error.add_param(Cow::from("redemption_code"), &redemption_code);
 

@@ -9,36 +9,28 @@ fn remove() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let event = project.create_event().finish();
-    assert!(!EventInterest::find_interest_by_event_ids_for_user(
-        &vec![event.id],
-        user.id,
-        connection,
-    )
-    .unwrap()
-    .get(&event.id)
-    .unwrap());
+    assert!(
+        !EventInterest::find_interest_by_event_ids_for_user(&vec![event.id], user.id, connection,)
+            .unwrap()
+            .get(&event.id)
+            .unwrap()
+    );
 
-    EventInterest::create(event.id, user.id)
-        .commit(connection)
-        .unwrap();
-    assert!(EventInterest::find_interest_by_event_ids_for_user(
-        &vec![event.id],
-        user.id,
-        connection,
-    )
-    .unwrap()
-    .get(&event.id)
-    .unwrap());
+    EventInterest::create(event.id, user.id).commit(connection).unwrap();
+    assert!(
+        EventInterest::find_interest_by_event_ids_for_user(&vec![event.id], user.id, connection,)
+            .unwrap()
+            .get(&event.id)
+            .unwrap()
+    );
 
     EventInterest::remove(event.id, user.id, connection).unwrap();
-    assert!(!EventInterest::find_interest_by_event_ids_for_user(
-        &vec![event.id],
-        user.id,
-        connection,
-    )
-    .unwrap()
-    .get(&event.id)
-    .unwrap());
+    assert!(
+        !EventInterest::find_interest_by_event_ids_for_user(&vec![event.id], user.id, connection,)
+            .unwrap()
+            .get(&event.id)
+            .unwrap()
+    );
 }
 
 #[test]
@@ -65,18 +57,12 @@ fn find_interest_by_event_ids_for_user() {
 
     // User 1 has event interests in event 1 and event 3
     let user1 = project.create_user().finish();
-    EventInterest::create(event1.id, user1.id)
-        .commit(connection)
-        .unwrap();
-    EventInterest::create(event3.id, user1.id)
-        .commit(connection)
-        .unwrap();
+    EventInterest::create(event1.id, user1.id).commit(connection).unwrap();
+    EventInterest::create(event3.id, user1.id).commit(connection).unwrap();
 
     // User 2 has event interests in event 2
     let user2 = project.create_user().finish();
-    EventInterest::create(event2.id, user2.id)
-        .commit(connection)
-        .unwrap();
+    EventInterest::create(event2.id, user2.id).commit(connection).unwrap();
 
     // User 3 has no event interests
     let user3 = project.create_user().finish();
@@ -85,24 +71,21 @@ fn find_interest_by_event_ids_for_user() {
 
     // User 1
     let found_interest =
-        EventInterest::find_interest_by_event_ids_for_user(&all_event_ids, user1.id, connection)
-            .unwrap();
+        EventInterest::find_interest_by_event_ids_for_user(&all_event_ids, user1.id, connection).unwrap();
     assert!(found_interest.get(&event1.id).unwrap());
     assert!(!found_interest.get(&event2.id).unwrap());
     assert!(found_interest.get(&event3.id).unwrap());
 
     // User 2
     let found_interest =
-        EventInterest::find_interest_by_event_ids_for_user(&all_event_ids, user2.id, connection)
-            .unwrap();
+        EventInterest::find_interest_by_event_ids_for_user(&all_event_ids, user2.id, connection).unwrap();
     assert!(!found_interest.get(&event1.id).unwrap());
     assert!(found_interest.get(&event2.id).unwrap());
     assert!(!found_interest.get(&event3.id).unwrap());
 
     // User 3
     let found_interest =
-        EventInterest::find_interest_by_event_ids_for_user(&all_event_ids, user3.id, connection)
-            .unwrap();
+        EventInterest::find_interest_by_event_ids_for_user(&all_event_ids, user3.id, connection).unwrap();
     assert!(!found_interest.get(&event1.id).unwrap());
     assert!(!found_interest.get(&event2.id).unwrap());
     assert!(!found_interest.get(&event3.id).unwrap());
@@ -167,12 +150,8 @@ fn list_interested_users() {
     //Create set of secondary users with interest in the primary and secondary event
     let n_secondary_users = 15;
     let mut rng = thread_rng();
-    let p_event_interest_flag_list: Vec<u8> = (0..n_secondary_users)
-        .map(|_| rng.gen_range(0, 2))
-        .collect(); //[0,1]
-    let s_event_interest_flag_list: Vec<u8> = (0..n_secondary_users)
-        .map(|_| rng.gen_range(0, 2))
-        .collect(); //[0,1]
+    let p_event_interest_flag_list: Vec<u8> = (0..n_secondary_users).map(|_| rng.gen_range(0, 2)).collect(); //[0,1]
+    let s_event_interest_flag_list: Vec<u8> = (0..n_secondary_users).map(|_| rng.gen_range(0, 2)).collect(); //[0,1]
     let mut secondary_user_list: Vec<User> = Vec::new();
     for _u_id in 0..n_secondary_users {
         secondary_user_list.push(project.create_user().finish());
@@ -187,17 +166,15 @@ fn list_interested_users() {
         if p_event_interest_flag_list[u_id] == 1 {
             //Set interest for primary event
             desired_user_id_completelist.push(secondary_user_list[u_id].id);
-            let _secondary_event_interest =
-                EventInterest::create(primary_event.id, secondary_user_list[u_id].id)
-                    .commit(project.get_connection())
-                    .unwrap();
+            let _secondary_event_interest = EventInterest::create(primary_event.id, secondary_user_list[u_id].id)
+                .commit(project.get_connection())
+                .unwrap();
         }
         if s_event_interest_flag_list[u_id] == 1 {
             //Set interest for secondary event
-            let _secondary_event_interest =
-                EventInterest::create(secondary_event.id, secondary_user_list[u_id].id)
-                    .commit(project.get_connection())
-                    .unwrap();
+            let _secondary_event_interest = EventInterest::create(secondary_event.id, secondary_user_list[u_id].id)
+                .commit(project.get_connection())
+                .unwrap();
         }
     }
     desired_user_id_completelist.sort(); //Sort results for testing purposes
@@ -214,10 +191,7 @@ fn list_interested_users() {
 
         let n_sublist_entries = desired_user_id_completelist.len();
         for u_id in 0..n_sublist_entries {
-            assert_eq!(
-                desired_user_id_completelist[u_id],
-                result.data[u_id].user_id
-            );
+            assert_eq!(desired_user_id_completelist[u_id], result.data[u_id].user_id);
         }
     }
 }

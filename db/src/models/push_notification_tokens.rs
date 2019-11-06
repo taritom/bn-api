@@ -17,11 +17,7 @@ pub struct NewPushNotificationToken {
 }
 
 impl NewPushNotificationToken {
-    pub fn commit(
-        &self,
-        user_id: Uuid,
-        connection: &PgConnection,
-    ) -> Result<PushNotificationToken, DatabaseError> {
+    pub fn commit(&self, user_id: Uuid, connection: &PgConnection) -> Result<PushNotificationToken, DatabaseError> {
         let push_notification_token: PushNotificationToken = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new push_notification_token",
@@ -46,11 +42,7 @@ pub struct PushNotificationToken {
 }
 
 impl PushNotificationToken {
-    pub fn log_domain_event(
-        &self,
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn log_domain_event(&self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut domain_event = DomainEvent::create(
             DomainEventTypes::PushNotificationTokenCreated,
             "Push notification created".to_string(),
@@ -70,10 +62,7 @@ impl PushNotificationToken {
         push_notification_tokens::table
             .find(id)
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Error loading push notification token",
-            )
+            .to_db_error(ErrorCode::QueryError, "Error loading push notification token")
     }
 
     pub fn create(user_id: Uuid, token_source: String, token: String) -> NewPushNotificationToken {
@@ -84,10 +73,7 @@ impl PushNotificationToken {
         }
     }
 
-    pub fn find_by_user_id(
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<PushNotificationToken>, DatabaseError> {
+    pub fn find_by_user_id(user_id: Uuid, conn: &PgConnection) -> Result<Vec<PushNotificationToken>, DatabaseError> {
         push_notification_tokens::table
             .filter(push_notification_tokens::user_id.eq(user_id))
             .select(push_notification_tokens::all_columns)

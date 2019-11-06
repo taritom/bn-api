@@ -31,9 +31,7 @@ fn check_migrations(conn: &PgConnection) -> Result<(), ApplicationError> {
         .map_err(|_err| ApplicationError::new("Error while checking migrations".to_string()))
         .and_then(|has_pending| {
             if has_pending {
-                Err(ApplicationError::new(
-                    "Migrations need to be run".to_string(),
-                ))
+                Err(ApplicationError::new("Migrations need to be run".to_string()))
             } else {
                 Ok(())
             }

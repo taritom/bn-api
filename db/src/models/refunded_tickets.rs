@@ -29,10 +29,7 @@ impl RefundedTicket {
         refunded_tickets::table
             .filter(refunded_tickets::id.eq(id))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve refunded ticket data",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve refunded ticket data")
     }
 
     pub fn find_by_ticket_instance_ids(
@@ -42,10 +39,7 @@ impl RefundedTicket {
         refunded_tickets::table
             .filter(refunded_tickets::ticket_instance_id.eq_any(ticket_instance_ids))
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve refunded ticket data",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve refunded ticket data")
     }
 
     pub fn find_or_create_by_ticket_instance(
@@ -58,13 +52,9 @@ impl RefundedTicket {
                 .filter(refunded_tickets::order_item_id.eq(order_item_id))
                 .first(conn)
                 .optional()
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Could not retrieve refunded ticket data",
-                )?;
+                .to_db_error(ErrorCode::QueryError, "Could not retrieve refunded ticket data")?;
 
-            Ok(refunded_ticket
-                .unwrap_or(RefundedTicket::create(order_item_id, ticket_instance.id).commit(conn)?))
+            Ok(refunded_ticket.unwrap_or(RefundedTicket::create(order_item_id, ticket_instance.id).commit(conn)?))
         } else {
             return DatabaseError::business_process_error(
                 "Ticket must have an associated order item id to be refunded",
@@ -72,10 +62,7 @@ impl RefundedTicket {
         }
     }
 
-    pub fn mark_ticket_and_fee_refunded(
-        &mut self,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn mark_ticket_and_fee_refunded(&mut self, conn: &PgConnection) -> Result<(), DatabaseError> {
         self.mark_refunded(false, conn)
     }
 
@@ -83,11 +70,7 @@ impl RefundedTicket {
         self.mark_refunded(true, conn)
     }
 
-    pub fn mark_refunded(
-        &mut self,
-        just_fee: bool,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn mark_refunded(&mut self, just_fee: bool, conn: &PgConnection) -> Result<(), DatabaseError> {
         self.updated_at = Utc::now().naive_utc();
 
         if !just_fee && self.ticket_refunded_at.is_none() {

@@ -12,14 +12,8 @@ use uuid::Uuid;
 #[test]
 fn index() {
     let database = TestDatabase::new();
-    let region = database
-        .create_region()
-        .with_name("Region1".into())
-        .finish();
-    let region2 = database
-        .create_region()
-        .with_name("Region2".into())
-        .finish();
+    let region = database.create_region().with_name("Region1".into()).finish();
+    let region2 = database.create_region().with_name("Region2".into()).finish();
 
     let expected_regions = vec![region, region2];
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));

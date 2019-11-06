@@ -28,7 +28,7 @@ impl From<StripeError> for PaymentProcessorError {
         PaymentProcessorError {
             description: s.description.clone(),
             cause: Some(Box::new(s)),
-            validation_response: validation_response,
+            validation_response,
         }
     }
 }
@@ -77,11 +77,7 @@ impl PaymentProcessor for StripePaymentProcessor {
         })?)
     }
 
-    fn partial_refund(
-        &self,
-        auth_token: &str,
-        amount: i64,
-    ) -> Result<ChargeAuthResult, PaymentProcessorError> {
+    fn partial_refund(&self, auth_token: &str, amount: i64) -> Result<ChargeAuthResult, PaymentProcessorError> {
         Ok(self
             .client
             .partial_refund(auth_token, amount)
@@ -118,12 +114,7 @@ impl<'a> AuthThenCompletePaymentBehavior for StripePaymentBehavior {
     ) -> Result<RepeatChargeToken, PaymentProcessorError> {
         Ok(self
             .client
-            .update_customer(
-                repeat_token,
-                description,
-                token,
-                Vec::<(String, String)>::new(),
-            )
+            .update_customer(repeat_token, description, token, Vec::<(String, String)>::new())
             .map(|r| RepeatChargeToken {
                 token: r.id,
                 raw: r.raw_data,
@@ -147,10 +138,7 @@ impl<'a> AuthThenCompletePaymentBehavior for StripePaymentBehavior {
             })?)
     }
 
-    fn complete_authed_charge(
-        &self,
-        _auth_token: &str,
-    ) -> Result<ChargeResult, PaymentProcessorError> {
+    fn complete_authed_charge(&self, _auth_token: &str) -> Result<ChargeResult, PaymentProcessorError> {
         Ok(self.client.complete(_auth_token).map(|r| ChargeResult {
             id: r.id,
             raw: r.raw_data,

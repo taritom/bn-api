@@ -54,7 +54,7 @@ steps:
         - clone
       image: rust:1.38.0
       commands:
-        - rustup component add rustfmt-preview
+        - rustup component add rustfmt
         - cargo fmt --all -- --check
 
 #
@@ -287,6 +287,6 @@ services:
 
 ---
 kind: signature
-hmac: c6a2349cbde12ad6acd0b495f4e880af28cfdd7104c7b540230c894b14240f64
+hmac: dd339eb2d986009aba1d224a9c0409e527da36afecb22ac52211fe2125d5f22a
 
 ...

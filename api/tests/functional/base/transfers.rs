@@ -72,9 +72,7 @@ pub fn index(role: Roles, owns_order: bool, should_succeed: bool) {
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer2
-        .add_transfer_ticket(ticket2.id, connection)
-        .unwrap();
+    transfer2.add_transfer_ticket(ticket2.id, connection).unwrap();
     transfer2.update_associated_orders(connection).unwrap();
 
     let expected_transfers = Transfer::find_for_user_for_display(

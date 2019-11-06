@@ -6,8 +6,7 @@ use diesel::prelude::*;
 use diesel::sql_types::{Array, Text, Uuid as dUuid};
 use models::*;
 use schema::{
-    assets, events, order_transfers, orders, organizations, ticket_instances, ticket_types,
-    transfer_tickets, transfers,
+    assets, events, order_transfers, orders, organizations, ticket_instances, ticket_types, transfer_tickets, transfers,
 };
 use serde_json::Value;
 use std::cmp::Ordering;
@@ -115,13 +114,9 @@ impl Transfer {
             Some(units_until_event) => match source_or_destination {
                 SourceOrDestination::Source => {
                     let mut destination_address = self.transfer_address.clone().unwrap();
-                    if include_links
-                        && self.transfer_message_type == Some(TransferMessageType::Email)
-                    {
-                        destination_address = format!(
-                            "<a href='mailto:{}'>{}</a>",
-                            destination_address, destination_address
-                        );
+                    if include_links && self.transfer_message_type == Some(TransferMessageType::Email) {
+                        destination_address =
+                            format!("<a href='mailto:{}'>{}</a>", destination_address, destination_address);
                     }
                     match units_until_event {
                             0 => {
@@ -138,11 +133,7 @@ impl Transfer {
                     let mut name = Transfer::sender_name(&source_user);
 
                     if include_links && source_user.email.is_some() {
-                        name = format!(
-                            "<a href='mailto:{}'>{}</a>",
-                            source_user.email.unwrap(),
-                            name
-                        );
+                        name = format!("<a href='mailto:{}'>{}</a>", source_user.email.unwrap(), name);
                     }
                     match units_until_event {
                             0 => {
@@ -160,11 +151,7 @@ impl Transfer {
         })
     }
 
-    pub fn receive_url(
-        &self,
-        front_end_url: String,
-        conn: &PgConnection,
-    ) -> Result<String, DatabaseError> {
+    pub fn receive_url(&self, front_end_url: String, conn: &PgConnection) -> Result<String, DatabaseError> {
         Ok(format!(
             "{}/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets={}&signature={}",
             front_end_url,
@@ -176,10 +163,7 @@ impl Transfer {
         .to_string())
     }
 
-    pub fn into_authorization(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<TransferAuthorization, DatabaseError> {
+    pub fn into_authorization(&self, conn: &PgConnection) -> Result<TransferAuthorization, DatabaseError> {
         Ok(TransferAuthorization {
             transfer_key: self.transfer_key,
             sender_user_id: self.source_user_id,
@@ -189,9 +173,7 @@ impl Transfer {
     }
 
     pub fn sender_name(user: &User) -> String {
-        if let (Some(first_name), Some(last_name)) =
-            (user.first_name.clone(), user.last_name.clone())
-        {
+        if let (Some(first_name), Some(last_name)) = (user.first_name.clone(), user.last_name.clone()) {
             vec![
                 first_name,
                 last_name
@@ -234,10 +216,7 @@ impl Transfer {
             .filter(transfer_tickets::transfer_id.eq(self.id))
             .select(count(transfer_tickets::id))
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not check transfer ticket count",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not check transfer ticket count")
     }
 
     pub fn signature(&self, conn: &PgConnection) -> Result<String, DatabaseError> {
@@ -251,15 +230,8 @@ impl Transfer {
         )?))
     }
 
-    pub fn create_drip_actions(
-        &self,
-        event: &Event,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
-        for source_or_destination in vec![
-            SourceOrDestination::Destination,
-            SourceOrDestination::Source,
-        ] {
+    pub fn create_drip_actions(&self, event: &Event, conn: &PgConnection) -> Result<(), DatabaseError> {
+        for source_or_destination in vec![SourceOrDestination::Destination, SourceOrDestination::Source] {
             DomainAction::create(
                 None,
                 DomainActionTypes::ProcessTransferDrip,
@@ -285,10 +257,7 @@ impl Transfer {
     pub fn events_have_not_ended(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
         select(exists(
             transfer_tickets::table
-                .inner_join(
-                    ticket_instances::table
-                        .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
-                )
+                .inner_join(ticket_instances::table.on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)))
                 .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
                 .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
                 .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
@@ -296,10 +265,7 @@ impl Transfer {
                 .filter(events::event_end.gt(dsl::now.nullable())),
         ))
         .get_result(conn)
-        .to_db_error(
-            ErrorCode::QueryError,
-            "Could not confirm if transfer has active events",
-        )
+        .to_db_error(ErrorCode::QueryError, "Could not confirm if transfer has active events")
     }
 
     pub fn event_ended(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
@@ -314,10 +280,7 @@ impl Transfer {
             .is_some())
     }
 
-    pub fn find_by_transfer_key(
-        transfer_key: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Transfer, DatabaseError> {
+    pub fn find_by_transfer_key(transfer_key: Uuid, conn: &PgConnection) -> Result<Transfer, DatabaseError> {
         let mut transfer: Transfer = transfers::table
             .filter(transfers::transfer_key.eq(transfer_key))
             .select(transfers::all_columns)
@@ -358,10 +321,7 @@ impl Transfer {
 
         let mut query = transfers::table
             .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
-            .inner_join(
-                ticket_instances::table
-                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
-            )
+            .inner_join(ticket_instances::table.on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)))
             .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
@@ -472,10 +432,7 @@ impl Transfer {
     ) -> Result<Vec<Transfer>, DatabaseError> {
         transfers::table
             .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
-            .inner_join(
-                ticket_instances::table
-                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
-            )
+            .inner_join(ticket_instances::table.on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)))
             .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
@@ -488,10 +445,7 @@ impl Transfer {
             .to_db_error(ErrorCode::QueryError, "Error loading transfers")
     }
 
-    pub fn transfer_tickets(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<TransferTicket>, DatabaseError> {
+    pub fn transfer_tickets(&self, conn: &PgConnection) -> Result<Vec<TransferTicket>, DatabaseError> {
         transfer_tickets::table
             .filter(transfer_tickets::transfer_id.eq(self.id))
             .load(conn)
@@ -607,8 +561,7 @@ impl Transfer {
         )?;
 
         if transfer_key_in_use {
-            let validation_error =
-                create_validation_error("uniqueness", "Transfer key is already in use");
+            let validation_error = create_validation_error("uniqueness", "Transfer key is already in use");
             return Ok(Err(validation_error));
         }
 
@@ -626,10 +579,7 @@ impl Transfer {
     pub fn find_pending(conn: &PgConnection) -> Result<Vec<Transfer>, DatabaseError> {
         transfers::table
             .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
-            .inner_join(
-                ticket_instances::table
-                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
-            )
+            .inner_join(ticket_instances::table.on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)))
             .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
             .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
@@ -660,10 +610,7 @@ impl Transfer {
 
     pub fn organizations(&self, conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
         transfer_tickets::table
-            .inner_join(
-                ticket_instances::table
-                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
-            )
+            .inner_join(ticket_instances::table.on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)))
             .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
             .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
             .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
@@ -672,18 +619,12 @@ impl Transfer {
             .select(organizations::all_columns)
             .distinct()
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load transfer organizations",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load transfer organizations")
     }
 
     pub fn events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
         transfer_tickets::table
-            .inner_join(
-                ticket_instances::table
-                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
-            )
+            .inner_join(ticket_instances::table.on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)))
             .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
             .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
             .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))

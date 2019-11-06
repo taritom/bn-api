@@ -17,8 +17,7 @@ pub fn create(role: Roles, should_succeed: bool) {
         .create_organization()
         .with_settlement_type(SettlementTypes::Rolling)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let start_time = dates::now().add_hours(-12).finish();
     let end_time = dates::now().add_hours(1).finish();
     let comment = "Example settlement comment".to_string();
@@ -31,8 +30,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
-    let response: HttpResponse =
-        settlements::create((database.connection.into(), json, path, auth_user)).into();
+    let response: HttpResponse = settlements::create((database.connection.into(), json, path, auth_user)).into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;
@@ -53,17 +51,10 @@ pub fn index(role: Roles, should_succeed: bool) {
     let organization2 = database.create_organization().finish();
     let user = database.create_user().finish();
 
-    let settlement = database
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
-    let _settlement2 = database
-        .create_settlement()
-        .with_organization(&organization2)
-        .finish();
+    let settlement = database.create_settlement().with_organization(&organization).finish();
+    let _settlement2 = database.create_settlement().with_organization(&organization2).finish();
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
@@ -82,12 +73,7 @@ pub fn index(role: Roles, should_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
             vec![settlement.id],
-            response
-                .payload()
-                .data
-                .iter()
-                .map(|i| i.id)
-                .collect::<Vec<Uuid>>()
+            response.payload().data.iter().map(|i| i.id).collect::<Vec<Uuid>>()
         );
     } else {
         assert_eq!(
@@ -103,12 +89,8 @@ pub fn show(role: Roles, should_succeed: bool) {
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
 
-    let settlement = database
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let settlement = database.create_settlement().with_organization(&organization).finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = settlement.id;
@@ -126,10 +108,7 @@ pub fn show(role: Roles, should_succeed: bool) {
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let returned_settlement: DisplaySettlement = serde_json::from_str(&body).unwrap();
-    assert_eq!(
-        returned_settlement,
-        settlement.for_display(connection).unwrap()
-    );
+    assert_eq!(returned_settlement, settlement.for_display(connection).unwrap());
 }
 
 pub fn destroy(role: Roles, should_succeed: bool) {
@@ -137,18 +116,13 @@ pub fn destroy(role: Roles, should_succeed: bool) {
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let settlement = database
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
+    let settlement = database.create_settlement().with_organization(&organization).finish();
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = settlement.id;
-    let response: HttpResponse =
-        settlements::destroy((database.connection.clone().into(), path, auth_user)).into();
+    let response: HttpResponse = settlements::destroy((database.connection.clone().into(), path, auth_user)).into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;

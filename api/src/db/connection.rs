@@ -35,21 +35,15 @@ impl Connection {
     }
 
     pub fn commit_transaction(&self) -> Result<(), diesel::result::Error> {
-        self.get()
-            .transaction_manager()
-            .commit_transaction(self.get())
+        self.get().transaction_manager().commit_transaction(self.get())
     }
 
     pub fn begin_transaction(&self) -> Result<(), diesel::result::Error> {
-        self.get()
-            .transaction_manager()
-            .begin_transaction(self.get())
+        self.get().transaction_manager().begin_transaction(self.get())
     }
 
     pub fn rollback_transaction(&self) -> Result<(), diesel::result::Error> {
-        self.get()
-            .transaction_manager()
-            .rollback_transaction(self.get())
+        self.get().transaction_manager().rollback_transaction(self.get())
     }
 }
 

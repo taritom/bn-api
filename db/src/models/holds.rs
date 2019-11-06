@@ -112,11 +112,7 @@ impl Hold {
 
     /// Updates a hold. Note, the quantity in the hold must be updated using
     /// `set_quantity`.
-    pub fn update(
-        &self,
-        update_attrs: UpdateHoldAttributes,
-        conn: &PgConnection,
-    ) -> Result<Hold, DatabaseError> {
+    pub fn update(&self, update_attrs: UpdateHoldAttributes, conn: &PgConnection) -> Result<Hold, DatabaseError> {
         let mut update_attrs = update_attrs;
         if update_attrs.hold_type == Some(HoldTypes::Comp) {
             // Remove discount
@@ -147,8 +143,7 @@ impl Hold {
             let now = Utc::now().naive_utc();
             if now > end_at {
                 let mut errors = ValidationErrors::new();
-                let mut validation_error =
-                    create_validation_error("invalid", "Hold not valid for current datetime");
+                let mut validation_error = create_validation_error("invalid", "Hold not valid for current datetime");
                 validation_error.add_param(Cow::from("hold_id"), &self.id);
                 validation_error.add_param(Cow::from("end_at"), &self.end_at);
                 errors.add("hold_id", validation_error);
@@ -168,30 +163,17 @@ impl Hold {
         let total: i64 = holds::table
             .filter(holds::parent_hold_id.eq(parent_id))
             .filter(holds::deleted_at.is_null())
-            .filter(
-                holds::hold_type
-                    .nullable()
-                    .eq(hold_type)
-                    .or(hold_type.is_none()),
-            )
+            .filter(holds::hold_type.nullable().eq(hold_type).or(hold_type.is_none()))
             .count()
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not get total holds for parent hold",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not get total holds for parent hold")?;
 
         let paging = Paging::new(page, limit);
         let mut payload = Payload::new(
             holds::table
                 .filter(holds::parent_hold_id.eq(parent_id))
                 .filter(holds::deleted_at.is_null())
-                .filter(
-                    holds::hold_type
-                        .nullable()
-                        .eq(hold_type)
-                        .or(hold_type.is_none()),
-                )
+                .filter(holds::hold_type.nullable().eq(hold_type).or(hold_type.is_none()))
                 .order_by((holds::hold_type, holds::name))
                 .limit(limit as i64)
                 .offset((page * limit) as i64)
@@ -227,22 +209,13 @@ impl Hold {
             .to_db_error(ErrorCode::QueryError, "Could not retrieve holds for event")
     }
 
-    fn validate_record(
-        &self,
-        update_attrs: &UpdateHoldAttributes,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    fn validate_record(&self, update_attrs: &UpdateHoldAttributes, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut validation_errors = validators::append_validation_error(
             update_attrs.validate(),
             "discount_in_cents",
             Hold::discount_in_cents_valid(
-                update_attrs
-                    .hold_type
-                    .clone()
-                    .unwrap_or(self.hold_type.clone()),
-                update_attrs
-                    .discount_in_cents
-                    .unwrap_or(self.discount_in_cents),
+                update_attrs.hold_type.clone().unwrap_or(self.hold_type.clone()),
+                update_attrs.discount_in_cents.unwrap_or(self.discount_in_cents),
             ),
         );
         if let Some(ref redemption_code_field) = update_attrs.redemption_code {
@@ -287,14 +260,10 @@ impl Hold {
     ) -> Result<Hold, DatabaseError> {
         let new_hold = NewHold {
             name,
-            parent_hold_id: if child {
-                Some(self.id)
-            } else {
-                self.parent_hold_id
-            },
+            parent_hold_id: if child { Some(self.id) } else { self.parent_hold_id },
             event_id: self.event_id,
-            email: email,
-            phone: phone,
+            email,
+            phone,
             redemption_code: Some(redemption_code.to_uppercase()),
             discount_in_cents: discount_in_cents.map(|m| m as i64),
             end_at,
@@ -317,18 +286,11 @@ impl Hold {
     }
 
     /// Deletes a hold by first setting the quantity to 0 and then deleting the record.
-    pub fn destroy(
-        self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn destroy(self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         self.set_quantity(current_user_id, 0, conn)?;
 
         diesel::update(holds::table.filter(holds::id.eq(self.id)))
-            .set((
-                holds::deleted_at.eq(dsl::now),
-                holds::updated_at.eq(dsl::now),
-            ))
+            .set((holds::deleted_at.eq(dsl::now), holds::updated_at.eq(dsl::now)))
             .execute(conn)
             .to_db_error(ErrorCode::DeleteError, "Could not delete hold")?;
 
@@ -350,8 +312,7 @@ impl Hold {
         discount_in_cents: Option<i64>,
     ) -> Result<(), ValidationError> {
         if hold_type == HoldTypes::Discount && discount_in_cents.is_none() {
-            let validation_error =
-                create_validation_error("required", "Discount required for hold type Discount");
+            let validation_error = create_validation_error("required", "Discount required for hold type Discount");
             return Err(validation_error);
         }
 
@@ -363,12 +324,7 @@ impl Hold {
     /// or from the parent hold if `parent_hold_id` is not `None`. Likewise, if the
     /// quantity is lower, it will release the reserved tickets back to either the
     /// main pool or the parent hold.
-    pub fn set_quantity(
-        &self,
-        user_id: Option<Uuid>,
-        quantity: u32,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn set_quantity(&self, user_id: Option<Uuid>, quantity: u32, conn: &PgConnection) -> Result<(), DatabaseError> {
         let (count, _available) = self.quantity(conn)?;
         if count < quantity {
             TicketInstance::add_to_hold(
@@ -409,13 +365,7 @@ impl Hold {
                 )
                     .commit(conn)?;
             } else {
-                TicketInstance::release_from_hold(
-                    user_id,
-                    self.id,
-                    self.ticket_type_id,
-                    count - quantity,
-                    conn,
-                )?;
+                TicketInstance::release_from_hold(user_id, self.id, self.ticket_type_id, count - quantity, conn)?;
                 DomainEvent::create(
                     DomainEventTypes::HoldQuantityChanged,
                     format!("Hold quantity decreased from {} to {}", count, quantity),
@@ -462,10 +412,7 @@ impl Hold {
             TicketInstance::count_for_hold(self.id, self.ticket_type_id, true, conn)?;
         let (hold_quantity, hold_available) =
             TicketInstance::count_for_hold(self.id, self.ticket_type_id, false, conn)?;
-        Ok((
-            total_quantity - hold_quantity,
-            total_available - hold_available,
-        ))
+        Ok((total_quantity - hold_quantity, total_available - hold_available))
     }
 
     pub fn event(&self, conn: &PgConnection) -> Result<Event, DatabaseError> {
@@ -483,10 +430,7 @@ impl Hold {
             .filter(events::id.eq(self.event_id))
             .select(organizations::all_columns)
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load organization for hold",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load organization for hold")
     }
 
     pub fn find_by_redemption_code(
@@ -502,16 +446,12 @@ impl Hold {
             query = query.filter(holds::event_id.eq(e))
         }
 
-        query.first(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not load hold with that redeem key",
-        )
+        query
+            .first(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load hold with that redeem key")
     }
 
-    pub fn find_by_ticket_type(
-        ticket_type_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<Hold>, DatabaseError> {
+    pub fn find_by_ticket_type(ticket_type_id: Uuid, conn: &PgConnection) -> Result<Vec<Hold>, DatabaseError> {
         holds::table
             .filter(holds::ticket_type_id.eq(ticket_type_id))
             .load(conn)
@@ -560,11 +500,7 @@ pub struct NewHold {
 }
 
 impl NewHold {
-    pub fn commit(
-        mut self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Hold, DatabaseError> {
+    pub fn commit(mut self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<Hold, DatabaseError> {
         if self.hold_type == HoldTypes::Comp {
             self.discount_in_cents = None
         }

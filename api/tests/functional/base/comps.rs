@@ -14,14 +14,10 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let hold = database
-        .create_hold()
-        .with_hold_type(HoldTypes::Comp)
-        .finish();
+    let hold = database.create_hold().with_hold_type(HoldTypes::Comp).finish();
     let event = Event::find(hold.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let comp1 = database
         .create_comp()
         .with_hold(&hold)
@@ -42,12 +38,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = hold.id;
 
-    let response = comps::index((
-        database.connection.clone().into(),
-        path,
-        query_parameters,
-        auth_user,
-    ));
+    let response = comps::index((database.connection.clone().into(), path, query_parameters, auth_user));
     let counter = expected_comps.len() as u32;
     let wrapped_expected_orgs = Payload {
         data: expected_comps,
@@ -81,8 +72,7 @@ pub fn show(role: Roles, should_succeed: bool) {
     let comp_id = comp.id;
     let event = Event::find(comp.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let expected_json = serde_json::to_string(&comp.into_display(connection).unwrap()).unwrap();
 
@@ -90,8 +80,7 @@ pub fn show(role: Roles, should_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = comp_id;
 
-    let response: HttpResponse =
-        comps::show((database.connection.clone().into(), path, auth_user)).into();
+    let response: HttpResponse = comps::show((database.connection.clone().into(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -106,14 +95,10 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let hold = database
-        .create_hold()
-        .with_hold_type(HoldTypes::Comp)
-        .finish();
+    let hold = database.create_hold().with_hold_type(HoldTypes::Comp).finish();
     let event = Event::find(hold.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let name = "Comp Example".to_string();
     let email = Some("email@address.com".to_string());
@@ -158,15 +143,13 @@ pub fn destroy(role: Roles, should_succeed: bool) {
     let comp = database.create_comp().finish();
     let event = Event::find(comp.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id"]);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = comp.id;
 
-    let response: HttpResponse =
-        comps::destroy((database.connection.clone().into(), path, auth_user)).into();
+    let response: HttpResponse = comps::destroy((database.connection.clone().into(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -184,8 +167,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let comp = database.create_comp().finish();
     let event = Event::find(comp.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let name = "New Name";
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id"]);
@@ -197,8 +179,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         ..Default::default()
     });
 
-    let response: HttpResponse =
-        comps::update((database.connection.clone().into(), json, path, auth_user)).into();
+    let response: HttpResponse = comps::update((database.connection.clone().into(), json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {

@@ -30,8 +30,11 @@ mod tests {
 
     #[test]
     fn test_optimize_cloudinary() {
-        let original_url = "https://res.cloudinary.com/dyro9cwim/image/upload/v1569351595/h66oolnynlnb7m93plog.png".to_string();
-        let optimized_url = "https://res.cloudinary.com/dyro9cwim/image/upload/f_auto/q_auto:low/v1569351595/h66oolnynlnb7m93plog.png".to_string();
+        let original_url =
+            "https://res.cloudinary.com/dyro9cwim/image/upload/v1569351595/h66oolnynlnb7m93plog.png".to_string();
+        let optimized_url =
+            "https://res.cloudinary.com/dyro9cwim/image/upload/f_auto/q_auto:low/v1569351595/h66oolnynlnb7m93plog.png"
+                .to_string();
         let generated_optimized_url = optimize_cloudinary(&Some(original_url));
         //Optimized url
         assert_eq!(Some(optimized_url), generated_optimized_url);

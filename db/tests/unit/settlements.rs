@@ -27,10 +27,7 @@ fn find_last_settlement_for_organization() {
             .is_none()
     );
 
-    let settlement = project
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
+    let settlement = project.create_settlement().with_organization(&organization).finish();
     assert_eq!(
         Settlement::find_last_settlement_for_organization(&organization, connection).unwrap(),
         Some(settlement)
@@ -65,8 +62,7 @@ fn process_settlement_for_organization() {
     .unwrap();
     assert_eq!(0, domain_events.len());
 
-    let settlement =
-        Settlement::process_settlement_for_organization(&organization, None, connection).unwrap();
+    let settlement = Settlement::process_settlement_for_organization(&organization, None, connection).unwrap();
     let domain_events = DomainEvent::find(
         Tables::Organizations,
         Some(organization.id),
@@ -77,8 +73,7 @@ fn process_settlement_for_organization() {
     assert_eq!(1, domain_events.len());
     assert_eq!(settlement.organization_id, organization.id);
 
-    let end_time =
-        organization.next_settlement_date(None).unwrap() - Duration::days(7) - Duration::seconds(1);
+    let end_time = organization.next_settlement_date(None).unwrap() - Duration::days(7) - Duration::seconds(1);
     assert_eq!(
         settlement.start_time,
         end_time - Duration::days(7) + Duration::seconds(1)
@@ -102,14 +97,12 @@ fn process_settlement_for_organization() {
     .execute(connection)
     .unwrap();
 
-    let settlement =
-        Settlement::process_settlement_for_organization(&organization, None, connection).unwrap();
+    let settlement = Settlement::process_settlement_for_organization(&organization, None, connection).unwrap();
     assert_eq!(
         settlement.start_time.timestamp(),
         (old_end_time + Duration::seconds(1)).timestamp()
     );
-    let end_time =
-        organization.next_settlement_date(None).unwrap() - Duration::days(7) - Duration::seconds(1);
+    let end_time = organization.next_settlement_date(None).unwrap() - Duration::days(7) - Duration::seconds(1);
     assert_eq!(settlement.end_time.timestamp(), end_time.timestamp());
 }
 
@@ -185,11 +178,7 @@ fn create_post_event_entries() {
         .quantity(3)
         .is_paid()
         .finish();
-    project
-        .create_order()
-        .for_event(&past_event_2)
-        .is_paid()
-        .finish();
+    project.create_order().for_event(&past_event_2).is_paid().finish();
     project
         .create_order()
         .for_event(&ending_future_event)
@@ -246,19 +235,14 @@ fn create_post_event_entries() {
 
     // Refund one ticket from order
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
     let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    order
-        .refund(&refund_items, user.id, None, connection)
-        .unwrap();
+    order.refund(&refund_items, user.id, None, connection).unwrap();
 
     let settlement = Settlement::create(
         organization.id,
@@ -298,10 +282,7 @@ fn create_post_event_entries() {
     let ticket_type_entry = event_entries
         .clone()
         .into_iter()
-        .find(|e| {
-            e.settlement_entry_type == SettlementEntryTypes::TicketType
-                && e.face_value_in_cents == 150
-        })
+        .find(|e| e.settlement_entry_type == SettlementEntryTypes::TicketType && e.face_value_in_cents == 150)
         .unwrap();
     let ticket_type = &past_event.ticket_types(true, None, connection).unwrap()[0];
     assert_eq!(ticket_type_entry.settlement_id, settlement.id);
@@ -321,10 +302,7 @@ fn create_post_event_entries() {
     let ticket_type_entry = event_entries
         .clone()
         .into_iter()
-        .find(|e| {
-            e.settlement_entry_type == SettlementEntryTypes::TicketType
-                && e.face_value_in_cents == 140
-        })
+        .find(|e| e.settlement_entry_type == SettlementEntryTypes::TicketType && e.face_value_in_cents == 140)
         .unwrap();
     let ticket_type = &past_event.ticket_types(true, None, connection).unwrap()[0];
     assert_eq!(ticket_type_entry.settlement_id, settlement.id);
@@ -344,10 +322,7 @@ fn create_post_event_entries() {
     let ticket_type_entry = event_entries
         .clone()
         .into_iter()
-        .find(|e| {
-            e.settlement_entry_type == SettlementEntryTypes::TicketType
-                && e.face_value_in_cents == 130
-        })
+        .find(|e| e.settlement_entry_type == SettlementEntryTypes::TicketType && e.face_value_in_cents == 130)
         .unwrap();
     let ticket_type = &past_event.ticket_types(true, None, connection).unwrap()[0];
     assert_eq!(ticket_type_entry.settlement_id, settlement.id);
@@ -415,9 +390,7 @@ fn create_rolling_entries() {
         .with_event_start(dates::now().add_days(-15).finish())
         .with_event_end(dates::now().add_days(1).finish())
         .finish();
-    let ticket_type2 = &ending_future_event
-        .ticket_types(true, None, connection)
-        .unwrap()[0];
+    let ticket_type2 = &ending_future_event.ticket_types(true, None, connection).unwrap()[0];
 
     let hold = project
         .create_hold()
@@ -448,22 +421,14 @@ fn create_rolling_entries() {
         .finish();
 
     // Transaction from before settlement period
-    let order = project
-        .create_order()
-        .for_event(&past_event)
-        .is_paid()
-        .finish();
+    let order = project.create_order().for_event(&past_event).is_paid().finish();
     diesel::update(orders::table.filter(orders::id.eq(order.id)))
         .set((orders::paid_at.eq(dates::now().add_days(-8).finish()),))
         .execute(connection)
         .unwrap();
 
     // Transaction from after settlement period
-    let order = project
-        .create_order()
-        .for_event(&past_event)
-        .is_paid()
-        .finish();
+    let order = project.create_order().for_event(&past_event).is_paid().finish();
     diesel::update(orders::table.filter(orders::id.eq(order.id)))
         .set((orders::paid_at.eq(dates::now().add_minutes(1).finish()),))
         .execute(connection)
@@ -477,25 +442,16 @@ fn create_rolling_entries() {
         .finish();
     // Refund one ticket from order
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
     let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    order
-        .refund(&refund_items, user.id, None, connection)
-        .unwrap();
+    order.refund(&refund_items, user.id, None, connection).unwrap();
 
-    project
-        .create_order()
-        .for_event(&past_event_2)
-        .is_paid()
-        .finish();
+    project.create_order().for_event(&past_event_2).is_paid().finish();
     project
         .create_order()
         .quantity(5)
@@ -629,10 +585,7 @@ fn create_rolling_entries() {
     let event_fee_entry = event_entries
         .clone()
         .into_iter()
-        .find(|e| {
-            e.settlement_entry_type == SettlementEntryTypes::EventFees
-                && e.event_id == past_event.id
-        })
+        .find(|e| e.settlement_entry_type == SettlementEntryTypes::EventFees && e.event_id == past_event.id)
         .unwrap();
     assert_eq!(event_fee_entry.settlement_id, settlement.id);
     assert_eq!(event_fee_entry.event_id, past_event.id);
@@ -646,9 +599,7 @@ fn create_rolling_entries() {
     let event_entries_data = display_settlement
         .event_entries
         .iter()
-        .find(|event_entry| {
-            event_entry.event == ending_future_event.for_display(connection).unwrap()
-        })
+        .find(|event_entry| event_entry.event == ending_future_event.for_display(connection).unwrap())
         .unwrap();
     let event_entries = &event_entries_data.entries;
     assert_eq!(event_entries.len(), 2);
@@ -657,8 +608,7 @@ fn create_rolling_entries() {
         .clone()
         .into_iter()
         .find(|e| {
-            e.settlement_entry_type == SettlementEntryTypes::TicketType
-                && e.ticket_type_id == Some(ticket_type2.id)
+            e.settlement_entry_type == SettlementEntryTypes::TicketType && e.ticket_type_id == Some(ticket_type2.id)
         })
         .unwrap();
     assert_eq!(ticket_type_entry.settlement_id, settlement.id);
@@ -677,10 +627,7 @@ fn create_rolling_entries() {
     let event_fee_entry = event_entries
         .clone()
         .into_iter()
-        .find(|e| {
-            e.settlement_entry_type == SettlementEntryTypes::EventFees
-                && e.event_id == ending_future_event.id
-        })
+        .find(|e| e.settlement_entry_type == SettlementEntryTypes::EventFees && e.event_id == ending_future_event.id)
         .unwrap();
     assert_eq!(event_fee_entry.settlement_id, settlement.id);
     assert_eq!(event_fee_entry.event_id, ending_future_event.id);
@@ -738,10 +685,7 @@ fn create_rolling_entries() {
     let event_fee_entry = event_entries
         .clone()
         .into_iter()
-        .find(|e| {
-            e.settlement_entry_type == SettlementEntryTypes::EventFees
-                && e.event_id == past_event.id
-        })
+        .find(|e| e.settlement_entry_type == SettlementEntryTypes::EventFees && e.event_id == past_event.id)
         .unwrap();
     assert_eq!(event_fee_entry.settlement_id, settlement2.id);
     assert_eq!(event_fee_entry.event_id, past_event.id);
@@ -754,18 +698,13 @@ fn create_rolling_entries() {
 
     // Refund alone in subsequent settlement
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let ticket = &tickets[1];
     let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    let (refund, _) = order
-        .refund(&refund_items, user.id, None, connection)
-        .unwrap();
+    let (refund, _) = order.refund(&refund_items, user.id, None, connection).unwrap();
     diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
         .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(9)))
         .execute(connection)
@@ -893,11 +832,7 @@ fn create_with_validation_errors() {
                 assert_eq!(errors["start_time"].len(), 1);
                 assert_eq!(errors["start_time"][0].code, "end_time_before_start_time");
                 assert_eq!(
-                    &errors["start_time"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["start_time"][0].message.clone().unwrap().into_owned(),
                     "End time must be after start time"
                 );
             }
@@ -917,10 +852,7 @@ fn adjustments() {
         .create_settlement_adjustment()
         .with_settlement(&settlement)
         .finish();
-    assert_eq!(
-        settlement.adjustments(connection).unwrap(),
-        vec![settlement_adjustment]
-    );
+    assert_eq!(settlement.adjustments(connection).unwrap(), vec![settlement_adjustment]);
 }
 
 #[test]
@@ -948,10 +880,7 @@ fn find() {
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
-    let settlement = project
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
+    let settlement = project.create_settlement().with_organization(&organization).finish();
     let read_settlement = Settlement::find(settlement.id, connection).unwrap();
     assert_eq!(settlement.id, read_settlement.id);
     assert_eq!(settlement.comment, read_settlement.comment);
@@ -975,10 +904,7 @@ fn for_display() {
         .with_venue(&venue)
         .with_ticket_pricing()
         .finish();
-    let settlement = project
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
+    let settlement = project.create_settlement().with_organization(&organization).finish();
     let entry = project
         .create_settlement_entry()
         .with_settlement(&settlement)
@@ -1019,14 +945,10 @@ fn find_for_organization() {
         .with_organization(&organization)
         .with_venue(&venue)
         .finish();
-    let settlement = project
-        .create_settlement()
-        .with_organization(&organization)
-        .finish();
-    let settlements =
-        Settlement::find_for_organization(organization.id, None, None, false, connection)
-            .unwrap()
-            .data;
+    let settlement = project.create_settlement().with_organization(&organization).finish();
+    let settlements = Settlement::find_for_organization(organization.id, None, None, false, connection)
+        .unwrap()
+        .data;
     assert_eq!(settlements.len(), 1);
     assert_eq!(settlements[0].id, settlement.id);
 }

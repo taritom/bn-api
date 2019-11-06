@@ -22,12 +22,7 @@ pub struct NewBroadcastData {
 }
 
 pub fn create(
-    (conn, path, json, user): (
-        Connection,
-        Path<PathParameters>,
-        Json<NewBroadcastData>,
-        User,
-    ),
+    (conn, path, json, user): (Connection, Path<PathParameters>, Json<NewBroadcastData>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let organization = Organization::find_for_event(path.id, connection)?;
@@ -36,12 +31,8 @@ pub fn create(
     let push_notification = Broadcast::create(
         path.id,
         json.notification_type.clone(),
-        json.channel
-            .clone()
-            .unwrap_or(BroadcastChannel::PushNotification),
-        json.name
-            .clone()
-            .unwrap_or(json.notification_type.to_string()),
+        json.channel.clone().unwrap_or(BroadcastChannel::PushNotification),
+        json.name.clone().unwrap_or(json.notification_type.to_string()),
         json.message.clone(),
         json.send_at.clone(),
         None,
@@ -52,27 +43,19 @@ pub fn create(
 }
 
 pub fn index(
-    (conn, path, query, user): (
-        Connection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-        User,
-    ),
+    (conn, path, query, user): (Connection, Path<PathParameters>, Query<PagingParameters>, User),
 ) -> Result<WebPayload<Broadcast>, BigNeonError> {
     let connection = conn.get();
     let organization = Organization::find_for_event(path.id, connection)?;
 
     user.requires_scope_for_organization(Scopes::EventBroadcast, &organization, connection)?;
 
-    let push_notifications =
-        Broadcast::find_by_event_id(path.id, query.page(), query.limit(), connection)?;
+    let push_notifications = Broadcast::find_by_event_id(path.id, query.page(), query.limit(), connection)?;
 
     Ok(WebPayload::new(StatusCode::OK, push_notifications))
 }
 
-pub fn show(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let push_notification = Broadcast::find(path.id, connection)?;
     let organization = Organization::find_for_event(push_notification.event_id, connection)?;
@@ -100,9 +83,7 @@ pub fn update(
     Ok(HttpResponse::Ok().json(broadcast))
 }
 
-pub fn delete(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn delete((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let broadcast = Broadcast::find(path.id, connection)?;
     let organization = Organization::find_for_event(broadcast.event_id, connection)?;

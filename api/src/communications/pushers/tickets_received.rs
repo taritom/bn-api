@@ -3,11 +3,7 @@ use diesel::pg::PgConnection;
 use errors::*;
 use itertools::Itertools;
 
-pub fn tickets_received(
-    to_user: &User,
-    from_user: &User,
-    conn: &PgConnection,
-) -> Result<(), BigNeonError> {
+pub fn tickets_received(to_user: &User, from_user: &User, conn: &PgConnection) -> Result<(), BigNeonError> {
     let tokens = to_user
         .push_notification_tokens(conn)?
         .into_iter()

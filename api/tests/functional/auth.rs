@@ -70,19 +70,13 @@ fn token_invalid_email() {
     ));
 
     assert!(response.is_err());
-    assert_eq!(
-        "Email or password incorrect",
-        response.err().unwrap().to_string()
-    );
+    assert_eq!("Email or password incorrect", response.err().unwrap().to_string());
 }
 
 #[test]
 fn token_incorrect_password() {
     let database = TestDatabase::new();
-    let user = database
-        .create_user()
-        .with_email("fake@localhost".to_string())
-        .finish();
+    let user = database.create_user().with_email("fake@localhost".to_string()).finish();
 
     let test_request = TestRequest::create();
     let json = Json(LoginRequest::new(&user.email.unwrap(), "incorrect"));
@@ -95,10 +89,7 @@ fn token_incorrect_password() {
     ));
 
     assert!(response.is_err());
-    assert_eq!(
-        "Email or password incorrect",
-        response.err().unwrap().to_string()
-    );
+    assert_eq!("Email or password incorrect", response.err().unwrap().to_string());
 }
 
 #[test]
@@ -110,27 +101,17 @@ fn token_refresh() {
     let state = test_request.extract_state();
     let token_secret = &state.config.token_secret.clone();
     let refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
-    let refresh_token = encode(
-        &Header::default(),
-        &refresh_token_claims,
-        token_secret.as_bytes(),
-    )
-    .unwrap();
+    let refresh_token = encode(&Header::default(), &refresh_token_claims, token_secret.as_bytes()).unwrap();
 
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((state, database.connection.into(), json)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let response: TokenResponse = serde_json::from_str(&body).unwrap();
 
-    let access_token = decode::<AccessToken>(
-        &response.access_token,
-        token_secret.as_bytes(),
-        &Validation::default(),
-    )
-    .unwrap();
+    let access_token =
+        decode::<AccessToken>(&response.access_token, token_secret.as_bytes(), &Validation::default()).unwrap();
     assert_eq!(response.refresh_token, refresh_token);
     assert_eq!(access_token.claims.get_id().unwrap(), user.id);
 }
@@ -143,17 +124,11 @@ fn token_refresh_invalid_refresh_token_secret() {
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
     let refresh_token_claims = RefreshToken::new(&user.id, state.config.token_issuer.clone());
-    let refresh_token = encode(
-        &Header::default(),
-        &refresh_token_claims,
-        b"incorrect-secret",
-    )
-    .unwrap();
+    let refresh_token = encode(&Header::default(), &refresh_token_claims, b"incorrect-secret").unwrap();
 
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((state, database.connection.into(), json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -170,8 +145,7 @@ fn token_refresh_invalid_refresh_token() {
     let state = test_request.extract_state();
     let json = Json(RefreshRequest::new(&"not.a.real.token"));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((state, database.connection.into(), json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -197,8 +171,7 @@ fn token_refresh_user_does_not_exist() {
     .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((state, database.connection.into(), json)).into();
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
@@ -225,8 +198,7 @@ fn token_refresh_password_reset_since_issued() {
     .unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((state, database.connection.into(), json)).into();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -248,27 +220,17 @@ fn token_refreshed_after_password_change() {
 
     // Issued a second after the latest password
     refresh_token_claims.issued = password_modified_timestamp + 1;
-    let refresh_token = encode(
-        &Header::default(),
-        &refresh_token_claims,
-        token_secret.as_bytes(),
-    )
-    .unwrap();
+    let refresh_token = encode(&Header::default(), &refresh_token_claims, token_secret.as_bytes()).unwrap();
     let json = Json(RefreshRequest::new(&refresh_token));
 
-    let response: HttpResponse =
-        auth::token_refresh((state, database.connection.into(), json)).into();
+    let response: HttpResponse = auth::token_refresh((state, database.connection.into(), json)).into();
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let response: TokenResponse = serde_json::from_str(&body).unwrap();
 
-    let access_token = decode::<AccessToken>(
-        &response.access_token,
-        token_secret.as_bytes(),
-        &Validation::default(),
-    )
-    .unwrap();
+    let access_token =
+        decode::<AccessToken>(&response.access_token, token_secret.as_bytes(), &Validation::default()).unwrap();
     assert_eq!(response.refresh_token, refresh_token);
     assert_eq!(access_token.claims.get_id().unwrap(), user.id);
 }

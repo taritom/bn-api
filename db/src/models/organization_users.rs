@@ -32,9 +32,7 @@ pub struct NewOrganizationUser {
 
 impl NewOrganizationUser {
     pub fn commit(self, conn: &PgConnection) -> Result<OrganizationUser, DatabaseError> {
-        let existing_user =
-            OrganizationUser::find_by_user_id(self.user_id, self.organization_id, conn)
-                .optional()?;
+        let existing_user = OrganizationUser::find_by_user_id(self.user_id, self.organization_id, conn).optional()?;
         match existing_user {
             Some(mut user) => {
                 user.role = self.role;
@@ -68,9 +66,7 @@ impl OrganizationUser {
 
     pub fn event_ids(&self, conn: &PgConnection) -> Result<Vec<Uuid>, DatabaseError> {
         organization_users::table
-            .inner_join(
-                events::table.on(events::organization_id.eq(organization_users::organization_id)),
-            )
+            .inner_join(events::table.on(events::organization_id.eq(organization_users::organization_id)))
             .inner_join(
                 event_users::table.on(event_users::user_id
                     .eq(self.user_id)
@@ -79,10 +75,7 @@ impl OrganizationUser {
             .filter(organization_users::organization_id.eq(self.organization_id))
             .select(event_users::event_id)
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load organization user event ids",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load organization user event ids")
     }
 
     pub fn find_users_by_organization(
@@ -107,9 +100,6 @@ impl OrganizationUser {
                     .and(organization_users::organization_id.eq(organization_id)),
             )
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not find user for organization",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not find user for organization")
     }
 }

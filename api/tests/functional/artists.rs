@@ -15,14 +15,8 @@ use uuid::Uuid;
 fn index() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let artist = database
-        .create_artist()
-        .with_name("Artist1".to_string())
-        .finish();
-    let artist2 = database
-        .create_artist()
-        .with_name("Artist2".to_string())
-        .finish();
+    let artist = database.create_artist().with_name("Artist1".to_string()).finish();
+    let artist2 = database.create_artist().with_name("Artist2".to_string()).finish();
 
     let expected_artists = vec![
         artist.for_display(connection).unwrap(),
@@ -30,12 +24,8 @@ fn index() {
     ];
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse = artists::index((
-        database.connection.clone().into(),
-        query_parameters,
-        OptionalUser(None),
-    ))
-    .into();
+    let response: HttpResponse =
+        artists::index((database.connection.clone().into(), query_parameters, OptionalUser(None))).into();
 
     let wrapped_expected_artists = Payload {
         data: expected_artists,
@@ -58,14 +48,8 @@ fn index() {
 fn index_with_org_linked_and_private_venues() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let artist = database
-        .create_artist()
-        .with_name("Artist1".to_string())
-        .finish();
-    let artist2 = database
-        .create_artist()
-        .with_name("Artist2".to_string())
-        .finish();
+    let artist = database.create_artist().with_name("Artist1".to_string()).finish();
+    let artist2 = database.create_artist().with_name("Artist2".to_string()).finish();
 
     let org1 = database.create_organization().finish();
     let artist3 = database
@@ -84,12 +68,8 @@ fn index_with_org_linked_and_private_venues() {
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     //first try with no user
-    let response: HttpResponse = artists::index((
-        database.connection.clone().into(),
-        query_parameters,
-        OptionalUser(None),
-    ))
-    .into();
+    let response: HttpResponse =
+        artists::index((database.connection.clone().into(), query_parameters, OptionalUser(None))).into();
 
     let mut expected_artists = vec![
         artist.for_display(connection).unwrap(),
@@ -184,20 +164,12 @@ fn index_with_org_linked_and_private_venues() {
 #[test]
 pub fn search_no_spotify() {
     let database = TestDatabase::new();
-    let artist = database
-        .create_artist()
-        .with_name("Artist1".to_string())
-        .finish();
+    let artist = database.create_artist().with_name("Artist1".to_string()).finish();
 
     let expected_artists = vec![artist.id];
     let test_request = TestRequest::create_with_uri(&format!("/?q=Artist&spotify=1"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response = artists::search((
-        database.connection.into(),
-        query_parameters,
-        OptionalUser(None),
-    ))
-    .unwrap();
+    let response = artists::search((database.connection.into(), query_parameters, OptionalUser(None))).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
     let collected_ids = response
@@ -213,19 +185,11 @@ pub fn search_no_spotify() {
 #[test]
 pub fn search_with_spotify() {
     let database = TestDatabase::new();
-    let _artist = database
-        .create_artist()
-        .with_name("Artist1".to_string())
-        .finish();
+    let _artist = database.create_artist().with_name("Artist1".to_string()).finish();
 
     let test_request = TestRequest::create_with_uri(&format!("/?q=Powerwolf&spotify=1"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response = artists::search((
-        database.connection.into(),
-        query_parameters,
-        OptionalUser(None),
-    ))
-    .unwrap();
+    let response = artists::search((database.connection.into(), query_parameters, OptionalUser(None))).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -235,12 +199,7 @@ pub fn search_with_spotify() {
         .iter()
         .filter(|i| i.spotify_id.is_some())
         .count();
-    if test_request
-        .extract_state()
-        .config
-        .spotify_auth_token
-        .is_some()
-    {
+    if test_request.extract_state().config.spotify_auth_token.is_some() {
         assert_ne!(spotify_results, 0);
     } else {
         assert_eq!(spotify_results, 0);
@@ -251,13 +210,8 @@ pub fn search_with_spotify() {
 pub fn show() {
     let database = TestDatabase::new();
     let artist = database.create_artist().finish();
-    let artist_expected_json = serde_json::to_string(
-        &artist
-            .clone()
-            .for_display(database.connection.get())
-            .unwrap(),
-    )
-    .unwrap();
+    let artist_expected_json =
+        serde_json::to_string(&artist.clone().for_display(database.connection.get()).unwrap()).unwrap();
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -313,12 +267,7 @@ pub fn show_from_organizations_private_artist_same_org() {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let user = support::create_auth_user_from_user(
-        &user2,
-        Roles::OrgOwner,
-        Some(&organization),
-        &database,
-    );
+    let user = support::create_auth_user_from_user(&user2, Roles::OrgOwner, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
@@ -438,10 +387,7 @@ pub fn create_with_validation_errors() {
         &website_url[0].message.clone().unwrap().into_owned(),
         "Website URL is invalid"
     );
-    let youtube_video_urls = validation_response
-        .fields
-        .get("youtube_video_urls")
-        .unwrap();
+    let youtube_video_urls = validation_response.fields.get("youtube_video_urls").unwrap();
     assert_eq!(youtube_video_urls[0].code, "url");
     assert_eq!(
         &youtube_video_urls[0].message.clone().unwrap().into_owned(),
@@ -633,8 +579,7 @@ pub fn update_with_validation_errors() {
     attributes.youtube_video_urls = Some(vec!["invalid".to_string()]);
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        artists::update((database.connection.into(), path, json, user)).into();
+    let response: HttpResponse = artists::update((database.connection.into(), path, json, user)).into();
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
@@ -645,10 +590,7 @@ pub fn update_with_validation_errors() {
         &website_url[0].message.clone().unwrap().into_owned(),
         "Website URL is invalid"
     );
-    let youtube_video_urls = validation_response
-        .fields
-        .get("youtube_video_urls")
-        .unwrap();
+    let youtube_video_urls = validation_response.fields.get("youtube_video_urls").unwrap();
     assert_eq!(youtube_video_urls[0].code, "url");
     assert_eq!(
         &youtube_video_urls[0].message.clone().unwrap().into_owned(),

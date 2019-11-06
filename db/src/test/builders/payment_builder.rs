@@ -40,13 +40,8 @@ impl<'a> PaymentBuilder<'a> {
     }
 
     pub fn finish(self) -> Payment {
-        let mut cart =
-            Order::find_or_create_cart(&self.user.clone().unwrap(), self.connection).unwrap();
-        let ticket_type = &self
-            .event
-            .unwrap()
-            .ticket_types(true, None, self.connection)
-            .unwrap()[0];
+        let mut cart = Order::find_or_create_cart(&self.user.clone().unwrap(), self.connection).unwrap();
+        let ticket_type = &self.event.unwrap().ticket_types(true, None, self.connection).unwrap()[0];
         cart.update_quantities(
             self.user.clone().unwrap().id,
             &[UpdateOrderItem {
@@ -59,9 +54,7 @@ impl<'a> PaymentBuilder<'a> {
             self.connection,
         )
         .unwrap();
-        let total = cart
-            .calculate_total_and_refunded_total(self.connection)
-            .unwrap();
+        let total = cart.calculate_total_and_refunded_total(self.connection).unwrap();
         cart.add_provider_payment(
             Some("Test".to_string()),
             PaymentProviders::External,

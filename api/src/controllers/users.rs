@@ -60,9 +60,7 @@ pub struct InputPushNotificationTokens {
     pub token: String,
 }
 
-pub fn current_user(
-    (connection, auth_user): (Connection, AuthUser),
-) -> Result<CurrentUser, BigNeonError> {
+pub fn current_user((connection, auth_user): (Connection, AuthUser)) -> Result<CurrentUser, BigNeonError> {
     let connection = connection.get();
     current_user_from_user(&auth_user.user, connection)
 }
@@ -103,10 +101,10 @@ pub fn activity(
         },
         connection,
     )?;
-    payload.paging.tags.insert(
-        "past_or_upcoming".to_string(),
-        json!(activity_query.past_or_upcoming),
-    );
+    payload
+        .paging
+        .tags
+        .insert("past_or_upcoming".to_string(), json!(activity_query.past_or_upcoming));
 
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
@@ -163,11 +161,9 @@ pub fn update_current_user(
 ) -> Result<CurrentUser, BigNeonError> {
     let connection = connection.get();
 
-    let updated_user = auth_user.user.update(
-        user_parameters.into_inner().into(),
-        Some(auth_user.id()),
-        connection,
-    )?;
+    let updated_user = auth_user
+        .user
+        .update(user_parameters.into_inner().into(), Some(auth_user.id()), connection)?;
     let current_user = current_user_from_user(&updated_user, connection)?;
     Ok(current_user)
 }
@@ -266,11 +262,7 @@ pub fn remove_push_notification_token(
 }
 
 pub fn register(
-    (http_request, connection, parameters): (
-        HttpRequest<AppState>,
-        Connection,
-        Json<RegisterRequest>,
-    ),
+    (http_request, connection, parameters): (HttpRequest<AppState>, Connection, Json<RegisterRequest>),
 ) -> Result<HttpResponse, BigNeonError> {
     let state = http_request.state();
     let connection_info = http_request.connection_info();
@@ -279,16 +271,8 @@ pub fn register(
     log_data.insert("email", parameters.email.clone().into());
 
     if let Some(ref google_recaptcha_secret_key) = state.config.google_recaptcha_secret_key {
-        if let Err(err) = verify_recaptcha(
-            google_recaptcha_secret_key,
-            &parameters.captcha_response,
-            remote_ip,
-        ) {
-            return application::unauthorized_with_message(
-                err.reason.as_str(),
-                None,
-                Some(log_data),
-            );
+        if let Err(err) = verify_recaptcha(google_recaptcha_secret_key, &parameters.captcha_response, remote_ip) {
+            return application::unauthorized_with_message(err.reason.as_str(), None, Some(log_data));
         }
     }
 
@@ -325,16 +309,8 @@ pub fn register_and_login(
     log_data.insert("email", parameters.email.clone().into());
 
     if let Some(ref google_recaptcha_secret_key) = state.config.google_recaptcha_secret_key {
-        if let Err(err) = verify_recaptcha(
-            google_recaptcha_secret_key,
-            &parameters.captcha_response,
-            remote_ip,
-        ) {
-            return application::unauthorized_with_message(
-                err.reason.as_str(),
-                None,
-                Some(log_data),
-            );
+        if let Err(err) = verify_recaptcha(google_recaptcha_secret_key, &parameters.captcha_response, remote_ip) {
+            return application::unauthorized_with_message(err.reason.as_str(), None, Some(log_data));
         }
     }
 
@@ -351,8 +327,7 @@ pub fn register_and_login(
         },
     };
     let json = Json(LoginRequest::new(&email, &password));
-    let token_response =
-        auth::token((http_request.clone(), connection.clone(), json, request_info))?;
+    let token_response = auth::token((http_request.clone(), connection.clone(), json, request_info))?;
 
     if let (Some(first_name), Some(email)) = (new_user.first_name, new_user.email) {
         mailers::user::user_registered(first_name, email, &state.config, connection.get())?;
@@ -361,23 +336,16 @@ pub fn register_and_login(
     Ok(HttpResponse::Created().json(token_response))
 }
 
-fn current_user_from_user(
-    user: &User,
-    connection: &PgConnection,
-) -> Result<CurrentUser, BigNeonError> {
+fn current_user_from_user(user: &User, connection: &PgConnection) -> Result<CurrentUser, BigNeonError> {
     let roles_by_organization = user.get_roles_by_organization(connection)?;
     let mut scopes_by_organization = HashMap::new();
     for (organization_id, roles) in &roles_by_organization {
         scopes_by_organization.insert(organization_id.clone(), scopes::get_scopes(roles.clone()));
     }
-    let (events_by_organization, readonly_events_by_organization) =
-        user.get_event_ids_by_organization(connection)?;
+    let (events_by_organization, readonly_events_by_organization) = user.get_event_ids_by_organization(connection)?;
     let mut event_scopes = HashMap::new();
     for event_user in user.event_users(connection)? {
-        event_scopes.insert(
-            event_user.event_id,
-            scopes::get_scopes(vec![event_user.role]),
-        );
+        event_scopes.insert(event_user.event_id, scopes::get_scopes(vec![event_user.role]));
     }
 
     Ok(CurrentUser {
@@ -399,11 +367,8 @@ fn verify_recaptcha(
 ) -> Result<google_recaptcha::Response, ApplicationError> {
     match captcha_response {
         Some(ref captcha_response) => {
-            let captcha_response = google_recaptcha::verify_response(
-                google_recaptcha_secret_key,
-                captcha_response.to_owned(),
-                remote_ip,
-            )?;
+            let captcha_response =
+                google_recaptcha::verify_response(google_recaptcha_secret_key, captcha_response.to_owned(), remote_ip)?;
             if !captcha_response.success {
                 return Err(ApplicationError::new("Captcha value invalid".to_string()));
             }

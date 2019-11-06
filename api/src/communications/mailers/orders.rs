@@ -20,8 +20,7 @@ pub fn confirmation_email(
     template_data.insert(String::from("name"), user_first_name.clone());
     //Construct an itemised breakdown using a HTML table
     let mut item_breakdown = r#"<table style="width:100%"><tbody>"#.to_string();
-    item_breakdown
-        .push_str("<tr><th>Units</th><th>Description</th><th>Unit Price</th><th>Total</th></tr>");
+    item_breakdown.push_str("<tr><th>Units</th><th>Description</th><th>Unit Price</th><th>Total</th></tr>");
     let mut total_fees = 0;
     let mut total_initial_fees = 0;
     let mut total_refunded_fees = 0;
@@ -37,9 +36,7 @@ pub fn confirmation_email(
                 ));
                 let mut discount_per_ticket = 0;
 
-                if let Some(discount_item) =
-                    OrderItem::find(oi.id, conn)?.find_discount_item(conn)?
-                {
+                if let Some(discount_item) = OrderItem::find(oi.id, conn)?.find_discount_item(conn)? {
                     discount_per_ticket = discount_item.unit_price_in_cents;
                     item_breakdown.push_str(&generate_item_row(
                         "Discount",
@@ -108,20 +105,14 @@ pub fn confirmation_email(
         "total_refunded_fees".to_string(),
         format!("{:.*}", 2, total_refunded_fees as f64 / 100.0),
     );
-    template_data.insert(
-        "total_fees".to_string(),
-        format!("{:.*}", 2, total_fees as f64 / 100.0),
-    );
+    template_data.insert("total_fees".to_string(), format!("{:.*}", 2, total_fees as f64 / 100.0));
     template_data.insert(
         "total_price".to_string(),
         format!("{:.*}", 2, display_order.total_in_cents as f64 / 100.0),
     );
     template_data.insert("item_breakdown".to_string(), item_breakdown);
     template_data.insert("total_breakdown".to_string(), total_breakdown);
-    template_data.insert(
-        "tickets_link".to_string(),
-        format!("{}/hub", config.front_end_url),
-    );
+    template_data.insert("tickets_link".to_string(), format!("{}/hub", config.front_end_url));
 
     // TODO: Perhaps move this to an event subscription
     Ok(Communication::new(
@@ -137,12 +128,7 @@ pub fn confirmation_email(
     ))
 }
 
-fn generate_item_row(
-    description: &str,
-    quantity: i64,
-    unit_price_in_cents: i64,
-    refund: bool,
-) -> String {
+fn generate_item_row(description: &str, quantity: i64, unit_price_in_cents: i64, refund: bool) -> String {
     let mut item_row = "".to_string();
 
     if refund {
@@ -163,11 +149,7 @@ fn generate_item_row(
     item_row.push_str(&unit_price_display);
     item_row.push_str(r#"</td><td align="right">"#);
 
-    let mut total_price_display = format!(
-        "${:.*}",
-        2,
-        (quantity * unit_price_in_cents.abs()) as f64 / 100.0
-    );
+    let mut total_price_display = format!("${:.*}", 2, (quantity * unit_price_in_cents.abs()) as f64 / 100.0);
     if unit_price_in_cents < 0 || refund {
         total_price_display = format!("({})", total_price_display);
     }
@@ -239,16 +221,10 @@ pub fn refund_email(
         .map(|i| i.0.amount)
         .sum::<i64>();
 
-    template_data.insert(
-        "total_fees".to_string(),
-        format!("{:.*}", 2, total_fees as f64 / 100.0),
-    );
+    template_data.insert("total_fees".to_string(), format!("{:.*}", 2, total_fees as f64 / 100.0));
     template_data.insert("total_price".to_string(), format!("{:.*}", 2, amount));
     template_data.insert("item_breakdown".to_string(), item_breakdown);
-    template_data.insert(
-        "tickets_link".to_string(),
-        format!("{}/orders", config.front_end_url),
-    );
+    template_data.insert("tickets_link".to_string(), format!("{}/orders", config.front_end_url));
 
     // TODO: Perhaps move this to an event subscription
     Communication::new(
