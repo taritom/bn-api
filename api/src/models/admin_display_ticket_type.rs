@@ -55,13 +55,9 @@ impl AdminDisplayTicketType {
             name: ticket_type.name.clone(),
             description: ticket_type.description.clone(),
             status: ticket_type.status,
-            start_date: ticket_type.start_date.and_then(|sd| {
-                if sd <= times::zero() {
-                    None
-                } else {
-                    Some(sd)
-                }
-            }),
+            start_date: ticket_type
+                .start_date
+                .and_then(|sd| if sd <= times::zero() { None } else { Some(sd) }),
             parent_id: ticket_type.parent_id,
             end_date: ticket_type.end_date,
             end_date_type: ticket_type.end_date_type,
@@ -98,11 +94,7 @@ impl AdminDisplayTicketType {
                         result.status = TicketTypeStatus::OnSaleSoon;
                     }
 
-                    if max_pricing
-                        .map(|p| p.end_date)
-                        .unwrap_or(ticket_type.end_date(conn)?)
-                        < dates::now().finish()
-                    {
+                    if max_pricing.map(|p| p.end_date).unwrap_or(ticket_type.end_date(conn)?) < dates::now().finish() {
                         result.status = TicketTypeStatus::SaleEnded;
                     }
                 }

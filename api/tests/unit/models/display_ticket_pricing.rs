@@ -25,36 +25,16 @@ fn from_ticket_pricing() {
         .fee_in_cents;
 
     // Display ticket pricing
-    let display_ticket_pricing = DisplayTicketPricing::from_ticket_pricing(
-        &ticket_pricing,
-        &fee_schedule,
-        None,
-        None,
-        false,
-        conn,
-    )
-    .unwrap();
-    assert_eq!(
-        display_ticket_pricing.price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    let display_ticket_pricing =
+        DisplayTicketPricing::from_ticket_pricing(&ticket_pricing, &fee_schedule, None, None, false, conn).unwrap();
+    assert_eq!(display_ticket_pricing.price_in_cents, ticket_pricing.price_in_cents);
     assert_eq!(display_ticket_pricing.discount_in_cents, 0);
     assert_eq!(display_ticket_pricing.fee_in_cents, fee_in_cents);
 
     // Box office ticket pricing
-    let display_ticket_pricing = DisplayTicketPricing::from_ticket_pricing(
-        &ticket_pricing,
-        &fee_schedule,
-        None,
-        None,
-        true,
-        conn,
-    )
-    .unwrap();
-    assert_eq!(
-        display_ticket_pricing.price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    let display_ticket_pricing =
+        DisplayTicketPricing::from_ticket_pricing(&ticket_pricing, &fee_schedule, None, None, true, conn).unwrap();
+    assert_eq!(display_ticket_pricing.price_in_cents, ticket_pricing.price_in_cents);
     assert_eq!(display_ticket_pricing.discount_in_cents, 0);
     assert_eq!(display_ticket_pricing.fee_in_cents, 0); // No fee for box office tickets
 
@@ -79,10 +59,7 @@ fn from_ticket_pricing() {
         conn,
     )
     .unwrap();
-    assert_eq!(
-        display_ticket_pricing.price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(display_ticket_pricing.price_in_cents, ticket_pricing.price_in_cents);
     assert_eq!(display_ticket_pricing.discount_in_cents, 10);
     assert_eq!(display_ticket_pricing.fee_in_cents, discounted_fee_in_cents);
 
@@ -102,14 +79,8 @@ fn from_ticket_pricing() {
         conn,
     )
     .unwrap();
-    assert_eq!(
-        display_ticket_pricing.price_in_cents,
-        ticket_pricing.price_in_cents
-    );
-    assert_eq!(
-        display_ticket_pricing.discount_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(display_ticket_pricing.price_in_cents, ticket_pricing.price_in_cents);
+    assert_eq!(display_ticket_pricing.discount_in_cents, ticket_pricing.price_in_cents);
     assert_eq!(display_ticket_pricing.fee_in_cents, 0);
 
     // Discount code
@@ -134,10 +105,7 @@ fn from_ticket_pricing() {
         conn,
     )
     .unwrap();
-    assert_eq!(
-        display_ticket_pricing.price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(display_ticket_pricing.price_in_cents, ticket_pricing.price_in_cents);
     assert_eq!(display_ticket_pricing.discount_in_cents, 10);
     assert_eq!(display_ticket_pricing.fee_in_cents, discounted_fee_in_cents);
 
@@ -162,10 +130,7 @@ fn from_ticket_pricing() {
     )
     .unwrap();
     // Code is not applied
-    assert_eq!(
-        display_ticket_pricing.price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(display_ticket_pricing.price_in_cents, ticket_pricing.price_in_cents);
     assert_eq!(display_ticket_pricing.discount_in_cents, 0);
     assert_eq!(display_ticket_pricing.fee_in_cents, fee_in_cents);
 }

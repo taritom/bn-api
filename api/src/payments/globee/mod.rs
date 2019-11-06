@@ -41,11 +41,7 @@ impl PaymentProcessor for GlobeePaymentProcessor {
         })
     }
 
-    fn partial_refund(
-        &self,
-        _auth_token: &str,
-        _amount: i64,
-    ) -> Result<ChargeAuthResult, PaymentProcessorError> {
+    fn partial_refund(&self, _auth_token: &str, _amount: i64) -> Result<ChargeAuthResult, PaymentProcessorError> {
         Err(PaymentProcessorError {
             description: "Refunds are not supported by this gateway".to_string(),
             cause: None,

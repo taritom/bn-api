@@ -15,14 +15,8 @@ use support::test_request::TestRequest;
 
 pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let box_office_user = database
-        .create_user()
-        .with_first_name("BoxOfficeUser1")
-        .finish();
-    let box_office_user2 = database
-        .create_user()
-        .with_first_name("BoxOfficeUser2")
-        .finish();
+    let box_office_user = database.create_user().with_first_name("BoxOfficeUser1").finish();
+    let box_office_user2 = database.create_user().with_first_name("BoxOfficeUser2").finish();
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let user3 = database.create_user().finish();
@@ -93,20 +87,14 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
     );
 
     let auth_db_user = database.create_user().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&auth_db_user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&auth_db_user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri("/reports?report=box_office_sales_summary");
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     let query = Query::<ReportQueryParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse = reports::box_office_sales_summary((
-        database.connection.clone().into(),
-        query,
-        path,
-        auth_user,
-    ))
-    .into();
+    let response: HttpResponse =
+        reports::box_office_sales_summary((database.connection.clone().into(), query, path, auth_user)).into();
 
     if !should_succeed {
         support::expects_unauthorized(&response);
@@ -177,11 +165,7 @@ pub fn box_office_sales_summary(role: Roles, should_succeed: bool) {
 pub fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let organization = database
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = database.create_organization().with_event_fee().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -189,10 +173,7 @@ pub fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     let event2 = database
         .create_event()
         .with_organization(&organization)
@@ -200,21 +181,14 @@ pub fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let ticket_type2 = event2
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type2 = event2.ticket_types(true, None, connection).unwrap().remove(0);
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
-    let ticket_pricing = ticket_type
-        .current_ticket_pricing(false, connection)
-        .unwrap();
+    let ticket_pricing = ticket_type.current_ticket_pricing(false, connection).unwrap();
     let fee_schedule_range = fee_schedule
         .get_range(ticket_pricing.price_in_cents, connection)
         .unwrap();
-    let ticket_pricing2 = ticket_type2
-        .current_ticket_pricing(false, connection)
-        .unwrap();
+    let ticket_pricing2 = ticket_type2.current_ticket_pricing(false, connection).unwrap();
     let fee_schedule_range2 = fee_schedule
         .get_range(ticket_pricing2.price_in_cents, connection)
         .unwrap();
@@ -281,13 +255,9 @@ pub fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event
         .unwrap();
 
     let auth_db_user = database.create_user().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&auth_db_user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&auth_db_user, role, Some(&organization), &database);
 
-    let event_filter = format!(
-        "/reports?report=transaction_detail_report&event_id={}",
-        event.id
-    );
+    let event_filter = format!("/reports?report=transaction_detail_report&event_id={}", event.id);
     let test_request = if filter_event {
         TestRequest::create_with_uri(&event_filter)
     } else {
@@ -297,12 +267,7 @@ pub fn transaction_detail_report(role: Roles, should_succeed: bool, filter_event
     path.id = organization.id;
     let query = Query::<ReportQueryParameters>::extract(&test_request.request).unwrap();
     let response: Result<WebPayload<TransactionReportRow>, BigNeonError> =
-        reports::transaction_detail_report((
-            database.connection.clone().into(),
-            query,
-            path,
-            auth_user,
-        ));
+        reports::transaction_detail_report((database.connection.clone().into(), query, path, auth_user));
 
     if !should_succeed {
         support::expects_unauthorized(&response.unwrap_err().into_inner().to_response());
@@ -427,23 +392,18 @@ fn build_transaction_report_row(
         actual_quantity: quantity,
         refunded_quantity: 0,
         unit_price_in_cents: price_per_ticket,
-        gross: (price_per_ticket
-            + fee_schedule_range.client_fee_in_cents
-            + fee_schedule_range.company_fee_in_cents)
+        gross: (price_per_ticket + fee_schedule_range.client_fee_in_cents + fee_schedule_range.company_fee_in_cents)
             * quantity
             + organization.company_event_fee_in_cents
             + organization.client_event_fee_in_cents,
         company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
         client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
-        gross_fee_in_cents: fee_schedule_range.company_fee_in_cents
-            + fee_schedule_range.client_fee_in_cents,
-        gross_fee_in_cents_total: (fee_schedule_range.company_fee_in_cents
-            + fee_schedule_range.client_fee_in_cents)
+        gross_fee_in_cents: fee_schedule_range.company_fee_in_cents + fee_schedule_range.client_fee_in_cents,
+        gross_fee_in_cents_total: (fee_schedule_range.company_fee_in_cents + fee_schedule_range.client_fee_in_cents)
             * quantity,
         event_fee_company_in_cents: organization.company_event_fee_in_cents,
         event_fee_client_in_cents: organization.client_event_fee_in_cents,
-        event_fee_gross_in_cents: organization.company_event_fee_in_cents
-            + organization.client_event_fee_in_cents,
+        event_fee_gross_in_cents: organization.company_event_fee_in_cents + organization.client_event_fee_in_cents,
         event_fee_gross_in_cents_total: organization.company_event_fee_in_cents
             + organization.client_event_fee_in_cents,
         credit_card_fee_company_in_cents: 0,

@@ -158,17 +158,9 @@ impl ActivityItem {
         Ok(activity_items)
     }
 
-    pub fn load_for_order(
-        order: &Order,
-        conn: &PgConnection,
-    ) -> Result<Vec<ActivityItem>, DatabaseError> {
+    pub fn load_for_order(order: &Order, conn: &PgConnection) -> Result<Vec<ActivityItem>, DatabaseError> {
         let mut activity_items: Vec<ActivityItem> = Vec::new();
-        activity_items.append(&mut ActivityItem::load_purchases(
-            Some(order.id),
-            None,
-            None,
-            conn,
-        )?);
+        activity_items.append(&mut ActivityItem::load_purchases(Some(order.id), None, None, conn)?);
         activity_items.append(&mut ActivityItem::load_transfers(
             Some(order.id),
             None,
@@ -176,24 +168,9 @@ impl ActivityItem {
             false,
             conn,
         )?);
-        activity_items.append(&mut ActivityItem::load_check_ins(
-            Some(order.id),
-            None,
-            None,
-            conn,
-        )?);
-        activity_items.append(&mut ActivityItem::load_refunds(
-            Some(order.id),
-            None,
-            None,
-            conn,
-        )?);
-        activity_items.append(&mut ActivityItem::load_notes(
-            Some(order.id),
-            None,
-            None,
-            conn,
-        )?);
+        activity_items.append(&mut ActivityItem::load_check_ins(Some(order.id), None, None, conn)?);
+        activity_items.append(&mut ActivityItem::load_refunds(Some(order.id), None, None, conn)?);
+        activity_items.append(&mut ActivityItem::load_notes(Some(order.id), None, None, conn)?);
         activity_items.sort_by_key(|activity| Reverse(activity.occurred_at()));
         Ok(activity_items)
     }
@@ -207,10 +184,7 @@ impl ActivityItem {
         if order_id.is_none() && event_id.is_none() {
             return Err(DatabaseError::new(
                 ErrorCode::BusinessProcessError,
-                Some(
-                    "Activity loading requires either order_id or event_id to be present"
-                        .to_string(),
-                ),
+                Some("Activity loading requires either order_id or event_id to be present".to_string()),
             ));
         }
 
@@ -269,18 +243,12 @@ impl ActivityItem {
         .into_boxed();
 
         if let (Some(event_id), Some(user_id)) = (event_id, user_id) {
+            query = query.sql(format!(" and e.id = $1 ")).bind::<dUuid, _>(event_id);
             query = query
-                .sql(format!(" and e.id = $1 "))
-                .bind::<dUuid, _>(event_id);
-            query = query
-                .sql(format!(
-                    " and COALESCE(o.on_behalf_of_user_id, o.user_id) = $2 "
-                ))
+                .sql(format!(" and COALESCE(o.on_behalf_of_user_id, o.user_id) = $2 "))
                 .bind::<dUuid, _>(user_id);
         } else if let Some(order_id) = order_id {
-            query = query
-                .sql(format!(" AND o.id = $1 "))
-                .bind::<dUuid, _>(order_id);
+            query = query.sql(format!(" AND o.id = $1 ")).bind::<dUuid, _>(order_id);
         }
 
         let order_data: Vec<R> = query
@@ -388,10 +356,7 @@ impl ActivityItem {
         if order_id.is_none() && event_id.is_none() {
             return Err(DatabaseError::new(
                 ErrorCode::BusinessProcessError,
-                Some(
-                    "Activity loading requires either order_id or event_id to be present"
-                        .to_string(),
-                ),
+                Some("Activity loading requires either order_id or event_id to be present".to_string()),
             ));
         }
 
@@ -425,16 +390,10 @@ impl ActivityItem {
 
         let mut query = transfers::table
             .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
-            .inner_join(
-                ticket_instances::table
-                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
-            )
+            .inner_join(ticket_instances::table.on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)))
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .left_join(
-                order_items::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            )
+            .left_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .left_join(orders::table.on(orders::id.eq(order_items::order_id)))
             .inner_join(
                 domain_events::table.on(domain_events::main_table
@@ -454,11 +413,11 @@ impl ActivityItem {
             if only_source_user {
                 query = query.filter(transfers::source_user_id.eq(user_id));
             } else {
-                query = query.filter(transfers::source_user_id.eq(user_id).or(
-                    transfers::destination_user_id.eq(user_id).and(
-                        domain_events::event_type.eq(DomainEventTypes::TransferTicketCompleted),
-                    ),
-                ));
+                query = query.filter(
+                    transfers::source_user_id.eq(user_id).or(transfers::destination_user_id
+                        .eq(user_id)
+                        .and(domain_events::event_type.eq(DomainEventTypes::TransferTicketCompleted))),
+                );
             }
         } else if let Some(order_id) = order_id {
             query = query.filter(orders::id.eq(order_id));
@@ -504,10 +463,7 @@ impl ActivityItem {
             ))
             .distinct()
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load transfers for organization fan",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Unable to load transfers for organization fan")?;
 
         let mut user_ids = Vec::new();
         for transfer_datum in &transfer_data {
@@ -541,33 +497,23 @@ impl ActivityItem {
                     )
                 })?;
             let accepted_by = if let Some(accepted_by) = transfer_datum.accepted_by {
-                Some(
-                    user_map
-                        .get(&accepted_by)
-                        .map(|u| u.clone())
-                        .ok_or_else(|| {
-                            DatabaseError::new(
-                                ErrorCode::BusinessProcessError,
-                                Some("Unable to load accepting user".to_string()),
-                            )
-                        })?,
-                )
+                Some(user_map.get(&accepted_by).map(|u| u.clone()).ok_or_else(|| {
+                    DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some("Unable to load accepting user".to_string()),
+                    )
+                })?)
             } else {
                 None
             };
 
             let cancelled_by = if let Some(cancelled_by) = transfer_datum.cancelled_by {
-                Some(
-                    user_map
-                        .get(&cancelled_by)
-                        .map(|u| u.clone())
-                        .ok_or_else(|| {
-                            DatabaseError::new(
-                                ErrorCode::BusinessProcessError,
-                                Some("Unable to load cancelled by user".to_string()),
-                            )
-                        })?,
-                )
+                Some(user_map.get(&cancelled_by).map(|u| u.clone()).ok_or_else(|| {
+                    DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some("Unable to load cancelled by user".to_string()),
+                    )
+                })?)
             } else {
                 None
             };
@@ -588,9 +534,7 @@ impl ActivityItem {
                 accepted_by,
                 cancelled_by,
                 occurred_at: transfer_datum.occurred_at,
-                order_number: transfer_datum
-                    .order_id
-                    .map(|id| Order::parse_order_number(id)),
+                order_number: transfer_datum.order_id.map(|id| Order::parse_order_number(id)),
                 order_id: transfer_datum.order_id,
                 transfer_key: transfer_datum.transfer_key,
             });
@@ -608,10 +552,7 @@ impl ActivityItem {
         if order_id.is_none() && event_id.is_none() {
             return Err(DatabaseError::new(
                 ErrorCode::BusinessProcessError,
-                Some(
-                    "Activity loading requires either order_id or event_id to be present"
-                        .to_string(),
-                ),
+                Some("Activity loading requires either order_id or event_id to be present".to_string()),
             ));
         }
 
@@ -633,10 +574,7 @@ impl ActivityItem {
             .inner_join(wallets::table.on(ticket_instances::wallet_id.eq(wallets::id)))
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
             .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
-            .left_join(
-                order_items::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            )
+            .left_join(order_items::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .left_join(orders::table.on(orders::id.eq(order_items::order_id)))
             .into_boxed();
 
@@ -658,10 +596,7 @@ impl ActivityItem {
             ))
             .distinct()
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load check ins for organization fan",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Unable to load check ins for organization fan")?;
 
         let mut user_ids = Vec::new();
         for check_in_datum in &check_in_data {
@@ -687,39 +622,27 @@ impl ActivityItem {
                 check_in_datum.redeemed_for,
                 check_in_datum.occurred_at,
             ) {
-                let redeemed_by =
-                    user_map
-                        .get(&redeemed_by)
-                        .map(|u| u.clone())
-                        .ok_or_else(|| {
-                            DatabaseError::new(
-                                ErrorCode::BusinessProcessError,
-                                Some("Unable to load redeemed by user".to_string()),
-                            )
-                        })?;
-                let redeemed_for =
-                    user_map
-                        .get(&redeemed_for)
-                        .map(|u| u.clone())
-                        .ok_or_else(|| {
-                            DatabaseError::new(
-                                ErrorCode::BusinessProcessError,
-                                Some("Unable to load redeemed for user".to_string()),
-                            )
-                        })?;
+                let redeemed_by = user_map.get(&redeemed_by).map(|u| u.clone()).ok_or_else(|| {
+                    DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some("Unable to load redeemed by user".to_string()),
+                    )
+                })?;
+                let redeemed_for = user_map.get(&redeemed_for).map(|u| u.clone()).ok_or_else(|| {
+                    DatabaseError::new(
+                        ErrorCode::BusinessProcessError,
+                        Some("Unable to load redeemed for user".to_string()),
+                    )
+                })?;
 
                 activity_items.push(ActivityItem::CheckIn {
                     ticket_instance_id: check_in_datum.ticket_instance_id,
-                    ticket_number: TicketInstance::parse_ticket_number(
-                        check_in_datum.ticket_instance_id,
-                    ),
+                    ticket_number: TicketInstance::parse_ticket_number(check_in_datum.ticket_instance_id),
                     redeemed_for,
                     occurred_at,
                     redeemed_by,
                     order_id: check_in_datum.order_id,
-                    order_number: check_in_datum
-                        .order_id
-                        .map(|id| Order::parse_order_number(id)),
+                    order_number: check_in_datum.order_id.map(|id| Order::parse_order_number(id)),
                 });
             }
         }
@@ -736,10 +659,7 @@ impl ActivityItem {
         if order_id.is_none() && event_id.is_none() {
             return Err(DatabaseError::new(
                 ErrorCode::BusinessProcessError,
-                Some(
-                    "Activity loading requires either order_id or event_id to be present"
-                        .to_string(),
-                ),
+                Some("Activity loading requires either order_id or event_id to be present".to_string()),
             ));
         }
 
@@ -766,15 +686,11 @@ impl ActivityItem {
             .into_boxed();
 
         if let (Some(event_id), Some(user_id)) = (event_id, user_id) {
-            query = query
-                .filter(order_items::event_id.eq(Some(event_id)))
-                .filter(
-                    orders::on_behalf_of_user_id
-                        .eq(Some(user_id))
-                        .or(orders::on_behalf_of_user_id
-                            .is_null()
-                            .and(orders::user_id.eq(user_id))),
-                );
+            query = query.filter(order_items::event_id.eq(Some(event_id))).filter(
+                orders::on_behalf_of_user_id
+                    .eq(Some(user_id))
+                    .or(orders::on_behalf_of_user_id.is_null().and(orders::user_id.eq(user_id))),
+            );
         } else if let Some(order_id) = order_id {
             query = query.filter(orders::id.eq(order_id));
         }
@@ -797,10 +713,7 @@ impl ActivityItem {
             ))
             .distinct()
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load refund data for organization fan",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Unable to load refund data for organization fan")?;
 
         let mut user_ids = Vec::new();
         for refund_datum in &refund_data {
@@ -871,10 +784,7 @@ impl ActivityItem {
             ))
             .order_by(refunds::id)
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load refund data for organization fan",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Unable to load refund data for organization fan")?;
 
         for refund_datum in refund_data {
             let mut refund_items = vec![];
@@ -887,10 +797,7 @@ impl ActivityItem {
                         Some("Unable to load refunded by user".to_string()),
                     )
                 })?;
-            for item in items
-                .iter()
-                .filter(|i| i.refund_id == refund_datum.refund_id)
-            {
+            for item in items.iter().filter(|i| i.refund_id == refund_datum.refund_id) {
                 let order_item = OrderItem {
                     id: item.order_item_id,
                     order_id: item.order_id,
@@ -944,10 +851,7 @@ impl ActivityItem {
         if order_id.is_none() && event_id.is_none() || (event_id.is_some() && user_id.is_none()) {
             return Err(DatabaseError::new(
                 ErrorCode::BusinessProcessError,
-                Some(
-                    "Activity loading requires either order_id or event_id to be present"
-                        .to_string(),
-                ),
+                Some("Activity loading requires either order_id or event_id to be present".to_string()),
             ));
         }
 
@@ -968,20 +872,14 @@ impl ActivityItem {
         let mut query = orders::table
             .inner_join(order_items::table.on(order_items::order_id.eq(orders::id)))
             .inner_join(events::table.on(order_items::event_id.eq(events::id.nullable())))
-            .inner_join(
-                notes::table.on(notes::main_table
-                    .eq(Tables::Orders)
-                    .and(notes::main_id.eq(orders::id))),
-            )
+            .inner_join(notes::table.on(notes::main_table.eq(Tables::Orders).and(notes::main_id.eq(orders::id))))
             .into_boxed();
 
         if let (Some(event_id), Some(user_id)) = (event_id, user_id) {
             query = query.filter(events::id.eq(event_id)).filter(
                 orders::on_behalf_of_user_id
                     .eq(Some(user_id))
-                    .or(orders::on_behalf_of_user_id
-                        .is_null()
-                        .and(orders::user_id.eq(user_id))),
+                    .or(orders::on_behalf_of_user_id.is_null().and(orders::user_id.eq(user_id))),
             );
         } else if let Some(order_id) = order_id {
             query = query.filter(orders::id.eq(order_id));
@@ -997,10 +895,7 @@ impl ActivityItem {
             ))
             .distinct()
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load notes for organization fan",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Unable to load notes for organization fan")?;
 
         let mut user_ids = Vec::new();
         for note_datum in &note_data {
@@ -1016,15 +911,12 @@ impl ActivityItem {
 
         let mut activity_items: Vec<ActivityItem> = Vec::new();
         for note_datum in &note_data {
-            let created_by = user_map
-                .get(&note_datum.created_by)
-                .map(|u| u.clone())
-                .ok_or_else(|| {
-                    DatabaseError::new(
-                        ErrorCode::BusinessProcessError,
-                        Some("Unable to load recorded by user".to_string()),
-                    )
-                })?;
+            let created_by = user_map.get(&note_datum.created_by).map(|u| u.clone()).ok_or_else(|| {
+                DatabaseError::new(
+                    ErrorCode::BusinessProcessError,
+                    Some("Unable to load recorded by user".to_string()),
+                )
+            })?;
 
             activity_items.push(ActivityItem::Note {
                 note_id: note_datum.note_id,

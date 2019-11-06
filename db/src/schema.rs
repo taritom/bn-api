@@ -1,4 +1,25 @@
 table! {
+    analytics_page_views (id) {
+        id -> Uuid,
+        date -> Date,
+        hour -> Time,
+        event_id -> Text,
+        source -> Text,
+        medium -> Text,
+        term -> Text,
+        content -> Text,
+        platform -> Text,
+        campaign -> Text,
+        url -> Text,
+        code -> Text,
+        client_id -> Text,
+        user_agent -> Text,
+        ip_address -> Text,
+        count -> Int8,
+    }
+}
+
+table! {
     artist_genres (id) {
         id -> Uuid,
         artist_id -> Uuid,
@@ -866,6 +887,7 @@ joinable!(wallets -> organizations (organization_id));
 joinable!(wallets -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
+    analytics_page_views,
     artist_genres,
     artists,
     assets,

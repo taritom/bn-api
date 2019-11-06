@@ -63,6 +63,7 @@ use serde_json::Value;
 pub mod concerns;
 
 mod activities;
+pub mod analytics;
 mod artists;
 mod assets;
 mod broadcasts;
@@ -132,9 +133,7 @@ where
     }
 }
 
-pub fn double_option_deserialize_unless_blank<'de, T, D>(
-    deserializer: D,
-) -> Result<Option<T>, D::Error>
+pub fn double_option_deserialize_unless_blank<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     T: Deserialize<'de>,
     D: Deserializer<'de>,
@@ -161,9 +160,7 @@ where
     if value.is_string() {
         Ok(Some(String::from(value.as_str().unwrap_or(""))))
     } else if value.is_number() {
-        Ok(Some(String::from(
-            value.as_f64().unwrap_or(0f64).to_string(),
-        )))
+        Ok(Some(String::from(value.as_f64().unwrap_or(0f64).to_string())))
     } else {
         Ok(None)
     }

@@ -44,10 +44,8 @@ impl<'a> DomainEventPublisherBuilder<'a> {
     pub fn finish(self) -> DomainEventPublisher {
         DomainEventPublisher::create(
             self.organization_id,
-            self.event_types
-                .unwrap_or(vec![DomainEventTypes::OrderCreated]),
-            self.webhook_url
-                .unwrap_or("https://www.tari.com".to_string()),
+            self.event_types.unwrap_or(vec![DomainEventTypes::OrderCreated]),
+            self.webhook_url.unwrap_or("https://www.tari.com".to_string()),
             self.import_historic_events,
         )
         .commit(self.connection)

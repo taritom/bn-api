@@ -19,8 +19,7 @@ pub fn update_box_office_pricing(role: Roles, should_test_succeed: bool) {
         .finish();
 
     let user = database.create_user().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     let box_office_pricing = ticket_type
         .add_ticket_pricing(
@@ -57,21 +56,13 @@ pub fn update_box_office_pricing(role: Roles, should_test_succeed: bool) {
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        let cart = Order::find_cart_for_user(user.id, &connection)
-            .unwrap()
-            .unwrap();
+        let cart = Order::find_cart_for_user(user.id, &connection).unwrap().unwrap();
         let items = cart.items(&connection).unwrap();
-        let order_item = items
-            .iter()
-            .find(|i| i.ticket_type_id == Some(ticket_type_id))
-            .unwrap();
+        let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
 
         assert_eq!(order_item.quantity, 2);
         assert!(order_item.find_fee_item(connection).unwrap().is_none());
-        assert_eq!(
-            order_item.unit_price_in_cents,
-            box_office_pricing.price_in_cents
-        );
+        assert_eq!(order_item.unit_price_in_cents, box_office_pricing.price_in_cents);
     } else {
         support::expects_unauthorized(&response);
     }
@@ -97,8 +88,7 @@ pub fn replace_box_office_pricing(role: Roles, should_test_succeed: bool) {
     let old_ticket_type = &event2.ticket_types(true, None, connection).unwrap()[0];
 
     let user = database.create_user().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let box_office_pricing = ticket_type
         .add_ticket_pricing(
             "Box office".into(),
@@ -160,25 +150,17 @@ pub fn replace_box_office_pricing(role: Roles, should_test_succeed: bool) {
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
-        let cart = Order::find_cart_for_user(user.id, &connection)
-            .unwrap()
-            .unwrap();
+        let cart = Order::find_cart_for_user(user.id, &connection).unwrap().unwrap();
         let items = cart.items(&connection).unwrap();
         assert!(items
             .iter()
             .find(|i| i.ticket_type_id == Some(old_ticket_type.id))
             .is_none());
-        let order_item = items
-            .iter()
-            .find(|i| i.ticket_type_id == Some(ticket_type_id))
-            .unwrap();
+        let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
 
         assert_eq!(order_item.quantity, 2);
         assert!(order_item.find_fee_item(connection).unwrap().is_none());
-        assert_eq!(
-            order_item.unit_price_in_cents,
-            box_office_pricing.price_in_cents
-        );
+        assert_eq!(order_item.unit_price_in_cents, box_office_pricing.price_in_cents);
     } else {
         support::expects_unauthorized(&response);
     }

@@ -121,12 +121,7 @@ impl<'a> OrganizationBuilder<'a> {
         };
 
         organization = organization
-            .update(
-                event_fee_update,
-                None,
-                &"encryption_key".to_string(),
-                self.connection,
-            )
+            .update(event_fee_update, None, &"encryption_key".to_string(), self.connection)
             .unwrap();
 
         for (user_id, role) in self.members {
@@ -135,12 +130,7 @@ impl<'a> OrganizationBuilder<'a> {
                 .unwrap();
         }
 
-        Wallet::create_for_organization(
-            organization.id,
-            String::from("Default wallet"),
-            self.connection,
-        )
-        .unwrap();
+        Wallet::create_for_organization(organization.id, String::from("Default wallet"), self.connection).unwrap();
 
         if self.use_address {
             let mut attrs: OrganizationEditableAttributes = Default::default();

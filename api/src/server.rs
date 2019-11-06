@@ -22,11 +22,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(
-        config: Config,
-        database: Database,
-        database_ro: Database,
-    ) -> Result<AppState, DatabaseError> {
+    pub fn new(config: Config, database: Database, database_ro: Database) -> Result<AppState, DatabaseError> {
         Ok(AppState {
             database,
             database_ro,
@@ -53,8 +49,7 @@ impl Server {
         let database = Database::from_config(&config);
         let database_ro = Database::readonly_from_config(&config);
 
-        let mut domain_action_monitor =
-            DomainActionMonitor::new(config.clone(), database.clone(), 1);
+        let mut domain_action_monitor = DomainActionMonitor::new(config.clone(), database.clone(), 1);
         if process_actions_til_empty {
             domain_action_monitor.run_til_empty().unwrap();
             return;

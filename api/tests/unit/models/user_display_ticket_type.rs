@@ -52,19 +52,11 @@ fn from_ticket_type() {
 
     // Box office pricing
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, true, None, conn)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, true, None, conn).unwrap();
     assert_eq!(
         Some(
-            DisplayTicketPricing::from_ticket_pricing(
-                &box_office_pricing,
-                &fee_schedule,
-                None,
-                None,
-                true,
-                conn
-            )
-            .unwrap()
+            DisplayTicketPricing::from_ticket_pricing(&box_office_pricing, &fee_schedule, None, None, true, conn)
+                .unwrap()
         ),
         display_ticket_type.ticket_pricing,
     );
@@ -74,8 +66,7 @@ fn from_ticket_type() {
 
     // New event nothing sold
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn).unwrap();
     assert_eq!(display_ticket_type.available, 100);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
     assert_eq!(
@@ -84,15 +75,7 @@ fn from_ticket_type() {
     );
     assert_eq!(
         Some(
-            DisplayTicketPricing::from_ticket_pricing(
-                &ticket_pricing,
-                &fee_schedule,
-                None,
-                None,
-                false,
-                conn
-            )
-            .unwrap()
+            DisplayTicketPricing::from_ticket_pricing(&ticket_pricing, &fee_schedule, None, None, false, conn).unwrap()
         ),
         display_ticket_type.ticket_pricing,
     );
@@ -100,14 +83,9 @@ fn from_ticket_type() {
     assert_eq!(fee_in_cents, display_ticket_pricing.fee_in_cents);
 
     // 10 tickets sold / reserved (via create_order for_event)
-    let mut order = database
-        .create_order()
-        .for_event(&event)
-        .quantity(10)
-        .finish();
+    let mut order = database.create_order().for_event(&event).quantity(10).finish();
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn).unwrap();
     assert_eq!(display_ticket_type.available, 90);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
 
@@ -126,8 +104,7 @@ fn from_ticket_type() {
         )
         .unwrap();
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn).unwrap();
     assert_eq!(display_ticket_type.available, 0);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::SoldOut);
 
@@ -146,8 +123,7 @@ fn from_ticket_type() {
         )
         .unwrap();
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn).unwrap();
     assert_eq!(display_ticket_type.available, 10);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
 
@@ -164,14 +140,9 @@ fn from_ticket_type() {
         .get_range(ticket_pricing.price_in_cents - 10, conn)
         .unwrap()
         .fee_in_cents;
-    let display_ticket_type = UserDisplayTicketType::from_ticket_type(
-        &ticket_type,
-        &fee_schedule,
-        false,
-        hold.redemption_code,
-        conn,
-    )
-    .unwrap();
+    let display_ticket_type =
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, hold.redemption_code, conn)
+            .unwrap();
     assert_eq!(display_ticket_type.limit_per_person, 100);
     let display_ticket_pricing = display_ticket_type.ticket_pricing.unwrap();
     assert_eq!(display_ticket_pricing.discount_in_cents, 10);
@@ -184,14 +155,9 @@ fn from_ticket_type() {
         .with_quantity(1)
         .with_ticket_type_id(ticket_type.id)
         .finish();
-    let display_ticket_type = UserDisplayTicketType::from_ticket_type(
-        &ticket_type,
-        &fee_schedule,
-        false,
-        hold.redemption_code,
-        conn,
-    )
-    .unwrap();
+    let display_ticket_type =
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, hold.redemption_code, conn)
+            .unwrap();
     let display_ticket_pricing = display_ticket_type.ticket_pricing.unwrap();
     assert_eq!(
         display_ticket_pricing.discount_in_cents,
@@ -213,14 +179,9 @@ fn from_ticket_type() {
         .get_range(ticket_pricing.price_in_cents - 10, conn)
         .unwrap()
         .fee_in_cents;
-    let display_ticket_type = UserDisplayTicketType::from_ticket_type(
-        &ticket_type,
-        &fee_schedule,
-        false,
-        Some(code.redemption_code),
-        conn,
-    )
-    .unwrap();
+    let display_ticket_type =
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, Some(code.redemption_code), conn)
+            .unwrap();
     assert_eq!(display_ticket_type.limit_per_person, 99);
     let display_ticket_pricing = display_ticket_type.ticket_pricing.unwrap();
     assert_eq!(display_ticket_pricing.discount_in_cents, 10);
@@ -233,18 +194,11 @@ fn from_ticket_type() {
         .with_code_type(CodeTypes::Discount)
         .for_ticket_type(&ticket_type)
         .with_discount_in_cents(Some(10))
-        .with_end_date(NaiveDateTime::from(
-            Utc::now().naive_utc() - Duration::days(1),
-        ))
+        .with_end_date(NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1)))
         .finish();
-    let display_ticket_type = UserDisplayTicketType::from_ticket_type(
-        &ticket_type,
-        &fee_schedule,
-        false,
-        Some(code.redemption_code),
-        conn,
-    )
-    .unwrap();
+    let display_ticket_type =
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, Some(code.redemption_code), conn)
+            .unwrap();
     let display_ticket_pricing = display_ticket_type.ticket_pricing.unwrap();
     // Code is not applied
     assert_eq!(display_ticket_pricing.discount_in_cents, 0);
@@ -257,8 +211,7 @@ fn from_ticket_type() {
         .finish();
     let ticket_type = event.ticket_types(true, None, conn).unwrap().remove(0);
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn).unwrap();
     assert_eq!(display_ticket_type.available, 100);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::OnSaleSoon);
 
@@ -269,8 +222,7 @@ fn from_ticket_type() {
         .finish();
     let ticket_type = event.ticket_types(true, None, conn).unwrap().remove(0);
     let display_ticket_type =
-        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn)
-            .unwrap();
+        UserDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, false, None, conn).unwrap();
     assert_eq!(display_ticket_type.available, 100);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::SaleEnded);
 

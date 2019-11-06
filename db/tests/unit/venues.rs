@@ -181,38 +181,22 @@ fn find() {
 #[test]
 fn find_by_ids() {
     let project = TestProject::new();
-    let venue = project
-        .create_venue()
-        .with_name("Venue1".to_string())
-        .finish();
-    let _ = project
-        .create_venue()
-        .with_name("Venue2".to_string())
-        .finish();
-    let venue3 = project
-        .create_venue()
-        .with_name("Venue3".to_string())
-        .finish();
+    let venue = project.create_venue().with_name("Venue1".to_string()).finish();
+    let _ = project.create_venue().with_name("Venue2".to_string()).finish();
+    let venue3 = project.create_venue().with_name("Venue3".to_string()).finish();
 
     let mut expected_venues = vec![venue.clone(), venue3.clone()];
     expected_venues.sort_by_key(|v| v.id);
 
-    let found_venues =
-        Venue::find_by_ids(vec![venue.id, venue3.id], &project.get_connection()).unwrap();
+    let found_venues = Venue::find_by_ids(vec![venue.id, venue3.id], &project.get_connection()).unwrap();
     assert_eq!(expected_venues, found_venues);
 }
 
 #[test]
 fn all() {
     let project = TestProject::new();
-    let venue = project
-        .create_venue()
-        .with_name("Venue1".to_string())
-        .finish();
-    let venue2 = project
-        .create_venue()
-        .with_name("Venue2".to_string())
-        .finish();
+    let venue = project.create_venue().with_name("Venue1".to_string()).finish();
+    let venue2 = project.create_venue().with_name("Venue2".to_string()).finish();
     let organization = project.create_organization().finish();
     let conn = &project.get_connection();
 
@@ -249,10 +233,7 @@ fn find_for_organization() {
         .finish()
         .add_role(Roles::Admin, connection)
         .unwrap();
-    let _public_venue = project
-        .create_venue()
-        .with_name("Venue0".to_string())
-        .finish();
+    let _public_venue = project.create_venue().with_name("Venue0".to_string()).finish();
     let organization = project
         .create_organization()
         .with_member(&owner, Roles::OrgOwner)
@@ -294,30 +275,21 @@ fn find_for_organization() {
     let organization_venues = vec![venue1, venue2, venue3];
 
     // Guest user / not logged in
-    let found_venues =
-        Venue::find_for_organization(None, organization.id, project.get_connection()).unwrap();
+    let found_venues = Venue::find_for_organization(None, organization.id, project.get_connection()).unwrap();
     assert_eq!(found_venues, public_organization_venues);
 
     // Private venue is not shown for users
-    let found_venues =
-        Venue::find_for_organization(Some(&user), organization.id, project.get_connection())
-            .unwrap();
+    let found_venues = Venue::find_for_organization(Some(&user), organization.id, project.get_connection()).unwrap();
     assert_eq!(found_venues, public_organization_venues);
 
     // Private venue is shown for admins, owners, and members
-    let found_venues =
-        Venue::find_for_organization(Some(&owner), organization.id, project.get_connection())
-            .unwrap();
+    let found_venues = Venue::find_for_organization(Some(&owner), organization.id, project.get_connection()).unwrap();
     assert_eq!(found_venues, organization_venues);
 
-    let found_venues =
-        Venue::find_for_organization(Some(&member), organization.id, project.get_connection())
-            .unwrap();
+    let found_venues = Venue::find_for_organization(Some(&member), organization.id, project.get_connection()).unwrap();
     assert_eq!(found_venues, organization_venues);
 
-    let found_venues =
-        Venue::find_for_organization(Some(&admin), organization.id, project.get_connection())
-            .unwrap();
+    let found_venues = Venue::find_for_organization(Some(&admin), organization.id, project.get_connection()).unwrap();
     assert_eq!(found_venues, organization_venues);
 }
 
@@ -325,15 +297,9 @@ fn find_for_organization() {
 fn organization() {
     let project = TestProject::new();
     let organization = project.create_organization().finish();
-    let venue = project
-        .create_venue()
-        .with_organization(&organization)
-        .finish();
+    let venue = project.create_venue().with_organization(&organization).finish();
     let venue2 = project.create_venue().finish();
 
-    assert_eq!(
-        Ok(Some(organization)),
-        venue.organization(project.get_connection())
-    );
+    assert_eq!(Ok(Some(organization)), venue.organization(project.get_connection()));
     assert_eq!(Ok(None), venue2.organization(project.get_connection()));
 }

@@ -56,10 +56,7 @@ impl TemporaryUser {
             ))
             .on_conflict_do_nothing()
             .execute(conn)
-            .to_db_error(
-                ErrorCode::InsertError,
-                "Could not insert domain event published",
-            )?;
+            .to_db_error(ErrorCode::InsertError, "Could not insert domain event published")?;
         Ok(())
     }
 
@@ -72,15 +69,9 @@ impl TemporaryUser {
         }
     }
 
-    pub fn find_by_user_id(
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<TemporaryUser>, DatabaseError> {
+    pub fn find_by_user_id(user_id: Uuid, conn: &PgConnection) -> Result<Vec<TemporaryUser>, DatabaseError> {
         temporary_user_links::table
-            .inner_join(
-                temporary_users::table
-                    .on(temporary_users::id.eq(temporary_user_links::temporary_user_id)),
-            )
+            .inner_join(temporary_users::table.on(temporary_users::id.eq(temporary_user_links::temporary_user_id)))
             .filter(temporary_user_links::user_id.eq(user_id))
             .select(temporary_users::all_columns)
             .distinct()
@@ -106,18 +97,11 @@ pub struct NewTemporaryUser {
 }
 
 impl NewTemporaryUser {
-    pub fn commit(
-        self,
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<TemporaryUser, DatabaseError> {
+    pub fn commit(self, user_id: Uuid, conn: &PgConnection) -> Result<TemporaryUser, DatabaseError> {
         let temporary_user: TemporaryUser = diesel::insert_into(temporary_users::table)
             .values(self)
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::InsertError,
-                "Could not insert domain event publisher",
-            )?;
+            .to_db_error(ErrorCode::InsertError, "Could not insert domain event publisher")?;
 
         let mut domain_event = DomainEvent::create(
             DomainEventTypes::TemporaryUserCreated,

@@ -20,12 +20,7 @@ pub struct NoteFilterParameters {
 }
 
 pub fn create(
-    (conn, path, json, auth_user): (
-        Connection,
-        Path<MainTablePathParameters>,
-        Json<NewNoteRequest>,
-        User,
-    ),
+    (conn, path, json, auth_user): (Connection, Path<MainTablePathParameters>, Json<NewNoteRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let main_table: Tables = path.main_table.parse().map_err(|_| NotFoundError {})?;

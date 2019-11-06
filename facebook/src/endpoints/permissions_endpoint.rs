@@ -17,14 +17,8 @@ impl PermissionsEndpoint {
         //jlog!(Info, "Sending request to Facebook", { "request": &request });
 
         let mut resp = client
-            .get(&format!(
-                "{}/{}/permissions",
-                &self.client.base_url, user_id
-            ))
-            .header(
-                "Authorization",
-                format!("Bearer {}", &self.client.app_access_token),
-            )
+            .get(&format!("{}/{}/permissions", &self.client.base_url, user_id))
+            .header("Authorization", format!("Bearer {}", &self.client.app_access_token))
             .send()?;
         //        let status = resp.status();
         let value: serde_json::Value = resp.json()?;

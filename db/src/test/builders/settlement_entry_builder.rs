@@ -24,7 +24,7 @@ impl<'a> SettlementEntryBuilder<'a> {
             revenue_share_value_in_cents: 10,
             online_sold_quantity: 2,
             fee_sold_quantity: 2,
-            connection: connection,
+            connection,
         }
     }
 

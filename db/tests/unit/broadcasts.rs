@@ -32,15 +32,10 @@ fn new_broadcast_commit() {
 
     assert_eq!(broadcast.channel, BroadcastChannel::PushNotification);
 
-    let domain_actions =
-        DomainAction::find_pending(Some(DomainActionTypes::BroadcastPushNotification), conn)
-            .unwrap();
+    let domain_actions = DomainAction::find_pending(Some(DomainActionTypes::BroadcastPushNotification), conn).unwrap();
     assert_eq!(domain_actions.len(), 1, "DomainAction was not created");
     assert_eq!(domain_actions[0].main_table_id.unwrap(), broadcast.id);
-    assert_eq!(
-        domain_actions[0].scheduled_at.timestamp(),
-        send_at.timestamp()
-    );
+    assert_eq!(domain_actions[0].scheduled_at.timestamp(), send_at.timestamp());
 }
 
 #[test]
@@ -84,9 +79,7 @@ fn new_custom_broadcast_commit() {
     assert_eq!(broadcast.channel, BroadcastChannel::PushNotification);
     assert_eq!(broadcast.message, Some("Custom Message".to_string()));
 
-    let domain_actions =
-        DomainAction::find_pending(Some(DomainActionTypes::BroadcastPushNotification), conn)
-            .unwrap();
+    let domain_actions = DomainAction::find_pending(Some(DomainActionTypes::BroadcastPushNotification), conn).unwrap();
 
     assert_eq!(domain_actions.len(), 1, "DomainAction was not created");
     assert_eq!(domain_actions[0].main_table_id.unwrap(), broadcast.id);
@@ -178,10 +171,7 @@ fn broadcast_update_if_cancelled() {
     };
 
     let error = broadcast.update(attributes, conn).err();
-    assert!(
-        error.is_some(),
-        "broadcast.update did not return expected error"
-    );
+    assert!(error.is_some(), "broadcast.update did not return expected error");
     let error = error.unwrap();
     assert_eq!(error.error_code, ErrorCode::UpdateError);
     assert_eq!(

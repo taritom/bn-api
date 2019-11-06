@@ -33,17 +33,11 @@ where
     Ok(serde_json::from_str(unwrap_body_to_string(response)?).unwrap())
 }
 
-pub fn validation_response_from_response(
-    response: &HttpResponse,
-) -> Result<ValidationResponse, &'static str> {
+pub fn validation_response_from_response(response: &HttpResponse) -> Result<ValidationResponse, &'static str> {
     Ok(serde_json::from_str(unwrap_body_to_string(response)?).unwrap())
 }
 
-pub fn create_auth_user(
-    role: Roles,
-    organization: Option<&Organization>,
-    database: &TestDatabase,
-) -> AuthUser {
+pub fn create_auth_user(role: Roles, organization: Option<&Organization>, database: &TestDatabase) -> AuthUser {
     let user_for_auth = database.create_user().finish();
     create_auth_user_from_user(&user_for_auth, role, organization, database)
 }
@@ -84,8 +78,8 @@ pub fn create_auth_user_from_user(
 }
 
 pub fn expects_unauthorized(response: &HttpResponse) {
-    let expected_json = HttpResponse::Unauthorized()
-        .json(json!({"error": "User does not have the required permissions"}));
+    let expected_json =
+        HttpResponse::Unauthorized().json(json!({"error": "User does not have the required permissions"}));
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     let expected_text = unwrap_body_to_string(&expected_json).unwrap();

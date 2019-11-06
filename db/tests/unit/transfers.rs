@@ -60,8 +60,17 @@ fn receive_url() {
         .unwrap();
     transfer.add_transfer_ticket(ticket.id, connection).unwrap();
 
-    assert_eq!(transfer.receive_url("http://example.com".to_string(), connection).unwrap(),
-        format!("http://example.com/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets=1&signature={}", transfer.source_user_id, transfer.transfer_key, transfer.signature(connection).unwrap()).to_string()
+    assert_eq!(
+        transfer
+            .receive_url("http://example.com".to_string(), connection)
+            .unwrap(),
+        format!(
+            "http://example.com/tickets/transfers/receive?sender_user_id={}&transfer_key={}&num_tickets=1&signature={}",
+            transfer.source_user_id,
+            transfer.transfer_key,
+            transfer.signature(connection).unwrap()
+        )
+        .to_string()
     );
 }
 
@@ -175,8 +184,7 @@ fn drip_header() {
         .unwrap();
     assert_eq!(
         drip_header,
-        "Those tickets you sent to test@tari.com still haven't been claimed. Give them a nudge!"
-            .to_string()
+        "Those tickets you sent to test@tari.com still haven't been claimed. Give them a nudge!".to_string()
     );
     let drip_header = transfer
         .drip_header(
@@ -311,13 +319,7 @@ fn drip_header() {
 
     // With links
     let drip_header = transfer
-        .drip_header(
-            &event,
-            SourceOrDestination::Source,
-            true,
-            Environment::Test,
-            connection,
-        )
+        .drip_header(&event, SourceOrDestination::Source, true, Environment::Test, connection)
         .unwrap();
     assert!(drip_header.contains("<a href='mailto:test@tari.com'>test@tari.com</a>"));
     let drip_header = transfer
@@ -413,9 +415,7 @@ fn can_process_drips() {
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer2
-        .add_transfer_ticket(ticket2.id, connection)
-        .unwrap();
+    transfer2.add_transfer_ticket(ticket2.id, connection).unwrap();
     assert!(!transfer2.can_process_drips(connection).unwrap());
 
     // Event has ended, do not process drip
@@ -482,18 +482,14 @@ fn create_drip_actions() {
     let mut payload_destinations: Vec<SourceOrDestination> = domain_actions
         .iter()
         .map(|da| {
-            let payload: ProcessTransferDripPayload =
-                serde_json::from_value(da.payload.clone()).unwrap();
+            let payload: ProcessTransferDripPayload = serde_json::from_value(da.payload.clone()).unwrap();
             payload.source_or_destination
         })
         .collect();
     payload_destinations.sort();
     assert_eq!(
         payload_destinations,
-        vec![
-            SourceOrDestination::Destination,
-            SourceOrDestination::Source,
-        ],
+        vec![SourceOrDestination::Destination, SourceOrDestination::Source,],
     );
 }
 
@@ -592,14 +588,10 @@ fn transfer_ticket_count() {
         .unwrap();
     assert_eq!(transfer.transfer_ticket_count(connection).unwrap(), 0);
 
-    transfer
-        .add_transfer_ticket(tickets[0].id, connection)
-        .unwrap();
+    transfer.add_transfer_ticket(tickets[0].id, connection).unwrap();
     assert_eq!(transfer.transfer_ticket_count(connection).unwrap(), 1);
 
-    transfer
-        .add_transfer_ticket(tickets[1].id, connection)
-        .unwrap();
+    transfer.add_transfer_ticket(tickets[1].id, connection).unwrap();
     assert_eq!(transfer.transfer_ticket_count(connection).unwrap(), 2);
 }
 
@@ -710,18 +702,8 @@ fn update_associated_orders() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    let order = project
-        .create_order()
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
-    let order2 = project
-        .create_order()
-        .for_user(&user2)
-        .quantity(1)
-        .is_paid()
-        .finish();
+    let order = project.create_order().for_user(&user).quantity(1).is_paid().finish();
+    let order2 = project.create_order().for_user(&user2).quantity(1).is_paid().finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let ticket2 = &TicketInstance::find_for_user(user2.id, connection).unwrap()[0];
 
@@ -735,22 +717,11 @@ fn update_associated_orders() {
     let transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer2
-        .add_transfer_ticket(ticket2.id, connection)
-        .unwrap();
-    assert!(transfer2
-        .clone()
-        .update_associated_orders(connection)
-        .is_ok());
-    assert_eq!(
-        vec![transfer2.clone()],
-        order2.transfers(connection).unwrap()
-    );
+    transfer2.add_transfer_ticket(ticket2.id, connection).unwrap();
+    assert!(transfer2.clone().update_associated_orders(connection).is_ok());
+    assert_eq!(vec![transfer2.clone()], order2.transfers(connection).unwrap());
 
-    assert!(transfer2
-        .clone()
-        .complete(user2.id, None, connection)
-        .is_ok());
+    assert!(transfer2.clone().complete(user2.id, None, connection).is_ok());
     let transfer2 = Transfer::find(transfer2.id, connection).unwrap();
     assert_eq!(
         transfer2.update_associated_orders(connection),
@@ -766,12 +737,7 @@ fn orders() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    let order = project
-        .create_order()
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
+    let order = project.create_order().for_user(&user).quantity(1).is_paid().finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
 
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
@@ -790,12 +756,7 @@ fn transfer_tickets() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    project
-        .create_order()
-        .for_user(&user)
-        .quantity(2)
-        .is_paid()
-        .finish();
+    project.create_order().for_user(&user).quantity(2).is_paid().finish();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = &tickets[0];
     let ticket2 = &tickets[1];
@@ -808,18 +769,10 @@ fn transfer_tickets() {
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    let transfer_ticket2 = transfer2
-        .add_transfer_ticket(ticket2.id, connection)
-        .unwrap();
+    let transfer_ticket2 = transfer2.add_transfer_ticket(ticket2.id, connection).unwrap();
 
-    assert_eq!(
-        vec![transfer_ticket],
-        transfer.transfer_tickets(connection).unwrap()
-    );
-    assert_eq!(
-        vec![transfer_ticket2],
-        transfer2.transfer_tickets(connection).unwrap()
-    );
+    assert_eq!(vec![transfer_ticket], transfer.transfer_tickets(connection).unwrap());
+    assert_eq!(vec![transfer_ticket2], transfer2.transfer_tickets(connection).unwrap());
 }
 
 #[test]
@@ -901,9 +854,7 @@ fn find_for_user_for_display() {
     let mut transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer2
-        .add_transfer_ticket(ticket2.id, connection)
-        .unwrap();
+    transfer2.add_transfer_ticket(ticket2.id, connection).unwrap();
     transfer2.update_associated_orders(connection).unwrap();
     transfer2 = transfer2
         .update(
@@ -1137,9 +1088,7 @@ fn find_for_user_for_display() {
     let transfer3 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer3
-        .add_transfer_ticket(ticket3.id, connection)
-        .unwrap();
+    transfer3.add_transfer_ticket(ticket3.id, connection).unwrap();
     transfer3.update_associated_orders(connection).unwrap();
     let transfer3 = transfer3.for_display(connection).unwrap();
 
@@ -1375,12 +1324,7 @@ fn add_transfer_ticket() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    project
-        .create_order()
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
+    project.create_order().for_user(&user).quantity(1).is_paid().finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
@@ -1423,9 +1367,7 @@ fn find_pending() {
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer2
-        .add_transfer_ticket(ticket.id, connection)
-        .unwrap();
+    transfer2.add_transfer_ticket(ticket.id, connection).unwrap();
 
     let pending_transfers = Transfer::find_pending(connection).unwrap();
     assert_eq!(pending_transfers.len(), 1);
@@ -1469,13 +1411,10 @@ fn find_pending_by_ticket_instance_ids() {
     let transfer2 = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
-    transfer2
-        .add_transfer_ticket(ticket.id, connection)
-        .unwrap();
+    transfer2.add_transfer_ticket(ticket.id, connection).unwrap();
 
     let pending_transfers =
-        Transfer::find_pending_by_ticket_instance_ids(&[ticket.id, ticket2.id], connection)
-            .unwrap();
+        Transfer::find_pending_by_ticket_instance_ids(&[ticket.id, ticket2.id], connection).unwrap();
     assert_eq!(pending_transfers.len(), 1);
     assert_eq!(pending_transfers[0].id, transfer2.id);
 
@@ -1487,8 +1426,7 @@ fn find_pending_by_ticket_instance_ids() {
     };
     event.update(None, parameters, connection).unwrap();
     let pending_transfers =
-        Transfer::find_pending_by_ticket_instance_ids(&[ticket.id, ticket2.id], connection)
-            .unwrap();
+        Transfer::find_pending_by_ticket_instance_ids(&[ticket.id, ticket2.id], connection).unwrap();
     assert_eq!(pending_transfers.len(), 0);
 }
 
@@ -1497,15 +1435,8 @@ fn cancel_by_ticket_instance_ids() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    project
-        .create_order()
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    project.create_order().for_user(&user).quantity(1).is_paid().finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key, None, None, false)
         .commit(connection)
@@ -1522,15 +1453,8 @@ fn cancel() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    project
-        .create_order()
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    project.create_order().for_user(&user).quantity(1).is_paid().finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key, None, None, false)
         .commit(connection)
@@ -1575,15 +1499,8 @@ fn complete() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
-    project
-        .create_order()
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    project.create_order().for_user(&user).quantity(1).is_paid().finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key, None, None, false)
         .commit(connection)
@@ -1628,15 +1545,8 @@ fn create_commit() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    project
-        .create_order()
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    project.create_order().for_user(&user).quantity(1).is_paid().finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key, None, None, false)
         .commit(connection)
@@ -1657,11 +1567,7 @@ fn create_commit() {
                 assert_eq!(errors["transfer_key"].len(), 1);
                 assert_eq!(errors["transfer_key"][0].code, "uniqueness");
                 assert_eq!(
-                    &errors["transfer_key"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["transfer_key"][0].message.clone().unwrap().into_owned(),
                     "Transfer key is already in use"
                 );
             }
@@ -1675,15 +1581,8 @@ fn update() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    project
-        .create_order()
-        .for_user(&user)
-        .quantity(1)
-        .is_paid()
-        .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    project.create_order().for_user(&user).quantity(1).is_paid().finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key.clone(), None, None, false)
         .commit(connection)

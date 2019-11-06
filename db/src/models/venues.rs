@@ -10,17 +10,7 @@ use utils::errors::*;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(
-    Clone,
-    Associations,
-    Identifiable,
-    Queryable,
-    AsChangeset,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Debug,
-)]
+#[derive(Clone, Associations, Identifiable, Queryable, AsChangeset, Serialize, Deserialize, PartialEq, Debug)]
 #[belongs_to(Region)]
 #[table_name = "venues"]
 pub struct Venue {
@@ -113,9 +103,7 @@ impl NewVenue {
         let venue: Venue = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new venue",
-            diesel::insert_into(venues::table)
-                .values(record)
-                .get_result(connection),
+            diesel::insert_into(venues::table).values(record).get_result(connection),
         )?;
 
         let slug_context = SlugContext::Venue {
@@ -141,12 +129,7 @@ impl NewVenue {
 }
 
 impl Venue {
-    pub fn create(
-        name: &str,
-        region_id: Option<Uuid>,
-        organization_id: Option<Uuid>,
-        timezone: String,
-    ) -> NewVenue {
+    pub fn create(name: &str, region_id: Option<Uuid>, organization_id: Option<Uuid>, timezone: String) -> NewVenue {
         NewVenue {
             name: String::from(name),
             region_id,
@@ -156,11 +139,7 @@ impl Venue {
         }
     }
 
-    pub fn update(
-        &self,
-        attributes: VenueEditableAttributes,
-        conn: &PgConnection,
-    ) -> Result<Venue, DatabaseError> {
+    pub fn update(&self, attributes: VenueEditableAttributes, conn: &PgConnection) -> Result<Venue, DatabaseError> {
         attributes.validate()?;
 
         let update_city_slug = {
@@ -201,10 +180,7 @@ impl Venue {
         )
     }
 
-    pub fn find_by_ids(
-        venue_ids: Vec<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Vec<Venue>, DatabaseError> {
+    pub fn find_by_ids(venue_ids: Vec<Uuid>, conn: &PgConnection) -> Result<Vec<Venue>, DatabaseError> {
         venues::table
             .filter(venues::id.eq_any(venue_ids))
             .order_by(venues::name)
@@ -222,10 +198,7 @@ impl Venue {
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u.id))),
                 )
-                .left_join(
-                    organizations::table
-                        .on(venues::organization_id.eq(organizations::id.nullable())),
-                )
+                .left_join(organizations::table.on(venues::organization_id.eq(organizations::id.nullable())))
                 .filter(
                     organization_users::user_id
                         .eq(u.id)
@@ -257,10 +230,7 @@ impl Venue {
                         .eq(organization_users::organization_id.nullable())
                         .and(organization_users::user_id.eq(u.id))),
                 )
-                .left_join(
-                    organizations::table
-                        .on(venues::organization_id.eq(organizations::id.nullable())),
-                )
+                .left_join(organizations::table.on(venues::organization_id.eq(organizations::id.nullable())))
                 .filter(
                     organization_users::user_id
                         .eq(u.id)
@@ -282,11 +252,7 @@ impl Venue {
         query.to_db_error(ErrorCode::QueryError, "Unable to load all venues")
     }
 
-    pub fn add_to_organization(
-        self,
-        organization_id: &Uuid,
-        conn: &PgConnection,
-    ) -> Result<Venue, DatabaseError> {
+    pub fn add_to_organization(self, organization_id: &Uuid, conn: &PgConnection) -> Result<Venue, DatabaseError> {
         //Should I make sure that this venue doesn't already have one here even though there is logic
         //for that in the bn-api layer?
         diesel::update(&self)
@@ -295,19 +261,12 @@ impl Venue {
             .to_db_error(ErrorCode::UpdateError, "Could not update venue")
     }
 
-    pub fn set_privacy(
-        &self,
-        is_private: bool,
-        conn: &PgConnection,
-    ) -> Result<Venue, DatabaseError> {
+    pub fn set_privacy(&self, is_private: bool, conn: &PgConnection) -> Result<Venue, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update is_private for artist",
             diesel::update(self)
-                .set((
-                    venues::is_private.eq(is_private),
-                    venues::updated_at.eq(dsl::now),
-                ))
+                .set((venues::is_private.eq(is_private), venues::updated_at.eq(dsl::now)))
                 .get_result(conn),
         )
     }
@@ -321,8 +280,7 @@ impl Venue {
 
     pub fn for_display(&self, conn: &PgConnection) -> Result<DisplayVenue, DatabaseError> {
         let slug = Slug::primary_slug(self.id, Tables::Venues, conn)?.slug;
-        let city_slug =
-            Slug::find_first_for_city(&self.city, &self.state, &self.country, conn)?.slug;
+        let city_slug = Slug::find_first_for_city(&self.city, &self.state, &self.country, conn)?.slug;
         Ok(DisplayVenue {
             id: self.id,
             name: self.name.clone(),

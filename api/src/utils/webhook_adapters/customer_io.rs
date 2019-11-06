@@ -29,26 +29,17 @@ impl WebhookAdapter for CustomerIoWebhookAdapter {
         self.api_key = config["api_key"].as_str().unwrap().to_string();
     }
 
-    fn send(
-        &self,
-        _webhook_urls: &[String],
-        payload: HashMap<String, Value, RandomState>,
-    ) -> Result<(), BigNeonError> {
+    fn send(&self, _webhook_urls: &[String], payload: HashMap<String, Value, RandomState>) -> Result<(), BigNeonError> {
         let client = reqwest::Client::new();
         let mut payload = payload;
         payload.insert("environment".to_string(), json!(self.environment));
 
         let client = match payload.get("user_id").and_then(|u| u.as_str()) {
             Some(user_id) => {
-                if let Some(webhook_event_type) =
-                    payload.get("webhook_event_type").and_then(|w| w.as_str())
-                {
+                if let Some(webhook_event_type) = payload.get("webhook_event_type").and_then(|w| w.as_str()) {
                     let res = match webhook_event_type {
                         "temporary_user_created" | "user_created" => client
-                            .put(&format!(
-                                "https://track.customer.io/api/v1/customers/{}",
-                                user_id
-                            ))
+                            .put(&format!("https://track.customer.io/api/v1/customers/{}", user_id))
                             .json(&payload),
 
                         _ => {
@@ -66,15 +57,12 @@ impl WebhookAdapter for CustomerIoWebhookAdapter {
 
                     res
                 } else {
-                    return Err(ApplicationError::new(
-                        "Cannot determine event to send to Customer.io".to_string(),
-                    )
-                    .into());
+                    return Err(
+                        ApplicationError::new("Cannot determine event to send to Customer.io".to_string()).into(),
+                    );
                 }
             }
-            None => client
-                .post("https://track.customer.io/api/v1/events")
-                .json(&payload),
+            None => client.post("https://track.customer.io/api/v1/events").json(&payload),
         };
 
         jlog!(

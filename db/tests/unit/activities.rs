@@ -12,11 +12,7 @@ fn load_for_event() {
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
     let user4 = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -107,31 +103,15 @@ fn load_for_event() {
     .unwrap();
 
     // Pending transfer
-    let transfer2 =
-        TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, false, connection)
-            .unwrap();
+    let transfer2 = TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, false, connection).unwrap();
 
     // Cancelled transfer
-    let transfer3 =
-        TicketInstance::create_transfer(user2.id, &[ticket8.id], None, None, false, connection)
-            .unwrap();
+    let transfer3 = TicketInstance::create_transfer(user2.id, &[ticket8.id], None, None, false, connection).unwrap();
     let transfer3 = transfer3.cancel(user4.id, None, connection).unwrap();
 
-    TicketInstance::redeem_ticket(
-        ticket2.id,
-        ticket2.redeem_key.clone().unwrap(),
-        user3.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user3.id, connection).unwrap();
     let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
-    TicketInstance::redeem_ticket(
-        ticket6.id,
-        ticket6.redeem_key.clone().unwrap(),
-        user3.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket6.id, ticket6.redeem_key.clone().unwrap(), user3.id, connection).unwrap();
     let ticket6 = TicketInstance::find(ticket6.id, connection).unwrap();
 
     let mut refunding_order = Order::find(
@@ -181,49 +161,26 @@ fn load_for_event() {
         .unwrap();
 
     let note = order
-        .create_note(
-            "Client will pick up at 18h00".to_string(),
-            user3.id,
-            connection,
-        )
+        .create_note("Client will pick up at 18h00".to_string(), user3.id, connection)
         .unwrap();
     let note2 = order
-        .create_note(
-            "Client will pick up at 16h00".to_string(),
-            user4.id,
-            connection,
-        )
+        .create_note("Client will pick up at 16h00".to_string(), user4.id, connection)
         .unwrap();
     let note3 = order2
-        .create_note(
-            "Client will pick up at 11h00".to_string(),
-            user3.id,
-            connection,
-        )
+        .create_note("Client will pick up at 11h00".to_string(), user3.id, connection)
         .unwrap();
     let note4 = order3
-        .create_note(
-            "Client will pick up at 14h00".to_string(),
-            user4.id,
-            connection,
-        )
+        .create_note("Client will pick up at 14h00".to_string(), user4.id, connection)
         .unwrap();
 
     let activity_items = ActivityItem::load_for_event(event.id, user.id, None, connection).unwrap();
-    let activity_items2 =
-        ActivityItem::load_for_event(event.id, user2.id, None, connection).unwrap();
-    let activity_items3 =
-        ActivityItem::load_for_event(event.id, user3.id, None, connection).unwrap();
-    let activity_items4 =
-        ActivityItem::load_for_event(event.id, user4.id, None, connection).unwrap();
-    let activity_items5 =
-        ActivityItem::load_for_event(event2.id, user.id, None, connection).unwrap();
-    let activity_items6 =
-        ActivityItem::load_for_event(event2.id, user2.id, None, connection).unwrap();
-    let activity_items7 =
-        ActivityItem::load_for_event(event2.id, user3.id, None, connection).unwrap();
-    let activity_items8 =
-        ActivityItem::load_for_event(event2.id, user4.id, None, connection).unwrap();
+    let activity_items2 = ActivityItem::load_for_event(event.id, user2.id, None, connection).unwrap();
+    let activity_items3 = ActivityItem::load_for_event(event.id, user3.id, None, connection).unwrap();
+    let activity_items4 = ActivityItem::load_for_event(event.id, user4.id, None, connection).unwrap();
+    let activity_items5 = ActivityItem::load_for_event(event2.id, user.id, None, connection).unwrap();
+    let activity_items6 = ActivityItem::load_for_event(event2.id, user2.id, None, connection).unwrap();
+    let activity_items7 = ActivityItem::load_for_event(event2.id, user3.id, None, connection).unwrap();
+    let activity_items8 = ActivityItem::load_for_event(event2.id, user4.id, None, connection).unwrap();
     assert_eq!(
         (
             activity_items.len(),
@@ -247,78 +204,34 @@ fn load_for_event() {
     expected_results.push(("Purchase".to_string(), order2.id, None));
     expected_results.push(("Refund".to_string(), refund.0.id, None));
     expected_results.push(("Refund".to_string(), refund2.0.id, None));
-    expected_results.push((
-        "Transfer".to_string(),
-        transfer.id,
-        Some("Accepted".to_string()),
-    ));
-    expected_results.push((
-        "Transfer".to_string(),
-        transfer.id,
-        Some("Started".to_string()),
-    ));
+    expected_results.push(("Transfer".to_string(), transfer.id, Some("Accepted".to_string())));
+    expected_results.push(("Transfer".to_string(), transfer.id, Some("Started".to_string())));
     expected_results.sort_by_key(|(table, id, additional_data)| {
-        format!(
-            "{}_{}_{}",
-            table,
-            id,
-            additional_data.clone().unwrap_or("".to_string())
-        )
+        format!("{}_{}_{}", table, id, additional_data.clone().unwrap_or("".to_string()))
     });
 
     let mut expected_results2: Vec<(String, Uuid, Option<String>)> = Vec::new();
     expected_results2.push(("Purchase".to_string(), order3.id, None));
     expected_results2.push(("CheckIn".to_string(), ticket6.id, None));
     expected_results2.push(("Note".to_string(), note4.id, None));
-    expected_results2.push((
-        "Transfer".to_string(),
-        transfer2.id,
-        Some("Started".to_string()),
-    ));
+    expected_results2.push(("Transfer".to_string(), transfer2.id, Some("Started".to_string())));
     expected_results2.push(("Refund".to_string(), refund3.0.id, None));
     expected_results2.sort_by_key(|(table, id, additional_data)| {
-        format!(
-            "{}_{}_{}",
-            table,
-            id,
-            additional_data.clone().unwrap_or("".to_string())
-        )
+        format!("{}_{}_{}", table, id, additional_data.clone().unwrap_or("".to_string()))
     });
 
     let mut expected_results4: Vec<(String, Uuid, Option<String>)> = Vec::new();
-    expected_results4.push((
-        "Transfer".to_string(),
-        transfer.id,
-        Some("Accepted".to_string()),
-    ));
+    expected_results4.push(("Transfer".to_string(), transfer.id, Some("Accepted".to_string())));
     expected_results4.sort_by_key(|(table, id, additional_data)| {
-        format!(
-            "{}_{}_{}",
-            table,
-            id,
-            additional_data.clone().unwrap_or("".to_string())
-        )
+        format!("{}_{}_{}", table, id, additional_data.clone().unwrap_or("".to_string()))
     });
 
     let mut expected_results6: Vec<(String, Uuid, Option<String>)> = Vec::new();
     expected_results6.push(("Purchase".to_string(), order4.id, None));
-    expected_results6.push((
-        "Transfer".to_string(),
-        transfer3.id,
-        Some("Started".to_string()),
-    ));
-    expected_results6.push((
-        "Transfer".to_string(),
-        transfer3.id,
-        Some("Cancelled".to_string()),
-    ));
+    expected_results6.push(("Transfer".to_string(), transfer3.id, Some("Started".to_string())));
+    expected_results6.push(("Transfer".to_string(), transfer3.id, Some("Cancelled".to_string())));
     expected_results6.sort_by_key(|(table, id, additional_data)| {
-        format!(
-            "{}_{}_{}",
-            table,
-            id,
-            additional_data.clone().unwrap_or("".to_string())
-        )
+        format!("{}_{}_{}", table, id, additional_data.clone().unwrap_or("".to_string()))
     });
 
     for (activity_items, expected_results) in vec![
@@ -332,12 +245,7 @@ fn load_for_event() {
             records_found.push(verify_activity_item_data(activity_item, connection));
         }
         records_found.sort_by_key(|(table, id, additional_data)| {
-            format!(
-                "{}_{}_{}",
-                table,
-                id,
-                additional_data.clone().unwrap_or("".to_string())
-            )
+            format!("{}_{}_{}", table, id, additional_data.clone().unwrap_or("".to_string()))
         });
         assert_eq!(records_found, expected_results);
     }
@@ -350,11 +258,7 @@ fn load_for_order() {
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -415,13 +319,7 @@ fn load_for_order() {
     )
     .unwrap();
 
-    TicketInstance::redeem_ticket(
-        ticket2.id,
-        ticket2.redeem_key.clone().unwrap(),
-        user3.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user3.id, connection).unwrap();
     let ticket2 = TicketInstance::find(ticket2.id, connection).unwrap();
 
     let mut refunding_order = Order::find(
@@ -441,25 +339,13 @@ fn load_for_order() {
         .unwrap();
 
     let note = order
-        .create_note(
-            "Client will pick up at 18h00".to_string(),
-            user3.id,
-            connection,
-        )
+        .create_note("Client will pick up at 18h00".to_string(), user3.id, connection)
         .unwrap();
     let note2 = order
-        .create_note(
-            "Client will pick up at 16h00".to_string(),
-            user2.id,
-            connection,
-        )
+        .create_note("Client will pick up at 16h00".to_string(), user2.id, connection)
         .unwrap();
     let note3 = order2
-        .create_note(
-            "Client will pick up at 11h00".to_string(),
-            user3.id,
-            connection,
-        )
+        .create_note("Client will pick up at 11h00".to_string(), user3.id, connection)
         .unwrap();
 
     let activity_items = ActivityItem::load_for_order(&order, connection).unwrap();
@@ -471,23 +357,10 @@ fn load_for_order() {
     expected_results.push(("Note".to_string(), note2.id, None));
     expected_results.push(("Note".to_string(), note.id, None));
     expected_results.push(("Purchase".to_string(), order.id, None));
-    expected_results.push((
-        "Transfer".to_string(),
-        transfer.id,
-        Some("Started".to_string()),
-    ));
-    expected_results.push((
-        "Transfer".to_string(),
-        transfer.id,
-        Some("Accepted".to_string()),
-    ));
+    expected_results.push(("Transfer".to_string(), transfer.id, Some("Started".to_string())));
+    expected_results.push(("Transfer".to_string(), transfer.id, Some("Accepted".to_string())));
     expected_results.sort_by_key(|(table, id, additional_data)| {
-        format!(
-            "{}_{}_{}",
-            table,
-            id,
-            additional_data.clone().unwrap_or("".to_string())
-        )
+        format!("{}_{}_{}", table, id, additional_data.clone().unwrap_or("".to_string()))
     });
 
     let mut expected_results2: Vec<(String, Uuid, Option<String>)> = Vec::new();
@@ -495,29 +368,18 @@ fn load_for_order() {
     expected_results2.push(("Refund".to_string(), refund.0.id, None));
     expected_results2.push(("Note".to_string(), note3.id, None));
     expected_results2.sort_by_key(|(table, id, additional_data)| {
-        format!(
-            "{}_{}_{}",
-            table,
-            id,
-            additional_data.clone().unwrap_or("".to_string())
-        )
+        format!("{}_{}_{}", table, id, additional_data.clone().unwrap_or("".to_string()))
     });
 
-    for (activity_items, expected_results) in vec![
-        (activity_items, expected_results),
-        (activity_items2, expected_results2),
-    ] {
+    for (activity_items, expected_results) in
+        vec![(activity_items, expected_results), (activity_items2, expected_results2)]
+    {
         let mut records_found: Vec<(String, Uuid, Option<String>)> = Vec::new();
         for activity_item in activity_items {
             records_found.push(verify_activity_item_data(activity_item, connection));
         }
         records_found.sort_by_key(|(table, id, additional_data)| {
-            format!(
-                "{}_{}_{}",
-                table,
-                id,
-                additional_data.clone().unwrap_or("".to_string())
-            )
+            format!("{}_{}_{}", table, id, additional_data.clone().unwrap_or("".to_string()))
         });
         assert_eq!(records_found, expected_results);
     }
@@ -588,10 +450,7 @@ fn occurred_at() {
     }
 }
 
-fn verify_activity_item_data(
-    activity_item: ActivityItem,
-    connection: &PgConnection,
-) -> (String, Uuid, Option<String>) {
+fn verify_activity_item_data(activity_item: ActivityItem, connection: &PgConnection) -> (String, Uuid, Option<String>) {
     match activity_item {
         ActivityItem::Purchase {
             order_id,
@@ -641,20 +500,12 @@ fn verify_activity_item_data(
                     calculated_total += item.quantity * item.unit_price_in_cents;
                 }
             }
-            assert_eq!(
-                ticket_quantity,
-                calculated_quantity + calculated_code_quantity
-            );
-            assert_eq!(
-                calculated_expected_total,
-                calculated_total + calculated_code_total
-            );
+            assert_eq!(ticket_quantity, calculated_quantity + calculated_code_quantity);
+            assert_eq!(calculated_expected_total, calculated_total + calculated_code_total);
             assert_eq!(calculated_expected_total, total_in_cents);
 
             for event in found_order.events(connection).unwrap() {
-                let found_code_event = events
-                    .iter()
-                    .find(|e| e.event_id == event.id && e.code.is_some());
+                let found_code_event = events.iter().find(|e| e.event_id == event.id && e.code.is_some());
                 if let Some(found_code_event) = found_code_event {
                     assert_eq!(found_code_event.event_id, event.id);
                     assert_eq!(found_code_event.name, event.name);
@@ -674,16 +525,11 @@ fn verify_activity_item_data(
                         code_type = Some(code.code_type.to_string());
                     }
                     assert_eq!(found_code_event.code, redemption_code);
-                    assert_eq!(
-                        found_code_event.code_discount_in_cents,
-                        code_discount_in_cents
-                    );
+                    assert_eq!(found_code_event.code_discount_in_cents, code_discount_in_cents);
                     assert_eq!(found_code_event.code_type, code_type);
                 }
 
-                let found_not_code_event = events
-                    .iter()
-                    .find(|e| e.event_id == event.id && e.code.is_none());
+                let found_not_code_event = events.iter().find(|e| e.event_id == event.id && e.code.is_none());
 
                 if let Some(found_not_code_event) = found_not_code_event {
                     assert_eq!(found_not_code_event.event_id, event.id);
@@ -695,16 +541,13 @@ fn verify_activity_item_data(
             }
 
             let expected_user: UserActivityItem = User::find(
-                found_order
-                    .on_behalf_of_user_id
-                    .unwrap_or(found_order.user_id),
+                found_order.on_behalf_of_user_id.unwrap_or(found_order.user_id),
                 connection,
             )
             .unwrap()
             .into();
             assert_eq!(expected_user, user);
-            let expected_purchased_by: UserActivityItem =
-                User::find(found_order.user_id, connection).unwrap().into();
+            let expected_purchased_by: UserActivityItem = User::find(found_order.user_id, connection).unwrap().into();
             assert_eq!(expected_purchased_by, purchased_by);
             ("Purchase".to_string(), order_id, None)
         }
@@ -734,23 +577,17 @@ fn verify_activity_item_data(
                     .collect::<Vec<Uuid>>()
             );
             let expected_initated_by: UserActivityItem =
-                User::find(found_transfer.source_user_id, connection)
-                    .unwrap()
-                    .into();
+                User::find(found_transfer.source_user_id, connection).unwrap().into();
             assert_eq!(expected_initated_by, initiated_by);
 
             let expected_accepted_by: Option<UserActivityItem> = found_transfer
                 .destination_user_id
-                .map(|destination_user_id| {
-                    User::find(destination_user_id, connection).unwrap().into()
-                });
+                .map(|destination_user_id| User::find(destination_user_id, connection).unwrap().into());
             assert_eq!(expected_accepted_by, accepted_by);
 
             let expected_cancelled_by: Option<UserActivityItem> = found_transfer
                 .cancelled_by_user_id
-                .map(|cancelled_by_user_id| {
-                    User::find(cancelled_by_user_id, connection).unwrap().into()
-                });
+                .map(|cancelled_by_user_id| User::find(cancelled_by_user_id, connection).unwrap().into());
             assert_eq!(expected_cancelled_by, cancelled_by);
 
             ("Transfer".to_string(), transfer_id, Some(action))
@@ -767,8 +604,7 @@ fn verify_activity_item_data(
                     .unwrap()
                     .into();
             assert_eq!(expected_redeemed_by, redeemed_by);
-            let expected_redeemed_for: UserActivityItem =
-                found_ticket.owner(connection).unwrap().into();
+            let expected_redeemed_for: UserActivityItem = found_ticket.owner(connection).unwrap().into();
             assert_eq!(expected_redeemed_for, redeemed_for);
             ("CheckIn".to_string(), ticket_instance_id, None)
         }
@@ -780,17 +616,11 @@ fn verify_activity_item_data(
             ..
         } => {
             let found_refund = Refund::find(refund_id, connection).unwrap();
-            let refund_amount: i64 = found_refund
-                .items(connection)
-                .unwrap()
-                .iter()
-                .map(|r| r.amount)
-                .sum();
+            let refund_amount: i64 = found_refund.items(connection).unwrap().iter().map(|r| r.amount).sum();
             assert_eq!(reason, found_refund.reason);
             assert_eq!(total_in_cents, refund_amount);
 
-            let expected_refunded_by: UserActivityItem =
-                User::find(found_refund.user_id, connection).unwrap().into();
+            let expected_refunded_by: UserActivityItem = User::find(found_refund.user_id, connection).unwrap().into();
             assert_eq!(expected_refunded_by, refunded_by);
             ("Refund".to_string(), refund_id, None)
         }
@@ -804,10 +634,7 @@ fn verify_activity_item_data(
             let found_note = Note::find(note_id, connection).unwrap();
             assert_eq!(found_note.main_id, order_id);
             assert_eq!(found_note.note, note);
-            let expected_created_by: UserActivityItem =
-                User::find(found_note.created_by, connection)
-                    .unwrap()
-                    .into();
+            let expected_created_by: UserActivityItem = User::find(found_note.created_by, connection).unwrap().into();
             assert_eq!(expected_created_by, created_by);
             ("Note".to_string(), note_id, None)
         }

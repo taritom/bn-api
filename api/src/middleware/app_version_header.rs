@@ -23,11 +23,7 @@ impl AppVersionHeader {
 }
 
 impl Middleware<AppState> for AppVersionHeader {
-    fn response(
-        &self,
-        _request: &HttpRequest<AppState>,
-        mut response: HttpResponse,
-    ) -> Result<Response> {
+    fn response(&self, _request: &HttpRequest<AppState>, mut response: HttpResponse) -> Result<Response> {
         response
             .headers_mut()
             .insert(&self.header_name, self.app_version.clone());

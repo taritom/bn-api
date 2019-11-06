@@ -85,33 +85,20 @@ impl Broadcast {
         }
     }
 
-    pub fn increment_open_count(
-        id: Uuid,
-        connection: &PgConnection,
-    ) -> Result<Broadcast, DatabaseError> {
+    pub fn increment_open_count(id: Uuid, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {
         let broadcast = Broadcast::find(id, connection)?;
         diesel::update(&broadcast)
             .set(broadcasts::dsl::opened_quantity.eq(broadcast.opened_quantity + 1))
             .get_result(connection)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Unable to update open count on broadcast",
-            )
+            .to_db_error(ErrorCode::UpdateError, "Unable to update open count on broadcast")
     }
 
-    pub fn set_sent_count(
-        id: Uuid,
-        count: i64,
-        connection: &PgConnection,
-    ) -> Result<Broadcast, DatabaseError> {
+    pub fn set_sent_count(id: Uuid, count: i64, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {
         let broadcast = Broadcast::find(id, connection)?;
         diesel::update(&broadcast)
             .set(broadcasts::dsl::sent_quantity.eq(count))
             .get_result(connection)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Unable to update sent count on broadcast",
-            )
+            .to_db_error(ErrorCode::UpdateError, "Unable to update sent count on broadcast")
     }
 
     pub fn find(id: Uuid, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {
@@ -143,10 +130,7 @@ impl Broadcast {
             .select(broadcasts::all_columns)
             .order_by(broadcasts::send_at.asc())
             .load(connection)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Unable to load push notification by event",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Unable to load push notification by event")?;
 
         let mut paging = Paging::new(page, limit);
         paging.total = total as u64;
@@ -234,10 +218,8 @@ impl Broadcast {
                         return Ok(Ok(()));
                     }
                 }
-                let validation_error = create_validation_error(
-                    "custom_message_empty",
-                    "Custom messages cannot be blank",
-                );
+                let validation_error =
+                    create_validation_error("custom_message_empty", "Custom messages cannot be blank");
                 return Ok(Err(validation_error));
             }
         }
@@ -278,11 +260,7 @@ impl NewBroadcast {
         let validation_errors = validators::append_validation_error(
             Ok(()),
             "message",
-            Broadcast::custom_type_has_message(
-                self.notification_type.clone(),
-                self.message.clone(),
-                conn,
-            )?,
+            Broadcast::custom_type_has_message(self.notification_type.clone(), self.message.clone(), conn)?,
         );
         Ok(validation_errors?)
     }

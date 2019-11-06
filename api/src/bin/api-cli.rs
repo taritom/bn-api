@@ -29,8 +29,7 @@ pub fn main() {
     info!("Loading environment");
     dotenv().ok();
 
-    let environment =
-        Config::parse_environment().unwrap_or_else(|_| panic!("Environment is invalid."));
+    let environment = Config::parse_environment().unwrap_or_else(|_| panic!("Environment is invalid."));
     jlog!(Info, &format!("Environment loaded {:?}", environment));
 
     let config = Config::new(environment);
@@ -40,9 +39,7 @@ pub fn main() {
     let matches = App::new("Big Neon API CLI")
         .author("Big Neon")
         .about("Command Line Interface for running tasks for the Big Neon API")
-        .subcommand(
-            SubCommand::with_name("sync-purchase-metadata").about("Syncs purchase metadata"),
-        )
+        .subcommand(SubCommand::with_name("sync-purchase-metadata").about("Syncs purchase metadata"))
         .subcommand(
             SubCommand::with_name("sync-spotify-genres")
                 .about("Syncs spotify genres across artist records appending any missing genres"),
@@ -56,10 +53,7 @@ pub fn main() {
                         .required(false),
                 ),
         )
-        .subcommand(
-            SubCommand::with_name("backpopulate-temporary-user-data")
-                .about("Backpopulate temporary user data"),
-        )
+        .subcommand(SubCommand::with_name("backpopulate-temporary-user-data").about("Backpopulate temporary user data"))
         .subcommand(
             SubCommand::with_name("schedule-missing-domain-actions")
                 .about("Creates any missing reoccurring domain actions"),
@@ -73,9 +67,7 @@ pub fn main() {
             regenerate_interaction_records(args.value_of("organization"), database)
         }
         ("backpopulate-temporary-user-data", Some(_)) => backpopulate_temporary_user_data(database),
-        ("schedule-missing-domain-actions", Some(_)) => {
-            schedule_missing_domain_actions(config, database)
-        }
+        ("schedule-missing-domain-actions", Some(_)) => schedule_missing_domain_actions(config, database),
         _ => {
             eprintln!("Invalid subcommand '{}'", matches.subcommand().0);
         }
@@ -84,9 +76,7 @@ pub fn main() {
 
 fn backpopulate_temporary_user_data(database: Database) {
     info!("Backpopulating temporary user data");
-    let connection = database
-        .get_connection()
-        .expect("Expected connection to establish");
+    let connection = database.get_connection().expect("Expected connection to establish");
     let connection = connection.get();
     let transfers: Vec<Transfer> = transfers::table
         .filter(
@@ -98,9 +88,8 @@ fn backpopulate_temporary_user_data(database: Database) {
         .load(connection)
         .expect("Expected to load transfers");
     for transfer in transfers {
-        if let Some(temporary_user) =
-            TemporaryUser::find_or_build_from_transfer(&transfer, connection)
-                .expect("Expected to create temporary user")
+        if let Some(temporary_user) = TemporaryUser::find_or_build_from_transfer(&transfer, connection)
+            .expect("Expected to create temporary user")
         {
             if let Some(destination_user_id) = transfer.destination_user_id {
                 temporary_user
@@ -118,15 +107,12 @@ fn backpopulate_temporary_user_data(database: Database) {
 
 fn regenerate_interaction_records(org_id: Option<&str>, database: Database) {
     info!("Regenerating interaction records");
-    let connection = database
-        .get_connection()
-        .expect("Expected connection to establish");
+    let connection = database.get_connection().expect("Expected connection to establish");
     let connection = connection.get();
 
     let organizations = match org_id {
-        Some(organization_id) => {
-            vec![Organization::find(Uuid::from_str(organization_id).unwrap(), connection).unwrap()]
-        }
+        Some(organization_id) => vec![Organization::find(Uuid::from_str(organization_id).unwrap(), connection).unwrap()],
+
         None => Organization::all(connection).unwrap(),
     };
 
@@ -156,9 +142,7 @@ fn regenerate_interaction_records(org_id: Option<&str>, database: Database) {
 
 fn schedule_missing_domain_actions(config: Config, database: Database) {
     info!("Scheduling missing domain actions");
-    let connection = database
-        .get_connection()
-        .expect("Expected connection to establish");
+    let connection = database.get_connection().expect("Expected connection to establish");
     let connection = connection.get();
 
     let organizations = Organization::all(connection).expect("Expected to find organizations");
@@ -171,12 +155,10 @@ fn schedule_missing_domain_actions(config: Config, database: Database) {
 
 fn sync_spotify_genres(config: Config, database: Database) {
     info!("Syncing spotify genres data");
-    let connection = database
-        .get_connection()
-        .expect("Expected connection to establish");
+    let connection = database.get_connection().expect("Expected connection to establish");
     let connection = connection.get();
-    let artists = Artist::find_spotify_linked_artists(connection)
-        .expect("Expected to find all artists linked to spotify");
+    let artists =
+        Artist::find_spotify_linked_artists(connection).expect("Expected to find all artists linked to spotify");
 
     let artist_ids: Vec<Uuid> = artists.iter().map(|a| a.id).collect();
     let genre_mapping = Genre::find_by_artist_ids(&artist_ids, connection)
@@ -208,10 +190,7 @@ fn sync_spotify_genres(config: Config, database: Database) {
                         match result {
                             Ok(_) => {
                                 let mut exit_outer_loop = false;
-                                for event in artist
-                                    .events(connection)
-                                    .expect("Expected to find artist events")
-                                {
+                                for event in artist.events(connection).expect("Expected to find artist events") {
                                     if let Err(error) = event.update_genres(None, connection) {
                                         error!("Error: {}", error);
                                         exit_outer_loop = true;
@@ -246,9 +225,7 @@ fn sync_spotify_genres(config: Config, database: Database) {
 
 fn sync_purchase_metadata(database: Database, service_locator: ServiceLocator) {
     info!("Syncing purchase metadata");
-    let connection = database
-        .get_connection()
-        .expect("Expected connection to establish");
+    let connection = database.get_connection().expect("Expected connection to establish");
     let mut i = 0;
     let mut exit = false;
 
@@ -257,13 +234,9 @@ fn sync_purchase_metadata(database: Database, service_locator: ServiceLocator) {
             break;
         }
 
-        let payments = Payment::find_all_with_orders_paginated_by_provider(
-            PaymentProviders::Stripe,
-            i,
-            50,
-            connection.get(),
-        )
-        .expect("Expected to find all payments with orders");
+        let payments =
+            Payment::find_all_with_orders_paginated_by_provider(PaymentProviders::Stripe, i, 50, connection.get())
+                .expect("Expected to find all payments with orders");
         i += 1;
 
         if payments.len() == 0 {

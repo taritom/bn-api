@@ -114,10 +114,7 @@ fn get_tag_as_str() {
     paging_parameters.tags = tags;
 
     assert_eq!(paging_parameters.get_tag_as_str("test"), None);
-    assert_eq!(
-        paging_parameters.get_tag_as_str("example"),
-        Some("example-response")
-    );
+    assert_eq!(paging_parameters.get_tag_as_str("example"), Some("example-response"));
 }
 
 #[test]

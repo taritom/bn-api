@@ -50,15 +50,11 @@ fn find_for_user_for_display() {
         .finish();
 
     // Order is not paid so tickets are not accessible
-    assert!(TicketInstance::find_for_user_for_display(
-        user.id,
-        Some(event2.id),
-        None,
-        None,
-        connection
-    )
-    .unwrap()
-    .is_empty());
+    assert!(
+        TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, connection)
+            .unwrap()
+            .is_empty()
+    );
 
     let total = cart2.calculate_total(connection).unwrap();
     cart2
@@ -72,8 +68,7 @@ fn find_for_user_for_display() {
         .unwrap();
 
     let found_tickets =
-        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
-            .unwrap();
+        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection).unwrap();
     assert_eq!(found_tickets.len(), 1);
     assert_eq!(found_tickets[0].0.id, event.id);
     assert_eq!(found_tickets[0].1.len(), 2);
@@ -95,8 +90,7 @@ fn find_for_user_for_display() {
         .unwrap();
 
     let found_tickets =
-        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
-            .unwrap();
+        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection).unwrap();
     assert_eq!(found_tickets.len(), 1);
     assert_eq!(found_tickets[0].0.id, event.id);
     assert_eq!(found_tickets[0].1.len(), 2);
@@ -121,8 +115,7 @@ fn find_for_user_for_display() {
     .execute(connection)
     .unwrap();
     let found_tickets =
-        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
-            .unwrap();
+        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection).unwrap();
     assert_eq!(found_tickets.len(), 1);
     assert_eq!(found_tickets[0].0.id, event.id);
     assert_eq!(found_tickets[0].1.len(), 2);
@@ -144,8 +137,7 @@ fn find_for_user_for_display() {
         .unwrap();
 
     let found_tickets =
-        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection)
-            .unwrap();
+        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, connection).unwrap();
     assert_eq!(found_tickets.len(), 1);
     assert_eq!(found_tickets[0].0.id, event.id);
     assert_eq!(found_tickets[0].1.len(), 2);
@@ -160,15 +152,13 @@ fn find_for_user_for_display() {
 
     // other event
     let found_tickets =
-        TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, connection)
-            .unwrap();
+        TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, connection).unwrap();
     assert_eq!(found_tickets.len(), 1);
     assert_eq!(found_tickets[0].0.id, event2.id);
     assert_eq!(found_tickets[0].1.len(), 2);
 
     // no event specified
-    let found_tickets =
-        TicketInstance::find_for_user_for_display(user.id, None, None, None, connection).unwrap();
+    let found_tickets = TicketInstance::find_for_user_for_display(user.id, None, None, None, connection).unwrap();
     assert_eq!(found_tickets.len(), 2);
     assert_eq!(found_tickets[0].0.id, event.id);
     assert_eq!(found_tickets[0].1.len(), 2);
@@ -319,11 +309,7 @@ pub fn update_with_validation_errors() {
                 assert_eq!(errors["last_name_override"].len(), 1);
                 assert_eq!(errors["last_name_override"][0].code, "required");
                 assert_eq!(
-                    &errors["last_name_override"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["last_name_override"][0].message.clone().unwrap().into_owned(),
                     "Ticket last name required if first name provided"
                 );
             }
@@ -346,11 +332,7 @@ pub fn update_with_validation_errors() {
                 assert_eq!(errors["first_name_override"].len(), 1);
                 assert_eq!(errors["first_name_override"][0].code, "required");
                 assert_eq!(
-                    &errors["first_name_override"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["first_name_override"][0].message.clone().unwrap().into_owned(),
                     "Ticket first name required if last name provided"
                 );
             }
@@ -362,25 +344,14 @@ pub fn update_with_validation_errors() {
         first_name_override: Some(Some("First".to_string())),
         last_name_override: Some(Some("Last".to_string())),
     };
-    assert!(ticket
-        .clone()
-        .update(attrs.clone(), user.id, connection)
-        .is_ok());
+    assert!(ticket.clone().update(attrs.clone(), user.id, connection).is_ok());
 
     // Cannot update redeemed ticket
-    TicketInstance::redeem_ticket(
-        ticket.id,
-        ticket.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
     let ticket = TicketInstance::find(ticket.id, connection).unwrap();
     assert_eq!(
         ticket.update(attrs.clone(), user.id, connection),
-        DatabaseError::business_process_error(
-            "Unable to update ticket as it has already been redeemed.",
-        )
+        DatabaseError::business_process_error("Unable to update ticket as it has already been redeemed.",)
     );
 
     // Cannot update pending ticket
@@ -443,10 +414,7 @@ fn ticket_type() {
         .with_ticket_pricing()
         .with_ticket_type_count(1)
         .finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     let user = project.create_user().finish();
     project
         .create_order()
@@ -455,9 +423,7 @@ fn ticket_type() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     assert_eq!(ticket_type, ticket.ticket_type(connection).unwrap());
 }
 
@@ -562,9 +528,7 @@ fn release() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     assert_eq!(ticket.status, TicketInstanceStatus::Purchased);
     TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
     assert!(ticket
@@ -624,14 +588,9 @@ fn release_for_cancelled_ticket_type() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     assert_eq!(ticket.status, TicketInstanceStatus::Purchased);
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     ticket_type.cancel(connection).unwrap();
 
     TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
@@ -677,9 +636,7 @@ fn set_wallet() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     assert_eq!(ticket.wallet_id, user_wallet.id);
     ticket.set_wallet(&user2_wallet, connection).unwrap();
     let ticket = TicketInstance::find(ticket.id, connection).unwrap();
@@ -705,18 +662,14 @@ fn was_transferred() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
 
     // Not transferred
     assert!(!ticket.was_transferred(connection).unwrap());
 
     let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
-    let transfer =
-        TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection)
-            .unwrap();
+    let transfer = TicketInstance::create_transfer(user.id, &[ticket.id], None, None, false, connection).unwrap();
     TicketInstance::receive_ticket_transfer(
         transfer.into_authorization(connection).unwrap(),
         &sender_wallet,
@@ -745,9 +698,7 @@ fn find() {
     //let _d_user: DisplayUser = user.into();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
-    let ticket_pricing = ticket_type
-        .current_ticket_pricing(false, connection)
-        .unwrap();
+    let ticket_pricing = ticket_type.current_ticket_pricing(false, connection).unwrap();
 
     let display_event = event.for_display(connection).unwrap();
     cart.update_quantities(
@@ -763,10 +714,7 @@ fn find() {
     )
     .unwrap();
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let fee_schedule_range = ticket_type
         .fee_schedule(connection)
         .unwrap()
@@ -812,9 +760,7 @@ fn find_show_no_token() {
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
-    let ticket_pricing = ticket_type
-        .current_ticket_pricing(false, connection)
-        .unwrap();
+    let ticket_pricing = ticket_type.current_ticket_pricing(false, connection).unwrap();
 
     let display_event = event.clone().for_display(connection).unwrap();
     cart.update_quantities(
@@ -830,10 +776,7 @@ fn find_show_no_token() {
     )
     .unwrap();
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let fee_schedule_range = ticket_type
         .fee_schedule(connection)
         .unwrap()
@@ -864,32 +807,22 @@ fn find_show_no_token() {
         transfer_key: None,
         transfer_address: None,
     };
-    let (found_event, found_user, found_ticket) =
-        TicketInstance::find_for_display(ticket.id, connection).unwrap();
+    let (found_event, found_user, found_ticket) = TicketInstance::find_for_display(ticket.id, connection).unwrap();
     assert_eq!(
-        (
-            display_event.clone(),
-            Some(user.into()),
-            expected_ticket.clone()
-        ),
+        (display_event.clone(), Some(user.into()), expected_ticket.clone()),
         (found_event, found_user, found_ticket.clone())
     );
     assert!(found_ticket.redeem_key.is_none(), true);
 
     //make redeem date in the past for the event
     let new_event_redeem_date = EventEditableAttributes {
-        redeem_date: Some(NaiveDateTime::from(
-            Utc::now().naive_utc() - Duration::days(2),
-        )),
+        redeem_date: Some(NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2))),
         ..Default::default()
     };
 
-    let _event = event
-        .update(None, new_event_redeem_date, connection)
-        .unwrap();
+    let _event = event.update(None, new_event_redeem_date, connection).unwrap();
 
-    let (_found_event, _found_user, found_ticket) =
-        TicketInstance::find_for_display(ticket.id, connection).unwrap();
+    let (_found_event, _found_user, found_ticket) = TicketInstance::find_for_display(ticket.id, connection).unwrap();
     assert!(found_ticket.redeem_key.is_some(), true);
 }
 
@@ -960,14 +893,10 @@ fn release_tickets() {
         .unwrap();
 
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type_id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
 
     // Release tickets
-    let released_tickets =
-        TicketInstance::release_tickets(&order_item, 4, Some(user.id), connection).unwrap();
+    let released_tickets = TicketInstance::release_tickets(&order_item, 4, Some(user.id), connection).unwrap();
 
     assert_eq!(released_tickets.len(), 4);
     assert!(released_tickets
@@ -985,8 +914,7 @@ fn release_tickets() {
         .get_connection()
         .transaction::<Vec<TicketInstance>, Error, _>(|| {
             // Release requesting too many tickets
-            let released_tickets =
-                TicketInstance::release_tickets(&order_item, 7, Some(user.id), connection);
+            let released_tickets = TicketInstance::release_tickets(&order_item, 7, Some(user.id), connection);
             assert_eq!(released_tickets.unwrap_err().code, 7200,);
 
             Err(Error::RollbackTransaction)
@@ -1001,10 +929,7 @@ fn release_tickets_cancelled_ticket_type() {
     let event = project.create_event().with_ticket_pricing().finish();
     let user = project.create_user().finish();
     let mut order = Order::find_or_create_cart(&user, connection).unwrap();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     order
         .update_quantities(
             user.id,
@@ -1020,15 +945,11 @@ fn release_tickets_cancelled_ticket_type() {
         .unwrap();
 
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
 
     // Cancel ticket type
     ticket_type.cancel(connection).unwrap();
-    let released_tickets =
-        TicketInstance::release_tickets(&order_item, 4, Some(user.id), connection).unwrap();
+    let released_tickets = TicketInstance::release_tickets(&order_item, 4, Some(user.id), connection).unwrap();
 
     assert_eq!(released_tickets.len(), 4);
     assert!(released_tickets
@@ -1089,15 +1010,10 @@ fn mark_as_purchased() {
     )
     .unwrap();
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
 
     TicketInstance::mark_as_purchased(order_item, user.id, connection).unwrap();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
 
     let domain_events = DomainEvent::find(
         Tables::TicketInstances,
@@ -1130,9 +1046,7 @@ fn redeem_ticket() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
 
     // No domain events associated with redeeming for this ticket
     let domain_events = DomainEvent::find(
@@ -1145,9 +1059,7 @@ fn redeem_ticket() {
     assert_eq!(0, domain_events.len());
 
     // Invalid key, does not redeem or create redeem event
-    let result1 =
-        TicketInstance::redeem_ticket(ticket.id, "WrongKey".to_string(), admin.id, connection)
-            .unwrap();
+    let result1 = TicketInstance::redeem_ticket(ticket.id, "WrongKey".to_string(), admin.id, connection).unwrap();
     assert_eq!(result1, RedeemResults::TicketInvalid);
     let domain_events = DomainEvent::find(
         Tables::TicketInstances,
@@ -1159,9 +1071,7 @@ fn redeem_ticket() {
     assert_eq!(0, domain_events.len());
 
     // Valid key, redeems and creates redeem event
-    let result2 =
-        TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), admin.id, connection)
-            .unwrap();
+    let result2 = TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.unwrap(), admin.id, connection).unwrap();
     assert_eq!(result2, RedeemResults::TicketRedeemSuccess);
     let domain_events = DomainEvent::find(
         Tables::TicketInstances,
@@ -1191,9 +1101,7 @@ fn organization() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     assert_eq!(organization, ticket.organization(connection).unwrap());
 }
 
@@ -1217,9 +1125,7 @@ fn owner() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
     assert_eq!(user, ticket.owner(connection).unwrap());
 
     // Transferred
@@ -1272,48 +1178,30 @@ fn show_redeemable_ticket() {
         .quantity(1)
         .is_paid()
         .finish();
-    let ticket = TicketInstance::find_for_user(user.id, connection)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, connection).unwrap().remove(0);
 
     //make redeem date in the future for an event in 4 days time
     let new_event_redeem_date = EventEditableAttributes {
-        redeem_date: Some(NaiveDateTime::from(
-            Utc::now().naive_utc() + Duration::days(2),
-        )),
-        event_start: Some(NaiveDateTime::from(
-            Utc::now().naive_utc() + Duration::days(4),
-        )),
-        event_end: Some(NaiveDateTime::from(
-            Utc::now().naive_utc() + Duration::days(5),
-        )),
+        redeem_date: Some(NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(2))),
+        event_start: Some(NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(4))),
+        event_end: Some(NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(5))),
         ..Default::default()
     };
 
-    let event = event
-        .update(None, new_event_redeem_date, connection)
-        .unwrap();
+    let event = event.update(None, new_event_redeem_date, connection).unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_none());
 
     //make redeem date in the past for an event in 4 days time
     let new_event_redeem_date = EventEditableAttributes {
-        redeem_date: Some(NaiveDateTime::from(
-            Utc::now().naive_utc() - Duration::days(2),
-        )),
-        event_start: Some(NaiveDateTime::from(
-            Utc::now().naive_utc() + Duration::days(4),
-        )),
-        event_end: Some(NaiveDateTime::from(
-            Utc::now().naive_utc() + Duration::days(5),
-        )),
+        redeem_date: Some(NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(2))),
+        event_start: Some(NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(4))),
+        event_end: Some(NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(5))),
         ..Default::default()
     };
 
-    let event = event
-        .update(None, new_event_redeem_date, connection)
-        .unwrap();
+    let event = event.update(None, new_event_redeem_date, connection).unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_some());
@@ -1321,17 +1209,13 @@ fn show_redeemable_ticket() {
     //make redeem date 12 hours from now, event starts in 24 hours from now
     let event_start = NaiveDateTime::from(Utc::now().naive_utc() + Duration::hours(24));
     let new_event_redeem_date = EventEditableAttributes {
-        redeem_date: Some(NaiveDateTime::from(
-            Utc::now().naive_utc() + Duration::hours(12),
-        )),
+        redeem_date: Some(NaiveDateTime::from(Utc::now().naive_utc() + Duration::hours(12))),
         event_start: Some(event_start.clone()),
         event_end: Some(NaiveDateTime::from(event_start + Duration::hours(24))),
         ..Default::default()
     };
 
-    let event = event
-        .update(None, new_event_redeem_date, connection)
-        .unwrap();
+    let event = event.update(None, new_event_redeem_date, connection).unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_some());
@@ -1345,9 +1229,7 @@ fn show_redeemable_ticket() {
         ..Default::default()
     };
 
-    let event = event
-        .update(None, new_event_redeem_date, connection)
-        .unwrap();
+    let event = event.update(None, new_event_redeem_date, connection).unwrap();
 
     let result = TicketInstance::show_redeemable_ticket(ticket.id, connection).unwrap();
     assert!(result.redeem_key.is_some());
@@ -1416,15 +1298,12 @@ fn create_transfer() {
     let mut ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
     ticket_ids.push(Uuid::new_v4());
 
-    let transfer =
-        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection);
+    let transfer = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection);
     assert!(transfer.is_err());
 
     //Now try with tickets that the user does own
     let ticket_ids: Vec<Uuid> = tickets.iter().map(|t| t.id).collect();
-    let transfer2 =
-        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection)
-            .unwrap();
+    let transfer2 = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection).unwrap();
     assert_eq!(transfer2.source_user_id, user.id);
     assert!(!transfer2.direct);
 
@@ -1445,8 +1324,7 @@ fn create_transfer() {
         ..Default::default()
     };
     event.update(None, parameters, connection).unwrap();
-    let result =
-        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection);
+    let result = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection);
     assert_eq!(
         result,
         Err(DatabaseError::new(
@@ -1474,11 +1352,7 @@ fn receive_ticket_transfer() {
         .with_artist(&artist)
         .finish();
     artist
-        .set_genres(
-            &vec!["emo".to_string(), "hard-rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], None, connection)
         .unwrap();
     event.update_genres(None, connection).unwrap();
 
@@ -1520,10 +1394,7 @@ fn receive_ticket_transfer() {
             connection,
         )
         .unwrap();
-    assert_eq!(
-        updated_ticket.first_name_override,
-        Some("Janus".to_string())
-    );
+    assert_eq!(updated_ticket.first_name_override, Some("Janus".to_string()));
     assert_eq!(updated_ticket.last_name_override, Some("Zeal".to_string()));
 
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
@@ -1534,26 +1405,15 @@ fn receive_ticket_transfer() {
     let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
 
     //try receive the wrong number of tickets (too few)
-    let transfer =
-        TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection)
-            .unwrap();
+    let transfer = TicketInstance::create_transfer(user.id, &ticket_ids, None, None, false, connection).unwrap();
 
-    let mut wrong_auth: TransferAuthorization =
-        transfer.clone().into_authorization(connection).unwrap();
+    let mut wrong_auth: TransferAuthorization = transfer.clone().into_authorization(connection).unwrap();
     wrong_auth.num_tickets = 4;
-    let receive_auth = TicketInstance::receive_ticket_transfer(
-        wrong_auth,
-        &sender_wallet,
-        user2.id,
-        receiver_wallet.id,
-        connection,
-    );
+    let receive_auth =
+        TicketInstance::receive_ticket_transfer(wrong_auth, &sender_wallet, user2.id, receiver_wallet.id, connection);
     assert!(receive_auth.is_err());
     let reloaded_ticket = TicketInstance::find(updated_ticket.id, connection).unwrap();
-    assert_eq!(
-        reloaded_ticket.first_name_override,
-        Some("Janus".to_string())
-    );
+    assert_eq!(reloaded_ticket.first_name_override, Some("Janus".to_string()));
     assert_eq!(reloaded_ticket.last_name_override, Some("Zeal".to_string()));
 
     // Genres prior to transfer
@@ -1592,15 +1452,8 @@ fn receive_ticket_transfer() {
     // Event has ended, cannot accept ticket transfer
     let sender_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
     let receiver_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
-    let transfer = TicketInstance::create_transfer(
-        user2.id,
-        &[reloaded_ticket.id],
-        None,
-        None,
-        false,
-        connection,
-    )
-    .unwrap();
+    let transfer =
+        TicketInstance::create_transfer(user2.id, &[reloaded_ticket.id], None, None, false, connection).unwrap();
     let parameters = EventEditableAttributes {
         event_start: Some(dates::now().add_days(-7).finish()),
         event_end: Some(dates::now().add_days(-1).finish()),
@@ -1641,11 +1494,7 @@ fn transfer_to_existing_user() {
         .with_artist(&artist)
         .finish();
     artist
-        .set_genres(
-            &vec!["emo".to_string(), "hard-rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], None, connection)
         .unwrap();
     event.update_genres(None, connection).unwrap();
 
@@ -1659,12 +1508,11 @@ fn transfer_to_existing_user() {
         .quantity(5)
         .is_paid()
         .finish();
-    let mut ticket_ids: Vec<Uuid> =
-        TicketInstance::find_for_user(original_purchaser.id, connection)
-            .unwrap()
-            .into_iter()
-            .map(|ti| ti.id)
-            .collect();
+    let mut ticket_ids: Vec<Uuid> = TicketInstance::find_for_user(original_purchaser.id, connection)
+        .unwrap()
+        .into_iter()
+        .map(|ti| ti.id)
+        .collect();
     ticket_ids.sort();
 
     // Genres prior to transfer

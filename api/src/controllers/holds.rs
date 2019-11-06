@@ -63,21 +63,11 @@ impl From<UpdateHoldRequest> for UpdateHoldAttributes {
 // add update fields in here as well
 
 pub fn create(
-    (conn, req, path, user): (
-        Connection,
-        Json<CreateHoldRequest>,
-        Path<PathParameters>,
-        User,
-    ),
+    (conn, req, path, user): (Connection, Json<CreateHoldRequest>, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let event = Event::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::HoldWrite,
-        &event.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::HoldWrite, &event.organization(conn)?, &event, conn)?;
 
     let hold = Hold::create_hold(
         req.name.clone(),
@@ -128,22 +118,12 @@ pub fn create(
 }
 
 pub fn update(
-    (conn, req, path, user): (
-        Connection,
-        Json<UpdateHoldRequest>,
-        Path<PathParameters>,
-        User,
-    ),
+    (conn, req, path, user): (Connection, Json<UpdateHoldRequest>, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
 
     let hold = Hold::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::HoldWrite,
-        &hold.organization(conn)?,
-        &hold.event(conn)?,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::HoldWrite, &hold.organization(conn)?, &hold.event(conn)?, conn)?;
     let quantity = req.quantity;
     let hold = hold.update(req.into_inner().into(), conn)?;
     if let Some(quantity) = quantity {
@@ -153,17 +133,10 @@ pub fn update(
     Ok(HttpResponse::Ok().json(hold))
 }
 
-pub fn show(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::HoldRead,
-        &hold.organization(conn)?,
-        &hold.event(conn)?,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::HoldRead, &hold.organization(conn)?, &hold.event(conn)?, conn)?;
 
     #[derive(Serialize)]
     struct R {
@@ -205,12 +178,7 @@ pub fn link(
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
     let event = hold.event(conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::HoldRead,
-        &hold.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::HoldRead, &hold.organization(conn)?, &event, conn)?;
     if hold.redemption_code.is_none() {
         return application::not_found();
     }
@@ -222,9 +190,7 @@ pub fn link(
         event.slug(conn)?,
         hold.redemption_code.as_ref().unwrap()
     );
-    let link = match linker
-        .create_deep_link_with_alias(&raw_url, hold.redemption_code.as_ref().unwrap())
-    {
+    let link = match linker.create_deep_link_with_alias(&raw_url, hold.redemption_code.as_ref().unwrap()) {
         Ok(l) => l,
         Err(e) => {
             jlog!(Warn, "Error when creating an aliased link",
@@ -256,24 +222,13 @@ pub struct SplitHoldRequest {
 }
 
 pub fn children(
-    (conn, path, query_parameters, user): (
-        Connection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-        User,
-    ),
+    (conn, path, query_parameters, user): (Connection, Path<PathParameters>, Query<PagingParameters>, User),
 ) -> Result<WebPayload<DisplayHold>, BigNeonError> {
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::HoldRead, &hold.organization(conn)?, conn)?;
 
-    let holds = Hold::find_by_parent_id(
-        path.id,
-        None,
-        query_parameters.page(),
-        query_parameters.limit(),
-        conn,
-    )?;
+    let holds = Hold::find_by_parent_id(path.id, None, query_parameters.page(), query_parameters.limit(), conn)?;
 
     let mut list = Vec::<DisplayHold>::new();
     for hold in holds.data {
@@ -288,21 +243,11 @@ pub fn children(
 }
 
 pub fn split(
-    (conn, req, path, user): (
-        Connection,
-        Json<SplitHoldRequest>,
-        Path<PathParameters>,
-        User,
-    ),
+    (conn, req, path, user): (Connection, Json<SplitHoldRequest>, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::HoldWrite,
-        &hold.organization(conn)?,
-        &hold.event(conn)?,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::HoldWrite, &hold.organization(conn)?, &hold.event(conn)?, conn)?;
 
     let new_hold = hold.split(
         Some(user.id()),
@@ -321,17 +266,10 @@ pub fn split(
     Ok(HttpResponse::Created().json(new_hold))
 }
 
-pub fn destroy(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn destroy((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::HoldWrite,
-        &hold.organization(conn)?,
-        &hold.event(conn)?,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::HoldWrite, &hold.organization(conn)?, &hold.event(conn)?, conn)?;
     hold.destroy(Some(user.id()), conn)?;
     Ok(HttpResponse::Ok().finish())
 }

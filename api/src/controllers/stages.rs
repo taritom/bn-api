@@ -7,11 +7,7 @@ use extractors::*;
 use models::PathParameters;
 
 pub fn index(
-    (connection, path_parameters, query_parameters): (
-        Connection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-    ),
+    (connection, path_parameters, query_parameters): (Connection, Path<PathParameters>, Query<PagingParameters>),
 ) -> Result<HttpResponse, BigNeonError> {
     let stages = Stage::find_by_venue_id(path_parameters.id, connection.get())?;
 
@@ -22,9 +18,7 @@ pub fn index(
     )))
 }
 
-pub fn show(
-    (connection, parameters): (Connection, Path<PathParameters>),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((connection, parameters): (Connection, Path<PathParameters>)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let stage = Stage::find(parameters.id, connection)?;
 
@@ -39,12 +33,7 @@ pub struct CreateStage {
 }
 
 pub fn create(
-    (connection, parameters, create_stage, user): (
-        Connection,
-        Path<PathParameters>,
-        Json<CreateStage>,
-        AuthUser,
-    ),
+    (connection, parameters, create_stage, user): (Connection, Path<PathParameters>, Json<CreateStage>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let venue = Venue::find(parameters.id, connection)?;

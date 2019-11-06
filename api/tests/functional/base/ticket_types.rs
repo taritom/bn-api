@@ -14,12 +14,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let event = database.create_event().with_organization(&organization).finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
@@ -61,14 +57,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         rank: 1,
         ..Default::default()
     };
-    let response: HttpResponse = ticket_types::create((
-        database.connection.into(),
-        path,
-        Json(request_data),
-        auth_user,
-        state,
-    ))
-    .into();
+    let response: HttpResponse =
+        ticket_types::create((database.connection.into(), path, Json(request_data), auth_user, state)).into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -82,12 +72,8 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let event = database.create_event().with_organization(&organization).finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     //Construct Ticket creation and pricing request
     let test_request = TestRequest::create();
@@ -169,10 +155,7 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
         match ticket_types.iter().find(|tt| tt.name == "GA") {
             Some(ticket_type) => {
                 assert_eq!(ticket_type.name, "GA".to_string());
-                assert_eq!(
-                    ticket_type.ticket_pricing(true, connection).unwrap().len(),
-                    2
-                );
+                assert_eq!(ticket_type.ticket_pricing(true, connection).unwrap().len(), 2);
                 assert_eq!(
                     ticket_type.start_date.map(|d| d.timestamp()),
                     Some(start_date.timestamp())
@@ -187,10 +170,7 @@ pub fn create_multiple(role: Roles, should_test_succeed: bool) {
         match ticket_types.iter().find(|tt| tt.name == "VIP") {
             Some(ticket_type) => {
                 assert_eq!(ticket_type.name, "VIP".to_string());
-                assert_eq!(
-                    ticket_type.ticket_pricing(true, connection).unwrap().len(),
-                    3
-                );
+                assert_eq!(ticket_type.ticket_pricing(true, connection).unwrap().len(), 3);
                 assert_eq!(
                     ticket_type.start_date.map(|d| d.timestamp()),
                     Some(start_date.timestamp())
@@ -218,8 +198,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     //Retrieve created ticket type and pricing
     let conn = database.connection.get();
@@ -228,8 +207,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let created_ticket_pricing = created_ticket_type.ticket_pricing(false, conn).unwrap();
 
     //Construct update request
-    let test_request =
-        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
     path.ticket_type_id = created_ticket_type.id;
@@ -341,8 +319,7 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let conn = database.connection.get();
     let created_ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
@@ -351,8 +328,7 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
     assert_eq!(100, valid_unsold_ticket_count);
 
     //Construct update request
-    let test_request =
-        TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
+    let test_request = TestRequest::create_with_uri_custom_params("/", vec!["event_id", "ticket_type_id"]);
     let state = test_request.extract_state();
     let mut path = Path::<EventTicketPathParameters>::extract(&test_request.request).unwrap();
     path.event_id = event.id;
@@ -384,30 +360,21 @@ pub fn index(role: Roles, should_test_succeed: bool) {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
     path.id = event.id;
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse = ticket_types::index((
-        database.connection.clone().into(),
-        path,
-        query_parameters,
-        auth_user,
-    ))
-    .into();
+    let response: HttpResponse =
+        ticket_types::index((database.connection.clone().into(), path, query_parameters, auth_user)).into();
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let ticket_type = &event.ticket_types(true, None, conn).unwrap()[0];
         let expected_ticket_types =
-            vec![
-                AdminDisplayTicketType::from_ticket_type(ticket_type, &fee_schedule, conn).unwrap(),
-            ];
-        let ticket_types_response: Payload<AdminDisplayTicketType> =
-            serde_json::from_str(&body).unwrap();
+            vec![AdminDisplayTicketType::from_ticket_type(ticket_type, &fee_schedule, conn).unwrap()];
+        let ticket_types_response: Payload<AdminDisplayTicketType> = serde_json::from_str(&body).unwrap();
         assert_eq!(ticket_types_response.data, expected_ticket_types);
     } else {
         support::expects_unauthorized(&response);

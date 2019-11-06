@@ -15,9 +15,7 @@ pub fn has_pending_migrations(conn: &PgConnection) -> Result<bool, RunMigrations
         .map(|d| d.split("_").collect::<Vec<&str>>()[0])
         .collect::<Vec<&str>>();
 
-    let has_pending_migrations = migration_versions
-        .iter()
-        .any(|v| !already_run.contains(&v.to_string()));
+    let has_pending_migrations = migration_versions.iter().any(|v| !already_run.contains(&v.to_string()));
 
     Ok(has_pending_migrations)
 }

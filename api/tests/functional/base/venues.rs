@@ -12,14 +12,8 @@ use support::test_request::TestRequest;
 
 pub fn index(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let venue = database
-        .create_venue()
-        .with_name("Venue1".to_string())
-        .finish();
-    let venue2 = database
-        .create_venue()
-        .with_name("Venue2".to_string())
-        .finish();
+    let venue = database.create_venue().with_name("Venue1".to_string()).finish();
+    let venue2 = database.create_venue().with_name("Venue2".to_string()).finish();
 
     let expected_venues = vec![venue, venue2];
     let wrapped_expected_venues = Payload {
@@ -39,12 +33,8 @@ pub fn index(role: Roles, should_succeed: bool) {
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
 
     let user = support::create_auth_user(role, None, &database);
-    let response: HttpResponse = venues::index((
-        database.connection.into(),
-        query_parameters,
-        OptionalUser(Some(user)),
-    ))
-    .into();
+    let response: HttpResponse =
+        venues::index((database.connection.into(), query_parameters, OptionalUser(Some(user)))).into();
 
     if !should_succeed {
         support::expects_unauthorized(&response);
@@ -85,8 +75,7 @@ pub fn create_with_organization(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let name = "Venue Example";
     let json = Json(NewVenue {
@@ -96,8 +85,7 @@ pub fn create_with_organization(role: Roles, should_succeed: bool) {
         ..Default::default()
     });
 
-    let response: HttpResponse =
-        venues::create((database.connection.into(), json, auth_user.clone())).into();
+    let response: HttpResponse = venues::create((database.connection.into(), json, auth_user.clone())).into();
 
     if !should_succeed {
         support::expects_unauthorized(&response);
@@ -125,8 +113,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     attributes.name = Some(new_name.to_string());
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        venues::update((database.connection.into(), path, json, user)).into();
+    let response: HttpResponse = venues::update((database.connection.into(), path, json, user)).into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;
@@ -146,8 +133,7 @@ pub fn toggle_privacy(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;
 
-    let response: HttpResponse =
-        venues::toggle_privacy((database.connection.into(), path, auth_user)).into();
+    let response: HttpResponse = venues::toggle_privacy((database.connection.into(), path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -163,13 +149,9 @@ pub fn update_with_organization(role: Roles, should_succeed: bool, is_private: b
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
-    let mut venue = database
-        .create_venue()
-        .with_organization(&organization)
-        .finish();
+    let mut venue = database.create_venue().with_organization(&organization).finish();
 
     if is_private {
         venue = venue.set_privacy(true, database.connection.get()).unwrap();
@@ -184,8 +166,7 @@ pub fn update_with_organization(role: Roles, should_succeed: bool, is_private: b
     attributes.name = Some(new_name.to_string());
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        venues::update((database.connection.into(), path, json, auth_user.clone())).into();
+    let response: HttpResponse = venues::update((database.connection.into(), path, json, auth_user.clone())).into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;
@@ -203,14 +184,8 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
         .create_organization()
         .with_member(&user, Roles::OrgMember)
         .finish();
-    let venue = database
-        .create_venue()
-        .with_name("Venue 1".to_string())
-        .finish();
-    let venue2 = database
-        .create_venue()
-        .with_name("Venue 2".to_string())
-        .finish();
+    let venue = database.create_venue().with_name("Venue 1".to_string()).finish();
+    let venue2 = database.create_venue().with_name("Venue 2".to_string()).finish();
     let venue = venue
         .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
@@ -245,13 +220,9 @@ pub fn show_from_organizations(role: Option<Roles>, should_succeed: bool) {
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse = venues::show_from_organizations((
-        database.connection.into(),
-        path,
-        query_parameters,
-        OptionalUser(user),
-    ))
-    .into();
+    let response: HttpResponse =
+        venues::show_from_organizations((database.connection.into(), path, query_parameters, OptionalUser(user)))
+            .into();
 
     if !should_succeed {
         support::expects_unauthorized(&response);
@@ -267,8 +238,7 @@ pub fn add_to_organization(role: Roles, should_succeed: bool) {
     let user = database.create_user().finish();
     let venue = database.create_venue().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = venue.id;

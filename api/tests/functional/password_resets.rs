@@ -1,8 +1,6 @@
 use actix_web::{http::StatusCode, HttpResponse};
 use bigneon_api::auth::{claims::AccessToken, claims::RefreshToken, TokenResponse};
-use bigneon_api::controllers::password_resets::{
-    self, CreatePasswordResetParameters, UpdatePasswordResetParameters,
-};
+use bigneon_api::controllers::password_resets::{self, CreatePasswordResetParameters, UpdatePasswordResetParameters};
 use bigneon_api::db::Connection as BigNeonConnection;
 use bigneon_api::extractors::*;
 use bigneon_db::models::concerns::users::password_resetable::*;
@@ -22,10 +20,7 @@ fn create() {
     let database = TestDatabase::new();
     let email = "joe@tari.com";
 
-    database
-        .create_user()
-        .with_email(email.to_string())
-        .finish();
+    database.create_user().with_email(email.to_string()).finish();
     let expected_json = json!({
         "message": format!("Your request has been received; {} will receive an email shortly with a link to reset your password if it is an account on file.", email)
     })
@@ -36,8 +31,7 @@ fn create() {
     let json = Json(CreatePasswordResetParameters {
         email: email.to_string(),
     });
-    let response: HttpResponse =
-        password_resets::create((state, database.connection.clone(), json)).into();
+    let response: HttpResponse = password_resets::create((state, database.connection.clone(), json)).into();
 
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = support::unwrap_body_to_string(&response).unwrap();
@@ -72,9 +66,7 @@ fn update() {
     let connection_object: BigNeonConnection = database.connection.clone().into();
 
     let user = database.create_user().finish();
-    let user = user
-        .create_password_reset_token(database.connection.get())
-        .unwrap();
+    let user = user.create_password_reset_token(database.connection.get()).unwrap();
     let new_password = "newPassword";
     assert!(!user.check_password(&new_password));
 
@@ -106,12 +98,8 @@ fn update() {
 
     let mut validation = Validation::default();
     validation.validate_exp = false;
-    let refresh_token = decode::<RefreshToken>(
-        &token_response.refresh_token,
-        token_secret.as_bytes(),
-        &validation,
-    )
-    .unwrap();
+    let refresh_token =
+        decode::<RefreshToken>(&token_response.refresh_token, token_secret.as_bytes(), &validation).unwrap();
     assert_eq!(refresh_token.claims.get_id().unwrap(), user.id);
 }
 
@@ -154,9 +142,7 @@ fn update_incorrect_token() {
     let database = TestDatabase::new();
     let connection_object: BigNeonConnection = database.connection.clone().into();
     let user = database.create_user().finish();
-    let user = user
-        .create_password_reset_token(database.connection.get())
-        .unwrap();
+    let user = user.create_password_reset_token(database.connection.get()).unwrap();
     let new_password = "newPassword";
     let token = user.password_reset_token.unwrap();
     assert!(!user.check_password(&new_password));

@@ -59,15 +59,9 @@ fn find() {
 #[test]
 fn all_for_venue() {
     let project = TestProject::new();
-    let venue = project
-        .create_venue()
-        .with_name("Venue 1".to_string())
-        .finish();
+    let venue = project.create_venue().with_name("Venue 1".to_string()).finish();
 
-    let venue_2 = project
-        .create_venue()
-        .with_name("Venue 2".to_string())
-        .finish();
+    let venue_2 = project.create_venue().with_name("Venue 2".to_string()).finish();
 
     let stage_1 = project
         .create_stage()
@@ -84,10 +78,7 @@ fn all_for_venue() {
         .with_name("Stage 3".to_string())
         .with_venue_id(venue.id.clone())
         .finish();
-    let _stage_4 = project
-        .create_stage()
-        .with_venue_id(venue_2.id.clone())
-        .finish();
+    let _stage_4 = project.create_stage().with_venue_id(venue_2.id.clone()).finish();
 
     let conn = project.get_connection();
     let venue_1_stages = Stage::find_by_venue_id(venue.id.clone(), conn).unwrap();
@@ -99,10 +90,7 @@ fn all_for_venue() {
 #[test]
 fn destroy() {
     let project = TestProject::new();
-    let venue = project
-        .create_venue()
-        .with_name("Venue 1".to_string())
-        .finish();
+    let venue = project.create_venue().with_name("Venue 1".to_string()).finish();
 
     let stage_1 = project
         .create_stage()

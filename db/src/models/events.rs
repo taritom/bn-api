@@ -7,15 +7,12 @@ use diesel::expression::dsl;
 use diesel::expression::sql_literal::sql;
 use diesel::pg::types::sql_types::Array;
 use diesel::prelude::*;
-use diesel::sql_types::{
-    BigInt, Bool, Date, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid,
-};
+use diesel::sql_types::{BigInt, Bool, Date, Integer, Jsonb, Nullable, Text, Timestamp, Uuid as dUuid};
 use log::Level;
 use models::*;
 use schema::{
-    artists, assets, event_artists, event_genres, events, genres, order_items, orders,
-    organization_users, organizations, payments, ticket_instances, ticket_types, transfer_tickets,
-    transfers, venues,
+    artists, assets, event_artists, event_genres, events, genres, order_items, orders, organization_users,
+    organizations, payments, ticket_instances, ticket_types, transfer_tickets, transfers, venues,
 };
 use serde_json::Value;
 use serde_with::rust::double_option;
@@ -99,15 +96,9 @@ pub struct NewEvent {
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub additional_info: Option<String>,
     #[serde(default, deserialize_with = "from_str_or_num_to_str")]
-    #[validate(length(
-        max = "255",
-        message = "Age limit must be less than 255 characters long"
-    ))]
+    #[validate(length(max = "255", message = "Age limit must be less than 255 characters long"))]
     pub age_limit: Option<String>,
-    #[validate(length(
-        max = "100",
-        message = "Top line info must be at most 100 characters long"
-    ))]
+    #[validate(length(max = "100", message = "Top line info must be at most 100 characters long"))]
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub top_line_info: Option<String>,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
@@ -131,23 +122,17 @@ pub struct NewEvent {
 }
 
 impl NewEvent {
-    pub fn commit(
-        &self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Event, DatabaseError> {
+    pub fn commit(&self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<Event, DatabaseError> {
         self.validate()?;
         let mut new_event = self.clone();
 
         match new_event.event_start {
             Some(event_start) => {
                 if new_event.event_end.is_none() {
-                    new_event.event_end =
-                        Some(NaiveDateTime::from(event_start + Duration::days(1)));
+                    new_event.event_end = Some(NaiveDateTime::from(event_start + Duration::days(1)));
                 }
                 if new_event.door_time.is_none() {
-                    new_event.door_time =
-                        Some(NaiveDateTime::from(event_start - Duration::hours(1)));
+                    new_event.door_time = Some(NaiveDateTime::from(event_start - Duration::hours(1)));
                 }
             }
             None => (),
@@ -176,7 +161,7 @@ impl NewEvent {
             &SlugContext::Event {
                 id: result.id,
                 name: result.name.clone(),
-                venue: venue,
+                venue,
             },
             SlugTypes::Event,
             conn,
@@ -227,16 +212,10 @@ pub struct EventEditableAttributes {
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub additional_info: Option<Option<String>>,
     #[serde(default, deserialize_with = "from_str_or_num_to_str")]
-    #[validate(length(
-        max = "255",
-        message = "Age limit must be less than 255 characters long"
-    ))]
+    #[validate(length(max = "255", message = "Age limit must be less than 255 characters long"))]
     pub age_limit: Option<String>,
     pub cancelled_at: Option<NaiveDateTime>,
-    #[validate(length(
-        max = "100",
-        message = "Top line info must be at most 100 characters long"
-    ))]
+    #[validate(length(max = "100", message = "Top line info must be at most 100 characters long"))]
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub top_line_info: Option<Option<String>>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
@@ -322,10 +301,7 @@ impl Event {
                 order_items::table.filter(order_items::event_id.eq(Some(self.id))),
             ))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not check event for deletion eligibility",
-            )?)
+            .to_db_error(ErrorCode::QueryError, "Could not check event for deletion eligibility")?)
     }
 
     pub fn delete(self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -363,11 +339,7 @@ impl Event {
             .to_db_error(ErrorCode::QueryError, "Could not get genres for event")
     }
 
-    pub fn update_genres(
-        &self,
-        user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn update_genres(&self, user_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         let query = r#"
             INSERT INTO event_genres (event_id, genre_id)
             SELECT DISTINCT $1 as event_id, ag.genre_id
@@ -589,10 +561,7 @@ impl Event {
             .bind::<Array<dUuid>, _>(event_ids)
             .bind::<Bool, _>(box_office_pricing)
             .get_results(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load ticket pricing for events",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load ticket pricing for events")?;
 
         let mut result = HashMap::new();
         for r in results {
@@ -608,8 +577,7 @@ impl Event {
         conn: &PgConnection,
     ) -> Result<(Option<i64>, Option<i64>), DatabaseError> {
         if let Some((min_ticket_price, max_ticket_price)) =
-            Event::ticket_pricing_range_by_events(&vec![self.id], box_office_pricing, conn)?
-                .get(&self.id)
+            Event::ticket_pricing_range_by_events(&vec![self.id], box_office_pricing, conn)?.get(&self.id)
         {
             Ok((Some(*min_ticket_price), Some(*max_ticket_price)))
         } else {
@@ -620,10 +588,7 @@ impl Event {
     pub fn pending_transfers(&self, conn: &PgConnection) -> Result<Vec<Transfer>, DatabaseError> {
         transfers::table
             .inner_join(transfer_tickets::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
-            .inner_join(
-                ticket_instances::table
-                    .on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)),
-            )
+            .inner_join(ticket_instances::table.on(ticket_instances::id.eq(transfer_tickets::ticket_instance_id)))
             .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
             .inner_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
             .filter(ticket_types::event_id.eq(self.id))
@@ -716,9 +681,7 @@ impl Event {
                             .find(|days| &days_until_event > days)
                             .map(|days| {
                                 let duration = if *days == 0 {
-                                    Duration::hours(
-                                        -TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT,
-                                    )
+                                    Duration::hours(-TRANSFER_DRIP_NOTIFICATION_HOURS_PRIOR_TO_EVENT)
                                 } else {
                                     Duration::days(-*days)
                                 };
@@ -733,11 +696,7 @@ impl Event {
         None
     }
 
-    pub fn unpublish(
-        &self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Event, DatabaseError> {
+    pub fn unpublish(&self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<Event, DatabaseError> {
         let mut errors = ValidationErrors::new();
         if self.status != EventStatus::Published {
             let mut validation_error = create_validation_error(
@@ -779,28 +738,21 @@ impl Event {
         Event::find(self.id, conn)
     }
 
-    pub fn publish(
-        &self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Event, DatabaseError> {
+    pub fn publish(&self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<Event, DatabaseError> {
         if self.status == EventStatus::Published {
             return Event::find(self.id, conn);
         }
 
         let mut errors = ValidationErrors::new();
         if self.venue_id.is_none() {
-            let mut validation_error =
-                create_validation_error("required", "Event can't be published without a venue");
+            let mut validation_error = create_validation_error("required", "Event can't be published without a venue");
             validation_error.add_param(Cow::from("event_id"), &self.id);
             errors.add("venue_id", validation_error);
         }
 
         if self.promo_image_url.is_none() {
-            let mut validation_error = create_validation_error(
-                "required",
-                "Event can't be published without a promo image",
-            );
+            let mut validation_error =
+                create_validation_error("required", "Event can't be published without a promo image");
             validation_error.add_param(Cow::from("event_id"), &self.id);
             errors.add("promo_image_url", validation_error);
         }
@@ -847,9 +799,7 @@ impl Event {
         events::table
             .inner_join(organizations::table.on(events::organization_id.eq(organizations::id)))
             .inner_join(ticket_types::table.on(ticket_types::event_id.eq(events::id)))
-            .inner_join(
-                order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())),
-            )
+            .inner_join(order_items::table.on(order_items::ticket_type_id.eq(ticket_types::id.nullable())))
             .filter(order_items::id.eq_any(order_item_ids))
             .filter(events::deleted_at.is_null())
             .select(events::all_columns)
@@ -901,11 +851,7 @@ impl Event {
             .to_db_error(ErrorCode::QueryError, "Error loading events")
     }
 
-    pub fn cancel(
-        self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Event, DatabaseError> {
+    pub fn cancel(self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<Event, DatabaseError> {
         let event: Event = diesel::update(&self)
             .set(events::cancelled_at.eq(dsl::now.nullable()))
             .get_result(conn)
@@ -975,10 +921,7 @@ impl Event {
     /**
      * Returns the localized_times formatted to rfc2822
      */
-    pub fn get_all_localized_time_strings(
-        &self,
-        venue: Option<&Venue>,
-    ) -> EventLocalizedTimeStrings {
+    pub fn get_all_localized_time_strings(&self, venue: Option<&Venue>) -> EventLocalizedTimeStrings {
         let event_localized_times: EventLocalizedTimes = self.get_all_localized_times(venue);
         EventLocalizedTimeStrings {
             event_start: event_localized_times.event_start.map(|s| s.to_rfc2822()),
@@ -1022,26 +965,15 @@ impl Event {
                 }
             };
             let utc = chrono_tz::UTC
-                .ymd(
-                    utc_datetime.year(),
-                    utc_datetime.month(),
-                    utc_datetime.day(),
-                )
-                .and_hms(
-                    utc_datetime.hour(),
-                    utc_datetime.minute(),
-                    utc_datetime.second(),
-                );
+                .ymd(utc_datetime.year(), utc_datetime.month(), utc_datetime.day())
+                .and_hms(utc_datetime.hour(), utc_datetime.minute(), utc_datetime.second());
             let dt: chrono::DateTime<Tz> = utc.with_timezone(&tz);
             return Some(dt);
         }
         None
     }
 
-    pub fn find_all_active_events_for_venue(
-        venue_id: &Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<Event>, DatabaseError> {
+    pub fn find_all_active_events_for_venue(venue_id: &Uuid, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading event via venue",
@@ -1109,10 +1041,7 @@ impl Event {
         .bind::<Nullable<Array<dUuid>>, _>(event_ids.clone())
         .bind::<Bool, _>(filter_drafts)
         .get_results(conn)
-        .to_db_error(
-            ErrorCode::QueryError,
-            "Could not get total events for organization",
-        )?;
+        .to_db_error(ErrorCode::QueryError, "Could not get total events for organization")?;
 
         let mut paging = Paging::new(page, limit);
         paging.total = total.remove(0).total as u64;
@@ -1126,22 +1055,12 @@ impl Event {
             limit,
             conn,
         )?;
-        Ok(Payload {
-            paging,
-            data: results,
-        })
+        Ok(Payload { paging, data: results })
     }
 
     pub fn summary(&self, conn: &PgConnection) -> Result<EventSummaryResult, DatabaseError> {
-        let mut results = Event::find_summary_data(
-            self.organization_id,
-            None,
-            Some(vec![self.id]),
-            false,
-            0,
-            100,
-            conn,
-        )?;
+        let mut results =
+            Event::find_summary_data(self.organization_id, None, Some(vec![self.id]), false, 0, 100, conn)?;
 
         if results.len() == 0 {
             return DatabaseError::business_process_error(
@@ -1232,13 +1151,9 @@ impl Event {
             .bind::<Nullable<Array<dUuid>>, _>(event_ids.clone())
             .bind::<Bool, _>(filter_drafts)
             .get_results(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load events for organization",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load events for organization")?;
 
-        let query_ticket_types =
-            include_str!("../queries/find_all_events_for_organization_ticket_type.sql");
+        let query_ticket_types = include_str!("../queries/find_all_events_for_organization_ticket_type.sql");
 
         jlog!(Level::Debug, "Fetching summary data for ticket types");
 
@@ -1255,11 +1170,9 @@ impl Event {
 
         let mut results: Vec<EventSummaryResult> = Vec::new();
         for r in events.into_iter() {
-            let venue = if let (Some(venue_id), Some(venue_name), Some(venue_timezone)) = (
-                r.venue_id.as_ref(),
-                r.venue_name.as_ref(),
-                r.venue_timezone.as_ref(),
-            ) {
+            let venue = if let (Some(venue_id), Some(venue_name), Some(venue_timezone)) =
+                (r.venue_id.as_ref(), r.venue_name.as_ref(), r.venue_timezone.as_ref())
+            {
                 Some(VenueInfo {
                     id: *venue_id,
                     name: venue_name.to_string(),
@@ -1320,15 +1233,11 @@ impl Event {
                         && tt.sold_held.unwrap_or(0) + tt.sold_unreserved.unwrap_or(0) == 0)
             }) {
                 let mut ticket_type = ticket_type.clone();
-                ticket_type.sales_total_in_cents =
-                    Some(ticket_type.sales_total_in_cents.unwrap_or(0));
+                ticket_type.sales_total_in_cents = Some(ticket_type.sales_total_in_cents.unwrap_or(0));
                 result.total_tickets += ticket_type.total as u32;
-                result.sold_unreserved = Some(
-                    result.sold_unreserved.unwrap_or(0)
-                        + ticket_type.sold_unreserved.unwrap_or(0) as u32,
-                );
-                result.sold_held =
-                    Some(result.sold_held.unwrap_or(0) + ticket_type.sold_held.unwrap_or(0) as u32);
+                result.sold_unreserved =
+                    Some(result.sold_unreserved.unwrap_or(0) + ticket_type.sold_unreserved.unwrap_or(0) as u32);
+                result.sold_held = Some(result.sold_held.unwrap_or(0) + ticket_type.sold_held.unwrap_or(0) as u32);
                 result.tickets_open += ticket_type.open as u32;
                 result.tickets_held += ticket_type.held as u32;
                 result.tickets_redeemed += ticket_type.redeemed as u32;
@@ -1393,10 +1302,7 @@ impl Event {
             .bind::<Timestamp, NaiveDateTime>(start_utc.and_hms(0, 0, 0))
             .bind::<Timestamp, NaiveDateTime>(end_utc.and_hms(23, 59, 59))
             .get_results(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load calculate sales for event",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load calculate sales for event")?;
 
         let mut map = HashMap::<NaiveDate, R>::new();
         for s in summary {
@@ -1516,11 +1422,7 @@ impl Event {
             .per_page(paging.limit as i64)
             .load_and_count_pages(conn);
 
-        DatabaseError::wrap(
-            ErrorCode::QueryError,
-            "Unable to load all redeemable tickets",
-            results,
-        )
+        DatabaseError::wrap(ErrorCode::QueryError, "Unable to load all redeemable tickets", results)
     }
 
     pub fn guest_list(
@@ -1530,8 +1432,7 @@ impl Event {
         paging: Option<&Paging>,
         conn: &PgConnection,
     ) -> Result<(Vec<GuestListItem>, i64), DatabaseError> {
-        let tickets_and_counts =
-            Event::guest_list_tickets(Some(self.id), None, query, changes_since, paging, conn)?;
+        let tickets_and_counts = Event::guest_list_tickets(Some(self.id), None, query, changes_since, paging, conn)?;
         let (tickets, total) = tickets_and_counts;
 
         let mut guests: Vec<GuestListItem> = Vec::new();
@@ -1551,32 +1452,27 @@ impl Event {
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load payment providers")?;
 
-        let pending_transfers: Vec<PendingTransfer> = transfer_tickets::table
-            .inner_join(transfers::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
-            .filter(
-                transfers::status.eq(TransferStatus::Pending).and(
-                    transfer_tickets::ticket_instance_id
-                        .eq_any(tickets.iter().map(|t| t.id).collect::<Vec<Uuid>>()),
-                ),
-            )
-            .select((
-                transfer_tickets::ticket_instance_id.nullable(),
-                transfer_tickets::transfer_id.nullable(),
-                transfers::transfer_key.nullable(),
-                transfers::status.nullable(),
-                transfers::transfer_message_type,
-                transfers::transfer_address,
-            ))
-            .load(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not load pending transfers")?;
+        let pending_transfers: Vec<PendingTransfer> =
+            transfer_tickets::table
+                .inner_join(transfers::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
+                .filter(transfers::status.eq(TransferStatus::Pending).and(
+                    transfer_tickets::ticket_instance_id.eq_any(tickets.iter().map(|t| t.id).collect::<Vec<Uuid>>()),
+                ))
+                .select((
+                    transfer_tickets::ticket_instance_id.nullable(),
+                    transfer_tickets::transfer_id.nullable(),
+                    transfers::transfer_key.nullable(),
+                    transfers::status.nullable(),
+                    transfers::transfer_message_type,
+                    transfers::transfer_address,
+                ))
+                .load(conn)
+                .to_db_error(ErrorCode::QueryError, "Could not load pending transfers")?;
 
         let mut pending_transfers_by_ticket: HashMap<Uuid, PendingTransfer> = HashMap::new();
         for pending_transfer in pending_transfers {
             if pending_transfer.ticket_instance_id.is_some() {
-                pending_transfers_by_ticket.insert(
-                    pending_transfer.ticket_instance_id.unwrap(),
-                    pending_transfer,
-                );
+                pending_transfers_by_ticket.insert(pending_transfer.ticket_instance_id.unwrap(), pending_transfer);
             }
         }
 
@@ -1643,8 +1539,7 @@ impl Event {
             EventSearchSortField::Name => "name",
             EventSearchSortField::EventStart => "event_start",
         };
-        let (start_time, end_time) =
-            Event::dates_by_past_or_upcoming(start_time, end_time, past_or_upcoming);
+        let (start_time, end_time) = Event::dates_by_past_or_upcoming(start_time, end_time, past_or_upcoming);
 
         let query_like = match query_filter.clone() {
             Some(n) => format!("%{}%", text::escape_control_chars(&n.trim())),
@@ -1658,8 +1553,7 @@ impl Event {
                 .join(" ")
         });
 
-        let mut venue_location_searches: Vec<(Option<String>, Option<StateDatum>, CountryDatum)> =
-            Vec::new();
+        let mut venue_location_searches: Vec<(Option<String>, Option<StateDatum>, CountryDatum)> = Vec::new();
         if let Some(query_escaped) = query_escaped.clone() {
             if let Ok(data) = country_service.parse_city_state_country(&query_escaped.clone()) {
                 for (city, state, country) in data {
@@ -1685,10 +1579,7 @@ impl Event {
         let mut query = events::table
             .left_join(venues::table.on(events::venue_id.eq(venues::id.nullable())))
             .inner_join(organizations::table.on(organizations::id.eq(events::organization_id)))
-            .left_join(
-                organization_users::table
-                    .on(organization_users::organization_id.eq(organizations::id)),
-            )
+            .left_join(organization_users::table.on(organization_users::organization_id.eq(organizations::id)))
             .left_join(
                 event_artists::table
                     .inner_join(
@@ -1711,50 +1602,45 @@ impl Event {
 
         if venue_location_searches.len() > 0 {
             for (city, state, country) in venue_location_searches {
-                query =
-                    query
-                        .or_filter(
-                            venues::city
-                                .ilike(city.clone().unwrap_or("%".to_string()))
-                                .and(venues::state.ilike(
-                                    state.clone().map(|s| s.name).unwrap_or("%".to_string()),
-                                ))
-                                .and(venues::country.ilike(country.clone().name)),
-                        )
-                        .or_filter(
-                            venues::city
-                                .ilike(city.clone().unwrap_or("%".to_string()))
-                                .and(
-                                    venues::state.ilike(
-                                        state
-                                            .clone()
-                                            .map(|s| s.code.unwrap_or("%".to_string()))
-                                            .unwrap_or("%".to_string()),
-                                    ),
-                                )
-                                .and(venues::country.ilike(country.clone().name)),
-                        )
-                        .or_filter(
-                            venues::city
-                                .ilike(city.clone().unwrap_or("%".to_string()))
-                                .and(
-                                    venues::state.ilike(
-                                        state
-                                            .clone()
-                                            .map(|s| s.code.unwrap_or("%".to_string()))
-                                            .unwrap_or("%".to_string()),
-                                    ),
-                                )
-                                .and(venues::country.ilike(country.clone().code)),
-                        )
-                        .or_filter(
-                            venues::city
-                                .ilike(city.clone().unwrap_or("%".to_string()))
-                                .and(venues::state.ilike(
-                                    state.clone().map(|s| s.name).unwrap_or("%".to_string()),
-                                ))
-                                .and(venues::country.ilike(country.clone().code)),
-                        );
+                query = query
+                    .or_filter(
+                        venues::city
+                            .ilike(city.clone().unwrap_or("%".to_string()))
+                            .and(venues::state.ilike(state.clone().map(|s| s.name).unwrap_or("%".to_string())))
+                            .and(venues::country.ilike(country.clone().name)),
+                    )
+                    .or_filter(
+                        venues::city
+                            .ilike(city.clone().unwrap_or("%".to_string()))
+                            .and(
+                                venues::state.ilike(
+                                    state
+                                        .clone()
+                                        .map(|s| s.code.unwrap_or("%".to_string()))
+                                        .unwrap_or("%".to_string()),
+                                ),
+                            )
+                            .and(venues::country.ilike(country.clone().name)),
+                    )
+                    .or_filter(
+                        venues::city
+                            .ilike(city.clone().unwrap_or("%".to_string()))
+                            .and(
+                                venues::state.ilike(
+                                    state
+                                        .clone()
+                                        .map(|s| s.code.unwrap_or("%".to_string()))
+                                        .unwrap_or("%".to_string()),
+                                ),
+                            )
+                            .and(venues::country.ilike(country.clone().code)),
+                    )
+                    .or_filter(
+                        venues::city
+                            .ilike(city.clone().unwrap_or("%".to_string()))
+                            .and(venues::state.ilike(state.clone().map(|s| s.name).unwrap_or("%".to_string())))
+                            .and(venues::country.ilike(country.clone().code)),
+                    );
             }
         }
 
@@ -1859,10 +1745,7 @@ impl Event {
             None => Ok(None),
         }
     }
-    pub fn checked_in_users(
-        event_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<User>, DatabaseError> {
+    pub fn checked_in_users(event_id: Uuid, conn: &PgConnection) -> Result<Vec<User>, DatabaseError> {
         use schema::*;
         ticket_instances::table
             .inner_join(assets::table.inner_join(ticket_types::table))
@@ -1972,8 +1855,7 @@ impl Event {
         let slug = self.slug(conn)?;
 
         let localized_times = self.get_all_localized_time_strings(venue.as_ref());
-        let (min_ticket_price, max_ticket_price) =
-            self.current_ticket_pricing_range(false, conn)?;
+        let (min_ticket_price, max_ticket_price) = self.current_ticket_pricing_range(false, conn)?;
         Ok(DisplayEvent {
             id: self.id,
             name: self.name.clone(),

@@ -33,10 +33,7 @@ impl Asset {
         }
     }
 
-    pub fn find_by_ticket_type(
-        ticket_type_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Asset, DatabaseError> {
+    pub fn find_by_ticket_type(ticket_type_id: Uuid, conn: &PgConnection) -> Result<Asset, DatabaseError> {
         assets::table
             .filter(assets::ticket_type_id.eq(ticket_type_id))
             .first(conn)
@@ -50,21 +47,11 @@ impl Asset {
             .to_db_error(ErrorCode::QueryError, "Error loading asset")
     }
 
-    pub fn update_blockchain_id(
-        &self,
-        id: String,
-        conn: &PgConnection,
-    ) -> Result<Asset, DatabaseError> {
+    pub fn update_blockchain_id(&self, id: String, conn: &PgConnection) -> Result<Asset, DatabaseError> {
         diesel::update(self)
-            .set((
-                assets::blockchain_asset_id.eq(id),
-                assets::updated_at.eq(dsl::now),
-            ))
+            .set((assets::blockchain_asset_id.eq(id), assets::updated_at.eq(dsl::now)))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not update asset blockchain id",
-            )
+            .to_db_error(ErrorCode::UpdateError, "Could not update asset blockchain id")
     }
 }
 

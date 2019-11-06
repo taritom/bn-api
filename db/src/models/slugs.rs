@@ -51,12 +51,7 @@ pub enum SlugContext {
 }
 
 impl Slug {
-    pub fn create(
-        slug: String,
-        main_table: Tables,
-        main_table_id: Uuid,
-        slug_type: SlugTypes,
-    ) -> NewSlug {
+    pub fn create(slug: String, main_table: Tables, main_table_id: Uuid, slug_type: SlugTypes) -> NewSlug {
         NewSlug {
             slug,
             main_table,
@@ -65,11 +60,7 @@ impl Slug {
         }
     }
 
-    pub fn primary_slug(
-        main_table_id: Uuid,
-        main_table: Tables,
-        conn: &PgConnection,
-    ) -> Result<Slug, DatabaseError> {
+    pub fn primary_slug(main_table_id: Uuid, main_table: Tables, conn: &PgConnection) -> Result<Slug, DatabaseError> {
         let mut slugs = Slug::load_primary_slugs(&vec![main_table_id], main_table, conn)?;
 
         if slugs.is_empty() {
@@ -148,10 +139,7 @@ impl Slug {
             .to_db_error(ErrorCode::QueryError, "Error loading slug")
     }
 
-    pub fn find_by_slug_type(
-        slug_type: &str,
-        conn: &PgConnection,
-    ) -> Result<Vec<Slug>, DatabaseError> {
+    pub fn find_by_slug_type(slug_type: &str, conn: &PgConnection) -> Result<Vec<Slug>, DatabaseError> {
         slugs::table
             .filter(slugs::slug_type.eq(slug_type))
             .get_results(conn)
@@ -222,10 +210,7 @@ impl Slug {
                 slug_name = Some(name.clone());
             }
             SlugContext::Venue {
-                id,
-                ref name,
-                ref city,
-                ..
+                id, ref name, ref city, ..
             } => {
                 main_table_id = Some(*id);
                 main_table = Some(Tables::Venues);
@@ -247,13 +232,9 @@ impl Slug {
         match slug_type {
             SlugTypes::City => match slug_context {
                 SlugContext::Venue {
-                    city,
-                    state,
-                    country,
-                    ..
+                    city, state, country, ..
                 } => {
-                    slug_record =
-                        Slug::find_first_for_city(&city, &state, &country, conn).optional()?;
+                    slug_record = Slug::find_first_for_city(&city, &state, &country, conn).optional()?;
                 }
                 _ => (),
             },
@@ -262,13 +243,9 @@ impl Slug {
 
         // If slug record is matched duplicate it for this type
         match slug_record {
-            Some(slug_record) => Slug::create(
-                slug_record.slug,
-                main_table.unwrap(),
-                main_table_id.unwrap(),
-                slug_type,
-            )
-            .commit(conn),
+            Some(slug_record) => {
+                Slug::create(slug_record.slug, main_table.unwrap(), main_table_id.unwrap(), slug_type).commit(conn)
+            }
             None => {
                 let mut slug = Slug::create_slug(&slug_name.unwrap());
                 loop {
@@ -279,8 +256,7 @@ impl Slug {
                     slug = format!("{}-{}", &slug, random_alpha_string(5));
                 }
 
-                Slug::create(slug, main_table.unwrap(), main_table_id.unwrap(), slug_type)
-                    .commit(conn)
+                Slug::create(slug, main_table.unwrap(), main_table_id.unwrap(), slug_type).commit(conn)
             }
         }
     }

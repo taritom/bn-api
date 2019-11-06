@@ -129,11 +129,7 @@ impl OrganizationInvite {
         Organization::find(self.organization_id, conn)
     }
 
-    pub fn change_invite_status(
-        &mut self,
-        change_status: i16,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn change_invite_status(&mut self, change_status: i16, conn: &PgConnection) -> Result<(), DatabaseError> {
         self.security_token = None;
         self.accepted = Some(change_status);
         self.updated_at = Utc::now().naive_utc();
@@ -144,10 +140,7 @@ impl OrganizationInvite {
                 organization_invites::updated_at.eq(self.updated_at),
             ))
             .execute(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Could not update organization invite table",
-            )?;
+            .to_db_error(ErrorCode::UpdateError, "Could not update organization invite table")?;
 
         Ok(())
     }
@@ -160,18 +153,12 @@ impl OrganizationInvite {
         self.change_invite_status(0, conn)
     }
 
-    pub fn get_invite_display(
-        token: &Uuid,
-        conn: &PgConnection,
-    ) -> Result<DisplayInvite, DatabaseError> {
+    pub fn get_invite_display(token: &Uuid, conn: &PgConnection) -> Result<DisplayInvite, DatabaseError> {
         let expiry_date = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
 
         organization_invites::table
             .inner_join(users::table.on(users::id.eq(organization_invites::inviter_id)))
-            .inner_join(
-                organizations::table
-                    .on(organizations::id.eq(organization_invites::organization_id)),
-            )
+            .inner_join(organizations::table.on(organizations::id.eq(organization_invites::organization_id)))
             .filter(organization_invites::accepted.is_null())
             .filter(organization_invites::security_token.eq(token))
             .filter(organization_invites::created_at.gt(expiry_date))
@@ -186,10 +173,7 @@ impl OrganizationInvite {
             .to_db_error(ErrorCode::QueryError, "Cannot find organization invite")
     }
 
-    pub fn find_by_token(
-        token: Uuid,
-        conn: &PgConnection,
-    ) -> Result<OrganizationInvite, DatabaseError> {
+    pub fn find_by_token(token: Uuid, conn: &PgConnection) -> Result<OrganizationInvite, DatabaseError> {
         let expiry_date = Utc::now().naive_utc() - Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS);
         DatabaseError::wrap(
             ErrorCode::AccessError,
@@ -247,19 +231,13 @@ impl OrganizationInvite {
             .filter(organization_invites::accepted.is_null())
             .count()
             .first(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not get total invites for organization",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not get total invites for organization")?;
 
         let paging = Paging::new(page, limit);
         let mut payload = Payload::new(
             organization_invites::table
                 .inner_join(users::table.on(users::id.eq(organization_invites::inviter_id)))
-                .inner_join(
-                    organizations::table
-                        .on(organizations::id.eq(organization_invites::organization_id)),
-                )
+                .inner_join(organizations::table.on(organizations::id.eq(organization_invites::organization_id)))
                 .filter(organization_invites::organization_id.eq(organization_id))
                 .filter(organization_invites::accepted.is_null())
                 .order_by(organization_invites::user_email.asc())
@@ -273,10 +251,7 @@ impl OrganizationInvite {
                         .bind::<diesel::sql_types::BigInt, _>(INVITE_EXPIRATION_PERIOD_IN_DAYS),
                 ))
                 .load(conn)
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Could not retrieve invites for organization",
-                )?,
+                .to_db_error(ErrorCode::QueryError, "Could not retrieve invites for organization")?,
             paging,
         );
 
@@ -294,11 +269,7 @@ impl OrganizationInvite {
                 Some(
                     format!(
                         "Cannot destroy invite it has already been {}.",
-                        if accepted == 1 {
-                            "accepted"
-                        } else {
-                            "declined"
-                        }
+                        if accepted == 1 { "accepted" } else { "declined" }
                     )
                     .to_string(),
                 ),
@@ -329,9 +300,6 @@ impl OrganizationInvite {
         query
             .order_by(organization_invites::user_email.asc())
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load invites for organization",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load invites for organization")
     }
 }

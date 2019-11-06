@@ -48,10 +48,7 @@ impl TransferTicket {
             .filter(transfers::id.ne(transfer_id.unwrap_or(Uuid::nil())))
             .select(count(transfers::id))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load validate pending transfers",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load validate pending transfers")?;
 
         if pending_transfers > 0 {
             return Ok(Err(create_validation_error(
@@ -71,10 +68,7 @@ impl NewTransferTicket {
         diesel::insert_into(transfer_tickets::table)
             .values(self)
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::InsertError,
-                "Could not create new transfer ticket",
-            )
+            .to_db_error(ErrorCode::InsertError, "Could not create new transfer ticket")
     }
 
     fn validate_record(&self, conn: &PgConnection) -> Result<(), DatabaseError> {

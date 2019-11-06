@@ -49,11 +49,7 @@ impl NewTicketTypeCode {
         Ok(validators::append_validation_error(
             Ok(()),
             "ticket_type_id",
-            TicketTypeCode::ticket_type_code_ticket_type_id_valid(
-                self.code_id,
-                self.ticket_type_id,
-                conn,
-            )?,
+            TicketTypeCode::ticket_type_code_ticket_type_id_valid(self.code_id, self.ticket_type_id, conn)?,
         )?)
     }
 }
@@ -88,15 +84,12 @@ impl TicketTypeCode {
         ticket_type_id: Uuid,
         conn: &PgConnection,
     ) -> Result<Result<(), ValidationError>, DatabaseError> {
-        let result = select(ticket_type_code_ticket_type_id_valid(
-            code_id,
-            ticket_type_id,
-        ))
-        .get_result::<bool>(conn)
-        .to_db_error(
-            ErrorCode::InsertError,
-            "Could not confirm if ticket type id valid for code",
-        )?;
+        let result = select(ticket_type_code_ticket_type_id_valid(code_id, ticket_type_id))
+            .get_result::<bool>(conn)
+            .to_db_error(
+                ErrorCode::InsertError,
+                "Could not confirm if ticket type id valid for code",
+            )?;
         if !result {
             let mut validation_error = create_validation_error(
                 "invalid",

@@ -35,19 +35,10 @@ fn create() {
         .commit(None, project.get_connection())
         .unwrap();
 
-    assert_eq!(
-        event_artist.event_id, event.id,
-        "Event foreign key does not match"
-    );
-    assert_eq!(
-        event_artist.artist_id, artist.id,
-        "Artist foreign key does not match"
-    );
+    assert_eq!(event_artist.event_id, event.id, "Event foreign key does not match");
+    assert_eq!(event_artist.artist_id, artist.id, "Artist foreign key does not match");
     assert_eq!(event_artist.rank, rank, "Artist rank is not correct");
-    assert_eq!(
-        event_artist.importance, importance,
-        "Artist importance is not correct"
-    );
+    assert_eq!(event_artist.importance, importance, "Artist importance is not correct");
     assert_eq!(event_artist.id.to_string().is_empty(), false);
 }
 
@@ -117,9 +108,7 @@ fn find_all_by_events() {
         .commit(None, project.get_connection())
         .unwrap();
 
-    let mut result =
-        EventArtist::find_all_from_events(&vec![event1.id, event2.id], project.get_connection())
-            .unwrap();
+    let mut result = EventArtist::find_all_from_events(&vec![event1.id, event2.id], project.get_connection()).unwrap();
 
     assert_equiv!(
         vec![

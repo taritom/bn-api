@@ -33,10 +33,7 @@ pub trait AuthThenCompletePaymentBehavior {
         metadata: Vec<(String, String)>,
     ) -> Result<ChargeAuthResult, PaymentProcessorError>;
 
-    fn complete_authed_charge(
-        &self,
-        auth_token: &str,
-    ) -> Result<ChargeResult, PaymentProcessorError>;
+    fn complete_authed_charge(&self, auth_token: &str) -> Result<ChargeResult, PaymentProcessorError>;
 }
 
 pub trait RedirectToPaymentPageBehavior {
@@ -57,11 +54,7 @@ pub trait PaymentProcessor {
     fn behavior(&self) -> PaymentProcessorBehavior;
     fn refund(&self, auth_token: &str) -> Result<ChargeAuthResult, PaymentProcessorError>;
 
-    fn partial_refund(
-        &self,
-        auth_token: &str,
-        amount: i64,
-    ) -> Result<ChargeAuthResult, PaymentProcessorError>;
+    fn partial_refund(&self, auth_token: &str, amount: i64) -> Result<ChargeAuthResult, PaymentProcessorError>;
 
     fn update_metadata(
         &self,

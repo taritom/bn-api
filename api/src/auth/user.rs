@@ -26,11 +26,7 @@ pub struct User {
 
 impl User {
     pub fn new(user: DbUser, request: &HttpRequest<AppState>) -> Result<User, EnumParseError> {
-        let global_scopes = user
-            .get_global_scopes()
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
+        let global_scopes = user.get_global_scopes().into_iter().map(|s| s.to_string()).collect();
         Ok(User {
             user,
             global_scopes,
@@ -75,9 +71,7 @@ impl User {
                     .find(|r| user_roles.contains(&r))
                     .is_some()
                 {
-                    let event_user =
-                        EventUser::find_by_event_id_user_id(event_id, self.id(), connection)
-                            .optional()?;
+                    let event_user = EventUser::find_by_event_id_user_id(event_id, self.id(), connection).optional()?;
                     if let Some(event_user) = event_user {
                         let scopes = scopes::get_scopes(vec![event_user.role]);
 
@@ -116,12 +110,7 @@ impl User {
         self.check_scope_access(scope, Some(organization), Some(event_id), Some(conn), false)
     }
 
-    pub fn has_scope_for_order(
-        &self,
-        scope: Scopes,
-        order: &Order,
-        conn: &PgConnection,
-    ) -> Result<bool, BigNeonError> {
+    pub fn has_scope_for_order(&self, scope: Scopes, order: &Order, conn: &PgConnection) -> Result<bool, BigNeonError> {
         let mut has_scope = false;
         for event in order.events(conn)? {
             if self.check_scope_access(
@@ -159,11 +148,7 @@ impl User {
         if self.check_scope_access(scope, None, None, None, true)? {
             return Ok(());
         }
-        Err(AuthError::new(
-            AuthErrorType::Unauthorized,
-            MISSING_PERMISSIONS_MESSAGING.to_string(),
-        )
-        .into())
+        Err(AuthError::new(AuthErrorType::Unauthorized, MISSING_PERMISSIONS_MESSAGING.to_string()).into())
     }
 
     pub fn requires_scope_for_order(
@@ -179,11 +164,7 @@ impl User {
             logging_data.insert("order_id", json!(order.id));
             self.log_unauthorized_access_attempt(logging_data);
 
-            return Err(AuthError::new(
-                AuthErrorType::Unauthorized,
-                MISSING_PERMISSIONS_MESSAGING.to_string(),
-            )
-            .into());
+            return Err(AuthError::new(AuthErrorType::Unauthorized, MISSING_PERMISSIONS_MESSAGING.to_string()).into());
         }
         Ok(())
     }
@@ -198,11 +179,7 @@ impl User {
         if self.check_scope_access(scope, Some(organization), Some(event.id), Some(conn), true)? {
             return Ok(());
         }
-        Err(AuthError::new(
-            AuthErrorType::Unauthorized,
-            MISSING_PERMISSIONS_MESSAGING.to_string(),
-        )
-        .into())
+        Err(AuthError::new(AuthErrorType::Unauthorized, MISSING_PERMISSIONS_MESSAGING.to_string()).into())
     }
 
     pub fn requires_scope_for_organization(
@@ -214,11 +191,7 @@ impl User {
         if self.check_scope_access(scope, Some(organization), None, Some(conn), true)? {
             return Ok(());
         }
-        Err(AuthError::new(
-            AuthErrorType::Unauthorized,
-            MISSING_PERMISSIONS_MESSAGING.to_string(),
-        )
-        .into())
+        Err(AuthError::new(AuthErrorType::Unauthorized, MISSING_PERMISSIONS_MESSAGING.to_string()).into())
     }
 
     pub fn into_optional(self) -> OptionalUser {

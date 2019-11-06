@@ -89,20 +89,14 @@ impl Wallet {
             .to_db_error(ErrorCode::QueryError, "Could not find wallets")
     }
 
-    pub fn find_for_organization(
-        organization_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<Wallet>, DatabaseError> {
+    pub fn find_for_organization(organization_id: Uuid, conn: &PgConnection) -> Result<Vec<Wallet>, DatabaseError> {
         wallets::table
             .filter(wallets::organization_id.eq(organization_id))
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not find wallets")
     }
 
-    pub fn find_default_for_user(
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Wallet, DatabaseError> {
+    pub fn find_default_for_user(user_id: Uuid, conn: &PgConnection) -> Result<Wallet, DatabaseError> {
         let wallets = Wallet::find_for_user(user_id, conn)?;
         let mut result_wallet;
         if wallets.len() > 0 {
@@ -120,10 +114,7 @@ impl Wallet {
         Ok(result_wallet)
     }
 
-    pub fn find_default_for_organization(
-        organization_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Wallet, DatabaseError> {
+    pub fn find_default_for_organization(organization_id: Uuid, conn: &PgConnection) -> Result<Wallet, DatabaseError> {
         let wallets = Wallet::find_for_organization(organization_id, conn)?;
         let mut result_wallet;
         if wallets.len() > 0 {
@@ -136,8 +127,7 @@ impl Wallet {
             }
         } else {
             //Create default wallet for org
-            result_wallet =
-                Wallet::create_for_organization(organization_id, "Default".to_string(), conn)?;
+            result_wallet = Wallet::create_for_organization(organization_id, "Default".to_string(), conn)?;
         }
         Ok(result_wallet)
     }

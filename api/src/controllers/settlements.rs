@@ -35,11 +35,7 @@ pub fn index(
         Some(query.page() * query.limit()),
         // Hide settlements for default settlement period where users lack settlement read early scope
         state.config.settlement_period_in_days.is_none()
-            && !user.has_scope_for_organization(
-                Scopes::SettlementReadEarly,
-                &organization,
-                connection,
-            )?,
+            && !user.has_scope_for_organization(Scopes::SettlementReadEarly, &organization, connection)?,
         connection,
     )?;
 
@@ -47,12 +43,7 @@ pub fn index(
 }
 
 pub fn create(
-    (connection, new_settlement, path, user): (
-        Connection,
-        Json<NewSettlementRequest>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, new_settlement, path, user): (Connection, Json<NewSettlementRequest>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
@@ -79,18 +70,10 @@ pub fn show(
 
     // Unauthorized access to settlement for default settlement period where users lack settlement read early scope
     if state.config.settlement_period_in_days.is_none()
-        && !user.has_scope_for_organization(
-            Scopes::SettlementReadEarly,
-            &organization,
-            connection,
-        )?
+        && !user.has_scope_for_organization(Scopes::SettlementReadEarly, &organization, connection)?
         && !settlement.visible(&organization)?
     {
-        return application::unauthorized_with_message(
-            "Unauthorized access of settlement",
-            None,
-            None,
-        );
+        return application::unauthorized_with_message("Unauthorized access of settlement", None, None);
     }
 
     let display_settlement: DisplaySettlement = settlement.for_display(connection)?;

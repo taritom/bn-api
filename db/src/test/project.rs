@@ -15,12 +15,9 @@ impl TestProject {
     pub fn new() -> Self {
         dotenv().ok();
         let conn_str = env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be defined.");
-        let admin_str =
-            env::var("TEST_DATABASE_ADMIN_URL").expect("TEST_DATABASE_ADMIN_URL must be defined.");
-        let connection =
-            PgConnection::establish(&conn_str).expect("Could not get access to test database");
-        let admin = PgConnection::establish(&admin_str)
-            .expect("Could not get admin access to admin test database");
+        let admin_str = env::var("TEST_DATABASE_ADMIN_URL").expect("TEST_DATABASE_ADMIN_URL must be defined.");
+        let connection = PgConnection::establish(&conn_str).expect("Could not get access to test database");
+        let admin = PgConnection::establish(&admin_str).expect("Could not get admin access to admin test database");
         connection
             .begin_test_transaction()
             .expect("Could not start testing transaction");
@@ -30,12 +27,9 @@ impl TestProject {
     pub fn new_without_rollback() -> Self {
         dotenv().ok();
         let conn_str = env::var("TEST_DATABASE_URL").expect("TEST_DATABASE_URL must be defined.");
-        let admin_str =
-            env::var("TEST_DATABASE_ADMIN_URL").expect("TEST_DATABASE_ADMIN_URL must be defined.");
-        let connection =
-            PgConnection::establish(&conn_str).expect("Could not get access to test database");
-        let admin = PgConnection::establish(&admin_str)
-            .expect("Could not get admin access to admin test database");
+        let admin_str = env::var("TEST_DATABASE_ADMIN_URL").expect("TEST_DATABASE_ADMIN_URL must be defined.");
+        let connection = PgConnection::establish(&conn_str).expect("Could not get access to test database");
+        let admin = PgConnection::establish(&admin_str).expect("Could not get admin access to admin test database");
 
         TestProject { connection, admin }
     }

@@ -68,24 +68,13 @@ impl<'a> TicketTypeBuilder<'a> {
     pub fn finish(mut self) -> Event {
         let connection = self.event.connection;
         let event = self.event.finish();
-        let sales_start = event
-            .event_start
-            .unwrap()
-            .into_builder()
-            .add_days(-4)
-            .finish();
+        let sales_start = event.event_start.unwrap().into_builder().add_days(-4).finish();
         let sales_end = if self.end_date_type != TicketTypeEndDateType::Manual {
             None
         } else {
             Some(
-                self.sales_end.unwrap_or(
-                    event
-                        .event_start
-                        .unwrap()
-                        .into_builder()
-                        .add_hours(-2)
-                        .finish(),
-                ),
+                self.sales_end
+                    .unwrap_or(event.event_start.unwrap().into_builder().add_hours(-2).finish()),
             )
         };
         event
@@ -141,18 +130,12 @@ impl<'a> TicketPricingBuilder<'a> {
         let connection = self.ticket_type.event.connection;
         let event = self.ticket_type.finish();
 
-        let ticket_type = event
-            .ticket_types(false, None, connection)
-            .unwrap()
-            .pop()
-            .unwrap();
+        let ticket_type = event.ticket_types(false, None, connection).unwrap().pop().unwrap();
         ticket_type
             .add_ticket_pricing(
                 "Ticket Pricing Builder".to_string(),
-                self.start
-                    .unwrap_or(ticket_type.start_date(connection).unwrap()),
-                self.end
-                    .unwrap_or(ticket_type.end_date(connection).unwrap()),
+                self.start.unwrap_or(ticket_type.start_date(connection).unwrap()),
+                self.end.unwrap_or(ticket_type.end_date(connection).unwrap()),
                 10,
                 false,
                 None,

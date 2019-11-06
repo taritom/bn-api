@@ -6,11 +6,7 @@ fn log_refund() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let refund = project.create_refund().finish();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -24,9 +20,7 @@ fn log_refund() {
         .with_organization(&organization)
         .with_event(&event)
         .finish();
-    let refund_payment = payment
-        .log_refund(user.id, &refund, 100, None, connection)
-        .unwrap();
+    let refund_payment = payment.log_refund(user.id, &refund, 100, None, connection).unwrap();
     assert_eq!(refund_payment.refund_id, Some(refund.id));
     assert_eq!(refund_payment.amount, -100);
 }
@@ -35,11 +29,7 @@ fn log_refund() {
 fn find_by_order() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -53,8 +43,7 @@ fn find_by_order() {
         .with_organization(&organization)
         .with_event(&event)
         .finish();
-    let found_payment =
-        Payment::find_by_order(payment.order_id, &"Test".to_string(), connection).unwrap();
+    let found_payment = Payment::find_by_order(payment.order_id, &"Test".to_string(), connection).unwrap();
     assert_eq!(payment, found_payment);
 }
 
@@ -62,11 +51,7 @@ fn find_by_order() {
 fn find() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -88,11 +73,7 @@ fn find() {
 fn find_all_with_orders_paginated_by_provider() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -106,13 +87,8 @@ fn find_all_with_orders_paginated_by_provider() {
         .with_organization(&organization)
         .with_event(&event)
         .finish();
-    let found_payment = Payment::find_all_with_orders_paginated_by_provider(
-        PaymentProviders::External,
-        0,
-        10,
-        connection,
-    )
-    .unwrap();
+    let found_payment =
+        Payment::find_all_with_orders_paginated_by_provider(PaymentProviders::External, 0, 10, connection).unwrap();
     assert_eq!(payment, found_payment[0].0);
 }
 
@@ -120,11 +96,7 @@ fn find_all_with_orders_paginated_by_provider() {
 fn add_ipn() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -140,12 +112,7 @@ fn add_ipn() {
         .finish();
     assert!(
         payment
-            .add_ipn(
-                PaymentStatus::Cancelled,
-                json!(null),
-                Some(user.id),
-                connection
-            )
+            .add_ipn(PaymentStatus::Cancelled, json!(null), Some(user.id), connection)
             .is_ok(),
         true
     )
@@ -155,11 +122,7 @@ fn add_ipn() {
 fn update_amount() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -173,23 +136,14 @@ fn update_amount() {
         .with_organization(&organization)
         .with_event(&event)
         .finish();
-    assert!(
-        payment
-            .update_amount(Some(user.id), 100, connection)
-            .is_ok(),
-        true
-    )
+    assert!(payment.update_amount(Some(user.id), 100, connection).is_ok(), true)
 }
 
 #[test]
 fn mark_complete() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -204,9 +158,7 @@ fn mark_complete() {
         .with_event(&event)
         .finish();
     assert!(
-        payment
-            .mark_complete(json!(null), Some(user.id), connection)
-            .is_ok(),
+        payment.mark_complete(json!(null), Some(user.id), connection).is_ok(),
         true
     )
 }
@@ -215,11 +167,7 @@ fn mark_complete() {
 fn mark_pending_ipn() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -233,21 +181,14 @@ fn mark_pending_ipn() {
         .with_organization(&organization)
         .with_event(&event)
         .finish();
-    assert!(
-        payment.mark_pending_ipn(Some(user.id), connection).is_ok(),
-        true
-    )
+    assert!(payment.mark_pending_ipn(Some(user.id), connection).is_ok(), true)
 }
 
 #[test]
 fn mark_cancelled() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -263,9 +204,7 @@ fn mark_cancelled() {
         .with_status(PaymentStatus::Draft)
         .finish();
     assert!(
-        payment
-            .mark_cancelled(json!(null), Some(user.id), connection)
-            .is_ok(),
+        payment.mark_cancelled(json!(null), Some(user.id), connection).is_ok(),
         true
     )
 }

@@ -28,9 +28,7 @@ pub fn send_async(
         _ => {
             let res = match config.block_external_comms {
                 true => {
-                    jlog!(Trace, "Blocked communication", {
-                        "communication": communication
-                    });
+                    jlog!(Trace, "Blocked communication", { "communication": communication });
 
                     Either::A(future::ok(()))
                 }

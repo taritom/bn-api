@@ -39,9 +39,7 @@ fn update_asset_blockchain_id() {
 
     let asset = Asset::find_by_ticket_type(ticket_type.id, conn).unwrap();
     let tari_asset_id = Uuid::new_v4().to_string();
-    let asset = asset
-        .update_blockchain_id(tari_asset_id.clone(), conn)
-        .unwrap();
+    let asset = asset.update_blockchain_id(tari_asset_id.clone(), conn).unwrap();
 
     assert_eq!(asset.blockchain_asset_id, Some(tari_asset_id));
 }

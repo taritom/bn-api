@@ -39,17 +39,11 @@ pub struct OrganizationInteractionEditableAttributes {
 }
 
 impl NewOrganizationInteraction {
-    pub fn commit(
-        &mut self,
-        conn: &PgConnection,
-    ) -> Result<OrganizationInteraction, DatabaseError> {
+    pub fn commit(&mut self, conn: &PgConnection) -> Result<OrganizationInteraction, DatabaseError> {
         diesel::insert_into(organization_interactions::table)
             .values(&*self)
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::InsertError,
-                "Could not create new interaction table row",
-            )
+            .to_db_error(ErrorCode::InsertError, "Could not create new interaction table row")
     }
 }
 
@@ -91,14 +85,8 @@ impl OrganizationInteraction {
         conn: &PgConnection,
     ) -> Result<OrganizationInteraction, DatabaseError> {
         diesel::update(self)
-            .set((
-                attributes,
-                organization_interactions::updated_at.eq(dsl::now),
-            ))
+            .set((attributes, organization_interactions::updated_at.eq(dsl::now)))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::UpdateError,
-                "Error updating organization interaction",
-            )
+            .to_db_error(ErrorCode::UpdateError, "Error updating organization interaction")
     }
 }

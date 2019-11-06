@@ -70,12 +70,10 @@ fn find_by_type() {
     let slug2 = Slug::primary_slug(venue.id, Tables::Venues, connection).unwrap();
     let slug3 = Slug::primary_slug(organization.id, Tables::Organizations, connection).unwrap();
 
-    let found_slug =
-        Slug::find_by_type(event.id, Tables::Events, SlugTypes::Event, connection).unwrap();
+    let found_slug = Slug::find_by_type(event.id, Tables::Events, SlugTypes::Event, connection).unwrap();
     assert_eq!(slug, found_slug);
 
-    let found_slug =
-        Slug::find_by_type(venue.id, Tables::Venues, SlugTypes::Venue, connection).unwrap();
+    let found_slug = Slug::find_by_type(venue.id, Tables::Venues, SlugTypes::Venue, connection).unwrap();
     assert_eq!(slug2, found_slug);
 
     let found_slug = Slug::find_by_type(
@@ -89,13 +87,7 @@ fn find_by_type() {
 
     // Unable to find slug given wrong table
     assert!(Slug::find_by_type(event.id, Tables::Venues, SlugTypes::Venue, connection).is_err());
-    assert!(Slug::find_by_type(
-        event.id,
-        Tables::Organizations,
-        SlugTypes::Organization,
-        connection
-    )
-    .is_err());
+    assert!(Slug::find_by_type(event.id, Tables::Organizations, SlugTypes::Organization, connection).is_err());
 }
 
 #[test]
@@ -120,12 +112,11 @@ fn primary_slugs() {
     let venue = project.create_venue().finish();
 
     // Multiple slugs returned
-    let mut slugs: Vec<Uuid> =
-        Slug::load_primary_slugs(&vec![event.id, event2.id], Tables::Events, connection)
-            .unwrap()
-            .iter()
-            .map(|s| s.id)
-            .collect();
+    let mut slugs: Vec<Uuid> = Slug::load_primary_slugs(&vec![event.id, event2.id], Tables::Events, connection)
+        .unwrap()
+        .iter()
+        .map(|s| s.id)
+        .collect();
     slugs.sort();
     let mut expected_slugs = vec![event.slug_id.unwrap(), event2.slug_id.unwrap()];
     expected_slugs.sort();
@@ -244,28 +235,21 @@ fn generate_slug() {
     };
 
     // Generate organization slug
-    let slug = Slug::generate_slug(
-        &organization_slug_context,
-        SlugTypes::Organization,
-        connection,
-    )
-    .unwrap();
+    let slug = Slug::generate_slug(&organization_slug_context, SlugTypes::Organization, connection).unwrap();
     assert_eq!(&slug.slug, "zephyr");
     assert_eq!(slug.slug_type, SlugTypes::Organization);
     assert_eq!(slug.main_table, Tables::Organizations);
     assert_eq!(slug.main_table_id, organization.id);
 
     // Generate event with no venue slug
-    let slug =
-        Slug::generate_slug(&event_no_venue_slug_context, SlugTypes::Event, connection).unwrap();
+    let slug = Slug::generate_slug(&event_no_venue_slug_context, SlugTypes::Event, connection).unwrap();
     assert_eq!(&slug.slug, "event");
     assert_eq!(slug.slug_type, SlugTypes::Event);
     assert_eq!(slug.main_table, Tables::Events);
     assert_eq!(slug.main_table_id, event.id);
 
     // Generate event with venue
-    let slug =
-        Slug::generate_slug(&event_with_venue_slug_context, SlugTypes::Event, connection).unwrap();
+    let slug = Slug::generate_slug(&event_with_venue_slug_context, SlugTypes::Event, connection).unwrap();
     assert_eq!(&slug.slug, "event2-oakland");
     assert_eq!(slug.slug_type, SlugTypes::Event);
     assert_eq!(slug.main_table, Tables::Events);
@@ -279,8 +263,7 @@ fn generate_slug() {
     assert_eq!(slug.main_table_id, venue.id);
 
     // Generate duplicate venue slug
-    let duplicate_slug =
-        Slug::generate_slug(&duplicate_venue_slug_context, SlugTypes::Venue, connection).unwrap();
+    let duplicate_slug = Slug::generate_slug(&duplicate_venue_slug_context, SlugTypes::Venue, connection).unwrap();
     assert!(&duplicate_slug.slug.starts_with("venue-"));
     assert_ne!(slug.id, duplicate_slug.id);
     assert_eq!(duplicate_slug.slug_type, SlugTypes::Venue);
@@ -295,8 +278,7 @@ fn generate_slug() {
     assert_eq!(slug.main_table_id, venue.id);
 
     // Generate duplicate city slug (but with same address)
-    let duplicate_slug =
-        Slug::generate_slug(&duplicate_venue_slug_context, SlugTypes::City, connection).unwrap();
+    let duplicate_slug = Slug::generate_slug(&duplicate_venue_slug_context, SlugTypes::City, connection).unwrap();
     assert_eq!(&duplicate_slug.slug, "oakland");
     assert_ne!(slug.id, duplicate_slug.id);
     assert_eq!(duplicate_slug.slug_type, SlugTypes::City);
@@ -304,12 +286,7 @@ fn generate_slug() {
     assert_eq!(duplicate_slug.main_table_id, venue2.id);
 
     // Generate unique city slug via new country
-    let unique_slug = Slug::generate_slug(
-        &unique_country_venue_slug_context,
-        SlugTypes::City,
-        connection,
-    )
-    .unwrap();
+    let unique_slug = Slug::generate_slug(&unique_country_venue_slug_context, SlugTypes::City, connection).unwrap();
     assert!(&unique_slug.slug.starts_with("oakland-"));
     assert_ne!(slug.id, unique_slug.id);
     assert_eq!(unique_slug.slug_type, SlugTypes::City);
