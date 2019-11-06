@@ -7,14 +7,16 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     // Please try to keep in alphabetical order
 
     app.resource("/admin/stuck_domain_actions", |r| {
-        r.method(Method::GET)
-            .with(admin::admin_stuck_domain_actions);
+        r.method(Method::GET).with(admin::admin_stuck_domain_actions);
     })
     .resource("/admin/ticket_count", |r| {
         r.method(Method::GET).with(admin::admin_ticket_count);
     })
     .resource("/admin/orders", |r| {
         r.method(Method::GET).with(admin::orders);
+    })
+    .resource("/analytics/track", |r| {
+        r.method(Method::GET).with(analytics::track);
     })
     .resource("/artists/search", |r| {
         r.method(Method::GET).with(artists::search);
@@ -38,6 +40,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(broadcasts::show);
         r.method(Method::PUT).with(broadcasts::update);
         r.method(Method::DELETE).with(broadcasts::delete);
+    })
+    .resource("/broadcasts/{id}/tracking_count", |r| {
+        r.method(Method::POST).with(broadcasts::tracking_count);
     })
     .resource("/cart", |r| {
         r.method(Method::DELETE).with(cart::destroy);
@@ -136,8 +141,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(events::users);
     })
     .resource("/events/{id}/users/invites", |r| {
-        r.method(Method::POST)
-            .with(organization_invites::create_for_event);
+        r.method(Method::POST).with(organization_invites::create_for_event);
     })
     .resource("/events/{id}/users/invites/{invite_id}", |r| {
         r.method(Method::DELETE).with(organization_invites::destroy);
@@ -149,8 +153,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(external::facebook::pages)
     })
     .resource("/external/facebook/events", |r| {
-        r.method(Method::POST)
-            .with(external::facebook::create_event);
+        r.method(Method::POST).with(external::facebook::create_event);
     })
     .resource("/external/facebook/web_login", |r| {
         r.method(Method::POST).with(external::facebook::web_login)
@@ -165,8 +168,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(organization_invites::view);
     })
     .resource("/invitations", |r| {
-        r.method(Method::POST)
-            .with(organization_invites::accept_request);
+        r.method(Method::POST).with(organization_invites::accept_request);
     })
     .resource("/ipns/globee", |r| {
         r.method(Method::POST).with(ipns::globee);
@@ -212,8 +214,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(orders::resend_confirmation);
     })
     .resource("/orders/{id}/send_box_office_instructions", |r| {
-        r.method(Method::POST)
-            .with(orders::send_box_office_instructions);
+        r.method(Method::POST).with(orders::send_box_office_instructions);
     })
     .resource("/orders/{id}/tickets", |r| {
         r.method(Method::GET).with(orders::tickets);
@@ -230,6 +231,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     })
     .resource("/organizations/{id}/events", |r| {
         r.method(Method::GET).with(events::show_from_organizations);
+    })
+    .resource("/organizations/{id}/export_event_data", |r| {
+        r.method(Method::GET).with(events::export_event_data);
     })
     .resource("/organizations/{id}/fans/{user_id}/activity", |r| {
         r.method(Method::GET).with(users::activity);
@@ -259,12 +263,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(organization_invites::create);
     })
     .resource("/organizations/{id}/users", |r| {
-        r.method(Method::POST)
-            .with(organizations::add_or_replace_user);
-        r.method(Method::PUT)
-            .with(organizations::add_or_replace_user);
-        r.method(Method::GET)
-            .with(organizations::list_organization_members);
+        r.method(Method::POST).with(organizations::add_or_replace_user);
+        r.method(Method::PUT).with(organizations::add_or_replace_user);
+        r.method(Method::GET).with(organizations::list_organization_members);
     })
     .resource("/organizations/{id}/users/{user_id}", |r| {
         r.method(Method::DELETE).with(organizations::remove_user);
@@ -312,8 +313,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::DELETE).with(stages::delete);
     })
     .resource("/settlement_adjustments/{id}", |r| {
-        r.method(Method::DELETE)
-            .with(settlement_adjustments::destroy);
+        r.method(Method::DELETE).with(settlement_adjustments::destroy);
     })
     .resource("/settlements/{id}/adjustments", |r| {
         r.method(Method::GET).with(settlement_adjustments::index);
@@ -333,8 +333,7 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::POST).with(tickets::receive_transfer);
     })
     .resource("/tickets/send", |r| {
-        r.method(Method::POST)
-            .with(tickets::send_via_email_or_phone);
+        r.method(Method::POST).with(tickets::send_via_email_or_phone);
     })
     .resource("/tickets/{id}", |r| {
         r.method(Method::GET).with(tickets::show);
@@ -349,6 +348,9 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
     .resource("/transfers/transfer_key/{id}", |r| {
         r.method(Method::GET).with(transfers::show_by_transfer_key);
     })
+    .resource("/transfers/activity", |r| {
+        r.method(Method::GET).with(transfers::activity);
+    })
     .resource("/transfers/{id}", |r| {
         r.method(Method::DELETE).with(transfers::cancel);
     })
@@ -359,22 +361,17 @@ pub fn routes(app: &mut CorsBuilder<AppState>) -> App<AppState> {
         r.method(Method::GET).with(users::current_user);
         r.method(Method::PUT).with(users::update_current_user);
     })
-    .resource("/users/register", |r| {
-        r.method(Method::POST).with(users::register)
-    })
+    .resource("/users/register", |r| r.method(Method::POST).with(users::register))
     .resource("/users/{id}/tokens", |r| {
         r.method(Method::GET)
             .with(users::show_push_notification_tokens_for_user_id);
     })
     .resource("/users/tokens", |r| {
-        r.method(Method::GET)
-            .with(users::show_push_notification_tokens);
-        r.method(Method::POST)
-            .with(users::add_push_notification_token);
+        r.method(Method::GET).with(users::show_push_notification_tokens);
+        r.method(Method::POST).with(users::add_push_notification_token);
     })
     .resource("/users/tokens/{id}", |r| {
-        r.method(Method::DELETE)
-            .with(users::remove_push_notification_token);
+        r.method(Method::DELETE).with(users::remove_push_notification_token);
     })
     .resource("/users", |r| {
         r.method(Method::POST).with(users::register_and_login);

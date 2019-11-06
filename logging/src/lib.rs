@@ -68,12 +68,7 @@ macro_rules! jlog {
     }};
 }
 
-pub fn transform_message(
-    level: log::Level,
-    target: Option<&str>,
-    msg: &str,
-    meta: Option<serde_json::Value>,
-) {
+pub fn transform_message(level: log::Level, target: Option<&str>, msg: &str, meta: Option<serde_json::Value>) {
     let mut inner = LogEntry {
         level: format!("{}", level),
         target: target.map(|t| t.to_string()),
@@ -82,28 +77,15 @@ pub fn transform_message(
         meta,
     };
     match target {
-        Some(t) => log!(
-            target: t,
-            level,
-            "{}",
-            serde_json::to_string(&inner).unwrap()
-        ),
+        Some(t) => log!(target: t, level, "{}", serde_json::to_string(&inner).unwrap()),
         None => {
             let t = std::env::current_exe()
-                .map(|p| {
-                    p.file_name()
-                        .map(|s| s.to_str().unwrap_or("none").to_string())
-                })
+                .map(|p| p.file_name().map(|s| s.to_str().unwrap_or("none").to_string()))
                 .unwrap_or(Some("none".to_string()))
                 .unwrap();
             inner.target = Some(t);
             let t = inner.target.as_ref().unwrap().as_str();
-            log!(
-                target: t,
-                level,
-                "{}",
-                serde_json::to_string(&inner).unwrap()
-            )
+            log!(target: t, level, "{}", serde_json::to_string(&inner).unwrap())
         }
     }
 }
@@ -154,11 +136,6 @@ mod tests {
         // Level, message, meta
         jlog!(Error, "test", {"a": 1, "b": "jake", "c": [3, 2, 1]});
         // Level, target, message, meta
-        jlog!(
-            Debug,
-            "bigneon::domain_actions",
-            "Found no actions to process",
-            {}
-        );
+        jlog!(Debug, "bigneon::domain_actions", "Found no actions to process", {});
     }
 }

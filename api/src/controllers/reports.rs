@@ -52,18 +52,11 @@ impl From<ReportQueryParameters> for Paging {
 }
 
 pub fn get_report(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     match query.report.trim() {
         "box_office_sales_summary" => box_office_sales_summary((connection, query, path, user)),
-        "transaction_details" => {
-            Ok(transaction_detail_report((connection, query, path, user))?.into_http_response()?)
-        }
+        "transaction_details" => Ok(transaction_detail_report((connection, query, path, user))?.into_http_response()?),
         "event_summary" => event_summary_report((connection, query, path, user)),
         "weekly_settlement" => weekly_settlement_report((connection, query, path, user)),
         "ticket_count" => ticket_counts((connection, query, path, user)),
@@ -76,46 +69,26 @@ pub fn get_report(
 }
 
 pub fn box_office_sales_summary(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
 
     let organization = Organization::find(path.id, connection)?;
     user.requires_scope_for_organization(Scopes::OrgReports, &organization, connection)?;
 
-    let result = Report::box_office_sales_summary_report(
-        path.id,
-        query.start_utc,
-        query.end_utc,
-        connection,
-    )?;
+    let result = Report::box_office_sales_summary_report(path.id, query.start_utc, query.end_utc, connection)?;
     Ok(HttpResponse::Ok().json(result))
 }
 
 pub fn transaction_detail_report(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<WebPayload<TransactionReportRow>, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
     let organization = Organization::find(path.id, connection)?;
     if let Some(event_id) = query.event_id {
         let event = Event::find(event_id, connection)?;
-        user.requires_scope_for_organization_event(
-            Scopes::EventFinancialReports,
-            &organization,
-            &event,
-            connection,
-        )?;
+        user.requires_scope_for_organization_event(Scopes::EventFinancialReports, &organization, &event, connection)?;
     } else {
         user.requires_scope_for_organization(Scopes::OrgReports, &organization, connection)?;
     }
@@ -134,24 +107,14 @@ pub fn transaction_detail_report(
 }
 
 pub fn event_summary_report(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
     let organization = Organization::find(path.id, connection)?;
     if let Some(event_id) = query.event_id {
         let event = Event::find(event_id, connection)?;
-        user.requires_scope_for_organization_event(
-            Scopes::EventFinancialReports,
-            &organization,
-            &event,
-            connection,
-        )?;
+        user.requires_scope_for_organization_event(Scopes::EventFinancialReports, &organization, &event, connection)?;
     } else {
         // TODO: Switch this out for bad request
         return application::unprocessable("event_id parameter is required");
@@ -168,24 +131,14 @@ pub fn event_summary_report(
 }
 
 pub fn audit_report(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
     let organization = Organization::find(path.id, connection)?;
     if let Some(event_id) = query.event_id {
         let event = Event::find(event_id, connection)?;
-        user.requires_scope_for_organization_event(
-            Scopes::EventFinancialReports,
-            &organization,
-            &event,
-            connection,
-        )?;
+        user.requires_scope_for_organization_event(Scopes::EventFinancialReports, &organization, &event, connection)?;
     } else {
         // TODO: Switch this out for bad request
         return application::unprocessable("event_id parameter is required");
@@ -220,12 +173,7 @@ pub fn audit_report(
 }
 
 pub fn weekly_settlement_report(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
@@ -233,30 +181,19 @@ pub fn weekly_settlement_report(
 
     user.requires_scope_for_organization(Scopes::OrgFinancialReports, &organization, connection)?;
 
-    let result =
-        Report::organization_summary_report(path.id, query.start_utc, query.end_utc, connection)?;
+    let result = Report::organization_summary_report(path.id, query.start_utc, query.end_utc, connection)?;
     Ok(HttpResponse::Ok().json(result))
 }
 
 pub fn ticket_counts(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
     let organization = Organization::find(path.id, connection)?;
     if let Some(event_id) = query.event_id {
         let event = Event::find(event_id, connection)?;
-        user.requires_scope_for_organization_event(
-            Scopes::EventFinancialReports,
-            &organization,
-            &event,
-            connection,
-        )?;
+        user.requires_scope_for_organization_event(Scopes::EventFinancialReports, &organization, &event, connection)?;
     } else {
         user.requires_scope_for_organization(Scopes::OrgReports, &organization, connection)?;
     }
@@ -266,24 +203,14 @@ pub fn ticket_counts(
 }
 
 pub fn promo_code_report(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
     let organization = Organization::find(path.id, connection)?;
     if let Some(event_id) = query.event_id {
         let event = Event::find(event_id, connection)?;
-        user.requires_scope_for_organization_event(
-            Scopes::EventFinancialReports,
-            &organization,
-            &event,
-            connection,
-        )?;
+        user.requires_scope_for_organization_event(Scopes::EventFinancialReports, &organization, &event, connection)?;
     } else {
         user.requires_scope_for_organization(Scopes::OrgReports, &organization, connection)?;
     }
@@ -293,12 +220,7 @@ pub fn promo_code_report(
 }
 
 pub fn reconciliation_summary_report(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
@@ -306,18 +228,12 @@ pub fn reconciliation_summary_report(
 
     user.requires_scope_for_organization(Scopes::OrgFinancialReports, &organization, connection)?;
 
-    let result =
-        Report::reconciliation_summary_report(path.id, query.start_utc, query.end_utc, connection)?;
+    let result = Report::reconciliation_summary_report(path.id, query.start_utc, query.end_utc, connection)?;
     Ok(HttpResponse::Ok().json(result))
 }
 
 pub fn reconciliation_detail_report(
-    (connection, query, path, user): (
-        Connection,
-        Query<ReportQueryParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (connection, query, path, user): (Connection, Query<ReportQueryParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
@@ -325,7 +241,6 @@ pub fn reconciliation_detail_report(
 
     user.requires_scope_for_organization(Scopes::OrgFinancialReports, &organization, connection)?;
 
-    let result =
-        Report::reconciliation_detail_report(path.id, query.start_utc, query.end_utc, connection)?;
+    let result = Report::reconciliation_detail_report(path.id, query.start_utc, query.end_utc, connection)?;
     Ok(HttpResponse::Ok().json(result))
 }

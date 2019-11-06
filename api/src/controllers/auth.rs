@@ -67,19 +67,11 @@ pub fn token(
                     remote_ip,
                 )?;
                 if !captcha_response.success {
-                    return application::unauthorized_with_message(
-                        "Captcha value invalid",
-                        None,
-                        Some(login_log_data),
-                    );
+                    return application::unauthorized_with_message("Captcha value invalid", None, Some(login_log_data));
                 }
             }
             None => {
-                return application::unauthorized_with_message(
-                    "Captcha required",
-                    None,
-                    Some(login_log_data),
-                );
+                return application::unauthorized_with_message("Captcha required", None, Some(login_log_data));
             }
         }
     }
@@ -90,20 +82,12 @@ pub fn token(
     let user = match User::find_by_email(&login_request.email, connection.get()) {
         Ok(u) => u,
         Err(_e) => {
-            return application::unauthorized_with_message(
-                login_failure_messaging,
-                None,
-                Some(login_log_data),
-            );
+            return application::unauthorized_with_message(login_failure_messaging, None, Some(login_log_data));
         }
     };
 
     if !user.check_password(&login_request.password) {
-        return application::unauthorized_with_message(
-            login_failure_messaging,
-            None,
-            Some(login_log_data),
-        );
+        return application::unauthorized_with_message(login_failure_messaging, None, Some(login_log_data));
     }
 
     user.login_domain_event(json!(request_info), connection.get())?;

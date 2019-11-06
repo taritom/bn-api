@@ -6,21 +6,15 @@ use db::Connection;
 use errors::*;
 use models::WebPayload;
 
-pub fn admin_ticket_count(
-    (connection, user): (Connection, AuthUser),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn admin_ticket_count((connection, user): (Connection, AuthUser)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
     user.requires_scope(Scopes::OrgAdmin)?;
-    let result = Report::ticket_sales_and_counts(
-        None, None, None, None, false, false, false, false, connection,
-    )?;
+    let result = Report::ticket_sales_and_counts(None, None, None, None, false, false, false, false, connection)?;
     Ok(HttpResponse::Ok().json(result))
 }
 
-pub fn admin_stuck_domain_actions(
-    (connection, user): (Connection, AuthUser),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn admin_stuck_domain_actions((connection, user): (Connection, AuthUser)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     //Check if they have org admin permissions
     user.requires_scope(Scopes::OrgAdmin)?;
@@ -83,8 +77,5 @@ pub fn orders(
         conn,
     )?;
     paging.total = orders.1 as u64;
-    Ok(WebPayload::new(
-        StatusCode::OK,
-        Payload::new(orders.0, paging),
-    ))
+    Ok(WebPayload::new(StatusCode::OK, Payload::new(orders.0, paging)))
 }

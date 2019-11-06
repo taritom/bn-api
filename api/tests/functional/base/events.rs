@@ -17,13 +17,68 @@ use support::database::TestDatabase;
 use support::test_request::TestRequest;
 use uuid::Uuid;
 
+pub fn export_event_data(role: Roles, should_test_succeed: bool, past_or_upcoming: Option<PastOrUpcoming>) {
+    let database = TestDatabase::new();
+
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_event_start(NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_organization(&organization)
+        .finish();
+    let event2 = database
+        .create_event()
+        .with_name("NewEvent2".to_string())
+        .with_event_start(NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_event_end(NaiveDateTime::parse_from_str("2059-03-03 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f").unwrap())
+        .with_organization(&organization)
+        .finish();
+
+    let user = database.create_user().finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    let expected_events = if past_or_upcoming.is_none() {
+        vec![event.id, event2.id]
+    } else if past_or_upcoming == Some(PastOrUpcoming::Upcoming) {
+        vec![event2.id]
+    } else {
+        vec![event.id]
+    };
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    let uri = match past_or_upcoming {
+        Some(past_or_upcoming) => format!("/?past_or_upcoming={}", past_or_upcoming),
+        None => "/".to_string(),
+    };
+    let test_request = TestRequest::create_with_uri(&uri);
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let response = events::export_event_data((database.connection.into(), path, query_parameters, auth_user));
+
+    if should_test_succeed {
+        let response = response.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            expected_events,
+            response.payload().data.iter().map(|i| i.id).collect::<Vec<Uuid>>()
+        );
+    } else {
+        assert_eq!(
+            response.err().unwrap().to_string(),
+            "User does not have the required permissions"
+        );
+    }
+}
+
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
     let venue = database.create_venue().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let name = "event Example";
     let new_event = NewEvent {
@@ -36,12 +91,10 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         ..Default::default()
     };
     // Emulate serialization for default serde behavior
-    let new_event: NewEvent =
-        serde_json::from_str(&serde_json::to_string(&new_event).unwrap()).unwrap();
+    let new_event: NewEvent = serde_json::from_str(&serde_json::to_string(&new_event).unwrap()).unwrap();
     let json = Json(new_event);
 
-    let response: HttpResponse =
-        events::create((database.connection.into(), json, auth_user.clone())).into();
+    let response: HttpResponse = events::create((database.connection.into(), json, auth_user.clone())).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -85,11 +138,9 @@ pub fn show_box_office_pricing(role: Roles, should_test_succeed: bool) {
     event.add_artist(None, artist1.id, conn).unwrap();
     event.add_artist(None, artist2.id, conn).unwrap();
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
-    let test_request =
-        TestRequest::create_with_uri(&format!("/events/{}?box_office_pricing=true", event.id));
+    let test_request = TestRequest::create_with_uri(&format!("/events/{}?box_office_pricing=true", event.id));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     path.id = event_id.to_string();
 
@@ -108,8 +159,7 @@ pub fn show_box_office_pricing(role: Roles, should_test_succeed: bool) {
     .into();
 
     if should_test_succeed {
-        let event_expected_json =
-            expected_show_json(role, event, organization, venue, true, None, None, conn, 1);
+        let event_expected_json = expected_show_json(role, event, organization, venue, true, None, None, conn, 1);
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body, event_expected_json);
@@ -122,12 +172,8 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let event = database.create_event().with_organization(&organization).finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let new_name = "New Event Name";
     let test_request = TestRequest::create();
@@ -139,8 +185,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        events::update((database.connection.into(), path, json, auth_user.clone())).into();
+    let response: HttpResponse = events::update((database.connection.into(), path, json, auth_user.clone())).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -162,15 +207,13 @@ pub fn delete(role: Roles, should_test_succeed: bool) {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        events::delete((database.connection.clone().into(), path, auth_user)).into();
+    let response: HttpResponse = events::delete((database.connection.clone().into(), path, auth_user)).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
         assert!(Event::find(event.id, connection).is_err());
@@ -183,19 +226,14 @@ pub fn cancel(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let event = database.create_event().with_organization(&organization).finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        events::cancel((database.connection.into(), path, auth_user)).into();
+    let response: HttpResponse = events::cancel((database.connection.into(), path, auth_user)).into();
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);
@@ -211,26 +249,15 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
-    let artist = database
-        .create_artist()
-        .with_organization(&organization)
-        .finish();
+    let event = database.create_event().with_organization(&organization).finish();
+    let artist = database.create_artist().with_organization(&organization).finish();
 
     artist
-        .set_genres(
-            &vec!["emo".to_string(), "hard-rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], None, connection)
         .unwrap();
     assert!(event.genres(connection).unwrap().is_empty());
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let new_event_artist = AddArtistRequest {
@@ -246,13 +273,8 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse = events::add_artist((
-        database.connection.clone().into(),
-        path,
-        json,
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        events::add_artist((database.connection.clone().into(), path, json, auth_user.clone())).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
         // Trigger sync right away as normally will happen via background worker
@@ -272,9 +294,7 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
     let event = database.create_event().finish();
     let primary_user = support::create_auth_user(role, None, &database);
     let conn = database.connection.get();
-    EventInterest::create(event.id, primary_user.id())
-        .commit(conn)
-        .unwrap();
+    EventInterest::create(event.id, primary_user.id()).commit(conn).unwrap();
     let n_secondary_users = 5;
     let mut secondary_users: Vec<DisplayEventInterestedUser> = Vec::new();
     secondary_users.reserve(n_secondary_users);
@@ -285,14 +305,8 @@ pub fn list_interested_users(role: Roles, should_test_succeed: bool) {
             .unwrap();
         let current_user_entry = DisplayEventInterestedUser {
             user_id: current_secondary_user.id,
-            first_name: current_secondary_user
-                .first_name
-                .clone()
-                .unwrap_or("".to_string()),
-            last_name: current_secondary_user
-                .last_name
-                .clone()
-                .unwrap_or("".to_string()),
+            first_name: current_secondary_user.first_name.clone().unwrap_or("".to_string()),
+            last_name: current_secondary_user.last_name.clone().unwrap_or("".to_string()),
             thumb_profile_pic_url: None,
         };
         secondary_users.push(current_user_entry);
@@ -350,8 +364,7 @@ pub fn add_interest(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        events::add_interest((database.connection.into(), path, user)).into();
+    let response: HttpResponse = events::add_interest((database.connection.into(), path, user)).into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -374,8 +387,7 @@ pub fn remove_interest(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        events::remove_interest((database.connection.into(), path, user)).into();
+    let response: HttpResponse = events::remove_interest((database.connection.into(), path, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -391,26 +403,18 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let event = database
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let event = database.create_event().with_organization(&organization).finish();
     let artist1 = database.create_artist().finish();
     let artist2 = database.create_artist().finish();
     artist1
-        .set_genres(
-            &vec!["emo".to_string(), "hard-rock".to_string()],
-            None,
-            connection,
-        )
+        .set_genres(&vec!["emo".to_string(), "hard-rock".to_string()], None, connection)
         .unwrap();
     artist2
         .set_genres(&vec!["happy".to_string()], None, connection)
         .unwrap();
     assert!(event.genres(connection).unwrap().is_empty());
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -444,11 +448,7 @@ pub fn update_artists(role: Roles, should_test_succeed: bool) {
         event.update_genres(None, connection).unwrap();
         assert_eq!(
             event.genres(connection).unwrap(),
-            vec![
-                "emo".to_string(),
-                "happy".to_string(),
-                "hard-rock".to_string()
-            ]
+            vec!["emo".to_string(), "happy".to_string(), "hard-rock".to_string()]
         );
         let returned_event_artists: Vec<EventArtist> = serde_json::from_str(&body).unwrap();
         assert_eq!(returned_event_artists[0].artist_id, artist1.id);
@@ -472,8 +472,7 @@ pub fn dashboard(role: Roles, should_test_succeed: bool) {
         .with_ticket_pricing()
         .finish();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     // user purchases 10 tickets
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -554,21 +553,14 @@ pub fn guest_list(role: Roles, should_test_succeed: bool) {
         .finish();
     database.create_order().for_event(&event).is_paid().finish();
     database.create_order().for_event(&event).is_paid().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri(&format!("/events/{}/guest?query=", event.id,));
-    let query_parameters =
-        Query::<GuestListQueryParameters>::extract(&test_request.request).unwrap();
+    let query_parameters = Query::<GuestListQueryParameters>::extract(&test_request.request).unwrap();
     let mut path_parameters = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path_parameters.id = event.id;
-    let response: HttpResponse = events::guest_list((
-        database.connection.into(),
-        query_parameters,
-        path_parameters,
-        auth_user,
-    ))
-    .into();
+    let response: HttpResponse =
+        events::guest_list((database.connection.into(), query_parameters, path_parameters, auth_user)).into();
 
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -611,8 +603,7 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
         .finish()
         .for_display(connection)
         .unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let all_discounts = vec![code, code2];
 
     let test_request = TestRequest::create();
@@ -621,13 +612,8 @@ pub fn codes(role: Roles, should_test_succeed: bool) {
     let test_request = TestRequest::create_with_uri(&format!("/codes?type=Discount"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
 
-    let response: HttpResponse = events::codes((
-        database.connection.clone().into(),
-        query_parameters,
-        path,
-        auth_user,
-    ))
-    .into();
+    let response: HttpResponse =
+        events::codes((database.connection.clone().into(), query_parameters, path, auth_user)).into();
 
     let mut expected_tags: HashMap<String, Value> = HashMap::new();
     expected_tags.insert("type".to_string(), json!("Discount"));
@@ -674,18 +660,9 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
         .with_name("Hold 2".to_string())
         .with_event(&event)
         .finish();
-    let comp = database
-        .create_comp()
-        .with_quantity(2)
-        .with_hold(&hold)
-        .finish();
-    let _comp2 = database
-        .create_comp()
-        .with_quantity(1)
-        .with_hold(&comp)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let comp = database.create_comp().with_quantity(2).with_hold(&hold).finish();
+    let _comp2 = database.create_comp().with_quantity(1).with_hold(&comp).finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     #[derive(Serialize)]
     struct R {
@@ -736,9 +713,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
             hold_type: hold.hold_type,
             ticket_type_id: hold.ticket_type_id,
             ticket_type_name: ticket_type.name,
-            price_in_cents: ticket_type
-                .ticket_pricing
-                .map(|tp| tp.price_in_cents as u32),
+            price_in_cents: ticket_type.ticket_pricing.map(|tp| tp.price_in_cents as u32),
             available: 8,
             quantity: 8,
             children_available: 2,
@@ -756,9 +731,7 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
             hold_type: hold2.hold_type,
             ticket_type_id: hold2.ticket_type_id,
             ticket_type_name: ticket_type2.name,
-            price_in_cents: ticket_type2
-                .ticket_pricing
-                .map(|tp| tp.price_in_cents as u32),
+            price_in_cents: ticket_type2.ticket_pricing.map(|tp| tp.price_in_cents as u32),
             available: 10,
             quantity: 10,
             children_available: 0,
@@ -774,13 +747,8 @@ pub fn holds(role: Roles, should_test_succeed: bool) {
     let test_request = TestRequest::create_with_uri(&format!("/holds"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
 
-    let response: HttpResponse = events::holds((
-        database.connection.clone().into(),
-        query_parameters,
-        path,
-        auth_user,
-    ))
-    .into();
+    let response: HttpResponse =
+        events::holds((database.connection.clone().into(), query_parameters, path, auth_user)).into();
     let expected_holds = Payload {
         data: all_holds,
         paging: Paging {
@@ -847,6 +815,7 @@ pub fn expected_show_json(
         status: EventStatus,
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
+        original_promo_image_url: Option<String>,
         cover_image_url: Option<String>,
         additional_info: Option<String>,
         top_line_info: Option<String>,
@@ -905,8 +874,7 @@ pub fn expected_show_json(
             );
         }
     }
-    let localized_times: EventLocalizedTimeStrings =
-        event.get_all_localized_time_strings(Some(&venue));
+    let localized_times: EventLocalizedTimeStrings = event.get_all_localized_time_strings(Some(&venue));
     let (min_ticket_price, max_ticket_price) = event
         .current_ticket_pricing_range(box_office_pricing, connection)
         .unwrap();
@@ -945,7 +913,8 @@ pub fn expected_show_json(
         fee_in_cents: Some(fee_in_cents),
         status: event.status,
         publish_date: event.publish_date,
-        promo_image_url: event.promo_image_url,
+        promo_image_url: event.promo_image_url.clone(),
+        original_promo_image_url: event.promo_image_url,
         cover_image_url: event.cover_image_url,
         additional_info: event.additional_info,
         top_line_info: event.top_line_info,
@@ -968,9 +937,7 @@ pub fn expected_show_json(
         override_status: event.override_status,
         limited_tickets_remaining: no_tickets_remaining,
         localized_times,
-        tracking_keys: TrackingKeys {
-            ..Default::default()
-        },
+        tracking_keys: TrackingKeys { ..Default::default() },
         event_type: event.event_type,
         sales_start_date,
         url: format!("{}/tickets/{}", env::var("FRONT_END_URL").unwrap(), &slug),

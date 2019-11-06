@@ -3,11 +3,7 @@ use errors::*;
 
 pub trait DeepLinker {
     fn create_deep_link(&self, raw_link: &str) -> Result<String, BigNeonError>;
-    fn create_deep_link_with_alias(
-        &self,
-        raw_link: &str,
-        alias: &str,
-    ) -> Result<String, BigNeonError>;
+    fn create_deep_link_with_alias(&self, raw_link: &str, alias: &str) -> Result<String, BigNeonError>;
 }
 
 pub struct BranchDeepLinker {
@@ -37,11 +33,7 @@ impl DeepLinker for BranchDeepLinker {
         })?)
     }
 
-    fn create_deep_link_with_alias(
-        &self,
-        raw_link: &str,
-        alias: &str,
-    ) -> Result<String, BigNeonError> {
+    fn create_deep_link_with_alias(&self, raw_link: &str, alias: &str) -> Result<String, BigNeonError> {
         Ok(self.client.links.create(DeepLink {
             data: DeepLinkData {
                 desktop_url: Some(raw_link.to_string()),

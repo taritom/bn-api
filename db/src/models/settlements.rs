@@ -1,4 +1,5 @@
-use chrono::{Duration, NaiveDateTime};
+use chrono::{Datelike, Duration, NaiveDateTime, TimeZone, Utc};
+use chrono_tz::Tz;
 use diesel;
 use diesel::dsl::select;
 use diesel::prelude::*;
@@ -49,11 +50,7 @@ pub struct DisplaySettlement {
 }
 
 impl NewSettlement {
-    pub fn commit(
-        &self,
-        user: Option<User>,
-        conn: &PgConnection,
-    ) -> Result<Settlement, DatabaseError> {
+    pub fn commit(&self, user: Option<User>, conn: &PgConnection) -> Result<Settlement, DatabaseError> {
         self.validate_record()?;
 
         let settlement = DatabaseError::wrap(
@@ -133,8 +130,7 @@ impl Settlement {
         settlement_period_in_days: Option<u32>,
         conn: &PgConnection,
     ) -> Result<Settlement, DatabaseError> {
-        let last_processed_settlement =
-            Settlement::find_last_settlement_for_organization(organization, conn)?;
+        let last_processed_settlement = Settlement::find_last_settlement_for_organization(organization, conn)?;
 
         let end_time = organization.next_settlement_date(settlement_period_in_days)?
             - Duration::days(
@@ -179,10 +175,7 @@ impl Settlement {
         let adjustments = settlement_adjustments::table
             .filter(settlement_adjustments::settlement_id.eq(self.id))
             .get_results::<SettlementAdjustment>(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load Settlement Adjustments",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not load Settlement Adjustments")?;
 
         Ok(DisplaySettlement {
             settlement: self.clone(),
@@ -191,17 +184,11 @@ impl Settlement {
         })
     }
 
-    pub fn adjustments(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<SettlementAdjustment>, DatabaseError> {
+    pub fn adjustments(&self, conn: &PgConnection) -> Result<Vec<SettlementAdjustment>, DatabaseError> {
         settlement_adjustments::table
             .filter(settlement_adjustments::settlement_id.eq(self.id))
             .get_results(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load settlement adjustments",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load settlement adjustments")
     }
 
     pub fn destroy(self, conn: &PgConnection) -> Result<usize, DatabaseError> {
@@ -220,12 +207,7 @@ impl Settlement {
                 conn,
             )?
         } else {
-            Event::get_all_events_with_sales_between(
-                self.organization_id,
-                self.start_time,
-                self.end_time,
-                conn,
-            )?
+            Event::get_all_events_with_transactions_between(self.organization_id, self.start_time, self.end_time, conn)?
         };
 
         for event in events {
@@ -260,17 +242,56 @@ impl Settlement {
         Ok(())
     }
 
+    pub fn current_week_visible_date() -> Result<NaiveDateTime, DatabaseError> {
+        let timezone = "America/Los_Angeles"
+            .to_string()
+            .parse::<Tz>()
+            .map_err(|e| DatabaseError::business_process_error::<Tz>(&e).unwrap_err())?;
+
+        let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
+        let noon_today = timezone.ymd(now.year(), now.month(), now.day()).and_hms(12, 0, 0);
+
+        // A settlement becomes visible once it has passed Wednesday Noon PT
+        Ok(noon_today.naive_utc()
+            + Duration::days(-(noon_today.naive_local().weekday().num_days_from_monday() as i64) + 2))
+    }
+
+    pub fn current_week_cutoff_date(organization: &Organization) -> Result<NaiveDateTime, DatabaseError> {
+        let timezone = organization.timezone()?;
+        let now = timezone.from_utc_datetime(&Utc::now().naive_utc());
+
+        let today = timezone.ymd(now.year(), now.month(), now.day()).and_hms(0, 0, 0);
+        Ok(today.naive_utc() - Duration::days(today.naive_local().weekday().num_days_from_monday() as i64))
+    }
+
+    pub fn visible(&self, organization: &Organization) -> Result<bool, DatabaseError> {
+        Ok(Utc::now().naive_utc() >= Settlement::current_week_visible_date()?
+            || self.created_at < Settlement::current_week_cutoff_date(&organization)?)
+    }
+
     pub fn find_for_organization(
         organization_id: Uuid,
         limit: Option<u32>,
         page: Option<u32>,
+        hide_early_settlements: bool,
         conn: &PgConnection,
     ) -> Result<Payload<Settlement>, DatabaseError> {
         let limit = limit.unwrap_or(20);
         let page = page.unwrap_or(0);
 
-        let (settlements, record_count): (Vec<Settlement>, i64) = settlements::table
+        let mut query = settlements::table
             .filter(settlements::organization_id.eq(organization_id))
+            .into_boxed();
+
+        if hide_early_settlements {
+            // If the visible date has not been reached, filter out any settlements from prior to Monday
+            if Settlement::current_week_visible_date()? > Utc::now().naive_utc() {
+                let organization = Organization::find(organization_id, conn)?;
+                query = query.filter(settlements::created_at.lt(Settlement::current_week_cutoff_date(&organization)?));
+            }
+        }
+
+        let (settlements, record_count): (Vec<Settlement>, i64) = query
             .order_by(settlements::start_time.desc())
             .select(settlements::all_columns)
             .paginate(page as i64)

@@ -11,8 +11,8 @@ use itertools::Itertools;
 use log::Level::{self, Debug};
 use models::*;
 use schema::{
-    event_users, events, order_items, order_transfers, orders, organization_users, organizations,
-    payments, transfers, users,
+    event_users, events, order_items, order_transfers, orders, organization_users, organizations, payments, transfers,
+    users,
 };
 use serde_json;
 use serde_json::Value;
@@ -30,17 +30,7 @@ use validators::*;
 pub const CART_EXPIRY_TIME_MINUTES: i64 = 15;
 const ORDER_NUMBER_LENGTH: usize = 8;
 
-#[derive(
-    Associations,
-    Clone,
-    Debug,
-    Deserialize,
-    Identifiable,
-    PartialEq,
-    Queryable,
-    QueryableByName,
-    Serialize,
-)]
+#[derive(Associations, Clone, Debug, Deserialize, Identifiable, PartialEq, Queryable, QueryableByName, Serialize)]
 #[table_name = "orders"]
 #[belongs_to(User)]
 pub struct Order {
@@ -69,7 +59,7 @@ pub struct Order {
     pub content: Option<String>,
     pub platform: Option<String>,
     #[serde(skip_serializing)]
-    pub(crate) settlement_id: Option<Uuid>,
+    pub settlement_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -158,16 +148,11 @@ impl Order {
             .filter(order_items::event_id.is_not_null())
             .select(sql::<BigInt>("count(distinct event_id) AS event_count"))
             .get_result::<i64>(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not get count of unique events in cart",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not get count of unique events in cart")?;
 
         if event_count > 1 {
-            let mut validation_error = create_validation_error(
-                "cart_event_limit_reached",
-                "Cart limited to one event for purchasing",
-            );
+            let mut validation_error =
+                create_validation_error("cart_event_limit_reached", "Cart limited to one event for purchasing");
             validation_error.add_param(Cow::from("order_id"), &id);
             return Ok(Err(validation_error.into()));
         }
@@ -178,10 +163,7 @@ impl Order {
         let cart_user: Option<User> = users::table
             .filter(users::last_cart_id.eq(self.id))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not find user attached to this cart",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not find user attached to this cart")
             .optional()?;
 
         if let Some(user) = cart_user {
@@ -211,11 +193,7 @@ impl Order {
             .to_db_error(ErrorCode::QueryError, "Could not load transfer tickets")
     }
 
-    pub(crate) fn destroy_item(
-        &self,
-        item_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub(crate) fn destroy_item(&self, item_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.status != OrderStatus::Draft {
             return DatabaseError::business_process_error(
                 "Cannot delete an order item for an order that is not in draft",
@@ -255,24 +233,17 @@ impl Order {
         let mut total_to_be_refunded: i64 = 0;
 
         let refund = Refund::create(self.id, user_id, reason).commit(conn)?;
-        let previous_item_refund_counts: HashMap<Uuid, i64> = self
-            .items(conn)?
-            .iter()
-            .map(|i| (i.id, i.refunded_quantity))
-            .collect();
+        let previous_item_refund_counts: HashMap<Uuid, i64> =
+            self.items(conn)?.iter().map(|i| (i.id, i.refunded_quantity)).collect();
 
         for refund_datum in refund_data {
             let mut order_item = OrderItem::find(refund_datum.order_item_id, conn)?;
             if order_item.item_type == OrderItemTypes::Discount {
-                return DatabaseError::business_process_error(
-                    "Discount order items can not be refunded",
-                );
+                return DatabaseError::business_process_error("Discount order items can not be refunded");
             }
 
             if order_item.order_id != self.id {
-                return DatabaseError::business_process_error(
-                    "Order item id does not belong to this order",
-                );
+                return DatabaseError::business_process_error("Order item id does not belong to this order");
             }
 
             // Find the ticket instance if it was specified
@@ -281,9 +252,7 @@ impl Order {
                 None => None,
             };
 
-            if order_item.item_type == OrderItemTypes::Tickets
-                || order_item.item_type == OrderItemTypes::PerUnitFees
-            {
+            if order_item.item_type == OrderItemTypes::Tickets || order_item.item_type == OrderItemTypes::PerUnitFees {
                 match ticket_instance {
                     None => {
                         return DatabaseError::business_process_error(
@@ -291,12 +260,8 @@ impl Order {
                         );
                     }
                     Some(ref ticket_instance) => {
-                        total_to_be_refunded += Order::refund_ticket_instance(
-                            &ticket_instance,
-                            &mut order_item,
-                            user_id,
-                            conn,
-                        )?;
+                        total_to_be_refunded +=
+                            Order::refund_ticket_instance(&ticket_instance, &mut order_item, user_id, conn)?;
                     }
                 }
             } else {
@@ -311,11 +276,8 @@ impl Order {
 
         // Refund items automatically refund their dependencies so the difference in refund_quantity
         // is used to calculate the refund item data.
-        let new_item_refund_counts: HashMap<Uuid, i64> = self
-            .items(conn)?
-            .iter()
-            .map(|i| (i.id, i.refunded_quantity))
-            .collect();
+        let new_item_refund_counts: HashMap<Uuid, i64> =
+            self.items(conn)?.iter().map(|i| (i.id, i.refunded_quantity)).collect();
         let mut calculated_refunded_value = 0;
         for (order_item_id, count) in new_item_refund_counts {
             let order_item = OrderItem::find(order_item_id, conn)?;
@@ -324,18 +286,16 @@ impl Order {
                 let amount = difference * order_item.unit_price_in_cents;
                 calculated_refunded_value += amount;
                 if difference > 0 {
-                    RefundItem::create(refund.id, order_item.id, difference, amount)
-                        .commit(conn)?;
+                    RefundItem::create(refund.id, order_item.id, difference, amount).commit(conn)?;
                 }
             }
         }
 
         if calculated_refunded_value != (total_to_be_refunded) {
-            return DatabaseError::business_process_error(
-                &format!("Error processing refund, calculated refund does not match expected total, expected {}, calculated {}",
-                         total_to_be_refunded,
-                         calculated_refunded_value
-                ));
+            return DatabaseError::business_process_error(&format!(
+                "Error processing refund, calculated refund does not match expected total, expected {}, calculated {}",
+                total_to_be_refunded, calculated_refunded_value
+            ));
         }
 
         Ok((refund, total_to_be_refunded))
@@ -347,20 +307,16 @@ impl Order {
         user_id: Uuid,
         conn: &PgConnection,
     ) -> Result<i64, DatabaseError> {
-        let mut refunded_ticket =
-            RefundedTicket::find_or_create_by_ticket_instance(ticket_instance, conn)?;
+        let mut refunded_ticket = RefundedTicket::find_or_create_by_ticket_instance(ticket_instance, conn)?;
 
         if refunded_ticket.ticket_refunded_at.is_some()
-            || (refunded_ticket.fee_refunded_at.is_some()
-                && order_item.item_type == OrderItemTypes::PerUnitFees)
+            || (refunded_ticket.fee_refunded_at.is_some() && order_item.item_type == OrderItemTypes::PerUnitFees)
         {
             return DatabaseError::business_process_error("Already refunded");
         }
 
         if ticket_instance.was_transferred(conn)? {
-            return DatabaseError::business_process_error(
-                "Ticket was transferred so ineligible for refund",
-            );
+            return DatabaseError::business_process_error("Ticket was transferred so ineligible for refund");
         }
         let refund_fees = refunded_ticket.fee_refunded_at.is_none();
 
@@ -371,7 +327,8 @@ impl Order {
         }
 
         // Release tickets if they are purchased (i.e. not yet redeemed)
-        if ticket_instance.status == TicketInstanceStatus::Purchased {
+        if ticket_instance.status == TicketInstanceStatus::Purchased && order_item.item_type == OrderItemTypes::Tickets
+        {
             ticket_instance.release(TicketInstanceStatus::Purchased, user_id, conn)?;
         }
 
@@ -451,10 +408,7 @@ impl Order {
                 .filter(order_items::order_id.eq(self.id)),
         ))
         .get_result(conn)
-        .to_db_error(
-            ErrorCode::QueryError,
-            "Could not check if order is partially visible",
-        )
+        .to_db_error(ErrorCode::QueryError, "Could not check if order is partially visible")
     }
 
     pub fn organizations(&self, conn: &PgConnection) -> Result<Vec<Organization>, DatabaseError> {
@@ -495,9 +449,7 @@ impl Order {
                 continue;
             } else if item.ticket_type_id.is_none() {
                 // Sanity check given unwrap below
-                return DatabaseError::business_process_error(
-                    "Ticket type required for order refresh",
-                );
+                return DatabaseError::business_process_error("Ticket type required for order refresh");
             }
 
             // Sanity check: clear unexpired tickets (should affect 0; it inherits expires_at from order)
@@ -540,10 +492,9 @@ impl Order {
 
         let mut platform: Option<String> = None;
         if user_agent.is_some() {
-            platform =
-                Platforms::from_user_agent(user_agent.as_ref().map(|ua| ua.as_str()).unwrap())
-                    .map(|p| p.to_string())
-                    .ok();
+            platform = Platforms::from_user_agent(user_agent.as_ref().map(|ua| ua.as_str()).unwrap())
+                .map(|p| p.to_string())
+                .ok();
         }
         if purchase_completed {
             self.purchase_user_agent = user_agent;
@@ -551,17 +502,16 @@ impl Order {
             self.create_user_agent = user_agent;
         }
 
-        let affected_rows = diesel::update(
-            orders::table.filter(orders::id.eq(self.id).and(orders::version.eq(self.version))),
-        )
-        .set((
-            orders::purchase_user_agent.eq(self.purchase_user_agent.clone()),
-            orders::create_user_agent.eq(self.create_user_agent.clone()),
-            orders::platform.eq(platform),
-            orders::updated_at.eq(self.updated_at),
-        ))
-        .execute(conn)
-        .to_db_error(ErrorCode::UpdateError, "Could not update user agent")?;
+        let affected_rows =
+            diesel::update(orders::table.filter(orders::id.eq(self.id).and(orders::version.eq(self.version))))
+                .set((
+                    orders::purchase_user_agent.eq(self.purchase_user_agent.clone()),
+                    orders::create_user_agent.eq(self.create_user_agent.clone()),
+                    orders::platform.eq(platform),
+                    orders::updated_at.eq(self.updated_at),
+                ))
+                .execute(conn)
+                .to_db_error(ErrorCode::UpdateError, "Could not update user agent")?;
         if affected_rows != 1 {
             return DatabaseError::concurrency_error("Could not update user agent.");
         }
@@ -685,10 +635,7 @@ impl Order {
         Ok(order)
     }
 
-    pub fn find_cart_for_user(
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Option<Order>, DatabaseError> {
+    pub fn find_cart_for_user(user_id: Uuid, conn: &PgConnection) -> Result<Option<Order>, DatabaseError> {
         users::table
             .inner_join(orders::table.on(users::last_cart_id.eq(orders::id.nullable())))
             .filter(users::id.eq(user_id))
@@ -746,10 +693,12 @@ impl Order {
             left join ticket_instances ti on (oi.id = ti.order_item_id or rt.ticket_instance_id = ti.id)
             left join transfer_tickets trt on trt.ticket_instance_id = ti.id
             left join transfers trns on trt.transfer_id = trns.id
+            left join users trnsu on trns.destination_user_id = trnsu.id
             left join holds h on oi.hold_id = h.id
             left join codes c on oi.code_id = c.id
             inner join users u on o.user_id = u.id
             left join users bu on o.on_behalf_of_user_id = bu.id
+
         where o.status <> 'Draft'
         "#,
         )
@@ -774,7 +723,7 @@ impl Order {
         if let Some(general_query) = general_query {
             bind_no = bind_no + 1;
             query = query
-                .sql(format!(" and (o.id::text ilike ${}  or ti.id::text ilike ${} or coalesce(bu.email, u.email) ilike ${} or trns.transfer_address ilike ${} or coalesce(bu.phone, u.phone) ilike ${} or coalesce(h.redemption_code, c.redemption_code) ilike ${}  or (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${}) )", bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no))
+                .sql(format!(" and (o.id::text ilike ${}  or ti.id::text ilike ${} or coalesce(bu.email, u.email) ilike ${} or trns.transfer_address ilike ${} or coalesce(bu.phone, u.phone) ilike ${} or coalesce(h.redemption_code, c.redemption_code) ilike ${}  or (coalesce(bu.first_name, u.first_name) || ' ' || coalesce(bu.last_name, u.last_name) ilike ${} or coalesce(bu.last_name, u.last_name) || ' ' || coalesce(bu.first_name, u.first_name) ilike ${} or trnsu.first_name || ' ' || trnsu.last_name ilike ${} or trnsu.last_name || ' ' || trnsu.first_name ilike ${}) )", bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no, bind_no))
                 .bind::<diesel::sql_types::Text, _>(format!("%{}%", general_query));
         }
 
@@ -876,11 +825,7 @@ impl Order {
 
         let limit = paging.limit.unwrap_or(100) as i64;
         query = query
-            .sql(format!(
-                ") t LIMIT ${}  OFFSET ${}",
-                bind_no + 1,
-                bind_no + 2
-            ))
+            .sql(format!(") t LIMIT ${}  OFFSET ${}", bind_no + 1, bind_no + 2))
             .bind::<sql_types::BigInt, _>(limit)
             .bind::<sql_types::BigInt, _>(paging.page.unwrap_or(0) as i64 * limit);
         let order_data: Vec<R> = query
@@ -888,12 +833,7 @@ impl Order {
             .to_db_error(ErrorCode::QueryError, "Could not load orders")?;
 
         Ok((
-            Order::load_for_display(
-                order_data.iter().map(|o| o.id).collect(),
-                None,
-                current_user_id,
-                conn,
-            )?,
+            Order::load_for_display(order_data.iter().map(|o| o.id).collect(), None, current_user_id, conn)?,
             order_data.get(0).map(|s| s.total).unwrap_or(0),
         ))
     }
@@ -918,13 +858,10 @@ impl Order {
 
         let affected_rows = diesel::update(
             orders::table.filter(
-                orders::id
-                    .eq(self.id)
-                    .and(orders::version.eq(self.version))
-                    .and(
-                        sql("COALESCE(expires_at, '31 Dec 9999') > now()")
-                            .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(force)),
-                    ),
+                orders::id.eq(self.id).and(orders::version.eq(self.version)).and(
+                    sql("COALESCE(expires_at, '31 Dec 9999') > now()")
+                        .or(dsl::sql("TRUE = ").bind::<diesel::sql_types::Bool, _>(force)),
+                ),
             ),
         )
         .set((
@@ -966,11 +903,7 @@ impl Order {
 
     /// Removes the expiry time for an order. This can only be done when there are no
     /// tickets in the order, otherwise the tickets will remain reserved until the expiry
-    pub fn remove_expiry(
-        &mut self,
-        current_user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn remove_expiry(&mut self, current_user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.items(conn)?.len() > 0 {
             return DatabaseError::business_process_error(
                 "Cannot clear the expiry of an order when there are items in it",
@@ -981,14 +914,11 @@ impl Order {
         self.expires_at = None;
         let affected_rows = diesel::update(
             orders::table.filter(
-                orders::id
-                    .eq(self.id)
-                    .and(orders::version.eq(self.version))
-                    .and(
-                        orders::expires_at
-                            .is_null()
-                            .or(orders::expires_at.gt(Some(Utc::now().naive_utc()))),
-                    ),
+                orders::id.eq(self.id).and(orders::version.eq(self.version)).and(
+                    orders::expires_at
+                        .is_null()
+                        .or(orders::expires_at.gt(Some(Utc::now().naive_utc()))),
+                ),
             ),
         )
         .set((
@@ -1068,9 +998,7 @@ impl Order {
         for (index, item) in items.iter().enumerate() {
             let ticket_type = TicketType::find(item.ticket_type_id, conn)?;
             mapped.push(match &item.redemption_code {
-                Some(r) => match Hold::find_by_redemption_code(r, Some(ticket_type.event_id), conn)
-                    .optional()?
-                {
+                Some(r) => match Hold::find_by_redemption_code(r, Some(ticket_type.event_id), conn).optional()? {
                     Some(hold) => {
                         hold.confirm_hold_valid()?;
                         MatchData {
@@ -1083,12 +1011,8 @@ impl Order {
                             update_order_item: item,
                         }
                     }
-                    None => match Code::find_by_redemption_code_with_availability(
-                        r,
-                        Some(ticket_type.event_id),
-                        conn,
-                    )
-                    .optional()?
+                    None => match Code::find_by_redemption_code_with_availability(r, Some(ticket_type.event_id), conn)
+                        .optional()?
                     {
                         Some(code_availability) => {
                             code_availability.code.confirm_code_valid()?;
@@ -1103,10 +1027,7 @@ impl Order {
                             }
                         }
                         None => {
-                            return DatabaseError::validation_error(
-                                "redemption_code",
-                                "Redemption code is not valid",
-                            );
+                            return DatabaseError::validation_error("redemption_code", "Redemption code is not valid");
                         }
                     },
                 },
@@ -1131,8 +1052,7 @@ impl Order {
             {
                 let matching_result: Option<&MatchData> = mapped.iter().find(|match_data| {
                     match_data.index.is_some()
-                        && Some(match_data.update_order_item.ticket_type_id)
-                            == current_line.ticket_type_id
+                        && Some(match_data.update_order_item.ticket_type_id) == current_line.ticket_type_id
                         && match_data.hold_id == current_line.hold_id
                         && match_data.code_id == current_line.code_id
                 });
@@ -1154,23 +1074,17 @@ impl Order {
                             jlog!(Level::Debug, "Cart item has 0 quantity, deleting it");
                             self.destroy_item(current_line.id, conn)?;
                         }
-                    } else if (current_line.quantity as u32) < match_data.update_order_item.quantity
-                    {
+                    } else if (current_line.quantity as u32) < match_data.update_order_item.quantity {
                         jlog!(Level::Debug, "Increasing quantity of cart item");
                         // Ticket pricing might have changed since we added the previous item.
                         // In future we may want to use the ticket pricing at the time the order was created.
 
                         // TODO: Fetch the ticket type and pricing in one go.
                         let ticket_type_id = current_line.ticket_type_id.unwrap();
-                        let ticket_pricing = TicketPricing::get_current_ticket_pricing(
-                            ticket_type_id,
-                            box_office_pricing,
-                            false,
-                            conn,
-                        )?;
+                        let ticket_pricing =
+                            TicketPricing::get_current_ticket_pricing(ticket_type_id, box_office_pricing, false, conn)?;
                         let ticket_type = TicketType::find(ticket_type_id, conn)?;
-                        check_ticket_limits
-                            .append(&mut Order::check_ticket_limits(&ticket_type, &match_data));
+                        check_ticket_limits.append(&mut Order::check_ticket_limits(&ticket_type, &match_data));
 
                         // TODO: Move this to an external processer
                         if Some(ticket_pricing.id) != current_line.ticket_pricing_id {
@@ -1193,8 +1107,7 @@ impl Order {
                                 self.expires_at,
                                 ticket_type_id,
                                 match_data.hold_id,
-                                match_data.update_order_item.quantity
-                                    - current_line.quantity as u32,
+                                match_data.update_order_item.quantity - current_line.quantity as u32,
                                 conn,
                             )?;
                         } else {
@@ -1203,8 +1116,7 @@ impl Order {
                                 self.expires_at,
                                 ticket_type_id,
                                 match_data.hold_id,
-                                match_data.update_order_item.quantity
-                                    - current_line.quantity as u32,
+                                match_data.update_order_item.quantity - current_line.quantity as u32,
                                 conn,
                             )?;
                             current_line.quantity = match_data.update_order_item.quantity as i64;
@@ -1288,9 +1200,7 @@ impl Order {
                 &conn,
             )?;
 
-            if limit_check.limit_per_person > 0
-                && ordered_quantity > limit_check.limit_per_person.into()
-            {
+            if limit_check.limit_per_person > 0 && ordered_quantity > limit_check.limit_per_person.into() {
                 let mut error = ValidationError::new("limit_per_person_exceeded");
                 error.message = Some(Cow::from(
                     if limit_check.hold_id.is_some() || limit_check.code_id.is_some() {
@@ -1322,8 +1232,7 @@ impl Order {
         // Beware there could be multiple orders that meet this condition
         for (ticket_type_id, remaining) in self.ticket_types(conn)? {
             if remaining == 0 {
-                TicketType::find(ticket_type_id, conn)?
-                    .check_for_sold_out_triggers(Some(current_user_id), conn)?;
+                TicketType::find(ticket_type_id, conn)?.check_for_sold_out_triggers(Some(current_user_id), conn)?;
             }
         }
 
@@ -1360,14 +1269,9 @@ impl Order {
     }
 
     pub fn has_items(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
-        select(exists(
-            order_items::table.filter(order_items::order_id.eq(self.id)),
-        ))
-        .get_result(conn)
-        .to_db_error(
-            ErrorCode::QueryError,
-            "Could not check if order items exist",
-        )
+        select(exists(order_items::table.filter(order_items::order_id.eq(self.id))))
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not check if order items exist")
     }
 
     pub fn update_fees_and_discounts(&self, conn: &PgConnection) -> Result<(), DatabaseError> {
@@ -1451,12 +1355,8 @@ impl Order {
                 // Credit card fees are set per organization
                 // Event can override organization client and company fees
                 let org = Organization::find(event.organization_id, conn)?;
-                let company_fee_in_cents = event
-                    .company_fee_in_cents
-                    .unwrap_or(org.company_event_fee_in_cents);
-                let client_fee_in_cents = event
-                    .client_fee_in_cents
-                    .unwrap_or(org.client_event_fee_in_cents);
+                let company_fee_in_cents = event.company_fee_in_cents.unwrap_or(org.company_event_fee_in_cents);
+                let client_fee_in_cents = event.client_fee_in_cents.unwrap_or(org.client_event_fee_in_cents);
                 if (company_fee_in_cents + client_fee_in_cents) > 0 {
                     //we dont want to create 0 fee order item
                     new_event_fee.company_fee_in_cents = company_fee_in_cents;
@@ -1467,9 +1367,7 @@ impl Order {
                 }
 
                 if org.cc_fee_percent > 0f32 {
-                    let cc_fee = (self.calculate_total(conn)? as f32
-                        * (org.cc_fee_percent / 100f32))
-                        .round() as i64;
+                    let cc_fee = (self.calculate_total(conn)? as f32 * (org.cc_fee_percent / 100f32)).round() as i64;
                     NewFeesOrderItem {
                         order_id: self.id,
                         item_type: OrderItemTypes::CreditCardFees,
@@ -1500,10 +1398,7 @@ impl Order {
 
         let mut query = orders::table
             .inner_join(order_items::table.on(order_items::order_id.eq(orders::id)))
-            .inner_join(
-                ticket_instances::table
-                    .on(ticket_instances::order_item_id.eq(order_items::id.nullable())),
-            )
+            .inner_join(ticket_instances::table.on(ticket_instances::order_item_id.eq(order_items::id.nullable())))
             .filter(
                 orders::user_id
                     .eq(user_id)
@@ -1558,15 +1453,9 @@ impl Order {
         Ok(ticket_type_totals)
     }
 
-    pub fn find_for_user_for_display(
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<DisplayOrder>, DatabaseError> {
+    pub fn find_for_user_for_display(user_id: Uuid, conn: &PgConnection) -> Result<Vec<DisplayOrder>, DatabaseError> {
         let order_ids: Vec<Uuid> = orders::table
-            .filter(
-                sql("COALESCE(orders.on_behalf_of_user_id, orders.user_id) = ")
-                    .bind::<dUuid, _>(user_id),
-            )
+            .filter(sql("COALESCE(orders.on_behalf_of_user_id, orders.user_id) = ").bind::<dUuid, _>(user_id))
             .filter(orders::status.ne(OrderStatus::Draft))
             .order_by(orders::order_date.desc())
             .select(orders::id)
@@ -1580,14 +1469,11 @@ impl Order {
         OrderItem::find_for_order(self.id, conn)
     }
 
-    pub fn tickets(
-        &self,
-        ticket_type_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<TicketInstance>, DatabaseError> {
-        let items = self.items(conn)?.into_iter().filter(|i| {
-            i.item_type == OrderItemTypes::Tickets && i.ticket_type_id == Some(ticket_type_id)
-        });
+    pub fn tickets(&self, ticket_type_id: Uuid, conn: &PgConnection) -> Result<Vec<TicketInstance>, DatabaseError> {
+        let items = self
+            .items(conn)?
+            .into_iter()
+            .filter(|i| i.item_type == OrderItemTypes::Tickets && i.ticket_type_id == Some(ticket_type_id));
         let mut result: Vec<TicketInstance> = vec![];
         for item in items {
             let mut instances = TicketInstance::find_for_order_item(item.id, conn)?;
@@ -1598,11 +1484,7 @@ impl Order {
     }
 
     pub fn events(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
-        let mut unique_events: Vec<Uuid> = self
-            .items(conn)?
-            .iter()
-            .filter_map(|i| i.event_id)
-            .collect();
+        let mut unique_events: Vec<Uuid> = self.items(conn)?.iter().filter_map(|i| i.event_id).collect();
         unique_events.sort();
         unique_events.dedup();
 
@@ -1641,21 +1523,12 @@ impl Order {
         let results: Vec<R> = diesel::sql_query(query)
             .bind::<sql_types::Uuid, _>(self.id)
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not find ticket types for order",
-            )?;
+            .to_db_error(ErrorCode::QueryError, "Could not find ticket types for order")?;
 
-        Ok(results
-            .into_iter()
-            .map(|r| (r.ticket_type_id, r.count))
-            .collect_vec())
+        Ok(results.into_iter().map(|r| (r.ticket_type_id, r.count)).collect_vec())
     }
 
-    pub fn purchase_metadata(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<(String, String)>, DatabaseError> {
+    pub fn purchase_metadata(&self, conn: &PgConnection) -> Result<Vec<(String, String)>, DatabaseError> {
         let query = r#"
             SELECT
                 o.id as order_id,
@@ -1728,18 +1601,9 @@ impl Order {
 
         Ok(vec![
             ("order_id".to_string(), order_metadata.order_id.to_string()),
-            (
-                "event_names".to_string(),
-                order_metadata.event_names.clone(),
-            ),
-            (
-                "event_dates".to_string(),
-                order_metadata.event_dates.clone(),
-            ),
-            (
-                "venue_names".to_string(),
-                order_metadata.venue_names.clone(),
-            ),
+            ("event_names".to_string(), order_metadata.event_names.clone()),
+            ("event_dates".to_string(), order_metadata.event_dates.clone()),
+            ("venue_names".to_string(), order_metadata.venue_names.clone()),
             ("user_id".to_string(), order_metadata.user_id.to_string()),
             ("user_name".to_string(), order_metadata.user_name.clone()),
             (
@@ -1750,10 +1614,7 @@ impl Order {
                 "face_value_in_cents".to_string(),
                 order_metadata.face_value_in_cents.to_string(),
             ),
-            (
-                "fees_in_cents".to_string(),
-                order_metadata.fees_in_cents.to_string(),
-            ),
+            ("fees_in_cents".to_string(), order_metadata.fees_in_cents.to_string()),
         ])
     }
 
@@ -1858,9 +1719,7 @@ impl Order {
         )
         .into_boxed();
 
-        query = query
-            .sql(" WHERE o.id = ANY($1) ")
-            .bind::<Array<dUuid>, _>(&order_ids);
+        query = query.sql(" WHERE o.id = ANY($1) ").bind::<Array<dUuid>, _>(&order_ids);
 
         query = query.sql(
             "
@@ -1881,10 +1740,9 @@ impl Order {
             ORDER BY o.order_date desc
         ",
         );
-        let results: Vec<R> = query.get_results(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Unable to load order data for organization fan",
-        )?;
+        let results: Vec<R> = query
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Unable to load order data for organization fan")?;
 
         let mut user_ids = Vec::new();
         for result in &results {
@@ -1989,30 +1847,28 @@ impl Order {
                 }
             }
 
-            let allowed_payment_methods: Vec<AllowedPaymentMethod> =
-                intersect_set(&available_payment_providers)
-                    .into_iter()
-                    .filter_map(|p| match p {
-                        PaymentProviders::Stripe => Some(AllowedPaymentMethod {
-                            method: "Card".to_string(),
-                            provider: PaymentProviders::Stripe,
-                            display_name: "Card".to_string(),
-                        }),
-                        PaymentProviders::Globee => Some(AllowedPaymentMethod {
-                            method: "Provider".to_string(),
-                            provider: PaymentProviders::Globee,
-                            display_name: "Pay with crypto".to_string(),
-                        }),
-                        _ => None,
-                    })
-                    .collect();
+            let allowed_payment_methods: Vec<AllowedPaymentMethod> = intersect_set(&available_payment_providers)
+                .into_iter()
+                .filter_map(|p| match p {
+                    PaymentProviders::Stripe => Some(AllowedPaymentMethod {
+                        method: "Card".to_string(),
+                        provider: PaymentProviders::Stripe,
+                        display_name: "Card".to_string(),
+                    }),
+                    PaymentProviders::Globee => Some(AllowedPaymentMethod {
+                        method: "Provider".to_string(),
+                        provider: PaymentProviders::Globee,
+                        display_name: "Pay with crypto".to_string(),
+                    }),
+                    _ => None,
+                })
+                .collect();
 
             let order_organization_ids = result.organization_ids.clone().unwrap_or(Vec::new());
             let order_contains_other_tickets = !current_user.is_admin()
                 && organization_ids.is_some()
                 && order_organization_ids.len()
-                    != intersection(&order_organization_ids, organization_ids.as_ref().unwrap())
-                        .len();
+                    != intersection(&order_organization_ids, organization_ids.as_ref().unwrap()).len();
 
             let user = user_map
                 .get(&result.user_id)
@@ -2023,8 +1879,7 @@ impl Order {
                     )
                 })?
                 .clone();
-            let on_behalf_of_user = if let Some(on_behalf_of_user_id) = result.on_behalf_of_user_id
-            {
+            let on_behalf_of_user = if let Some(on_behalf_of_user_id) = result.on_behalf_of_user_id {
                 Some(
                     user_map
                         .get(&on_behalf_of_user_id)
@@ -2067,14 +1922,8 @@ impl Order {
                 order_contains_other_tickets,
                 platform: result.platform.clone(),
                 is_box_office: result.on_behalf_of_user_id.is_some(),
-                payment_method: result
-                    .payment_methods
-                    .map(|r| r.first().map(|p| *p))
-                    .unwrap_or(None),
-                payment_provider: result
-                    .providers
-                    .map(|r| r.first().map(|p| *p))
-                    .unwrap_or(None),
+                payment_method: result.payment_methods.map(|r| r.first().map(|p| *p)).unwrap_or(None),
+                payment_provider: result.providers.map(|r| r.first().map(|p| *p)).unwrap_or(None),
                 on_behalf_of_user_id: result.on_behalf_of_user_id,
                 on_behalf_of_user,
                 items,
@@ -2095,11 +1944,7 @@ impl Order {
         OrderItem::find_for_display(order_ids, organization_ids, user_id, conn)
     }
 
-    pub fn find_item(
-        &self,
-        cart_item_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<OrderItem, DatabaseError> {
+    pub fn find_item(&self, cart_item_id: Uuid, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
         OrderItem::find_in_order(self.id, cart_item_id, conn)
     }
 
@@ -2124,12 +1969,7 @@ impl Order {
         }
     }
 
-    pub fn create_note(
-        &self,
-        note: String,
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Note, DatabaseError> {
+    pub fn create_note(&self, note: String, user_id: Uuid, conn: &PgConnection) -> Result<Note, DatabaseError> {
         Note::create(Tables::Orders, self.id, user_id, note).commit(conn)
     }
 
@@ -2316,10 +2156,7 @@ impl Order {
         Ok(())
     }
 
-    pub fn order_items_in_invalid_state(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<OrderItem>, DatabaseError> {
+    pub fn order_items_in_invalid_state(&self, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
         let query = include_str!("../queries/order_items_in_invalid_state.sql");
         diesel::sql_query(query)
             .bind::<dUuid, _>(self.id)
@@ -2332,26 +2169,18 @@ impl Order {
         Ok(invalid_items.is_empty())
     }
 
-    pub fn reset_to_draft(
-        &mut self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn reset_to_draft(&mut self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         match self.status {
             OrderStatus::Paid => {
                 // still store the payment.
-                DatabaseError::business_process_error(
-                    "Cannot reset to draft, the order is already paid",
-                )
+                DatabaseError::business_process_error("Cannot reset to draft, the order is already paid")
             }
-            OrderStatus::Cancelled => DatabaseError::business_process_error(
-                "Cannot reset this order because it has been cancelled",
-            ),
+            OrderStatus::Cancelled => {
+                DatabaseError::business_process_error("Cannot reset this order because it has been cancelled")
+            }
 
             OrderStatus::Draft => Ok(()),
-            OrderStatus::PendingPayment => {
-                self.update_status(current_user_id, OrderStatus::Draft, conn)
-            }
+            OrderStatus::PendingPayment => self.update_status(current_user_id, OrderStatus::Draft, conn),
         }
     }
 
@@ -2395,11 +2224,7 @@ impl Order {
                 .filter(|oi| oi.item_type == OrderItemTypes::Tickets)
                 .collect_vec()
             {
-                TicketInstance::mark_as_purchased(
-                    item,
-                    self.on_behalf_of_user_id.unwrap_or(self.user_id),
-                    conn,
-                )?;
+                TicketInstance::mark_as_purchased(item, self.on_behalf_of_user_id.unwrap_or(self.user_id), conn)?;
             }
 
             let ticket_ids = TicketInstance::find_ids_for_order(self.id, conn)?;
@@ -2436,10 +2261,7 @@ impl Order {
         let cart_user: Option<User> = users::table
             .filter(users::last_cart_id.eq(self.id))
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not find user attached to this cart",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not find user attached to this cart")
             .optional()?;
         if let Some(user) = cart_user {
             user.update_last_cart(None, conn)?;
@@ -2456,20 +2278,15 @@ impl Order {
         let query = diesel::sql_query(
             "SELECT CAST(SUM(amount) as BigInt) as s FROM payments WHERE order_id = $1 AND status='Completed';",
         )
-            .bind::<diesel::sql_types::Uuid, _>(self.id);
+        .bind::<diesel::sql_types::Uuid, _>(self.id);
 
-        let sum: ResultForSum = query.get_result(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not get total payments for order",
-        )?;
+        let sum: ResultForSum = query
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not get total payments for order")?;
         Ok(sum.s.unwrap_or(0))
     }
 
-    pub fn clear_invalid_items(
-        &mut self,
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn clear_invalid_items(&mut self, user_id: Uuid, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.status != OrderStatus::Draft {
             return DatabaseError::validation_error(
                 "status",
@@ -2553,10 +2370,7 @@ impl Order {
                 .to_db_error(ErrorCode::UpdateError, "Could not mark order paid")?;
         } else {
             diesel::update(&*self)
-                .set((
-                    orders::status.eq(&self.status),
-                    orders::updated_at.eq(dsl::now),
-                ))
+                .set((orders::status.eq(&self.status), orders::updated_at.eq(dsl::now)))
                 .execute(conn)
                 .to_db_error(ErrorCode::UpdateError, "Could not update order status")?;
         }
@@ -2581,10 +2395,7 @@ impl Order {
         Ok(self.calculate_total_and_refunded_total(conn)?.0)
     }
 
-    pub fn calculate_total_and_refunded_total(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<(i64, i64), DatabaseError> {
+    pub fn calculate_total_and_refunded_total(&self, conn: &PgConnection) -> Result<(i64, i64), DatabaseError> {
         let order_items = self.items(conn)?;
         let mut total = 0;
         let mut refunded_total = 0;
@@ -2606,16 +2417,11 @@ impl Order {
                 .filter(orders::id.eq(self.id))
                 .filter(orders::version.eq(self.version)),
         )
-        .set((
-            orders::version.eq(self.version + 1),
-            orders::updated_at.eq(dsl::now),
-        ))
+        .set((orders::version.eq(self.version + 1), orders::updated_at.eq(dsl::now)))
         .execute(conn)
         .to_db_error(ErrorCode::UpdateError, "Could not lock order")?;
         if rows_affected == 0 {
-            return DatabaseError::concurrency_error(
-                "Could not lock order, another process has updated it",
-            );
+            return DatabaseError::concurrency_error("Could not lock order, another process has updated it");
         }
         self.version = self.version + 1;
         Ok(())
@@ -2715,10 +2521,7 @@ impl DisplayOrder {
         Some(
             !items
                 .iter()
-                .find(|i| {
-                    i.cart_item_status.is_some()
-                        && i.cart_item_status != Some(CartItemStatus::Valid)
-                })
+                .find(|i| i.cart_item_status.is_some() && i.cart_item_status != Some(CartItemStatus::Valid))
                 .is_some(),
         )
     }

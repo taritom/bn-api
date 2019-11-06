@@ -28,19 +28,18 @@ impl RegenerateDripActionsExecutor {
         RegenerateDripActionsExecutor { config }
     }
 
-    pub fn perform_job(
-        &self,
-        action: &DomainAction,
-        conn: &Connection,
-    ) -> Result<(), BigNeonError> {
+    pub fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
         let conn = conn.get();
-        let id = action.main_table_id.clone().ok_or(ApplicationError::new(
-            "No id supplied in the action".to_string(),
-        ))?;
+        let id = action
+            .main_table_id
+            .clone()
+            .ok_or(ApplicationError::new("No id supplied in the action".to_string()))?;
 
-        match action.main_table.clone().ok_or(ApplicationError::new(
-            "No table supplied in the action".to_string(),
-        ))? {
+        match action
+            .main_table
+            .clone()
+            .ok_or(ApplicationError::new("No table supplied in the action".to_string()))?
+        {
             Tables::Events => {
                 let event = Event::find(id, conn)?;
                 event.clear_pending_drip_actions(conn)?;

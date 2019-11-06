@@ -35,8 +35,7 @@ fn from_ticket_type() {
         .fee_in_cents;
 
     // New event nothing sold
-    let display_ticket_type =
-        AdminDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
+    let display_ticket_type = AdminDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 100);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
     assert_eq!(
@@ -51,26 +50,13 @@ fn from_ticket_type() {
         .unwrap();
     assert_eq!(fee_in_cents, display_ticket_pricing.fee_in_cents);
     assert_eq!(
-        DisplayTicketPricing::from_ticket_pricing(
-            &ticket_pricing,
-            &fee_schedule,
-            None,
-            None,
-            false,
-            conn
-        )
-        .unwrap(),
+        DisplayTicketPricing::from_ticket_pricing(&ticket_pricing, &fee_schedule, None, None, false, conn).unwrap(),
         display_ticket_pricing
     );
 
     // 10 tickets sold / reserved (via create_order for_event)
-    let mut order = database
-        .create_order()
-        .for_event(&event)
-        .quantity(10)
-        .finish();
-    let display_ticket_type =
-        AdminDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
+    let mut order = database.create_order().for_event(&event).quantity(10).finish();
+    let display_ticket_type = AdminDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 90);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
 
@@ -88,8 +74,7 @@ fn from_ticket_type() {
             conn,
         )
         .unwrap();
-    let display_ticket_type =
-        AdminDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
+    let display_ticket_type = AdminDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 0);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::SoldOut);
 
@@ -107,8 +92,7 @@ fn from_ticket_type() {
             conn,
         )
         .unwrap();
-    let display_ticket_type =
-        AdminDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
+    let display_ticket_type = AdminDisplayTicketType::from_ticket_type(&ticket_type, &fee_schedule, conn).unwrap();
     assert_eq!(display_ticket_type.available, 10);
     assert_eq!(display_ticket_type.status, TicketTypeStatus::Published);
 }

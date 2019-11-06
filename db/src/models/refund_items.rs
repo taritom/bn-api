@@ -17,12 +17,7 @@ pub struct RefundItem {
 }
 
 impl RefundItem {
-    pub fn create(
-        refund_id: Uuid,
-        order_item_id: Uuid,
-        quantity: i64,
-        amount: i64,
-    ) -> NewRefundItem {
+    pub fn create(refund_id: Uuid, order_item_id: Uuid, quantity: i64, amount: i64) -> NewRefundItem {
         NewRefundItem {
             refund_id,
             order_item_id,
@@ -46,9 +41,6 @@ impl NewRefundItem {
         diesel::insert_into(refund_items::table)
             .values(&self)
             .get_result(conn)
-            .to_db_error(
-                ErrorCode::InsertError,
-                "Could not insert refund item record",
-            )
+            .to_db_error(ErrorCode::InsertError, "Could not insert refund item record")
     }
 }

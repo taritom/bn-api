@@ -49,9 +49,7 @@ impl ServiceLocator {
         organization: &Organization,
     ) -> Result<Box<dyn PaymentProcessor>, BigNeonError> {
         match provider {
-            PaymentProviders::Stripe => Ok(Box::new(StripePaymentProcessor::new(
-                self.stripe_secret_key.clone(),
-            ))),
+            PaymentProviders::Stripe => Ok(Box::new(StripePaymentProcessor::new(self.stripe_secret_key.clone()))),
             PaymentProviders::Globee => {
                 let mut org = organization.clone();
                 org.decrypt(&self.api_keys_encryption_key)?;

@@ -51,19 +51,13 @@ impl OrderItem {
             .to_db_error(ErrorCode::QueryError, "Could not retrieve order item fees")
     }
 
-    pub fn find_discount_item(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Option<OrderItem>, DatabaseError> {
+    pub fn find_discount_item(&self, conn: &PgConnection) -> Result<Option<OrderItem>, DatabaseError> {
         order_items::table
             .filter(order_items::parent_id.eq(self.id))
             .filter(order_items::item_type.eq(OrderItemTypes::Discount))
             .first(conn)
             .optional()
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not retrieve order item discount",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not retrieve order item discount")
     }
 
     pub fn description(&self, conn: &PgConnection) -> Result<String, DatabaseError> {
@@ -90,15 +84,9 @@ impl OrderItem {
         Ok(res)
     }
 
-    pub(crate) fn refund_one_unit(
-        &mut self,
-        refund_fees: bool,
-        conn: &PgConnection,
-    ) -> Result<i64, DatabaseError> {
+    pub(crate) fn refund_one_unit(&mut self, refund_fees: bool, conn: &PgConnection) -> Result<i64, DatabaseError> {
         if self.order(conn)?.status != OrderStatus::Paid {
-            return DatabaseError::business_process_error(
-                "Order item must have associated paid order to refund unit",
-            );
+            return DatabaseError::business_process_error("Order item must have associated paid order to refund unit");
         }
 
         if self.refunded_quantity == self.quantity {
@@ -156,11 +144,7 @@ impl OrderItem {
         Ok(())
     }
 
-    pub(crate) fn update_discount(
-        &self,
-        order: &Order,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub(crate) fn update_discount(&self, order: &Order, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.item_type == OrderItemTypes::PerUnitFees
             || self.item_type == OrderItemTypes::EventFees
             || self.item_type == OrderItemTypes::Discount
@@ -176,8 +160,7 @@ impl OrderItem {
             let mut discount = 0;
             if let Some(discount_percent) = code.discount_as_percentage {
                 discount = cmp::min(
-                    ((self.unit_price_in_cents as f32) * (discount_percent as f32) / 100.0f32)
-                        as i64,
+                    ((self.unit_price_in_cents as f32) * (discount_percent as f32) / 100.0f32) as i64,
                     self.unit_price_in_cents,
                 );
             } else if let Some(discount_in_cents) = code.discount_in_cents {
@@ -211,9 +194,7 @@ impl OrderItem {
 
             let hold_type = h.hold_type;
             let discount = match hold_type {
-                HoldTypes::Discount => {
-                    cmp::min(h.discount_in_cents.unwrap_or(0), self.unit_price_in_cents)
-                }
+                HoldTypes::Discount => cmp::min(h.discount_in_cents.unwrap_or(0), self.unit_price_in_cents),
                 HoldTypes::Comp => self.unit_price_in_cents,
             };
             if let Some(mut di) = discount_item {
@@ -240,11 +221,7 @@ impl OrderItem {
         Ok(())
     }
 
-    pub(crate) fn update_fees(
-        &self,
-        order: &Order,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub(crate) fn update_fees(&self, order: &Order, conn: &PgConnection) -> Result<(), DatabaseError> {
         if self.item_type != OrderItemTypes::Tickets {
             return Ok(());
         }
@@ -267,9 +244,7 @@ impl OrderItem {
             None => self.unit_price_in_cents,
         };
 
-        if fee_schedule_ranges.len() > 0
-            && unit_price_with_discount >= fee_schedule_ranges[0].min_price_in_cents
-        {
+        if fee_schedule_ranges.len() > 0 && unit_price_with_discount >= fee_schedule_ranges[0].min_price_in_cents {
             let fee_schedule_range = ticket_type
                 .fee_schedule(conn)?
                 .get_range(unit_price_with_discount, conn)?;
@@ -291,8 +266,8 @@ impl OrderItem {
                     fee_item.unit_price_in_cents =
                         fee_schedule_range.fee_in_cents + ticket_type.additional_fee_in_cents;
                     fee_item.company_fee_in_cents = fee_schedule_range.company_fee_in_cents;
-                    fee_item.client_fee_in_cents = fee_schedule_range.client_fee_in_cents
-                        + ticket_type.additional_fee_in_cents;
+                    fee_item.client_fee_in_cents =
+                        fee_schedule_range.client_fee_in_cents + ticket_type.additional_fee_in_cents;
                     fee_item.update(conn)
                 }
                 None => {
@@ -300,8 +275,7 @@ impl OrderItem {
                         order_id: self.order_id,
                         item_type: OrderItemTypes::PerUnitFees,
                         event_id: self.event_id,
-                        unit_price_in_cents: fee_schedule_range.fee_in_cents
-                            + ticket_type.additional_fee_in_cents,
+                        unit_price_in_cents: fee_schedule_range.fee_in_cents + ticket_type.additional_fee_in_cents,
                         fee_schedule_range_id: Some(fee_schedule_range.id),
                         company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
                         client_fee_in_cents: fee_schedule_range.client_fee_in_cents
@@ -418,10 +392,8 @@ impl OrderItem {
                 let code = Code::find(code_id, conn)?;
                 let uses = Code::find_number_of_uses(code_id, Some(order_id), conn)?;
                 if code.max_uses > 0 && code.max_uses < uses + quantity {
-                    let mut validation_error = create_validation_error(
-                        "max_uses_reached",
-                        "Redemption code maximum uses limit exceeded",
-                    );
+                    let mut validation_error =
+                        create_validation_error("max_uses_reached", "Redemption code maximum uses limit exceeded");
                     validation_error.add_param(Cow::from("order_id"), &order_id);
                     validation_error.add_param(Cow::from("code_id"), &code_id);
                     return Ok(Err(validation_error));
@@ -609,10 +581,7 @@ impl OrderItem {
         Ok(order_items)
     }
 
-    pub fn find_for_order(
-        order_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<Vec<OrderItem>, DatabaseError> {
+    pub fn find_for_order(order_id: Uuid, conn: &PgConnection) -> Result<Vec<OrderItem>, DatabaseError> {
         order_items::table
             .left_join(ticket_types::table)
             .filter(order_items::order_id.eq(order_id))
@@ -622,10 +591,7 @@ impl OrderItem {
             .then_order_by(order_items::item_type.asc())
             .select(order_items::all_columns)
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not find order items for order",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not find order items for order")
     }
 
     pub fn find(order_item_id: Uuid, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
@@ -635,11 +601,7 @@ impl OrderItem {
             .to_db_error(ErrorCode::QueryError, "Could not retrieve order item")
     }
 
-    pub fn find_in_order(
-        order_id: Uuid,
-        order_item_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<OrderItem, DatabaseError> {
+    pub fn find_in_order(order_id: Uuid, order_item_id: Uuid, conn: &PgConnection) -> Result<OrderItem, DatabaseError> {
         order_items::table
             .filter(order_items::order_id.eq(order_id))
             .filter(order_items::id.eq(order_item_id))
@@ -692,11 +654,7 @@ impl NewTicketsOrderItem {
         validation_errors = validators::append_validation_error(
             validation_errors,
             "code_id",
-            OrderItem::ticket_type_id_valid_for_access_code(
-                self.ticket_type_id,
-                self.code_id,
-                conn,
-            )?,
+            OrderItem::ticket_type_id_valid_for_access_code(self.ticket_type_id, self.code_id, conn)?,
         );
         Ok(validation_errors?)
     }

@@ -31,30 +31,19 @@ pub fn profile(role: Roles, should_test_true: bool) {
         .quantity(10)
         .is_paid()
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
-    TicketInstance::redeem_ticket(
-        ticket.id,
-        ticket.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket.id, ticket.redeem_key.clone().unwrap(), user.id, connection).unwrap();
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
     let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     path.user_id = user2.id;
-    let response: HttpResponse =
-        users::profile((database.connection.clone().into(), path, auth_user.clone())).into();
+    let response: HttpResponse = users::profile((database.connection.clone().into(), path, auth_user.clone())).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {
@@ -125,8 +114,7 @@ pub fn activity(role: Roles, should_test_true: bool) {
         )
         .unwrap();
     assert_eq!(order.status, OrderStatus::Paid);
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
     let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();
@@ -210,8 +198,7 @@ pub fn history(role: Roles, should_test_true: bool) {
     )
     .unwrap();
     assert_eq!(cart.status, OrderStatus::Paid);
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
     let mut path = Path::<OrganizationFanPathParameters>::extract(&test_request.request).unwrap();
@@ -258,20 +245,14 @@ pub fn list_organizations(role: Roles, should_test_true: bool) {
         .create_organization()
         .with_member(&user2, Roles::OrgMember)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = user2.id;
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse = users::list_organizations((
-        database.connection.into(),
-        path,
-        query_parameters,
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        users::list_organizations((database.connection.into(), path, query_parameters, auth_user.clone())).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {
@@ -316,8 +297,7 @@ pub fn show_push_notification_tokens_for_user_id(role: Roles, should_test_true: 
         .create_organization()
         .with_member(&user2, Roles::OrgMember)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     //create push notification token for user2
     let created_token = NewPushNotificationToken {
         user_id: user2.id,
@@ -330,18 +310,14 @@ pub fn show_push_notification_tokens_for_user_id(role: Roles, should_test_true: 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = user2.id;
 
-    let response: HttpResponse = users::show_push_notification_tokens_for_user_id((
-        database.connection.clone().into(),
-        path,
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        users::show_push_notification_tokens_for_user_id((database.connection.clone().into(), path, auth_user.clone()))
+            .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {
         assert_eq!(response.status(), StatusCode::OK);
-        let retrieved_tokens: Vec<DisplayPushNotificationToken> =
-            serde_json::from_str(&body).unwrap();
+        let retrieved_tokens: Vec<DisplayPushNotificationToken> = serde_json::from_str(&body).unwrap();
         assert_eq!(retrieved_tokens.len(), 1);
         if retrieved_tokens.len() >= 1 {
             assert_eq!(retrieved_tokens[0].token_source, created_token.token_source);
@@ -360,8 +336,7 @@ pub fn show_push_notification_tokens(role: Roles, should_test_true: bool) {
         .create_organization()
         .with_member(&user, Roles::OrgMember)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     //create push notification token
     let created_token = NewPushNotificationToken {
         user_id: user.id,
@@ -370,17 +345,13 @@ pub fn show_push_notification_tokens(role: Roles, should_test_true: bool) {
     };
     created_token.commit(user.id, &connection).unwrap();
     //Retrieve push notification tokens
-    let response: HttpResponse = users::show_push_notification_tokens((
-        database.connection.clone().into(),
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        users::show_push_notification_tokens((database.connection.clone().into(), auth_user.clone())).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_true {
         assert_eq!(response.status(), StatusCode::OK);
-        let retrieved_tokens: Vec<DisplayPushNotificationToken> =
-            serde_json::from_str(&body).unwrap();
+        let retrieved_tokens: Vec<DisplayPushNotificationToken> = serde_json::from_str(&body).unwrap();
         assert_eq!(retrieved_tokens.len(), 1);
         if retrieved_tokens.len() >= 1 {
             assert_eq!(retrieved_tokens[0].token_source, created_token.token_source);
@@ -399,8 +370,7 @@ pub fn add_push_notification_token(role: Roles, should_test_true: bool) {
         .create_organization()
         .with_member(&user, Roles::OrgMember)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     //create push notification token for user
     let created_token = InputPushNotificationTokens {
         token_source: "example_token_source".to_string(),
@@ -408,12 +378,8 @@ pub fn add_push_notification_token(role: Roles, should_test_true: bool) {
     };
     let json = Json(created_token.clone());
 
-    let response: HttpResponse = users::add_push_notification_token((
-        database.connection.clone().into(),
-        json,
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        users::add_push_notification_token((database.connection.clone().into(), json, auth_user.clone())).into();
 
     if should_test_true {
         assert_eq!(response.status(), StatusCode::OK);
@@ -438,8 +404,7 @@ pub fn remove_push_notification_token(role: Roles, should_test_true: bool) {
         .create_organization()
         .with_member(&user, Roles::OrgMember)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     //create push notification token
     NewPushNotificationToken {
         user_id: user.id,
@@ -456,12 +421,8 @@ pub fn remove_push_notification_token(role: Roles, should_test_true: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = stored_tokens[0].id;
 
-    let response: HttpResponse = users::remove_push_notification_token((
-        database.connection.clone().into(),
-        path,
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        users::remove_push_notification_token((database.connection.clone().into(), path, auth_user.clone())).into();
 
     if should_test_true {
         assert_eq!(response.status(), StatusCode::OK);
@@ -482,16 +443,14 @@ pub fn show(role: Roles, should_test_true: bool) {
         .create_organization()
         .with_member(&user2, Roles::OrgMember)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let display_user = user2.for_display().unwrap();
     let test_request = TestRequest::create();
 
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = display_user.id;
-    let response: HttpResponse =
-        users::show((database.connection.into(), path, auth_user.clone())).into();
+    let response: HttpResponse = users::show((database.connection.into(), path, auth_user.clone())).into();
     if should_test_true {
         let body = support::unwrap_body_to_string(&response).unwrap();
         assert_eq!(response.status(), StatusCode::OK);

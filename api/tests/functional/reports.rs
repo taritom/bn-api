@@ -49,9 +49,7 @@ pub fn ticket_counts_report() {
     .unwrap();
 
     //----------Box Office
-    let report =
-        Report::ticket_sales_and_counts(None, None, None, None, true, true, true, true, connection)
-            .unwrap();
+    let report = Report::ticket_sales_and_counts(None, None, None, None, true, true, true, true, connection).unwrap();
     //Counts
     assert_eq!(report.counts[0].allocation_count_including_nullified, 100);
     assert_eq!(report.counts[0].allocation_count, 100);
@@ -121,9 +119,7 @@ pub fn ticket_counts_report() {
     )
     .unwrap();
 
-    let report =
-        Report::ticket_sales_and_counts(None, None, None, None, true, true, true, true, connection)
-            .unwrap();
+    let report = Report::ticket_sales_and_counts(None, None, None, None, true, true, true, true, connection).unwrap();
     //Counts
     assert_eq!(report.counts[0].allocation_count_including_nullified, 100);
     assert_eq!(report.counts[0].allocation_count, 100);
@@ -180,7 +176,7 @@ pub fn ticket_counts_report() {
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 5,
-            redemption_code: redemption_code,
+            redemption_code,
         }],
         false,
         false,
@@ -200,10 +196,7 @@ pub fn ticket_counts_report() {
     )
     .unwrap();
 
-    let report = Report::ticket_sales_and_counts(
-        None, None, None, None, true, true, false, true, connection,
-    )
-    .unwrap();
+    let report = Report::ticket_sales_and_counts(None, None, None, None, true, true, false, true, connection).unwrap();
 
     //Counts
     assert_eq!(report.counts[0].allocation_count_including_nullified, 100);
@@ -261,7 +254,7 @@ pub fn ticket_counts_report() {
         &[UpdateOrderItem {
             ticket_type_id: ticket_type.id,
             quantity: 5,
-            redemption_code: redemption_code,
+            redemption_code,
         }],
         false,
         false,
@@ -281,10 +274,7 @@ pub fn ticket_counts_report() {
     )
     .unwrap();
 
-    let report = Report::ticket_sales_and_counts(
-        None, None, None, None, true, true, false, true, connection,
-    )
-    .unwrap();
+    let report = Report::ticket_sales_and_counts(None, None, None, None, true, true, false, true, connection).unwrap();
 
     //Counts
     assert_eq!(report.counts[0].allocation_count_including_nullified, 100);

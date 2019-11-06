@@ -114,11 +114,7 @@ fn show_expired_cart() {
 fn destroy() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
@@ -129,7 +125,7 @@ fn destroy() {
     cart.update_quantities(
         user.id,
         &vec![UpdateOrderItem {
-            ticket_type_id: ticket_type_id,
+            ticket_type_id,
             quantity: 10,
             redemption_code: None,
         }],
@@ -162,9 +158,7 @@ fn destroy_without_existing_cart() {
     assert_eq!(response.status(), StatusCode::OK);
 
     // Cart is cleared
-    let cart = Order::find_cart_for_user(user.id, connection)
-        .unwrap()
-        .unwrap();
+    let cart = Order::find_cart_for_user(user.id, connection).unwrap().unwrap();
     assert!(cart.expires_at.is_none());
     let items = cart.items(&connection).unwrap();
     assert_eq!(0, items.len());
@@ -174,11 +168,7 @@ fn destroy_without_existing_cart() {
 fn update() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
     let ticket_type_id = event.ticket_types(true, None, connection).unwrap()[0].id;
@@ -203,30 +193,17 @@ fn update() {
     .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let cart = Order::find_cart_for_user(user.id, &connection)
-        .unwrap()
-        .unwrap();
+    let cart = Order::find_cart_for_user(user.id, &connection).unwrap().unwrap();
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type_id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
 
-    let ticket_pricing =
-        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
+    let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 2);
     let fee_item = order_item.find_fee_item(&connection).unwrap().unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    let fee_schedule_range = FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 2);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
 }
 
 #[test]
@@ -304,9 +281,7 @@ fn update_multiple() {
     ))
     .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    let cart = Order::find_cart_for_user(user.id, connection)
-        .unwrap()
-        .unwrap();
+    let cart = Order::find_cart_for_user(user.id, connection).unwrap().unwrap();
     let cart_items = cart
         .items(&connection)
         .unwrap()
@@ -315,63 +290,38 @@ fn update_multiple() {
         .collect::<Vec<OrderItem>>();
     let order_item = &cart_items[0];
     let order_item2 = &cart_items[1];
-    let ticket_pricing =
-        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
-    let ticket_pricing2 =
-        TicketPricing::find(order_item2.ticket_pricing_id.unwrap(), connection).unwrap();
+    let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
+    let ticket_pricing2 = TicketPricing::find(order_item2.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 2);
     assert_eq!(order_item2.quantity, 3);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
 
     let fee_item2 = order_item2.find_fee_item(connection).unwrap().unwrap();
 
-    let fee_schedule_range =
-        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    let fee_schedule_range = FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
 
-    let fee_schedule_range2 =
-        FeeScheduleRange::find(fee_item2.fee_schedule_range_id.unwrap(), connection).unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    let fee_schedule_range2 = FeeScheduleRange::find(fee_item2.fee_schedule_range_id.unwrap(), connection).unwrap();
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 2);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
-    assert_eq!(
-        fee_item2.unit_price_in_cents,
-        fee_schedule_range2.fee_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
+    assert_eq!(fee_item2.unit_price_in_cents, fee_schedule_range2.fee_in_cents);
     assert_eq!(fee_item2.quantity, 3);
-    assert_eq!(
-        order_item2.unit_price_in_cents,
-        ticket_pricing2.price_in_cents
-    );
+    assert_eq!(order_item2.unit_price_in_cents, ticket_pricing2.price_in_cents);
 }
 
 #[test]
 fn add_with_increment() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     let update_parameters = TicketTypeEditableAttributes {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type
-        .update(update_parameters, None, connection)
-        .unwrap();
+    let ticket_type = ticket_type.update(update_parameters, None, connection).unwrap();
     let ticket_type_id = ticket_type.id;
 
     let input = Json(cart::UpdateCartRequest {
@@ -394,51 +344,32 @@ fn add_with_increment() {
     .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let cart = Order::find_cart_for_user(user.id, connection)
-        .unwrap()
-        .unwrap();
+    let cart = Order::find_cart_for_user(user.id, connection).unwrap().unwrap();
     let order_item = cart
         .find_item_by_type(ticket_type_id, OrderItemTypes::Tickets, connection)
         .unwrap();
-    let ticket_pricing =
-        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
+    let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 4);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    let fee_schedule_range = FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 4);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
 }
 
 #[test]
 fn update_with_increment_failure_invalid_quantity() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     let update_parameters = TicketTypeEditableAttributes {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type
-        .update(update_parameters, None, connection)
-        .unwrap();
+    let ticket_type = ticket_type.update(update_parameters, None, connection).unwrap();
     let ticket_type_id = ticket_type.id;
 
     let input = Json(cart::UpdateCartRequest {
@@ -474,11 +405,7 @@ fn update_with_increment_failure_invalid_quantity() {
 fn update_with_existing_cart() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
     let ticket_type_id = event.ticket_types(true, None, connection).unwrap()[0].id;
@@ -504,37 +431,22 @@ fn update_with_existing_cart() {
     .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let items = cart.items(connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type_id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
 
-    let ticket_pricing =
-        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
+    let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 2);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    let fee_schedule_range = FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 2);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
 }
 
 #[test]
 fn reduce() {
     let database = TestDatabase::new();
     let connection = &database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
     let ticket_type_id = event.ticket_types(true, None, connection).unwrap()[0].id;
     let user = database.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -551,25 +463,14 @@ fn reduce() {
     )
     .unwrap();
     let items = cart.items(connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type_id))
-        .unwrap();
-    let ticket_pricing =
-        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
+    let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 10);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    let fee_schedule_range = FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 10);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
@@ -596,33 +497,20 @@ fn reduce() {
     let cart_response: DisplayOrder = serde_json::from_str(&body).unwrap();
     assert_eq!(cart.id, cart_response.id);
     let items = cart.items(connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type_id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
 
     assert_eq!(order_item.quantity, 6);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 6);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
 }
 
 #[test]
 fn remove() {
     let database = TestDatabase::new();
     let connection = &database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
     let ticket_type_id = event.ticket_types(true, None, connection).unwrap()[0].id;
     let user = database.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -639,26 +527,15 @@ fn remove() {
     )
     .unwrap();
     let items = cart.items(connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type_id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
 
-    let ticket_pricing =
-        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
+    let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 10);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    let fee_schedule_range = FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 10);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
@@ -694,22 +571,13 @@ fn remove() {
 fn remove_with_increment() {
     let database = TestDatabase::new();
     let connection = &database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     let update_parameters = TicketTypeEditableAttributes {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type
-        .update(update_parameters, None, connection)
-        .unwrap();
+    let ticket_type = ticket_type.update(update_parameters, None, connection).unwrap();
     let ticket_type_id = ticket_type.id;
     let user = database.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -726,26 +594,15 @@ fn remove_with_increment() {
     )
     .unwrap();
     let items = cart.items(connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type_id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
 
-    let ticket_pricing =
-        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
+    let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 12);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    let fee_schedule_range = FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 12);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
@@ -772,43 +629,25 @@ fn remove_with_increment() {
     let cart_response: DisplayOrder = serde_json::from_str(&body).unwrap();
     assert_eq!(cart.id, cart_response.id);
     let items = cart.items(connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type_id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
     assert_eq!(order_item.quantity, 8);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 8);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
 }
 
 #[test]
 fn remove_with_increment_failure_invalid_quantity() {
     let database = TestDatabase::new();
     let connection = &database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     let update_parameters = TicketTypeEditableAttributes {
         increment: Some(4),
         ..Default::default()
     };
-    let ticket_type = ticket_type
-        .update(update_parameters, None, connection)
-        .unwrap();
+    let ticket_type = ticket_type.update(update_parameters, None, connection).unwrap();
     let ticket_type_id = ticket_type.id;
     let user = database.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -825,26 +664,15 @@ fn remove_with_increment_failure_invalid_quantity() {
     )
     .unwrap();
     let items = cart.items(connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type_id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type_id)).unwrap();
 
-    let ticket_pricing =
-        TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
+    let ticket_pricing = TicketPricing::find(order_item.ticket_pricing_id.unwrap(), connection).unwrap();
     assert_eq!(order_item.quantity, 12);
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
-    let fee_schedule_range =
-        FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
-    assert_eq!(
-        fee_item.unit_price_in_cents,
-        fee_schedule_range.fee_in_cents
-    );
+    let fee_schedule_range = FeeScheduleRange::find(fee_item.fee_schedule_range_id.unwrap(), connection).unwrap();
+    assert_eq!(fee_item.unit_price_in_cents, fee_schedule_range.fee_in_cents);
     assert_eq!(fee_item.quantity, 12);
-    assert_eq!(
-        order_item.unit_price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(order_item.unit_price_in_cents, ticket_pricing.price_in_cents);
 
     let input = Json(cart::UpdateCartRequest {
         box_office_pricing: None,
@@ -878,19 +706,11 @@ fn remove_with_increment_failure_invalid_quantity() {
 fn checkout_external() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
 
-    let order = database
-        .create_cart()
-        .for_user(&user)
-        .for_event(&event)
-        .finish();
+    let order = database.create_cart().for_user(&user).for_event(&event).finish();
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
@@ -922,10 +742,7 @@ fn checkout_external() {
     // Reload order
     let order = Order::find(order.id, connection).unwrap();
     assert_eq!(order.status, OrderStatus::Paid);
-    assert_eq!(
-        order.external_payment_type,
-        Some(ExternalPaymentType::Voucher)
-    );
+    assert_eq!(order.external_payment_type, Some(ExternalPaymentType::Voucher));
 
     // Confirm note saved correctly
     let note = &Note::find_for_table(Tables::Orders, order.id, true, 0, 1, connection)
@@ -939,11 +756,7 @@ fn checkout_external() {
 fn checkout_external_with_free_cart() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
     let order = database
@@ -996,11 +809,7 @@ fn checkout_external_with_free_cart() {
 fn checkout_paid_fails_with_free_cart() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
     let order = database
@@ -1052,11 +861,7 @@ fn checkout_paid_fails_with_free_cart() {
 fn checkout_free() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
 
@@ -1101,19 +906,11 @@ fn checkout_free() {
 fn checkout_free_for_paid_items() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
 
-    let order = database
-        .create_cart()
-        .for_user(&user)
-        .for_event(&event)
-        .finish();
+    let order = database.create_cart().for_user(&user).for_event(&event).finish();
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
@@ -1133,9 +930,11 @@ fn checkout_free_for_paid_items() {
     .into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
-    let expected_json = HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY).into_builder().json(json!({
-        "error": "Could not use free payment method this cart because it has a total greater than zero"
-    }));
+    let expected_json = HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY)
+        .into_builder()
+        .json(json!({
+            "error": "Could not use free payment method this cart because it has a total greater than zero"
+        }));
     let expected_text = unwrap_body_to_string(&expected_json).unwrap();
     let body = unwrap_body_to_string(&response).unwrap();
     assert_eq!(body, expected_text);
@@ -1149,15 +948,8 @@ fn checkout_free_for_paid_items() {
 fn clear_invalid_items() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
 
     let user = database.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -1176,17 +968,12 @@ fn clear_invalid_items() {
     )
     .unwrap();
     let items = cart.items(connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
-    diesel::update(
-        ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
-    )
-    .set((ticket_instances::reserved_until.eq(one_minute_ago),))
-    .execute(connection)
-    .unwrap();
+    diesel::update(ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)))
+        .set((ticket_instances::reserved_until.eq(one_minute_ago),))
+        .execute(connection)
+        .unwrap();
 
     // Must be admin to check out external
     let user = support::create_auth_user_from_user(&user, Roles::Admin, None, &database);
@@ -1194,8 +981,7 @@ fn clear_invalid_items() {
     // Not currently valid
     assert!(!cart.items_valid_for_purchase(connection).unwrap());
 
-    let response: HttpResponse =
-        cart::clear_invalid_items((database.connection.clone().into(), user)).into();
+    let response: HttpResponse = cart::clear_invalid_items((database.connection.clone().into(), user)).into();
     assert_eq!(response.status(), StatusCode::OK);
 
     // Cart no longer contains invalid items
@@ -1206,15 +992,8 @@ fn clear_invalid_items() {
 fn checkout_fails_for_invalid_items() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
 
     let user = database.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -1233,17 +1012,12 @@ fn checkout_fails_for_invalid_items() {
     )
     .unwrap();
     let items = cart.items(connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
-    diesel::update(
-        ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)),
-    )
-    .set((ticket_instances::reserved_until.eq(one_minute_ago),))
-    .execute(connection)
-    .unwrap();
+    diesel::update(ticket_instances::table.filter(ticket_instances::order_item_id.eq(order_item.id)))
+        .set((ticket_instances::reserved_until.eq(one_minute_ago),))
+        .execute(connection)
+        .unwrap();
 
     let request = TestRequest::create();
 
@@ -1290,19 +1064,11 @@ fn checkout_fails_for_invalid_items() {
 fn checkout_provider_globee() {
     let database = TestDatabase::new();
     let conn = database.connection.get();
-    let event = database
-        .create_event()
-        .with_tickets()
-        .with_ticket_pricing()
-        .finish();
+    let event = database.create_event().with_tickets().with_ticket_pricing().finish();
 
     let user = database.create_user().finish();
 
-    database
-        .create_cart()
-        .for_user(&user)
-        .for_event(&event)
-        .finish();
+    database.create_cart().for_user(&user).for_event(&event).finish();
     let request = TestRequest::create();
 
     let input = Json(cart::CheckoutCartRequest {
@@ -1387,13 +1153,11 @@ fn checkout_provider_globee() {
         created_at: None,
     };
 
-    let response =
-        controllers::ipns::globee((Json(ipn), database.connection.clone().into())).unwrap();
+    let response = controllers::ipns::globee((Json(ipn), database.connection.clone().into())).unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let mut domain_actions =
-        DomainAction::find_pending(Some(DomainActionTypes::PaymentProviderIPN), conn).unwrap();
+    let mut domain_actions = DomainAction::find_pending(Some(DomainActionTypes::PaymentProviderIPN), conn).unwrap();
 
     assert_eq!(domain_actions.len(), 1);
 

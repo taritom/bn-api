@@ -148,11 +148,7 @@ pub fn construct_request_message(
     };
     let msg_signature = MessageSignature {
         public_key: convert_bytes_to_hexstring(&public_key),
-        data_signature: message_data_signature(
-            &msg_header,
-            &to_value(&msg_payload)?.to_string(),
-            &secret_key,
-        )?,
+        data_signature: message_data_signature(&msg_header, &to_value(&msg_payload)?.to_string(), &secret_key)?,
     };
     let request_message = MessageRequest {
         header: msg_header,

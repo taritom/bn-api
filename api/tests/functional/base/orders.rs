@@ -21,13 +21,8 @@ pub fn resend_confirmation(role: Roles, should_succeed: bool) {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let mut order = database
-        .create_order()
-        .for_event(&event)
-        .for_user(&user2)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let mut order = database.create_order().for_event(&event).for_user(&user2).finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let conn = database.connection.get();
     let total = order.calculate_total(conn).unwrap();
@@ -74,13 +69,8 @@ pub fn show_other_user_order(role: Roles, should_succeed: bool) {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let mut order = database
-        .create_order()
-        .for_event(&event)
-        .for_user(&user2)
-        .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let mut order = database.create_order().for_event(&event).for_user(&user2).finish();
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let conn = database.connection.get();
     let total = order.calculate_total(conn).unwrap();
@@ -99,8 +89,7 @@ pub fn show_other_user_order(role: Roles, should_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = order.id;
 
-    let response: HttpResponse =
-        orders::show((database.connection.clone(), path, auth_user)).into();
+    let response: HttpResponse = orders::show((database.connection.clone(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -150,8 +139,7 @@ pub fn activity(role: Roles, should_test_true: bool) {
         )
         .unwrap();
     assert_eq!(order.status, OrderStatus::Paid);
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -207,15 +195,13 @@ pub fn show_other_user_order_not_matching_users_organization(role: Roles, should
         )
         .unwrap();
     assert_eq!(order.status, OrderStatus::Paid);
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = order.id;
 
-    let response: HttpResponse =
-        orders::show((database.connection.clone(), path, auth_user)).into();
+    let response: HttpResponse = orders::show((database.connection.clone(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -231,19 +217,14 @@ pub fn details(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
     let user = database.create_user().finish();
-    let organization = database
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = database.create_organization().with_event_fee().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let user = database.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
@@ -281,10 +262,7 @@ pub fn details(role: Roles, should_succeed: bool) {
     )
     .unwrap();
 
-    let event_fee_item = items
-        .iter()
-        .find(|i| i.item_type == OrderItemTypes::EventFees)
-        .unwrap();
+    let event_fee_item = items.iter().find(|i| i.item_type == OrderItemTypes::EventFees).unwrap();
 
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
@@ -296,9 +274,7 @@ pub fn details(role: Roles, should_succeed: bool) {
         ticket_instance_id: Some(ticket.id),
     }];
     let refund_amount = order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
-    let (_refund, amount) = cart
-        .refund(&refund_items, auth_user.id(), None, connection)
-        .unwrap();
+    let (_refund, amount) = cart.refund(&refund_items, auth_user.id(), None, connection).unwrap();
     assert_eq!(amount, refund_amount);
     let ticket_type = ticket.ticket_type(connection).unwrap();
     let ticket_type2 = ticket2.ticket_type(connection).unwrap();
@@ -346,11 +322,7 @@ pub fn details(role: Roles, should_succeed: bool) {
         },
     ];
 
-    expected_order_details.sort_by(|a, b| {
-        a.ticket_instance_id
-            .unwrap()
-            .cmp(&b.ticket_instance_id.unwrap())
-    });
+    expected_order_details.sort_by(|a, b| a.ticket_instance_id.unwrap().cmp(&b.ticket_instance_id.unwrap()));
     expected_order_details.push(OrderDetailsLineItem {
         ticket_instance_id: None,
         order_item_id: event_fee_item.id,
@@ -376,8 +348,7 @@ pub fn details(role: Roles, should_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = cart.id;
 
-    let response: HttpResponse =
-        orders::details((database.connection.clone(), path, auth_user)).into();
+    let response: HttpResponse = orders::details((database.connection.clone(), path, auth_user)).into();
 
     if should_succeed {
         assert_eq!(response.status(), StatusCode::OK);
@@ -393,11 +364,7 @@ pub fn details(role: Roles, should_succeed: bool) {
 pub fn refund(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let connection = database.connection.get();
-    let organization = database
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = database.create_organization().with_event_fee().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -405,8 +372,7 @@ pub fn refund(role: Roles, should_succeed: bool) {
         .with_ticket_pricing()
         .finish();
     let user = database.create_user().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
     let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
     cart.update_quantities(
@@ -433,15 +399,9 @@ pub fn refund(role: Roles, should_succeed: bool) {
     .unwrap();
 
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
 
-    let event_fee_item = items
-        .iter()
-        .find(|i| i.item_type == OrderItemTypes::EventFees)
-        .unwrap();
+    let event_fee_item = items.iter().find(|i| i.item_type == OrderItemTypes::EventFees).unwrap();
 
     let fee_item = order_item.find_fee_item(connection).unwrap().unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
@@ -479,9 +439,8 @@ pub fn refund(role: Roles, should_succeed: bool) {
         assert_eq!(response.status(), StatusCode::OK);
         let body = support::unwrap_body_to_string(&response).unwrap();
         let refund_response: RefundResponse = serde_json::from_str(&body).unwrap();
-        let expected_refund_amount = event_fee_item.unit_price_in_cents
-            + order_item.unit_price_in_cents
-            + fee_item.unit_price_in_cents;
+        let expected_refund_amount =
+            event_fee_item.unit_price_in_cents + order_item.unit_price_in_cents + fee_item.unit_price_in_cents;
         assert_eq!(refund_response.amount_refunded, expected_refund_amount);
 
         let mut expected_refund_breakdown = HashMap::new();

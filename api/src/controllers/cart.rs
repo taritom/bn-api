@@ -43,12 +43,7 @@ pub struct UpdateCartRequest {
 }
 
 pub fn update_cart(
-    (connection, json, user, request_info): (
-        Connection,
-        Json<UpdateCartRequest>,
-        User,
-        RequestInfo,
-    ),
+    (connection, json, user, request_info): (Connection, Json<UpdateCartRequest>, User, RequestInfo),
 ) -> Result<HttpResponse, BigNeonError> {
     let json = json.into_inner();
     jlog!(Debug, "Update Cart", {"cart": json, "user_id": user.id()});
@@ -56,20 +51,12 @@ pub fn update_cart(
 
     let box_office_pricing = json.box_office_pricing.unwrap_or(false);
     if box_office_pricing {
-        let mut ticket_type_ids = json
-            .items
-            .iter()
-            .map(|i| i.ticket_type_id)
-            .collect::<Vec<Uuid>>();
+        let mut ticket_type_ids = json.items.iter().map(|i| i.ticket_type_id).collect::<Vec<Uuid>>();
         ticket_type_ids.sort();
         ticket_type_ids.dedup();
 
         for organization in Organization::find_by_ticket_type_ids(ticket_type_ids, connection)? {
-            user.requires_scope_for_organization(
-                Scopes::BoxOfficeTicketRead,
-                &organization,
-                connection,
-            )?
+            user.requires_scope_for_organization(Scopes::BoxOfficeTicketRead, &organization, connection)?
         }
     }
 
@@ -88,29 +75,16 @@ pub fn update_cart(
 
     for order_item in &order_items {
         if !Dbticket_types::is_event_available_for_sale(&order_item.ticket_type_id, connection)? {
-            return Ok(HttpResponse::BadRequest()
-                .json(json!({"error": "Event has not been published.".to_string()})));
+            return Ok(HttpResponse::BadRequest().json(json!({"error": "Event has not been published.".to_string()})));
         }
     }
 
-    cart.update_quantities(
-        user.id(),
-        &order_items,
-        box_office_pricing,
-        false,
-        connection,
-    )?;
+    cart.update_quantities(user.id(), &order_items, box_office_pricing, false, connection)?;
 
     cart.set_user_agent(request_info.user_agent.clone(), false, connection)?;
     cart.set_tracking_data(json.tracking_data.clone(), Some(user.id()), connection)?;
 
-    Ok(
-        HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(
-            None,
-            user.id(),
-            connection,
-        )?),
-    )
+    Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(None, user.id(), connection)?))
 }
 
 pub fn destroy((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
@@ -120,22 +94,11 @@ pub fn destroy((connection, user): (Connection, User)) -> Result<HttpResponse, B
     let mut cart = Order::find_or_create_cart(&user.user, connection)?;
     cart.update_quantities(user.id(), &[], false, true, connection)?;
 
-    Ok(
-        HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(
-            None,
-            user.id(),
-            connection,
-        )?),
-    )
+    Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(None, user.id(), connection)?))
 }
 
 pub fn replace_cart(
-    (connection, json, user, request_info): (
-        Connection,
-        Json<UpdateCartRequest>,
-        User,
-        RequestInfo,
-    ),
+    (connection, json, user, request_info): (Connection, Json<UpdateCartRequest>, User, RequestInfo),
 ) -> Result<HttpResponse, BigNeonError> {
     let json = json.into_inner();
     jlog!(Debug, "Replace Cart", {"cart": json, "user_id": user.id() });
@@ -144,20 +107,12 @@ pub fn replace_cart(
 
     let box_office_pricing = json.box_office_pricing.unwrap_or(false);
     if box_office_pricing {
-        let mut ticket_type_ids = json
-            .items
-            .iter()
-            .map(|i| i.ticket_type_id)
-            .collect::<Vec<Uuid>>();
+        let mut ticket_type_ids = json.items.iter().map(|i| i.ticket_type_id).collect::<Vec<Uuid>>();
         ticket_type_ids.sort();
         ticket_type_ids.dedup();
 
         for organization in Organization::find_by_ticket_type_ids(ticket_type_ids, connection)? {
-            user.requires_scope_for_organization(
-                Scopes::BoxOfficeTicketRead,
-                &organization,
-                connection,
-            )?
+            user.requires_scope_for_organization(Scopes::BoxOfficeTicketRead, &organization, connection)?
         }
     }
 
@@ -176,28 +131,15 @@ pub fn replace_cart(
 
     for order_item in &order_items {
         if !Dbticket_types::is_event_available_for_sale(&order_item.ticket_type_id, connection)? {
-            return Ok(HttpResponse::BadRequest()
-                .json(json!({"error": "Event has not been published.".to_string()})));
+            return Ok(HttpResponse::BadRequest().json(json!({"error": "Event has not been published.".to_string()})));
         }
     }
 
-    cart.update_quantities(
-        user.id(),
-        &order_items,
-        box_office_pricing,
-        true,
-        connection,
-    )?;
+    cart.update_quantities(user.id(), &order_items, box_office_pricing, true, connection)?;
 
     cart.set_user_agent(request_info.user_agent.clone(), false, connection)?;
     cart.set_tracking_data(json.tracking_data.clone(), Some(user.id()), connection)?;
-    Ok(
-        HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(
-            None,
-            user.id(),
-            connection,
-        )?),
-    )
+    Ok(HttpResponse::Ok().json(Order::find(cart.id, connection)?.for_display(None, user.id(), connection)?))
 }
 
 pub fn show((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
@@ -248,9 +190,7 @@ pub enum PaymentRequest {
     Free,
 }
 
-pub fn clear_invalid_items(
-    (connection, user): (Connection, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn clear_invalid_items((connection, user): (Connection, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let mut order = match Order::find_cart_for_user(user.id(), connection)? {
         Some(o) => o,
@@ -258,9 +198,7 @@ pub fn clear_invalid_items(
     };
 
     if order.status != OrderStatus::Draft {
-        return application::unprocessable(
-            "Could not complete this cart because it is not in the correct status",
-        );
+        return application::unprocessable("Could not complete this cart because it is not in the correct status");
     }
     info!("CART: Clearing invalid items");
 
@@ -288,9 +226,7 @@ pub fn checkout(
     order.lock_version(connection.get())?;
 
     if !order.items_valid_for_purchase(connection.get())? {
-        return application::unprocessable(
-            "Could not complete this checkout because it contains invalid order items",
-        );
+        return application::unprocessable("Could not complete this checkout because it contains invalid order items");
     }
 
     order.set_tracking_data(req.tracking_data.clone(), Some(user.id()), connection.get())?;
@@ -307,9 +243,7 @@ pub fn checkout(
                 .entry(ticket.asset_id)
                 .or_insert_with(|| Vec::new())
                 .push(ticket.token_id as u64);
-            wallet_id_per_asset
-                .entry(ticket.asset_id)
-                .or_insert(ticket.wallet_id);
+            wallet_id_per_asset.entry(ticket.asset_id).or_insert(ticket.wallet_id);
         }
     }
     info!("CART: Verifying asset");
@@ -356,16 +290,12 @@ pub fn checkout(
             info!("CART: Received provider payment");
             let provider: PaymentProviders = match provider {
                 Some(provider) => provider.clone(),
-                None => match user
-                    .user
-                    .default_payment_method(connection.get())
-                    .optional()?
-                {
+                None => match user.user.default_payment_method(connection.get()).optional()? {
                     Some(payment_method) => payment_method.name,
                     None => {
                         return application::unprocessable(
-                                "Could not complete this cart because user has no default payment method",
-                            );
+                            "Could not complete this cart because user has no default payment method",
+                        );
                     }
                 },
             };
@@ -430,9 +360,7 @@ fn checkout_free(
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     if order.status != OrderStatus::Draft {
-        return application::unprocessable(
-            "Could not complete this cart because it is not in the correct status",
-        );
+        return application::unprocessable("Could not complete this cart because it is not in the correct status");
     } else if order.calculate_total(conn)? > 0 {
         // TODO: make this line cleaner
         return application::unprocessable(
@@ -474,18 +402,12 @@ fn checkout_external(
     {
         if let Some(event_id) = event_id {
             let organization = Organization::find_for_event(event_id, conn)?;
-            user.requires_scope_for_organization(
-                Scopes::OrderMakeExternalPayment,
-                &organization,
-                conn,
-            )?;
+            user.requires_scope_for_organization(Scopes::OrderMakeExternalPayment, &organization, conn)?;
         }
     }
 
     if order.status != OrderStatus::Draft {
-        return application::unprocessable(
-            "Could not complete this cart because it is not in the correct status",
-        );
+        return application::unprocessable("Could not complete this cart because it is not in the correct status");
     }
 
     let mut guest: Option<DbUser> = None;
@@ -546,28 +468,21 @@ fn checkout_payment_processor(
     if order.user_id != auth_user.id() {
         return application::forbidden("This cart does not belong to you");
     } else if order.status != OrderStatus::Draft {
-        return application::unprocessable(
-            "Could not complete this cart because it is not in the correct status",
-        );
+        return application::unprocessable("Could not complete this cart because it is not in the correct status");
     } else if order.calculate_total(connection)? == 0 {
-        return application::unprocessable(
-            "Could not complete this cart; only paid orders require payment processing",
-        );
+        return application::unprocessable("Could not complete this cart; only paid orders require payment processing");
     }
 
     // Can only have one event at a time because there are potentially different
     // payment gateway settings
     let mut events = order.events(connection)?;
     if events.len() != 1 {
-        return application::unprocessable(
-            "Can't currently handle more than one event at the moment",
-        );
+        return application::unprocessable("Can't currently handle more than one event at the moment");
     };
 
     let event = events.remove(0);
 
-    let client =
-        service_locator.create_payment_processor(provider, &event.organization(connection)?)?;
+    let client = service_locator.create_payment_processor(provider, &event.organization(connection)?)?;
     match client.behavior() {
         PaymentProcessorBehavior::RedirectToPaymentPage(behavior) => {
             return redirect_to_payment_page(&*behavior, &auth_user.user, order, conn.get(), config);
@@ -575,11 +490,7 @@ fn checkout_payment_processor(
         PaymentProcessorBehavior::AuthThenComplete(behavior) => {
             let token = if use_stored_payment {
                 info!("CART: Using stored payment");
-                match auth_user
-                    .user
-                    .payment_method(provider, connection)
-                    .optional()?
-                {
+                match auth_user.user.payment_method(provider, connection).optional()? {
                     Some(payment_method) => payment_method.provider,
                     None => {
                         return application::unprocessable(
@@ -592,19 +503,13 @@ fn checkout_payment_processor(
                 let token = match token {
                     Some(t) => t,
                     None => {
-                        return application::unprocessable(
-                            "Could not complete this cart because no token provided",
-                        );
+                        return application::unprocessable("Could not complete this cart because no token provided");
                     }
                 };
 
                 if save_payment_method {
                     info!("CART: User has requested to save the payment method");
-                    match auth_user
-                        .user
-                        .payment_method(provider, connection)
-                        .optional()?
-                    {
+                    match auth_user.user.payment_method(provider, connection).optional()? {
                         Some(payment_method) => {
                             let behavior = match client.behavior() {
                                     PaymentProcessorBehavior::AuthThenComplete(b) => b,
@@ -612,19 +517,12 @@ fn checkout_payment_processor(
                                         "Could not complete this cart using saved payment methods is not supported for this payment processor",
                                     )
                                 };
-                            let client_response = behavior.update_repeat_token(
-                                &payment_method.provider,
-                                token,
-                                "Big Neon something",
-                            )?;
+                            let client_response =
+                                behavior.update_repeat_token(&payment_method.provider, token, "Big Neon something")?;
                             let payment_method_parameters = PaymentMethodEditableAttributes {
                                 provider_data: Some(client_response.to_json()?),
                             };
-                            payment_method.update(
-                                &payment_method_parameters,
-                                auth_user.id(),
-                                connection,
-                            )?;
+                            payment_method.update(&payment_method_parameters, auth_user.id(), connection)?;
 
                             payment_method.provider
                         }
@@ -635,8 +533,7 @@ fn checkout_payment_processor(
                                         "Could not complete this cart using saved payment methods is not supported for this payment processor",
                                     )
                                 };
-                            let repeat_token =
-                                behavior.create_token_for_repeat_charges(token, "Big Neon")?;
+                            let repeat_token = behavior.create_token_for_repeat_charges(token, "Big Neon")?;
                             let _payment_method = PaymentMethod::create(
                                 auth_user.id(),
                                 provider,
@@ -716,11 +613,7 @@ fn auth_then_complete(
         Ok(_) => {
             let mut order = Order::find(order.id, connection)?;
             order.set_user_agent(request_info.user_agent.clone(), true, connection)?;
-            Ok(HttpResponse::Ok().json(json!(order.for_display(
-                None,
-                auth_user.id(),
-                connection
-            )?)))
+            Ok(HttpResponse::Ok().json(json!(order.for_display(None, auth_user.id(), connection)?)))
         }
         Err(e) => {
             payment_processor.refund(&auth_result.id)?;
@@ -764,12 +657,7 @@ fn redirect_to_payment_page(
 
     jlog!(Info, &format!("{} payment created", client.payment_provider()), {"order_id": order.id, "payment_provider_id": response.id});
 
-    order.add_checkout_url(
-        user.id,
-        response.redirect_url.clone(),
-        response.expires_at,
-        conn,
-    )?;
+    order.add_checkout_url(user.id, response.redirect_url.clone(), response.expires_at, conn)?;
 
     let external_reference = format!("globee-{}", response.id);
 

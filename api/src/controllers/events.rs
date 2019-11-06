@@ -17,6 +17,7 @@ use serde_json::Value;
 use serde_with::{self, CommaSeparator};
 use server::AppState;
 use std::collections::HashMap;
+use utils::cloudinary::optimize_cloudinary;
 use utils::ServiceLocator;
 use uuid::Uuid;
 
@@ -27,15 +28,9 @@ pub struct SearchParameters {
     region_id: Option<Uuid>,
     organization_id: Option<Uuid>,
     venue_id: Option<Uuid>,
-    #[serde(
-        default,
-        with = "serde_with::rust::StringWithSeparator::<CommaSeparator>"
-    )]
+    #[serde(default, with = "serde_with::rust::StringWithSeparator::<CommaSeparator>")]
     genres: Vec<String>,
-    #[serde(
-        default,
-        with = "serde_with::rust::StringWithSeparator::<CommaSeparator>"
-    )]
+    #[serde(default, with = "serde_with::rust::StringWithSeparator::<CommaSeparator>")]
     status: Vec<EventStatus>,
     start_utc: Option<NaiveDateTime>,
     end_utc: Option<NaiveDateTime>,
@@ -84,25 +79,145 @@ impl From<SearchParameters> for Paging {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct EventExportData {
+    pub id: Uuid,
+    pub name: String,
+    pub organization_id: Uuid,
+    pub venue: Option<VenueInfo>,
+    pub created_at: NaiveDateTime,
+    pub event_start: Option<NaiveDateTime>,
+    pub door_time: Option<NaiveDateTime>,
+    pub event_end: Option<NaiveDateTime>,
+    pub status: EventStatus,
+    pub promo_image_url: Option<String>,
+    pub additional_info: Option<String>,
+    pub top_line_info: Option<String>,
+    pub age_limit: Option<String>,
+    pub cancelled_at: Option<NaiveDateTime>,
+    pub min_ticket_price: Option<u32>,
+    pub max_ticket_price: Option<u32>,
+    pub publish_date: Option<NaiveDateTime>,
+    pub on_sale: Option<NaiveDateTime>,
+    pub total_tickets: u32,
+    pub sold_unreserved: Option<u32>,
+    pub sold_held: Option<u32>,
+    pub tickets_open: u32,
+    pub tickets_held: u32,
+    pub tickets_redeemed: u32,
+    pub ticket_types: Vec<EventExportTicketType>,
+    pub is_external: bool,
+    pub external_url: Option<String>,
+    pub localized_times: EventLocalizedTimeStrings,
+    pub event_type: EventTypes,
+    pub slug: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct EventExportTicketType {
+    pub event_id: Uuid,
+    pub name: String,
+    pub status: TicketTypeStatus,
+    pub min_price: i64,
+    pub max_price: i64,
+    pub total: i64,
+    pub sold_unreserved: Option<i64>,
+    pub sold_held: Option<i64>,
+    pub open: i64,
+    pub held: i64,
+    pub redeemed: i64,
+}
+
+impl From<EventSummaryResult> for EventExportData {
+    fn from(e: EventSummaryResult) -> EventExportData {
+        EventExportData {
+            id: e.id,
+            name: e.name.clone(),
+            organization_id: e.organization_id,
+            venue: e.venue.clone(),
+            created_at: e.created_at,
+            event_start: e.event_start,
+            door_time: e.door_time,
+            event_end: e.event_end,
+            status: e.status,
+            promo_image_url: e.promo_image_url.clone(),
+            additional_info: e.additional_info.clone(),
+            top_line_info: e.top_line_info.clone(),
+            age_limit: e.age_limit.clone(),
+            cancelled_at: e.cancelled_at,
+            min_ticket_price: e.min_ticket_price,
+            max_ticket_price: e.max_ticket_price,
+            publish_date: e.publish_date,
+            on_sale: e.on_sale,
+            total_tickets: e.total_tickets,
+            sold_unreserved: e.sold_unreserved,
+            sold_held: e.sold_held,
+            tickets_open: e.tickets_open,
+            tickets_held: e.tickets_held,
+            tickets_redeemed: e.tickets_redeemed,
+            ticket_types: e.ticket_types.clone().into_iter().map(|tt| tt.into()).collect(),
+            is_external: e.is_external,
+            external_url: e.external_url.clone(),
+            localized_times: e.localized_times.clone(),
+            event_type: e.event_type.clone(),
+            slug: e.slug.clone(),
+        }
+    }
+}
+
+impl From<EventSummaryResultTicketType> for EventExportTicketType {
+    fn from(tt: EventSummaryResultTicketType) -> EventExportTicketType {
+        EventExportTicketType {
+            event_id: tt.event_id,
+            name: tt.name,
+            status: tt.status,
+            min_price: tt.min_price,
+            max_price: tt.max_price,
+            total: tt.total,
+            sold_unreserved: tt.sold_unreserved,
+            sold_held: tt.sold_held,
+            open: tt.open,
+            held: tt.held,
+            redeemed: tt.redeemed,
+        }
+    }
+}
+
+pub fn export_event_data(
+    (connection, path, paging, user): (Connection, Path<PathParameters>, Query<PagingParameters>, AuthUser),
+) -> Result<WebPayload<EventExportData>, BigNeonError> {
+    let conn = connection.get();
+    let organization = Organization::find(path.id, conn)?;
+    user.requires_scope_for_organization(Scopes::EventDataRead, &organization, conn)?;
+
+    let events = Event::find_all_events_for_organization(
+        path.id,
+        paging
+            .get_tag("past_or_upcoming")
+            .map(|past_or_upcoming| past_or_upcoming.parse().unwrap_or(PastOrUpcoming::Upcoming)),
+        None,
+        true,
+        paging.page(),
+        paging.limit(),
+        conn,
+    )?;
+
+    let export_data: Vec<EventExportData> = events.data.into_iter().map(|e| e.into()).collect();
+    Ok(WebPayload::new(
+        StatusCode::OK,
+        Payload::from_data(export_data, paging.page(), paging.limit()),
+    ))
+}
+
 /**
  * What events does this user have authority to check in
 **/
 pub fn checkins(
-    (conn, query, auth_user, state): (
-        Connection,
-        Query<SearchParameters>,
-        AuthUser,
-        State<AppState>,
-    ),
+    (conn, query, auth_user, state): (Connection, Query<SearchParameters>, AuthUser, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let events = auth_user.user.find_events_with_access_to_scan(conn.get())?;
     let mut payload = Payload::new(
-        EventVenueEntry::event_venues_from_events(
-            events,
-            Some(auth_user.user),
-            &state,
-            conn.get(),
-        )?,
+        EventVenueEntry::event_venues_from_events(events, Some(auth_user.user), &state, conn.get())?,
         query.into_inner().into(),
     );
     payload.paging.total = payload.data.len() as u64;
@@ -121,9 +236,7 @@ pub fn index(
     let connection = connection.get();
     let query = query.into_inner();
     let paging = query.clone().into();
-    let user = auth_user
-        .into_inner()
-        .and_then(|auth_user| Some(auth_user.user));
+    let user = auth_user.into_inner().and_then(|auth_user| Some(auth_user.user));
 
     let past_or_upcoming = match query
         .past_or_upcoming
@@ -135,12 +248,7 @@ pub fn index(
         _ => PastOrUpcoming::Upcoming,
     };
 
-    let sort_field = match query
-        .sort
-        .clone()
-        .unwrap_or("event_start".to_string())
-        .as_str()
-    {
+    let sort_field = match query.sort.clone().unwrap_or("event_start".to_string()).as_str() {
         "event_start" => EventSearchSortField::EventStart,
         "name" => EventSearchSortField::Name,
         _ => EventSearchSortField::EventStart,
@@ -209,9 +317,7 @@ pub fn show(
         Err(_) => {
             // Backwards compatibility for existing links
             let slugs = Slug::find_by_slug(&parameters.id, connection)?;
-            if slugs.is_empty()
-                || (slugs[0].main_table != Tables::Events || slugs[0].slug_type != SlugTypes::Event)
-            {
+            if slugs.is_empty() || (slugs[0].main_table != Tables::Events || slugs[0].slug_type != SlugTypes::Event) {
                 return application::not_found();
             }
 
@@ -219,37 +325,24 @@ pub fn show(
         }
     };
 
-    let (event, organization, venue, fee_schedule) =
-        Event::find_incl_org_venue_fees(event_id, connection)?;
+    let (event, organization, venue, fee_schedule) = Event::find_incl_org_venue_fees(event_id, connection)?;
 
     if event.private_access_code.is_some()
         && !(query.private_access_code.is_some()
-            && event.private_access_code.clone().unwrap()
-                == query.private_access_code.clone().unwrap().to_lowercase())
+            && event.private_access_code.clone().unwrap() == query.private_access_code.clone().unwrap().to_lowercase())
     {
         match user {
-            Some(ref user) => user.requires_scope_for_organization(
-                Scopes::OrgReadEvents,
-                &organization,
-                connection,
-            )?,
+            Some(ref user) => user.requires_scope_for_organization(Scopes::OrgReadEvents, &organization, connection)?,
             None => {
-                return application::unauthorized_with_message(
-                    "Unauthorized access of private event",
-                    None,
-                    None,
-                );
+                return application::unauthorized_with_message("Unauthorized access of private event", None, None);
             }
         }
     };
 
     let user_has_privileges = match user {
-        Some(ref user) => user.has_scope_for_organization_event(
-            Scopes::EventWrite,
-            &organization,
-            event.id,
-            connection,
-        )?,
+        Some(ref user) => {
+            user.has_scope_for_organization_event(Scopes::EventWrite, &organization, event.id, connection)?
+        }
         None => false,
     };
 
@@ -273,23 +366,16 @@ pub fn show(
     let box_office_pricing = query.box_office_pricing.unwrap_or(false);
     if box_office_pricing {
         match user {
-            Some(ref user) => user.requires_scope_for_organization(
-                Scopes::BoxOfficeTicketRead,
-                &organization,
-                connection,
-            )?,
+            Some(ref user) => {
+                user.requires_scope_for_organization(Scopes::BoxOfficeTicketRead, &organization, connection)?
+            }
             None => {
-                return application::unauthorized_with_message(
-                    "Cannot access box office pricing",
-                    None,
-                    None,
-                );
+                return application::unauthorized_with_message("Cannot access box office pricing", None, None);
             }
         }
     }
 
-    let ticket_types =
-        TicketType::find_by_event_id(event.id, true, query.redemption_code.clone(), connection)?;
+    let ticket_types = TicketType::find_by_event_id(event.id, true, query.redemption_code.clone(), connection)?;
     let mut display_ticket_types = Vec::new();
     let mut sales_start_date = Some(times::infinity());
     let mut limited_tickets_remaining: Vec<TicketsRemaining> = Vec::new();
@@ -334,15 +420,11 @@ pub fn show(
             )?;
 
             // Only show private ticket types via holds
-            if ticket_type.visibility == TicketTypeVisibility::Hidden
-                && display_ticket_type.redemption_code.is_none()
-            {
+            if ticket_type.visibility == TicketTypeVisibility::Hidden && display_ticket_type.redemption_code.is_none() {
                 continue;
             }
 
-            if sales_start_date.unwrap()
-                > ticket_type.start_date.clone().unwrap_or(times::infinity())
-            {
+            if sales_start_date.unwrap() > ticket_type.start_date.clone().unwrap_or(times::infinity()) {
                 sales_start_date = ticket_type.start_date.clone();
             }
 
@@ -370,37 +452,25 @@ pub fn show(
         }
     }
 
-    let mut tracking_keys = Organization::tracking_keys_for_ids(
-        vec![organization.id],
-        &state.config.api_keys_encryption_key,
-        connection,
-    )?
-    .get(&organization.id)
-    .unwrap_or(&TrackingKeys {
-        ..Default::default()
-    })
-    .clone();
+    let mut tracking_keys =
+        Organization::tracking_keys_for_ids(vec![organization.id], &state.config.api_keys_encryption_key, connection)?
+            .get(&organization.id)
+            .unwrap_or(&TrackingKeys { ..Default::default() })
+            .clone();
 
     if let Some(ref pixel) = event.facebook_pixel_key {
         tracking_keys.facebook_pixel_key = Some(pixel.to_string());
     }
 
-    let (min_ticket_price, max_ticket_price) = if event.publish_date.unwrap_or(times::infinity())
-        < dates::now().finish()
-        || user_has_privileges
-    {
-        event.current_ticket_pricing_range(box_office_pricing, connection)?
-    } else {
-        (None, None)
-    };
+    let (min_ticket_price, max_ticket_price) =
+        if event.publish_date.unwrap_or(times::infinity()) < dates::now().finish() || user_has_privileges {
+            event.current_ticket_pricing_range(box_office_pricing, connection)?
+        } else {
+            (None, None)
+        };
     // Show private access code to any admin with write access
     let show_private_access_code = if let Some(user) = user {
-        user.has_scope_for_organization_event(
-            Scopes::EventWrite,
-            &organization,
-            event.id,
-            connection,
-        )?
+        user.has_scope_for_organization_event(Scopes::EventWrite, &organization, event.id, connection)?
     } else {
         false
     };
@@ -431,7 +501,8 @@ pub fn show(
         fee_in_cents,
         status: event.status,
         publish_date: event.publish_date,
-        promo_image_url: event.promo_image_url,
+        promo_image_url: optimize_cloudinary(&event.promo_image_url),
+        original_promo_image_url: event.promo_image_url,
         cover_image_url: event.cover_image_url,
         additional_info: event.additional_info,
         top_line_info: event.top_line_info,
@@ -463,13 +534,9 @@ pub fn show(
         url: format!("{}/tickets/{}", &state.config.front_end_url, &slug),
         slug,
         facebook_pixel_key: event.facebook_pixel_key,
-        extra_admin_data: event.extra_admin_data.and_then(|data| {
-            if user_has_privileges {
-                Some(data)
-            } else {
-                None
-            }
-        }),
+        extra_admin_data: event
+            .extra_admin_data
+            .and_then(|data| if user_has_privileges { Some(data) } else { None }),
     };
 
     Ok(HttpResponse::Ok().json(&payload))
@@ -480,12 +547,7 @@ pub fn publish(
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::EventWrite,
-        &event.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::EventWrite, &event.organization(conn)?, &event, conn)?;
     event.publish(Some(user.id()), conn)?;
 
     Ok(HttpResponse::Ok().finish())
@@ -496,12 +558,7 @@ pub fn unpublish(
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::EventWrite,
-        &event.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::EventWrite, &event.organization(conn)?, &event, conn)?;
     event.unpublish(Some(user.id()), conn)?;
     Ok(HttpResponse::Ok().finish())
 }
@@ -521,21 +578,11 @@ pub fn redeem_ticket(
     ),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
-    let ticket = TicketInstance::find_for_processing(
-        parameters.ticket_instance_id,
-        parameters.id,
-        connection,
-    )?;
+    let ticket = TicketInstance::find_for_processing(parameters.ticket_instance_id, parameters.id, connection)?;
     let db_event = Event::find(ticket.event_id, connection)?;
     let organization = db_event.organization(connection)?;
-    auth_user.requires_scope_for_organization_event(
-        Scopes::RedeemTicket,
-        &organization,
-        &db_event,
-        connection,
-    )?;
-    let redeemable =
-        TicketInstance::show_redeemable_ticket(parameters.ticket_instance_id, connection)?;
+    auth_user.requires_scope_for_organization_event(Scopes::RedeemTicket, &organization, &db_event, connection)?;
+    let redeemable = TicketInstance::show_redeemable_ticket(parameters.ticket_instance_id, connection)?;
 
     let result = TicketInstance::redeem_ticket(
         ticket.id,
@@ -576,12 +623,7 @@ pub fn redeem_ticket(
 }
 
 pub fn show_from_organizations(
-    (connection, path, paging, user): (
-        Connection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-        AuthUser,
-    ),
+    (connection, path, paging, user): (Connection, Path<PathParameters>, Query<PagingParameters>, AuthUser),
 ) -> Result<WebPayload<EventSummaryResult>, BigNeonError> {
     let conn = connection.get();
     let org = Organization::find(path.id, conn)?;
@@ -590,10 +632,12 @@ pub fn show_from_organizations(
     let user_roles = org.get_roles_for_user(&user.user, conn)?;
     let mut events = Event::find_all_events_for_organization(
         path.id,
-        paging
-            .get_tag("past_or_upcoming")
-            .unwrap_or_else(|| "Upcoming".to_string())
-            .parse()?,
+        Some(
+            paging
+                .get_tag("past_or_upcoming")
+                .unwrap_or_else(|| "Upcoming".to_string())
+                .parse()?,
+        ),
         if Roles::get_event_limited_roles()
             .iter()
             .find(|r| user_roles.contains(&r))
@@ -603,6 +647,7 @@ pub fn show_from_organizations(
         } else {
             None
         },
+        false,
         paging.page(),
         paging.limit(),
         conn,
@@ -640,21 +685,11 @@ pub struct DashboardResult {
 }
 
 pub fn dashboard(
-    (connection, path, query, user): (
-        Connection,
-        Path<PathParameters>,
-        Query<DashboardParameters>,
-        AuthUser,
-    ),
+    (connection, path, query, user): (Connection, Path<PathParameters>, Query<DashboardParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::DashboardRead,
-        &event.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::DashboardRead, &event.organization(conn)?, &event, conn)?;
     let summary = event.summary(conn)?;
     let end_utc = match query.end_utc {
         Some(end_utc) => end_utc,
@@ -709,12 +744,7 @@ pub fn update(
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::EventWrite,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::EventWrite, &organization, &event, connection)?;
 
     let event_parameters = event_parameters.into_inner();
     // Not sure about this at this time, we don't want to have 404's on the old URL
@@ -747,12 +777,7 @@ pub fn delete(
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::EventDelete,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::EventDelete, &organization, &event, connection)?;
 
     event.delete(user.id(), connection)?;
     Ok(HttpResponse::Ok().json({}))
@@ -764,12 +789,7 @@ pub fn cancel(
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::EventCancel,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::EventCancel, &organization, &event, connection)?;
 
     //Doing this in the DB layer so it can use the DB time as now.
     let updated_event = event.cancel(Some(user.id()), connection)?;
@@ -778,12 +798,7 @@ pub fn cancel(
 }
 
 pub fn list_interested_users(
-    (connection, path_parameters, query, user): (
-        Connection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-        AuthUser,
-    ),
+    (connection, path_parameters, query, user): (Connection, Path<PathParameters>, Query<PagingParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::EventInterest)?;
 
@@ -821,22 +836,12 @@ pub fn remove_interest(
 }
 
 pub fn add_artist(
-    (connection, parameters, event_artist, user): (
-        Connection,
-        Path<PathParameters>,
-        Json<AddArtistRequest>,
-        AuthUser,
-    ),
+    (connection, parameters, event_artist, user): (Connection, Path<PathParameters>, Json<AddArtistRequest>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::EventWrite,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::EventWrite, &organization, &event, connection)?;
 
     let event_artist = EventArtist::create(
         parameters.id,
@@ -886,12 +891,7 @@ pub fn update_artists(
     let connection = connection.get();
     let event = Event::find(parameters.id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::EventWrite,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::EventWrite, &organization, &event, connection)?;
 
     EventArtist::clear_all_from_event(parameters.id, connection)?;
 
@@ -900,15 +900,8 @@ pub fn update_artists(
 
     for a in &artists.into_inner().artists {
         added_artists.push(
-            EventArtist::create(
-                parameters.id,
-                a.artist_id,
-                rank,
-                a.set_time,
-                a.importance,
-                a.stage_id,
-            )
-            .commit(Some(user.id()), connection)?,
+            EventArtist::create(parameters.id, a.artist_id, rank, a.set_time, a.importance, a.stage_id)
+                .commit(Some(user.id()), connection)?,
         );
         rank += 1;
     }
@@ -975,12 +968,7 @@ pub fn guest_list(
     //TODO refactor GuestListQueryParameters to PagingParameters
     let conn = connection.get();
     let event = Event::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::EventViewGuests,
-        &event.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::EventViewGuests, &event.organization(conn)?, &event, conn)?;
 
     let query_string = query.clone().query;
     let changes_since = query.clone().changes_since;
@@ -1009,9 +997,10 @@ pub fn guest_list(
 
         tickets_refund.push(TicketRefundable {
             ticket: t.ticket.clone(),
-            pending_transfer: t.pending_transfer.clone().unwrap_or(PendingTransfer {
-                ..Default::default()
-            }),
+            pending_transfer: t
+                .pending_transfer
+                .clone()
+                .unwrap_or(PendingTransfer { ..Default::default() }),
             refund_supported: refundable,
         });
     }
@@ -1023,21 +1012,11 @@ pub fn guest_list(
 }
 
 pub fn codes(
-    (conn, query, path, user): (
-        Connection,
-        Query<PagingParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (conn, query, path, user): (Connection, Query<PagingParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let event = Event::find(path.id, conn)?;
-    user.requires_scope_for_organization_event(
-        Scopes::CodeRead,
-        &event.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::CodeRead, &event.organization(conn)?, &event, conn)?;
 
     let mut code_type: Option<CodeTypes> = None;
     if let Some(value) = query.tags.get("type") {
@@ -1053,12 +1032,7 @@ pub fn codes(
 }
 
 pub fn holds(
-    (conn, query, path, user): (
-        Connection,
-        Query<PagingParameters>,
-        Path<PathParameters>,
-        AuthUser,
-    ),
+    (conn, query, path, user): (Connection, Query<PagingParameters>, Path<PathParameters>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let event = Event::find(path.id, conn)?;
@@ -1118,9 +1092,7 @@ pub fn holds(
             hold_type: hold.hold_type,
             ticket_type_id: hold.ticket_type_id,
             ticket_type_name: ticket_type.name.clone(),
-            price_in_cents: current_ticket_pricing
-                .clone()
-                .map(|tp| tp.price_in_cents as u32),
+            price_in_cents: current_ticket_pricing.clone().map(|tp| tp.price_in_cents as u32),
             available,
             quantity,
             children_available,
@@ -1189,15 +1161,9 @@ pub fn remove_user(
     let connection = connection.get();
     let event = Event::find(path.id, connection)?;
     let organization = event.organization(connection)?;
-    user.requires_scope_for_organization_event(
-        Scopes::OrgUsers,
-        &organization,
-        &event,
-        connection,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::OrgUsers, &organization, &event, connection)?;
 
-    let event_user =
-        EventUser::find_by_event_id_user_id(event.id, path.user_id, connection).optional()?;
+    let event_user = EventUser::find_by_event_id_user_id(event.id, path.user_id, connection).optional()?;
     match event_user {
         Some(event_user) => {
             event_user.destroy(connection)?;
@@ -1233,18 +1199,14 @@ pub fn create_link(
     let conn = conn.get();
     let event = Event::find(path.id, conn)?;
 
-    user.requires_scope_for_organization_event(
-        Scopes::EventWrite,
-        &event.organization(conn)?,
-        &event,
-        conn,
-    )?;
+    user.requires_scope_for_organization_event(Scopes::EventWrite, &event.organization(conn)?, &event, conn)?;
 
     let query = query.into_inner();
+    let slug = event.slug(conn).unwrap_or(path.id.to_string());
     let long_link = format!(
-        "{}/events/{}/tickets?utm_source={}&utm_medium={}&utm_campaign={}&utm_term={}&utm_content={}",
+        "{}/tickets/{}?utm_source={}&utm_medium={}&utm_campaign={}&utm_term={}&utm_content={}",
         state.config.front_end_url,
-        path.id,
+        slug,
         query.source.as_ref().unwrap_or(&"".to_string()),
         query.medium.as_ref().unwrap_or(&"".to_string()),
         query.campaign.as_ref().unwrap_or(&"".to_string()),

@@ -179,8 +179,7 @@ fn find_for_table() {
     );
 
     // Pagination support
-    let pagination_result =
-        Note::find_for_table(Tables::Orders, order2.id, false, 0, 1, connection).unwrap();
+    let pagination_result = Note::find_for_table(Tables::Orders, order2.id, false, 0, 1, connection).unwrap();
     assert_eq!(vec![note2], pagination_result.data);
     assert_eq!(2, pagination_result.paging.total);
 

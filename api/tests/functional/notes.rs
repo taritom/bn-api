@@ -171,11 +171,7 @@ mod destroy_tests {
 fn create_with_validation_errors() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
-    let organization = database
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = database.create_organization().with_event_fee().with_fees().finish();
     let event = database
         .create_event()
         .with_organization(&organization)
@@ -184,27 +180,20 @@ fn create_with_validation_errors() {
         .finish();
 
     let order = database.create_order().for_event(&event).is_paid().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgAdmin, Some(&organization), &database);
 
-    let json = Json(NewNoteRequest {
-        note: "".to_string(),
-    });
+    let json = Json(NewNoteRequest { note: "".to_string() });
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["main_table", "id"]);
     let mut path = Path::<MainTablePathParameters>::extract(&test_request.request).unwrap();
     path.id = order.id;
     path.main_table = Tables::Orders.to_string();
 
-    let response: HttpResponse =
-        notes::create((database.connection.into(), path, json, auth_user)).into();
+    let response: HttpResponse = notes::create((database.connection.into(), path, json, auth_user)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let note = validation_response.fields.get("note").unwrap();
     assert_eq!(note[0].code, "length");
-    assert_eq!(
-        &note[0].message.clone().unwrap().into_owned(),
-        "Note cannot be blank"
-    );
+    assert_eq!(&note[0].message.clone().unwrap().into_owned(), "Note cannot be blank");
 }

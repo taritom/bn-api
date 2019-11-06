@@ -81,10 +81,7 @@ pub fn send_email_template(
     unique_args: Option<HashMap<String, String>>,
 ) -> Result<(), BigNeonError> {
     if dest_email_addresses.len() != template_data.len() {
-        return Err(ApplicationError::new(
-            "Destination addresses mismatched with template data".to_string(),
-        )
-        .into());
+        return Err(ApplicationError::new("Destination addresses mismatched with template data".to_string()).into());
     }
     let mut sg_message = SGMailMessage::new();
     sg_message.from = SGEmail::from(source_email_address);
@@ -121,10 +118,7 @@ pub fn send_email_template_async(
 ) -> Box<dyn Future<Item = (), Error = BigNeonError>> {
     Box::new(if dest_email_addresses.len() != template_data.len() {
         Either::A(future::err(
-            ApplicationError::new(
-                "Destination addresses mismatched with template data".to_string(),
-            )
-            .into(),
+            ApplicationError::new("Destination addresses mismatched with template data".to_string()).into(),
         ))
     } else {
         let mut sg_message = SGMailMessage::new();
@@ -300,10 +294,7 @@ mod tests {
     pub fn serialize_empty_mail_message() {
         let test_msg = SGMailMessage::new();
         let actual = json!(test_msg).to_string();
-        assert_eq!(
-            r#"{"content":[],"from":{"email":""},"personalizations":[]}"#,
-            actual
-        );
+        assert_eq!(r#"{"content":[],"from":{"email":""},"personalizations":[]}"#, actual);
     }
 
     #[test]

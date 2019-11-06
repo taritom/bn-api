@@ -3,10 +3,7 @@ use std::borrow::Cow;
 use validator::ValidationError;
 use validators::*;
 
-pub fn start_date_valid(
-    start_date: NaiveDateTime,
-    end_date: NaiveDateTime,
-) -> Result<(), ValidationError> {
+pub fn start_date_valid(start_date: NaiveDateTime, end_date: NaiveDateTime) -> Result<(), ValidationError> {
     if start_date > end_date {
         let mut validation_error = create_validation_error(
             "start_date_must_be_before_end_date",

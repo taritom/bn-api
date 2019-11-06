@@ -50,12 +50,7 @@ pub struct Metatags {
 }
 
 impl Metatags {
-    pub fn new(
-        trigger_header: String,
-        trigger_value: String,
-        front_end_url: String,
-        app_name: String,
-    ) -> Metatags {
+    pub fn new(trigger_header: String, trigger_value: String, front_end_url: String, app_name: String) -> Metatags {
         Metatags {
             trigger_header,
             trigger_value,
@@ -84,8 +79,7 @@ impl Middleware<AppState> for Metatags {
                         data_to_use = match resp.body() {
                             Binary(binary) => {
                                 let json =
-                                    serde_json::from_str(str::from_utf8(binary.as_ref()).unwrap())
-                                        .unwrap_or(None);
+                                    serde_json::from_str(str::from_utf8(binary.as_ref()).unwrap()).unwrap_or(None);
                                 if json.is_some() {
                                     Some(json.unwrap())
                                 } else {
@@ -131,24 +125,14 @@ impl Middleware<AppState> for Metatags {
                         HeaderValue::from_static(TEXT_HTML),
                     );
 
-                    let keys = vec![
-                        "creator",
-                        "description",
-                        "promo_image_url",
-                        "site_name",
-                        "title",
-                        "url",
-                    ];
+                    let keys = vec!["creator", "description", "promo_image_url", "site_name", "title", "url"];
 
                     let mut result = HTML_RESPONSE.to_string();
 
                     for key in keys.into_iter() {
                         let regex_expression = format!("%{}%", key);
                         let re = Regex::new(regex_expression.as_str()).unwrap();
-                        let value = values
-                            .get(key)
-                            .map(|v| v.to_string())
-                            .unwrap_or("".to_string());
+                        let value = values.get(key).map(|v| v.to_string()).unwrap_or("".to_string());
                         result = re
                             .replace_all(result.as_str(), |_caps: &Captures| format!("{}", value))
                             .to_string();

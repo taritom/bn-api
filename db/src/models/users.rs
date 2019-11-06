@@ -118,6 +118,12 @@ pub struct AttendanceInformation {
     pub event_start: Option<NaiveDateTime>,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct UserTransferActivitySummary {
+    pub event: DisplayEvent,
+    pub ticket_activity_items: HashMap<Uuid, Vec<ActivityItem>>,
+}
+
 impl PartialOrd for User {
     fn partial_cmp(&self, other: &User) -> Option<Ordering> {
         Some(self.id.cmp(&other.id))
@@ -125,11 +131,7 @@ impl PartialOrd for User {
 }
 
 impl NewUser {
-    pub fn commit(
-        &self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<User, DatabaseError> {
+    pub fn commit(&self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<User, DatabaseError> {
         self.validate()?;
         let user: User = diesel::insert_into(users::table)
             .values(self)
@@ -144,10 +146,7 @@ impl NewUser {
 }
 
 impl User {
-    pub fn all(
-        paging: &PagingParameters,
-        conn: &PgConnection,
-    ) -> Result<(Vec<User>, i64), DatabaseError> {
+    pub fn all(paging: &PagingParameters, conn: &PgConnection) -> Result<(Vec<User>, i64), DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Unable to load all users",
@@ -315,23 +314,12 @@ impl User {
             role: vec![Roles::User],
         };
         new_user.commit(current_user_id, conn).and_then(|user| {
-            user.add_external_login(
-                current_user_id,
-                external_user_id,
-                site,
-                access_token,
-                scopes,
-                conn,
-            )?;
+            user.add_external_login(current_user_id, external_user_id, site, access_token, scopes, conn)?;
             Ok(user)
         })
     }
 
-    pub fn login_domain_event(
-        &self,
-        json: Value,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn login_domain_event(&self, json: Value, conn: &PgConnection) -> Result<(), DatabaseError> {
         DomainEvent::create(
             DomainEventTypes::UserLogin,
             "User login".to_string(),
@@ -352,8 +340,89 @@ impl User {
         current_user_id: Option<Uuid>,
         conn: &PgConnection,
     ) -> Result<User, DatabaseError> {
-        Self::new_stub(Some(first_name), Some(last_name), email, phone)
-            .commit(current_user_id, conn)
+        Self::new_stub(Some(first_name), Some(last_name), email, phone).commit(current_user_id, conn)
+    }
+
+    pub fn transfer_activity_by_event_tickets(
+        &self,
+        page: u32,
+        limit: u32,
+        sort_direction: SortingDir,
+        past_or_upcoming: PastOrUpcoming,
+        conn: &PgConnection,
+    ) -> Result<Payload<UserTransferActivitySummary>, DatabaseError> {
+        use schema::*;
+        let (start_time, end_time) = Event::dates_by_past_or_upcoming(None, None, past_or_upcoming);
+
+        let (events, total): (Vec<Event>, i64) = transfers::table
+            .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
+            .inner_join(ticket_instances::table.on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)))
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .filter(transfers::source_user_id.eq(self.id))
+            .filter(events::event_end.ge(start_time))
+            .filter(events::event_end.le(end_time))
+            .select(events::all_columns)
+            .distinct()
+            .order_by(sql::<()>(&format!("events.event_start {}", sort_direction)))
+            .paginate(page as i64)
+            .per_page(limit as i64)
+            .load_and_count_pages(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load transfer events for user")?;
+
+        let mut result: Vec<UserTransferActivitySummary> = Vec::new();
+        for event in events {
+            let mut ticket_activity_items: HashMap<Uuid, Vec<ActivityItem>> = HashMap::new();
+            let activity_items = ActivityItem::load_transfers(None, Some(event.id), Some(self.id), true, conn)?;
+
+            // For each activity item, associate with tickets associated
+            for activity_item in activity_items {
+                if let ActivityItem::Transfer { ref ticket_ids, .. } = activity_item {
+                    for ticket_id in ticket_ids {
+                        ticket_activity_items
+                            .entry(*ticket_id)
+                            .or_insert(Vec::new())
+                            .push(activity_item.clone())
+                    }
+                }
+            }
+
+            // Only retain activity where the transfer count of initiated is greater than that of the cancelled
+            ticket_activity_items.retain(|_, ai| {
+                ai.iter()
+                    .filter(|a| {
+                        if let ActivityItem::Transfer { action, .. } = a {
+                            action.as_str() == "Started"
+                        } else {
+                            false
+                        }
+                    })
+                    .count()
+                    > ai.iter()
+                        .filter(|a| {
+                            if let ActivityItem::Transfer { action, .. } = a {
+                                action.as_str() == "Cancelled"
+                            } else {
+                                false
+                            }
+                        })
+                        .count()
+            });
+            ticket_activity_items.retain(|_, ai| ai.len() > 0);
+            if ticket_activity_items.len() > 0 {
+                result.push(UserTransferActivitySummary {
+                    ticket_activity_items,
+                    event: event.for_display(conn)?,
+                });
+            }
+        }
+
+        let mut payload = Payload::new(result, Paging::new(page, limit));
+
+        payload.paging.total = total as u64;
+        payload.paging.dir = sort_direction;
+        Ok(payload)
     }
 
     pub fn activity(
@@ -590,10 +659,9 @@ impl User {
             revenue_in_cents: i64,
             total_rows: i64,
         }
-        let results: Vec<R> = query.get_results(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not load history for organization fan",
-        )?;
+        let results: Vec<R> = query
+            .get_results(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load history for organization fan")?;
 
         let paging = Paging::new(page, limit);
         let mut total: u64 = 0;
@@ -634,24 +702,20 @@ impl User {
             .left_join(transfer_tickets::table.on(transfers::id.eq(transfer_tickets::transfer_id)))
             .left_join(wallets::table.on(wallets::user_id.eq(users::id.nullable())))
             .left_join(
-                ticket_instances::table.on(transfer_tickets::ticket_instance_id
-                    .eq(ticket_instances::id)
-                    .or(ticket_instances::wallet_id.eq(wallets::id).and(
-                        ticket_instances::status.eq_any(vec![
-                            TicketInstanceStatus::Redeemed,
-                            TicketInstanceStatus::Purchased,
-                        ]),
-                    ))),
+                ticket_instances::table.on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id).or(
+                    ticket_instances::wallet_id.eq(wallets::id).and(
+                        ticket_instances::status
+                            .eq_any(vec![TicketInstanceStatus::Redeemed, TicketInstanceStatus::Purchased]),
+                    ),
+                )),
             )
             .left_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
             .left_join(ticket_types::table.on(ticket_types::id.eq(assets::ticket_type_id)))
             .left_join(
                 orders::table.on(orders::status.eq(OrderStatus::Paid).and(
-                    orders::on_behalf_of_user_id
-                        .eq(users::id.nullable())
-                        .or(orders::user_id
-                            .eq(users::id)
-                            .and(orders::on_behalf_of_user_id.is_null())),
+                    orders::on_behalf_of_user_id.eq(users::id.nullable()).or(orders::user_id
+                        .eq(users::id)
+                        .and(orders::on_behalf_of_user_id.is_null())),
                 )),
             )
             .left_join(order_items::table.on(orders::id.eq(order_items::order_id)))
@@ -712,19 +776,15 @@ impl User {
             revenue_in_cents: i64,
             event_count: i64,
         }
-        let result: R = query.get_result(conn).to_db_error(
-            ErrorCode::QueryError,
-            "Could not load profile for organization fan",
-        )?;
+        let result: R = query
+            .get_result(conn)
+            .to_db_error(ErrorCode::QueryError, "Could not load profile for organization fan")?;
 
         Ok(FanProfile {
             first_name: self.first_name.clone(),
             last_name: self.last_name.clone(),
             email: self.email.clone(),
-            facebook_linked: self
-                .find_external_login(FACEBOOK_SITE, conn)
-                .optional()?
-                .is_some(),
+            facebook_linked: self.find_external_login(FACEBOOK_SITE, conn).optional()?.is_some(),
             event_count: result.event_count as u32,
             revenue_in_cents: result.revenue_in_cents as u32,
             ticket_sales: result.ticket_sales as u32,
@@ -737,10 +797,7 @@ impl User {
         })
     }
 
-    pub fn attendance_information(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<AttendanceInformation>, DatabaseError> {
+    pub fn attendance_information(&self, conn: &PgConnection) -> Result<Vec<AttendanceInformation>, DatabaseError> {
         use schema::*;
         ticket_instances::table
             .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
@@ -771,10 +828,7 @@ impl User {
         )
     }
 
-    pub fn find_by_ids(
-        user_ids: &Vec<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Vec<User>, DatabaseError> {
+    pub fn find_by_ids(user_ids: &Vec<Uuid>, conn: &PgConnection) -> Result<Vec<User>, DatabaseError> {
         users::table
             .filter(users::id.eq_any(user_ids))
             .select(users::all_columns)
@@ -788,9 +842,7 @@ impl User {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading user",
-            users::table
-                .filter(users::email.eq(lower_email))
-                .first::<User>(conn),
+            users::table.filter(users::email.eq(lower_email)).first::<User>(conn),
         )
     }
 
@@ -798,9 +850,7 @@ impl User {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading user",
-            users::table
-                .filter(users::phone.eq(phone))
-                .first::<User>(conn),
+            users::table.filter(users::phone.eq(phone)).first::<User>(conn),
         )
     }
 
@@ -815,10 +865,7 @@ impl User {
                 .filter(users::email.eq(email.to_lowercase())),
         ))
         .get_result(conn)
-        .to_db_error(
-            ErrorCode::QueryError,
-            "Could not check if user email is unique",
-        )?;
+        .to_db_error(ErrorCode::QueryError, "Could not check if user email is unique")?;
 
         if email_in_use {
             let validation_error = create_validation_error("uniqueness", "Email is already in use");
@@ -828,11 +875,7 @@ impl User {
         Ok(Ok(()))
     }
 
-    fn validate_record(
-        &self,
-        update_attrs: &UserEditableAttributes,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    fn validate_record(&self, update_attrs: &UserEditableAttributes, conn: &PgConnection) -> Result<(), DatabaseError> {
         let mut validation_errors = update_attrs.validate();
 
         if let Some(ref email) = update_attrs.email {
@@ -856,14 +899,9 @@ impl User {
         lower_cased_attributes.email = lower_cased_attributes.email.map(|e| e.to_lowercase());
         self.validate_record(&lower_cased_attributes, conn)?;
 
-        let query =
-            diesel::update(self).set((&lower_cased_attributes, users::updated_at.eq(dsl::now)));
+        let query = diesel::update(self).set((&lower_cased_attributes, users::updated_at.eq(dsl::now)));
 
-        let result = DatabaseError::wrap(
-            ErrorCode::UpdateError,
-            "Error updating user",
-            query.get_result(conn),
-        )?;
+        let result = DatabaseError::wrap(ErrorCode::UpdateError, "Error updating user", query.get_result(conn))?;
 
         DomainEvent::create(
             DomainEventTypes::UserUpdated,
@@ -969,30 +1007,18 @@ impl User {
         Ok((events_by_organization, readonly_events_by_organization))
     }
 
-    pub fn get_roles_by_organization(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<HashMap<Uuid, Vec<Roles>>, DatabaseError> {
+    pub fn get_roles_by_organization(&self, conn: &PgConnection) -> Result<HashMap<Uuid, Vec<Roles>>, DatabaseError> {
         let mut roles_by_organization = HashMap::new();
         for organization in self.organizations(conn)? {
-            roles_by_organization.insert(
-                organization.id.clone(),
-                organization.get_roles_for_user(self, conn)?,
-            );
+            roles_by_organization.insert(organization.id.clone(), organization.get_roles_for_user(self, conn)?);
         }
         Ok(roles_by_organization)
     }
 
-    pub fn get_scopes_by_organization(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<HashMap<Uuid, Vec<Scopes>>, DatabaseError> {
+    pub fn get_scopes_by_organization(&self, conn: &PgConnection) -> Result<HashMap<Uuid, Vec<Scopes>>, DatabaseError> {
         let mut scopes_by_organization = HashMap::new();
         for organization in self.organizations(conn)? {
-            scopes_by_organization.insert(
-                organization.id,
-                organization.get_scopes_for_user(self, conn)?,
-            );
+            scopes_by_organization.insert(organization.id, organization.get_scopes_for_user(self, conn)?);
         }
 
         Ok(scopes_by_organization)
@@ -1003,10 +1029,7 @@ impl User {
             organizations::table
                 .order_by(organizations::name.asc())
                 .load::<Organization>(conn)
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Could not retrieve organizations for user",
-                )
+                .to_db_error(ErrorCode::QueryError, "Could not retrieve organizations for user")
         } else {
             organizations::table
                 .left_join(organization_users::table)
@@ -1014,32 +1037,19 @@ impl User {
                 .select(organizations::all_columns)
                 .order_by(organizations::name.asc())
                 .load::<Organization>(conn)
-                .to_db_error(
-                    ErrorCode::QueryError,
-                    "Could not retrieve organizations for user",
-                )
+                .to_db_error(ErrorCode::QueryError, "Could not retrieve organizations for user")
         }
     }
 
-    pub fn payment_methods(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<PaymentMethod>, DatabaseError> {
+    pub fn payment_methods(&self, conn: &PgConnection) -> Result<Vec<PaymentMethod>, DatabaseError> {
         PaymentMethod::find_for_user(self.id, None, conn)
     }
 
-    pub fn default_payment_method(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<PaymentMethod, DatabaseError> {
+    pub fn default_payment_method(&self, conn: &PgConnection) -> Result<PaymentMethod, DatabaseError> {
         PaymentMethod::find_default_for_user(self.id, conn)
     }
 
-    pub fn payment_method(
-        &self,
-        name: PaymentProviders,
-        conn: &PgConnection,
-    ) -> Result<PaymentMethod, DatabaseError> {
+    pub fn payment_method(&self, name: PaymentProviders, conn: &PgConnection) -> Result<PaymentMethod, DatabaseError> {
         let mut payment_methods = PaymentMethod::find_for_user(self.id, Some(name), conn)?;
         if payment_methods.is_empty() {
             Err(DatabaseError::new(
@@ -1051,11 +1061,7 @@ impl User {
         }
     }
 
-    fn update_role(
-        &self,
-        new_roles: Vec<Roles>,
-        conn: &PgConnection,
-    ) -> Result<User, DatabaseError> {
+    fn update_role(&self, new_roles: Vec<Roles>, conn: &PgConnection) -> Result<User, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update role for user",
@@ -1065,10 +1071,7 @@ impl User {
         )
     }
 
-    pub fn find_events_with_access_to_scan(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<Event>, DatabaseError> {
+    pub fn find_events_with_access_to_scan(&self, conn: &PgConnection) -> Result<Vec<Event>, DatabaseError> {
         let one_day_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::days(1));
         //Find all events that have their end_date that is >= 24 hours ago.
         let one_day_forward = NaiveDateTime::from(Utc::now().naive_utc() + Duration::days(1));
@@ -1109,11 +1112,7 @@ impl User {
         .join(" ")
     }
 
-    pub fn find_external_login(
-        &self,
-        site: &str,
-        conn: &PgConnection,
-    ) -> Result<ExternalLogin, DatabaseError> {
+    pub fn find_external_login(&self, site: &str, conn: &PgConnection) -> Result<ExternalLogin, DatabaseError> {
         ExternalLogin::find_for_site(self.id, site, conn)
     }
 
@@ -1126,8 +1125,7 @@ impl User {
         scopes: Vec<String>,
         conn: &PgConnection,
     ) -> Result<ExternalLogin, DatabaseError> {
-        ExternalLogin::create(external_user_id, site, self.id, access_token, scopes)
-            .commit(current_user_id, conn)
+        ExternalLogin::create(external_user_id, site, self.id, access_token, scopes).commit(current_user_id, conn)
     }
 
     pub fn add_or_replace_external_login(
@@ -1143,8 +1141,7 @@ impl User {
         if let Some(login) = external_login {
             login.delete(current_user_id, conn)?;
         };
-        ExternalLogin::create(external_user_id, site, self.id, access_token, scopes)
-            .commit(current_user_id, conn)
+        ExternalLogin::create(external_user_id, site, self.id, access_token, scopes).commit(current_user_id, conn)
     }
 
     pub fn wallets(&self, conn: &PgConnection) -> Result<Vec<Wallet>, DatabaseError> {
@@ -1155,11 +1152,7 @@ impl User {
         Wallet::find_default_for_user(self.id, conn)
     }
 
-    pub fn update_last_cart(
-        &self,
-        new_cart_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn update_last_cart(&self, new_cart_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         // diesel does not have any easy way of handling "last_cart_id is null OR last_cart_id = 'x'"
         let query = if self.last_cart_id.is_none() {
             diesel::update(
@@ -1179,26 +1172,20 @@ impl User {
             .into_boxed()
         };
         let rows_affected = query
-            .set((
-                users::last_cart_id.eq(new_cart_id),
-                users::updated_at.eq(dsl::now),
-            ))
+            .set((users::last_cart_id.eq(new_cart_id), users::updated_at.eq(dsl::now)))
             .execute(conn)
             .to_db_error(ErrorCode::UpdateError, "Could not update last cart on user")?;
 
         match rows_affected {
-        1 => {
-           Ok(())
-        },
+            1 => Ok(()),
 
-        _ => DatabaseError::concurrency_error("Could not update last cart on user because the row has been changed by another source")
-    }
+            _ => DatabaseError::concurrency_error(
+                "Could not update last cart on user because the row has been changed by another source",
+            ),
+        }
     }
 
-    pub fn push_notification_tokens(
-        &self,
-        conn: &PgConnection,
-    ) -> Result<Vec<PushNotificationToken>, DatabaseError> {
+    pub fn push_notification_tokens(&self, conn: &PgConnection) -> Result<Vec<PushNotificationToken>, DatabaseError> {
         PushNotificationToken::find_by_user_id(self.id, conn)
     }
 }

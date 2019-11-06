@@ -98,12 +98,7 @@ pub fn index_for_all_orgs(
 }
 
 pub fn show(
-    (state, connection, parameters, user): (
-        State<AppState>,
-        Connection,
-        Path<PathParameters>,
-        User,
-    ),
+    (state, connection, parameters, user): (State<AppState>, Connection, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let mut organization = Organization::find(parameters.id, connection)?;
@@ -115,12 +110,7 @@ pub fn show(
 }
 
 pub fn create(
-    (state, connection, new_organization, user): (
-        State<AppState>,
-        Connection,
-        Json<NewOrganizationRequest>,
-        User,
-    ),
+    (state, connection, new_organization, user): (State<AppState>, Connection, Json<NewOrganizationRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
@@ -210,12 +200,7 @@ pub fn update(
 }
 
 pub fn add_venue(
-    (connection, parameters, new_venue, user): (
-        Connection,
-        Path<PathParameters>,
-        Json<NewVenue>,
-        User,
-    ),
+    (connection, parameters, new_venue, user): (Connection, Path<PathParameters>, Json<NewVenue>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
@@ -228,12 +213,7 @@ pub fn add_venue(
 }
 
 pub fn add_artist(
-    (connection, parameters, new_artist, user): (
-        Connection,
-        Path<PathParameters>,
-        Json<NewArtist>,
-        User,
-    ),
+    (connection, parameters, new_artist, user): (Connection, Path<PathParameters>, Json<NewArtist>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(parameters.id, connection)?;
@@ -256,26 +236,17 @@ pub fn add_or_replace_user(
 
     for role in req.roles.iter() {
         match role {
-            Roles::OrgOwner => {
-                user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?
+            Roles::OrgOwner => user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?,
+            Roles::OrgAdmin => {
+                user.requires_scope_for_organization(Scopes::OrgAdminUsers, &organization, connection)?
             }
-            Roles::OrgAdmin => user.requires_scope_for_organization(
-                Scopes::OrgAdminUsers,
-                &organization,
-                connection,
-            )?,
-            Roles::OrgMember => {
-                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            Roles::PrismIntegration => {
+                user.requires_scope_for_organization(Scopes::OrgAdminUsers, &organization, connection)?
             }
-            Roles::DoorPerson => {
-                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
-            }
-            Roles::OrgBoxOffice => {
-                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
-            }
-            Roles::Promoter => {
-                user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
-            }
+            Roles::OrgMember => user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?,
+            Roles::DoorPerson => user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?,
+            Roles::OrgBoxOffice => user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?,
+            Roles::Promoter => user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?,
             Roles::PromoterReadOnly => {
                 user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
             }
@@ -283,12 +254,7 @@ pub fn add_or_replace_user(
         };
     }
 
-    organization.add_user(
-        req.user_id,
-        req.roles,
-        req.event_ids.unwrap_or(Vec::new()),
-        connection,
-    )?;
+    organization.add_user(req.user_id, req.roles, req.event_ids.unwrap_or(Vec::new()), connection)?;
 
     Ok(HttpResponse::Created().finish())
 }
@@ -379,12 +345,7 @@ pub fn show_fee_schedule(
 }
 
 pub fn add_fee_schedule(
-    (connection, parameters, json, user): (
-        Connection,
-        Path<PathParameters>,
-        Json<NewFeeScheduleRequest>,
-        User,
-    ),
+    (connection, parameters, json, user): (Connection, Path<PathParameters>, Json<NewFeeScheduleRequest>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     user.requires_scope(Scopes::OrgAdmin)?;
     let connection = connection.get();
@@ -409,12 +370,7 @@ pub fn add_fee_schedule(
 }
 
 pub fn search_fans(
-    (connection, path, query, user): (
-        ReadonlyConnection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-        User,
-    ),
+    (connection, path, query, user): (ReadonlyConnection, Path<PathParameters>, Query<PagingParameters>, User),
 ) -> Result<WebPayload<DisplayFan>, BigNeonError> {
     let connection = connection.get();
     let org = Organization::find(path.id, connection)?;

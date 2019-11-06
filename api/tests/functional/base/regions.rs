@@ -13,9 +13,7 @@ pub fn create(role: Roles, should_succeed: bool) {
     let name = "Region Example";
 
     let user = support::create_auth_user(role, None, &database);
-    let json = Json(NewRegion {
-        name: name.to_string(),
-    });
+    let json = Json(NewRegion { name: name.to_string() });
 
     let response: HttpResponse = regions::create((database.connection.into(), json, user)).into();
 
@@ -43,8 +41,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     attributes.name = Some(new_name.to_string());
     let json = Json(attributes);
 
-    let response: HttpResponse =
-        regions::update((database.connection.into(), path, json, user)).into();
+    let response: HttpResponse = regions::update((database.connection.into(), path, json, user)).into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;

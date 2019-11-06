@@ -11,10 +11,7 @@ fn create_fails_user_exists() {
     let database = TestDatabase::new();
     let email = format!("test-{}@example.com", Uuid::new_v4());
 
-    database
-        .create_user()
-        .with_email(email.to_string())
-        .finish();
+    database.create_user().with_email(email.to_string()).finish();
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -24,8 +21,7 @@ fn create_fails_user_exists() {
         email: email.to_string(),
     });
     let auth_user = support::create_auth_user(Roles::Admin, None, &database);
-    let response: HttpResponse =
-        user_invites::create((state, database.connection.clone(), json, auth_user)).into();
+    let response: HttpResponse = user_invites::create((state, database.connection.clone(), json, auth_user)).into();
 
     assert_eq!(response.status(), StatusCode::CREATED);
 }
@@ -43,8 +39,7 @@ fn create() {
         email: email.to_string(),
     });
     let auth_user = support::create_auth_user(Roles::Admin, None, &database);
-    let response: HttpResponse =
-        user_invites::create((state, database.connection.clone(), json, auth_user)).into();
+    let response: HttpResponse = user_invites::create((state, database.connection.clone(), json, auth_user)).into();
 
     assert_eq!(response.status(), StatusCode::CREATED);
 }

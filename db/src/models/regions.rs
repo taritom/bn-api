@@ -35,11 +35,7 @@ impl Region {
         NewRegion { name }
     }
 
-    pub fn update(
-        &self,
-        attributes: RegionEditableAttributes,
-        conn: &PgConnection,
-    ) -> Result<Region, DatabaseError> {
+    pub fn update(&self, attributes: RegionEditableAttributes, conn: &PgConnection) -> Result<Region, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::UpdateError,
             "Could not update region",

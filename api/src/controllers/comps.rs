@@ -9,12 +9,7 @@ use extractors::*;
 use models::{PathParameters, WebPayload, WebResult};
 
 pub fn index(
-    (conn, path, query_parameters, user): (
-        Connection,
-        Path<PathParameters>,
-        Query<PagingParameters>,
-        User,
-    ),
+    (conn, path, query_parameters, user): (Connection, Path<PathParameters>, Query<PagingParameters>, User),
 ) -> Result<WebPayload<DisplayHold>, BigNeonError> {
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
@@ -43,9 +38,7 @@ pub fn index(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
-pub fn show(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::CompRead, &hold.organization(conn)?, conn)?;
@@ -86,19 +79,11 @@ pub fn create(
         conn,
     )?;
 
-    Ok(WebResult::new(
-        StatusCode::CREATED,
-        comp.into_display(conn)?,
-    ))
+    Ok(WebResult::new(StatusCode::CREATED, comp.into_display(conn)?))
 }
 
 pub fn update(
-    (conn, req, path, user): (
-        Connection,
-        Json<UpdateHoldRequest>,
-        Path<PathParameters>,
-        User,
-    ),
+    (conn, req, path, user): (Connection, Json<UpdateHoldRequest>, Path<PathParameters>, User),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
 
@@ -115,9 +100,7 @@ pub fn update(
     Ok(HttpResponse::Ok().json(comp))
 }
 
-pub fn destroy(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn destroy((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let hold = Hold::find(path.id, conn)?;
     user.requires_scope_for_organization(Scopes::CompWrite, &hold.organization(conn)?, conn)?;

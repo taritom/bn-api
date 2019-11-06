@@ -36,12 +36,7 @@ pub struct SGCreateContactResponse {
 
 impl From<serde_json::Value> for SGCreateContactResponse {
     fn from(v: serde_json::Value) -> Self {
-        jlog!(
-            log::Level::Debug,
-            LOG_TARGET,
-            "Got reponse from sendgrid",
-            v
-        );
+        jlog!(log::Level::Debug, LOG_TARGET, "Got reponse from sendgrid", v);
 
         serde_json::from_value(v).unwrap()
     }
@@ -59,31 +54,18 @@ impl SGContact {
     pub fn create(&self, api_key: &str) -> Result<SGCreateContactResponse, BigNeonError> {
         let client = Client::new();
         let msg_body = json!(vec![self]).to_string();
-        send_request_json(
-            api_key,
-            client.post(Self::api_url(None).as_str()).body(msg_body),
-        )
-        .map(|json| json.into())
+        send_request_json(api_key, client.post(Self::api_url(None).as_str()).body(msg_body)).map(|json| json.into())
     }
 
-    pub fn create_many(
-        api_key: &str,
-        contacts: Vec<Self>,
-    ) -> Result<SGCreateContactResponse, BigNeonError> {
+    pub fn create_many(api_key: &str, contacts: Vec<Self>) -> Result<SGCreateContactResponse, BigNeonError> {
         let client = Client::new();
         let msg_body = json!(contacts).to_string();
-        send_request_json(
-            api_key,
-            client.post(Self::api_url(None).as_str()).body(msg_body),
-        )
-        .map(|json| json.into())
+        send_request_json(api_key, client.post(Self::api_url(None).as_str()).body(msg_body)).map(|json| json.into())
     }
 
     fn api_url(recipient_id: Option<String>) -> String {
         let base_url = SENDGRID_API_URL.to_owned();
-        let id = recipient_id
-            .map(|s| format!("/{}", s))
-            .unwrap_or("".to_string());
+        let id = recipient_id.map(|s| format!("/{}", s)).unwrap_or("".to_string());
         base_url + &format!("/contactdb/recipients{recipient_id}", recipient_id = id)
     }
 }
@@ -119,8 +101,7 @@ impl SGContactList {
     pub fn create(&self, api_key: &str) -> Result<SGContactListResponse, BigNeonError> {
         let client = Client::new();
         let msg_body = self.to_json();
-        send_request_json(api_key, client.post(&Self::api_url(None)).body(msg_body))
-            .map(|json| json.into())
+        send_request_json(api_key, client.post(&Self::api_url(None)).body(msg_body)).map(|json| json.into())
     }
 
     pub fn create_or_return(&self, api_key: &str) -> Result<SGContactListResponse, BigNeonError> {
@@ -137,8 +118,8 @@ impl SGContactList {
                     // 4XX error
                     // Possible duplicate error being returned from sendgrid
                     // Fetch all lists and if there's a matching name, return the list object
-                    let lists = Self::fetch_all(api_key)
-                        .map_err(|err| ApplicationError::new(format!("{}", err).into()))?;
+                    let lists =
+                        Self::fetch_all(api_key).map_err(|err| ApplicationError::new(format!("{}", err).into()))?;
 
                     let found_list = lists.iter().find(|l| l.name == self.name);
                     if let Some(list) = found_list {
@@ -154,8 +135,7 @@ impl SGContactList {
 
     pub fn get_by_id(api_key: &str, id: u64) -> Result<SGContactListResponse, BigNeonError> {
         let client = Client::new();
-        send_request_json(api_key, client.get(&Self::api_url(Some(id.to_string()))))
-            .map(|json| json.into())
+        send_request_json(api_key, client.get(&Self::api_url(Some(id.to_string())))).map(|json| json.into())
     }
 
     pub fn fetch_all(api_key: &str) -> Result<Vec<SGContactListResponse>, BigNeonError> {
@@ -193,27 +173,16 @@ pub struct SGContactListResponse {
 
 impl From<serde_json::Value> for SGContactListResponse {
     fn from(v: serde_json::Value) -> Self {
-        jlog!(
-            log::Level::Debug,
-            LOG_TARGET,
-            "Got reponse from sendgrid",
-            v
-        );
+        jlog!(log::Level::Debug, LOG_TARGET, "Got reponse from sendgrid", v);
         serde_json::from_value(v).unwrap()
     }
 }
 
 impl SGContactListResponse {
-    pub fn add_recipients(
-        &self,
-        api_key: &str,
-        recipient_ids: Vec<String>,
-    ) -> Result<(), BigNeonError> {
+    pub fn add_recipients(&self, api_key: &str, recipient_ids: Vec<String>) -> Result<(), BigNeonError> {
         let client = Client::new();
         let msg_body = json!(recipient_ids).to_string();
-        let req = client
-            .post(&Self::api_url(self.id.to_string()))
-            .body(msg_body);
+        let req = client.post(&Self::api_url(self.id.to_string())).body(msg_body);
 
         // Sendgrid sends back a blank response on success
         send_request(api_key, req)
@@ -228,10 +197,7 @@ impl SGContactListResponse {
     }
 }
 
-fn send_request_json(
-    api_key: &str,
-    req: reqwest::RequestBuilder,
-) -> Result<serde_json::Value, BigNeonError> {
+fn send_request_json(api_key: &str, req: reqwest::RequestBuilder) -> Result<serde_json::Value, BigNeonError> {
     send_request(api_key, req)
         .and_then(|r| r.error_for_status())
         .and_then(|mut r| r.json())

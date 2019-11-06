@@ -12,10 +12,7 @@ fn show_hold() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
 
-    let hold = database
-        .create_hold()
-        .with_hold_type(HoldTypes::Discount)
-        .finish();
+    let hold = database.create_hold().with_hold_type(HoldTypes::Discount).finish();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["code"]);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.code = hold.redemption_code.clone().unwrap();
@@ -23,8 +20,7 @@ fn show_hold() {
     let test_request = TestRequest::create_with_uri("/");
     let parameters = Query::<EventParameter>::extract(&test_request.request).unwrap();
 
-    let response: HttpResponse =
-        redemption_codes::show((database.connection.clone().into(), parameters, path)).into();
+    let response: HttpResponse = redemption_codes::show((database.connection.clone().into(), parameters, path)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let redemption_code_response: RedemptionCodeResponse = serde_json::from_str(&body).unwrap();
@@ -66,17 +62,13 @@ fn show_comp() {
     let database = TestDatabase::new();
     let connection = database.connection.get();
 
-    let hold = database
-        .create_hold()
-        .with_hold_type(HoldTypes::Comp)
-        .finish();
+    let hold = database.create_hold().with_hold_type(HoldTypes::Comp).finish();
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["code"]);
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     let test_request = TestRequest::create_with_uri("/");
     let parameters = Query::<EventParameter>::extract(&test_request.request).unwrap();
     path.code = hold.redemption_code.clone().unwrap();
-    let response: HttpResponse =
-        redemption_codes::show((database.connection.clone().into(), parameters, path)).into();
+    let response: HttpResponse = redemption_codes::show((database.connection.clone().into(), parameters, path)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let redemption_code_response: RedemptionCodeResponse = serde_json::from_str(&body).unwrap();
@@ -127,10 +119,7 @@ fn show_code() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
 
     let code = database
         .create_code()
@@ -144,8 +133,7 @@ fn show_code() {
     path.code = code.redemption_code.clone();
     let test_request = TestRequest::create_with_uri("/");
     let parameters = Query::<EventParameter>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        redemption_codes::show((database.connection.clone().into(), parameters, path)).into();
+    let response: HttpResponse = redemption_codes::show((database.connection.clone().into(), parameters, path)).into();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let redemption_code_response: RedemptionCodeResponse = serde_json::from_str(&body).unwrap();
@@ -194,8 +182,7 @@ fn show_invalid() {
     path.code = "invalid".to_string();
     let test_request = TestRequest::create_with_uri("/");
     let parameters = Query::<EventParameter>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        redemption_codes::show((database.connection.clone().into(), parameters, path)).into();
+    let response: HttpResponse = redemption_codes::show((database.connection.clone().into(), parameters, path)).into();
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

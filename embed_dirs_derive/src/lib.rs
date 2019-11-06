@@ -56,9 +56,7 @@ fn impl_embed_file_list(ast: &syn::DeriveInput) -> TokenStream {
         .find_map(|meta| {
             match meta {
                 // Match '#[ident = lit]' attributes. Match guard makes it `#[embed_dir = "..."]`
-                Meta::NameValue(MetaNameValue {
-                    ref ident, ref lit, ..
-                }) if ident == "return_files" => {
+                Meta::NameValue(MetaNameValue { ref ident, ref lit, .. }) if ident == "return_files" => {
                     if let Lit::Bool(lit) = lit {
                         Some(lit.value)
                     } else {
@@ -77,9 +75,7 @@ fn impl_embed_file_list(ast: &syn::DeriveInput) -> TokenStream {
         .find_map(|meta| {
             match meta {
                 // Match '#[ident = lit]' attributes. Match guard makes it `#[embed_dir = "..."]`
-                Meta::NameValue(MetaNameValue {
-                    ref ident, ref lit, ..
-                }) if ident == "embed_dir" => {
+                Meta::NameValue(MetaNameValue { ref ident, ref lit, .. }) if ident == "embed_dir" => {
                     if let Lit::Str(lit) = lit {
                         Some(lit.value())
                     } else {

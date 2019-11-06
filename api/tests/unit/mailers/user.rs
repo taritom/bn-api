@@ -10,9 +10,7 @@ fn password_reset_email() {
     let database = TestDatabase::new();
 
     let user = database.create_user().finish();
-    let user = user
-        .create_password_reset_token(database.connection.get())
-        .unwrap();
+    let user = user.create_password_reset_token(database.connection.get()).unwrap();
 
     let password_reset_email = mailers::user::password_reset_email(&config, &user);
     assert_eq!(

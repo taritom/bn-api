@@ -118,11 +118,7 @@ impl StripeClient {
         }
     }
 
-    pub fn partial_refund(
-        &self,
-        charge_id: &str,
-        amount: i64,
-    ) -> Result<RefundResult, StripeError> {
+    pub fn partial_refund(&self, charge_id: &str, amount: i64) -> Result<RefundResult, StripeError> {
         let params = vec![
             ("charge".to_string(), charge_id.to_string()),
             ("amount".to_string(), amount.to_string()),
@@ -146,10 +142,7 @@ impl StripeClient {
         let client = reqwest::Client::new();
 
         let mut resp = client
-            .post(&format!(
-                "https://api.stripe.com/v1/charges/{}/capture",
-                charge_id
-            ))
+            .post(&format!("https://api.stripe.com/v1/charges/{}/capture", charge_id))
             .basic_auth(&self.api_key, Some(""))
             .send()?;
         match resp.status() {
@@ -177,10 +170,7 @@ impl StripeClient {
         }
         let client = reqwest::Client::new();
         let mut resp = client
-            .post(&format!(
-                "https://api.stripe.com/v1/customers/{}",
-                client_id,
-            ))
+            .post(&format!("https://api.stripe.com/v1/customers/{}", client_id,))
             .basic_auth(&self.api_key, Some(""))
             .form(&params)
             .send()?;

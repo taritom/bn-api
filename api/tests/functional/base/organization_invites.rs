@@ -14,14 +14,10 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let email = "jeff2@tari.com";
-    let _invited_user = database
-        .create_user()
-        .with_email(email.to_string())
-        .finish();
+    let _invited_user = database.create_user().with_email(email.to_string()).finish();
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -33,14 +29,8 @@ pub fn create(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let response: HttpResponse = organization_invites::create((
-        state,
-        database.connection.into(),
-        json,
-        path,
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        organization_invites::create((state, database.connection.into(), json, path, auth_user.clone())).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -57,8 +47,7 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let state = test_request.extract_state();
@@ -72,8 +61,7 @@ pub fn create_for_new_user(role: Roles, should_test_succeed: bool) {
     path.id = organization.id;
 
     let response: HttpResponse =
-        organization_invites::create((state, database.connection.into(), json, path, auth_user))
-            .into();
+        organization_invites::create((state, database.connection.into(), json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -91,8 +79,7 @@ pub fn destroy(role: Roles, should_succeed: bool) {
     let connection = database.connection.get();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let invite = database
         .create_organization_invite()
@@ -101,8 +88,7 @@ pub fn destroy(role: Roles, should_succeed: bool) {
         .finish();
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "invite_id"]);
-    let mut path =
-        Path::<OrganizationInvitePathParameters>::extract(&test_request.request).unwrap();
+    let mut path = Path::<OrganizationInvitePathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
     path.invite_id = invite.id;
 
@@ -123,8 +109,7 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let connection = database.connection.get();
     let user1 = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user1, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user1, role, Some(&organization), &database);
 
     let user2 = database.create_user().finish();
     let user3 = database.create_user().finish();
@@ -162,19 +147,13 @@ pub fn index(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let response = organization_invites::index((
-        database.connection.clone().into(),
-        path,
-        query_parameters,
-        auth_user,
-    ));
+    let response = organization_invites::index((database.connection.clone().into(), path, query_parameters, auth_user));
 
     let wrapped_expected_invites = Payload {
         data: vec![DisplayInvite {
             id: org_invite3.id,
             organization_name: organization.name,
-            inviter_name: format!("{} {}", user4.first_name.unwrap(), user4.last_name.unwrap())
-                .into(),
+            inviter_name: format!("{} {}", user4.first_name.unwrap(), user4.last_name.unwrap()).into(),
             expires_at: org_invite3.created_at + Duration::days(INVITE_EXPIRATION_PERIOD_IN_DAYS),
         }],
         paging: Paging {
@@ -203,8 +182,7 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     database.create_user().finish();
 
     let invite = database
@@ -215,8 +193,7 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
         .with_security_token(None)
         .finish();
 
-    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get())
-        .unwrap();
+    OrganizationInvite::find_by_token(invite.security_token.unwrap(), database.connection.get()).unwrap();
 
     let test_request = TestRequest::create_with_uri(
         format!(
@@ -227,12 +204,9 @@ pub fn accept_invite_status_of_invite(role: Roles, should_test_succeed: bool) {
     );
     let parameters = Query::<InviteResponseQuery>::extract(&test_request.request).unwrap();
 
-    let response: HttpResponse = organization_invites::accept_request((
-        database.connection.into(),
-        parameters,
-        OptionalUser(Some(auth_user)),
-    ))
-    .into();
+    let response: HttpResponse =
+        organization_invites::accept_request((database.connection.into(), parameters, OptionalUser(Some(auth_user))))
+            .into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::OK);
     } else {

@@ -19,8 +19,7 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         .with_tickets()
         .with_organization(&organization)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let name = "Hold Example".to_string();
     let redemption_code = "IHAVEACODE".to_string();
@@ -35,18 +34,14 @@ pub fn create(role: Roles, should_test_succeed: bool) {
         end_at: None,
         max_per_user: None,
         quantity: 2,
-        ticket_type_id: event
-            .ticket_types(true, None, database.connection.get())
-            .unwrap()[0]
-            .id,
+        ticket_type_id: event.ticket_types(true, None, database.connection.get()).unwrap()[0].id,
     });
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = event.id;
 
-    let response: HttpResponse =
-        holds::create((database.connection.into(), json, path, auth_user)).into();
+    let response: HttpResponse = holds::create((database.connection.into(), json, path, auth_user)).into();
 
     if should_test_succeed {
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -67,8 +62,7 @@ pub fn split(role: Roles, should_test_succeed: bool) {
     let hold = database.create_hold().finish();
     let event = Event::find(hold.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
@@ -89,8 +83,7 @@ pub fn split(role: Roles, should_test_succeed: bool) {
         phone: None,
     });
 
-    let response: HttpResponse =
-        holds::split((database.connection.clone(), json, path, auth_user)).into();
+    let response: HttpResponse = holds::split((database.connection.clone(), json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {
@@ -119,8 +112,7 @@ pub fn children(role: Roles, should_test_succeed: bool) {
         .with_ticket_pricing()
         .finish();
     let hold = database.create_hold().with_event(&event).finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let comp = database
         .create_comp()
         .with_quantity(2)
@@ -160,12 +152,7 @@ pub fn children(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = hold.id;
 
-    let response = holds::children((
-        database.connection.clone().into(),
-        path,
-        query_parameters,
-        auth_user,
-    ));
+    let response = holds::children((database.connection.clone().into(), path, query_parameters, auth_user));
     let counter = expected_holds.len() as u32;
     let wrapped_expected_holds = Payload {
         data: expected_holds,
@@ -198,8 +185,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
     let hold = database.create_hold().finish();
     let event = Event::find(hold.event_id, connection).unwrap();
     let organization = event.organization(connection).unwrap();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let name = "New Name";
 
     let test_request = TestRequest::create();
@@ -212,8 +198,7 @@ pub fn update(role: Roles, should_test_succeed: bool) {
         ..Default::default()
     });
 
-    let response: HttpResponse =
-        holds::update((database.connection.clone(), json, path, auth_user)).into();
+    let response: HttpResponse = holds::update((database.connection.clone(), json, path, auth_user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
 
     if should_test_succeed {

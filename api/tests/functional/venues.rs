@@ -13,21 +13,12 @@ use support::test_request::TestRequest;
 #[test]
 fn index_with_org_linked_and_private_venues() {
     let database = TestDatabase::new();
-    let venue = database
-        .create_venue()
-        .with_name("Venue1".to_string())
-        .finish();
-    let venue2 = database
-        .create_venue()
-        .with_name("Venue2".to_string())
-        .finish();
+    let venue = database.create_venue().with_name("Venue1".to_string()).finish();
+    let venue2 = database.create_venue().with_name("Venue2".to_string()).finish();
 
     let organization = database.create_organization().finish();
     let auth_user = support::create_auth_user(Roles::User, Some(&organization), &database);
-    let venue3 = database
-        .create_venue()
-        .with_name("Venue3".to_string())
-        .finish();
+    let venue3 = database.create_venue().with_name("Venue3".to_string()).finish();
     let venue3 = venue3
         .add_to_organization(&organization.id, database.connection.get())
         .unwrap();
@@ -43,12 +34,8 @@ fn index_with_org_linked_and_private_venues() {
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
     //first try with no user
-    let response: HttpResponse = venues::index((
-        database.connection.clone().into(),
-        query_parameters,
-        OptionalUser(None),
-    ))
-    .into();
+    let response: HttpResponse =
+        venues::index((database.connection.clone().into(), query_parameters, OptionalUser(None))).into();
 
     let mut expected_venues = vec![venue, venue2, venue3];
     let wrapped_expected_venues = Payload {
@@ -461,10 +448,7 @@ pub fn show_from_organizations_private_venue_same_org() {
         .create_organization()
         .with_member(&user, Roles::OrgMember)
         .finish();
-    let venue = database
-        .create_venue()
-        .with_name("Venue 1".to_string())
-        .finish();
+    let venue = database.create_venue().with_name("Venue 1".to_string()).finish();
     let venue2 = database
         .create_venue()
         .with_name("Venue 2".to_string())
@@ -478,12 +462,7 @@ pub fn show_from_organizations_private_venue_same_org() {
         .unwrap();
 
     let user2 = database.create_user().finish();
-    let auth_user = support::create_auth_user_from_user(
-        &user2,
-        Roles::OrgOwner,
-        Some(&organization),
-        &database,
-    );
+    let auth_user = support::create_auth_user_from_user(&user2, Roles::OrgOwner, Some(&organization), &database);
 
     let all_venues = vec![venue, venue2];
     let wrapped_expected_venues = Payload {
@@ -566,8 +545,7 @@ pub fn add_to_organization_where_link_already_exists() {
     let user = database.create_user().finish();
     let venue = database.create_venue().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::Admin, Some(&organization), &database);
     let venue = venue
         .add_to_organization(&organization.id, database.connection.get())
         .unwrap();

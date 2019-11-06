@@ -22,21 +22,14 @@ fn new_organization_interaction_commit() {
     .commit(connection)
     .unwrap();
 
-    assert_eq!(
-        interaction_count,
-        organization_interaction.interaction_count
-    );
+    assert_eq!(interaction_count, organization_interaction.interaction_count);
     assert_eq!(
         first_interaction_date.timestamp_subsec_millis(),
-        organization_interaction
-            .first_interaction
-            .timestamp_subsec_millis()
+        organization_interaction.first_interaction.timestamp_subsec_millis()
     );
     assert_eq!(
         last_interaction_date.timestamp_subsec_millis(),
-        organization_interaction
-            .last_interaction
-            .timestamp_subsec_millis()
+        organization_interaction.last_interaction.timestamp_subsec_millis()
     );
 }
 
@@ -62,8 +55,7 @@ fn find_by_organization_user() {
 
     assert_eq!(
         organization_interaction,
-        OrganizationInteraction::find_by_organization_user(organization.id, user.id, connection)
-            .unwrap()
+        OrganizationInteraction::find_by_organization_user(organization.id, user.id, connection).unwrap()
     );
 }
 
@@ -87,21 +79,14 @@ fn update() {
     .commit(connection)
     .unwrap();
 
-    assert_eq!(
-        interaction_count,
-        organization_interaction.interaction_count
-    );
+    assert_eq!(interaction_count, organization_interaction.interaction_count);
     assert_eq!(
         first_interaction_date.timestamp_subsec_millis(),
-        organization_interaction
-            .first_interaction
-            .timestamp_subsec_millis()
+        organization_interaction.first_interaction.timestamp_subsec_millis()
     );
     assert_eq!(
         last_interaction_date.timestamp_subsec_millis(),
-        organization_interaction
-            .last_interaction
-            .timestamp_subsec_millis()
+        organization_interaction.last_interaction.timestamp_subsec_millis()
     );
 
     let new_first_interaction_date = dates::now().add_minutes(1).finish();
@@ -118,20 +103,13 @@ fn update() {
         )
         .unwrap();
 
-    assert_eq!(
-        new_interaction_count,
-        organization_interaction.interaction_count
-    );
+    assert_eq!(new_interaction_count, organization_interaction.interaction_count);
     assert_eq!(
         new_first_interaction_date.timestamp_subsec_millis(),
-        organization_interaction
-            .first_interaction
-            .timestamp_subsec_millis()
+        organization_interaction.first_interaction.timestamp_subsec_millis()
     );
     assert_eq!(
         new_last_interaction_date.timestamp_subsec_millis(),
-        organization_interaction
-            .last_interaction
-            .timestamp_subsec_millis()
+        organization_interaction.last_interaction.timestamp_subsec_millis()
     );
 }

@@ -21,14 +21,12 @@ fn mark_fee_only_refunded() {
         .finish();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = &tickets[0];
-    let mut refunded_ticket =
-        RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
+    let mut refunded_ticket = RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
     assert!(refunded_ticket.ticket_refunded_at.is_none());
     assert!(refunded_ticket.fee_refunded_at.is_none());
     refunded_ticket.mark_fee_only_refunded(connection).unwrap();
 
-    let refunded_ticket =
-        RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
+    let refunded_ticket = RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
     assert!(refunded_ticket.ticket_refunded_at.is_none());
     assert!(refunded_ticket.fee_refunded_at.is_some());
 }
@@ -53,14 +51,12 @@ fn find_and_find_by_ticket_instance_ids() {
         .finish();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = &tickets[0];
-    let refunded_ticket =
-        RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
+    let refunded_ticket = RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
     assert_eq!(
         refunded_ticket,
         RefundedTicket::find(refunded_ticket.id, connection).unwrap()
     );
-    let found_tickets =
-        RefundedTicket::find_by_ticket_instance_ids(vec![ticket.id], connection).unwrap();
+    let found_tickets = RefundedTicket::find_by_ticket_instance_ids(vec![ticket.id], connection).unwrap();
     assert_eq!(found_tickets, vec![refunded_ticket]);
 }
 
@@ -85,8 +81,7 @@ fn find_or_create_by_ticket_instance() {
         .finish();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = &tickets[0];
-    let refunded_ticket =
-        RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
+    let refunded_ticket = RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
     assert_eq!(ticket.order_item_id, Some(refunded_ticket.order_item_id));
     assert_eq!(ticket.id, refunded_ticket.ticket_instance_id);
     assert!(refunded_ticket.ticket_refunded_at.is_none());
@@ -96,9 +91,7 @@ fn find_or_create_by_ticket_instance() {
         order_item_id: refunded_ticket.order_item_id,
         ticket_instance_id: Some(ticket.id),
     }];
-    assert!(order
-        .refund(&refund_items, user.id, None, connection)
-        .is_ok());
+    assert!(order.refund(&refund_items, user.id, None, connection).is_ok());
 
     let refunded_ticket = RefundedTicket::find(refunded_ticket.id, connection).unwrap();
     assert_eq!(ticket.order_item_id, Some(refunded_ticket.order_item_id));
@@ -116,17 +109,10 @@ fn find_or_create_by_ticket_instance() {
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = &tickets[0];
 
-    let refunded_ticket2 =
-        RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
+    let refunded_ticket2 = RefundedTicket::find_or_create_by_ticket_instance(&ticket, connection).unwrap();
     assert_ne!(refunded_ticket, refunded_ticket2);
-    assert_ne!(
-        refunded_ticket.order_item_id,
-        refunded_ticket2.order_item_id
-    );
-    assert_eq!(
-        refunded_ticket.ticket_instance_id,
-        refunded_ticket2.ticket_instance_id
-    );
+    assert_ne!(refunded_ticket.order_item_id, refunded_ticket2.order_item_id);
+    assert_eq!(refunded_ticket.ticket_instance_id, refunded_ticket2.ticket_instance_id);
 }
 
 #[test]

@@ -6,6 +6,7 @@ use errors::*;
 use futures::future;
 use itertools::Itertools;
 use log::Level::Error;
+use validator::HasLen;
 
 pub struct BroadcastPushNotificationExecutor {}
 
@@ -27,8 +28,7 @@ impl BroadcastPushNotificationExecutor {
     }
 
     fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
-        let action_data: BroadcastPushNotificationAction =
-            serde_json::from_value(action.payload.clone())?;
+        let action_data: BroadcastPushNotificationAction = serde_json::from_value(action.payload.clone())?;
         let broadcast_id = action.main_table_id.ok_or(ApplicationError::new(
             "No broadcast id attached to domain action".to_string(),
         ))?;
@@ -49,10 +49,10 @@ impl BroadcastPushNotificationExecutor {
         };
 
         let audience = match audience_type {
-            BroadcastAudience::PeopleAtTheEvent => {
-                Event::checked_in_users(broadcast.event_id, conn.get())?
-            }
+            BroadcastAudience::PeopleAtTheEvent => Event::checked_in_users(broadcast.event_id, conn.get())?,
         };
+
+        Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn.get())?;
 
         for user in audience {
             let tokens = user
@@ -75,7 +75,15 @@ impl BroadcastPushNotificationExecutor {
                         None,
                         None,
                         Some(vec!["broadcast"]),
-                        None,
+                        Some(
+                            [
+                                ("broadcast_id".to_string(), broadcast.id.to_string()),
+                                ("event_id".to_string(), broadcast.event_id.to_string()),
+                            ]
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        ),
                     ))?,
                     Some(Tables::Events),
                     Some(action_data.event_id),

@@ -28,19 +28,18 @@ impl ProcessSettlementReportExecutor {
         ProcessSettlementReportExecutor { config }
     }
 
-    pub fn perform_job(
-        &self,
-        action: &DomainAction,
-        conn: &Connection,
-    ) -> Result<(), BigNeonError> {
+    pub fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
         let conn = conn.get();
-        let id = action.main_table_id.clone().ok_or(ApplicationError::new(
-            "No id supplied in the action".to_string(),
-        ))?;
+        let id = action
+            .main_table_id
+            .clone()
+            .ok_or(ApplicationError::new("No id supplied in the action".to_string()))?;
 
-        match action.main_table.clone().ok_or(ApplicationError::new(
-            "No table supplied in the action".to_string(),
-        ))? {
+        match action
+            .main_table
+            .clone()
+            .ok_or(ApplicationError::new("No table supplied in the action".to_string()))?
+        {
             Tables::Organizations => {
                 let organization = Organization::find(id, conn)?;
                 if organization.can_process_settlements(conn)? {
@@ -50,10 +49,8 @@ impl ProcessSettlementReportExecutor {
                         conn,
                     )?;
                 }
-                organization.create_next_settlement_processing_domain_action(
-                    self.config.settlement_period_in_days,
-                    conn,
-                )?;
+                organization
+                    .create_next_settlement_processing_domain_action(self.config.settlement_period_in_days, conn)?;
             }
             _ => return Err(ApplicationError::new("Table not supported".to_string()).into()),
         };

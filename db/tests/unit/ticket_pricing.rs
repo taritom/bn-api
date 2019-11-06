@@ -9,41 +9,21 @@ use diesel::RunQueryDsl;
 fn create() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
-    let ticket_type = &event
-        .ticket_types(true, None, project.get_connection())
-        .unwrap()[0];
+    let ticket_type = &event.ticket_types(true, None, project.get_connection()).unwrap()[0];
     let sd1 = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
     let ed1 = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let sd2 = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
     let ed2 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
 
-    let ticket_pricing = TicketPricing::create(
-        ticket_type.id,
-        "Early Bird".to_string(),
-        sd1,
-        ed1,
-        100,
-        false,
-        None,
-    )
-    .commit(None, project.get_connection())
-    .unwrap();
-
-    let pricing2 = TicketPricing::create(
-        ticket_type.id,
-        "Wormless Bird".to_string(),
-        sd2,
-        ed2,
-        500,
-        false,
-        None,
-    )
-    .commit(None, project.get_connection())
-    .unwrap();
-
-    let pricing = ticket_type
-        .ticket_pricing(false, project.get_connection())
+    let ticket_pricing = TicketPricing::create(ticket_type.id, "Early Bird".to_string(), sd1, ed1, 100, false, None)
+        .commit(None, project.get_connection())
         .unwrap();
+
+    let pricing2 = TicketPricing::create(ticket_type.id, "Wormless Bird".to_string(), sd2, ed2, 500, false, None)
+        .commit(None, project.get_connection())
+        .unwrap();
+
+    let pricing = ticket_type.ticket_pricing(false, project.get_connection()).unwrap();
     assert_eq!(pricing, vec![ticket_pricing, pricing2]);
 }
 
@@ -51,9 +31,7 @@ fn create() {
 fn ticket_pricing_no_overlapping_periods() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
-    let ticket_type = &event
-        .ticket_types(true, None, project.get_connection())
-        .unwrap()[0];
+    let ticket_type = &event.ticket_types(true, None, project.get_connection()).unwrap()[0];
     let start_date1 = NaiveDate::from_ymd(2016, 7, 6).and_hms(4, 10, 11);
     let end_date1 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
     let start_date2 = NaiveDate::from_ymd(2016, 7, 7).and_hms(4, 10, 11);
@@ -138,9 +116,7 @@ fn ticket_pricing_no_overlapping_periods() {
 fn create_with_validation_errors() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
-    let ticket_type = &event
-        .ticket_types(true, None, project.get_connection())
-        .unwrap()[0];
+    let ticket_type = &event.ticket_types(true, None, project.get_connection()).unwrap()[0];
     let start_date1 = NaiveDate::from_ymd(2016, 7, 6).and_hms(4, 10, 11);
     let end_date1 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
     let start_date2 = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
@@ -167,9 +143,7 @@ fn create_with_validation_errors() {
         None,
     );
 
-    let result = ticket_pricing
-        .clone()
-        .commit(None, project.get_connection());
+    let result = ticket_pricing.clone().commit(None, project.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -198,9 +172,7 @@ fn create_with_validation_errors() {
     // Period without start date validation
     ticket_pricing.start_date = end_date1;
     ticket_pricing.end_date = NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11);
-    let result = ticket_pricing
-        .clone()
-        .commit(None, project.get_connection());
+    let result = ticket_pricing.clone().commit(None, project.get_connection());
     assert!(result.is_ok());
 }
 
@@ -208,9 +180,7 @@ fn create_with_validation_errors() {
 fn update_with_validation_errors() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
-    let ticket_type = &event
-        .ticket_types(true, None, project.get_connection())
-        .unwrap()[0];
+    let ticket_type = &event.ticket_types(true, None, project.get_connection()).unwrap()[0];
     let start_date1 = NaiveDate::from_ymd(2016, 7, 6).and_hms(4, 10, 11);
     let end_date1 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
     let start_date2 = NaiveDate::from_ymd(2016, 7, 10).and_hms(4, 10, 11);
@@ -241,11 +211,7 @@ fn update_with_validation_errors() {
     let mut ticket_pricing_parameters: TicketPricingEditableAttributes = Default::default();
     ticket_pricing_parameters.start_date = Some(NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11));
     ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11));
-    let result = ticket_pricing.update(
-        ticket_pricing_parameters.clone(),
-        None,
-        project.get_connection(),
-    );
+    let result = ticket_pricing.update(ticket_pricing_parameters.clone(), None, project.get_connection());
     match result {
         Ok(_) => {
             panic!("Expected validation error");
@@ -274,11 +240,7 @@ fn update_with_validation_errors() {
     // Updates without start date validation triggering
     ticket_pricing_parameters.start_date = Some(end_date1);
     ticket_pricing_parameters.end_date = Some(NaiveDate::from_ymd(2016, 7, 15).and_hms(4, 10, 11));
-    let result = ticket_pricing.update(
-        ticket_pricing_parameters.clone(),
-        None,
-        project.get_connection(),
-    );
+    let result = ticket_pricing.update(ticket_pricing_parameters.clone(), None, project.get_connection());
     assert!(result.is_ok());
 }
 
@@ -313,19 +275,14 @@ fn update() {
         end_date: Some(update_end_date),
         is_box_office_only: Some(false),
     };
-    let updated_ticket_pricing = ticket_pricing
-        .update(update_parameters, None, connection)
-        .unwrap();
+    let updated_ticket_pricing = ticket_pricing.update(update_parameters, None, connection).unwrap();
     assert_eq!(updated_ticket_pricing.id, ticket_pricing.id);
     assert_eq!(updated_ticket_pricing.name, update_name);
     assert_eq!(updated_ticket_pricing.price_in_cents, update_price_in_cents);
     assert_eq!(updated_ticket_pricing.start_date, update_start_date);
     assert_eq!(updated_ticket_pricing.end_date, update_end_date);
     assert_eq!(updated_ticket_pricing.is_box_office_only, false);
-    assert_eq!(
-        updated_ticket_pricing.ticket_type_id,
-        ticket_pricing.ticket_type_id
-    );
+    assert_eq!(updated_ticket_pricing.ticket_type_id, ticket_pricing.ticket_type_id);
 }
 
 #[test]
@@ -363,10 +320,7 @@ fn update_with_affected_orders() {
     )
     .unwrap();
     let items = cart.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     assert_eq!(order_item.ticket_pricing_id, Some(ticket_pricing.id));
 
     //Change editable parameters and submit ticket pricing update request
@@ -381,9 +335,7 @@ fn update_with_affected_orders() {
         end_date: Some(update_end_date),
         is_box_office_only: Some(false),
     };
-    let updated_ticket_pricing = ticket_pricing
-        .update(update_parameters, None, connection)
-        .unwrap();
+    let updated_ticket_pricing = ticket_pricing.update(update_parameters, None, connection).unwrap();
 
     // ID should be new but everything else should match updated logic
     assert_ne!(updated_ticket_pricing.id, ticket_pricing.id);
@@ -392,29 +344,17 @@ fn update_with_affected_orders() {
     assert_eq!(updated_ticket_pricing.start_date, update_start_date);
     assert_eq!(updated_ticket_pricing.end_date, update_end_date);
     assert_eq!(updated_ticket_pricing.is_box_office_only, false);
-    assert_eq!(
-        updated_ticket_pricing.ticket_type_id,
-        ticket_pricing.ticket_type_id
-    );
+    assert_eq!(updated_ticket_pricing.ticket_type_id, ticket_pricing.ticket_type_id);
 
     // Reloading existing should show nothing has changed but status is now deleted
     let old_ticket_pricing = TicketPricing::find(ticket_pricing.id, connection).unwrap();
     assert_eq!(old_ticket_pricing.id, ticket_pricing.id);
     assert_eq!(old_ticket_pricing.name, ticket_pricing.name);
-    assert_eq!(
-        old_ticket_pricing.price_in_cents,
-        ticket_pricing.price_in_cents
-    );
+    assert_eq!(old_ticket_pricing.price_in_cents, ticket_pricing.price_in_cents);
     assert_eq!(old_ticket_pricing.start_date, ticket_pricing.start_date);
     assert_eq!(old_ticket_pricing.end_date, ticket_pricing.end_date);
-    assert_eq!(
-        old_ticket_pricing.is_box_office_only,
-        ticket_pricing.is_box_office_only
-    );
-    assert_eq!(
-        old_ticket_pricing.ticket_type_id,
-        ticket_pricing.ticket_type_id
-    );
+    assert_eq!(old_ticket_pricing.is_box_office_only, ticket_pricing.is_box_office_only);
+    assert_eq!(old_ticket_pricing.ticket_type_id, ticket_pricing.ticket_type_id);
     assert_eq!(old_ticket_pricing.status, TicketPricingStatus::Deleted);
 }
 
@@ -454,12 +394,8 @@ fn remove() {
     //Remove ticket pricing and check if it is still available
     ticket_pricing1.destroy(None, connection).unwrap();
     let ticket_pricings = ticket_type.ticket_pricing(false, connection).unwrap();
-    let found_index1 = ticket_pricings
-        .iter()
-        .position(|ref r| r.id == ticket_pricing1.id);
-    let found_index2 = ticket_pricings
-        .iter()
-        .position(|ref r| r.id == ticket_pricing2.id);
+    let found_index1 = ticket_pricings.iter().position(|ref r| r.id == ticket_pricing1.id);
+    let found_index2 = ticket_pricings.iter().position(|ref r| r.id == ticket_pricing2.id);
     assert!(found_index1.is_none());
     assert!(found_index2.is_some());
 }
@@ -468,24 +404,13 @@ fn remove() {
 fn find() {
     let project = TestProject::new();
     let event = project.create_event().with_tickets().finish();
-    let ticket_type = &event
-        .ticket_types(true, None, project.get_connection())
-        .unwrap()[0];
+    let ticket_type = &event.ticket_types(true, None, project.get_connection()).unwrap()[0];
     let sd1 = NaiveDate::from_ymd(2016, 7, 8).and_hms(4, 10, 11);
     let ed1 = NaiveDate::from_ymd(2016, 7, 9).and_hms(4, 10, 11);
-    let ticket_pricing = TicketPricing::create(
-        ticket_type.id,
-        "Early Bird".to_string(),
-        sd1,
-        ed1,
-        100,
-        false,
-        None,
-    )
-    .commit(None, project.get_connection())
-    .unwrap();
-    let found_ticket_pricing =
-        TicketPricing::find(ticket_pricing.id, project.get_connection()).unwrap();
+    let ticket_pricing = TicketPricing::create(ticket_type.id, "Early Bird".to_string(), sd1, ed1, 100, false, None)
+        .commit(None, project.get_connection())
+        .unwrap();
+    let found_ticket_pricing = TicketPricing::find(ticket_pricing.id, project.get_connection()).unwrap();
 
     assert_eq!(found_ticket_pricing, ticket_pricing);
 }
@@ -501,12 +426,10 @@ fn get_current_ticket_pricing() {
         .with_ticket_pricing()
         .finish();
 
-    let ticket_types =
-        TicketType::find_by_event_id(event.id, true, None, project.get_connection()).unwrap();
+    let ticket_types = TicketType::find_by_event_id(event.id, true, None, project.get_connection()).unwrap();
 
     let ticket_pricing =
-        TicketPricing::get_current_ticket_pricing(ticket_types[0].id, false, false, connection)
-            .unwrap();
+        TicketPricing::get_current_ticket_pricing(ticket_types[0].id, false, false, connection).unwrap();
 
     assert_eq!(ticket_pricing.name, "Standard".to_string());
 
@@ -550,12 +473,9 @@ fn get_current_ticket_capacity() {
         .with_organization(&organization)
         .with_ticket_pricing()
         .finish();
-    let ticket_types =
-        TicketType::find_by_event_id(event.id, true, None, project.get_connection()).unwrap();
+    let ticket_types = TicketType::find_by_event_id(event.id, true, None, project.get_connection()).unwrap();
     assert_eq!(ticket_types.len(), 1);
 
-    let ticket_capacity = ticket_types[0]
-        .valid_ticket_count(project.get_connection())
-        .unwrap();
+    let ticket_capacity = ticket_types[0].valid_ticket_count(project.get_connection()).unwrap();
     assert_eq!(ticket_capacity, 100);
 }

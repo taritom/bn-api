@@ -1,5 +1,6 @@
 pub use self::service_locator::*;
 
+pub mod cloudinary;
 pub mod communication;
 pub mod deep_linker;
 pub mod expo;

@@ -41,9 +41,7 @@ pub fn activity(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
-pub fn show(
-    (conn, path, auth_user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn show((conn, path, auth_user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let order = Order::find(path.id, connection)?;
     let mut organization_ids = Vec::new();
@@ -80,27 +78,18 @@ pub fn resend_confirmation(
     let order = Order::find(path.id, connection)?;
 
     if order.status != OrderStatus::Paid {
-        return Err(application::internal_server_error::<HttpResponse>(
-            "Cannot resend confirmation for unpaid order",
-        )
-        .unwrap_err());
+        return Err(
+            application::internal_server_error::<HttpResponse>("Cannot resend confirmation for unpaid order")
+                .unwrap_err(),
+        );
     }
     auth_user.requires_scope_for_order(Scopes::OrderResendConfirmation, &order, connection)?;
 
-    let user = DbUser::find(
-        order.on_behalf_of_user_id.unwrap_or(order.user_id),
-        connection,
-    )?;
+    let user = DbUser::find(order.on_behalf_of_user_id.unwrap_or(order.user_id), connection)?;
     let display_order = order.for_display(None, user.id, connection)?;
     if let (Some(first_name), Some(email)) = (user.first_name, user.email) {
-        mailers::orders::confirmation_email(
-            &first_name,
-            email,
-            display_order,
-            &state.config,
-            connection,
-        )?
-        .queue(connection)?;
+        mailers::orders::confirmation_email(&first_name, email, display_order, &state.config, connection)?
+            .queue(connection)?;
     }
 
     Ok(HttpResponse::Ok().json(json!({})))
@@ -112,9 +101,7 @@ pub struct DetailsResponse {
     pub order_contains_other_tickets: bool,
 }
 
-pub fn details(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn details((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let connection = conn.get();
     let order = Order::find(path.id, connection)?;
 
@@ -133,11 +120,7 @@ pub fn details(
 
     Ok(HttpResponse::Ok().json(DetailsResponse {
         items: order.details(&organization_ids, user.id(), connection)?,
-        order_contains_other_tickets: order.partially_visible_order(
-            &organization_ids,
-            user.id(),
-            connection,
-        )?,
+        order_contains_other_tickets: order.partially_visible_order(&organization_ids, user.id(), connection)?,
     }))
 }
 
@@ -170,9 +153,7 @@ pub fn refund(
     let mut order = Order::find(path.id, connection)?;
 
     if order.status != OrderStatus::Paid {
-        return application::internal_server_error(
-            "Order must have associated payments to refund order items",
-        );
+        return application::internal_server_error("Order must have associated payments to refund order items");
     }
 
     if !is_authorized_to_refund(&user, connection, &items)? {
@@ -195,19 +176,16 @@ pub fn refund(
     let mut tokens_per_asset: HashMap<Uuid, Vec<u64>> = HashMap::new();
     let mut wallet_id_per_asset: HashMap<Uuid, Uuid> = HashMap::new();
     let mut ticket_instances_per_asset: HashMap<Uuid, Vec<TicketInstance>> = HashMap::new();
-    let refunded_tickets =
-        RefundedTicket::find_by_ticket_instance_ids(ticket_instance_ids, connection)?
-            .into_iter()
-            .filter(|refund_data| refund_data.ticket_refunded_at.is_some());
+    let refunded_tickets = RefundedTicket::find_by_ticket_instance_ids(ticket_instance_ids, connection)?
+        .into_iter()
+        .filter(|refund_data| refund_data.ticket_refunded_at.is_some());
     for refunded_ticket in refunded_tickets {
         let ticket = TicketInstance::find(refunded_ticket.ticket_instance_id, connection)?;
         tokens_per_asset
             .entry(ticket.asset_id)
             .or_insert_with(|| Vec::new())
             .push(ticket.token_id as u64);
-        wallet_id_per_asset
-            .entry(ticket.asset_id)
-            .or_insert(ticket.wallet_id);
+        wallet_id_per_asset.entry(ticket.asset_id).or_insert(ticket.wallet_id);
         ticket_instances_per_asset
             .entry(ticket.asset_id)
             .or_insert_with(|| Vec::new())
@@ -223,22 +201,26 @@ pub fn refund(
     match connection.transaction::<_, BigNeonError, _>(|| {
         for (asset_id, token_ids) in &tokens_per_asset {
             let organization_id = Organization::find_by_asset_id(*asset_id, connection)?.id;
-            let organization_wallet =
-                Wallet::find_default_for_organization(organization_id, connection)?;
+            let organization_wallet = Wallet::find_default_for_organization(organization_id, connection)?;
             let asset = Asset::find(*asset_id, connection)?;
             match asset.blockchain_asset_id {
                 Some(a) => {
                     let wallet_id = match wallet_id_per_asset.get(asset_id) {
                         Some(w) => w.clone(),
-                        None => return Err(application::internal_server_error::<HttpResponse>(
-                            "Could not complete this refund because wallet id not found for asset",
-                        ).unwrap_err()),
+                        None => {
+                            return Err(application::internal_server_error::<HttpResponse>(
+                                "Could not complete this refund because wallet id not found for asset",
+                            )
+                            .unwrap_err());
+                        }
                     };
                     let user_wallet = Wallet::find(wallet_id, connection)?;
-                    state.config.tari_client.transfer_tokens(&user_wallet.secret_key, &user_wallet.public_key,
-                                                             &a,
-                                                             token_ids.clone(),
-                                                             organization_wallet.public_key.clone(),
+                    state.config.tari_client.transfer_tokens(
+                        &user_wallet.secret_key,
+                        &user_wallet.public_key,
+                        &a,
+                        token_ids.clone(),
+                        organization_wallet.public_key.clone(),
                     )?;
                     modified_tokens.insert(*asset_id, token_ids.clone());
                     match ticket_instances_per_asset.get(asset_id) {
@@ -247,14 +229,20 @@ pub fn refund(
                                 ticket_instance.set_wallet(&organization_wallet, connection)?;
                             }
                         }
-                        None => return Err(application::internal_server_error::<HttpResponse>(
-                            "No ticket instances exist for transferred tokens",
-                        ).unwrap_err()),
+                        None => {
+                            return Err(application::internal_server_error::<HttpResponse>(
+                                "No ticket instances exist for transferred tokens",
+                            )
+                            .unwrap_err());
+                        }
                     }
-                },
-                None => return Err(application::internal_server_error::<HttpResponse>(
-                    "Could not complete this refund because the asset is not assigned on the blockchain",
-                ).unwrap_err())
+                }
+                None => {
+                    return Err(application::internal_server_error::<HttpResponse>(
+                        "Could not complete this refund because the asset is not assigned on the blockchain",
+                    )
+                    .unwrap_err());
+                }
             }
         }
 
@@ -288,10 +276,12 @@ pub fn refund(
             let amount_to_refund = cmp::min(refund_due - amount_refunded, remaining_balance);
             let mut refund_data = None;
             if payment.payment_method == PaymentMethods::CreditCard {
-
                 let mut organizations = order.organizations(connection)?;
                 if organizations.len() != 1 {
-                    return Err(application::internal_server_error::<HttpResponse>("Cannot process refunds for orders that contain more than one event").unwrap_err());
+                    return Err(application::internal_server_error::<HttpResponse>(
+                        "Cannot process refunds for orders that contain more than one event",
+                    )
+                    .unwrap_err());
                 }
                 let organization = organizations.remove(0);
                 let client = &state
@@ -299,16 +289,15 @@ pub fn refund(
                     .create_payment_processor(payment.provider, &organization)?;
 
                 refund_data = match payment.external_reference {
-                    Some(ref external_reference) => Some(
-                        client
-                            .partial_refund(external_reference, amount_to_refund)?
-                            .to_json()?,
-                    ),
+                    Some(ref external_reference) => {
+                        Some(client.partial_refund(external_reference, amount_to_refund)?.to_json()?)
+                    }
                     None => {
                         return Err(application::internal_server_error::<HttpResponse>(&format!(
                             "Unable to refund amount owed payment {} lacks external reference",
                             payment.id
-                        )).unwrap_err())
+                        ))
+                        .unwrap_err());
                     }
                 };
             }
@@ -321,7 +310,8 @@ pub fn refund(
             return Err(application::internal_server_error::<HttpResponse>(&format!(
                 "Unable to refund amount owed {} refunded, {} due",
                 amount_refunded, refund_due
-            )).unwrap_err());
+            ))
+            .unwrap_err());
         }
 
         Ok(())
@@ -329,27 +319,32 @@ pub fn refund(
         Err(error) => {
             for (asset_id, token_ids) in &modified_tokens {
                 let organization_id = Organization::find_by_asset_id(*asset_id, connection)?.id;
-                let organization_wallet =
-                    Wallet::find_default_for_organization(organization_id, connection)?;
+                let organization_wallet = Wallet::find_default_for_organization(organization_id, connection)?;
                 let asset = Asset::find(*asset_id, connection)?;
                 match asset.blockchain_asset_id {
                     Some(a) => {
                         let wallet_id = match wallet_id_per_asset.get(asset_id) {
                             Some(w) => w.clone(),
-                            None => return application::internal_server_error(
-                                "Could not complete this refund because wallet id not found for asset",
-                            ),
+                            None => {
+                                return application::internal_server_error(
+                                    "Could not complete this refund because wallet id not found for asset",
+                                );
+                            }
                         };
                         let user_wallet = Wallet::find(wallet_id, connection)?;
-                        state.config.tari_client.transfer_tokens(&organization_wallet.secret_key, &organization_wallet.public_key,
-                                                                 &a,
-                                                                 token_ids.clone(),
-                                                                 user_wallet.public_key.clone(),
+                        state.config.tari_client.transfer_tokens(
+                            &organization_wallet.secret_key,
+                            &organization_wallet.public_key,
+                            &a,
+                            token_ids.clone(),
+                            user_wallet.public_key.clone(),
                         )?;
-                    },
-                    None => return application::internal_server_error(
-                        "Could not complete this refund because the asset is not assigned on the blockchain",
-                    ),
+                    }
+                    None => {
+                        return application::internal_server_error(
+                            "Could not complete this refund because the asset is not assigned on the blockchain",
+                        );
+                    }
                 }
             }
 
@@ -367,10 +362,7 @@ pub fn refund(
 
     // Reload order
     let order = Order::find(order.id, connection)?;
-    let user = DbUser::find(
-        order.on_behalf_of_user_id.unwrap_or(order.user_id),
-        connection,
-    )?;
+    let user = DbUser::find(order.on_behalf_of_user_id.unwrap_or(order.user_id), connection)?;
 
     // Communicate refund to user
     if let (Some(first_name), Some(email)) = (user.first_name, user.email) {
@@ -389,10 +381,7 @@ fn is_authorized_to_refund(
     items: &Vec<RefundItemRequest>,
 ) -> Result<bool, BigNeonError> {
     // Find list of organizations related to order item id events for confirming user access
-    let order_item_ids: Vec<Uuid> = items
-        .iter()
-        .map(|refund_item| refund_item.order_item_id)
-        .collect();
+    let order_item_ids: Vec<Uuid> = items.iter().map(|refund_item| refund_item.order_item_id).collect();
     let mut organization_map = HashMap::new();
     for organization in Organization::find_by_order_item_ids(&order_item_ids, connection)? {
         organization_map.insert(organization.id, organization);
@@ -401,12 +390,7 @@ fn is_authorized_to_refund(
     let mut authorized_to_refund_items = !organization_map.is_empty();
     for event in Event::find_by_order_item_ids(&order_item_ids, connection)? {
         if let Some(organization) = organization_map.get(&event.organization_id) {
-            if !user.has_scope_for_organization_event(
-                Scopes::OrderRefund,
-                &organization,
-                event.id,
-                connection,
-            )? {
+            if !user.has_scope_for_organization_event(Scopes::OrderRefund, &organization, event.id, connection)? {
                 authorized_to_refund_items = false;
                 break;
             }
@@ -418,18 +402,11 @@ fn is_authorized_to_refund(
     Ok(authorized_to_refund_items)
 }
 
-pub fn tickets(
-    (conn, path, user): (Connection, Path<PathParameters>, User),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn tickets((conn, path, user): (Connection, Path<PathParameters>, User)) -> Result<HttpResponse, BigNeonError> {
     let conn = conn.get();
     let order = Order::find(path.id, conn)?;
     // TODO: Only show the redeem key for orgs that the user has access to redeem
-    let orgs: Vec<Uuid> = user
-        .user
-        .organizations(conn)?
-        .iter()
-        .map(|o| o.id)
-        .collect();
+    let orgs: Vec<Uuid> = user.user.organizations(conn)?.iter().map(|o| o.id).collect();
     let mut results = vec![];
     for item in order
         .items(conn)?
@@ -437,9 +414,7 @@ pub fn tickets(
         .filter(|t| t.item_type == OrderItemTypes::Tickets)
     {
         if order.user_id != user.id() && order.on_behalf_of_user_id != Some(user.id()) {
-            if item.event_id.is_none()
-                || !orgs.contains(&Event::find(item.event_id.unwrap(), conn)?.organization_id)
-            {
+            if item.event_id.is_none() || !orgs.contains(&Event::find(item.event_id.unwrap(), conn)?.organization_id) {
                 continue;
             }
         }

@@ -28,9 +28,7 @@ impl DisplayTicketPricing {
         let mut is_comp = false;
         let mut discount_in_cents = 0;
         if let Some(redemption_code) = redemption_code {
-            if let Some(hold) =
-                Hold::find_by_redemption_code(&redemption_code, event_id, conn).optional()?
-            {
+            if let Some(hold) = Hold::find_by_redemption_code(&redemption_code, event_id, conn).optional()? {
                 if hold.ticket_type_id == ticket_pricing.ticket_type_id {
                     if hold.hold_type == HoldTypes::Comp {
                         is_comp = true;
@@ -40,13 +38,10 @@ impl DisplayTicketPricing {
                     }
                 }
             } else if let Some(code_availability) =
-                Code::find_by_redemption_code_with_availability(&redemption_code, event_id, conn)
-                    .optional()?
+                Code::find_by_redemption_code_with_availability(&redemption_code, event_id, conn).optional()?
             {
                 let now = Utc::now().naive_utc();
-                if now >= code_availability.code.start_date
-                    && now <= code_availability.code.end_date
-                {
+                if now >= code_availability.code.start_date && now <= code_availability.code.end_date {
                     if TicketType::find_for_code(code_availability.code.id, conn)?
                         .iter()
                         .map(|tt| tt.id)
@@ -61,8 +56,7 @@ impl DisplayTicketPricing {
                         }
 
                         if code_availability.code.discount_in_cents.unwrap_or(0) > 0 {
-                            discount_in_cents =
-                                code_availability.code.discount_in_cents.unwrap_or(0);
+                            discount_in_cents = code_availability.code.discount_in_cents.unwrap_or(0);
                         }
                     }
                 }

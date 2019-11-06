@@ -39,9 +39,7 @@ impl NewEventUser {
         let result: EventUser = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not add user to event",
-            diesel::insert_into(event_users::table)
-                .values(self)
-                .get_result(conn),
+            diesel::insert_into(event_users::table).values(self).get_result(conn),
         )?;
 
         Ok(result)
@@ -56,9 +54,7 @@ impl EventUser {
         conn: &PgConnection,
     ) -> Result<(), DatabaseError> {
         for event_id in event_ids {
-            if let Some(event_user) =
-                EventUser::find_by_event_id_user_id(*event_id, user_id, conn).optional()?
-            {
+            if let Some(event_user) = EventUser::find_by_event_id_user_id(*event_id, user_id, conn).optional()? {
                 event_user.update(&EventUserEditableAttributes { role: Some(role) }, conn)?;
             } else {
                 EventUser::create(user_id, *event_id, role).commit(conn)?;

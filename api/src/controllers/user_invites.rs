@@ -18,12 +18,7 @@ pub struct UserInviteRequest {
 }
 
 pub fn create(
-    (state, connection, parameters, auth_user): (
-        State<AppState>,
-        Connection,
-        Json<UserInviteRequest>,
-        AuthUser,
-    ),
+    (state, connection, parameters, auth_user): (State<AppState>, Connection, Json<UserInviteRequest>, AuthUser),
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
 

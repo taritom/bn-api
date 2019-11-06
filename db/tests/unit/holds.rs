@@ -340,11 +340,7 @@ fn update_with_validation_errors() {
         .with_ticket_pricing()
         .finish();
     let hold = project.create_hold().with_event(&event).finish();
-    let comp = project
-        .create_comp()
-        .with_quantity(10)
-        .with_hold(&hold)
-        .finish();
+    let comp = project.create_comp().with_quantity(10).with_hold(&hold).finish();
 
     let user = project.create_user().finish();
     let mut cart = Order::find_or_create_cart(&user, connection).unwrap();
@@ -457,19 +453,13 @@ fn destroy() {
     let connection = project.get_connection();
     let hold = project.create_hold().finish();
     assert!(hold.clone().destroy(None, connection).is_ok());
-    assert!(Hold::find(hold.id, connection)
-        .unwrap()
-        .deleted_at
-        .is_some());
+    assert!(Hold::find(hold.id, connection).unwrap().deleted_at.is_some());
 
     // Destroy hold with comps
     let comp = project.create_comp().finish();
     let hold = Hold::find(comp.id, connection).unwrap();
     hold.clone().destroy(None, connection).unwrap();
-    assert!(Hold::find(hold.id, connection)
-        .unwrap()
-        .deleted_at
-        .is_some());
+    assert!(Hold::find(hold.id, connection).unwrap().deleted_at.is_some());
 }
 
 #[test]
@@ -552,10 +542,7 @@ fn split() {
     assert_eq!(phone.clone(), new_hold.phone);
     assert_eq!(Some(redemption_code), new_hold.redemption_code);
     assert_eq!(quantity, new_hold.quantity(connection).unwrap().0);
-    assert_eq!(
-        discount_in_cents.map(|n| n as i64),
-        new_hold.discount_in_cents
-    );
+    assert_eq!(discount_in_cents.map(|n| n as i64), new_hold.discount_in_cents);
     assert_eq!(hold_type, new_hold.hold_type);
     assert_eq!(end_at, new_hold.end_at);
     assert_eq!(max_per_user.map(|n| n as i64), new_hold.max_per_user);
@@ -588,10 +575,7 @@ fn split() {
     assert_eq!(phone.clone(), new_hold.phone);
     assert_eq!(Some(redemption_code), new_hold.redemption_code);
     assert_eq!(quantity, new_hold.quantity(connection).unwrap().0);
-    assert_eq!(
-        discount_in_cents.map(|n| n as i64),
-        new_hold.discount_in_cents
-    );
+    assert_eq!(discount_in_cents.map(|n| n as i64), new_hold.discount_in_cents);
     assert_eq!(hold_type, new_hold.hold_type);
     assert_eq!(end_at, new_hold.end_at);
     assert_eq!(max_per_user.map(|n| n as i64), new_hold.max_per_user);
@@ -623,10 +607,7 @@ fn split() {
     assert_eq!(phone.clone(), new_hold.phone);
     assert_eq!(Some(redemption_code), new_hold.redemption_code);
     assert_eq!(quantity, new_hold.quantity(connection).unwrap().0);
-    assert_eq!(
-        discount_in_cents.map(|n| n as i64),
-        new_hold.discount_in_cents
-    );
+    assert_eq!(discount_in_cents.map(|n| n as i64), new_hold.discount_in_cents);
     assert_eq!(hold_type, new_hold.hold_type);
     assert_eq!(end_at, new_hold.end_at);
     assert_eq!(max_per_user.map(|n| n as i64), new_hold.max_per_user);
@@ -647,11 +628,7 @@ fn find_for_event() {
         .with_name("Hold 2".to_string())
         .with_event(&event)
         .finish();
-    let comp = db
-        .create_comp()
-        .with_name("Comp".to_string())
-        .with_hold(&hold)
-        .finish();
+    let comp = db.create_comp().with_name("Comp".to_string()).with_hold(&hold).finish();
 
     // Only parent holds
     let holds = Hold::find_for_event(event.id, false, db.get_connection()).unwrap();
@@ -669,14 +646,8 @@ fn find_by_parent_hold_id() {
     let comp = project.create_comp().finish();
 
     // Record found
-    let found_comp = Hold::find_by_parent_id(
-        comp.parent_hold_id.unwrap(),
-        Some(HoldTypes::Comp),
-        0,
-        1000,
-        connection,
-    )
-    .unwrap();
+    let found_comp =
+        Hold::find_by_parent_id(comp.parent_hold_id.unwrap(), Some(HoldTypes::Comp), 0, 1000, connection).unwrap();
     assert_eq!(comp, found_comp.data[0]);
 
     // Comp does not exist for hold so returns error

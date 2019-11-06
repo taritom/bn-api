@@ -32,10 +32,7 @@ impl<T> Paginated<T> {
         Paginated { per_page, ..self }
     }
 
-    pub fn load_and_count_pages<U>(
-        self,
-        conn: &PgConnection,
-    ) -> Result<(Vec<U>, i64), diesel::result::Error>
+    pub fn load_and_count_pages<U>(self, conn: &PgConnection) -> Result<(Vec<U>, i64), diesel::result::Error>
     where
         Self: LoadQuery<PgConnection, (U, i64)>,
     {

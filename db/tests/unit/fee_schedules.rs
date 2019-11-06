@@ -29,10 +29,7 @@ fn fee_schedule_create() {
         vec![ranges[0].min_price_in_cents, ranges[1].min_price_in_cents],
         vec![20, 1000]
     );
-    assert_eq!(
-        vec![ranges[0].fee_in_cents, ranges[1].fee_in_cents],
-        vec![10, 100]
-    );
+    assert_eq!(vec![ranges[0].fee_in_cents, ranges[1].fee_in_cents], vec![10, 100]);
 
     let fee_schedule2 = FeeSchedule::create(
         Uuid::nil(),
@@ -78,12 +75,8 @@ fn get_fee_schedule_range() {
     .commit(None, project.get_connection())
     .unwrap();
 
-    let fee_schedule_range1 = fee_schedule
-        .get_range(30, project.get_connection())
-        .unwrap();
-    let fee_schedule_range2 = fee_schedule
-        .get_range(150, project.get_connection())
-        .unwrap();
+    let fee_schedule_range1 = fee_schedule.get_range(30, project.get_connection()).unwrap();
+    let fee_schedule_range2 = fee_schedule.get_range(150, project.get_connection()).unwrap();
     let fee_schedule_range3 = fee_schedule.get_range(10, project.get_connection());
 
     assert_eq!(fee_schedule_range1.fee_in_cents, 10);

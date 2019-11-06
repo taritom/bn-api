@@ -4,9 +4,7 @@ use serde_json;
 use uuid::Uuid;
 
 use bigneon_api::controllers::tickets::SendTicketsRequest;
-use bigneon_api::controllers::tickets::{
-    self, SearchParameters, ShowTicketResponse, TransferTicketRequest,
-};
+use bigneon_api::controllers::tickets::{self, SearchParameters, ShowTicketResponse, TransferTicketRequest};
 use bigneon_api::extractors::*;
 use bigneon_api::models::{OptionalPathParameters, PathParameters};
 use bigneon_db::prelude::*;
@@ -96,19 +94,17 @@ pub fn index() {
             conn,
         )
         .unwrap();
-    let ticket =
-        TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, conn)
-            .unwrap()
-            .remove(0)
-            .1
-            .remove(0);
+    let ticket = TicketInstance::find_for_user_for_display(user.id, Some(event.id), None, None, conn)
+        .unwrap()
+        .remove(0)
+        .1
+        .remove(0);
     let ticket_id = ticket.id;
-    let ticket2 =
-        TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, conn)
-            .unwrap()
-            .remove(0)
-            .1
-            .remove(0);
+    let ticket2 = TicketInstance::find_for_user_for_display(user.id, Some(event2.id), None, None, conn)
+        .unwrap()
+        .remove(0)
+        .1
+        .remove(0);
     let ticket2_id = ticket2.id;
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
 
@@ -116,13 +112,7 @@ pub fn index() {
     let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
     path.id = Some(event.id);
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
-    let response = tickets::index((
-        database.connection.clone().into(),
-        path,
-        parameters,
-        auth_user.clone(),
-    ))
-    .unwrap();
+    let response = tickets::index((database.connection.clone().into(), path, parameters, auth_user.clone())).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
     let found_data: Payload<DisplayTicket> = serde_json::from_str(&body).unwrap();
@@ -146,17 +136,10 @@ pub fn index() {
     let mut path = Path::<OptionalPathParameters>::extract(&test_request.request).unwrap();
     path.id = None;
     let parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
-    let response = tickets::index((
-        database.connection.clone().into(),
-        path,
-        parameters,
-        auth_user.clone(),
-    ))
-    .unwrap();
+    let response = tickets::index((database.connection.clone().into(), path, parameters, auth_user.clone())).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
-        serde_json::from_str(&body).unwrap();
+    let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> = serde_json::from_str(&body).unwrap();
     let found_tickets = found_data.data;
     let expected_ticket2 = DisplayTicket {
         id: ticket2_id,
@@ -175,10 +158,7 @@ pub fn index() {
     };
     assert_eq!(
         vec![
-            (
-                event.clone().for_display(conn).unwrap(),
-                vec![expected_ticket.clone()]
-            ),
+            (event.clone().for_display(conn).unwrap(), vec![expected_ticket.clone()]),
             (
                 event2.clone().for_display(conn).unwrap(),
                 vec![expected_ticket2.clone()]
@@ -192,24 +172,14 @@ pub fn index() {
     path.id = None;
     let mut parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     parameters.start_utc = Some(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 11, 11));
-    let response = tickets::index((
-        database.connection.clone().into(),
-        path,
-        parameters,
-        auth_user.clone(),
-    ))
-    .unwrap();
+    let response = tickets::index((database.connection.clone().into(), path, parameters, auth_user.clone())).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
-        serde_json::from_str(&body).unwrap();
+    let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> = serde_json::from_str(&body).unwrap();
     let found_tickets = found_data.data;
     assert_eq!(
         vec![
-            (
-                event.clone().for_display(conn).unwrap(),
-                vec![expected_ticket.clone()]
-            ),
+            (event.clone().for_display(conn).unwrap(), vec![expected_ticket.clone()]),
             (
                 event2.clone().for_display(conn).unwrap(),
                 vec![expected_ticket2.clone()]
@@ -223,23 +193,13 @@ pub fn index() {
     path.id = None;
     let mut parameters = Query::<SearchParameters>::extract(&test_request.request).unwrap();
     parameters.start_utc = Some(NaiveDate::from_ymd(2017, 7, 8).and_hms(9, 0, 11));
-    let response = tickets::index((
-        database.connection.clone().into(),
-        path,
-        parameters,
-        auth_user,
-    ))
-    .unwrap();
+    let response = tickets::index((database.connection.clone().into(), path, parameters, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> =
-        serde_json::from_str(&body).unwrap();
+    let found_data: Payload<(DisplayEvent, Vec<DisplayTicket>)> = serde_json::from_str(&body).unwrap();
     let found_tickets = found_data.data;
     assert_eq!(
-        vec![(
-            event2.for_display(conn).unwrap(),
-            vec![expected_ticket2.clone()]
-        )],
+        vec![(event2.for_display(conn).unwrap(), vec![expected_ticket2.clone()])],
         found_tickets
     );
 }
@@ -286,9 +246,7 @@ pub fn show() {
     .unwrap();
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let mut path = Path::<PathParameters>::extract(&request.request).unwrap();
-    let ticket = TicketInstance::find_for_user(user.id, conn)
-        .unwrap()
-        .remove(0);
+    let ticket = TicketInstance::find_for_user(user.id, conn).unwrap().remove(0);
     path.id = ticket.id;
     let response = tickets::show((database.connection.clone().into(), path, auth_user)).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -532,7 +490,7 @@ fn ticket_transfer_authorization() {
         .create_event()
         .with_name("Event1".into())
         .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
-        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2599, 7, 9).and_hms(9, 10, 11))
         .with_venue(&venue)
         .with_organization(&organization)
         .with_ticket_pricing()
@@ -635,10 +593,7 @@ fn send_to_existing_user() {
     let receiver_tickets = TicketInstance::find_for_user(receiver.id, conn).unwrap();
     assert_eq!(sender_tickets, vec![]);
     assert_equiv!(
-        receiver_tickets
-            .into_iter()
-            .map(|t| t.id)
-            .collect::<Vec<Uuid>>(),
+        receiver_tickets.into_iter().map(|t| t.id).collect::<Vec<Uuid>>(),
         expected_tickets
     );
 }
@@ -671,10 +626,7 @@ fn send_to_new_user() {
 
     let sender_tickets = TicketInstance::find_for_user(sender.id, conn).unwrap();
     assert_equiv!(
-        sender_tickets
-            .into_iter()
-            .map(|t| t.id)
-            .collect::<Vec<Uuid>>(),
+        sender_tickets.into_iter().map(|t| t.id).collect::<Vec<Uuid>>(),
         expected_tickets
     );
 }
@@ -691,7 +643,7 @@ fn receive_ticket_transfer() {
         .create_event()
         .with_name("Event1".into())
         .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
-        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2599, 7, 9).and_hms(9, 10, 11))
         .with_venue(&venue)
         .with_organization(&organization)
         .with_ticket_pricing()
@@ -764,7 +716,7 @@ fn receive_ticket_transfer_fails_cancelled_transfer() {
         .create_event()
         .with_name("Event1".into())
         .with_event_start(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11))
-        .with_event_end(NaiveDate::from_ymd(2016, 7, 9).and_hms(9, 10, 11))
+        .with_event_end(NaiveDate::from_ymd(2599, 7, 9).and_hms(9, 10, 11))
         .with_venue(&venue)
         .with_organization(&organization)
         .with_ticket_pricing()
@@ -798,9 +750,7 @@ fn receive_ticket_transfer_fails_cancelled_transfer() {
     .unwrap();
     let tickets = TicketInstance::find_for_user(user.id, conn).unwrap();
     let ticket_ids = vec![tickets[0].id, tickets[1].id];
-    let transfer =
-        TicketInstance::create_transfer(auth_user.id(), &ticket_ids, None, None, false, conn)
-            .unwrap();
+    let transfer = TicketInstance::create_transfer(auth_user.id(), &ticket_ids, None, None, false, conn).unwrap();
     transfer.cancel(user.id, None, conn).unwrap();
 
     //Try receive transfer
@@ -817,8 +767,5 @@ fn receive_ticket_transfer_fails_cancelled_transfer() {
 
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let body = support::unwrap_body_to_string(&response).unwrap();
-    assert_eq!(
-        body,
-        json!({"error": "The transfer has been cancelled."}).to_string()
-    );
+    assert_eq!(body, json!({"error": "The transfer has been cancelled."}).to_string());
 }

@@ -397,8 +397,7 @@ fn register_address_exists() {
         None,
     ));
 
-    let response: HttpResponse =
-        users::register((request.request, database.connection.into(), json)).into();
+    let response: HttpResponse = users::register((request.request, database.connection.into(), json)).into();
 
     if response.status() == StatusCode::OK {
         panic!("Duplicate email was allowed when it should not be")
@@ -418,8 +417,7 @@ fn register_succeeds_without_name() {
         captcha_response: None,
     });
 
-    let response: HttpResponse =
-        users::register((request.request, database.connection.into(), json)).into();
+    let response: HttpResponse = users::register((request.request, database.connection.into(), json)).into();
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
@@ -436,8 +434,7 @@ fn register_succeeds() {
         None,
     ));
 
-    let response: HttpResponse =
-        users::register((request.request, database.connection.into(), json)).into();
+    let response: HttpResponse = users::register((request.request, database.connection.into(), json)).into();
     assert_eq!(response.status(), StatusCode::CREATED);
 }
 
@@ -481,18 +478,14 @@ fn register_with_validation_errors() {
         None,
     ));
 
-    let response: HttpResponse =
-        users::register((request.request, database.connection.into(), json)).into();
+    let response: HttpResponse = users::register((request.request, database.connection.into(), json)).into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(response.error().is_some());
 
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let email = validation_response.fields.get("email").unwrap();
     assert_eq!(email[0].code, "email");
-    assert_eq!(
-        &email[0].message.clone().unwrap().into_owned(),
-        "Email is invalid"
-    );
+    assert_eq!(&email[0].message.clone().unwrap().into_owned(), "Email is invalid");
 }
 
 #[test]
@@ -523,11 +516,9 @@ fn current_user_organization_owner() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgOwner, Some(&organization), &database);
 
-    let current_user =
-        users::current_user((database.connection.clone().into(), auth_user)).unwrap();
+    let current_user = users::current_user((database.connection.clone().into(), auth_user)).unwrap();
     let user = current_user.user;
     assert_eq!(user.id, user.id);
     let mut expected_results = HashMap::new();
@@ -544,6 +535,7 @@ fn current_user_organization_owner() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",
@@ -599,15 +591,9 @@ fn current_user_organization_member() {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user = support::create_auth_user_from_user(
-        &user,
-        Roles::OrgMember,
-        Some(&organization),
-        &database,
-    );
+    let auth_user = support::create_auth_user_from_user(&user, Roles::OrgMember, Some(&organization), &database);
 
-    let current_user =
-        users::current_user((database.connection.clone().into(), auth_user)).unwrap();
+    let current_user = users::current_user((database.connection.clone().into(), auth_user)).unwrap();
     let user = current_user.user;
     assert_eq!(user.id, user.id);
     assert_eq!(
@@ -683,8 +669,7 @@ pub fn update_current_user() {
     attributes.email = Some(email.to_string());
     let json = Json(attributes);
 
-    let updated_user =
-        users::update_current_user((database.connection.into(), json, user)).unwrap();
+    let updated_user = users::update_current_user((database.connection.into(), json, user)).unwrap();
     assert_eq!(updated_user.user.email, Some(email.into()));
 }
 
@@ -697,21 +682,16 @@ pub fn update_current_user_with_validation_errors() {
     let json = Json(attributes);
 
     let result: Result<HttpResponse, BigNeonError> =
-        Err(
-            users::update_current_user((database.connection.into(), json, user))
-                .err()
-                .unwrap(),
-        );
+        Err(users::update_current_user((database.connection.into(), json, user))
+            .err()
+            .unwrap());
 
     let response: HttpResponse = result.into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let validation_response = support::validation_response_from_response(&response).unwrap();
     let email = validation_response.fields.get("email").unwrap();
     assert_eq!(email[0].code, "email");
-    assert_eq!(
-        &email[0].message.clone().unwrap().into_owned(),
-        "Email is invalid"
-    );
+    assert_eq!(&email[0].message.clone().unwrap().into_owned(), "Email is invalid");
 }
 
 #[test]
@@ -725,11 +705,9 @@ fn update_current_user_address_exists() {
     let json = Json(attributes);
 
     let result: Result<HttpResponse, BigNeonError> =
-        Err(
-            users::update_current_user((database.connection.into(), json, user))
-                .err()
-                .unwrap(),
-        );
+        Err(users::update_current_user((database.connection.into(), json, user))
+            .err()
+            .unwrap());
     let response: HttpResponse = result.into();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let validation_response = support::validation_response_from_response(&response).unwrap();

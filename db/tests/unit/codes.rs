@@ -94,16 +94,9 @@ pub fn create_with_validation_errors() {
             ValidationError { errors } => {
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
+                assert_eq!(errors["start_date"][0].code, "start_date_must_be_before_end_date");
                 assert_eq!(
-                    errors["start_date"][0].code,
-                    "start_date_must_be_before_end_date"
-                );
-                assert_eq!(
-                    &errors["start_date"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["start_date"][0].message.clone().unwrap().into_owned(),
                     "Start date must be before end date"
                 );
 
@@ -146,11 +139,7 @@ pub fn create_with_validation_errors() {
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "uniqueness");
                 assert_eq!(
-                    &errors["redemption_code"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["redemption_code"][0].message.clone().unwrap().into_owned(),
                     "Redemption code must be unique"
                 );
             }
@@ -185,11 +174,7 @@ pub fn create_with_validation_errors() {
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "uniqueness");
                 assert_eq!(
-                    &errors["redemption_code"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["redemption_code"][0].message.clone().unwrap().into_owned(),
                     "Redemption code must be unique"
                 );
             }
@@ -223,10 +208,7 @@ pub fn create_with_validation_errors() {
             ValidationError { errors } => {
                 assert!(errors.contains_key("discounts"));
                 assert_eq!(errors["discounts"].len(), 1);
-                assert_eq!(
-                    errors["discounts"][0].code,
-                    "only_single_discount_type_allowed"
-                );
+                assert_eq!(errors["discounts"][0].code, "only_single_discount_type_allowed");
                 assert_eq!(
                     &errors["discounts"][0].message.clone().unwrap().into_owned(),
                     "Cannot apply more than one type of discount"
@@ -265,9 +247,7 @@ fn update() {
         name: Some("New name".into()),
         ..Default::default()
     };
-    let new_code = code
-        .update(update_patch, None, db.get_connection())
-        .unwrap();
+    let new_code = code.update(update_patch, None, db.get_connection()).unwrap();
     assert_eq!(new_code.name, "New name".to_string());
 }
 
@@ -295,16 +275,9 @@ pub fn update_with_validation_errors() {
             ValidationError { errors } => {
                 assert!(errors.contains_key("start_date"));
                 assert_eq!(errors["start_date"].len(), 1);
+                assert_eq!(errors["start_date"][0].code, "start_date_must_be_before_end_date");
                 assert_eq!(
-                    errors["start_date"][0].code,
-                    "start_date_must_be_before_end_date"
-                );
-                assert_eq!(
-                    &errors["start_date"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["start_date"][0].message.clone().unwrap().into_owned(),
                     "Start date must be before end date"
                 );
 
@@ -312,11 +285,7 @@ pub fn update_with_validation_errors() {
                 assert_eq!(errors["discount_in_cents"].len(), 1);
                 assert_eq!(errors["discount_in_cents"][0].code, "required");
                 assert_eq!(
-                    &errors["discount_in_cents"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["discount_in_cents"][0].message.clone().unwrap().into_owned(),
                     "Discount required for Discount code type"
                 );
             }
@@ -341,11 +310,7 @@ pub fn update_with_validation_errors() {
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "uniqueness");
                 assert_eq!(
-                    &errors["redemption_code"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["redemption_code"][0].message.clone().unwrap().into_owned(),
                     "Redemption code must be unique"
                 );
             }
@@ -370,11 +335,7 @@ pub fn update_with_validation_errors() {
                 assert_eq!(errors["redemption_code"].len(), 1);
                 assert_eq!(errors["redemption_code"][0].code, "uniqueness");
                 assert_eq!(
-                    &errors["redemption_code"][0]
-                        .message
-                        .clone()
-                        .unwrap()
-                        .into_owned(),
+                    &errors["redemption_code"][0].message.clone().unwrap().into_owned(),
                     "Redemption code must be unique"
                 );
             }
@@ -388,9 +349,7 @@ fn find_by_redemption_code() {
     let db = TestProject::new();
     let connection = db.get_connection();
     let code = db.create_code().finish();
-    let found_code =
-        Code::find_by_redemption_code_with_availability(&code.redemption_code, None, connection)
-            .unwrap();
+    let found_code = Code::find_by_redemption_code_with_availability(&code.redemption_code, None, connection).unwrap();
     assert_eq!(code, found_code.code);
 }
 
@@ -430,10 +389,7 @@ fn for_display() {
     let mut display_code: DisplayCodeAvailability = code.for_display(connection).unwrap();
     assert_eq!(code.id, display_code.display_code.id);
     assert_eq!(code.name, display_code.display_code.name);
-    assert_eq!(
-        vec![code.redemption_code],
-        display_code.display_code.redemption_codes
-    );
+    assert_eq!(vec![code.redemption_code], display_code.display_code.redemption_codes);
     assert_eq!(
         display_code.display_code.ticket_type_ids.sort(),
         vec![ticket_type.id, ticket_type2.id].sort()
@@ -532,8 +488,7 @@ pub fn find_for_event() {
         .with_code_type(CodeTypes::Access)
         .finish();
 
-    let codes =
-        Code::find_for_event(event.id, Some(CodeTypes::Discount), db.get_connection()).unwrap();
+    let codes = Code::find_for_event(event.id, Some(CodeTypes::Discount), db.get_connection()).unwrap();
     assert_eq!(
         vec![
             code.for_display(db.get_connection()).unwrap(),
@@ -542,8 +497,7 @@ pub fn find_for_event() {
         codes
     );
 
-    let codes =
-        Code::find_for_event(event.id, Some(CodeTypes::Access), db.get_connection()).unwrap();
+    let codes = Code::find_for_event(event.id, Some(CodeTypes::Access), db.get_connection()).unwrap();
     assert_eq!(
         vec![
             code3.for_display(db.get_connection()).unwrap(),
@@ -573,12 +527,9 @@ pub fn find_number_of_uses() {
         .with_code_type(CodeTypes::Discount)
         .finish();
 
-    let code_availability = Code::find_by_redemption_code_with_availability(
-        code.redemption_code.clone().as_str(),
-        Some(event.id),
-        conn,
-    )
-    .unwrap();
+    let code_availability =
+        Code::find_by_redemption_code_with_availability(code.redemption_code.clone().as_str(), Some(event.id), conn)
+            .unwrap();
     assert_eq!(code_availability.available, 30);
 
     //Add some tickets to the cart
@@ -604,12 +555,9 @@ pub fn find_number_of_uses() {
     )
     .unwrap();
 
-    let code_availability = Code::find_by_redemption_code_with_availability(
-        code.redemption_code.clone().as_str(),
-        Some(event.id),
-        conn,
-    )
-    .unwrap();
+    let code_availability =
+        Code::find_by_redemption_code_with_availability(code.redemption_code.clone().as_str(), Some(event.id), conn)
+            .unwrap();
     assert_eq!(code_availability.available, 20);
 
     //Make cart expire
@@ -617,19 +565,13 @@ pub fn find_number_of_uses() {
     let order = Order::find(cart.id, conn).unwrap();
     let one_minute_ago = NaiveDateTime::from(Utc::now().naive_utc() - Duration::minutes(1));
     let _order = diesel::update(orders::table.filter(orders::id.eq(order.id)))
-        .set((
-            orders::expires_at.eq(one_minute_ago),
-            orders::updated_at.eq(dsl::now),
-        ))
+        .set((orders::expires_at.eq(one_minute_ago), orders::updated_at.eq(dsl::now)))
         .get_result::<Order>(conn)
         .unwrap();
 
-    let code_availability = Code::find_by_redemption_code_with_availability(
-        code.redemption_code.clone().as_str(),
-        Some(event.id),
-        conn,
-    )
-    .unwrap();
+    let code_availability =
+        Code::find_by_redemption_code_with_availability(code.redemption_code.clone().as_str(), Some(event.id), conn)
+            .unwrap();
     assert_eq!(code_availability.available, 30);
 
     //Now buy the tickets and make the order expire
@@ -673,20 +615,14 @@ pub fn find_number_of_uses() {
         .get_result::<Order>(conn)
         .unwrap();
 
-    let code_availability = Code::find_by_redemption_code_with_availability(
-        code.redemption_code.clone().as_str(),
-        Some(event.id),
-        conn,
-    )
-    .unwrap();
+    let code_availability =
+        Code::find_by_redemption_code_with_availability(code.redemption_code.clone().as_str(), Some(event.id), conn)
+            .unwrap();
     assert_eq!(code_availability.available, 20);
 
     //Lets refund those tickets
     let items = cart.items(&conn).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, conn).unwrap();
     let ticket = &tickets[0];
     let refund_items = vec![RefundItemRequest {
@@ -695,12 +631,9 @@ pub fn find_number_of_uses() {
     }];
     cart.refund(&refund_items, user.id, None, conn).unwrap();
 
-    let code_availability = Code::find_by_redemption_code_with_availability(
-        code.redemption_code.clone().as_str(),
-        Some(event.id),
-        conn,
-    )
-    .unwrap();
+    let code_availability =
+        Code::find_by_redemption_code_with_availability(code.redemption_code.clone().as_str(), Some(event.id), conn)
+            .unwrap();
     assert_eq!(code_availability.available, 30);
 }
 

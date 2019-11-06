@@ -28,7 +28,7 @@ fn show_event() {
         .with_venue(&venue)
         .finish();
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
-    let slug = "newevent1-at-name-san-francisco";
+    let slug = "newevent1-san-francisco";
     let test_request = TestRequest::create_with_uri(&format!("/{}", slug));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = events::expected_show_json(
@@ -71,10 +71,7 @@ fn show_redirect_to_primary_slug() {
         .create_organization()
         .with_name("Organization1".to_string())
         .finish();
-    let venue = database
-        .create_venue()
-        .with_name("Venue1".to_string())
-        .finish();
+    let venue = database.create_venue().with_name("Venue1".to_string()).finish();
     let event = database
         .create_event()
         .with_name("NewEvent1".to_string())
@@ -88,7 +85,7 @@ fn show_redirect_to_primary_slug() {
         .for_event(&event)
         .with_slug("redirect-me")
         .finish();
-    slug_redirects.push((slug, "newevent1-at-venue1-san-francisco", "tickets"));
+    slug_redirects.push((slug, "newevent1-san-francisco", "tickets"));
     let slug = database
         .create_slug()
         .for_venue(&venue, SlugTypes::Venue)
@@ -144,14 +141,8 @@ fn show_venue() {
     let auth_user = support::create_auth_user_from_user(&user, Roles::User, None, &database);
     let connection = database.connection.get();
     let organization = database.create_organization().finish();
-    let venue = database
-        .create_venue()
-        .with_name("Venue1".to_string())
-        .finish();
-    let venue2 = database
-        .create_venue()
-        .with_name("Venue2".to_string())
-        .finish();
+    let venue = database.create_venue().with_name("Venue1".to_string()).finish();
+    let venue2 = database.create_venue().with_name("Venue2".to_string()).finish();
     let event = database
         .create_event()
         .with_name("NewEvent1".to_string())
@@ -218,13 +209,7 @@ fn show_venue() {
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    let expected_events = vec![event_venue_entry(
-        &event3,
-        &venue2,
-        &vec![],
-        None,
-        &*connection,
-    )];
+    let expected_events = vec![event_venue_entry(&event3, &venue2, &vec![], None, &*connection)];
     let expected_json = serde_json::to_string(&SlugResponse::Venue {
         venue: venue2.for_display(connection).unwrap(),
         events: expected_events,
@@ -315,13 +300,7 @@ fn show_organization() {
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    let expected_events = vec![event_venue_entry(
-        &event2,
-        &venue,
-        &vec![],
-        None,
-        &*connection,
-    )];
+    let expected_events = vec![event_venue_entry(&event2, &venue, &vec![], None, &*connection)];
     let expected_json = serde_json::to_string(&SlugResponse::Organization {
         organization: organization2.for_display(connection).unwrap(),
         events: expected_events,
@@ -429,13 +408,7 @@ fn show_city() {
     .into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    let expected_events = vec![event_venue_entry(
-        &event3,
-        &venue3,
-        &vec![],
-        None,
-        &*connection,
-    )];
+    let expected_events = vec![event_venue_entry(&event3, &venue3, &vec![], None, &*connection)];
     let expected_json = serde_json::to_string(&SlugResponse::City {
         city: CityData {
             city: "Oakland".to_string(),

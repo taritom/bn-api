@@ -13,9 +13,7 @@ const SPOTIFY_URL_AUTH: &'static str = "https://accounts.spotify.com/api/token";
 const LOG_TARGET: &'static str = "bigneon::utils::spotify";
 
 lazy_static! {
-    pub static ref SINGLETON: Spotify = Spotify {
-        ..Default::default()
-    };
+    pub static ref SINGLETON: Spotify = Spotify { ..Default::default() };
 }
 
 #[derive(Deserialize)]
@@ -81,9 +79,7 @@ impl Spotify {
             .json()?;
 
         let start = SystemTime::now();
-        let since_the_epoch = start
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards");
+        let since_the_epoch = start.duration_since(UNIX_EPOCH).expect("Time went backwards");
         let expires_at = since_the_epoch.as_secs() + res.expires_in;
 
         Ok(SpotifyAccessToken {
@@ -156,10 +152,7 @@ impl Spotify {
         Ok(spotify_artists)
     }
 
-    pub fn read_artist(
-        &self,
-        artist_id: &str,
-    ) -> Result<Option<CreateArtistRequest>, BigNeonError> {
+    pub fn read_artist(&self, artist_id: &str) -> Result<Option<CreateArtistRequest>, BigNeonError> {
         self.connect()?;
 
         // Lock access token for reading
@@ -186,8 +179,7 @@ impl Spotify {
             .into());
         } else {
             let image_url = Spotify::get_image_from_artist(&artist["images"], Some(600), None);
-            let thumb_image_url =
-                Spotify::get_image_from_artist(&artist["images"], None, Some(300));
+            let thumb_image_url = Spotify::get_image_from_artist(&artist["images"], None, Some(300));
 
             let create_artist = CreateArtistRequest {
                 name: artist["name"].as_str().map(|s| s.to_string()),

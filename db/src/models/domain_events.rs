@@ -32,10 +32,7 @@ impl PartialOrd for DomainEvent {
 }
 
 impl DomainEvent {
-    pub fn find_by_ids(
-        ids: Vec<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<Vec<DomainEvent>, DatabaseError> {
+    pub fn find_by_ids(ids: Vec<Uuid>, conn: &PgConnection) -> Result<Vec<DomainEvent>, DatabaseError> {
         domain_events::table
             .filter(domain_events::id.eq_any(ids))
             .order_by(domain_events::created_at)
@@ -62,11 +59,7 @@ impl DomainEvent {
         }
     }
 
-    pub fn find_after_seq(
-        after_seq: i64,
-        limit: u32,
-        conn: &PgConnection,
-    ) -> Result<Vec<DomainEvent>, DatabaseError> {
+    pub fn find_after_seq(after_seq: i64, limit: u32, conn: &PgConnection) -> Result<Vec<DomainEvent>, DatabaseError> {
         domain_events::table
             .filter(domain_events::seq.gt(after_seq))
             .for_update()
@@ -74,10 +67,7 @@ impl DomainEvent {
             .order_by(domain_events::seq.asc())
             .limit(limit as i64)
             .load(conn)
-            .to_db_error(
-                ErrorCode::QueryError,
-                "Could not load domain events after seq",
-            )
+            .to_db_error(ErrorCode::QueryError, "Could not load domain events after seq")
     }
 
     pub fn webhook_payloads(
@@ -108,10 +98,7 @@ impl DomainEvent {
                 let mut data: HashMap<String, serde_json::Value> = HashMap::new();
                 data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
                 let temporary_user = TemporaryUser::find(main_id, conn)?;
-                data.insert(
-                    "webhook_event_type".to_string(),
-                    json!("temporary_user_created"),
-                );
+                data.insert("webhook_event_type".to_string(), json!("temporary_user_created"));
                 data.insert("user_id".to_string(), json!(temporary_user.id));
                 data.insert("email".to_string(), json!(temporary_user.email));
                 data.insert("phone".to_string(), json!(temporary_user.phone));
@@ -119,23 +106,12 @@ impl DomainEvent {
             }
             DomainEventTypes::PushNotificationTokenCreated => {
                 // Guard against future publisher processing after deletion
-                if let Some(push_notification_token) =
-                    PushNotificationToken::find(main_id, conn).optional()?
-                {
+                if let Some(push_notification_token) = PushNotificationToken::find(main_id, conn).optional()? {
                     let mut data: HashMap<String, serde_json::Value> = HashMap::new();
                     data.insert("timestamp".to_string(), json!(self.created_at.timestamp()));
-                    data.insert(
-                        "webhook_event_type".to_string(),
-                        json!("user_device_tokens_added"),
-                    );
-                    data.insert(
-                        "user_id".to_string(),
-                        json!(push_notification_token.user_id),
-                    );
-                    data.insert(
-                        "token_source".to_string(),
-                        json!(push_notification_token.token_source),
-                    );
+                    data.insert("webhook_event_type".to_string(), json!("user_device_tokens_added"));
+                    data.insert("user_id".to_string(), json!(push_notification_token.user_id));
+                    data.insert("token_source".to_string(), json!(push_notification_token.token_source));
                     data.insert("token".to_string(), json!(push_notification_token.token));
                     data.insert(
                         "last_used".to_string(),
@@ -197,12 +173,7 @@ impl DomainEvent {
                     )?;
                     result.push(recipient_data);
 
-                    DomainEvent::transferer_payload_data(
-                        &transfer,
-                        self.event_type,
-                        &mut transferer_data,
-                        conn,
-                    )?;
+                    DomainEvent::transferer_payload_data(&transfer, self.event_type, &mut transferer_data, conn)?;
                     result.push(transferer_data);
                 } else {
                     jlog!(
@@ -233,9 +204,7 @@ impl DomainEvent {
         data.insert("user_id".to_string(), json!(transfer.source_user_id));
         data.insert(
             "recipient_id".to_string(),
-            json!(transfer
-                .destination_temporary_user_id
-                .or(transfer.destination_user_id)),
+            json!(transfer.destination_temporary_user_id.or(transfer.destination_user_id)),
         );
 
         let recipient = if let Some(destination_user_id) = transfer.destination_user_id {
@@ -303,18 +272,10 @@ impl DomainEvent {
         let receive_tickets_url = transfer.receive_url(front_end_url.to_string(), conn)?;
         data.insert(
             "user_id".to_string(),
-            json!(transfer
-                .destination_temporary_user_id
-                .or(transfer.destination_user_id)),
+            json!(transfer.destination_temporary_user_id.or(transfer.destination_user_id)),
         );
-        data.insert(
-            "receive_tickets_url".to_string(),
-            json!(receive_tickets_url),
-        );
-        data.insert(
-            "transferer_first_name".to_string(),
-            json!(transferer.first_name),
-        );
+        data.insert("receive_tickets_url".to_string(), json!(receive_tickets_url));
+        data.insert("transferer_first_name".to_string(), json!(transferer.first_name));
 
         data.insert(
             "webhook_event_type".to_string(),
@@ -359,10 +320,7 @@ impl DomainEvent {
             json!(event.event_start.map(|e| e.timestamp())),
         );
 
-        data.insert(
-            "show_end".to_string(),
-            json!(event.event_end.map(|e| e.timestamp())),
-        );
+        data.insert("show_end".to_string(), json!(event.event_end.map(|e| e.timestamp())));
 
         if let Some(event_start) = localized_times.event_start {
             data.insert(
@@ -397,10 +355,7 @@ impl DomainEvent {
             data.insert("show_venue_city".to_string(), json!(venue.city));
             data.insert("show_venue_state".to_string(), json!(venue.state));
             data.insert("show_venue_country".to_string(), json!(venue.country));
-            data.insert(
-                "show_venue_postal_code".to_string(),
-                json!(venue.postal_code),
-            );
+            data.insert("show_venue_postal_code".to_string(), json!(venue.postal_code));
             data.insert(
                 "show_venue_phone".to_string(),
                 json!(venue.phone.unwrap_or("".to_string())),
@@ -459,11 +414,9 @@ impl DomainEvent {
                     let ticket = TicketInstance::find(main_id, conn)?;
                     let wallet = Wallet::find(ticket.wallet_id, conn)?;
                     if let Some(user_id) = wallet.user_id {
-                        ticket.organization(conn)?.log_interaction(
-                            user_id,
-                            Utc::now().naive_utc(),
-                            conn,
-                        )?;
+                        ticket
+                            .organization(conn)?
+                            .log_interaction(user_id, Utc::now().naive_utc(), conn)?;
                     }
                 }
                 DomainEventTypes::TransferTicketStarted
@@ -473,27 +426,18 @@ impl DomainEvent {
 
                     let mut temporary_user: Option<TemporaryUser> = None;
                     if !transfer.direct {
-                        temporary_user =
-                            TemporaryUser::find_or_build_from_transfer(&transfer, conn)?;
+                        temporary_user = TemporaryUser::find_or_build_from_transfer(&transfer, conn)?;
                     }
 
                     for organization in transfer.organizations(conn)? {
-                        organization.log_interaction(
-                            transfer.source_user_id,
-                            Utc::now().naive_utc(),
-                            conn,
-                        )?;
+                        organization.log_interaction(transfer.source_user_id, Utc::now().naive_utc(), conn)?;
 
                         if let Some(destination_user_id) = transfer.destination_user_id {
                             if let Some(temp_user) = temporary_user.clone() {
                                 temp_user.associate_user(destination_user_id, conn)?;
                             }
 
-                            organization.log_interaction(
-                                destination_user_id,
-                                Utc::now().naive_utc(),
-                                conn,
-                            )?;
+                            organization.log_interaction(destination_user_id, Utc::now().naive_utc(), conn)?;
                         }
                     }
                 }

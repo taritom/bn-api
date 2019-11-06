@@ -41,8 +41,7 @@ pub fn index(role: Roles) {
 
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse =
-        organizations::index((database.connection.into(), query_parameters, user)).into();
+    let response: HttpResponse = organizations::index((database.connection.into(), query_parameters, user)).into();
     let body = support::unwrap_body_to_string(&response).unwrap();
     let counter = expected_organizations.len();
     let wrapped_expected_orgs = Payload {
@@ -66,8 +65,7 @@ pub fn show(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     // reload organization
     let organization = Organization::find(organization.id, database.connection.get()).unwrap();
@@ -113,16 +111,11 @@ pub fn index_for_all_orgs(role: Roles, should_test_succeed: bool) {
 
     let expected_organizations = vec![organization.clone(), organization2];
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create_with_uri(&format!("/limits?"));
     let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
-    let response: HttpResponse = organizations::index_for_all_orgs((
-        database.connection.into(),
-        query_parameters,
-        auth_user,
-    ))
-    .into();
+    let response: HttpResponse =
+        organizations::index_for_all_orgs((database.connection.into(), query_parameters, auth_user)).into();
 
     let body = support::unwrap_body_to_string(&response).unwrap();
 
@@ -208,8 +201,7 @@ pub fn update(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let new_name = "New Name";
     let test_request = TestRequest::create();
@@ -263,8 +255,7 @@ pub fn update_restricted_field(restricted_field: &str, role: Roles, should_succe
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let new_name = "New Name";
     let test_request = TestRequest::create();
@@ -307,10 +298,7 @@ pub fn update_restricted_field(restricted_field: &str, role: Roles, should_succe
 
     match restricted_field {
         "settlement_type" => {
-            assert_eq!(
-                updated_organization.settlement_type,
-                SettlementTypes::Rolling
-            );
+            assert_eq!(updated_organization.settlement_type, SettlementTypes::Rolling);
         }
         "max_instances_per_ticket_type" => {
             assert_eq!(updated_organization.max_instances_per_ticket_type, 11000);
@@ -330,8 +318,7 @@ pub fn remove_user(role: Roles, should_test_succeed: bool) {
         .with_member(&user2, Roles::OrgMember)
         .with_member(&user3, Roles::OrgMember)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     let test_request = TestRequest::create_with_uri_custom_params("/", vec!["id", "user_id"]);
     let mut path = Path::<OrganizationUserPathParameters>::extract(&test_request.request).unwrap();
@@ -356,8 +343,7 @@ pub fn add_user(role: Roles, should_test_succeed: bool) {
     let user = database.create_user().finish();
     let user2 = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let json = Json(organizations::AddUserRequest {
         user_id: user2.id,
@@ -367,13 +353,8 @@ pub fn add_user(role: Roles, should_test_succeed: bool) {
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = organization.id;
 
-    let response: HttpResponse = organizations::add_or_replace_user((
-        database.connection.into(),
-        path,
-        json,
-        auth_user.clone(),
-    ))
-    .into();
+    let response: HttpResponse =
+        organizations::add_or_replace_user((database.connection.into(), path, json, auth_user.clone())).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
     } else {
@@ -385,8 +366,7 @@ pub fn add_venue(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let name = "Venue";
     let json = Json(NewVenue {
@@ -399,8 +379,7 @@ pub fn add_venue(role: Roles, should_test_succeed: bool) {
     path.id = organization.id;
 
     let response: HttpResponse =
-        organizations::add_venue((database.connection.into(), path, json, auth_user.clone()))
-            .into();
+        organizations::add_venue((database.connection.into(), path, json, auth_user.clone())).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -415,8 +394,7 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
     let test_request = TestRequest::create();
     let name = "Artist Example";
     let bio = "Bio";
@@ -433,8 +411,7 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
     path.id = organization.id;
 
     let response: HttpResponse =
-        organizations::add_artist((database.connection.into(), path, json, auth_user.clone()))
-            .into();
+        organizations::add_artist((database.connection.into(), path, json, auth_user.clone())).into();
     if should_test_succeed {
         assert_eq!(response.status(), StatusCode::CREATED);
         let body = support::unwrap_body_to_string(&response).unwrap();
@@ -447,20 +424,13 @@ pub fn add_artist(role: Roles, should_test_succeed: bool) {
 
 pub fn list_organization_members(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
-    let user1 = database
-        .create_user()
-        .with_last_name("User1".into())
-        .finish();
-    let user2 = database
-        .create_user()
-        .with_last_name("User2".into())
-        .finish();
+    let user1 = database.create_user().with_last_name("User1".into()).finish();
+    let user2 = database.create_user().with_last_name("User2".into()).finish();
     let organization = database
         .create_organization()
         .with_member(&user2, Roles::OrgMember)
         .finish();
-    let auth_user =
-        support::create_auth_user_from_user(&user1, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user1, role, Some(&organization), &database);
 
     let mut organization_members = Vec::new();
     if role != Roles::Admin {
@@ -527,12 +497,10 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
     let organization = database.create_organization().with_fees().finish();
-    let fee_schedule =
-        FeeSchedule::find(organization.fee_schedule_id, database.connection.get()).unwrap();
+    let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, database.connection.get()).unwrap();
     let fee_schedule_ranges = fee_schedule.ranges(database.connection.get()).unwrap();
 
-    let auth_user =
-        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+    let auth_user = support::create_auth_user_from_user(&user, role, Some(&organization), &database);
 
     #[derive(Serialize)]
     struct FeeScheduleWithRanges {
@@ -557,8 +525,7 @@ pub fn show_fee_schedule(role: Roles, should_succeed: bool) {
     path.id = organization.id;
 
     let response: HttpResponse =
-        organizations::show_fee_schedule((database.connection.into(), path, auth_user.clone()))
-            .into();
+        organizations::show_fee_schedule((database.connection.into(), path, auth_user.clone())).into();
 
     if !should_succeed {
         support::expects_unauthorized(&response);

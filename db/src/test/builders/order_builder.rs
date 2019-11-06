@@ -77,10 +77,7 @@ impl<'a> OrderBuilder<'a> {
         self
     }
 
-    pub fn with_external_payment_type(
-        mut self,
-        external_payment_type: ExternalPaymentType,
-    ) -> OrderBuilder<'a> {
+    pub fn with_external_payment_type(mut self, external_payment_type: ExternalPaymentType) -> OrderBuilder<'a> {
         self.external_payment_type = Some(external_payment_type);
         self
     }
@@ -91,15 +88,11 @@ impl<'a> OrderBuilder<'a> {
             self.user = Some(user);
         }
         if self.ticket_type_id.is_none() {
-            let event = EventBuilder::new(self.connection)
-                .with_ticket_pricing()
-                .finish();
-            self.ticket_type_id =
-                Some(event.ticket_types(true, None, &self.connection).unwrap()[0].id);
+            let event = EventBuilder::new(self.connection).with_ticket_pricing().finish();
+            self.ticket_type_id = Some(event.ticket_types(true, None, &self.connection).unwrap()[0].id);
         }
 
-        let mut cart =
-            Order::find_or_create_cart(self.user.as_ref().unwrap(), self.connection).unwrap();
+        let mut cart = Order::find_or_create_cart(self.user.as_ref().unwrap(), self.connection).unwrap();
 
         if self.with_free_items {
             let comp = HoldBuilder::new(self.connection)
@@ -139,8 +132,7 @@ impl<'a> OrderBuilder<'a> {
             } else if self.is_box_office {
                 cart.add_external_payment(
                     Some("blah".to_string()),
-                    self.external_payment_type
-                        .unwrap_or(ExternalPaymentType::CreditCard),
+                    self.external_payment_type.unwrap_or(ExternalPaymentType::CreditCard),
                     user.id,
                     total,
                     self.connection,

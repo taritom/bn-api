@@ -19,8 +19,7 @@ fn main() {
     logging::setup_logger();
     info!("Loading environment");
     dotenv().ok();
-    let environment =
-        Config::parse_environment().unwrap_or_else(|_| panic!("Environment is invalid."));
+    let environment = Config::parse_environment().unwrap_or_else(|_| panic!("Environment is invalid."));
     jlog!(Info, &format!("Environment loaded: {:?}", environment));
 
     let config = Config::new(environment);

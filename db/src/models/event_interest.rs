@@ -42,9 +42,7 @@ impl NewEventInterest {
         let event_interest: EventInterest = DatabaseError::wrap(
             ErrorCode::InsertError,
             "Could not create new event like",
-            diesel::insert_into(event_interest::table)
-                .values(self)
-                .get_result(conn),
+            diesel::insert_into(event_interest::table).values(self).get_result(conn),
         )?;
 
         DomainEvent::create(
@@ -66,11 +64,7 @@ impl EventInterest {
         NewEventInterest { event_id, user_id }
     }
 
-    pub fn remove(
-        event_id: Uuid,
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<usize, DatabaseError> {
+    pub fn remove(event_id: Uuid, user_id: Uuid, conn: &PgConnection) -> Result<usize, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading organization",
@@ -112,11 +106,7 @@ impl EventInterest {
         Ok(result.len() as u32)
     }
 
-    pub fn user_interest(
-        event_id: Uuid,
-        user_id: Uuid,
-        conn: &PgConnection,
-    ) -> Result<bool, DatabaseError> {
+    pub fn user_interest(event_id: Uuid, user_id: Uuid, conn: &PgConnection) -> Result<bool, DatabaseError> {
         let result = event_interest::table
             .filter(event_interest::event_id.eq(event_id))
             .filter(event_interest::user_id.eq(user_id))

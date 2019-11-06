@@ -56,10 +56,7 @@ impl LinksResource {
         let status = resp.status();
         if status != StatusCode::OK {
             return Err(resp.error_for_status().err().map(|e| e.into()).unwrap_or(
-                BranchError::UnexpectedResponseError(format!(
-                    "Unexpected status code from Branch: {}",
-                    status
-                )),
+                BranchError::UnexpectedResponseError(format!("Unexpected status code from Branch: {}", status)),
             ));
         };
         #[derive(Deserialize)]

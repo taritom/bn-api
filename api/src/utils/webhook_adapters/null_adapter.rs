@@ -16,24 +16,18 @@ impl NullAdapter {
 impl WebhookAdapter for NullAdapter {
     fn initialize(&mut self, _config: Value) {}
 
-    fn send(
-        &self,
-        webhook_urls: &[String],
-        payload: HashMap<String, Value, RandomState>,
-    ) -> Result<(), BigNeonError> {
+    fn send(&self, webhook_urls: &[String], payload: HashMap<String, Value, RandomState>) -> Result<(), BigNeonError> {
         let client = reqwest::Client::new();
         for webhook_url in webhook_urls {
             let mut resp = client
                 .post(webhook_url)
                 .json(&payload)
                 .send()
-                .map_err(|_err| {
-                    ApplicationError::new("Error making webhook request".to_string())
-                })?;
+                .map_err(|_err| ApplicationError::new("Error making webhook request".to_string()))?;
 
-            let text = resp.text().map_err(|_err| {
-                ApplicationError::new("Error making webhook request".to_string())
-            })?;
+            let text = resp
+                .text()
+                .map_err(|_err| ApplicationError::new("Error making webhook request".to_string()))?;
 
             jlog!(Debug, "bigneon::domain_actions", "Response from customer.io", {"text": text, "status": resp.status().to_string()});
             resp.error_for_status()?;

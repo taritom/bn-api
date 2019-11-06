@@ -33,9 +33,7 @@ impl fmt::Display for StripeError {
 
 impl StripeError {
     pub fn from_response(response: &mut reqwest::Response) -> StripeError {
-        let response_text = response
-            .text()
-            .unwrap_or("<Error reading response body>".to_string());
+        let response_text = response.text().unwrap_or("<Error reading response body>".to_string());
 
         #[derive(Deserialize)]
         struct R {
@@ -43,10 +41,7 @@ impl StripeError {
         }
         let deserialized_response: Result<R, _> = serde_json::from_str(&response_text);
         let error_code = if let Ok(deserialized_response) = deserialized_response {
-            deserialized_response
-                .error
-                .get("code".into())
-                .map(|e| e.to_string())
+            deserialized_response.error.get("code".into()).map(|e| e.to_string())
         } else {
             None
         };

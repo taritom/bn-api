@@ -76,10 +76,7 @@ pub fn validate_less_than_or_equal<T: std::cmp::Ord + serde::Serialize>(
 
 #[test]
 fn validate_greater_than_returns_ok() {
-    assert_eq!(
-        validate_greater_than(3, 2, "test_example", "test example"),
-        Ok(()),
-    );
+    assert_eq!(validate_greater_than(3, 2, "test_example", "test example"), Ok(()),);
 }
 
 #[test]

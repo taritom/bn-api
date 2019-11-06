@@ -38,18 +38,12 @@ pub fn web_login(
         OptionalUser,
     ),
 ) -> Result<HttpResponse, BigNeonError> {
-    let url = format!(
-        "{}/me?fields=id,email,first_name,last_name",
-        FACEBOOK_GRAPH_URL
-    );
+    let url = format!("{}/me?fields=id,email,first_name,last_name", FACEBOOK_GRAPH_URL);
     let connection = connection.get();
     let client = reqwest::Client::new();
     let response = client
         .get(&url)
-        .header(
-            "Authorization",
-            format!("Bearer {}", auth_token.access_token),
-        )
+        .header("Authorization", format!("Bearer {}", auth_token.access_token))
         .send()?
         .text()?;
 
@@ -60,11 +54,7 @@ pub fn web_login(
     if auth_token.link_to_user_id {
         let auth_user = auth_user.into_inner();
         if auth_user.is_none() {
-            return application::unauthorized_with_message(
-                "User must be logged in to link Facebook",
-                auth_user,
-                None,
-            );
+            return application::unauthorized_with_message("User must be logged in to link Facebook", auth_user, None);
         }
 
         let auth_user = auth_user.unwrap();
@@ -85,8 +75,7 @@ pub fn web_login(
         return Ok(HttpResponse::Ok().json(response));
     }
 
-    let existing_user =
-        ExternalLogin::find_user(&facebook_graph_response.id, FACEBOOK_SITE, connection)?;
+    let existing_user = ExternalLogin::find_user(&facebook_graph_response.id, FACEBOOK_SITE, connection)?;
     let user = match existing_user {
         Some(u) => User::find(u.user_id, connection)?,
         None => {
@@ -184,11 +173,7 @@ pub struct AuthCallbackPathParameters {
 
 /// Callback for converting an FB code into an access token
 pub fn auth_callback(
-    (query, state, connection): (
-        Query<AuthCallbackPathParameters>,
-        State<AppState>,
-        Connection,
-    ),
+    (query, state, connection): (Query<AuthCallbackPathParameters>, State<AppState>, Connection),
 ) -> Result<HttpResponse, BigNeonError> {
     info!("Auth callback received");
     if query.error.is_some() {
@@ -252,9 +237,7 @@ pub fn auth_callback(
 pub fn pages((connection, user): (Connection, AuthUser)) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let db_user = user.user;
-    let fb_login = db_user
-        .find_external_login(FACEBOOK_SITE, conn)
-        .optional()?;
+    let fb_login = db_user.find_external_login(FACEBOOK_SITE, conn).optional()?;
     if fb_login.is_none() {
         return application::forbidden("User is not linked to Facebook");
     }
@@ -262,10 +245,7 @@ pub fn pages((connection, user): (Connection, AuthUser)) -> Result<HttpResponse,
 
     let client = FacebookClient::from_access_token(fb_login.access_token.clone());
     let permissions = client.permissions.list(&fb_login.external_user_id)?;
-    let list_pages_permission = permissions
-        .data
-        .iter()
-        .find(|p| p.permission == "pages_show_list");
+    let list_pages_permission = permissions.data.iter().find(|p| p.permission == "pages_show_list");
     if list_pages_permission
         .as_ref()
         .map(|p| &p.status)
@@ -280,10 +260,7 @@ pub fn pages((connection, user): (Connection, AuthUser)) -> Result<HttpResponse,
         .accounts
         .list()?
         .into_iter()
-        .map(|p| FacebookPage {
-            id: p.id,
-            name: p.name,
-        })
+        .map(|p| FacebookPage { id: p.id, name: p.name })
         .collect_vec();
     Ok(HttpResponse::Ok().json(pages))
 }
@@ -302,29 +279,19 @@ pub fn scopes((connection, user): (Connection, AuthUser)) -> Result<HttpResponse
 }
 
 pub fn create_event(
-    (connection, user, data, state): (
-        Connection,
-        AuthUser,
-        Json<CreateFacebookEvent>,
-        State<AppState>,
-    ),
+    (connection, user, data, state): (Connection, AuthUser, Json<CreateFacebookEvent>, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
     let conn = connection.get();
     let event = Event::find(data.event_id, conn)?;
     if !event.is_published() {
-        return Err(ApplicationError::unprocessable(
-            "Cannot create this event on Facebook until it is published",
-        )
-        .into());
+        return Err(
+            ApplicationError::unprocessable("Cannot create this event on Facebook until it is published").into(),
+        );
     }
     let organization = event.organization(conn)?;
     user.requires_scope_for_organization_event(Scopes::EventWrite, &organization, &event, conn)?;
 
-    let client = FacebookClient::from_access_token(
-        user.user
-            .find_external_login(FACEBOOK_SITE, conn)?
-            .access_token,
-    );
+    let client = FacebookClient::from_access_token(user.user.find_external_login(FACEBOOK_SITE, conn)?.access_token);
 
     let mut validation_errors: Result<(), ValidationErrors> = Ok(());
 
@@ -346,24 +313,19 @@ pub fn create_event(
             return Err(res.into());
         }
     };
-    let venue = event.venue(conn)?.ok_or_else(|| {
-        ApplicationError::unprocessable("Cannot publish this event on Facebook without a venue")
-    })?;
+    let venue = event
+        .venue(conn)?
+        .ok_or_else(|| ApplicationError::unprocessable("Cannot publish this event on Facebook without a venue"))?;
     let mut fb_event = FBEvent::new(
         data.category.parse()?,
         event.name.clone(),
         data.description.clone(),
         venue.timezone,
-        event
-            .promo_image_url
-            .as_ref()
-            .map(|u| CoverPhoto::new(u.to_string())),
+        event.promo_image_url.as_ref().map(|u| CoverPhoto::new(u.to_string())),
         event
             .event_start
             .ok_or_else(|| {
-                ApplicationError::unprocessable(
-                    "Cannot publish this event in Facebook without a start time",
-                )
+                ApplicationError::unprocessable("Cannot publish this event in Facebook without a start time")
             })?
             .to_string(),
     );
@@ -386,7 +348,11 @@ pub fn create_event(
                 if e.code == 100 && e.message.contains("place_id must be a valid place ID") {
                     return Err(ApplicationError::unprocessable("The page you specified does not have a location associated with it. Either specify an address explicitly, or add a street address to your Facebook page").into());
                 }
-                return Err(ApplicationError::unprocessable(&format!("Could not create event on Facebook. Facebook returned: ({}) {} [fbtrace_id:{}]", e.code, &e.message, &e.fbtrace_id)).into());
+                return Err(ApplicationError::unprocessable(&format!(
+                    "Could not create event on Facebook. Facebook returned: ({}) {} [fbtrace_id:{}]",
+                    e.code, &e.message, &e.fbtrace_id
+                ))
+                .into());
             }
             _ => return Err(err.into()),
         },

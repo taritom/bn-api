@@ -57,13 +57,7 @@ pub fn create(
 ) -> Result<HttpResponse, BigNeonError> {
     let connection = connection.get();
     let organization = Organization::find(path.id, connection)?;
-    create_invite(
-        state,
-        connection,
-        new_org_invite.into_inner(),
-        &organization,
-        auth_user,
-    )
+    create_invite(state, connection, new_org_invite.into_inner(), &organization, auth_user)
 }
 
 fn create_invite(
@@ -75,45 +69,31 @@ fn create_invite(
 ) -> Result<HttpResponse, BigNeonError> {
     for role in &new_org_invite.roles {
         match role {
-            &Roles::OrgOwner => auth_user.requires_scope_for_organization(
-                Scopes::OrgAdmin,
-                &organization,
-                connection,
-            )?,
-            &Roles::OrgAdmin => auth_user.requires_scope_for_organization(
-                Scopes::OrgAdminUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::OrgMember => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::DoorPerson => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::Promoter => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::PromoterReadOnly => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            _ => DatabaseError::validation_error(
-                "role",
-                "Role must be either OrgOwner or OrgMember",
-            )?,
+            &Roles::OrgOwner => {
+                auth_user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?
+            }
+            &Roles::OrgAdmin => {
+                auth_user.requires_scope_for_organization(Scopes::OrgAdminUsers, &organization, connection)?
+            }
+            &Roles::PrismIntegration => {
+                auth_user.requires_scope_for_organization(Scopes::OrgAdminUsers, &organization, connection)?
+            }
+            &Roles::OrgMember => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            &Roles::DoorPerson => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            &Roles::OrgBoxOffice => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            &Roles::Promoter => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            &Roles::PromoterReadOnly => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            _ => DatabaseError::validation_error("role", "Role not valid")?,
         }
     }
 
@@ -136,9 +116,7 @@ fn create_invite(
     };
 
     //If an active invite exists for this email then first expire it before issuing the new invite.
-    if let Some(mut i) =
-        OrganizationInvite::find_active_invite_by_email(&new_org_invite.user_email, connection)?
-    {
+    if let Some(mut i) = OrganizationInvite::find_active_invite_by_email(&new_org_invite.user_email, connection)? {
         i.change_invite_status(0, connection)?;
     }
 
@@ -196,47 +174,32 @@ pub fn destroy(
     // Level of access dependent on scope of the invited member
     for role in &invite.roles {
         match role {
-            &Roles::OrgOwner => auth_user.requires_scope_for_organization(
-                Scopes::OrgAdmin,
-                &organization,
-                connection,
-            )?,
-            &Roles::OrgAdmin => auth_user.requires_scope_for_organization(
-                Scopes::OrgAdminUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::OrgMember => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::DoorPerson => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::OrgBoxOffice => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::Promoter => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
-            &Roles::PromoterReadOnly => auth_user.requires_scope_for_organization(
-                Scopes::OrgUsers,
-                &organization,
-                connection,
-            )?,
+            &Roles::OrgOwner => {
+                auth_user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?
+            }
+            &Roles::OrgAdmin => {
+                auth_user.requires_scope_for_organization(Scopes::OrgAdminUsers, &organization, connection)?
+            }
+            &Roles::OrgMember => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            &Roles::PrismIntegration => {
+                auth_user.requires_scope_for_organization(Scopes::OrgAdminUsers, &organization, connection)?
+            }
+            &Roles::DoorPerson => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            &Roles::OrgBoxOffice => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            &Roles::Promoter => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
+            &Roles::PromoterReadOnly => {
+                auth_user.requires_scope_for_organization(Scopes::OrgUsers, &organization, connection)?
+            }
             // Should not happen but if it ever did allow admin to destroy record
-            _ => auth_user.requires_scope_for_organization(
-                Scopes::OrgAdmin,
-                &organization,
-                connection,
-            )?,
+            _ => auth_user.requires_scope_for_organization(Scopes::OrgAdmin, &organization, connection)?,
         }
     }
 
@@ -244,9 +207,7 @@ pub fn destroy(
     Ok(HttpResponse::Ok().json(json!({})))
 }
 
-pub fn view(
-    (connection, path): (Connection, Path<PathParameters>),
-) -> Result<HttpResponse, BigNeonError> {
+pub fn view((connection, path): (Connection, Path<PathParameters>)) -> Result<HttpResponse, BigNeonError> {
     // TODO: Change /{id} to /?token={} in routing and client apps.
     // Until then, just remember that the id passed in is actually the token
     let connection = connection.get();
@@ -259,8 +220,7 @@ pub fn accept_request(
 ) -> Result<HttpResponse, BigNeonError> {
     let query_struct = query.into_inner();
     let connection = connection.get();
-    let mut invite_details =
-        OrganizationInvite::find_by_token(query_struct.security_token, connection)?;
+    let mut invite_details = OrganizationInvite::find_by_token(query_struct.security_token, connection)?;
     //Check that the user is logged in, that if the invite has a user_id associated with it that it is the currently logged in user
     match user.into_inner() {
         Some(u) => {
@@ -273,12 +233,7 @@ pub fn accept_request(
             if valid_for_acceptance {
                 invite_details.change_invite_status(1, connection)?;
                 let org = Organization::find(invite_details.organization_id, connection)?;
-                org.add_user(
-                    u.id(),
-                    invite_details.roles,
-                    invite_details.event_ids,
-                    connection,
-                )?;
+                org.add_user(u.id(), invite_details.roles, invite_details.event_ids, connection)?;
             } else {
                 return application::unauthorized(Some(u), None);
             }

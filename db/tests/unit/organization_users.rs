@@ -19,8 +19,7 @@ fn find_users_by_organization() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].user_id, user.id);
 
-    let result =
-        OrganizationUser::find_users_by_organization(organization2.id, connection).unwrap();
+    let result = OrganizationUser::find_users_by_organization(organization2.id, connection).unwrap();
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].user_id, user2.id);
 }
@@ -34,10 +33,9 @@ fn create() {
         .create_organization()
         .with_member(&user, Roles::OrgOwner)
         .finish();
-    let organization_user =
-        OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
-            .commit(project.get_connection())
-            .unwrap();
+    let organization_user = OrganizationUser::create(organization.id, user2.id, vec![Roles::OrgMember])
+        .commit(project.get_connection())
+        .unwrap();
 
     assert_eq!(organization_user.user_id, user2.id);
     assert_eq!(organization_user.organization_id, organization.id);
@@ -51,18 +49,12 @@ fn event_ids() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let organization = project.create_organization().finish();
-    let event = project
-        .create_event()
-        .with_organization(&organization)
-        .finish();
+    let event = project.create_event().with_organization(&organization).finish();
     let organization_user = organization
         .add_user(user.id, vec![Roles::Promoter], vec![event.id], connection)
         .unwrap();
 
-    assert_eq!(
-        vec![event.id],
-        organization_user.event_ids(connection).unwrap()
-    );
+    assert_eq!(vec![event.id], organization_user.event_ids(connection).unwrap());
 }
 
 #[test]
@@ -70,20 +62,15 @@ fn update() {
     let project = TestProject::new();
     let user = project.create_user().finish();
     let organization = project.create_organization().finish();
-    project
-        .create_event()
-        .with_organization(&organization)
-        .finish();
-    let organization_user =
-        OrganizationUser::create(organization.id, user.id, vec![Roles::OrgMember])
-            .commit(project.get_connection())
-            .unwrap();
+    project.create_event().with_organization(&organization).finish();
+    let organization_user = OrganizationUser::create(organization.id, user.id, vec![Roles::OrgMember])
+        .commit(project.get_connection())
+        .unwrap();
     let organization_user_id = organization_user.id;
 
-    let organization_user =
-        OrganizationUser::create(organization.id, user.id, vec![Roles::OrgOwner])
-            .commit(project.get_connection())
-            .unwrap();
+    let organization_user = OrganizationUser::create(organization.id, user.id, vec![Roles::OrgOwner])
+        .commit(project.get_connection())
+        .unwrap();
 
     assert_eq!(vec![Roles::OrgOwner], organization_user.role);
     assert_eq!(organization_user_id, organization_user.id);

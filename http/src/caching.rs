@@ -17,11 +17,7 @@ impl CacheHeaders {
         &self.1
     }
 
-    pub fn into_response_json<T, P: Serialize>(
-        self,
-        req: &HttpRequest<T>,
-        payload: &P,
-    ) -> HttpResponse {
+    pub fn into_response_json<T, P: Serialize>(self, req: &HttpRequest<T>, payload: &P) -> HttpResponse {
         let (is_stale, mut builder) = self.into_response_builder(req);
 
         if is_stale {

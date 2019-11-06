@@ -59,9 +59,7 @@ impl JsonConfig {
 
 impl Default for JsonConfig {
     fn default() -> Self {
-        JsonConfig {
-            limit: LIMIT_DEFAULT,
-        }
+        JsonConfig { limit: LIMIT_DEFAULT }
     }
 }
 

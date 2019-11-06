@@ -28,9 +28,7 @@ pub fn send_async(
         _ => {
             let res = match config.block_external_comms {
                 true => {
-                    jlog!(Trace, "Blocked communication", {
-                        "communication": communication
-                    });
+                    jlog!(Trace, "Blocked communication", { "communication": communication });
 
                     Either::A(future::ok(()))
                 }
@@ -76,6 +74,7 @@ pub fn send_async(
                         CommunicationType::Push => expo::send_push_notification_async(
                             &destination_addresses,
                             &communication.body.unwrap_or(communication.title),
+                            Some(json!(communication.extra_data.clone())),
                         ),
                         CommunicationType::Webhook => webhook::send_webhook_async(
                             &destination_addresses,

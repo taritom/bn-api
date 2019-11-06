@@ -14,9 +14,7 @@ pub struct CommAddress {
 
 impl CommAddress {
     pub fn new() -> CommAddress {
-        CommAddress {
-            addresses: Vec::new(),
-        }
+        CommAddress { addresses: Vec::new() }
     }
 
     pub fn from(address: String) -> CommAddress {

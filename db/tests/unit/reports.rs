@@ -10,43 +10,29 @@ use diesel::prelude::*;
 fn ticket_count_report() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
         .with_name("Event1".to_string())
         .with_tickets()
         .finish();
-    let mut ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let mut ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     let event2 = project
         .create_event()
         .with_organization(&organization)
         .with_name("Event2".to_string())
         .with_tickets()
         .finish();
-    let ticket_type2 = event2
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type2 = event2.ticket_types(true, None, connection).unwrap().remove(0);
     let event3 = project
         .create_event()
         .with_name("Event3".to_string())
         .with_tickets()
         .finish();
 
-    let ticket_pricing = ticket_type
-        .current_ticket_pricing(false, connection)
-        .unwrap();
-    let ticket_pricing2 = ticket_type2
-        .current_ticket_pricing(false, connection)
-        .unwrap();
+    let ticket_pricing = ticket_type.current_ticket_pricing(false, connection).unwrap();
+    let ticket_pricing2 = ticket_type2.current_ticket_pricing(false, connection).unwrap();
 
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
@@ -70,29 +56,18 @@ fn ticket_count_report() {
         .is_paid()
         .finish();
     let items = order.items(&connection).unwrap();
-    let order_item = items
-        .iter()
-        .find(|i| i.ticket_type_id == Some(ticket_type.id))
-        .unwrap();
+    let order_item = items.iter().find(|i| i.ticket_type_id == Some(ticket_type.id)).unwrap();
     let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
     let ticket = &tickets[0];
     let refund_items = vec![RefundItemRequest {
         order_item_id: order_item.id,
         ticket_instance_id: Some(ticket.id),
     }];
-    order
-        .refund(&refund_items, user.id, None, connection)
-        .unwrap();
+    order.refund(&refund_items, user.id, None, connection).unwrap();
 
     // Redeem ticket
     let ticket2 = &tickets[1];
-    TicketInstance::redeem_ticket(
-        ticket2.id,
-        ticket2.redeem_key.clone().unwrap(),
-        user.id,
-        connection,
-    )
-    .unwrap();
+    TicketInstance::redeem_ticket(ticket2.id, ticket2.redeem_key.clone().unwrap(), user.id, connection).unwrap();
 
     project
         .create_order()
@@ -178,13 +153,7 @@ fn ticket_count_report() {
     // New price point for ticket type but has same price so orders won't create a new row
     let old_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
     ticket_type = ticket_type
-        .update(
-            TicketTypeEditableAttributes {
-                ..Default::default()
-            },
-            None,
-            connection,
-        )
+        .update(TicketTypeEditableAttributes { ..Default::default() }, None, connection)
         .unwrap();
     let new_pricing = TicketPricing::get_default(ticket_type.id, connection).unwrap();
     assert_ne!(old_pricing.id, new_pricing.id);
@@ -419,9 +388,10 @@ fn ticket_count_report() {
     );
 
     assert_eq!(
-        result.sales.iter().find(|s| s.promo_redemption_code == None
-            && s.hold_id == None
-            && s.ticket_type_id == None),
+        result
+            .sales
+            .iter()
+            .find(|s| s.promo_redemption_code == None && s.hold_id == None && s.ticket_type_id == None),
         Some(&TicketSalesRow {
             organization_id: Some(event.organization_id),
             event_id: Some(event.id),
@@ -649,10 +619,7 @@ fn ticket_count_report() {
     );
 
     assert_eq!(
-        result
-            .sales
-            .iter()
-            .find(|s| s.ticket_type_id == Some(ticket_type2.id)),
+        result.sales.iter().find(|s| s.ticket_type_id == Some(ticket_type2.id)),
         Some(&TicketSalesRow {
             organization_id: Some(event2.organization_id),
             event_id: Some(event2.id),
@@ -710,11 +677,7 @@ fn ticket_count_report() {
 fn transaction_detail_report() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -722,10 +685,7 @@ fn transaction_detail_report() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let ticket_type = event
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type = event.ticket_types(true, None, connection).unwrap().remove(0);
     let event2 = project
         .create_event()
         .with_organization(&organization)
@@ -733,10 +693,7 @@ fn transaction_detail_report() {
         .with_tickets()
         .with_ticket_pricing()
         .finish();
-    let ticket_type2 = event2
-        .ticket_types(true, None, connection)
-        .unwrap()
-        .remove(0);
+    let ticket_type2 = event2.ticket_types(true, None, connection).unwrap().remove(0);
     let organization2 = project.create_organization().with_fees().finish();
     let event3 = project
         .create_event()
@@ -747,24 +704,17 @@ fn transaction_detail_report() {
         .finish();
 
     let fee_schedule = FeeSchedule::find(organization.fee_schedule_id, connection).unwrap();
-    let ticket_pricing = ticket_type
-        .current_ticket_pricing(false, connection)
-        .unwrap();
+    let ticket_pricing = ticket_type.current_ticket_pricing(false, connection).unwrap();
     let fee_schedule_range = fee_schedule
         .get_range(ticket_pricing.price_in_cents, connection)
         .unwrap();
-    let ticket_pricing2 = ticket_type2
-        .current_ticket_pricing(false, connection)
-        .unwrap();
+    let ticket_pricing2 = ticket_type2.current_ticket_pricing(false, connection).unwrap();
     let fee_schedule_range2 = fee_schedule
         .get_range(ticket_pricing2.price_in_cents, connection)
         .unwrap();
 
     let user = project.create_user().with_first_name("Bob".into()).finish();
-    let user2 = project
-        .create_user()
-        .with_first_name("Bobby".into())
-        .finish();
+    let user2 = project.create_user().with_first_name("Bobby".into()).finish();
     let user3 = project
         .create_user()
         .with_first_name("Dan".into())
@@ -844,17 +794,7 @@ fn transaction_detail_report() {
         .finish();
 
     // No query, for event
-    let result = Report::transaction_detail_report(
-        None,
-        Some(event.id),
-        None,
-        None,
-        None,
-        0,
-        100,
-        connection,
-    )
-    .unwrap();
+    let result = Report::transaction_detail_report(None, Some(event.id), None, None, None, 0, 100, connection).unwrap();
     let expected_results = vec![
         build_transaction_report_row(
             3,
@@ -894,17 +834,8 @@ fn transaction_detail_report() {
     assert_eq!(result.paging.total, 3);
 
     // No query, for organization
-    let result = Report::transaction_detail_report(
-        None,
-        None,
-        Some(organization.id),
-        None,
-        None,
-        0,
-        100,
-        connection,
-    )
-    .unwrap();
+    let result =
+        Report::transaction_detail_report(None, None, Some(organization.id), None, None, 0, 100, connection).unwrap();
     let expected_results = vec![
         build_transaction_report_row(
             4,
@@ -956,17 +887,9 @@ fn transaction_detail_report() {
 
     // With query, for organization (query finds user's name)
     let query = "Bob".to_string();
-    let result = Report::transaction_detail_report(
-        Some(query),
-        None,
-        Some(organization.id),
-        None,
-        None,
-        0,
-        100,
-        connection,
-    )
-    .unwrap();
+    let result =
+        Report::transaction_detail_report(Some(query), None, Some(organization.id), None, None, 0, 100, connection)
+            .unwrap();
     let expected_results = vec![
         build_transaction_report_row(
             3,
@@ -1007,17 +930,8 @@ fn transaction_detail_report() {
 
     // With query, for organization (query finds user's email)
     let query = user.email.clone();
-    let result = Report::transaction_detail_report(
-        query,
-        None,
-        Some(organization.id),
-        None,
-        None,
-        0,
-        100,
-        connection,
-    )
-    .unwrap();
+    let result =
+        Report::transaction_detail_report(query, None, Some(organization.id), None, None, 0, 100, connection).unwrap();
     let expected_results = vec![build_transaction_report_row(
         1,
         &organization,
@@ -1034,17 +948,9 @@ fn transaction_detail_report() {
 
     // With query, for organization (query finds order number)
     let query = order2.order_number();
-    let result = Report::transaction_detail_report(
-        Some(query),
-        None,
-        Some(organization.id),
-        None,
-        None,
-        0,
-        100,
-        connection,
-    )
-    .unwrap();
+    let result =
+        Report::transaction_detail_report(Some(query), None, Some(organization.id), None, None, 0, 100, connection)
+            .unwrap();
     let expected_results = vec![build_transaction_report_row(
         1,
         &organization,
@@ -1061,17 +967,9 @@ fn transaction_detail_report() {
 
     // With query, for organization (query finds event name)
     let query = "Event2".to_string();
-    let result = Report::transaction_detail_report(
-        Some(query),
-        None,
-        Some(organization.id),
-        None,
-        None,
-        0,
-        100,
-        connection,
-    )
-    .unwrap();
+    let result =
+        Report::transaction_detail_report(Some(query), None, Some(organization.id), None, None, 0, 100, connection)
+            .unwrap();
     let expected_results = vec![build_transaction_report_row(
         1,
         &organization,
@@ -1087,17 +985,8 @@ fn transaction_detail_report() {
     assert_eq!(result.paging.total, 1);
 
     // With pagination
-    let result = Report::transaction_detail_report(
-        None,
-        None,
-        Some(organization.id),
-        None,
-        None,
-        0,
-        1,
-        connection,
-    )
-    .unwrap();
+    let result =
+        Report::transaction_detail_report(None, None, Some(organization.id), None, None, 0, 1, connection).unwrap();
     let expected_results = vec![build_transaction_report_row(
         4,
         &organization,
@@ -1169,14 +1058,8 @@ fn transaction_detail_report() {
 fn box_office_sales_summary_report() {
     let project = TestProject::new();
     let connection = project.get_connection();
-    let box_office_user = project
-        .create_user()
-        .with_first_name("BoxOfficeUser1")
-        .finish();
-    let box_office_user2 = project
-        .create_user()
-        .with_first_name("BoxOfficeUser2")
-        .finish();
+    let box_office_user = project.create_user().with_first_name("BoxOfficeUser1").finish();
+    let box_office_user2 = project.create_user().with_first_name("BoxOfficeUser2").finish();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
@@ -1358,8 +1241,7 @@ fn box_office_sales_summary_report() {
         ],
     };
 
-    let report_data =
-        Report::box_office_sales_summary_report(organization.id, None, None, connection).unwrap();
+    let report_data = Report::box_office_sales_summary_report(organization.id, None, None, connection).unwrap();
     assert_eq!(expected_report_data, report_data);
 }
 
@@ -1382,23 +1264,18 @@ fn build_transaction_report_row(
         actual_quantity: quantity,
         refunded_quantity: 0,
         unit_price_in_cents: price_per_ticket,
-        gross: (price_per_ticket
-            + fee_schedule_range.client_fee_in_cents
-            + fee_schedule_range.company_fee_in_cents)
+        gross: (price_per_ticket + fee_schedule_range.client_fee_in_cents + fee_schedule_range.company_fee_in_cents)
             * quantity
             + organization.company_event_fee_in_cents
             + organization.client_event_fee_in_cents,
         company_fee_in_cents: fee_schedule_range.company_fee_in_cents,
         client_fee_in_cents: fee_schedule_range.client_fee_in_cents,
-        gross_fee_in_cents: fee_schedule_range.company_fee_in_cents
-            + fee_schedule_range.client_fee_in_cents,
-        gross_fee_in_cents_total: (fee_schedule_range.company_fee_in_cents
-            + fee_schedule_range.client_fee_in_cents)
+        gross_fee_in_cents: fee_schedule_range.company_fee_in_cents + fee_schedule_range.client_fee_in_cents,
+        gross_fee_in_cents_total: (fee_schedule_range.company_fee_in_cents + fee_schedule_range.client_fee_in_cents)
             * quantity,
         event_fee_company_in_cents: organization.company_event_fee_in_cents,
         event_fee_client_in_cents: organization.client_event_fee_in_cents,
-        event_fee_gross_in_cents: organization.company_event_fee_in_cents
-            + organization.client_event_fee_in_cents,
+        event_fee_gross_in_cents: organization.company_event_fee_in_cents + organization.client_event_fee_in_cents,
         event_fee_gross_in_cents_total: organization.company_event_fee_in_cents
             + organization.client_event_fee_in_cents,
         credit_card_fee_company_in_cents: 0,
@@ -1438,11 +1315,7 @@ fn promo_code_report() {
 
     let creator = project.create_user().finish();
 
-    let organization = project
-        .create_organization()
-        .with_event_fee()
-        .with_fees()
-        .finish();
+    let organization = project.create_organization().with_event_fee().with_fees().finish();
     let event = project
         .create_event()
         .with_organization(&organization)
@@ -1596,8 +1469,7 @@ fn promo_code_report() {
     .unwrap();
 
     //Check report
-    let report =
-        Report::promo_code_report(Some(event.id), Some(organization.id), connection).unwrap();
+    let report = Report::promo_code_report(Some(event.id), Some(organization.id), connection).unwrap();
 
     //The order of the rows coming back is not consistent
     let mut test_pass_count = 0;
@@ -1610,21 +1482,15 @@ fn promo_code_report() {
             test_pass_count += (row.box_office_sales_in_cents == 2000) as i32;
         }
 
-        if row.hold_name == Some("Discount 1".to_string())
-            && row.ticket_name == Some("GA".to_string())
-        {
+        if row.hold_name == Some("Discount 1".to_string()) && row.ticket_name == Some("GA".to_string()) {
             test_pass_count += (row.box_office_sales_in_cents == 900) as i32;
         }
 
-        if row.hold_name == Some("Discount 1".to_string())
-            && row.ticket_name == Some("VIP".to_string())
-        {
+        if row.hold_name == Some("Discount 1".to_string()) && row.ticket_name == Some("VIP".to_string()) {
             test_pass_count += (row.box_office_sales_in_cents == 1900) as i32;
         }
 
-        if row.hold_name == Some("Discount 2".to_string())
-            && row.ticket_name == Some("GA".to_string())
-        {
+        if row.hold_name == Some("Discount 2".to_string()) && row.ticket_name == Some("GA".to_string()) {
             test_pass_count += (row.box_office_sales_in_cents == 7000) as i32;
         }
     }

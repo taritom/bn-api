@@ -13,9 +13,7 @@ use tari_messages::*;
 
 pub fn random_hash() -> String {
     let hash_length = 32;
-    let hash_bytes: Vec<u8> = (0..hash_length)
-        .map(|_| rand::thread_rng().gen_range(0, 255))
-        .collect();
+    let hash_bytes: Vec<u8> = (0..hash_length).map(|_| rand::thread_rng().gen_range(0, 255)).collect();
     (convert_bytes_to_hexstring(&hash_bytes))
 }
 
@@ -62,13 +60,9 @@ pub fn cryptographic_hash(input_msg: &String) -> Vec<u8> {
     (convert_hexstring_to_bytes(&hash_hexstring))
 }
 
-pub fn cryptographic_signature(
-    input_msg: &String,
-    secret_key: &Vec<u8>,
-) -> Result<Vec<u8>, TariError> {
+pub fn cryptographic_signature(input_msg: &String, secret_key: &Vec<u8>) -> Result<Vec<u8>, TariError> {
     //Note: ECDSA of secp256k1 requires exactly 32 bytes as input, pad with zeros if less and discard entries if more
-    let msg_hash_bytes =
-        force_byte_array_size(cryptographic_hash(input_msg), constants::MESSAGE_SIZE);
+    let msg_hash_bytes = force_byte_array_size(cryptographic_hash(input_msg), constants::MESSAGE_SIZE);
     //S=ECDSA(HASH(message),private_key)
     let secp = Secp256k1::new();
     let secp_message = Message::from_slice(&msg_hash_bytes)?;
@@ -77,14 +71,9 @@ pub fn cryptographic_signature(
     Ok(secp_data_signature.serialize_der(&secp))
 }
 
-pub fn cryptographic_verify(
-    data_signature: &Vec<u8>,
-    input_msg: &String,
-    public_key: &Vec<u8>,
-) -> bool {
+pub fn cryptographic_verify(data_signature: &Vec<u8>, input_msg: &String, public_key: &Vec<u8>) -> bool {
     //Note: ECDSA of secp256k1 requires exactly 32 bytes as input, pad with zeros if less and discard entries if more
-    let msg_hash_bytes =
-        force_byte_array_size(cryptographic_hash(input_msg), constants::MESSAGE_SIZE);
+    let msg_hash_bytes = force_byte_array_size(cryptographic_hash(input_msg), constants::MESSAGE_SIZE);
     let secp = Secp256k1::new();
     let secp_message_result = Message::from_slice(&msg_hash_bytes);
     match secp_message_result {
@@ -94,11 +83,7 @@ pub fn cryptographic_verify(
                 Ok(secp_signature) => {
                     let secp_public_key_result = PublicKey::from_slice(&secp, &public_key);
                     match secp_public_key_result {
-                        Ok(secp_public_key) => {
-                            (secp
-                                .verify(&secp_message, &secp_signature, &secp_public_key)
-                                .is_ok())
-                        }
+                        Ok(secp_public_key) => (secp.verify(&secp_message, &secp_signature, &secp_public_key).is_ok()),
                         Err(_e) => (false),
                     }
                 }

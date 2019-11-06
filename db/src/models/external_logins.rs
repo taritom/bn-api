@@ -39,20 +39,13 @@ pub struct NewExternalLogin {
 }
 
 impl NewExternalLogin {
-    pub fn commit(
-        self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<ExternalLogin, DatabaseError> {
+    pub fn commit(self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<ExternalLogin, DatabaseError> {
         let res = diesel::insert_into(external_logins::table)
             .values(&self)
             .get_result(conn);
 
-        let res: ExternalLogin = DatabaseError::wrap(
-            ErrorCode::InsertError,
-            "Could not create new external login",
-            res,
-        )?;
+        let res: ExternalLogin =
+            DatabaseError::wrap(ErrorCode::InsertError, "Could not create new external login", res)?;
 
         DomainEvent::create(
             ExternalLoginCreated,
@@ -90,11 +83,7 @@ impl ExternalLogin {
         }
     }
 
-    pub fn find_for_site(
-        user_id: Uuid,
-        site: &str,
-        conn: &PgConnection,
-    ) -> Result<ExternalLogin, DatabaseError> {
+    pub fn find_for_site(user_id: Uuid, site: &str, conn: &PgConnection) -> Result<ExternalLogin, DatabaseError> {
         DatabaseError::wrap(
             ErrorCode::QueryError,
             "Error loading external login",
@@ -123,11 +112,7 @@ impl ExternalLogin {
         )
     }
 
-    pub fn delete(
-        self,
-        current_user_id: Option<Uuid>,
-        conn: &PgConnection,
-    ) -> Result<(), DatabaseError> {
+    pub fn delete(self, current_user_id: Option<Uuid>, conn: &PgConnection) -> Result<(), DatabaseError> {
         let id = self.id;
         let data = json!({
             "external_user_id": self.external_user_id.clone(),

@@ -65,42 +65,29 @@ impl UserDisplayTicketType {
 
         if let Some(ref redemption_code) = redemption_code {
             if let Some(hold) =
-                Hold::find_by_redemption_code(redemption_code, Some(ticket_type.event_id), conn)
-                    .optional()?
+                Hold::find_by_redemption_code(redemption_code, Some(ticket_type.event_id), conn).optional()?
             {
                 if hold.ticket_type_id == ticket_type.id {
                     result.description = Some(format!("Using promo code: {}", redemption_code));
                     let hold_limit_per_person = hold.max_per_user.unwrap_or(0) as u32;
                     // Limited by the minimum of hold max_per_user and ticket_type limit_per_person with 0 acting as no limit
-                    if result.limit_per_person == 0
-                        || result.limit_per_person > hold_limit_per_person
-                    {
+                    if result.limit_per_person == 0 || result.limit_per_person > hold_limit_per_person {
                         result.limit_per_person = hold_limit_per_person;
                     }
                     result.available = hold.quantity(conn)?.1;
                     result.redemption_code = Some(redemption_code.clone());
                 }
-            } else if let Some(code_availability) = Code::find_by_redemption_code_with_availability(
-                redemption_code,
-                Some(ticket_type.event_id),
-                conn,
-            )
-            .optional()?
+            } else if let Some(code_availability) =
+                Code::find_by_redemption_code_with_availability(redemption_code, Some(ticket_type.event_id), conn)
+                    .optional()?
             {
                 let now = Utc::now().naive_utc();
-                if now >= code_availability.code.start_date
-                    && now <= code_availability.code.end_date
-                {
-                    if TicketType::find_for_code(code_availability.code.id, conn)?
-                        .contains(&ticket_type)
-                    {
+                if now >= code_availability.code.start_date && now <= code_availability.code.end_date {
+                    if TicketType::find_for_code(code_availability.code.id, conn)?.contains(&ticket_type) {
                         result.description = Some(format!("Using promo code: {}", redemption_code));
-                        let code_limit_per_person =
-                            code_availability.code.max_tickets_per_user.unwrap_or(0) as u32;
+                        let code_limit_per_person = code_availability.code.max_tickets_per_user.unwrap_or(0) as u32;
                         // Limited by the minimum of code max_per_user and ticket_type limit_per_person with 0 acting as no limit
-                        if result.limit_per_person == 0
-                            || result.limit_per_person > code_limit_per_person
-                        {
+                        if result.limit_per_person == 0 || result.limit_per_person > code_limit_per_person {
                             result.limit_per_person = code_limit_per_person;
                         }
                         result.redemption_code = Some(redemption_code.clone());
@@ -137,11 +124,7 @@ impl UserDisplayTicketType {
                         )?)
                     }
 
-                    if max_pricing
-                        .map(|p| p.end_date)
-                        .unwrap_or(ticket_type.end_date(conn)?)
-                        < dates::now().finish()
-                    {
+                    if max_pricing.map(|p| p.end_date).unwrap_or(ticket_type.end_date(conn)?) < dates::now().finish() {
                         result.status = TicketTypeStatus::SaleEnded;
                         result.ticket_pricing = Some(DisplayTicketPricing::from_ticket_pricing(
                             max_pricing.unwrap(),

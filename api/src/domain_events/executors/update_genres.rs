@@ -31,21 +31,20 @@ impl UpdateGenresExecutor {
         UpdateGenresExecutor {}
     }
 
-    pub fn perform_job(
-        &self,
-        action: &DomainAction,
-        conn: &Connection,
-    ) -> Result<(), BigNeonError> {
+    pub fn perform_job(&self, action: &DomainAction, conn: &Connection) -> Result<(), BigNeonError> {
         let conn = conn.get();
-        let id = action.main_table_id.clone().ok_or(ApplicationError::new(
-            "No id supplied in the action".to_string(),
-        ))?;
+        let id = action
+            .main_table_id
+            .clone()
+            .ok_or(ApplicationError::new("No id supplied in the action".to_string()))?;
 
         let payload: UpdateGenresPayload = serde_json::from_value(action.payload.clone())?;
 
-        match action.main_table.clone().ok_or(ApplicationError::new(
-            "No table supplied in the action".to_string(),
-        ))? {
+        match action
+            .main_table
+            .clone()
+            .ok_or(ApplicationError::new("No table supplied in the action".to_string()))?
+        {
             Tables::Artists => {
                 for event in Artist::find(&id, conn)?.events(conn)? {
                     event.update_genres(Some(payload.user_id), conn)?;

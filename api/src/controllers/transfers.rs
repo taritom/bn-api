@@ -7,7 +7,7 @@ use db::Connection;
 use diesel::PgConnection;
 use errors::*;
 use helpers::application;
-use models::{OptionalPathParameters, PathParameters, WebPayload};
+use models::*;
 use server::AppState;
 
 #[derive(Deserialize, Clone)]
@@ -90,6 +90,30 @@ pub fn index(
     Ok(WebPayload::new(StatusCode::OK, payload))
 }
 
+pub fn activity(
+    (connection, paging_query, past_or_upcoming_query, auth_user): (
+        Connection,
+        Query<PagingParameters>,
+        Query<PastOrUpcomingParameters>,
+        User,
+    ),
+) -> Result<WebPayload<UserTransferActivitySummary>, BigNeonError> {
+    let connection = connection.get();
+    auth_user.requires_scope(Scopes::TransferReadOwn)?;
+
+    let payload = auth_user.user.transfer_activity_by_event_tickets(
+        paging_query.page(),
+        paging_query.limit.unwrap_or(std::u32::MAX),
+        paging_query.dir.unwrap_or(SortingDir::Desc),
+        past_or_upcoming_query
+            .past_or_upcoming
+            .unwrap_or(PastOrUpcoming::Upcoming),
+        connection,
+    )?;
+
+    Ok(WebPayload::new(StatusCode::OK, payload))
+}
+
 pub fn cancel(
     (connection, path, auth_user, state): (Connection, Path<PathParameters>, User, State<AppState>),
 ) -> Result<HttpResponse, BigNeonError> {
@@ -125,13 +149,7 @@ pub fn cancel(
     }
 
     if let Some(source_email) = source_user.email.clone() {
-        mailers::tickets::transfer_cancelled_receipt(
-            &state.config,
-            source_email,
-            &source_user,
-            &transfer,
-            connection,
-        )?;
+        mailers::tickets::transfer_cancelled_receipt(&state.config, source_email, &source_user, &transfer, connection)?;
     }
 
     Ok(HttpResponse::Ok().json(&transfer.for_display(connection)?))
@@ -147,13 +165,8 @@ fn check_transfer_cancel_access(
         let events = transfer.events(connection)?;
         for event in events {
             let org = event.organization(connection)?;
-            valid = valid
-                && user.has_scope_for_organization_event(
-                    Scopes::TransferCancel,
-                    &org,
-                    event.id,
-                    connection,
-                )?;
+            valid =
+                valid && user.has_scope_for_organization_event(Scopes::TransferCancel, &org, event.id, connection)?;
         }
 
         if !valid {
