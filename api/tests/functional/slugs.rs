@@ -28,7 +28,7 @@ fn show_event() {
         .with_venue(&venue)
         .finish();
     let _event_interest = EventInterest::create(event.id, user.id).commit(conn);
-    let slug = "newevent1-at-name-san-francisco";
+    let slug = "newevent1-san-francisco";
     let test_request = TestRequest::create_with_uri(&format!("/{}", slug));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = events::expected_show_json(
@@ -88,7 +88,7 @@ fn show_redirect_to_primary_slug() {
         .for_event(&event)
         .with_slug("redirect-me")
         .finish();
-    slug_redirects.push((slug, "newevent1-at-venue1-san-francisco", "tickets"));
+    slug_redirects.push((slug, "newevent1-san-francisco", "tickets"));
     let slug = database
         .create_slug()
         .for_venue(&venue, SlugTypes::Venue)

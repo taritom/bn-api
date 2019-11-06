@@ -1,6 +1,6 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
-use bigneon_db::schema::orders;
+use bigneon_db::schema::{orders, refunds};
 use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
@@ -690,6 +690,133 @@ fn create_rolling_entries() {
     assert_eq!(event_fee_entry.online_sold_quantity, 0);
     assert_eq!(event_fee_entry.fee_sold_quantity, 1);
     assert_eq!(event_fee_entry.total_sales_in_cents, 150);
+
+    // Event has just an order in the next settlement period
+    let settlement2 = Settlement::create(
+        organization.id,
+        dates::now().finish(),
+        dates::now().add_days(7).finish(),
+        SettlementStatus::PendingSettlement,
+        Some("test comment".to_string()),
+        false,
+    )
+    .commit(None, connection)
+    .unwrap();
+
+    let display_settlement = settlement2.clone().for_display(connection).unwrap();
+    assert_eq!(display_settlement.event_entries.len(), 1);
+    let event_entries_data = display_settlement
+        .event_entries
+        .iter()
+        .find(|event_entry| event_entry.event == past_event.for_display(connection).unwrap())
+        .unwrap();
+    let event_entries = &event_entries_data.entries;
+    assert_eq!(event_entries.len(), 2);
+
+    let ticket_type_entry = event_entries
+        .clone()
+        .into_iter()
+        .find(|e| {
+            e.settlement_entry_type == SettlementEntryTypes::TicketType
+                && e.ticket_type_id == Some(ticket_type.id)
+                && e.face_value_in_cents == 150
+        })
+        .unwrap();
+    assert_eq!(ticket_type_entry.settlement_id, settlement2.id);
+    assert_eq!(ticket_type_entry.event_id, past_event.id);
+    assert_eq!(ticket_type_entry.ticket_type_id, Some(ticket_type.id));
+    assert_eq!(ticket_type_entry.face_value_in_cents, 150);
+    assert_eq!(ticket_type_entry.revenue_share_value_in_cents, 30);
+    assert_eq!(ticket_type_entry.online_sold_quantity, 10);
+    assert_eq!(ticket_type_entry.fee_sold_quantity, 10);
+    assert_eq!(
+        ticket_type_entry.total_sales_in_cents,
+        ticket_type_entry.online_sold_quantity * ticket_type_entry.face_value_in_cents
+            + ticket_type_entry.fee_sold_quantity * ticket_type_entry.revenue_share_value_in_cents
+    );
+
+    let event_fee_entry = event_entries
+        .clone()
+        .into_iter()
+        .find(|e| {
+            e.settlement_entry_type == SettlementEntryTypes::EventFees
+                && e.event_id == past_event.id
+        })
+        .unwrap();
+    assert_eq!(event_fee_entry.settlement_id, settlement2.id);
+    assert_eq!(event_fee_entry.event_id, past_event.id);
+    assert_eq!(event_fee_entry.ticket_type_id, None);
+    assert_eq!(event_fee_entry.face_value_in_cents, 0);
+    assert_eq!(event_fee_entry.revenue_share_value_in_cents, 150);
+    assert_eq!(event_fee_entry.online_sold_quantity, 0);
+    assert_eq!(event_fee_entry.fee_sold_quantity, 1);
+    assert_eq!(event_fee_entry.total_sales_in_cents, 150);
+
+    // Refund alone in subsequent settlement
+    let items = order.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let ticket = &tickets[1];
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(ticket.id),
+    }];
+    let (refund, _) = order
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
+    diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
+        .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(9)))
+        .execute(connection)
+        .unwrap();
+    assert_eq!(refund.settlement_id, None);
+    let settlement3 = Settlement::create(
+        organization.id,
+        dates::now().add_days(7).finish(),
+        dates::now().add_days(14).finish(),
+        SettlementStatus::PendingSettlement,
+        Some("test comment".to_string()),
+        false,
+    )
+    .commit(None, connection)
+    .unwrap();
+
+    let display_settlement = settlement3.clone().for_display(connection).unwrap();
+    assert_eq!(display_settlement.event_entries.len(), 1);
+    let event_entries_data = display_settlement
+        .event_entries
+        .iter()
+        .find(|event_entry| event_entry.event == past_event.for_display(connection).unwrap())
+        .unwrap();
+    let event_entries = &event_entries_data.entries;
+    assert_eq!(event_entries.len(), 1);
+
+    let ticket_type_entry = event_entries
+        .clone()
+        .into_iter()
+        .find(|e| {
+            e.settlement_entry_type == SettlementEntryTypes::TicketType
+                && e.ticket_type_id == Some(ticket_type.id)
+                && e.face_value_in_cents == 150
+        })
+        .unwrap();
+    assert_eq!(ticket_type_entry.settlement_id, settlement3.id);
+    assert_eq!(ticket_type_entry.event_id, past_event.id);
+    assert_eq!(ticket_type_entry.ticket_type_id, Some(ticket_type.id));
+    assert_eq!(ticket_type_entry.face_value_in_cents, 150);
+    assert_eq!(ticket_type_entry.revenue_share_value_in_cents, 30);
+    assert_eq!(ticket_type_entry.online_sold_quantity, -1);
+    assert_eq!(ticket_type_entry.fee_sold_quantity, -1);
+    assert_eq!(
+        ticket_type_entry.total_sales_in_cents,
+        -ticket_type_entry.face_value_in_cents + -ticket_type_entry.revenue_share_value_in_cents
+    );
+    // Reloading records shows settlement associated with them marking it as having been processed
+    let order = Order::find(order.id, connection).unwrap();
+    assert_eq!(order.settlement_id, Some(settlement.id));
+    let refund = Refund::find(refund.id, connection).unwrap();
+    assert_eq!(refund.settlement_id, Some(settlement3.id));
 }
 
 #[test]
@@ -896,9 +1023,10 @@ fn find_for_organization() {
         .create_settlement()
         .with_organization(&organization)
         .finish();
-    let settlements = Settlement::find_for_organization(organization.id, None, None, connection)
-        .unwrap()
-        .data;
+    let settlements =
+        Settlement::find_for_organization(organization.id, None, None, false, connection)
+            .unwrap()
+            .data;
     assert_eq!(settlements.len(), 1);
     assert_eq!(settlements[0].id, settlement.id);
 }

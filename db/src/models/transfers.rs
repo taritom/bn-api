@@ -3,7 +3,7 @@ use diesel;
 use diesel::dsl::{count, exists, select, sql};
 use diesel::expression::dsl;
 use diesel::prelude::*;
-use diesel::sql_types::{Array, Uuid as dUuid};
+use diesel::sql_types::{Array, Text, Uuid as dUuid};
 use models::*;
 use schema::{
     assets, events, order_transfers, orders, organizations, ticket_instances, ticket_types,
@@ -302,23 +302,45 @@ impl Transfer {
         )
     }
 
+    pub fn event_ended(&self, conn: &PgConnection) -> Result<bool, DatabaseError> {
+        Ok(self
+            .events(conn)?
+            .iter()
+            .find(|e| {
+                e.event_end
+                    .unwrap_or_else(|| NaiveDate::from_ymd(3970, 1, 1).and_hms(0, 0, 0))
+                    < Utc::now().naive_utc()
+            })
+            .is_some())
+    }
+
     pub fn find_by_transfer_key(
         transfer_key: Uuid,
         conn: &PgConnection,
     ) -> Result<Transfer, DatabaseError> {
-        transfers::table
+        let mut transfer: Transfer = transfers::table
             .filter(transfers::transfer_key.eq(transfer_key))
             .select(transfers::all_columns)
             .distinct()
             .get_result(conn)
-            .to_db_error(ErrorCode::QueryError, "Error loading transfers")
+            .to_db_error(ErrorCode::QueryError, "Error loading transfers")?;
+
+        if transfer.event_ended(conn)? {
+            transfer.status = TransferStatus::EventEnded;
+        }
+        Ok(transfer)
     }
 
     pub fn find(id: Uuid, conn: &PgConnection) -> Result<Transfer, DatabaseError> {
-        transfers::table
+        let mut transfer: Transfer = transfers::table
             .filter(transfers::id.eq(id))
             .first(conn)
-            .to_db_error(ErrorCode::QueryError, "Could not find transfer")
+            .to_db_error(ErrorCode::QueryError, "Could not find transfer")?;
+
+        if transfer.event_ended(conn)? {
+            transfer.status = TransferStatus::EventEnded;
+        }
+        Ok(transfer)
     }
 
     pub fn find_for_user_for_display(
@@ -335,8 +357,16 @@ impl Transfer {
         let page = page.unwrap_or(0);
 
         let mut query = transfers::table
+            .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
+            .inner_join(
+                ticket_instances::table
+                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
+            )
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
             .left_join(order_transfers::table.on(order_transfers::transfer_id.eq(transfers::id)))
-            .then_order_by(transfers::created_at.desc())
+            .order_by(transfers::created_at.desc())
             .into_boxed();
 
         match source_or_destination {
@@ -362,38 +392,44 @@ impl Transfer {
 
         let (transfers, transfer_count): (Vec<DisplayTransfer>, i64) = query
             .select(transfers::all_columns)
-            .then_order_by(transfers::created_at.desc())
             .select((
                 transfers::id,
                 transfers::source_user_id,
                 transfers::destination_user_id,
                 transfers::transfer_key,
-                transfers::status,
+                sql::<Text>(
+                    "
+                    CASE
+                    WHEN transfers.status = 'Pending' THEN
+                    COALESCE(MAX('EventEnded') FILTER(WHERE events.event_end < now()), 'Pending')
+                    ELSE transfers.status END as status
+                ",
+                ),
                 transfers::created_at,
                 transfers::updated_at,
                 transfers::transfer_message_type,
                 transfers::transfer_address,
                 sql::<Array<dUuid>>(
                     "
-                    ARRAY(
-                        SELECT ticket_instance_id
-                        FROM transfer_tickets
-                        WHERE transfer_tickets.transfer_id = transfers.id
-                    ) as ticket_ids
+                    ARRAY_AGG(DISTINCT transfer_tickets.ticket_instance_id)
                 ",
                 ),
                 sql::<Array<dUuid>>(
                     "
-                    ARRAY(
-                        SELECT DISTINCT event_id
-                        FROM transfer_tickets tt
-                        JOIN ticket_instances ti ON tt.ticket_instance_id = ti.id
-                        JOIN assets a ON a.id = ti.asset_id
-                        JOIN ticket_types tt2 ON tt2.id = a.ticket_type_id
-                        WHERE tt.transfer_id = transfers.id
-                    ) as event_ids
+                    ARRAY_AGG(DISTINCT events.id)
                 ",
                 ),
+                transfers::direct,
+            ))
+            .group_by((
+                transfers::id,
+                transfers::source_user_id,
+                transfers::destination_user_id,
+                transfers::transfer_key,
+                transfers::created_at,
+                transfers::updated_at,
+                transfers::transfer_message_type,
+                transfers::transfer_address,
                 transfers::direct,
             ))
             .paginate(page as i64)
@@ -436,8 +472,16 @@ impl Transfer {
     ) -> Result<Vec<Transfer>, DatabaseError> {
         transfers::table
             .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
+            .inner_join(
+                ticket_instances::table
+                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
+            )
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
             .filter(transfer_tickets::ticket_instance_id.eq_any(ticket_instance_ids))
             .filter(transfers::status.eq(TransferStatus::Pending))
+            .filter(events::event_end.gt(Some(Utc::now().naive_utc())))
             .select(transfers::all_columns)
             .distinct()
             .load(conn)
@@ -452,6 +496,28 @@ impl Transfer {
             .filter(transfer_tickets::transfer_id.eq(self.id))
             .load(conn)
             .to_db_error(ErrorCode::QueryError, "Could not load transfer tickets")
+    }
+
+    pub fn cancel_by_ticket_instance_ids(
+        ticket_instance_ids: &[Uuid],
+        user_id: Uuid,
+        new_transfer_key: Option<Uuid>,
+        conn: &PgConnection,
+    ) -> Result<(), DatabaseError> {
+        let transfers: Vec<Transfer> = transfers::table
+            .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
+            .filter(transfer_tickets::ticket_instance_id.eq_any(ticket_instance_ids))
+            .filter(transfers::status.eq(TransferStatus::Pending))
+            .select(transfers::all_columns)
+            .distinct()
+            .load(conn)
+            .to_db_error(ErrorCode::QueryError, "Error loading transfers")?;
+
+        for transfer in transfers {
+            transfer.cancel(user_id, new_transfer_key, conn)?;
+        }
+
+        Ok(())
     }
 
     pub fn cancel(
@@ -559,7 +625,16 @@ impl Transfer {
 
     pub fn find_pending(conn: &PgConnection) -> Result<Vec<Transfer>, DatabaseError> {
         transfers::table
+            .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
+            .inner_join(
+                ticket_instances::table
+                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
+            )
+            .inner_join(assets::table.on(assets::id.eq(ticket_instances::asset_id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(events::table.on(events::id.eq(ticket_types::event_id)))
             .filter(transfers::status.eq(TransferStatus::Pending))
+            .filter(events::event_end.gt(Some(Utc::now().naive_utc())))
             .select(transfers::all_columns)
             .distinct()
             .load(conn)

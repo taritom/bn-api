@@ -544,6 +544,7 @@ fn current_user_organization_owner() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",

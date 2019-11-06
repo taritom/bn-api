@@ -112,3 +112,12 @@ pub fn delete(
     let broadcast = broadcast.cancel(connection)?;
     Ok(HttpResponse::Ok().json(broadcast))
 }
+
+pub fn tracking_count(
+    (conn, path, _user): (Connection, Path<PathParameters>, User),
+) -> Result<HttpResponse, BigNeonError> {
+    let connection = conn.get();
+    Broadcast::increment_open_count(path.id.clone(), connection)?;
+    let broadcast = Broadcast::find(path.id, connection)?;
+    Ok(HttpResponse::Ok().json(json!({"event_id": broadcast.event_id})))
+}

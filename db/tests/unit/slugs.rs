@@ -266,7 +266,7 @@ fn generate_slug() {
     // Generate event with venue
     let slug =
         Slug::generate_slug(&event_with_venue_slug_context, SlugTypes::Event, connection).unwrap();
-    assert_eq!(&slug.slug, "event2-at-name-oakland");
+    assert_eq!(&slug.slug, "event2-oakland");
     assert_eq!(slug.slug_type, SlugTypes::Event);
     assert_eq!(slug.main_table, Tables::Events);
     assert_eq!(slug.main_table_id, event2.id);

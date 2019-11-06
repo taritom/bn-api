@@ -960,10 +960,7 @@ impl TicketInstance {
         let transfer_key = Uuid::new_v4();
 
         let mut update_count = 0;
-        let transfers = Transfer::find_pending_by_ticket_instance_ids(ticket_ids, conn)?;
-        for transfer in transfers {
-            transfer.cancel(user_id, Some(transfer_key), conn)?;
-        }
+        Transfer::cancel_by_ticket_instance_ids(ticket_ids, user_id, Some(transfer_key), conn)?;
 
         let transfer_data = Some(json!({
             "sent_via": sent_via,
@@ -983,6 +980,13 @@ impl TicketInstance {
             transfer.add_transfer_ticket(t_id, conn)?;
             update_count += 1;
         }
+        if transfer.event_ended(conn)? {
+            return Err(DatabaseError::new(
+                ErrorCode::BusinessProcessError,
+                Some("Cannot transfer ticket, event has ended.".to_string()),
+            ));
+        }
+
         transfer.update_associated_orders(conn)?;
 
         // Log transfer event after associating transfer tickets
@@ -1062,11 +1066,20 @@ impl TicketInstance {
         }
 
         let transfer = Transfer::find_by_transfer_key(transfer_authorization.transfer_key, conn)?;
-        if transfer.status == TransferStatus::Cancelled {
-            return Err(DatabaseError::new(
-                ErrorCode::BusinessProcessError,
-                Some("The transfer has been cancelled.".to_string()),
-            ));
+        match transfer.status {
+            TransferStatus::Cancelled => {
+                return Err(DatabaseError::new(
+                    ErrorCode::BusinessProcessError,
+                    Some("The transfer has been cancelled.".to_string()),
+                ));
+            }
+            TransferStatus::EventEnded => {
+                return Err(DatabaseError::new(
+                    ErrorCode::BusinessProcessError,
+                    Some("Cannot transfer ticket, event has ended.".to_string()),
+                ));
+            }
+            _ => (),
         }
 
         //Confirm that transfer authorization time has not passed and that the sender still owns the tickets
@@ -1077,7 +1090,6 @@ impl TicketInstance {
             .map(|tt| tt.ticket_instance_id)
             .collect();
         let tickets = TicketInstance::find_by_ids(&ticket_ids, conn)?;
-
         let mut own_all = true;
         let mut ticket_ids_to_transfer: Vec<(Uuid, NaiveDateTime)> = Vec::new();
         for t in &tickets {

@@ -1,6 +1,7 @@
 mod artists;
 mod auth;
 mod base;
+mod broadcast;
 mod cart;
 mod codes;
 mod comps;

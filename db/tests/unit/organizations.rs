@@ -237,11 +237,29 @@ fn next_settlement_date() {
         expected_sa
     );
 
-    // Override organization timezone to PT
+    // Switch to rolling which always uses PT
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                settlement_type: Some(SettlementTypes::Rolling),
+                ..Default::default()
+            },
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        organization.next_settlement_date(None).unwrap(),
+        expected_pt
+    );
+
+    // Override organization timezone to PT and switch back to PostEvent
     let organization = organization
         .update(
             OrganizationEditableAttributes {
                 timezone: Some("America/Los_Angeles".to_string()),
+                settlement_type: Some(SettlementTypes::PostEvent),
                 ..Default::default()
             },
             None,
@@ -276,6 +294,23 @@ fn next_settlement_date() {
     assert_eq!(
         organization.next_settlement_date(Some(1)).unwrap(),
         expected_sa
+    );
+
+    // Rolling with passed in settlement period
+    let organization = organization
+        .update(
+            OrganizationEditableAttributes {
+                settlement_type: Some(SettlementTypes::Rolling),
+                ..Default::default()
+            },
+            None,
+            &"encryption_key".to_string(),
+            connection,
+        )
+        .unwrap();
+    assert_eq!(
+        organization.next_settlement_date(Some(1)).unwrap(),
+        expected_pt
     );
 }
 
@@ -1079,6 +1114,7 @@ pub fn get_scopes_for_user() {
     let no_access_user = project.create_user().finish();
     let promoter = project.create_user().finish();
     let promoter_read_only = project.create_user().finish();
+    let event_data_exporter = project.create_user().finish();
     let organization = project
         .create_organization()
         .with_member(&owner, Roles::OrgOwner)
@@ -1088,6 +1124,7 @@ pub fn get_scopes_for_user() {
         .with_member(&door_person, Roles::DoorPerson)
         .with_member(&promoter, Roles::Promoter)
         .with_member(&promoter_read_only, Roles::PromoterReadOnly)
+        .with_member(&event_data_exporter, Roles::PrismIntegration)
         .finish();
     let mut admin = project.create_user().finish();
     admin = admin.add_role(Roles::Admin, connection).unwrap();
@@ -1110,6 +1147,7 @@ pub fn get_scopes_for_user() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",
@@ -1169,6 +1207,7 @@ pub fn get_scopes_for_user() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",
@@ -1255,6 +1294,16 @@ pub fn get_scopes_for_user() {
             "event:view-guests",
             "dashboard:read",
         ]
+    );
+
+    assert_equiv!(
+        organization
+            .get_scopes_for_user(&event_data_exporter, connection)
+            .unwrap()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>(),
+        vec!["event:data-read",]
     );
 
     assert_equiv!(
@@ -1379,6 +1428,7 @@ pub fn get_scopes_for_user() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",

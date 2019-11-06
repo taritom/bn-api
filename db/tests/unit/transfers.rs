@@ -13,6 +13,35 @@ use time::Duration;
 use uuid::Uuid;
 
 #[test]
+fn event_ended() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+        .commit(connection)
+        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
+    assert!(!transfer.event_ended(connection).unwrap());
+
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-7).finish()),
+        event_end: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    assert!(transfer.event_ended(connection).unwrap());
+}
+
+#[test]
 fn receive_url() {
     let project = TestProject::new();
     let connection = project.get_connection();
@@ -819,43 +848,54 @@ fn for_display() {
 }
 
 #[test]
-fn find_by_user_id() {
+fn find_for_user_for_display() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
     let user3 = project.create_user().finish();
     let user4 = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
     let order = project
         .create_order()
         .for_user(&user)
         .quantity(2)
+        .for_event(&event)
         .is_paid()
         .finish();
     let order2 = project
         .create_order()
         .for_user(&user2)
         .quantity(1)
+        .for_event(&event)
         .is_paid()
         .finish();
     let tickets = TicketInstance::find_for_user(user.id, connection).unwrap();
     let ticket = &tickets[0];
     let ticket2 = &TicketInstance::find_for_user(user2.id, connection).unwrap()[0];
 
-    let mut transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
+    let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
     transfer.add_transfer_ticket(ticket.id, connection).unwrap();
     transfer.update_associated_orders(connection).unwrap();
-    transfer = transfer
-        .update(
-            TransferEditableAttributes {
-                destination_user_id: Some(user3.id),
-                ..Default::default()
-            },
-            connection,
-        )
-        .unwrap();
+
+    // Set transfer created_at to an earlier date to force ordering / avoid timing bug in test
+    diesel::sql_query(
+        r#"
+        UPDATE transfers
+        SET created_at = $1,
+        destination_user_id = $2
+        WHERE id = $3;
+        "#,
+    )
+    .bind::<sql_types::Timestamp, _>(Utc::now().naive_utc() + Duration::seconds(30))
+    .bind::<sql_types::Uuid, _>(user3.id)
+    .bind::<sql_types::Uuid, _>(transfer.id)
+    .execute(connection)
+    .unwrap();
+
+    let transfer = Transfer::find(transfer.id, connection).unwrap();
     let transfer = transfer.for_display(connection).unwrap();
 
     let mut transfer2 = Transfer::create(user2.id, Uuid::new_v4(), None, None, false)
@@ -1239,6 +1279,27 @@ fn find_by_user_id() {
     )
     .unwrap()
     .is_empty());
+
+    // Event ended marking transfer as EventEnded
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-7).finish()),
+        event_end: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    let transfers = Transfer::find_for_user_for_display(
+        user.id,
+        None,
+        SourceOrDestination::Source,
+        None,
+        Some(date),
+        None,
+        None,
+        connection,
+    )
+    .unwrap()
+    .data;
+    assert_eq!(transfers[0].status, TransferStatus::EventEnded);
 }
 
 #[test]
@@ -1246,12 +1307,32 @@ fn find() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    project.create_order().for_user(&user).is_paid().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer = Transfer::create(user.id, Uuid::new_v4(), None, None, false)
         .commit(connection)
         .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
 
     assert_eq!(transfer, Transfer::find(transfer.id, connection).unwrap());
+    assert_eq!(transfer.status, TransferStatus::Pending);
+
+    // Event ended marking transfer as EventEnded
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-7).finish()),
+        event_end: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    let transfer = Transfer::find(transfer.id, connection).unwrap();
+    assert_eq!(transfer.status, TransferStatus::EventEnded);
 }
 
 #[test]
@@ -1259,7 +1340,14 @@ fn find_by_transfer_key() {
     let project = TestProject::new();
     let connection = project.get_connection();
     let user = project.create_user().finish();
-    project.create_order().for_user(&user).is_paid().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .for_event(&event)
+        .quantity(1)
+        .is_paid()
+        .finish();
     let ticket = &TicketInstance::find_for_user(user.id, connection).unwrap()[0];
     let transfer_key = Uuid::new_v4();
     let transfer = Transfer::create(user.id, transfer_key.clone(), None, None, false)
@@ -1269,6 +1357,17 @@ fn find_by_transfer_key() {
 
     let found_transfer = Transfer::find_by_transfer_key(transfer_key, connection).unwrap();
     assert_eq!(found_transfer, transfer);
+    assert_eq!(found_transfer.status, TransferStatus::Pending);
+
+    // Event ended marking transfer as EventEnded
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-7).finish()),
+        event_end: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    let found_transfer = Transfer::find_by_transfer_key(transfer_key, connection).unwrap();
+    assert_eq!(found_transfer.status, TransferStatus::EventEnded);
 }
 
 #[test]
@@ -1297,9 +1396,11 @@ fn find_pending() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
     project
         .create_order()
         .for_user(&user)
+        .for_event(&event)
         .quantity(1)
         .is_paid()
         .finish();
@@ -1329,6 +1430,16 @@ fn find_pending() {
     let pending_transfers = Transfer::find_pending(connection).unwrap();
     assert_eq!(pending_transfers.len(), 1);
     assert_eq!(pending_transfers[0].id, transfer2.id);
+
+    // Event end passed, no longer pending as transfer has now been marked EventEnded
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-7).finish()),
+        event_end: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    let pending_transfers = Transfer::find_pending(connection).unwrap();
+    assert_eq!(pending_transfers.len(), 0);
 }
 
 #[test]
@@ -1337,9 +1448,11 @@ fn find_pending_by_ticket_instance_ids() {
     let connection = project.get_connection();
     let user = project.create_user().finish();
     let user2 = project.create_user().finish();
+    let event = project.create_event().with_ticket_pricing().finish();
     project
         .create_order()
         .for_user(&user)
+        .for_event(&event)
         .quantity(2)
         .is_paid()
         .finish();
@@ -1365,6 +1478,43 @@ fn find_pending_by_ticket_instance_ids() {
             .unwrap();
     assert_eq!(pending_transfers.len(), 1);
     assert_eq!(pending_transfers[0].id, transfer2.id);
+
+    // Event end passed, no longer pending as transfer has now been marked EventEnded
+    let parameters = EventEditableAttributes {
+        event_start: Some(dates::now().add_days(-7).finish()),
+        event_end: Some(dates::now().add_days(-1).finish()),
+        ..Default::default()
+    };
+    event.update(None, parameters, connection).unwrap();
+    let pending_transfers =
+        Transfer::find_pending_by_ticket_instance_ids(&[ticket.id, ticket2.id], connection)
+            .unwrap();
+    assert_eq!(pending_transfers.len(), 0);
+}
+
+#[test]
+fn cancel_by_ticket_instance_ids() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    project
+        .create_order()
+        .for_user(&user)
+        .quantity(1)
+        .is_paid()
+        .finish();
+    let ticket = TicketInstance::find_for_user(user.id, connection)
+        .unwrap()
+        .remove(0);
+    let transfer_key = Uuid::new_v4();
+    let transfer = Transfer::create(user.id, transfer_key, None, None, false)
+        .commit(connection)
+        .unwrap();
+    transfer.add_transfer_ticket(ticket.id, connection).unwrap();
+
+    Transfer::cancel_by_ticket_instance_ids(&vec![ticket.id], user.id, None, connection).unwrap();
+    let transfer = Transfer::find(transfer.id, connection).unwrap();
+    assert_eq!(transfer.status, TransferStatus::Cancelled);
 }
 
 #[test]

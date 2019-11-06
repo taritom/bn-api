@@ -337,7 +337,8 @@ pub fn index_search_with_filter() {
         door_time: event.door_time,
         status: event.status,
         publish_date: event.publish_date,
-        promo_image_url: event.promo_image_url,
+        promo_image_url: event.promo_image_url.clone(),
+        original_promo_image_url: event.promo_image_url,
         additional_info: event.additional_info,
         top_line_info: event.top_line_info,
         age_limit: event.age_limit,
@@ -495,7 +496,7 @@ fn show_from_slug() {
         .with_venue(&venue)
         .finish();
     let _event_interest = EventInterest::create(event1.id, user.id).commit(conn);
-    let slug1 = "newevent1-at-name-san-francisco";
+    let slug1 = "newevent1-san-francisco";
     let test_request = TestRequest::create_with_uri(&format!("/events/{}", slug1));
     let mut path = Path::<StringPathParameters>::extract(&test_request.request).unwrap();
     let event_expected_json = base::events::expected_show_json(
@@ -1906,6 +1907,75 @@ mod holds_tests {
     }
 }
 
+#[cfg(test)]
+mod export_event_data_tests {
+    use super::*;
+
+    #[test]
+    fn export_event_data_org_member() {
+        base::events::export_event_data(Roles::OrgMember, false, None);
+    }
+
+    #[test]
+    fn export_event_data_admin() {
+        base::events::export_event_data(Roles::Admin, true, None);
+    }
+
+    #[test]
+    fn export_event_data_user() {
+        base::events::export_event_data(Roles::User, false, None);
+    }
+
+    #[test]
+    fn export_event_data_org_owner() {
+        base::events::export_event_data(Roles::OrgOwner, true, None);
+    }
+
+    #[test]
+    fn export_event_data_door_person() {
+        base::events::export_event_data(Roles::DoorPerson, false, None);
+    }
+
+    #[test]
+    fn export_event_data_promoter() {
+        base::events::export_event_data(Roles::Promoter, false, None);
+    }
+
+    #[test]
+    fn export_event_data_promoter_read_only() {
+        base::events::export_event_data(Roles::PromoterReadOnly, false, None);
+    }
+
+    #[test]
+    fn export_event_data_org_admin() {
+        base::events::export_event_data(Roles::OrgAdmin, true, None);
+    }
+
+    #[test]
+    fn export_event_data_box_office() {
+        base::events::export_event_data(Roles::OrgBoxOffice, false, None);
+    }
+
+    #[test]
+    fn export_event_data_event_data_exporter() {
+        base::events::export_event_data(Roles::PrismIntegration, true, None);
+    }
+
+    #[test]
+    fn export_event_data_event_data_exporter_past() {
+        base::events::export_event_data(Roles::PrismIntegration, true, Some(PastOrUpcoming::Past));
+    }
+
+    #[test]
+    fn export_event_data_event_data_exporter_upcoming() {
+        base::events::export_event_data(
+            Roles::PrismIntegration,
+            true,
+            Some(PastOrUpcoming::Upcoming),
+        );
+    }
+}
+
 #[test]
 pub fn delete_fails_has_ticket_in_cart() {
     let database = TestDatabase::new();
@@ -2218,6 +2288,7 @@ pub fn event_venue_entry(
         status: event.status.clone(),
         publish_date: event.publish_date,
         promo_image_url: event.promo_image_url.clone(),
+        original_promo_image_url: event.promo_image_url.clone(),
         additional_info: event.additional_info.clone(),
         top_line_info: event.top_line_info.clone(),
         age_limit: event.age_limit.clone(),

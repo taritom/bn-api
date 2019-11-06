@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{Duration, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use diesel;
 use diesel::prelude::*;
 use diesel::sql_types;
@@ -110,6 +110,414 @@ fn update_genre_info() {
         user.genres(connection).unwrap(),
         vec!["emo".to_string(), "hard-rock".to_string()]
     );
+}
+
+#[test]
+fn transfer_activity_by_event_tickets() {
+    let project = TestProject::new();
+    let connection = project.get_connection();
+    let user = project.create_user().finish();
+    let user2 = project.create_user().finish();
+    let user3 = project.create_user().finish();
+    let event = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_event_start(dates::now().add_days(1).finish())
+        .finish();
+    let ticket_type = &event.ticket_types(true, None, connection).unwrap()[0];
+    let event2 = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_event_start(dates::now().add_days(2).finish())
+        .finish();
+    let ticket_type2 = &event2.ticket_types(true, None, connection).unwrap()[0];
+    let order = project
+        .create_order()
+        .for_event(&event)
+        .for_user(&user)
+        .quantity(3)
+        .is_paid()
+        .finish();
+    let order2 = project
+        .create_order()
+        .for_event(&event2)
+        .for_user(&user)
+        .quantity(3)
+        .is_paid()
+        .finish();
+
+    let user_tickets = order.tickets(ticket_type.id, connection).unwrap();
+    let ticket = &user_tickets[0];
+    let ticket2 = &user_tickets[1];
+    let ticket3 = &user_tickets[2];
+
+    let user_tickets2 = order2.tickets(ticket_type2.id, connection).unwrap();
+    let ticket4 = &user_tickets2[0];
+    let ticket5 = &user_tickets2[1];
+    let ticket6 = &user_tickets2[2];
+
+    // Completed transfer
+    let transfer = TicketInstance::direct_transfer(
+        user.id,
+        &vec![ticket.id],
+        "nowhere",
+        TransferMessageType::Email,
+        user3.id,
+        connection,
+    )
+    .unwrap();
+
+    // Pending transfer
+    let transfer2 =
+        TicketInstance::create_transfer(user.id, &[ticket2.id], None, None, false, connection)
+            .unwrap();
+
+    // Cancelled transfer
+    let transfer3 =
+        TicketInstance::create_transfer(user.id, &[ticket3.id], None, None, false, connection)
+            .unwrap();
+    transfer3.cancel(user.id, None, connection).unwrap();
+
+    // Cancelled and retransferred ticket
+    let transfer4 = TicketInstance::create_transfer(
+        user.id,
+        &[ticket4.id, ticket5.id, ticket6.id],
+        None,
+        None,
+        false,
+        connection,
+    )
+    .unwrap();
+    let transfer4 = transfer4.cancel(user.id, None, connection).unwrap();
+    // Only ticket 4 and 5 retransferred
+    let transfer5 =
+        TicketInstance::create_transfer(user.id, &[ticket4.id], None, None, false, connection)
+            .unwrap();
+    let transfer6 =
+        TicketInstance::create_transfer(user.id, &[ticket5.id], None, None, false, connection)
+            .unwrap();
+    // Ticket 5 is accepted by user2
+    let sender_wallet = Wallet::find_default_for_user(user.id, connection).unwrap();
+    let receiver_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
+    TicketInstance::receive_ticket_transfer(
+        transfer6.into_authorization(connection).unwrap(),
+        &sender_wallet,
+        user2.id,
+        receiver_wallet.id,
+        connection,
+    )
+    .unwrap();
+    // Ticket 5 is transferred again and accepted by user3
+    let transfer7 =
+        TicketInstance::create_transfer(user2.id, &[ticket5.id], None, None, false, connection)
+            .unwrap();
+    let sender_wallet = Wallet::find_default_for_user(user2.id, connection).unwrap();
+    let receiver_wallet = Wallet::find_default_for_user(user3.id, connection).unwrap();
+    TicketInstance::receive_ticket_transfer(
+        transfer7.into_authorization(connection).unwrap(),
+        &sender_wallet,
+        user3.id,
+        receiver_wallet.id,
+        connection,
+    )
+    .unwrap();
+
+    // Adjust domain events so they order correctly / avoid timing test errors
+    diesel::sql_query(
+        r#"
+        UPDATE domain_events
+        SET created_at = $1
+        WHERE main_id = $2
+        AND event_type = 'TransferTicketStarted';
+    "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(5).finish())
+    .bind::<sql_types::Uuid, _>(transfer4.id)
+    .execute(connection)
+    .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE domain_events
+        SET created_at = $1
+        WHERE main_id = $2
+        AND event_type = 'TransferTicketCancelled';
+    "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(10).finish())
+    .bind::<sql_types::Uuid, _>(transfer4.id)
+    .execute(connection)
+    .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE domain_events
+        SET created_at = $1
+        WHERE main_id = $2
+        AND event_type = 'TransferTicketStarted';
+    "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(15).finish())
+    .bind::<sql_types::Uuid, _>(transfer5.id)
+    .execute(connection)
+    .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE domain_events
+        SET created_at = $1
+        WHERE main_id = $2
+        AND event_type = 'TransferTicketStarted';
+    "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(15).finish())
+    .bind::<sql_types::Uuid, _>(transfer6.id)
+    .execute(connection)
+    .unwrap();
+    diesel::sql_query(
+        r#"
+        UPDATE domain_events
+        SET created_at = $1
+        WHERE main_id = $2
+        AND event_type = 'TransferTicketCompleted';
+    "#,
+    )
+    .bind::<sql_types::Timestamp, _>(dates::now().add_seconds(20).finish())
+    .bind::<sql_types::Uuid, _>(transfer6.id)
+    .execute(connection)
+    .unwrap();
+
+    let mut user1_activity = user
+        .transfer_activity_by_event_tickets(
+            0,
+            100,
+            SortingDir::Desc,
+            PastOrUpcoming::Upcoming,
+            connection,
+        )
+        .unwrap();
+    let mut user2_activity = user2
+        .transfer_activity_by_event_tickets(
+            0,
+            100,
+            SortingDir::Desc,
+            PastOrUpcoming::Upcoming,
+            connection,
+        )
+        .unwrap();
+    let user3_activity = user3
+        .transfer_activity_by_event_tickets(
+            0,
+            100,
+            SortingDir::Desc,
+            PastOrUpcoming::Upcoming,
+            connection,
+        )
+        .unwrap();
+
+    assert_eq!(user1_activity.paging.total, 2);
+    let mut user_event2_data = user1_activity.data.remove(0);
+    assert_eq!(
+        user_event2_data.event,
+        event2.for_display(connection).unwrap()
+    );
+    assert_eq!(user_event2_data.ticket_activity_items.len(), 2);
+    let mut ticket_activity = user_event2_data
+        .ticket_activity_items
+        .remove(&ticket4.id)
+        .unwrap();
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        assert_eq!(transfer_id, transfer5.id);
+        assert_eq!(action, "Started".to_string());
+        assert_eq!(status, TransferStatus::Pending);
+        assert_eq!(ticket_ids, vec![ticket4.id]);
+    }
+    let mut transfer4_tickets = vec![ticket4.id, ticket5.id, ticket6.id];
+    transfer4_tickets.sort();
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        mut ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        ticket_ids.sort();
+        assert_eq!(transfer_id, transfer4.id);
+        assert_eq!(action, "Cancelled".to_string());
+        assert_eq!(status, TransferStatus::Cancelled);
+        assert_eq!(ticket_ids, transfer4_tickets);
+    }
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        mut ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        ticket_ids.sort();
+        assert_eq!(transfer_id, transfer4.id);
+        assert_eq!(action, "Started".to_string());
+        assert_eq!(status, TransferStatus::Cancelled);
+        assert_eq!(ticket_ids, transfer4_tickets);
+    }
+    let mut ticket_activity = user_event2_data
+        .ticket_activity_items
+        .remove(&ticket5.id)
+        .unwrap();
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        assert_eq!(transfer_id, transfer6.id);
+        assert_eq!(action, "Accepted".to_string());
+        assert_eq!(status, TransferStatus::Completed);
+        assert_eq!(ticket_ids, vec![ticket5.id]);
+    }
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        assert_eq!(transfer_id, transfer6.id);
+        assert_eq!(action, "Started".to_string());
+        assert_eq!(status, TransferStatus::Completed);
+        assert_eq!(ticket_ids, vec![ticket5.id]);
+    }
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        mut ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        ticket_ids.sort();
+        assert_eq!(transfer_id, transfer4.id);
+        assert_eq!(action, "Cancelled".to_string());
+        assert_eq!(status, TransferStatus::Cancelled);
+        assert_eq!(ticket_ids, transfer4_tickets);
+    }
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        mut ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        ticket_ids.sort();
+        assert_eq!(transfer_id, transfer4.id);
+        assert_eq!(action, "Started".to_string());
+        assert_eq!(status, TransferStatus::Cancelled);
+        assert_eq!(ticket_ids, transfer4_tickets);
+    }
+
+    let mut user_event_data = user1_activity.data.remove(0);
+    assert_eq!(
+        user_event_data.event,
+        event.for_display(connection).unwrap()
+    );
+    assert_eq!(user_event_data.ticket_activity_items.len(), 2);
+    let mut ticket_activity = user_event_data
+        .ticket_activity_items
+        .remove(&ticket.id)
+        .unwrap();
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        assert_eq!(transfer_id, transfer.id);
+        assert_eq!(action, "Accepted".to_string());
+        assert_eq!(status, TransferStatus::Completed);
+        assert_eq!(ticket_ids, vec![ticket.id]);
+    }
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        assert_eq!(transfer_id, transfer.id);
+        assert_eq!(action, "Started".to_string());
+        assert_eq!(status, TransferStatus::Completed);
+        assert_eq!(ticket_ids, vec![ticket.id]);
+    }
+    let mut ticket_activity = user_event_data
+        .ticket_activity_items
+        .remove(&ticket2.id)
+        .unwrap();
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        assert_eq!(transfer_id, transfer2.id);
+        assert_eq!(action, "Started".to_string());
+        assert_eq!(status, TransferStatus::Pending);
+        assert_eq!(ticket_ids, vec![ticket2.id]);
+    }
+
+    assert_eq!(user2_activity.paging.total, 1);
+    let mut user2_event2_data = user2_activity.data.remove(0);
+    assert_eq!(
+        user2_event2_data.event,
+        event2.for_display(connection).unwrap()
+    );
+    assert_eq!(user2_event2_data.ticket_activity_items.len(), 1);
+    let mut ticket_activity = user2_event2_data
+        .ticket_activity_items
+        .remove(&ticket5.id)
+        .unwrap();
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        assert_eq!(transfer_id, transfer7.id);
+        assert_eq!(action, "Accepted".to_string());
+        assert_eq!(status, TransferStatus::Completed);
+        assert_eq!(ticket_ids, vec![ticket5.id]);
+    }
+    if let ActivityItem::Transfer {
+        transfer_id,
+        action,
+        status,
+        ticket_ids,
+        ..
+    } = ticket_activity.remove(0)
+    {
+        assert_eq!(transfer_id, transfer7.id);
+        assert_eq!(action, "Started".to_string());
+        assert_eq!(status, TransferStatus::Completed);
+        assert_eq!(ticket_ids, vec![ticket5.id]);
+    }
+
+    assert_eq!(user3_activity.paging.total, 0);
 }
 
 #[test]
@@ -491,27 +899,21 @@ fn get_profile_for_organization() {
 
     let event = project
         .create_event()
-        .with_event_start(NaiveDateTime::from(
-            Utc::now().naive_utc() + Duration::days(1),
-        ))
+        .with_event_start(NaiveDateTime::from(dates::now().add_days(1).finish()))
         .with_organization(&organization)
         .with_tickets()
         .with_ticket_pricing()
         .finish();
     let event2 = project
         .create_event()
-        .with_event_start(NaiveDateTime::from(
-            Utc::now().naive_utc() + Duration::days(2),
-        ))
+        .with_event_start(NaiveDateTime::from(dates::now().add_days(2).finish()))
         .with_organization(&organization)
         .with_tickets()
         .with_ticket_pricing()
         .finish();
     let event3 = project
         .create_event()
-        .with_event_start(NaiveDateTime::from(
-            Utc::now().naive_utc() + Duration::days(3),
-        ))
+        .with_event_start(NaiveDateTime::from(dates::now().add_days(3).finish()))
         .with_organization(&organization)
         .with_tickets()
         .with_ticket_pricing()
@@ -1168,7 +1570,7 @@ fn get_history_for_organization() {
 
     // Update cart2 to a future date to avoid test timing errors
     let mut cart2 = diesel::update(orders::table.filter(orders::id.eq(cart2.id)))
-        .set(orders::order_date.eq(Utc::now().naive_utc() + Duration::seconds(1)))
+        .set(orders::order_date.eq(dates::now().add_seconds(1).finish()))
         .get_result::<Order>(connection)
         .unwrap();
 
@@ -1750,6 +2152,7 @@ fn get_scopes_by_organization() {
             Scopes::DashboardRead,
             Scopes::EventBroadcast,
             Scopes::EventCancel,
+            Scopes::EventDataRead,
             Scopes::EventDelete,
             Scopes::EventFinancialReports,
             Scopes::EventInterest,
@@ -1899,6 +2302,7 @@ fn get_global_scopes() {
             "dashboard:read",
             "event:broadcast",
             "event:cancel",
+            "event:data-read",
             "event:delete",
             "event:financial-reports",
             "event:interest",
@@ -1928,6 +2332,8 @@ fn get_global_scopes() {
             "org:write",
             "redeem:ticket",
             "region:write",
+            "settlement:read",
+            "settlement:read-early",
             "settlement:write",
             "ticket:admin",
             "ticket:read",

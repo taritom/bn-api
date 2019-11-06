@@ -69,7 +69,7 @@ pub struct Order {
     pub content: Option<String>,
     pub platform: Option<String>,
     #[serde(skip_serializing)]
-    pub(crate) settlement_id: Option<Uuid>,
+    pub settlement_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

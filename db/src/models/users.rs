@@ -118,6 +118,12 @@ pub struct AttendanceInformation {
     pub event_start: Option<NaiveDateTime>,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct UserTransferActivitySummary {
+    pub event: DisplayEvent,
+    pub ticket_activity_items: HashMap<Uuid, Vec<ActivityItem>>,
+}
+
 impl PartialOrd for User {
     fn partial_cmp(&self, other: &User) -> Option<Ordering> {
         Some(self.id.cmp(&other.id))
@@ -354,6 +360,95 @@ impl User {
     ) -> Result<User, DatabaseError> {
         Self::new_stub(Some(first_name), Some(last_name), email, phone)
             .commit(current_user_id, conn)
+    }
+
+    pub fn transfer_activity_by_event_tickets(
+        &self,
+        page: u32,
+        limit: u32,
+        sort_direction: SortingDir,
+        past_or_upcoming: PastOrUpcoming,
+        conn: &PgConnection,
+    ) -> Result<Payload<UserTransferActivitySummary>, DatabaseError> {
+        use schema::*;
+        let (start_time, end_time) = Event::dates_by_past_or_upcoming(None, None, past_or_upcoming);
+
+        let (events, total): (Vec<Event>, i64) = transfers::table
+            .inner_join(transfer_tickets::table.on(transfer_tickets::transfer_id.eq(transfers::id)))
+            .inner_join(
+                ticket_instances::table
+                    .on(transfer_tickets::ticket_instance_id.eq(ticket_instances::id)),
+            )
+            .inner_join(assets::table.on(ticket_instances::asset_id.eq(assets::id)))
+            .inner_join(ticket_types::table.on(assets::ticket_type_id.eq(ticket_types::id)))
+            .inner_join(events::table.on(ticket_types::event_id.eq(events::id)))
+            .filter(transfers::source_user_id.eq(self.id))
+            .filter(events::event_end.ge(start_time))
+            .filter(events::event_end.le(end_time))
+            .select(events::all_columns)
+            .distinct()
+            .order_by(sql::<()>(&format!("events.event_start {}", sort_direction)))
+            .paginate(page as i64)
+            .per_page(limit as i64)
+            .load_and_count_pages(conn)
+            .to_db_error(
+                ErrorCode::QueryError,
+                "Could not load transfer events for user",
+            )?;
+
+        let mut result: Vec<UserTransferActivitySummary> = Vec::new();
+        for event in events {
+            let mut ticket_activity_items: HashMap<Uuid, Vec<ActivityItem>> = HashMap::new();
+            let activity_items =
+                ActivityItem::load_transfers(None, Some(event.id), Some(self.id), true, conn)?;
+
+            // For each activity item, associate with tickets associated
+            for activity_item in activity_items {
+                if let ActivityItem::Transfer { ref ticket_ids, .. } = activity_item {
+                    for ticket_id in ticket_ids {
+                        ticket_activity_items
+                            .entry(*ticket_id)
+                            .or_insert(Vec::new())
+                            .push(activity_item.clone())
+                    }
+                }
+            }
+
+            // Only retain activity where the transfer count of initiated is greater than that of the cancelled
+            ticket_activity_items.retain(|_, ai| {
+                ai.iter()
+                    .filter(|a| {
+                        if let ActivityItem::Transfer { action, .. } = a {
+                            action.as_str() == "Started"
+                        } else {
+                            false
+                        }
+                    })
+                    .count()
+                    > ai.iter()
+                        .filter(|a| {
+                            if let ActivityItem::Transfer { action, .. } = a {
+                                action.as_str() == "Cancelled"
+                            } else {
+                                false
+                            }
+                        })
+                        .count()
+            });
+            ticket_activity_items.retain(|_, ai| ai.len() > 0);
+            if ticket_activity_items.len() > 0 {
+                result.push(UserTransferActivitySummary {
+                    ticket_activity_items,
+                    event: event.for_display(conn)?,
+                });
+            }
+        }
+
+        let mut payload = Payload::new(result, Paging::new(page, limit));
+
+        payload.paging.total = total as u64;
+        payload.paging.dir = sort_direction;
+        Ok(payload)
     }
 
     pub fn activity(

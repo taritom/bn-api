@@ -17,6 +17,89 @@ use support::database::TestDatabase;
 use support::test_request::TestRequest;
 use uuid::Uuid;
 
+pub fn export_event_data(
+    role: Roles,
+    should_test_succeed: bool,
+    past_or_upcoming: Option<PastOrUpcoming>,
+) {
+    let database = TestDatabase::new();
+
+    let organization = database.create_organization().finish();
+    let event = database
+        .create_event()
+        .with_name("NewEvent".to_string())
+        .with_event_start(
+            NaiveDateTime::parse_from_str("2014-03-04 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_event_end(
+            NaiveDateTime::parse_from_str("2014-03-05 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_organization(&organization)
+        .finish();
+    let event2 = database
+        .create_event()
+        .with_name("NewEvent2".to_string())
+        .with_event_start(
+            NaiveDateTime::parse_from_str("2059-03-02 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_event_end(
+            NaiveDateTime::parse_from_str("2059-03-03 12:00:00.000", "%Y-%m-%d %H:%M:%S%.f")
+                .unwrap(),
+        )
+        .with_organization(&organization)
+        .finish();
+
+    let user = database.create_user().finish();
+    let auth_user =
+        support::create_auth_user_from_user(&user, role, Some(&organization), &database);
+
+    let expected_events = if past_or_upcoming.is_none() {
+        vec![event.id, event2.id]
+    } else if past_or_upcoming == Some(PastOrUpcoming::Upcoming) {
+        vec![event2.id]
+    } else {
+        vec![event.id]
+    };
+
+    let test_request = TestRequest::create();
+    let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
+    path.id = organization.id;
+    let uri = match past_or_upcoming {
+        Some(past_or_upcoming) => format!("/?past_or_upcoming={}", past_or_upcoming),
+        None => "/".to_string(),
+    };
+    let test_request = TestRequest::create_with_uri(&uri);
+    let query_parameters = Query::<PagingParameters>::extract(&test_request.request).unwrap();
+    let response = events::export_event_data((
+        database.connection.into(),
+        path,
+        query_parameters,
+        auth_user,
+    ));
+
+    if should_test_succeed {
+        let response = response.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            expected_events,
+            response
+                .payload()
+                .data
+                .iter()
+                .map(|i| i.id)
+                .collect::<Vec<Uuid>>()
+        );
+    } else {
+        assert_eq!(
+            response.err().unwrap().to_string(),
+            "User does not have the required permissions"
+        );
+    }
+}
+
 pub fn create(role: Roles, should_test_succeed: bool) {
     let database = TestDatabase::new();
     let user = database.create_user().finish();
@@ -847,6 +930,7 @@ pub fn expected_show_json(
         status: EventStatus,
         publish_date: Option<NaiveDateTime>,
         promo_image_url: Option<String>,
+        original_promo_image_url: Option<String>,
         cover_image_url: Option<String>,
         additional_info: Option<String>,
         top_line_info: Option<String>,
@@ -945,7 +1029,8 @@ pub fn expected_show_json(
         fee_in_cents: Some(fee_in_cents),
         status: event.status,
         publish_date: event.publish_date,
-        promo_image_url: event.promo_image_url,
+        promo_image_url: event.promo_image_url.clone(),
+        original_promo_image_url: event.promo_image_url,
         cover_image_url: event.cover_image_url,
         additional_info: event.additional_info,
         top_line_info: event.top_line_info,

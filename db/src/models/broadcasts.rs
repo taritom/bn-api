@@ -22,6 +22,8 @@ pub struct NewBroadcast {
     pub send_at: Option<NaiveDateTime>,
     pub status: BroadcastStatus,
     pub progress: i32,
+    pub sent_quantity: i64,
+    pub opened_quantity: i64,
 }
 
 #[derive(Queryable, Identifiable, Insertable, Serialize, Deserialize, PartialEq, Debug)]
@@ -38,6 +40,8 @@ pub struct Broadcast {
     pub progress: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub sent_quantity: i64,
+    pub opened_quantity: i64,
 }
 
 #[derive(AsChangeset, Default, Deserialize)]
@@ -76,7 +80,38 @@ impl Broadcast {
             send_at,
             status: status.unwrap_or(BroadcastStatus::Pending),
             progress: 0,
+            sent_quantity: 0,
+            opened_quantity: 0,
         }
+    }
+
+    pub fn increment_open_count(
+        id: Uuid,
+        connection: &PgConnection,
+    ) -> Result<Broadcast, DatabaseError> {
+        let broadcast = Broadcast::find(id, connection)?;
+        diesel::update(&broadcast)
+            .set(broadcasts::dsl::opened_quantity.eq(broadcast.opened_quantity + 1))
+            .get_result(connection)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Unable to update open count on broadcast",
+            )
+    }
+
+    pub fn set_sent_count(
+        id: Uuid,
+        count: i64,
+        connection: &PgConnection,
+    ) -> Result<Broadcast, DatabaseError> {
+        let broadcast = Broadcast::find(id, connection)?;
+        diesel::update(&broadcast)
+            .set(broadcasts::dsl::sent_quantity.eq(count))
+            .get_result(connection)
+            .to_db_error(
+                ErrorCode::UpdateError,
+                "Unable to update sent count on broadcast",
+            )
     }
 
     pub fn find(id: Uuid, connection: &PgConnection) -> Result<Broadcast, DatabaseError> {

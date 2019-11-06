@@ -71,6 +71,7 @@ pub fn index(role: Roles, should_succeed: bool) {
 
     let response = settlements::index((
         database.connection.clone().into(),
+        test_request.extract_state(),
         query_parameters,
         path,
         auth_user,
@@ -111,8 +112,13 @@ pub fn show(role: Roles, should_succeed: bool) {
     let test_request = TestRequest::create();
     let mut path = Path::<PathParameters>::extract(&test_request.request).unwrap();
     path.id = settlement.id;
-    let response: HttpResponse =
-        settlements::show((database.connection.clone().into(), path, auth_user)).into();
+    let response: HttpResponse = settlements::show((
+        database.connection.clone().into(),
+        test_request.extract_state(),
+        path,
+        auth_user,
+    ))
+    .into();
     if !should_succeed {
         support::expects_unauthorized(&response);
         return;

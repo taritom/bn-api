@@ -45,7 +45,7 @@ pub struct UserActivityItem {
     pub last_name: Option<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum ActivityItem {
     Purchase {
@@ -124,6 +124,7 @@ impl ActivityItem {
                 None,
                 Some(event_id),
                 Some(user_id),
+                false,
                 conn,
             )?);
         }
@@ -172,6 +173,7 @@ impl ActivityItem {
             Some(order.id),
             None,
             None,
+            false,
             conn,
         )?);
         activity_items.append(&mut ActivityItem::load_check_ins(
@@ -375,10 +377,11 @@ impl ActivityItem {
         Ok(order_activities.into_iter().map(|(_, v)| v).collect())
     }
 
-    fn load_transfers(
+    pub(crate) fn load_transfers(
         order_id: Option<Uuid>,
         event_id: Option<Uuid>,
         user_id: Option<Uuid>,
+        only_source_user: bool,
         conn: &PgConnection,
     ) -> Result<Vec<ActivityItem>, DatabaseError> {
         use schema::*;
@@ -446,18 +449,23 @@ impl ActivityItem {
             .into_boxed();
 
         if let (Some(event_id), Some(user_id)) = (event_id, user_id) {
-            query = query.filter(ticket_types::event_id.eq(event_id)).filter(
-                transfers::source_user_id
-                    .eq(user_id)
-                    .or(transfers::destination_user_id.eq(user_id).and(
+            query = query.filter(ticket_types::event_id.eq(event_id));
+
+            if only_source_user {
+                query = query.filter(transfers::source_user_id.eq(user_id));
+            } else {
+                query = query.filter(transfers::source_user_id.eq(user_id).or(
+                    transfers::destination_user_id.eq(user_id).and(
                         domain_events::event_type.eq(DomainEventTypes::TransferTicketCompleted),
-                    )),
-            );
+                    ),
+                ));
+            }
         } else if let Some(order_id) = order_id {
             query = query.filter(orders::id.eq(order_id));
         }
 
         let transfer_data: Vec<R> = query
+            .order_by(domain_events::created_at.desc())
             .group_by((
                 transfers::id,
                 transfers::status,

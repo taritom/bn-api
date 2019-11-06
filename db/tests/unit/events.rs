@@ -1,11 +1,15 @@
 use bigneon_db::dev::TestProject;
 use bigneon_db::models::*;
+use bigneon_db::schema::{orders, refunds};
 use bigneon_db::services::CountryLookup;
 use bigneon_db::utils::dates;
 use bigneon_db::utils::errors::DatabaseError;
 use bigneon_db::utils::errors::ErrorCode::ValidationError;
 use chrono::prelude::*;
 use chrono::Duration;
+use diesel;
+use diesel::prelude::*;
+use diesel::query_dsl::RunQueryDsl;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -233,9 +237,10 @@ fn slug() {
 }
 
 #[test]
-fn get_all_events_with_sales_between() {
+fn get_all_events_with_transactions_between() {
     let project = TestProject::new();
     let connection = project.get_connection();
+    let user = project.create_user().finish();
     let organization = project.create_organization().finish();
     let organization2 = project.create_organization().finish();
     let organization_event = project
@@ -244,6 +249,11 @@ fn get_all_events_with_sales_between() {
         .with_organization(&organization)
         .finish();
     let organization_event2 = project
+        .create_event()
+        .with_ticket_pricing()
+        .with_organization(&organization)
+        .finish();
+    let organization_event3 = project
         .create_event()
         .with_ticket_pricing()
         .with_organization(&organization)
@@ -272,8 +282,52 @@ fn get_all_events_with_sales_between() {
             .finish();
     }
 
+    // Order with two refunds
+    let mut order = project
+        .create_order()
+        .for_event(&organization_event3)
+        .quantity(2)
+        .for_user(&user)
+        .is_paid()
+        .finish();
+    diesel::update(orders::table.filter(orders::id.eq(order.id)))
+        .set(orders::paid_at.eq(Utc::now().naive_utc() + Duration::days(-6)))
+        .execute(connection)
+        .unwrap();
+    let ticket_type = &organization_event3
+        .ticket_types(true, None, connection)
+        .unwrap()[0];
+    let items = order.items(&connection).unwrap();
+    let order_item = items
+        .iter()
+        .find(|i| i.ticket_type_id == Some(ticket_type.id))
+        .unwrap();
+    let tickets = TicketInstance::find_for_order_item(order_item.id, connection).unwrap();
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(tickets[0].id),
+    }];
+    let (refund, _) = order
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
+    diesel::update(refunds::table.filter(refunds::id.eq(refund.id)))
+        .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(6)))
+        .execute(connection)
+        .unwrap();
+    let refund_items = vec![RefundItemRequest {
+        order_item_id: order_item.id,
+        ticket_instance_id: Some(tickets[1].id),
+    }];
+    let (refund2, _) = order
+        .refund(&refund_items, user.id, None, connection)
+        .unwrap();
+    diesel::update(refunds::table.filter(refunds::id.eq(refund2.id)))
+        .set(refunds::created_at.eq(Utc::now().naive_utc() + Duration::days(8)))
+        .execute(connection)
+        .unwrap();
+
     // Organization events with sales
-    let found_events = Event::get_all_events_with_sales_between(
+    let found_events = Event::get_all_events_with_transactions_between(
         organization.id,
         dates::now().add_days(-5).finish(),
         dates::now().add_days(5).finish(),
@@ -285,8 +339,59 @@ fn get_all_events_with_sales_between() {
         vec![organization_event.clone(), organization_event2.clone()]
     );
 
+    // Timeframe includes order so included in result set
+    let found_events = Event::get_all_events_with_transactions_between(
+        organization.id,
+        dates::now().add_days(-7).finish(),
+        dates::now().add_days(5).finish(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        found_events,
+        vec![
+            organization_event.clone(),
+            organization_event2.clone(),
+            organization_event3.clone()
+        ]
+    );
+
+    // Timeframe includes refund so included in result set
+    let found_events = Event::get_all_events_with_transactions_between(
+        organization.id,
+        dates::now().add_days(-5).finish(),
+        dates::now().add_days(7).finish(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        found_events,
+        vec![
+            organization_event.clone(),
+            organization_event2.clone(),
+            organization_event3.clone()
+        ]
+    );
+
+    // Timeframe includes both order and refunds, only one event returned in data
+    let found_events = Event::get_all_events_with_transactions_between(
+        organization.id,
+        dates::now().add_days(-7).finish(),
+        dates::now().add_days(9).finish(),
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        found_events,
+        vec![
+            organization_event.clone(),
+            organization_event2.clone(),
+            organization_event3.clone()
+        ]
+    );
+
     // Other organization
-    let found_events = Event::get_all_events_with_sales_between(
+    let found_events = Event::get_all_events_with_transactions_between(
         organization2.id,
         dates::now().add_days(-5).finish(),
         dates::now().add_days(5).finish(),
@@ -296,7 +401,7 @@ fn get_all_events_with_sales_between() {
     assert_eq!(found_events, vec![other_organization_event.clone()]);
 
     // Outside of window for sale
-    let found_events = Event::get_all_events_with_sales_between(
+    let found_events = Event::get_all_events_with_transactions_between(
         organization.id,
         dates::now().add_days(-5).finish(),
         dates::now().add_days(-4).finish(),
@@ -2423,8 +2528,9 @@ fn find_all_events_for_organization() {
     // Past events
     let events = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Past,
+        Some(PastOrUpcoming::Past),
         None,
+        false,
         0,
         100,
         connection,
@@ -2436,8 +2542,9 @@ fn find_all_events_for_organization() {
     // Upcoming (current, future) events
     let events = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Upcoming,
+        Some(PastOrUpcoming::Upcoming),
         None,
+        false,
         0,
         100,
         connection,
@@ -2451,6 +2558,27 @@ fn find_all_events_for_organization() {
         ]
     );
     assert_eq!(events.paging.total, 2);
+
+    // No filter on past or upcoming returns all events
+    let events = Event::find_all_events_for_organization(
+        organization.id,
+        None,
+        None,
+        false,
+        0,
+        100,
+        connection,
+    )
+    .unwrap();
+    assert_eq!(
+        events.data,
+        vec![
+            past_event.summary(connection).unwrap(),
+            current_event.summary(connection).unwrap(),
+            future_event.summary(connection).unwrap()
+        ]
+    );
+    assert_eq!(events.paging.total, 3);
 }
 
 #[test]
@@ -4069,11 +4197,12 @@ fn find_for_organization() {
 
     let all_events = vec![event2.id, event.id];
 
-    //find all events via organisation
+    //find all events via organization
     let found_event_via_organizations = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Past,
+        Some(PastOrUpcoming::Past),
         None,
+        false,
         0,
         100,
         project.get_connection(),
@@ -4091,8 +4220,9 @@ fn find_for_organization() {
     // Restrict to just a subset of events
     let found_event_via_organizations = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Past,
+        Some(PastOrUpcoming::Past),
         Some(vec![event.id]),
+        false,
         0,
         100,
         project.get_connection(),
@@ -4110,8 +4240,9 @@ fn find_for_organization() {
     // Returning both events
     let found_event_via_organizations = Event::find_all_events_for_organization(
         organization.id,
-        PastOrUpcoming::Past,
+        Some(PastOrUpcoming::Past),
         Some(vec![event.id, event2.id]),
+        false,
         0,
         100,
         project.get_connection(),

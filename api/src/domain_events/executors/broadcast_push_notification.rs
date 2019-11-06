@@ -6,6 +6,7 @@ use errors::*;
 use futures::future;
 use itertools::Itertools;
 use log::Level::Error;
+use validator::HasLen;
 
 pub struct BroadcastPushNotificationExecutor {}
 
@@ -54,6 +55,8 @@ impl BroadcastPushNotificationExecutor {
             }
         };
 
+        Broadcast::set_sent_count(broadcast_id, audience.length() as i64, conn.get())?;
+
         for user in audience {
             let tokens = user
                 .push_notification_tokens(conn.get())?
@@ -75,7 +78,15 @@ impl BroadcastPushNotificationExecutor {
                         None,
                         None,
                         Some(vec!["broadcast"]),
-                        None,
+                        Some(
+                            [
+                                ("broadcast_id".to_string(), broadcast.id.to_string()),
+                                ("event_id".to_string(), broadcast.event_id.to_string()),
+                            ]
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        ),
                     ))?,
                     Some(Tables::Events),
                     Some(action_data.event_id),
