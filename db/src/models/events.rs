@@ -68,6 +68,7 @@ pub struct Event {
     pub deleted_at: Option<NaiveDateTime>,
     pub extra_admin_data: Option<Value>,
     pub slug_id: Option<Uuid>,
+    pub facebook_event_id: Option<String>,
 }
 
 impl PartialOrd for Event {
@@ -116,10 +117,11 @@ pub struct NewEvent {
     pub event_type: EventTypes,
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub private_access_code: Option<String>,
-
     #[serde(default, deserialize_with = "deserialize_unless_blank")]
     pub facebook_pixel_key: Option<String>,
     pub extra_admin_data: Option<Value>,
+    #[serde(default, deserialize_with = "deserialize_unless_blank")]
+    pub facebook_event_id: Option<String>,
 }
 
 impl NewEvent {
@@ -235,6 +237,8 @@ pub struct EventEditableAttributes {
     pub event_type: Option<EventTypes>,
     #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
     pub facebook_pixel_key: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option_deserialize_unless_blank")]
+    pub facebook_event_id: Option<Option<String>>,
 }
 
 #[derive(Debug, Default, PartialEq, Serialize)]

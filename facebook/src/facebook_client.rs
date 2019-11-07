@@ -13,12 +13,51 @@ pub struct FacebookClient {
 }
 
 const BASE_URL: &str = "https://graph.facebook.com";
+const API_VERSION: &str = "v5.0";
 
 impl FacebookClient {
-    pub fn from_access_token(access_token: String) -> FacebookClient {
+    pub fn from_page_access_token(access_token: String) -> FacebookClient {
         let inner = FacebookClientInner {
             base_url: BASE_URL,
-            app_access_token: access_token,
+            app_access_token: None,
+            page_access_token: Some(access_token),
+            user_access_token: None,
+        };
+
+        let inner = Rc::new(inner);
+
+        FacebookClient {
+            inner_client: inner.clone(),
+            official_events: OfficialEventsEndpoint { client: inner.clone() },
+            me: MeEndpoint::new(inner.clone()),
+            permissions: PermissionsEndpoint { client: inner.clone() },
+        }
+    }
+
+    pub fn from_app_access_token(app_id: &str, app_secret: &str) -> Result<FacebookClient, FacebookError> {
+        let inner = FacebookClientInner {
+            base_url: BASE_URL,
+            app_access_token: Some(FacebookClient::get_app_access_token(app_id, app_secret)?.access_token),
+            page_access_token: None,
+            user_access_token: None,
+        };
+
+        let inner = Rc::new(inner);
+
+        Ok(FacebookClient {
+            inner_client: inner.clone(),
+            official_events: OfficialEventsEndpoint { client: inner.clone() },
+            me: MeEndpoint::new(inner.clone()),
+            permissions: PermissionsEndpoint { client: inner.clone() },
+        })
+    }
+
+    pub fn from_user_access_token(access_token: String) -> FacebookClient {
+        let inner = FacebookClientInner {
+            base_url: BASE_URL,
+            app_access_token: None,
+            page_access_token: None,
+            user_access_token: Some(access_token),
         };
 
         let inner = Rc::new(inner);
@@ -52,24 +91,15 @@ impl FacebookClient {
             .append_pair("state", state)
             .append_pair("scope", &scope)
             .finish();
-        format!("https://www.facebook.com/v3.2/dialog/oauth?{}", result)
+        format!("https://www.facebook.com/{}/dialog/oauth?{}", API_VERSION, result)
     }
 
-    pub fn get_access_token(
-        app_id: &str,
-        app_secret: &str,
-        redirect_uri: Option<&str>,
-        code: &str,
-    ) -> Result<AccessToken, FacebookError> {
+    pub fn get_app_access_token(app_id: &str, app_secret: &str) -> Result<AccessToken, FacebookError> {
         let client = reqwest::Client::new();
         let mut resp = client
             .get(&format!(
-                "{}/v3.2/oauth/access_token?client_id={}&redirect_uri={}&client_secret={}&code={}",
-                BASE_URL,
-                app_id,
-                redirect_uri.unwrap_or("https://www.facebook.com/connect/login_success.html"),
-                app_secret,
-                code
+                "{}/{}/oauth/access_token?client_id={}&client_secret={}&grant_type=client_credentials",
+                BASE_URL, API_VERSION, app_id, app_secret,
             ))
             .send()?;
         //        let status = resp.status();
@@ -82,5 +112,7 @@ impl FacebookClient {
 
 pub struct FacebookClientInner {
     pub base_url: &'static str,
-    pub app_access_token: String,
+    pub app_access_token: Option<String>,
+    pub page_access_token: Option<String>,
+    pub user_access_token: Option<String>,
 }

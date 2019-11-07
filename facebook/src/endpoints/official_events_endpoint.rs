@@ -13,49 +13,25 @@ pub struct OfficialEventsEndpoint {
 
 impl OfficialEventsEndpoint {
     pub fn create(&self, event: Event) -> Result<FBID, FacebookError> {
+        if self.client.app_access_token.is_none() {
+            return Err(FacebookError::Unauthorized);
+        }
+
         let request = FacebookRequest {
-            access_token: &self.client.app_access_token,
+            access_token: self.client.app_access_token.as_ref().unwrap(),
             data: event,
         };
 
         let client = reqwest::Client::new();
 
-        println!("{}", json!(&request));
-
         jlog!(Info, "Sending request to Facebook", { "request": &request });
 
-        // Example json to use at https://developers.facebook.com/tools/explorer
-        /*
-        {
-            "category": "WORKSHOP",
-            "name": "Test",
-            "description": "Test",
-            "cover": {
-                "source": "https://source.unsplash.com/random"
-            },
-            "place_id":
-
-                "1078236045577061",
-            "timezone": "UTC",
-            "start_time": "1 Jan 2021"
-        }
-        */
         let mut resp = client
             .post(&format!("{}/v5.0/official_events", &self.client.base_url))
             .json(&request)
             .send()?;
-        //        let status = resp.status();
-        //        if status != StatusCode::UNPROCESSABLE_ENTITY && status != StatusCode::OK {
-        //            return Err(resp.error_for_status().err().map(|e| e.into()).unwrap_or(
-        //                GlobeeError::UnexpectedResponseError(format!(
-        //                    "Unexpected status code from Globee: {}",
-        //                    status
-        //                )),
-        //            ));
-        //        };
 
         let value: serde_json::Value = resp.json()?;
-        println!("{:?}", value);
 
         jlog!(Info, "Response from Facebook", { "response": &value });
 
