@@ -900,28 +900,6 @@ impl Event {
             .to_db_error(ErrorCode::QueryError, "Could not retrieve events")
     }
 
-    pub fn count_report(
-        self,
-        start: Option<NaiveDateTime>,
-        end: Option<NaiveDateTime>,
-        group_by_ticket_type: bool,
-        group_by_ticket_pricing: bool,
-        group_by_hold: bool,
-        group_by_event: bool,
-        conn: &PgConnection,
-    ) -> Result<TicketSalesAndCounts, DatabaseError> {
-        Report::ticket_sales_and_counts(
-            Some(self.id),
-            Some(self.organization_id),
-            start,
-            end,
-            group_by_ticket_type,
-            group_by_ticket_pricing,
-            group_by_hold,
-            group_by_event,
-            conn,
-        )
-    }
     /**
      * Returns the localized_times formatted to rfc2822
      */
