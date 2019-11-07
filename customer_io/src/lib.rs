@@ -123,7 +123,7 @@ mod test {
     #[test]
     fn create_anonymous_event() {
         let client = CustomerIoClient::new(
-            "00b2b4c04c75c464136a".to_string(),
+            "x".to_string(),
             "x".to_string(),
             "https://track.customer.io/api/v1/",
         )
