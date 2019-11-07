@@ -13,6 +13,7 @@ pub struct Event {
     pub start_time: String,
     pub ticket_uri: Option<String>,
     pub address: Option<String>,
+    pub admins: Vec<String>,
 }
 
 pub enum EventRole {}
@@ -36,6 +37,7 @@ impl Event {
             start_time,
             ticket_uri: None,
             address: None,
+            admins: Vec::new(),
         }
     }
 }
